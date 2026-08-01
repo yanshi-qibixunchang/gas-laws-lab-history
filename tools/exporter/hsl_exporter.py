@@ -13,6 +13,7 @@ import json
 import math
 import os
 import platform
+import re
 import shutil
 import sys
 from datetime import datetime, timezone
@@ -801,7 +802,7 @@ HEAT_CAPACITY_COPY = {
         "group_axis": "实验组",
         "groups": "组",
         "parameter": "参数",
-        "value": "数值",
+        "value": "内容",
         "metric": "统计量",
         "number": "次序",
         "item": "评分项",
@@ -845,7 +846,7 @@ HEAT_CAPACITY_COPY = {
         "group_axis": "實驗組",
         "groups": "組",
         "parameter": "參數",
-        "value": "數值",
+        "value": "內容",
         "metric": "統計量",
         "number": "次序",
         "item": "評分項",
@@ -889,7 +890,7 @@ HEAT_CAPACITY_COPY = {
         "group_axis": "Experiment group",
         "groups": "groups",
         "parameter": "Parameter",
-        "value": "Value",
+        "value": "Content",
         "metric": "Metric",
         "number": "No.",
         "item": "Item",
@@ -1866,6 +1867,11 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
         alignment=TA_LEFT,
         textColor=colors.black,
     )
+    table_numeric_style = ParagraphStyle(
+        "HeatTableNumeric",
+        parent=table_body_style,
+        alignment=TA_CENTER,
+    )
     table_header_style = ParagraphStyle(
         "HeatTableHeader",
         parent=table_body_style,
@@ -1965,6 +1971,51 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
     def paragraph(value: Any, style: Any, *, bold: bool = False) -> Any:
         return Paragraph(mixed_markup(value, bold=bold), style)
 
+    def is_numeric_table_value(value: Any) -> bool:
+        text = format_heat_value(value).strip()
+        if text == "-":
+            return True
+        return bool(re.fullmatch(r"[\d\s.,:eE+/%\-−±]+", text)) and any(
+            character.isdigit()
+            for character in text
+        )
+
+    always_centered_headers = {
+        copy[key]
+        for key in ("group_axis", "group_type", "number", "status", "value")
+        if key in copy
+    }
+
+    def centered_text_column_indices(headers: list[str], rows: list[list[Any]]) -> set[int]:
+        centered_columns = {
+            column_index
+            for column_index, header in enumerate(headers)
+            if format_heat_value(header).strip() in always_centered_headers
+        }
+        column_count = max((len(row) for row in rows), default=0)
+        for column_index in range(column_count):
+            values = [
+                format_heat_value(row[column_index]).strip()
+                for row in rows
+                if column_index < len(row)
+            ]
+            if len(values) < 2 or any(
+                not value or is_numeric_table_value(value)
+                for value in values
+            ):
+                continue
+            display_lengths = {
+                len(re.sub(r"\s+", "", value))
+                for value in values
+            }
+            if len(display_lengths) == 1:
+                centered_columns.add(column_index)
+        return centered_columns
+
+    def table_body_paragraph(value: Any, *, center_text: bool = False) -> Any:
+        style = table_numeric_style if center_text or is_numeric_table_value(value) else table_body_style
+        return paragraph(value, style)
+
     def make_three_line_table(
         headers: list[str],
         rows: list[list[Any]],
@@ -1973,8 +2024,12 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
         compact: bool = False,
     ) -> Any:
         table_data = [[paragraph(value, table_header_style, bold=True) for value in headers]]
+        centered_text_columns = centered_text_column_indices(headers, rows)
         for row in rows:
-            table_data.append([paragraph(value, table_body_style) for value in row])
+            table_data.append([
+                table_body_paragraph(value, center_text=column_index in centered_text_columns)
+                for column_index, value in enumerate(row)
+            ])
         table = Table(table_data, colWidths=widths, repeatRows=1, hAlign="LEFT")
         padding = 2.6 if compact else 3.4
         table.setStyle(TableStyle([
@@ -2026,12 +2081,16 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
         compact: bool,
     ) -> Any:
         column_count = len(headers)
+        centered_text_columns = centered_text_column_indices(headers, rows)
         table_data = [
             [make_table_caption(number, title)] + [""] * (column_count - 1),
             [paragraph(value, table_header_style, bold=True) for value in headers],
         ]
         table_data.extend([
-            [paragraph(value, table_body_style) for value in row]
+            [
+                table_body_paragraph(value, center_text=column_index in centered_text_columns)
+                for column_index, value in enumerate(row)
+            ]
             for row in rows
         ])
         table = ContinuedCaptionTable(
@@ -2245,7 +2304,7 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
             copy["group_score"],
         ],
         overview_rows,
-        [23 * mm, 13 * mm, 24 * mm, 24 * mm, 16 * mm, 18 * mm, 18 * mm, 18 * mm, 16 * mm],
+        [25 * mm, 13 * mm, 21 * mm, 21 * mm, 17 * mm, 19 * mm, 20 * mm, 18 * mm, 16 * mm],
         compact=True,
         max_rows_per_table=10,
         space_after=0,

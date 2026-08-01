@@ -47,7 +47,13 @@ assert.match(heatReportSource, /ContinuedCaptionTable/, 'long academic tables sh
 assert.match(heatReportSource, /theory_comparison[\s\S]*subsection_number \+= 1[\s\S]*result_figure/, 'ideal-group figures should have their own numbered subsection');
 assert.match(heatReportSource, /result_figure_heading[\s\S]*KeepTogether\(\[\s*result_figure_heading,[\s\S]*\*make_figure_parts/, 'result-figure headings should stay with their figures instead of being orphaned at a page bottom');
 assert.match(heatReportSource, /\("ALIGN", \(0, 0\), \(-1, 0\), "CENTER"\)/, 'table headers should be centered');
-assert.match(heatReportSource, /\("ALIGN", \(0, 1\), \(-1, -1\), "LEFT"\)/, 'all table body cells should be left-aligned');
+assert.match(heatReportSource, /table_numeric_style = ParagraphStyle\([\s\S]*alignment=TA_CENTER/, 'numeric table cells should use a centered paragraph style');
+assert.match(heatReportSource, /def is_numeric_table_value[\s\S]*re\.fullmatch[\s\S]*def table_body_paragraph[\s\S]*table_numeric_style if center_text or is_numeric_table_value/, 'table cells should select centered alignment for numeric-like values or inferred uniform text columns');
+assert.match(exporterSource, /"value": "内容"/, 'the basic-information value column should be labeled as content rather than numeric value');
+assert.match(heatReportSource, /always_centered_headers = [\s\S]*"group_axis"[\s\S]*"group_type"[\s\S]*"number"[\s\S]*"status"[\s\S]*"value"/, 'short categorical columns and the basic-information content column should always be centered');
+assert.match(heatReportSource, /def centered_text_column_indices\(headers[\s\S]*always_centered_headers[\s\S]*len\(values\) < 2[\s\S]*display_lengths[\s\S]*len\(display_lengths\) == 1[\s\S]*centered_columns\.add/, 'uniform-length text columns should also be centered when at least two body rows establish the pattern');
+assert.match(heatReportSource, /centered_text_columns = centered_text_column_indices\(headers, rows\)[\s\S]*center_text=column_index in centered_text_columns/, 'table builders should apply categorical and inferred text-column centering to body cells');
+assert.match(heatReportSource, /\[25 \* mm, 13 \* mm, 21 \* mm, 21 \* mm, 17 \* mm, 19 \* mm, 20 \* mm, 18 \* mm, 16 \* mm\]/, 'group overview should keep group names and statuses balanced while preserving single-line headers');
 assert.match(exporterSource, /\("LINEABOVE"[\s\S]*?\("LINEBELOW"/, 'academic tables should use three-line rules');
 assert.match(exporterSource, /normalize_heat_symbol/, 'scientific symbols should avoid unsupported Unicode subscript glyphs');
 assert.match(exporterSource, /include_process=include_public_figures/, 'public figure exports should include available per-experiment process charts');

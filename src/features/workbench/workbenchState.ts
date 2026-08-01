@@ -6621,6 +6621,75 @@ export const resetHeatCapacityFreeRunWorkbenchState = (
   );
 };
 
+const discardCurrentHeatCapacityFreeExperimentRuntime = (
+  file: WorkbenchHeatCapacityState,
+): WorkbenchHeatCapacityState => {
+  const lastTrial = file.heatCapacityFreeTrials[file.heatCapacityFreeTrials.length - 1] ?? null;
+  const shouldDiscardLastTrial = lastTrial?.completedAtMs === null;
+  const traceTrialIds = new Set(
+    [
+      shouldDiscardLastTrial ? lastTrial?.traceTrialId ?? null : null,
+      file.heatCapacityFreeTraceStore.activeTraceTrialId,
+    ].filter((id): id is string => typeof id === 'string'),
+  );
+  let traceStore = file.heatCapacityFreeTraceStore;
+  for (const traceTrialId of traceTrialIds) {
+    traceStore = removeHeatCapacityFreeTraceTrialFromStore(traceStore, traceTrialId);
+  }
+  return {
+    ...file,
+    heatCapacityFreeTrials: shouldDiscardLastTrial
+      ? file.heatCapacityFreeTrials.slice(0, -1)
+      : file.heatCapacityFreeTrials,
+    heatCapacityFreeTraceStore: traceStore,
+    heatCapacityFreeActiveAttempt: null,
+  };
+};
+
+const resetHeatCapacityFreeExperimentWithinCurrentGroup = (
+  file: WorkbenchHeatCapacityState,
+  now: number,
+  discardCurrentExperiment: boolean,
+): WorkbenchHeatCapacityState => {
+  if (file.heatCapacityMode !== 'free') return file;
+  const hydratedFile = loadActiveHeatCapacityFreeDomainRuntimeFields(file);
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    hydratedFile.heatCapacityFreeExperimentGroups,
+  );
+  if (currentGroup?.status !== 'collecting') return file;
+
+  const scheme = hydratedFile.heatCapacityFreeParameterScheme;
+  const batch = hydratedFile.heatCapacityFreeBatch;
+  const activeRunConfigSnapshot = batch.frozenConfigSnapshot ??
+    hydratedFile.heatCapacityFreeActiveRunConfigSnapshot;
+  const resetSourceFile = discardCurrentExperiment
+    ? discardCurrentHeatCapacityFreeExperimentRuntime(hydratedFile)
+    : hydratedFile;
+  const resetFile = resetHeatCapacityFreeRunWorkbenchStateCore(resetSourceFile, now);
+  const groups = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    hydratedFile.heatCapacityFreeExperimentGroups,
+    {
+      batch,
+      trials: resetFile.heatCapacityFreeTrials,
+      traceStore: resetFile.heatCapacityFreeTraceStore,
+    },
+  );
+  return storeActiveHeatCapacityFreeDomainRuntimeFields(
+    {
+      ...resetFile,
+      heatCapacityFreeExperimentGroups: groups,
+      heatCapacityFreeBatch: batch,
+      heatCapacityFreeExperimentGroupStatus: 'draft',
+      heatCapacityFreeActiveRunConfigSnapshot: activeRunConfigSnapshot,
+      heatCapacityFreeParameterScheme: scheme,
+      heatCapacityFreeDisplayScheme: scheme,
+      heatCapacityFreeActiveAttempt: null,
+      updatedAt: now,
+    },
+    scheme,
+  );
+};
+
 export const restartHeatCapacityFreeBatchWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
@@ -6665,28 +6734,16 @@ export const restartHeatCapacityFreeBatchWorkbenchState = (
   }, scheme);
 };
 
-export const resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState = (
+export const restartCurrentHeatCapacityFreeExperimentWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  const completedGroup = isHeatCapacityFreeExperimentGroupComplete(file);
-  const batch = file.heatCapacityFreeBatch;
-  const activeRunConfigSnapshot = batch.frozenConfigSnapshot ??
-    file.heatCapacityFreeActiveRunConfigSnapshot;
-  const resetFile = resetHeatCapacityFreeRunWorkbenchState(file, now);
-  return storeActiveHeatCapacityFreeDomainRuntimeFields(
-    {
-      ...resetFile,
-      heatCapacityFreeBatch: batch,
-      heatCapacityFreeExperimentGroupStatus: completedGroup ? 'completed' : 'draft',
-      heatCapacityFreeActiveRunConfigSnapshot: activeRunConfigSnapshot,
-    },
-    resetFile.heatCapacityFreeParameterScheme,
-  );
-};
+): WorkbenchHeatCapacityState => resetHeatCapacityFreeExperimentWithinCurrentGroup(
+  file,
+  now,
+  true,
+);
 
-export const startNextHeatCapacityFreeExperimentGroupWorkbenchState = (
+export const prepareNextHeatCapacityFreeExperimentWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
@@ -6698,23 +6755,10 @@ export const startNextHeatCapacityFreeExperimentGroupWorkbenchState = (
   ) {
     return file;
   }
-  const batch = file.heatCapacityFreeBatch;
-  const resetFile = resetHeatCapacityFreeRunWorkbenchState(file, now);
-  return storeActiveHeatCapacityFreeDomainRuntimeFields(
-    {
-      ...resetFile,
-      heatCapacityFreeBatch: batch,
-      heatCapacityFreeExperimentGroupStatus: 'draft',
-      heatCapacityFreeActiveRunConfigSnapshot: batch.frozenConfigSnapshot,
-      heatCapacityFreeParameterDraft: createHeatCapacityFreeParameterDraftFromConfigs(
-        resetFile.heatCapacityFreePhysicsConfig,
-        resetFile.heatCapacityFreeSensorConfig,
-        resetFile.heatCapacityFreeRecordConfig,
-        resetFile.heatCapacityFreePressureWarningMv,
-        resetFile.heatCapacityFreeInstrumentNoiseEnabled,
-      ),
-    },
-    resetFile.heatCapacityFreeParameterScheme,
+  return resetHeatCapacityFreeExperimentWithinCurrentGroup(
+    file,
+    now,
+    false,
   );
 };
 

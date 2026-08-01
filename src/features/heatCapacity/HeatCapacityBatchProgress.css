@@ -138,14 +138,20 @@
   color: #f8fafc;
 }
 
-.studio-heat-batch-progress-menu .studio-heat-batch-progress-restart-pending {
+.studio-heat-batch-progress-menu-separator {
+  height: 1px;
+  margin: 4px 5px;
+  background: rgba(148, 163, 184, 0.22);
+}
+
+.studio-heat-batch-progress-menu .studio-heat-batch-progress-danger {
   border-color: rgba(248, 113, 113, 0.4);
   background: rgba(127, 29, 29, 0.46);
   color: #fee2e2;
 }
 
-.studio-heat-batch-progress-menu .studio-heat-batch-progress-restart-pending:hover,
-.studio-heat-batch-progress-menu .studio-heat-batch-progress-restart-pending:focus-visible {
+.studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:hover,
+.studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:focus-visible {
   border-color: rgba(252, 165, 165, 0.62);
   background: rgba(153, 27, 27, 0.58);
   color: #fff1f2;
@@ -197,14 +203,18 @@
   color: #0f172a;
 }
 
-.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-restart-pending {
+.studio-theme-light .studio-heat-batch-progress-menu-separator {
+  background: rgba(100, 116, 139, 0.22);
+}
+
+.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-danger {
   border-color: rgba(220, 38, 38, 0.28);
   background: rgba(254, 226, 226, 0.88);
   color: #991b1b;
 }
 
-.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-restart-pending:hover,
-.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-restart-pending:focus-visible {
+.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:hover,
+.studio-theme-light .studio-heat-batch-progress-menu .studio-heat-batch-progress-danger:focus-visible {
   border-color: rgba(220, 38, 38, 0.4);
   background: rgba(254, 202, 202, 0.9);
   color: #7f1d1d;

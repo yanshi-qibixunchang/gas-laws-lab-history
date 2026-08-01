@@ -113,8 +113,8 @@ import {
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
   restartHeatCapacityFreeBatchWorkbenchState,
+  restartCurrentHeatCapacityFreeExperimentWorkbenchState,
   resetHeatCapacityFreeParametersToDefaultWorkbenchState,
-  resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState,
   selectActiveHeatCapacityWorkbenchDisplay,
   selectHeatCapacityCalculationAggregateWorkbenchState,
   selectHeatCapacityCalculationGroupWorkbenchState,
@@ -133,7 +133,7 @@ import {
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   shouldCommitHeatCapacityRealtimeTick,
   startHeatCapacityGuideWorkbenchState,
-  startNextHeatCapacityFreeExperimentGroupWorkbenchState,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
   submitHeatCapacityCalculationStepWorkbenchState,
   stepHeatCapacityWorkbenchFile,
   updateHeatCapacityCalculationDraftWorkbenchState,
@@ -2718,7 +2718,6 @@ const heatCapacityRealtimeCopies = {
         body: '放气后瓶内气体温度低于环境。关闭旋塞后，气瓶近似保持定容，气体从环境吸热回温。等待 5 min 后记录 U₂，取的是回温稳定后的压强状态；刚放气瞬间的最低读数属于快速过程，不作为最终计算读数。',
       },
     },
-    resetFreeMode: '重置自由模式',
     resetGuideMode: '重置引导模式',
     freeSpeedLabelCode: 'WAIT RATE',
     freeSpeedLabel: '等待倍速',
@@ -2794,7 +2793,6 @@ const heatCapacityRealtimeCopies = {
       u2: '自由模式已记录 U₂ 显示值。',
     },
     freeModeActiveLog: (name: string) => `${name}：自由模式已启用。`,
-    freeRunResetLog: (name: string) => `${name}：自由模式运行已重置。`,
     freeRecordRejectMessages: {
       'zero-not-ready': '请先打开电源并打开玻璃旋塞，再记录 U₀。',
       'calibration-changed': '调零状态已改变，请重新记录 U₀ 后再继续。',
@@ -2989,7 +2987,6 @@ const heatCapacityRealtimeCopies = {
         body: '放氣後瓶內氣體溫度低於環境。關閉旋塞後，氣瓶近似保持定容，氣體從環境吸熱回溫。等待 5 min 後記錄 U₂，取的是回溫穩定後的壓強狀態；剛放氣瞬間的最低讀數屬於快速過程，不作為最終計算讀數。',
       },
     },
-    resetFreeMode: '重置自由模式',
     resetGuideMode: '重置引導模式',
     freeSpeedLabelCode: 'WAIT RATE',
     freeSpeedLabel: '等待倍速',
@@ -3065,7 +3062,6 @@ const heatCapacityRealtimeCopies = {
       u2: '自由模式已記錄 U₂ 顯示值。',
     },
     freeModeActiveLog: (name: string) => `${name}：自由模式已啟用。`,
-    freeRunResetLog: (name: string) => `${name}：自由模式執行已重置。`,
     freeRecordRejectMessages: {
       'zero-not-ready': '請先打開電源並打開玻璃旋塞，再記錄 U₀。',
       'calibration-changed': '調零狀態已改變，請重新記錄 U₀ 後再繼續。',
@@ -3260,7 +3256,6 @@ const heatCapacityRealtimeCopies = {
         body: 'After release, the gas temperature in the vessel is lower than the environment. With the stopcock closed, the vessel is treated as nearly constant-volume while the gas absorbs heat and recovers. U₂ is recorded after the 5 min recovery wait; the minimum reading immediately after release belongs to the fast transient and is not used as the final calculation reading.',
       },
     },
-    resetFreeMode: 'Reset Free mode',
     resetGuideMode: 'Reset Guide mode',
     freeSpeedLabelCode: 'WAIT RATE',
     freeSpeedLabel: 'Wait speed',
@@ -3336,7 +3331,6 @@ const heatCapacityRealtimeCopies = {
       u2: 'Free Mode recorded the U₂ display value.',
     },
     freeModeActiveLog: (name: string) => `${name}: Free Mode active.`,
-    freeRunResetLog: (name: string) => `${name}: Free Mode run reset.`,
     freeRecordRejectMessages: {
       'zero-not-ready': 'Turn on power and open the glass stopcock before recording U₀.',
       'calibration-changed': 'The zeroing state changed. Record U₀ again before continuing.',
@@ -3842,7 +3836,8 @@ const getLocalizedWorkbenchEditLabel = (
 ) => {
   const exactCopies: Record<WorkbenchLanguagePreference, Record<string, string>> = {
     'zh-CN': {
-      'reset heat-capacity free run': '重置热容比自由模式运行',
+      'restart current heat-capacity experiment': '重新开始本次实验',
+      'restart heat-capacity free batch': '重新开始本组实验',
       'saved heat capacity parameters': '保存热容比参数',
       'applied heat capacity parameters': '应用热容比参数',
       'saved parameters': '保存参数',
@@ -3865,7 +3860,8 @@ const getLocalizedWorkbenchEditLabel = (
       'reset layout': '重置布局',
     },
     'zh-TW': {
-      'reset heat-capacity free run': '重設熱容比自由模式執行',
+      'restart current heat-capacity experiment': '重新開始本次實驗',
+      'restart heat-capacity free batch': '重新開始本組實驗',
       'saved heat capacity parameters': '儲存熱容比參數',
       'applied heat capacity parameters': '套用熱容比參數',
       'saved parameters': '儲存參數',
@@ -5204,7 +5200,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     initialHeatCapacityRecordSuccessTimerPlan !== null,
   );
   const [heatCapacityResetFeedbackActionId, setHeatCapacityResetFeedbackActionId] = useState<
-    'reset-guide' | 'reset-free' | null
+    'reset-guide' | null
   >(null);
   const [heatCapacityReviewSelectionByFileId] = useState<Record<string, {
     selectedTrialId: string | null;
@@ -10046,7 +10042,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       ) {
         const progress = getHeatCapacityFreeBatchProgress(nextFile);
         if (!progress.allGroupsRecorded) {
-          nextFile = startNextHeatCapacityFreeExperimentGroupWorkbenchState(nextFile, now);
+          nextFile = prepareNextHeatCapacityFreeExperimentWorkbenchState(nextFile, now);
         }
       }
       return nextFile;
@@ -10079,7 +10075,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
   };
 
-  const showHeatCapacityResetFeedback = (actionId: 'reset-guide' | 'reset-free') => {
+  const showHeatCapacityResetFeedback = (actionId: 'reset-guide') => {
     if (heatCapacityResetFeedbackTimerRef.current !== null) {
       window.clearTimeout(heatCapacityResetFeedbackTimerRef.current);
     }
@@ -10134,38 +10130,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const resetHeatCapacityFreeRun = () => {
-    if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return;
-    if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
-    const progress = getHeatCapacityFreeBatchProgress(activeFile);
-    if (progress.allGroupsRecorded) return;
-    const now = Date.now();
-    showHeatCapacityResetFeedback('reset-free');
-    resetHeatCapacityGroupUiRuntime();
-    captureUndoSnapshot('reset heat-capacity free run');
-    updateActiveFile((file) => file.kind === 'heatCapacity'
-      ? resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState(file, now)
-      : file);
-    pushLog(
-      (language) => getHeatCapacityRealtimeCopy(language).freeRunResetLog(activeFile.name),
-      'warning',
-    );
-  };
-
-  const requestHeatCapacityFreeRunReset = () => {
-    if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return;
-    if (!activeFile || activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return;
-    const progress = getHeatCapacityFreeBatchProgress(activeFile);
-    if (progress.allGroupsRecorded) return;
-    requestPromptConfirmation({
-      id: 'reset-heat-capacity-free-run',
-      tone: 'warning',
-      ...workbenchPromptCopy.resetUnfinishedFreeGroup,
-      closeLabel: workbenchPromptCopy.closeLabel,
-      onConfirm: resetHeatCapacityFreeRun,
-    });
-  };
-
   const confirmHeatCapacityFreeBatchSetup = () => {
     if (
       heatCapacityBatchSetupSelection === null ||
@@ -10201,6 +10165,83 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free') {
       exitHeatCapacityFormalModeToExplore('free');
     }
+  };
+
+  const restartHeatCapacityFreeExperiment = () => {
+    if (
+      heatCapacityModeTransitionStateRef.current.phase !== 'idle' ||
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      activeHeatCapacityCurrentGroup?.status !== 'collecting' ||
+      heatCapacityCalculationWindowOpen
+    ) return;
+    const currentExperiment = getHeatCapacityFreeBatchProgress(activeFile).currentGroupNumber;
+    if (currentExperiment === null) return;
+    const now = Date.now();
+    resetHeatCapacityGroupUiRuntime();
+    captureUndoSnapshot('restart current heat-capacity experiment');
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
+        ? restartCurrentHeatCapacityFreeExperimentWorkbenchState(file, now)
+        : file
+    ));
+    pushLog((language) => {
+      if (language === 'zh-CN') return `${activeFile.name}：已重新开始第 ${currentExperiment} 次实验。`;
+      if (language === 'zh-TW') return `${activeFile.name}：已重新開始第 ${currentExperiment} 次實驗。`;
+      return `${activeFile.name}: Restarted experiment ${currentExperiment}.`;
+    }, 'warning');
+  };
+
+  const requestRestartHeatCapacityFreeExperiment = () => {
+    if (
+      activeFile.kind !== 'heatCapacity' ||
+      activeFile.heatCapacityMode !== 'free' ||
+      activeHeatCapacityCurrentGroup?.status !== 'collecting' ||
+      heatCapacityCalculationWindowOpen
+    ) return;
+    const currentExperiment = getHeatCapacityFreeBatchProgress(activeFile).currentGroupNumber;
+    if (currentExperiment === null) return;
+    const copy = settingsLanguagePreference === 'en'
+      ? {
+          eyebrow: 'Free mode',
+          title: `Restart experiment ${currentExperiment}?`,
+          body: `Records, traces, and instrument state from experiment ${currentExperiment} will be cleared.`,
+          consequence: 'Earlier completed experiments, group parameters, and the target experiment count are preserved. This action can be undone from the Edit menu.',
+          cancel: 'Cancel',
+          confirm: `Restart experiment ${currentExperiment}`,
+          close: 'Close',
+        }
+      : settingsLanguagePreference === 'zh-TW'
+        ? {
+            eyebrow: '自由模式',
+            title: `重新開始第 ${currentExperiment} 次實驗？`,
+            body: `第 ${currentExperiment} 次實驗的記錄、曲線與儀器狀態都會清空。`,
+            consequence: '此前已完成的實驗、本組參數與實驗總次數都會保留；可透過「編輯」選單撤銷。',
+            cancel: '取消',
+            confirm: `重新開始第 ${currentExperiment} 次實驗`,
+            close: '關閉',
+          }
+        : {
+            eyebrow: '自由模式',
+            title: `重新开始第 ${currentExperiment} 次实验？`,
+            body: `第 ${currentExperiment} 次实验的记录、曲线和仪器状态都会被清空。`,
+            consequence: '此前已完成的实验、本组参数与实验总次数都会保留；可通过“编辑”菜单撤销。',
+            cancel: '取消',
+            confirm: `重新开始第 ${currentExperiment} 次实验`,
+            close: '关闭',
+          };
+    requestPromptConfirmation({
+      id: 'restart-heat-capacity-experiment',
+      tone: 'warning',
+      eyebrow: copy.eyebrow,
+      title: copy.title,
+      body: copy.body,
+      consequence: copy.consequence,
+      cancelLabel: copy.cancel,
+      confirmLabel: copy.confirm,
+      closeLabel: copy.close,
+      onConfirm: restartHeatCapacityFreeExperiment,
+    });
   };
 
   const restartHeatCapacityFreeBatch = () => {
@@ -18766,7 +18807,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       activeMode: heatCapacityActiveMode,
       autoDemoPhase,
       teachingCompleted: heatCapacityTeachingCompleted,
-      freeBatchCompleted: activeHeatCapacityFreeBatchProgress?.allGroupsRecorded === true,
     });
     const heatCapacityDemoActionsVisible = heatCapacityModeControlState.demo.actionsVisible;
     const heatCapacityGuideActionsVisible = heatCapacityModeControlState.guide.actionsVisible;
@@ -18946,20 +18986,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           </button>
         );
       }
-      return (
-        <button
-          key={action.id}
-          type="button"
-          className={heatCapacityModeActionClassName(action)}
-          data-heat-capacity-mode-action="reset-free"
-          data-prompt-tooltip={heatCapacityRealtimeCopy.resetFreeMode}
-          aria-label={heatCapacityRealtimeCopy.resetFreeMode}
-          disabled={heatCapacityModeTransitionLocked}
-          onClick={requestHeatCapacityFreeRunReset}
-        >
-          <RotateCcw size={13} strokeWidth={2.7} />
-        </button>
-      );
+      return null;
     };
 
     return (
@@ -19470,7 +19497,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   {activeHeatCapacityInvalidAttemptPrompt ? (
                     <HeatCapacityInvalidAttemptDialog
                       language={settingsLanguagePreference}
-                      onReset={resetHeatCapacityFreeRun}
+                      onReset={restartHeatCapacityFreeExperiment}
                       onContinue={continueHeatCapacityInvalidAttempt}
                     />
                   ) : null}
@@ -19878,6 +19905,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                             groupStatus={activeHeatCapacityGroupProgressStatus}
                             language={settingsLanguagePreference}
                             actionsDisabled={heatCapacityCalculationWindowOpen}
+                            onRestartExperiment={requestRestartHeatCapacityFreeExperiment}
                             onRestartGroup={requestRestartHeatCapacityFreeGroup}
                             onAbandonDraft={requestAbandonHeatCapacityFreeGroupDraft}
                             onStartNextGroup={openNextHeatCapacityFreeExperimentGroupSetup}

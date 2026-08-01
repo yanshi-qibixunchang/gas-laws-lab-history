@@ -501,7 +501,8 @@ assert.match(workbenchSource, /zh-CN[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-free-speed-control|studio-heat-free-speed-control|heatCapacityFreeEquilibriumSpeedHintShown/, 'old speed-only UI and compatibility state must be physically absent');
 assert.doesNotMatch(styleSource, /\.studio-heat-free-speed-|\.studio-heat-free-wait-/, 'old speed-only and attached timer styles must be deleted');
 assert.doesNotMatch(workbenchSource, /getLocalizedHeatCapacityFreeProcessingMessage/, 'Free Mode should not keep the removed standalone processing log helper');
-assert.match(workbenchSource, /freeModeActiveLog[\s\S]*freeRunResetLog/, 'Free Mode lifecycle console logs should use Heat Capacity localized copy');
+assert.match(workbenchSource, /freeModeActiveLog/, 'Free Mode activation logs should use Heat Capacity localized copy');
+assert.doesNotMatch(workbenchSource, /freeRunResetLog|resetFreeMode/, 'the removed ambiguous Free Mode reset copy should not remain');
 assert.doesNotMatch(workbenchSource, /heat-capacity free mode active|heat-capacity free run reset|Free Mode 已记录 U[₀₁₂] 显示值/, 'Free Mode console logs should not contain hard-coded mixed-language strings');
 assert.match(workbenchSource, /speedAriaLabel=\{heatCapacityRealtimeCopy\.freeSpeedAria\}/, 'Free wait speed radiogroup should localize its accessibility label');
 assert.match(workbenchSource, /heatCapacityRealtimeCopy\.freeSpeedLabelCode[\s\S]*heatCapacityRealtimeCopy\.freeSpeedLabel/, 'Free wait speed label should render localized copy instead of hard-coded text');
@@ -770,10 +771,10 @@ assert.doesNotMatch(processReviewPanelSource, /hpr-stage-expanded|isRelease && o
 assert.doesNotMatch(processReviewPanelSource, /hpr-stage-hit-area/, 'stage hover should not use a broad transparent hover area that covers control dots');
 assert.match(processReviewPanelSource, /className="hpr-stage-bar"[\s\S]*?onMouseEnter=\{\(\) => onStageHover\(stage\.id\)\}[\s\S]*?onMouseLeave=\{\(\) => onStageHover\(null\)\}/, 'stage hover highlight should be limited to the visible stage bar itself');
 assert.match(workbenchSource, /data-heat-capacity-free-record-controls="true"/, 'Free Mode record actions should have a stable UI marker');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-free"/, 'Free Mode should expose an icon-only reset action in the mode control');
+assert.doesNotMatch(workbenchSource, /data-heat-capacity-mode-action="reset-free"/, 'Free Mode should not expose an ambiguous icon-only reset action in the mode control');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-guide"/, 'Guide Mode should expose its own reset action in the mode control');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-free"[\s\S]*exitHeatCapacityFormalModeToExplore\('free'\)/, 'Free Mode should expose an explicit exit action that returns to Explore');
-assert.match(workbenchSource, /<HeatCapacityBatchProgress[\s\S]*onStartNextGroup=\{openNextHeatCapacityFreeExperimentGroupSetup\}/, 'a completed Free Mode group should wire the approved next-group action below the view control');
+assert.match(workbenchSource, /<HeatCapacityBatchProgress[\s\S]*onRestartExperiment=\{requestRestartHeatCapacityFreeExperiment\}[\s\S]*onRestartGroup=\{requestRestartHeatCapacityFreeGroup\}[\s\S]*onStartNextGroup=\{openNextHeatCapacityFreeExperimentGroupSetup\}/, 'the progress control should own both scoped restart actions and the approved next-group action');
 assert.match(
   workbenchSource,
   /heatCapacityRealtimeCopy\.trialBadge\([\s\S]*activeHeatCapacityFreeBatchProgress\?\.currentGroupNumber[\s\S]*Math\.max\(1, getActiveHeatCapacityFreeTrialIndex\(activeFile\) \+ 1\)/,
@@ -781,26 +782,27 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const updateHeatCapacityPower[\s\S]*startNextHeatCapacityFreeExperimentGroupWorkbenchState\(nextFile, now\)/,
+  /const updateHeatCapacityPower[\s\S]*prepareNextHeatCapacityFreeExperimentWorkbenchState\(nextFile, now\)/,
   'powering off a completed non-final experiment should initialize the next experiment in the current group automatically',
 );
-assert.match(workbenchSource, /resetHeatCapacityFreeRun/, 'Free Mode reset action should use an explicit handler instead of piggybacking on mode entry');
-assert.match(workbenchSource, /resetCurrentHeatCapacityFreeExperimentGroupWorkbenchState\(file, now\)/, 'Free Mode reset should reset only the current group and preserve completed results');
+assert.match(workbenchSource, /const restartHeatCapacityFreeExperiment = \(\) => \{[\s\S]*restartCurrentHeatCapacityFreeExperimentWorkbenchState\(file, now\)/, 'the current-experiment action should clear only the active experiment through its scoped state transition');
+assert.match(workbenchSource, /const restartHeatCapacityFreeBatch = \(\) => \{[\s\S]*restartHeatCapacityFreeBatchWorkbenchState\(file, now\)/, 'the whole-group action should use the separate group restart transition');
 assert.match(
   workbenchSource,
   /interactionLocked=\{[\s\S]*activeHeatCapacityCurrentGroup === null[\s\S]*activeHeatCapacityCurrentGroup\.status !== 'draft'[\s\S]*activeHeatCapacityCurrentGroup\.status !== 'collecting'/,
   'the instrument should become read-only while a group awaits processing or after that group is completed',
 );
-assert.match(workbenchSource, /resetHeatCapacityFreeRun[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\)/, 'Free Mode reset should return the 3D preview camera to its default view');
+assert.match(workbenchSource, /const restartHeatCapacityFreeExperiment = \(\) => \{[\s\S]*resetHeatCapacityGroupUiRuntime\(\)/, 'restarting the current experiment should return the 3D preview and transient UI to their initial state');
 assert.match(stateSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*resolveHeatCapacityFreeResetStructure\(file\)[\s\S]*powerOn:\s*false[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG[\s\S]*pumpValveOpen:\s*false[\s\S]*heatCapacityFreeTrials:\s*resetStructure\.heatCapacityFreeTrials/, 'Free Mode reset should clear the current run and return apparatus controls to their initial state without deleting completed Free groups');
 assert.match(stateSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*pressureZeroed:\s*false[\s\S]*pressureZeroKnobAngle:\s*0/, 'Free Mode reset should reset zeroing and zero-knob state');
 assert.doesNotMatch(stateSource, /heatCapacityProcessingCalculated|heatCapacityProcessingResult/, 'Heat Capacity state should not keep legacy standalone processing result flags');
-assert.match(workbenchSource, /heatCapacityResetFeedbackActionId/, 'Guide and Free reset should share one short visual feedback state');
-assert.match(workbenchSource, /showHeatCapacityResetFeedback\('reset-guide'\)[\s\S]*showHeatCapacityResetFeedback\('reset-free'\)/, 'Guide and Free reset handlers should use the same feedback controller');
-assert.match(workbenchSource, /action\.id === heatCapacityResetFeedbackActionId[\s\S]*studio-heat-mode-action-feedback/, 'the matching Guide or Free reset button should receive the common feedback class');
-assert.match(styleSource, /\.studio-heat-mode-action-feedback \{[\s\S]*animation:\s*studio-heat-reset-feedback/, 'Free Mode reset feedback should have an explicit animation style');
-assert.match(styleSource, /\.studio-heat-mode-action-feedback svg \{[\s\S]*animation:\s*studio-heat-reset-icon-spin/, 'both reset icons should rotate during the shared feedback animation');
-assert.match(styleSource, /@keyframes studio-heat-reset-feedback/, 'Free Mode reset feedback should define the reset confirmation keyframes');
+assert.match(workbenchSource, /heatCapacityResetFeedbackActionId/, 'Guide reset should retain its short visual feedback state');
+assert.match(workbenchSource, /showHeatCapacityResetFeedback\('reset-guide'\)/, 'Guide reset should retain its feedback controller');
+assert.doesNotMatch(workbenchSource, /showHeatCapacityResetFeedback\('reset-free'\)/, 'the removed Free Mode reset must not retain mode-bar feedback wiring');
+assert.match(workbenchSource, /action\.id === heatCapacityResetFeedbackActionId[\s\S]*studio-heat-mode-action-feedback/, 'the matching Guide reset button should receive the feedback class');
+assert.match(styleSource, /\.studio-heat-mode-action-feedback \{[\s\S]*animation:\s*studio-heat-reset-feedback/, 'Guide Mode reset feedback should keep its explicit animation style');
+assert.match(styleSource, /\.studio-heat-mode-action-feedback svg \{[\s\S]*animation:\s*studio-heat-reset-icon-spin/, 'the Guide reset icon should rotate during feedback');
+assert.match(styleSource, /@keyframes studio-heat-reset-feedback/, 'Guide Mode reset feedback should define the confirmation keyframes');
 assert.match(workbenchSource, /const handleHeatCapacityModeSegmentClick[\s\S]*heatCapacityTeachingCompleted && heatCapacityActiveMode === mode[\s\S]*showHeatCapacityTeachingCompletedLockedInteraction\(\)/, 'Completed teaching should only lock repeated clicks on whichever teaching segment is currently active');
 assert.doesNotMatch(workbenchSource, /if \(heatCapacityTeachingCompleted\) \{\s*showHeatCapacityTeachingCompletedLockedInteraction\(\);\s*return;\s*\}\s*if \(heatCapacityActiveMode !== 'demo'/, 'Completed demo state should not block switching directly to another mode');
 assert.doesNotMatch(workbenchSource, /if \(heatCapacityTeachingCompleted\) \{\s*showHeatCapacityTeachingCompletedLockedInteraction\(\);\s*return;\s*\}\s*if \(heatCapacityActiveMode !== 'guide'/, 'Completed guide state should not block switching directly to another mode');
@@ -1675,7 +1677,7 @@ assert.match(workbenchSource, /const clearHeatCapacityPressureAlertUiState = \([
 assert.match(workbenchSource, /const activeHeatCapacityPressureAlarmVisible = heatCapacityPressureAlarmVisible &&[\s\S]*heatCapacityPressureAlarmFileIdRef\.current === activeFile\.id;/, 'a center pressure alarm should be visible only in its owning Heat Capacity file');
 assert.match(workbenchSource, /pausedPressureAlarm = desktopExitPausedPressureAlarmRef\.current\?\.fileId === currentFile\.id[\s\S]*resolveWorkbenchHeatCapacityPressureAlertRefreshProjection\(\{[\s\S]*pressureAlarmVisible: heatCapacityPressureAlarmFileIdRef\.current === currentFile\.id[\s\S]*pressureAlarmRemainingMs,[\s\S]*pressureAlarmVisible: pressureAlertRefreshProjection\.pressureAlarmVisible,[\s\S]*pressureAlarmRemainingMs: pressureAlertRefreshProjection\.pressureAlarmRemainingMs/, 'a pressure alarm must be serialized only into its owning file refresh checkpoint, including frozen desktop-exit timing and an atomic pagehide deadline projection');
 assert.match(workbenchSource, /heatCapacityPressureAlarmFileIdRef\.current = restoreSession\.activeHeatCapacityFileId;[\s\S]*scheduleHeatCapacityPressureAlarmExpiry\(\s*restoreSession\.activeHeatCapacityFileId,[\s\S]*pressureAlarmRemainingMs/, 'restored pressure-alarm timing should retain explicit ownership by the restored file');
-assert.match(workbenchSource, /const resetHeatCapacityFreeRun = \(\) => \{[\s\S]*clearHeatCapacityPressureAlertUiState\(\)/, 'Free Mode reset should clear transient pressure-alert UI without deleting recorded alarm data');
+assert.match(workbenchSource, /const restartHeatCapacityFreeExperiment = \(\) => \{[\s\S]*resetHeatCapacityGroupUiRuntime\(\)/, 'restarting the current experiment should clear transient pressure-alert UI through the shared group UI reset');
 assert.match(workbenchSource, /const clearHeatCapacityModeTransientUiRuntime = \(\) => \{[\s\S]*clearHeatCapacityPressureAlertUiState\(\)/, 'projecting an independent mode session should clear transient pressure-alert UI owned by the mode being left');
 assert.match(workbenchSource, /const updateHeatCapacityFocusMode = \(mode: HeatCapacityFocusMode\) => \{[\s\S]*heatCapacityFocusSessionRef\.current =/, 'pump focus entry should use the normal focus-session path without pressure-based UI blocking');
 assert.match(workbenchSource, /const pressHeatCapacityPumpBulb = [\s\S]*source !== 'autoDemo' && heatCapacitySceneFocusModeRef\.current !== 'pump'\) return;[\s\S]*guardGuideHeatCapacityAction\('pumpBulb', source\)[\s\S]*registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)[\s\S]*setHeatCapacityPumpPulseId/, 'focused user presses should follow one focus gate, one guide guard, one physical attempt, and one full feedback pulse');

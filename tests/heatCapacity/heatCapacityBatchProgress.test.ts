@@ -19,7 +19,7 @@ const styleSource = readFileSync(join(
 
 assert.match(
   componentSource,
-  /currentExperiment:\s*number;[\s\S]*targetExperimentCount:\s*number \| null;[\s\S]*groupStatus:[\s\S]*onRestartGroup:\s*\(\) => void;[\s\S]*onAbandonDraft:\s*\(\) => void;[\s\S]*onStartNextGroup:\s*\(\) => void;/,
+  /currentExperiment:\s*number;[\s\S]*targetExperimentCount:\s*number \| null;[\s\S]*groupStatus:[\s\S]*onRestartExperiment:\s*\(\) => void;[\s\S]*onRestartGroup:\s*\(\) => void;[\s\S]*onAbandonDraft:\s*\(\) => void;[\s\S]*onStartNextGroup:\s*\(\) => void;/,
   'batch progress should expose the approved props-driven API',
 );
 assert.match(
@@ -44,8 +44,13 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /const menuAction = groupStatus === 'draft' \? 'abandon' : 'restart';[\s\S]*onAbandonDraft\(\)[\s\S]*onRestartGroup\(\)/,
-  'draft groups should be abandonable while started groups expose restart through the shared confirmation flow',
+  /groupStatus === 'draft'[\s\S]*onAbandonDraft\(\)[\s\S]*data-heat-capacity-group-action="restart-experiment"[\s\S]*onRestartExperiment\(\)[\s\S]*data-heat-capacity-group-action="restart-group"[\s\S]*onRestartGroup\(\)/,
+  'draft groups should be abandonable while collecting groups expose separate experiment and group restart actions',
+);
+assert.match(
+  componentSource,
+  /restartExperiment:\s*\(current: number\)[\s\S]*restartGroup:[\s\S]*role="separator"/,
+  'the menu should clearly distinguish the current-experiment restart from the destructive whole-group restart',
 );
 assert.match(
   componentSource,
@@ -82,6 +87,11 @@ assert.match(
   styleSource,
   /\.studio-theme-light \.studio-heat-batch-progress\s*\{/,
   'the control should provide the same light-theme adaptation as other preview overlays',
+);
+assert.match(
+  styleSource,
+  /\.studio-heat-batch-progress-menu \.studio-heat-batch-progress-danger[\s\S]*\.studio-theme-light \.studio-heat-batch-progress-menu \.studio-heat-batch-progress-danger/,
+  'the whole-group restart should retain a destructive treatment in both themes',
 );
 
 console.log('heatCapacityBatchProgress tests passed');

@@ -12,6 +12,7 @@ export interface HeatCapacityBatchProgressProps {
   currentExperiment: number;
   targetExperimentCount: number | null;
   groupStatus: 'draft' | 'collecting' | 'awaiting-calculation' | 'completed';
+  onRestartExperiment: () => void;
   onRestartGroup: () => void;
   onAbandonDraft: () => void;
   onStartNextGroup: () => void;
@@ -23,21 +24,24 @@ const COPY = {
   'zh-CN': {
     progress: (current: number, target: number) => `第 ${current} / ${target} 次实验`,
     menuAria: '本组实验操作',
-    restart: '重新开始本组',
+    restartExperiment: (current: number) => `重新开始第 ${current} 次实验`,
+    restartGroup: '重新开始本组实验',
     abandon: '放弃本组草稿',
     next: '开始下一组实验',
   },
   'zh-TW': {
     progress: (current: number, target: number) => `第 ${current} / ${target} 次實驗`,
     menuAria: '本組實驗操作',
-    restart: '重新開始本組',
+    restartExperiment: (current: number) => `重新開始第 ${current} 次實驗`,
+    restartGroup: '重新開始本組實驗',
     abandon: '放棄本組草稿',
     next: '開始下一組實驗',
   },
   en: {
     progress: (current: number, target: number) => `Experiment ${current} / ${target}`,
     menuAria: 'Experiment group actions',
-    restart: 'Restart group',
+    restartExperiment: (current: number) => `Restart experiment ${current}`,
+    restartGroup: 'Restart experiment group',
     abandon: 'Abandon group draft',
     next: 'Start next group',
   },
@@ -54,6 +58,7 @@ export const HeatCapacityBatchProgress = ({
   currentExperiment,
   targetExperimentCount,
   groupStatus,
+  onRestartExperiment,
   onRestartGroup,
   onAbandonDraft,
   onStartNextGroup,
@@ -105,8 +110,6 @@ export const HeatCapacityBatchProgress = ({
     targetExperimentCount,
     Math.max(1, Number.isFinite(currentExperiment) ? Math.floor(currentExperiment) : 1),
   );
-  const menuAction = groupStatus === 'draft' ? 'abandon' : 'restart';
-
   return (
     <div
       className="studio-heat-batch-progress"
@@ -148,28 +151,59 @@ export const HeatCapacityBatchProgress = ({
         <MoreHorizontal size={14} strokeWidth={2.4} aria-hidden="true" />
       </button>
       )}
-      {menuOpen && groupStatus !== 'completed' ? (
+      {menuOpen && (groupStatus === 'draft' || groupStatus === 'collecting') ? (
         <div
           id={menuId}
           className="studio-heat-batch-progress-menu"
           role="menu"
           aria-label={copy.menuAria}
         >
-          <button
-            type="button"
-            role="menuitem"
-            data-heat-capacity-group-action={menuAction}
-            onClick={() => {
-              closeMenu();
-              if (menuAction === 'abandon') onAbandonDraft();
-              else onRestartGroup();
-            }}
-          >
-            {menuAction === 'abandon'
-              ? <Trash2 size={13} strokeWidth={2.4} aria-hidden="true" />
-              : <RotateCcw size={13} strokeWidth={2.4} aria-hidden="true" />}
-            <span>{menuAction === 'abandon' ? copy.abandon : copy.restart}</span>
-          </button>
+          {groupStatus === 'draft' ? (
+            <button
+              type="button"
+              role="menuitem"
+              data-heat-capacity-group-action="abandon"
+              onClick={() => {
+                closeMenu();
+                onAbandonDraft();
+              }}
+            >
+              <Trash2 size={13} strokeWidth={2.4} aria-hidden="true" />
+              <span>{copy.abandon}</span>
+            </button>
+          ) : (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                data-heat-capacity-group-action="restart-experiment"
+                onClick={() => {
+                  closeMenu();
+                  onRestartExperiment();
+                }}
+              >
+                <RotateCcw size={13} strokeWidth={2.4} aria-hidden="true" />
+                <span>{copy.restartExperiment(safeCurrentExperiment)}</span>
+              </button>
+              <div
+                className="studio-heat-batch-progress-menu-separator"
+                role="separator"
+              />
+              <button
+                type="button"
+                role="menuitem"
+                className="studio-heat-batch-progress-danger"
+                data-heat-capacity-group-action="restart-group"
+                onClick={() => {
+                  closeMenu();
+                  onRestartGroup();
+                }}
+              >
+                <RotateCcw size={13} strokeWidth={2.4} aria-hidden="true" />
+                <span>{copy.restartGroup}</span>
+              </button>
+            </>
+          )}
         </div>
       ) : null}
     </div>

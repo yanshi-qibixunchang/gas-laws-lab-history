@@ -75,14 +75,16 @@ assert.ok(copySource.includes('實驗檔案仍保留在本機快取中，不會�
 assert.ok(copySource.includes('The experiment file will remain in the local cache and will not be deleted.'));
 
 for (const promptId of [
-  'reset-heat-capacity-free-run',
+  'restart-heat-capacity-experiment',
+  'restart-heat-capacity-experiment-group',
   'switch-heat-capacity-teaching-mode',
   'close-running-workbench-file:',
 ]) {
   assert.ok(workbenchSource.includes(promptId), `workbench must route ${promptId} through the internal confirmation`);
 }
-assert.match(workbenchSource, /onClick=\{requestHeatCapacityFreeRunReset\}/, 'the Free reset button should request confirmation');
-assert.match(workbenchSource, /onReset=\{resetHeatCapacityFreeRun\}/, 'the invalid-flow dialog reset should execute directly without a second confirmation');
+assert.match(workbenchSource, /onRestartExperiment=\{requestRestartHeatCapacityFreeExperiment\}/, 'the current-experiment restart should request confirmation from the progress menu');
+assert.match(workbenchSource, /onRestartGroup=\{requestRestartHeatCapacityFreeGroup\}/, 'the whole-group restart should request a separate confirmation from the progress menu');
+assert.match(workbenchSource, /onReset=\{restartHeatCapacityFreeExperiment\}/, 'the invalid-flow dialog should execute the scoped current-experiment restart directly');
 assert.match(workbenchSource, /<PromptConfirmDialog[\s\S]*request=\{activePromptConfirmation\}/);
 
 const sourceRoot = fileURLToPath(new URL('../../src', import.meta.url));

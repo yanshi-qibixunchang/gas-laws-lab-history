@@ -7,7 +7,6 @@ const runningDemo = selectHeatCapacityModeControlState({
   activeMode: 'demo',
   autoDemoPhase: 'running',
   teachingCompleted: false,
-  freeBatchCompleted: false,
 });
 
 assert.equal(runningDemo.expanded, true);
@@ -19,7 +18,6 @@ const pausedDemo = selectHeatCapacityModeControlState({
   activeMode: 'demo',
   autoDemoPhase: 'paused',
   teachingCompleted: false,
-  freeBatchCompleted: false,
 });
 
 assert.deepEqual(pausedDemo.demo.actions.map((action) => action.id), ['resume-demo', 'stop-demo']);
@@ -28,7 +26,6 @@ const completedDemo = selectHeatCapacityModeControlState({
   activeMode: 'demo',
   autoDemoPhase: 'idle',
   teachingCompleted: true,
-  freeBatchCompleted: false,
 });
 
 assert.deepEqual(completedDemo.demo.actions.map((action) => action.id), ['exit-teaching']);
@@ -38,7 +35,6 @@ const runningGuide = selectHeatCapacityModeControlState({
   activeMode: 'guide',
   autoDemoPhase: 'idle',
   teachingCompleted: false,
-  freeBatchCompleted: false,
 });
 
 assert.deepEqual(runningGuide.guide.actions.map((action) => action.id), ['reset-guide', 'exit-guide']);
@@ -47,7 +43,6 @@ const completedGuide = selectHeatCapacityModeControlState({
   activeMode: 'guide',
   autoDemoPhase: 'idle',
   teachingCompleted: true,
-  freeBatchCompleted: false,
 });
 
 assert.deepEqual(completedGuide.guide.actions.map((action) => action.id), ['reset-guide', 'exit-teaching']);
@@ -56,25 +51,14 @@ const free = selectHeatCapacityModeControlState({
   activeMode: 'free',
   autoDemoPhase: 'idle',
   teachingCompleted: false,
-  freeBatchCompleted: false,
 });
 
-assert.deepEqual(free.free.actions.map((action) => action.id), ['reset-free', 'exit-free']);
-
-const completedFree = selectHeatCapacityModeControlState({
-  activeMode: 'free',
-  autoDemoPhase: 'idle',
-  teachingCompleted: false,
-  freeBatchCompleted: true,
-});
-
-assert.deepEqual(completedFree.free.actions.map((action) => action.id), ['exit-free']);
+assert.deepEqual(free.free.actions.map((action) => action.id), ['exit-free']);
 
 const explore = selectHeatCapacityModeControlState({
   activeMode: null,
   autoDemoPhase: 'idle',
   teachingCompleted: false,
-  freeBatchCompleted: false,
 });
 
 assert.equal(explore.expanded, false);

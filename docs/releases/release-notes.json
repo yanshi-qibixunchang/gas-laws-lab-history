@@ -3,6 +3,122 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "5.3.1",
+      "date": "2026-08-01",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.3.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.3.1/heat-capacity-lab-setup-5.3.1.exe"
+      },
+      "summary": {
+        "zh-CN": "5.3.1 完成绝热膨胀法多组实验、整组计算与评分、过程回顾，以及报告、图表和实验包导出的完整闭环。",
+        "zh-TW": "5.3.1 完成絕熱膨脹法多組實驗、整組計算與評分、過程回顧，以及報告、圖表和實驗包匯出的完整閉環。",
+        "en": "Version 5.3.1 completes the adiabatic-expansion workflow with multi-group experiments, group calculations and scoring, process review, and report, figure, and experiment-package exports."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "多组实验与过程回顾",
+            "zh-TW": "多組實驗與過程回顧",
+            "en": "Multi-group experiments and process review"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-free-groups",
+              "importance": "high",
+              "title": {
+                "zh-CN": "建立完整的多组自由实验流程",
+                "zh-TW": "建立完整的多組自由實驗流程",
+                "en": "Completed the multi-group Free Mode workflow"
+              },
+              "body": {
+                "zh-CN": "自由模式统一使用“第几组、第几次实验”的层级。完成一次实验后自动推进到下一次；当前组及其必要计算完成后，才允许创建新组并重新选择真实或理想参数类型。真实组独立保存参数、结果和评分，理想组自动计算且不参与评分。",
+                "zh-TW": "自由模式統一使用「第幾組、第幾次實驗」的層級。完成一次實驗後自動推進到下一次；目前組及其必要計算完成後，才允許建立新組並重新選擇真實或理想參數類型。真實組獨立儲存參數、結果和評分，理想組自動計算且不參與評分。",
+                "en": "Free Mode now uses an experiment-group and experiment-number hierarchy. Each completed experiment advances automatically, while a new real or ideal group can be created only after the current group and required calculations are complete. Real groups retain independent results and scores; ideal groups calculate automatically without scoring."
+              }
+            },
+            {
+              "scope": "heat-capacity-process-review",
+              "importance": "high",
+              "title": {
+                "zh-CN": "新增整组评分与棒棒糖图",
+                "zh-TW": "新增整組評分與棒棒糖圖",
+                "en": "Added group scoring and lollipop review charts"
+              },
+              "body": {
+                "zh-CN": "真实参数实验按整组汇总操作、记录和计算表现。完成三次实验后显示理论参考、本组平均值和 A 类不确定度棒棒糖图，并支持按组、按次查看过程结果。",
+                "zh-TW": "真實參數實驗按整組彙總操作、記錄和計算表現。完成三次實驗後顯示理論參考、本組平均值和 A 類不確定度棒棒糖圖，並支援按組、按次查看過程結果。",
+                "en": "Real-parameter experiments aggregate operation, recording, and calculation performance at group level. Groups with at least three experiments show a lollipop chart for the theoretical reference, group mean, and Type A uncertainty, with group and experiment navigation."
+              }
+            },
+            {
+              "scope": "heat-capacity-calculation-and-scoring",
+              "importance": "high",
+              "title": {
+                "zh-CN": "完善计算已知条件与评分权重",
+                "zh-TW": "完善計算已知條件與評分權重",
+                "en": "Completed calculation inputs and score weighting"
+              },
+              "body": {
+                "zh-CN": "每次实验计算表完整显示已记录的 U₀、U₁、U₂，并将新增计算环节纳入真实组评分。评分按整组平衡汇总，不因实验次数增加而简单叠加扣分。",
+                "zh-TW": "每次實驗計算表完整顯示已記錄的 U₀、U₁、U₂，並將新增計算環節納入真實組評分。評分按整組平衡彙總，不因實驗次數增加而簡單疊加扣分。",
+                "en": "Each experiment calculation displays its recorded U₀, U₁, and U₂ values, and the calculation stage contributes to real-group scoring. Scores are balanced across the group instead of accumulating penalties simply because more experiments were selected."
+              }
+            }
+          ]
+        },
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "科学报告与图表导出",
+            "zh-TW": "科學報告與圖表匯出",
+            "en": "Scientific report and figure export"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-report-export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "完成绝热膨胀法导出功能",
+                "zh-TW": "完成絕熱膨脹法匯出功能",
+                "en": "Completed adiabatic-expansion exports"
+              },
+              "body": {
+                "zh-CN": "实验文件可分别导出报告、图表或完整实验包，覆盖全部真实组与理想组。报告按实验文件信息、记录结果、计算结果和评价组织，采用编号层级、三线表、统一科学图形以及宋体和 Times New Roman 字体规范。",
+                "zh-TW": "實驗檔案可分別匯出報告、圖表或完整實驗包，涵蓋全部真實組與理想組。報告按實驗檔案資訊、記錄結果、計算結果和評價組織，採用編號層級、三線表、統一科學圖形以及宋體和 Times New Roman 字型規範。",
+                "en": "Experiment files can export a report, figures, or a complete experiment package covering every real and ideal group. Reports organize file information, recorded results, calculations, and evaluation with numbered hierarchy, three-line tables, consistent scientific figures, and unified Chinese and Latin fonts."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "实验推进与重新开始操作",
+            "zh-TW": "實驗推進與重新開始操作",
+            "en": "Experiment progression and restart controls"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-reset-flow",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复自动换次和重置边界",
+                "zh-TW": "修正自動換次和重設邊界",
+                "en": "Fixed automatic progression and restart boundaries"
+              },
+              "body": {
+                "zh-CN": "移除会重新创建实验组或误入演示限制的错误重置入口。进度省略号现在分别提供“重新开始第 X 次实验”和“重新开始本组实验”，两者使用统一确认窗口，并严格保留不在当前操作范围内的已完成实验和实验组。",
+                "zh-TW": "移除會重新建立實驗組或誤入演示限制的錯誤重設入口。進度省略號現在分別提供「重新開始第 X 次實驗」和「重新開始本組實驗」，兩者使用統一確認視窗，並嚴格保留不在目前操作範圍內的已完成實驗和實驗組。",
+                "en": "Removed ambiguous reset actions that could recreate a group or enter demo-only restrictions. The progress overflow menu now separates restarting the current experiment from restarting the current group, uses consistent confirmations, and preserves completed work outside the selected scope."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.2.2",
       "date": "2026-07-25",
       "channel": "stable",

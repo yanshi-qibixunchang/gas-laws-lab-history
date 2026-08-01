@@ -11,7 +11,6 @@ interface WorkbenchConfirmationCopy {
 
 interface WorkbenchPromptCopySet {
   closeLabel: string;
-  resetUnfinishedFreeGroup: WorkbenchConfirmationCopy;
   switchTeachingMode: WorkbenchConfirmationCopy;
   closeRunningExperiment: (fileName: string) => WorkbenchConfirmationCopy;
 }
@@ -19,14 +18,6 @@ interface WorkbenchPromptCopySet {
 export const workbenchPromptCopies: Record<WorkbenchLanguagePreference, WorkbenchPromptCopySet> = {
   'zh-CN': {
     closeLabel: '关闭确认窗口',
-    resetUnfinishedFreeGroup: {
-      eyebrow: '注意',
-      title: '重置当前未完成组？',
-      body: '当前未完成组的操作和未完成记录将被清空。',
-      consequence: '本组设定的实验次数会保留；此前已完成的其他实验组不受影响。',
-      cancelLabel: '保留当前组',
-      confirmLabel: '重置本组',
-    },
     switchTeachingMode: {
       eyebrow: '注意',
       title: '切换实验模式？',
@@ -46,14 +37,6 @@ export const workbenchPromptCopies: Record<WorkbenchLanguagePreference, Workbenc
   },
   'zh-TW': {
     closeLabel: '關閉確認視窗',
-    resetUnfinishedFreeGroup: {
-      eyebrow: '注意',
-      title: '重設目前未完成組？',
-      body: '目前未完成組的操作和未完成記錄將被清除。',
-      consequence: '本組設定的實驗次數會保留；此前已完成的其他實驗組不受影響。',
-      cancelLabel: '保留目前組',
-      confirmLabel: '重設本組',
-    },
     switchTeachingMode: {
       eyebrow: '注意',
       title: '切換實驗模式？',
@@ -73,14 +56,6 @@ export const workbenchPromptCopies: Record<WorkbenchLanguagePreference, Workbenc
   },
   en: {
     closeLabel: 'Close confirmation window',
-    resetUnfinishedFreeGroup: {
-      eyebrow: 'Attention',
-      title: 'Reset the unfinished group?',
-      body: 'Actions and incomplete records in the current group will be cleared.',
-      consequence: 'The experiment count for this group is kept; previously completed groups are unaffected.',
-      cancelLabel: 'Keep Current Group',
-      confirmLabel: 'Reset Group',
-    },
     switchTeachingMode: {
       eyebrow: 'Attention',
       title: 'Switch experiment modes?',

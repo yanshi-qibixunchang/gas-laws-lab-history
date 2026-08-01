@@ -15,12 +15,13 @@ import {
   configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   enterHeatCapacityFreeModeWorkbenchState,
+  getHeatCapacityFreeBatchProgress,
   powerHeatCapacityWorkbenchFile,
   registerHeatCapacityPumpStroke,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
   setHeatCapacityFreePumpValveOpen,
   setHeatCapacityFreeStopcockOpen,
-  startNextHeatCapacityFreeExperimentGroupWorkbenchState,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
   stepHeatCapacityWorkbenchFile,
 } from '../../src/features/workbench/workbenchState.ts';
 
@@ -170,9 +171,20 @@ replacement = configureHeatCapacityFreeBatchWorkbenchState(
 for (let groupIndex = 0; groupIndex < 3; groupIndex += 1) {
   replacement = completeNaturalFreeGroup(replacement, replacementClock);
   if (groupIndex < 2) {
-    replacement = startNextHeatCapacityFreeExperimentGroupWorkbenchState(
+    const currentExperimentGroupId = replacement.heatCapacityFreeExperimentGroups.currentGroupId;
+    replacement = prepareNextHeatCapacityFreeExperimentWorkbenchState(
       replacement,
       advanceClock(replacementClock, 100),
+    );
+    assert.equal(
+      replacement.heatCapacityFreeExperimentGroups.currentGroupId,
+      currentExperimentGroupId,
+      'automatic experiment advance must keep the current experiment group attached',
+    );
+    assert.equal(
+      getHeatCapacityFreeBatchProgress(replacement).currentGroupNumber,
+      groupIndex + 2,
+      'automatic experiment advance must expose the next experiment number',
     );
   }
 }
@@ -195,7 +207,7 @@ assertFreeModeSessionPersistable(
   advanceClock(replacementClock, 10),
   'deleting a completed middle group must leave the batch persistable',
 );
-replacement = startNextHeatCapacityFreeExperimentGroupWorkbenchState(
+replacement = prepareNextHeatCapacityFreeExperimentWorkbenchState(
   replacement,
   advanceClock(replacementClock, 100),
 );

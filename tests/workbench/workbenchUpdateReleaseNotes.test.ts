@@ -74,10 +74,10 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '5.2.2', 'next desktop update release should bump package version to 5.2.2');
-assert.match(readme, /latest published desktop release is `v5\.2\.2`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.2\.2`/, 'Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：5\.2\.2。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '5.3.1', 'next desktop update release should bump package version to 5.3.1');
+assert.match(readme, /latest published desktop release is `v5\.3\.1`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.3\.1`/, 'Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：5\.3\.1。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -97,8 +97,24 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'startup-completion' && item.importance === 'high'),
-  '5.2.2 should include the high-importance startup completion fix',
+  currentItems.some((item) => item.scope === 'heat-capacity-free-groups' && item.importance === 'high'),
+  '5.3.1 should include the high-importance multi-group experiment workflow',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'heat-capacity-report-export' && item.importance === 'high'),
+  '5.3.1 should include the high-importance report export workflow',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'heat-capacity-reset-flow' && item.importance === 'high'),
+  '5.3.1 should include the high-importance scoped restart controls',
+);
+
+const startupHotfixRelease = findRelease('5.2.2');
+assert.ok(startupHotfixRelease, 'release notes should retain the 5.2.2 startup hotfix');
+const startupHotfixItems = startupHotfixRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+assert.ok(
+  startupHotfixItems.some((item) => item.scope === 'startup-completion' && item.importance === 'high'),
+  '5.2.2 should retain the high-importance startup completion fix',
 );
 
 const onboardingRelease = findRelease('5.2.1');
