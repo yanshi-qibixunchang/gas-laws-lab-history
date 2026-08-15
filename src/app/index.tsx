@@ -11,11 +11,22 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 const pistonHosePreviewEnabled = import.meta.env.DEV &&
   new URLSearchParams(window.location.search).get('pistonHosePreview') === '1';
+const pistonModelSizePreviewEnabled = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('pistonModelSizePreview') === '1';
 const productIntroCapture = import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('productIntroCapture')
   : null;
 
-if (pistonHosePreviewEnabled) {
+if (pistonModelSizePreviewEnabled) {
+  void import('../features/pistonOscillation/PistonOscillationModelSizePreviewPage.tsx')
+    .then((module) => {
+      root.render(
+        <React.StrictMode>
+          <module.PistonOscillationModelSizePreviewPage />
+        </React.StrictMode>,
+      );
+    });
+} else if (pistonHosePreviewEnabled) {
   void import('../features/pistonOscillation/PistonOscillationHoseDirectionPreviewPage.tsx')
     .then((module) => {
       root.render(
