@@ -27,6 +27,18 @@ const SOURCE_TABLETOP_NODE_NAME = 'Tabletop';
 const INSTRUMENT_BODY_ROOT_NODE_NAME = 'InstrumentBodyScaled_ROOT';
 const INTERNAL_HOSE_NODE_NAME = 'Hose_Internal_ToCylinder';
 const EXTERNAL_HOSE_NODE_NAME = 'Hose_Main_Default';
+const SCALE_TICKS_NODE_NAME = 'ScaleTicks_Unnumbered';
+const SCALE_LABEL_VALUES = [10, 20, 30, 40, 50, 60, 70, 80, 90] as const;
+const SCALE_MAX_TICK_MM = 85;
+const SCALE_PREVIEW_PISTON_HEIGHT_MM = 85;
+const PISTON_TOP_CLEARANCE_M = 0.0007;
+const UPPER_UNMARKED_EXTENSION_M = 0.01;
+const PROTECTIVE_FRAME_PANEL_NODE_NAMES = [
+  'ProtectiveFrame_BackPanel',
+  'ProtectiveFrame_FrontPanel',
+  'ProtectiveFrame_LeftPanel',
+  'ProtectiveFrame_RightPanel',
+] as const;
 const BODY_HEIGHT_FOLLOWER_NODE_NAMES = [
   'RodClampBridge',
   'RodClampKnob',
@@ -34,7 +46,7 @@ const BODY_HEIGHT_FOLLOWER_NODE_NAMES = [
   'AXIS_RodClamp',
 ] as const;
 
-type PreviewMode = 'corrected' | 'source';
+type PreviewMode = 'scale' | 'corrected' | 'source';
 
 interface PreviewBounds {
   center: THREE.Vector3;
@@ -45,7 +57,7 @@ interface OwnedPreviewModel {
   root: THREE.Object3D;
   bounds: PreviewBounds;
   ownedMaterials: Set<THREE.Material>;
-  generatedGeometry: THREE.BufferGeometry | null;
+  ownedGeometries: Set<THREE.BufferGeometry>;
 }
 
 const getWorldPosition = (root: THREE.Object3D, nodeName: string) => {
@@ -61,6 +73,54 @@ const transformPointAroundPivot = (
   pivot: THREE.Vector3,
   scale: number,
 ) => pivot.clone().add(point.clone().sub(pivot).multiplyScalar(scale));
+
+const getRequiredObject = (root: THREE.Object3D, nodeName: string) => {
+  const node = root.getObjectByName(nodeName);
+  if (!node) {
+    throw new Error(`Piston-oscillation GLB is missing preview node: ${nodeName}`);
+  }
+  return node;
+};
+
+const moveObjectWorldY = (
+  root: THREE.Object3D,
+  object: THREE.Object3D,
+  targetWorldY: number,
+) => {
+  const parent = object.parent;
+  if (!parent) {
+    throw new Error(`Piston-oscillation preview node has no parent: ${object.name}`);
+  }
+
+  root.updateWorldMatrix(true, true);
+  const targetWorldPosition = object.getWorldPosition(new THREE.Vector3());
+  targetWorldPosition.y = targetWorldY;
+  object.position.copy(parent.worldToLocal(targetWorldPosition));
+  root.updateWorldMatrix(true, true);
+};
+
+const resizeObjectWorldY = (
+  root: THREE.Object3D,
+  object: THREE.Object3D,
+  targetMinY: number,
+  targetMaxY: number,
+) => {
+  root.updateWorldMatrix(true, true);
+  const currentBounds = new THREE.Box3().setFromObject(object);
+  const currentHeight = currentBounds.max.y - currentBounds.min.y;
+  const targetHeight = targetMaxY - targetMinY;
+  if (currentBounds.isEmpty() || currentHeight <= 0 || targetHeight <= 0) {
+    throw new Error(`Piston-oscillation preview cannot resize node: ${object.name}`);
+  }
+
+  object.scale.y *= targetHeight / currentHeight;
+  root.updateWorldMatrix(true, true);
+  const resizedBounds = new THREE.Box3().setFromObject(object);
+  const targetCenterY = (targetMinY + targetMaxY) / 2;
+  const resizedCenterY = (resizedBounds.min.y + resizedBounds.max.y) / 2;
+  const objectWorldY = object.getWorldPosition(new THREE.Vector3()).y;
+  moveObjectWorldY(root, object, objectWorldY + targetCenterY - resizedCenterY);
+};
 
 const followCorrectedBodyHeight = (
   root: THREE.Object3D,
@@ -114,6 +174,231 @@ const createCorrectedExternalHose = (
   hose.castShadow = false;
   hose.receiveShadow = false;
   return { hose, geometry, material };
+};
+
+const getTickBandCenters = (geometry: THREE.BufferGeometry) => {
+  const positions = geometry.getAttribute('position');
+  if (!positions) {
+    throw new Error('Piston-oscillation scale ticks have no position attribute.');
+  }
+
+  const yLevels = Array.from(
+    new Set(Array.from({ length: positions.count }, (_, index) => positions.getY(index).toFixed(7))),
+  ).map(Number).sort((left, right) => left - right);
+  if (yLevels.length < 6 || yLevels.length % 2 !== 0) {
+    throw new Error('Piston-oscillation scale ticks have an unexpected band layout.');
+  }
+
+  const centers: number[] = [];
+  for (let index = 0; index < yLevels.length; index += 2) {
+    centers.push((yLevels[index] + yLevels[index + 1]) / 2);
+  }
+  return centers;
+};
+
+const extractTickTemplateGeometry = (
+  source: THREE.BufferGeometry,
+  centerY: number,
+) => {
+  const index = source.index;
+  const positions = source.getAttribute('position');
+  const normals = source.getAttribute('normal');
+  if (!index || !positions || !normals) {
+    throw new Error('Piston-oscillation scale ticks are missing indexed geometry data.');
+  }
+
+  const templatePositions: number[] = [];
+  const templateNormals: number[] = [];
+  for (let offset = 0; offset < index.count; offset += 3) {
+    const indices = [index.getX(offset), index.getX(offset + 1), index.getX(offset + 2)];
+    const triangleCenterY = indices.reduce(
+      (sum, vertexIndex) => sum + positions.getY(vertexIndex),
+      0,
+    ) / 3;
+    if (Math.abs(triangleCenterY - centerY) > 0.001) continue;
+
+    indices.forEach((vertexIndex) => {
+      templatePositions.push(
+        positions.getX(vertexIndex),
+        positions.getY(vertexIndex) - centerY,
+        positions.getZ(vertexIndex),
+      );
+      templateNormals.push(
+        normals.getX(vertexIndex),
+        normals.getY(vertexIndex),
+        normals.getZ(vertexIndex),
+      );
+    });
+  }
+
+  if (templatePositions.length === 0) {
+    throw new Error('Piston-oscillation scale tick template extraction failed.');
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute(
+    'position',
+    new THREE.Float32BufferAttribute(templatePositions, 3),
+  );
+  geometry.setAttribute('normal', new THREE.Float32BufferAttribute(templateNormals, 3));
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+  return geometry;
+};
+
+const createScaleTickInstances = (
+  geometry: THREE.BufferGeometry,
+  material: THREE.Material,
+  values: number[],
+  scaleZeroLocalY: number,
+  localMetersPerMillimeter: number,
+  name: string,
+) => {
+  const ticks = new THREE.InstancedMesh(geometry, material, values.length);
+  const matrix = new THREE.Matrix4();
+  values.forEach((value, index) => {
+    matrix.makeTranslation(0, scaleZeroLocalY + value * localMetersPerMillimeter, 0);
+    ticks.setMatrixAt(index, matrix);
+  });
+  ticks.instanceMatrix.needsUpdate = true;
+  ticks.name = name;
+  ticks.castShadow = false;
+  ticks.receiveShadow = false;
+  ticks.frustumCulled = false;
+  ticks.raycast = () => undefined;
+  return ticks;
+};
+
+const applyScaleCalibration = (
+  root: THREE.Object3D,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+) => {
+  root.updateWorldMatrix(true, true);
+  const sourceTicks = getRequiredObject(root, SCALE_TICKS_NODE_NAME) as THREE.Mesh;
+  if (!sourceTicks.isMesh || !(sourceTicks.geometry instanceof THREE.BufferGeometry)) {
+    throw new Error('Piston-oscillation scale tick node is not a mesh.');
+  }
+  const sourceTickParent = sourceTicks.parent;
+  const tickMaterial = Array.isArray(sourceTicks.material)
+    ? sourceTicks.material[0]
+    : sourceTicks.material;
+  if (!sourceTickParent || !tickMaterial) {
+    throw new Error('Piston-oscillation scale ticks are missing a parent or material.');
+  }
+
+  const tickBandCenters = getTickBandCenters(sourceTicks.geometry);
+  const scaleZeroLocalY = tickBandCenters[0];
+  const tickWorldScaleY = sourceTicks.getWorldScale(new THREE.Vector3()).y;
+  const localMetersPerMillimeter = 0.001 / tickWorldScaleY;
+  const majorGeometry = extractTickTemplateGeometry(sourceTicks.geometry, tickBandCenters[0]);
+  const minorGeometry = extractTickTemplateGeometry(sourceTicks.geometry, tickBandCenters[1]);
+  const middleGeometry = extractTickTemplateGeometry(sourceTicks.geometry, tickBandCenters[2]);
+  ownedGeometries.add(majorGeometry);
+  ownedGeometries.add(minorGeometry);
+  ownedGeometries.add(middleGeometry);
+
+  const majorValues: number[] = [];
+  const middleValues: number[] = [];
+  const minorValues: number[] = [];
+  for (let value = 0; value <= SCALE_MAX_TICK_MM; value += 1) {
+    if (value % 10 === 0) majorValues.push(value);
+    else if (value % 5 === 0) middleValues.push(value);
+    else minorValues.push(value);
+  }
+
+  const calibratedTicks = new THREE.Group();
+  calibratedTicks.name = 'ScaleTicks_0_to_85mm_Preview';
+  calibratedTicks.position.copy(sourceTicks.position);
+  calibratedTicks.quaternion.copy(sourceTicks.quaternion);
+  calibratedTicks.scale.copy(sourceTicks.scale);
+  calibratedTicks.add(
+    createScaleTickInstances(
+      majorGeometry,
+      tickMaterial,
+      majorValues,
+      scaleZeroLocalY,
+      localMetersPerMillimeter,
+      'ScaleTicks_Major_10mm_Preview',
+    ),
+    createScaleTickInstances(
+      middleGeometry,
+      tickMaterial,
+      middleValues,
+      scaleZeroLocalY,
+      localMetersPerMillimeter,
+      'ScaleTicks_Middle_5mm_Preview',
+    ),
+    createScaleTickInstances(
+      minorGeometry,
+      tickMaterial,
+      minorValues,
+      scaleZeroLocalY,
+      localMetersPerMillimeter,
+      'ScaleTicks_Minor_1mm_Preview',
+    ),
+  );
+  sourceTickParent.add(calibratedTicks);
+  sourceTicks.visible = false;
+
+  SCALE_LABEL_VALUES.forEach((value) => {
+    const label = getRequiredObject(root, `ScaleLabel_${value}`);
+    if (value > 80) {
+      label.visible = false;
+      return;
+    }
+    label.position.y = scaleZeroLocalY + value * localMetersPerMillimeter;
+  });
+
+  root.updateWorldMatrix(true, true);
+  const scaleZeroWorldY = sourceTicks.localToWorld(
+    new THREE.Vector3(0, scaleZeroLocalY, 0),
+  ).y;
+  const cylinder = getRequiredObject(root, 'Cylinder_Pyrex');
+  const upperGuideRing = getRequiredObject(root, 'Cylinder_UpperGuideRing');
+  const topSlab = getRequiredObject(root, 'ProtectiveFrame_TopSlab');
+  const topBack = getRequiredObject(root, 'ProtectiveFrame_TopBack');
+  const pistonAssembly = getRequiredObject(root, 'PistonAssembly_MOV');
+  const piston = getRequiredObject(root, 'Piston_Graphite');
+  const pistonBounds = new THREE.Box3().setFromObject(piston);
+  const guideRingBounds = new THREE.Box3().setFromObject(upperGuideRing);
+  const topSlabBounds = new THREE.Box3().setFromObject(topSlab);
+  const cylinderBounds = new THREE.Box3().setFromObject(cylinder);
+  const pistonHeight = pistonBounds.max.y - pistonBounds.min.y;
+  const guideRingHeight = guideRingBounds.max.y - guideRingBounds.min.y;
+  const topSlabHeight = topSlabBounds.max.y - topSlabBounds.min.y;
+  const pistonTopAtScaleLimit = scaleZeroWorldY
+    + SCALE_MAX_TICK_MM / 1000
+    + pistonHeight;
+  const targetGuideRingCenterY = pistonTopAtScaleLimit
+    + PISTON_TOP_CLEARANCE_M
+    + UPPER_UNMARKED_EXTENSION_M
+    + guideRingHeight / 2;
+  const targetCylinderTopY = targetGuideRingCenterY + guideRingHeight / 2;
+  const targetTopSlabCenterY = targetCylinderTopY + topSlabHeight / 2;
+
+  resizeObjectWorldY(root, cylinder, cylinderBounds.min.y, targetCylinderTopY);
+  moveObjectWorldY(root, upperGuideRing, targetGuideRingCenterY);
+  PROTECTIVE_FRAME_PANEL_NODE_NAMES.forEach((nodeName) => {
+    const panel = getRequiredObject(root, nodeName);
+    const panelBounds = new THREE.Box3().setFromObject(panel);
+    resizeObjectWorldY(root, panel, panelBounds.min.y, targetCylinderTopY);
+  });
+  moveObjectWorldY(root, topSlab, targetTopSlabCenterY);
+  moveObjectWorldY(root, topBack, targetTopSlabCenterY);
+  BODY_HEIGHT_FOLLOWER_NODE_NAMES.forEach((nodeName) => {
+    moveObjectWorldY(root, getRequiredObject(root, nodeName), targetTopSlabCenterY);
+  });
+
+  root.updateWorldMatrix(true, true);
+  const updatedPistonBounds = new THREE.Box3().setFromObject(piston);
+  const pistonTargetLowerEdgeY = scaleZeroWorldY
+    + SCALE_PREVIEW_PISTON_HEIGHT_MM / 1000;
+  const pistonAssemblyWorldY = pistonAssembly.getWorldPosition(new THREE.Vector3()).y;
+  moveObjectWorldY(
+    root,
+    pistonAssembly,
+    pistonAssemblyWorldY + pistonTargetLowerEdgeY - updatedPistonBounds.min.y,
+  );
 };
 
 const measurePreviewModel = (root: THREE.Object3D): PreviewBounds => {
@@ -190,8 +475,8 @@ const createPreviewModel = (
     }
   });
 
-  let generatedGeometry: THREE.BufferGeometry | null = null;
-  if (mode === 'corrected') {
+  const ownedGeometries = new Set<THREE.BufferGeometry>();
+  if (mode !== 'source') {
     root.updateWorldMatrix(true, true);
     const instrumentBody = root.getObjectByName(INSTRUMENT_BODY_ROOT_NODE_NAME);
     const internalHose = root.getObjectByName(INTERNAL_HOSE_NODE_NAME);
@@ -209,14 +494,18 @@ const createPreviewModel = (
     instrumentBody.scale.multiplyScalar(INSTRUMENT_BODY_CORRECTION_FACTOR);
     externalHose.visible = false;
     ownedMaterials.add(correctedExternalHose.material);
-    generatedGeometry = correctedExternalHose.geometry;
+    ownedGeometries.add(correctedExternalHose.geometry);
     root.add(correctedExternalHose.hose);
+    if (mode === 'scale') {
+      root.updateWorldMatrix(true, true);
+      applyScaleCalibration(root, ownedGeometries);
+    }
   }
 
   root.updateWorldMatrix(true, true);
   const bounds = measurePreviewModel(root);
   root.add(createPreviewBench(unifiedLightLabBenchSourceScene));
-  return { root, bounds, ownedMaterials, generatedGeometry };
+  return { root, bounds, ownedMaterials, ownedGeometries };
 };
 
 const FullModelPreview = ({
@@ -240,7 +529,8 @@ const FullModelPreview = ({
   }, [onBoundsReady, ownedModel.bounds]);
 
   useEffect(() => () => {
-    ownedModel.generatedGeometry?.dispose();
+    ownedModel.ownedGeometries.forEach((geometry) => geometry.dispose());
+    ownedModel.ownedGeometries.clear();
     ownedModel.ownedMaterials.forEach((material) => material.dispose());
     ownedModel.ownedMaterials.clear();
   }, [ownedModel]);
@@ -305,7 +595,7 @@ const formatMillimeters = (meters: number) => `${(meters * 1000).toFixed(2)} mm`
 
 export const PistonOscillationModelSizePreviewPage = () => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const [mode, setMode] = useState<PreviewMode>('corrected');
+  const [mode, setMode] = useState<PreviewMode>('scale');
   const [bounds, setBounds] = useState<PreviewBounds | null>(null);
   const [resetRevision, setResetRevision] = useState(0);
   const [modelReady, setModelReady] = useState(false);
@@ -324,7 +614,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
     <main className="piston-model-size-preview-page">
       <section
         className="piston-model-size-preview-stage"
-        aria-label="活塞振动法整机尺寸校正临时预览"
+        aria-label="活塞振动法毫米刻度与气缸行程校正临时预览"
         data-piston-model-size-preview-ready={modelReady ? 'true' : 'false'}
         data-piston-model-size-preview-mode={mode}
       >
@@ -379,11 +669,11 @@ export const PistonOscillationModelSizePreviewPage = () => {
 
         <header className="piston-model-size-preview-header">
           <div>
-            <span>活塞振动法 · 整机模型第一阶段</span>
-            <h1>仪器本体尺寸与比例校正</h1>
+            <span>活塞振动法 · 整机模型第二阶段</span>
+            <h1>毫米刻度与气缸行程校准</h1>
             <p>
-              本页只校正热机本体及其从属连接件；支撑架、传感器与采集接口保持原尺寸，
-              刻度和侧面锁紧旋钮留待后续单独验收。
+              在已确认的尺寸版本上重建真实毫米间距，使石墨活塞下沿对应读数；
+              同步收短玻璃缸和防护框，并保留足够的顶部活塞空间。
             </p>
           </div>
           <button type="button" onClick={() => setResetRevision((value) => value + 1)}>
@@ -391,46 +681,63 @@ export const PistonOscillationModelSizePreviewPage = () => {
           </button>
         </header>
 
-        <aside className="piston-model-size-preview-controls" aria-label="尺寸版本切换">
-          <strong>尺寸版本</strong>
-          <div role="group" aria-label="选择尺寸版本">
+        <aside className="piston-model-size-preview-controls" aria-label="模型阶段切换">
+          <strong>模型阶段</strong>
+          <div role="group" aria-label="选择模型阶段">
+            <button
+              type="button"
+              aria-pressed={mode === 'scale'}
+              onClick={() => selectMode('scale')}
+            >
+              刻度校准
+            </button>
             <button
               type="button"
               aria-pressed={mode === 'corrected'}
               onClick={() => selectMode('corrected')}
             >
-              校正后
+              尺寸阶段
             </button>
             <button
               type="button"
               aria-pressed={mode === 'source'}
               onClick={() => selectMode('source')}
             >
-              原模型对照
+              原模型
             </button>
           </div>
           <dl>
             <div>
-              <dt>官方活塞直径</dt>
-              <dd>{formatMillimeters(OFFICIAL_PISTON_DIAMETER_M)}</dd>
+              <dt>活塞直径</dt>
+              <dd>{mode === 'source'
+                ? formatMillimeters(SOURCE_PISTON_DIAMETER_M)
+                : formatMillimeters(OFFICIAL_PISTON_DIAMETER_M)}</dd>
             </div>
             <div>
-              <dt>原模型活塞直径</dt>
-              <dd>{formatMillimeters(SOURCE_PISTON_DIAMETER_M)}</dd>
+              <dt>可见刻线</dt>
+              <dd>{mode === 'scale' ? '0–85 mm' : '0–90 mm'}</dd>
             </div>
             <div>
-              <dt>本体比例</dt>
-              <dd>{mode === 'corrected' ? '73.13%' : '100.00%'}</dd>
+              <dt>数字范围</dt>
+              <dd>{mode === 'scale' ? '10–80' : '10–90'}</dd>
+            </div>
+            <div>
+              <dt>活塞下沿</dt>
+              <dd>{mode === 'scale' ? '85 mm' : '原始位置'}</dd>
+            </div>
+            <div>
+              <dt>上方新增留白</dt>
+              <dd>{mode === 'scale' ? '10 mm' : '—'}</dd>
             </div>
           </dl>
         </aside>
 
-        <aside className="piston-model-size-preview-notes" aria-label="本阶段调整范围">
+        <aside className="piston-model-size-preview-notes" aria-label="刻度阶段调整范围">
           <strong>本阶段已联动</strong>
-          <p>玻璃缸、石墨活塞、载物平台、防护框、本体固定接口和内部软管。</p>
+          <p>刻度间距保持不变；在 85 mm 上限之上增加玻璃管留白，并同步抬高顶板、四周支撑柱和夹持桥。</p>
           <strong>本阶段未加入</strong>
-          <p>20–85 mm 新刻度、80 mm 以上数字清理、侧面锁紧旋钮及其状态。</p>
-          <small>鼠标拖动可旋转，滚轮可缩放；可随时切换原模型作同视角对照。</small>
+          <p>侧面活塞锁紧螺钉、正式高度拖动交互及其状态判定。</p>
+          <small>读数基准为石墨活塞下沿；鼠标拖动可旋转，滚轮可缩放。</small>
         </aside>
       </section>
     </main>

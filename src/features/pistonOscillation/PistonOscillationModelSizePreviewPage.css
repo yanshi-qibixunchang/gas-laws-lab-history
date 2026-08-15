@@ -122,7 +122,7 @@
 .piston-model-size-preview-controls {
   top: 20px;
   right: 20px;
-  width: 246px;
+  width: 292px;
   padding: 14px 16px;
 }
 
@@ -135,9 +135,14 @@
 
 .piston-model-size-preview-controls [role="group"] {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 7px;
   margin-top: 10px;
+}
+
+.piston-model-size-preview-controls [role="group"] button {
+  min-width: 0;
+  padding-inline: 8px;
 }
 
 .piston-model-size-preview-controls button[aria-pressed="true"] {
@@ -206,7 +211,7 @@
 
 @media (max-width: 1060px) {
   .piston-model-size-preview-header {
-    right: 286px;
+    right: 332px;
     width: auto;
   }
 
@@ -243,7 +248,7 @@
   .piston-model-size-preview-controls {
     top: 86px;
     right: 14px;
-    width: 188px;
+    width: 224px;
     padding: 10px 11px;
   }
 
