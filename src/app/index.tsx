@@ -9,11 +9,22 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
+const pistonHosePreviewEnabled = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('pistonHosePreview') === '1';
 const productIntroCapture = import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('productIntroCapture')
   : null;
 
-if (productIntroCapture === 'guide') {
+if (pistonHosePreviewEnabled) {
+  void import('../features/pistonOscillation/PistonOscillationHoseDirectionPreviewPage.tsx')
+    .then((module) => {
+      root.render(
+        <React.StrictMode>
+          <module.PistonOscillationHoseDirectionPreviewPage />
+        </React.StrictMode>,
+      );
+    });
+} else if (productIntroCapture === 'guide') {
   void import('../features/onboarding/ProductIntroGuideVideoCapturePage.tsx').then((module) => {
     root.render(<module.ProductIntroGuideVideoCapturePage />);
   });
