@@ -33,6 +33,12 @@ const SCALE_MAX_TICK_MM = 85;
 const SCALE_PREVIEW_PISTON_HEIGHT_MM = 85;
 const PISTON_TOP_CLEARANCE_M = 0.0007;
 const UPPER_UNMARKED_EXTENSION_M = 0.01;
+const LOCKING_SCREW_KNOB_RADIUS_M = 0.0065;
+const LOCKING_SCREW_KNOB_DEPTH_M = 0.006;
+const LOCKING_SCREW_SEAT_RADIUS_M = 0.005;
+const LOCKING_SCREW_SEAT_DEPTH_M = 0.004;
+const LOCKING_SCREW_SHAFT_RADIUS_M = 0.0016;
+const LOCKING_SCREW_CONTACT_GAP_M = 0.001;
 const PROTECTIVE_FRAME_PANEL_NODE_NAMES = [
   'ProtectiveFrame_BackPanel',
   'ProtectiveFrame_FrontPanel',
@@ -46,7 +52,7 @@ const BODY_HEIGHT_FOLLOWER_NODE_NAMES = [
   'AXIS_RodClamp',
 ] as const;
 
-type PreviewMode = 'scale' | 'corrected' | 'source';
+type PreviewMode = 'lockingScrew' | 'scale' | 'corrected' | 'source';
 
 interface PreviewBounds {
   center: THREE.Vector3;
@@ -401,6 +407,138 @@ const applyScaleCalibration = (
   );
 };
 
+const getPreviewMaterial = (root: THREE.Object3D, nodeName: string) => {
+  const mesh = getRequiredObject(root, nodeName) as THREE.Mesh;
+  if (!mesh.isMesh || !mesh.material) {
+    throw new Error(`Piston-oscillation preview node has no material: ${nodeName}`);
+  }
+  return Array.isArray(mesh.material) ? mesh.material[0] : mesh.material;
+};
+
+const createPistonLockingScrewPreview = (
+  root: THREE.Object3D,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+) => {
+  root.updateWorldMatrix(true, true);
+  const topSlab = getRequiredObject(root, 'ProtectiveFrame_TopSlab');
+  const pistonRod = getRequiredObject(root, 'PistonRod');
+  const topSlabBounds = new THREE.Box3().setFromObject(topSlab);
+  const pistonRodBounds = new THREE.Box3().setFromObject(pistonRod);
+  const frameMaterial = getPreviewMaterial(root, 'ProtectiveFrame_TopSlab');
+  const shaftMaterial = getPreviewMaterial(root, 'PistonRod');
+  const assembly = new THREE.Group();
+  const axisOrigin = new THREE.Vector3(
+    topSlabBounds.max.x,
+    (topSlabBounds.min.y + topSlabBounds.max.y) / 2,
+    (pistonRodBounds.min.z + pistonRodBounds.max.z) / 2,
+  );
+  assembly.name = 'PistonLockingScrew_STATIC_Preview';
+  assembly.position.copy(axisOrigin);
+  assembly.userData = {
+    component: 'piston_locking_screw',
+    previewState: 'loose',
+    axis: 'local_X',
+    interactionDeferred: true,
+  };
+
+  const addAxialMesh = (
+    geometry: THREE.BufferGeometry,
+    material: THREE.Material,
+    name: string,
+    localX: number,
+  ) => {
+    ownedGeometries.add(geometry);
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = name;
+    mesh.position.x = localX;
+    mesh.rotation.z = -Math.PI / 2;
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+    mesh.raycast = () => undefined;
+    assembly.add(mesh);
+    return mesh;
+  };
+
+  const contactTipEndLocalX = pistonRodBounds.max.x
+    + LOCKING_SCREW_CONTACT_GAP_M
+    - axisOrigin.x;
+  const contactTipDepth = 0.002;
+  const contactTipBaseLocalX = contactTipEndLocalX + contactTipDepth;
+  const externalShaftEndLocalX = LOCKING_SCREW_SEAT_DEPTH_M + 0.003;
+  const shaftDepth = externalShaftEndLocalX - contactTipBaseLocalX;
+  addAxialMesh(
+    new THREE.CylinderGeometry(
+      LOCKING_SCREW_SHAFT_RADIUS_M,
+      LOCKING_SCREW_SHAFT_RADIUS_M,
+      shaftDepth,
+      20,
+    ),
+    shaftMaterial,
+    'PistonLockingScrew_ThreadedShaft_Preview',
+    contactTipBaseLocalX + shaftDepth / 2,
+  );
+  addAxialMesh(
+    new THREE.CylinderGeometry(
+      LOCKING_SCREW_SEAT_RADIUS_M,
+      LOCKING_SCREW_SEAT_RADIUS_M,
+      LOCKING_SCREW_SEAT_DEPTH_M,
+      24,
+    ),
+    frameMaterial,
+    'PistonLockingScrew_ThreadedSeat_Preview',
+    LOCKING_SCREW_SEAT_DEPTH_M / 2,
+  );
+
+  const knobCenterX = externalShaftEndLocalX + LOCKING_SCREW_KNOB_DEPTH_M / 2;
+  addAxialMesh(
+    new THREE.CylinderGeometry(
+      LOCKING_SCREW_KNOB_RADIUS_M,
+      LOCKING_SCREW_KNOB_RADIUS_M,
+      LOCKING_SCREW_KNOB_DEPTH_M,
+      20,
+    ),
+    frameMaterial,
+    'PistonLockingScrew_KnurledKnob_Preview',
+    knobCenterX,
+  );
+
+  [-0.002, 0, 0.002].forEach((offset, index) => {
+    const grooveGeometry = new THREE.TorusGeometry(
+      LOCKING_SCREW_KNOB_RADIUS_M * 0.96,
+      0.00028,
+      6,
+      28,
+    );
+    ownedGeometries.add(grooveGeometry);
+    const groove = new THREE.Mesh(grooveGeometry, frameMaterial);
+    groove.name = `PistonLockingScrew_GripRing_${index + 1}_Preview`;
+    groove.position.x = knobCenterX + offset;
+    groove.rotation.y = Math.PI / 2;
+    groove.castShadow = false;
+    groove.receiveShadow = false;
+    groove.raycast = () => undefined;
+    assembly.add(groove);
+  });
+
+  addAxialMesh(
+    new THREE.CylinderGeometry(
+      LOCKING_SCREW_SHAFT_RADIUS_M,
+      LOCKING_SCREW_SHAFT_RADIUS_M * 0.62,
+      contactTipDepth,
+      20,
+    ),
+    shaftMaterial,
+    'PistonLockingScrew_ContactTip_Preview',
+    contactTipEndLocalX + contactTipDepth / 2,
+  );
+
+  const interactionAxis = new THREE.Object3D();
+  interactionAxis.name = 'AXIS_PistonLockingScrew';
+  assembly.add(interactionAxis);
+  root.add(assembly);
+  root.updateWorldMatrix(true, true);
+};
+
 const measurePreviewModel = (root: THREE.Object3D): PreviewBounds => {
   root.updateWorldMatrix(true, true);
   const bounds = new THREE.Box3();
@@ -496,9 +634,12 @@ const createPreviewModel = (
     ownedMaterials.add(correctedExternalHose.material);
     ownedGeometries.add(correctedExternalHose.geometry);
     root.add(correctedExternalHose.hose);
-    if (mode === 'scale') {
+    if (mode === 'scale' || mode === 'lockingScrew') {
       root.updateWorldMatrix(true, true);
       applyScaleCalibration(root, ownedGeometries);
+    }
+    if (mode === 'lockingScrew') {
+      createPistonLockingScrewPreview(root, ownedGeometries);
     }
   }
 
@@ -595,7 +736,7 @@ const formatMillimeters = (meters: number) => `${(meters * 1000).toFixed(2)} mm`
 
 export const PistonOscillationModelSizePreviewPage = () => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const [mode, setMode] = useState<PreviewMode>('scale');
+  const [mode, setMode] = useState<PreviewMode>('lockingScrew');
   const [bounds, setBounds] = useState<PreviewBounds | null>(null);
   const [resetRevision, setResetRevision] = useState(0);
   const [modelReady, setModelReady] = useState(false);
@@ -609,12 +750,13 @@ export const PistonOscillationModelSizePreviewPage = () => {
     setMode(nextMode);
     setResetRevision((value) => value + 1);
   }, []);
+  const calibratedMode = mode === 'lockingScrew' || mode === 'scale';
 
   return (
     <main className="piston-model-size-preview-page">
       <section
         className="piston-model-size-preview-stage"
-        aria-label="活塞振动法毫米刻度与气缸行程校正临时预览"
+        aria-label="活塞振动法侧面锁紧螺钉静态模型临时预览"
         data-piston-model-size-preview-ready={modelReady ? 'true' : 'false'}
         data-piston-model-size-preview-mode={mode}
       >
@@ -669,11 +811,11 @@ export const PistonOscillationModelSizePreviewPage = () => {
 
         <header className="piston-model-size-preview-header">
           <div>
-            <span>活塞振动法 · 整机模型第二阶段</span>
-            <h1>毫米刻度与气缸行程校准</h1>
+            <span>活塞振动法 · 整机模型第三阶段</span>
+            <h1>侧面活塞锁紧螺钉静态模型</h1>
             <p>
-              在已确认的尺寸版本上重建真实毫米间距，使石墨活塞下沿对应读数；
-              同步收短玻璃缸和防护框，并保留足够的顶部活塞空间。
+              在已确认的刻度与上限结构上增加锁紧螺钉；本断点只审查安装位置、
+              水平轴向、外形比例和整机可见性，不加入操作逻辑。
             </p>
           </div>
           <button type="button" onClick={() => setResetRevision((value) => value + 1)}>
@@ -684,6 +826,13 @@ export const PistonOscillationModelSizePreviewPage = () => {
         <aside className="piston-model-size-preview-controls" aria-label="模型阶段切换">
           <strong>模型阶段</strong>
           <div role="group" aria-label="选择模型阶段">
+            <button
+              type="button"
+              aria-pressed={mode === 'lockingScrew'}
+              onClick={() => selectMode('lockingScrew')}
+            >
+              锁紧螺钉
+            </button>
             <button
               type="button"
               aria-pressed={mode === 'scale'}
@@ -715,29 +864,33 @@ export const PistonOscillationModelSizePreviewPage = () => {
             </div>
             <div>
               <dt>可见刻线</dt>
-              <dd>{mode === 'scale' ? '0–85 mm' : '0–90 mm'}</dd>
+              <dd>{calibratedMode ? '0–85 mm' : '0–90 mm'}</dd>
             </div>
             <div>
               <dt>数字范围</dt>
-              <dd>{mode === 'scale' ? '10–80' : '10–90'}</dd>
+              <dd>{calibratedMode ? '10–80' : '10–90'}</dd>
             </div>
             <div>
               <dt>活塞下沿</dt>
-              <dd>{mode === 'scale' ? '85 mm' : '原始位置'}</dd>
+              <dd>{calibratedMode ? '85 mm' : '原始位置'}</dd>
             </div>
             <div>
               <dt>上方新增留白</dt>
-              <dd>{mode === 'scale' ? '10 mm' : '—'}</dd>
+              <dd>{calibratedMode ? '10 mm' : '—'}</dd>
+            </div>
+            <div>
+              <dt>螺钉预览状态</dt>
+              <dd>{mode === 'lockingScrew' ? '完全松开' : '未显示'}</dd>
             </div>
           </dl>
         </aside>
 
-        <aside className="piston-model-size-preview-notes" aria-label="刻度阶段调整范围">
-          <strong>本阶段已联动</strong>
-          <p>刻度间距保持不变；在 85 mm 上限之上增加玻璃管留白，并同步抬高顶板、四周支撑柱和夹持桥。</p>
-          <strong>本阶段未加入</strong>
-          <p>侧面活塞锁紧螺钉、正式高度拖动交互及其状态判定。</p>
-          <small>读数基准为石墨活塞下沿；鼠标拖动可旋转，滚轮可缩放。</small>
+        <aside className="piston-model-size-preview-notes" aria-label="锁紧螺钉阶段调整范围">
+          <strong>本阶段已加入</strong>
+          <p>右侧水平锁紧螺钉、滚花手拧头、螺纹座、螺纹轴、内侧接触端和独立运动轴。</p>
+          <strong>本断点暂不加入</strong>
+          <p>旋转进退动效、旋紧状态、命中区域及活塞锁定判定。</p>
+          <small>默认展示完全松开状态；鼠标拖动可旋转整机，滚轮可缩放。</small>
         </aside>
       </section>
     </main>
