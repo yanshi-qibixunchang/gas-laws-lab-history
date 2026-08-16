@@ -8,7 +8,7 @@ import {
   useState,
 } from 'react';
 import { OrbitControls } from '@react-three/drei';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, type ThreeEvent } from '@react-three/fiber';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import {
@@ -51,6 +51,7 @@ const HOSE_DESCENT_COMPLETION_T = 0.325;
 const HOSE_FAR_SEGMENT_LENGTH_M = 0.3;
 const HOSE_CONNECTOR_LEAD_LENGTH_M = 0.055;
 const DETACHED_CONNECTOR_AXIS_HEIGHT_M = 0.01135;
+const HOSE_MAGNETIC_SNAP_RADIUS_M = 0.06;
 const DETACHED_CONNECTOR_NODE_NAMES = [
   'Connector_Main_Grip_00',
   'Connector_Main_Grip_01',
@@ -102,6 +103,10 @@ interface OwnedPreviewModel {
   connectedHose: THREE.Object3D | null;
   quickDisconnect: THREE.Object3D | null;
   detachedHoseAssembly: THREE.Group | null;
+  hoseGhostAssembly: THREE.Group | null;
+  hoseDragHitTarget: THREE.Mesh | null;
+  hoseSnapRing: THREE.Mesh | null;
+  hoseConnectorWorldPosition: THREE.Vector3 | null;
 }
 
 const getWorldPosition = (root: THREE.Object3D, nodeName: string) => {
@@ -497,6 +502,99 @@ const createDetachedHoseAssembly = (
   };
   assembly.add(hose, connector);
   return assembly;
+};
+
+const createHoseDragReviewObjects = (
+  connectedHose: THREE.Object3D,
+  quickDisconnect: THREE.Object3D,
+  ownedMaterials: Set<THREE.Material>,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+) => {
+  quickDisconnect.updateWorldMatrix(true, true);
+  const connectorBounds = new THREE.Box3().setFromObject(quickDisconnect);
+  const connectorWorldPosition = connectorBounds.getCenter(new THREE.Vector3());
+  const ghostMaterial = new THREE.MeshStandardMaterial({
+    color: '#69b7df',
+    roughness: 0.48,
+    metalness: 0.04,
+    transparent: true,
+    opacity: 0.32,
+    depthWrite: false,
+  });
+  ownedMaterials.add(ghostMaterial);
+
+  const ghostAssembly = new THREE.Group();
+  ghostAssembly.name = 'Hose_Main_DragGhostAssembly_Preview';
+  ghostAssembly.userData = {
+    component: 'main_pressure_hose_drag_ghost',
+    previewState: 'dragging',
+    magneticSnapRadiusM: HOSE_MAGNETIC_SNAP_RADIUS_M,
+  };
+  const ghostHose = connectedHose.clone(true);
+  ghostHose.name = 'Hose_Main_DragGhost_Preview';
+  ghostHose.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.material = ghostMaterial;
+    mesh.raycast = () => undefined;
+  });
+  const ghostConnector = quickDisconnect.clone(true);
+  ghostConnector.name = 'Connector_Main_DragGhost_Preview';
+  quickDisconnect.matrixWorld.decompose(
+    ghostConnector.position,
+    ghostConnector.quaternion,
+    ghostConnector.scale,
+  );
+  ghostConnector.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.material = ghostMaterial;
+    mesh.raycast = () => undefined;
+  });
+  ghostAssembly.add(ghostHose, ghostConnector);
+  ghostAssembly.visible = false;
+
+  const hitGeometry = new THREE.SphereGeometry(0.016, 20, 14);
+  const hitMaterial = new THREE.MeshBasicMaterial({
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  ownedGeometries.add(hitGeometry);
+  ownedMaterials.add(hitMaterial);
+  const hitTarget = new THREE.Mesh(hitGeometry, hitMaterial);
+  hitTarget.name = 'HIT_Hose_Main_QuickDisconnect_Preview';
+  hitTarget.position.copy(connectorWorldPosition);
+  hitTarget.renderOrder = 20;
+
+  const snapRingGeometry = new THREE.TorusGeometry(
+    HOSE_MAGNETIC_SNAP_RADIUS_M,
+    0.00065,
+    8,
+    72,
+  );
+  const snapRingMaterial = new THREE.MeshBasicMaterial({
+    color: '#3f9dcc',
+    transparent: true,
+    opacity: 0.64,
+    depthWrite: false,
+  });
+  ownedGeometries.add(snapRingGeometry);
+  ownedMaterials.add(snapRingMaterial);
+  const snapRing = new THREE.Mesh(snapRingGeometry, snapRingMaterial);
+  snapRing.name = 'GUIDE_Hose_Main_MagneticSnapBoundary_Preview';
+  snapRing.position.copy(connectorWorldPosition);
+  snapRing.rotation.x = Math.PI / 2;
+  snapRing.visible = false;
+  snapRing.raycast = () => undefined;
+  snapRing.renderOrder = 19;
+
+  return {
+    ghostAssembly,
+    hitTarget,
+    snapRing,
+    connectorWorldPosition,
+  };
 };
 
 const getTickBandCenters = (geometry: THREE.BufferGeometry) => {
@@ -979,6 +1077,10 @@ const createPreviewModel = (
   let connectedHose: THREE.Object3D | null = null;
   let quickDisconnect: THREE.Object3D | null = null;
   let detachedHoseAssembly: THREE.Group | null = null;
+  let hoseGhostAssembly: THREE.Group | null = null;
+  let hoseDragHitTarget: THREE.Mesh | null = null;
+  let hoseSnapRing: THREE.Mesh | null = null;
+  let hoseConnectorWorldPosition: THREE.Vector3 | null = null;
   if (mode !== 'source') {
     root.updateWorldMatrix(true, true);
     const instrumentBody = root.getObjectByName(INSTRUMENT_BODY_ROOT_NODE_NAME);
@@ -1026,6 +1128,20 @@ const createPreviewModel = (
     );
     detachedHoseAssembly.visible = false;
     root.add(detachedHoseAssembly);
+    if (!connectedHose || !quickDisconnect) {
+      throw new Error('Piston-oscillation hose preview is missing a connected endpoint.');
+    }
+    const dragReviewObjects = createHoseDragReviewObjects(
+      connectedHose,
+      quickDisconnect,
+      ownedMaterials,
+      ownedGeometries,
+    );
+    hoseGhostAssembly = dragReviewObjects.ghostAssembly;
+    hoseDragHitTarget = dragReviewObjects.hitTarget;
+    hoseSnapRing = dragReviewObjects.snapRing;
+    hoseConnectorWorldPosition = dragReviewObjects.connectorWorldPosition;
+    root.add(hoseGhostAssembly);
   }
   root.add(createPreviewBench(unifiedLightLabBenchSourceScene));
   return {
@@ -1037,6 +1153,10 @@ const createPreviewModel = (
     connectedHose,
     quickDisconnect,
     detachedHoseAssembly,
+    hoseGhostAssembly,
+    hoseDragHitTarget,
+    hoseSnapRing,
+    hoseConnectorWorldPosition,
   };
 };
 
@@ -1046,15 +1166,34 @@ const FullModelPreview = ({
   mode,
   lockingScrewProgress,
   hoseState,
+  hoseFocused,
+  hoseDragging,
+  hoseGhostOffset,
   onBoundsReady,
+  onHoseFocusPointReady,
+  onHoseFocusRequest,
+  onHoseDragStart,
+  onHoseDragChange,
+  onHoseDragEnd,
 }: {
   sourceScene: THREE.Object3D;
   unifiedLightLabBenchSourceScene: THREE.Object3D;
   mode: PreviewMode;
   lockingScrewProgress: number;
   hoseState: HosePreviewState;
+  hoseFocused: boolean;
+  hoseDragging: boolean;
+  hoseGhostOffset: readonly [number, number, number];
   onBoundsReady: (bounds: PreviewBounds) => void;
+  onHoseFocusPointReady: (point: THREE.Vector3 | null) => void;
+  onHoseFocusRequest: () => void;
+  onHoseDragStart: () => void;
+  onHoseDragChange: (offset: THREE.Vector3) => void;
+  onHoseDragEnd: (offset: THREE.Vector3) => void;
 }) => {
+  const hoseDragActiveRef = useRef(false);
+  const hoseDragStartPointRef = useRef(new THREE.Vector3());
+  const hoseDragPlaneRef = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const ownedModel = useMemo(
     () => createPreviewModel(sourceScene, unifiedLightLabBenchSourceScene, mode),
     [mode, sourceScene, unifiedLightLabBenchSourceScene],
@@ -1063,6 +1202,10 @@ const FullModelPreview = ({
   useLayoutEffect(() => {
     onBoundsReady(ownedModel.bounds);
   }, [onBoundsReady, ownedModel.bounds]);
+
+  useLayoutEffect(() => {
+    onHoseFocusPointReady(ownedModel.hoseConnectorWorldPosition?.clone() ?? null);
+  }, [onHoseFocusPointReady, ownedModel]);
 
   useLayoutEffect(() => {
     const movingPart = ownedModel.lockingScrewMovingPart;
@@ -1079,17 +1222,89 @@ const FullModelPreview = ({
   }, [lockingScrewProgress, ownedModel]);
 
   useLayoutEffect(() => {
-    const { connectedHose, quickDisconnect, detachedHoseAssembly } = ownedModel;
+    const {
+      connectedHose,
+      quickDisconnect,
+      detachedHoseAssembly,
+      hoseGhostAssembly,
+      hoseDragHitTarget,
+      hoseSnapRing,
+    } = ownedModel;
     if (!connectedHose || !quickDisconnect || !detachedHoseAssembly) return;
     const connected = hoseState === 'connected';
     connectedHose.visible = connected;
     quickDisconnect.visible = connected;
     detachedHoseAssembly.visible = !connected;
+    if (hoseGhostAssembly) {
+      hoseGhostAssembly.visible = connected && hoseDragging;
+      hoseGhostAssembly.position.set(...hoseGhostOffset);
+    }
+    if (hoseDragHitTarget) hoseDragHitTarget.visible = connected;
+    if (hoseSnapRing) {
+      hoseSnapRing.visible = connected && hoseDragging;
+      const ringMaterial = hoseSnapRing.material as THREE.MeshBasicMaterial;
+      const ghostDistance = Math.hypot(hoseGhostOffset[0], hoseGhostOffset[2]);
+      ringMaterial.color.set(
+        ghostDistance <= HOSE_MAGNETIC_SNAP_RADIUS_M ? '#3f9dcc' : '#cf704f',
+      );
+    }
     quickDisconnect.userData.previewState = connected
       ? 'connected_sealed'
       : 'disconnected_open_to_atmosphere';
     ownedModel.root.updateWorldMatrix(true, true);
-  }, [hoseState, ownedModel]);
+  }, [hoseDragging, hoseGhostOffset, hoseState, ownedModel]);
+
+  const getDragOffset = useCallback((event: ThreeEvent<PointerEvent>) => {
+    const point = event.ray.intersectPlane(
+      hoseDragPlaneRef.current,
+      new THREE.Vector3(),
+    );
+    if (!point) return null;
+    return point.sub(hoseDragStartPointRef.current).setY(0);
+  }, []);
+
+  const handleHosePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (!hoseFocused || hoseState !== 'connected') return;
+    const connectorPosition = ownedModel.hoseConnectorWorldPosition;
+    if (!connectorPosition) return;
+    event.stopPropagation();
+    hoseDragPlaneRef.current.set(new THREE.Vector3(0, 1, 0), -connectorPosition.y);
+    const startPoint = event.ray.intersectPlane(
+      hoseDragPlaneRef.current,
+      new THREE.Vector3(),
+    );
+    if (!startPoint) return;
+    hoseDragStartPointRef.current.copy(startPoint);
+    hoseDragActiveRef.current = true;
+    (event.target as EventTarget & { setPointerCapture: (pointerId: number) => void })
+      .setPointerCapture(event.pointerId);
+    onHoseDragStart();
+  }, [hoseFocused, hoseState, onHoseDragStart, ownedModel.hoseConnectorWorldPosition]);
+
+  const handleHosePointerMove = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (!hoseDragActiveRef.current) return;
+    const offset = getDragOffset(event);
+    if (!offset) return;
+    event.stopPropagation();
+    onHoseDragChange(offset);
+  }, [getDragOffset, onHoseDragChange]);
+
+  const handleHosePointerUp = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (!hoseDragActiveRef.current) return;
+    hoseDragActiveRef.current = false;
+    const offset = getDragOffset(event) ?? new THREE.Vector3();
+    event.stopPropagation();
+    (event.target as EventTarget & { releasePointerCapture: (pointerId: number) => void })
+      .releasePointerCapture(event.pointerId);
+    onHoseDragEnd(offset);
+  }, [getDragOffset, onHoseDragEnd]);
+
+  const handleHosePointerCancel = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (!hoseDragActiveRef.current) return;
+    hoseDragActiveRef.current = false;
+    event.stopPropagation();
+    onHoseDragEnd(new THREE.Vector3());
+  }, [onHoseDragEnd]);
 
   useEffect(() => () => {
     ownedModel.ownedGeometries.forEach((geometry) => geometry.dispose());
@@ -1098,33 +1313,60 @@ const FullModelPreview = ({
     ownedModel.ownedMaterials.clear();
   }, [ownedModel]);
 
-  return <primitive object={ownedModel.root} dispose={null} />;
+  return (
+    <>
+      <primitive object={ownedModel.root} dispose={null} />
+      {ownedModel.hoseDragHitTarget ? (
+        <primitive
+          object={ownedModel.hoseDragHitTarget}
+          dispose={null}
+          onDoubleClick={(event: ThreeEvent<MouseEvent>) => {
+            event.stopPropagation();
+            onHoseFocusRequest();
+          }}
+          onPointerDown={handleHosePointerDown}
+          onPointerMove={handleHosePointerMove}
+          onPointerUp={handleHosePointerUp}
+          onPointerCancel={handleHosePointerCancel}
+        />
+      ) : null}
+      {ownedModel.hoseSnapRing ? (
+        <primitive object={ownedModel.hoseSnapRing} dispose={null} />
+      ) : null}
+    </>
+  );
 };
 
 const PreviewCameraRig = ({
   bounds,
   controlsRef,
   resetRevision,
+  hoseFocused,
+  hoseFocusPoint,
 }: {
   bounds: PreviewBounds | null;
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   resetRevision: number;
+  hoseFocused: boolean;
+  hoseFocusPoint: THREE.Vector3 | null;
 }) => {
   const camera = useThree((state) => state.camera);
   const invalidate = useThree((state) => state.invalidate);
   const size = useThree((state) => state.size);
   const appliedPoseKeyRef = useRef<string | null>(null);
   const overviewScheme = PISTON_OSCILLATION_CAMERA_VIEW_SCHEMES.overview;
-  const previewDirection = new THREE.Vector3(...overviewScheme.direction).multiplyScalar(1.32);
 
   useLayoutEffect(() => {
     appliedPoseKeyRef.current = null;
     invalidate();
-  }, [bounds, invalidate, resetRevision]);
+  }, [bounds, hoseFocusPoint, hoseFocused, invalidate, resetRevision]);
 
   useFrame(() => {
     if (!bounds) return;
-    const poseKey = `${resetRevision}:${size.width}:${size.height}:${bounds.span}`;
+    const focusKey = hoseFocused && hoseFocusPoint
+      ? hoseFocusPoint.toArray().map((value) => value.toFixed(4)).join(':')
+      : 'overview';
+    const poseKey = `${resetRevision}:${size.width}:${size.height}:${bounds.span}:${focusKey}`;
     if (appliedPoseKeyRef.current === poseKey) return;
     const controls = controlsRef.current;
     if (!(camera instanceof THREE.PerspectiveCamera) || !controls) return;
@@ -1137,9 +1379,14 @@ const PreviewCameraRig = ({
           THREE.MathUtils.radToDeg(2 * Math.atan(Math.tan(baseHalfFovRad) / aspect)),
         )
       : overviewScheme.fov;
-    const target = bounds.center.clone().add(new THREE.Vector3(0, 0.025, 0));
-    camera.position.copy(bounds.center).add(
-      previewDirection.clone().multiplyScalar(bounds.span),
+    const target = hoseFocused && hoseFocusPoint
+      ? hoseFocusPoint.clone()
+      : bounds.center.clone().add(new THREE.Vector3(0, 0.025, 0));
+    const cameraDistance = hoseFocused && hoseFocusPoint
+      ? THREE.MathUtils.clamp(bounds.span * 0.34, 0.18, 0.26)
+      : bounds.span * 1.32;
+    camera.position.copy(target).add(
+      new THREE.Vector3(...overviewScheme.direction).multiplyScalar(cameraDistance),
     );
     camera.fov = responsiveFov;
     camera.near = 0.002;
@@ -1164,6 +1411,12 @@ export const PistonOscillationModelSizePreviewPage = () => {
   const [modelReady, setModelReady] = useState(false);
   const [lockingScrewProgress, setLockingScrewProgress] = useState(0);
   const [hoseState, setHoseState] = useState<HosePreviewState>('connected');
+  const [hoseFocused, setHoseFocused] = useState(false);
+  const [hoseDragging, setHoseDragging] = useState(false);
+  const [hoseGhostOffset, setHoseGhostOffset] = useState<readonly [number, number, number]>(
+    [0, 0, 0],
+  );
+  const [hoseFocusPoint, setHoseFocusPoint] = useState<THREE.Vector3 | null>(null);
   const handleBoundsReady = useCallback((nextBounds: PreviewBounds) => {
     setBounds(nextBounds);
     setModelReady(true);
@@ -1174,9 +1427,44 @@ export const PistonOscillationModelSizePreviewPage = () => {
     setMode(nextMode);
     setLockingScrewProgress(0);
     setHoseState('connected');
+    setHoseFocused(false);
+    setHoseDragging(false);
+    setHoseGhostOffset([0, 0, 0]);
+    setResetRevision((value) => value + 1);
+  }, []);
+  const handleHoseFocusPointReady = useCallback((point: THREE.Vector3 | null) => {
+    setHoseFocusPoint(point);
+  }, []);
+  const handleHoseFocusRequest = useCallback(() => {
+    setHoseFocused(true);
+  }, []);
+  const handleHoseDragStart = useCallback(() => {
+    setHoseDragging(true);
+    setHoseGhostOffset([0, 0, 0]);
+  }, []);
+  const handleHoseDragChange = useCallback((offset: THREE.Vector3) => {
+    setHoseGhostOffset([offset.x, 0, offset.z]);
+  }, []);
+  const handleHoseDragEnd = useCallback((offset: THREE.Vector3) => {
+    const distance = Math.hypot(offset.x, offset.z);
+    setHoseState(distance > HOSE_MAGNETIC_SNAP_RADIUS_M ? 'disconnected' : 'connected');
+    setHoseDragging(false);
+    setHoseGhostOffset([0, 0, 0]);
+  }, []);
+  const selectHoseState = useCallback((nextState: HosePreviewState) => {
+    setHoseState(nextState);
+    setHoseDragging(false);
+    setHoseGhostOffset([0, 0, 0]);
+  }, []);
+  const restoreOverview = useCallback(() => {
+    setHoseFocused(false);
+    setHoseDragging(false);
+    setHoseGhostOffset([0, 0, 0]);
     setResetRevision((value) => value + 1);
   }, []);
   const calibratedMode = mode === 'hose' || mode === 'lockingScrew' || mode === 'scale';
+  const hoseGhostDistance = Math.hypot(hoseGhostOffset[0], hoseGhostOffset[2]);
+  const hoseWithinMagneticRange = hoseGhostDistance <= HOSE_MAGNETIC_SNAP_RADIUS_M;
   const lockingScrewStateLabel = lockingScrewProgress <= 0.001
     ? '完全松开'
     : lockingScrewProgress >= 0.999
@@ -1187,9 +1475,13 @@ export const PistonOscillationModelSizePreviewPage = () => {
     <main className="piston-model-size-preview-page">
       <section
         className="piston-model-size-preview-stage"
-        aria-label="活塞振动法软管连接与断开双状态整机临时预览"
+        aria-label="活塞振动法软管拖拽幽灵与磁吸边界整机临时预览"
         data-piston-model-size-preview-ready={modelReady ? 'true' : 'false'}
         data-piston-model-size-preview-mode={mode}
+        data-piston-hose-state={hoseState}
+        data-piston-hose-focused={hoseFocused ? 'true' : 'false'}
+        data-piston-hose-dragging={hoseDragging ? 'true' : 'false'}
+        data-piston-hose-within-magnetic-range={hoseWithinMagneticRange ? 'true' : 'false'}
       >
         <Canvas
           camera={{ position: [0.2, 0.52, 0.9], fov: 38, near: 0.002, far: 20 }}
@@ -1215,7 +1507,15 @@ export const PistonOscillationModelSizePreviewPage = () => {
                   mode={mode}
                   lockingScrewProgress={lockingScrewProgress}
                   hoseState={hoseState}
+                  hoseFocused={hoseFocused}
+                  hoseDragging={hoseDragging}
+                  hoseGhostOffset={hoseGhostOffset}
                   onBoundsReady={handleBoundsReady}
+                  onHoseFocusPointReady={handleHoseFocusPointReady}
+                  onHoseFocusRequest={handleHoseFocusRequest}
+                  onHoseDragStart={handleHoseDragStart}
+                  onHoseDragChange={handleHoseDragChange}
+                  onHoseDragEnd={handleHoseDragEnd}
                 />
               )}
             </PistonOscillationInstrumentAsset>
@@ -1223,6 +1523,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
           <OrbitControls
             ref={controlsRef}
             makeDefault
+            enabled={!hoseDragging}
             enablePan
             enableRotate
             enableZoom
@@ -1233,6 +1534,8 @@ export const PistonOscillationModelSizePreviewPage = () => {
             bounds={bounds}
             controlsRef={controlsRef}
             resetRevision={resetRevision}
+            hoseFocused={hoseFocused}
+            hoseFocusPoint={hoseFocusPoint}
           />
         </Canvas>
 
@@ -1244,14 +1547,14 @@ export const PistonOscillationModelSizePreviewPage = () => {
 
         <header className="piston-model-size-preview-header">
           <div>
-            <span>活塞振动法 · 整机模型第五阶段</span>
-            <h1>软管连接与断开双状态整机预览</h1>
+            <span>活塞振动法 · 整机模型第六阶段</span>
+            <h1>软管拖拽幽灵与磁吸边界预览</h1>
             <p>
-              已按上部框架缩短量同步裁短活塞杆并下移顶部按压组件；本断点把已确认的
-              断开软管形态迁入完整整机，只检查接通与断开两种实体状态。
+              双击白色快接头进入聚焦视角，再按住接头拖动；连接实体保留原位，
+              半透明幽灵随鼠标移动，松手位置决定复位或转为断开实体。
             </p>
           </div>
-          <button type="button" onClick={() => setResetRevision((value) => value + 1)}>
+          <button type="button" onClick={restoreOverview}>
             恢复确认视角
           </button>
         </header>
@@ -1264,7 +1567,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
               aria-pressed={mode === 'hose'}
               onClick={() => selectMode('hose')}
             >
-              软管双状态
+              软管拖拽
             </button>
             <button
               type="button"
@@ -1336,25 +1639,46 @@ export const PistonOscillationModelSizePreviewPage = () => {
             </div>
           </dl>
           {mode === 'hose' ? (
-            <section className="piston-hose-state-preview" aria-label="软管双状态预览">
+            <section className="piston-hose-state-preview" aria-label="软管拖拽与实体状态预览">
               <strong>实体状态审查</strong>
               <div className="piston-hose-state-endpoints" role="group" aria-label="选择软管实体状态">
                 <button
                   type="button"
                   aria-pressed={hoseState === 'connected'}
-                  onClick={() => setHoseState('connected')}
+                  onClick={() => selectHoseState('connected')}
                 >
                   接通密封
                 </button>
                 <button
                   type="button"
                   aria-pressed={hoseState === 'disconnected'}
-                  onClick={() => setHoseState('disconnected')}
+                  onClick={() => selectHoseState('disconnected')}
                 >
                   断开通大气
                 </button>
               </div>
-              <small>切换时固定接口留在仪器上；白色卡扣接头随软管一起取下。</small>
+              <dl className="piston-hose-drag-status">
+                <div>
+                  <dt>聚焦状态</dt>
+                  <dd>{hoseFocused ? '已聚焦接头' : '等待双击接头'}</dd>
+                </div>
+                <div>
+                  <dt>拖拽判定</dt>
+                  <dd>{hoseDragging
+                    ? hoseWithinMagneticRange
+                      ? '磁吸范围内'
+                      : '已越过边界'
+                    : '等待拖拽'}</dd>
+                </div>
+                <div>
+                  <dt>幽灵位移</dt>
+                  <dd>{formatMillimeters(hoseGhostDistance)}</dd>
+                </div>
+              </dl>
+              <small>
+                双击白色接头聚焦；聚焦后按住并拖动。当前磁吸半径为
+                {' '}{formatMillimeters(HOSE_MAGNETIC_SNAP_RADIUS_M)} 审查值。
+              </small>
             </section>
           ) : null}
           {mode === 'lockingScrew' ? (
@@ -1397,12 +1721,12 @@ export const PistonOscillationModelSizePreviewPage = () => {
           ) : null}
         </aside>
 
-        <aside className="piston-model-size-preview-notes" aria-label="软管双状态阶段调整范围">
+        <aside className="piston-model-size-preview-notes" aria-label="软管拖拽幽灵阶段调整范围">
           <strong>本断点请审查</strong>
-          <p>接通时维持整机原有密封路径；断开时采用已确认的桌面走向，软管与白色旋转卡扣作为一个实体落在桌面上。</p>
+          <p>双击接头进入聚焦；拖动时原实体不动，软管与白色接头的半透明幽灵共同位移，蓝色圆环显示磁吸边界。</p>
           <strong>本断点暂不加入</strong>
-          <p>半透明拖拽幽灵、磁吸区、双击聚焦和松手后的状态判定。</p>
-          <small>请用右侧按钮反复切换两种实体状态，并顺带检查缩短后的活塞杆与顶部按压组件比例。</small>
+          <p>卡扣声音、拖拽阻尼、正式教程提示及实验流程状态机。</p>
+          <small>范围内松手会吸回接通状态；越界松手会切换为已经确认的断开实体形态。</small>
         </aside>
       </section>
     </main>
