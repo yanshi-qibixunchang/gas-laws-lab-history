@@ -179,6 +179,51 @@
   font-weight: 720;
 }
 
+.piston-locking-screw-motion-preview {
+  border-top: 1px solid rgba(100, 116, 139, 0.2);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.piston-locking-screw-motion-preview > strong {
+  color: #455666;
+  font-size: 10px;
+}
+
+.piston-model-size-preview-controls .piston-locking-screw-endpoints {
+  margin-top: 7px;
+}
+
+.piston-locking-screw-motion-preview label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  color: #667584;
+  font-size: 10px;
+}
+
+.piston-locking-screw-motion-preview output {
+  color: #283845;
+  font-variant-numeric: tabular-nums;
+  font-weight: 720;
+}
+
+.piston-locking-screw-motion-preview input[type="range"] {
+  width: 100%;
+  accent-color: #326d98;
+  cursor: ew-resize;
+}
+
+.piston-locking-screw-motion-preview small {
+  display: block;
+  margin-top: 3px;
+  color: #788694;
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
 .piston-model-size-preview-notes {
   bottom: 20px;
   left: 20px;
@@ -259,6 +304,11 @@
 
   .piston-model-size-preview-controls dl div {
     padding-top: 4px;
+  }
+
+  .piston-locking-screw-motion-preview {
+    margin-top: 8px;
+    padding-top: 7px;
   }
 
   .piston-model-size-preview-controls dt,

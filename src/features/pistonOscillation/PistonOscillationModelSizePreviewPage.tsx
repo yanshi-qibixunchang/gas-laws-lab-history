@@ -39,6 +39,7 @@ const LOCKING_SCREW_SEAT_RADIUS_M = 0.005;
 const LOCKING_SCREW_SEAT_DEPTH_M = 0.004;
 const LOCKING_SCREW_SHAFT_RADIUS_M = 0.0016;
 const LOCKING_SCREW_CONTACT_GAP_M = 0.001;
+const LOCKING_SCREW_PREVIEW_TURNS = 1.5;
 const PROTECTIVE_FRAME_PANEL_NODE_NAMES = [
   'ProtectiveFrame_BackPanel',
   'ProtectiveFrame_FrontPanel',
@@ -64,6 +65,7 @@ interface OwnedPreviewModel {
   bounds: PreviewBounds;
   ownedMaterials: Set<THREE.Material>;
   ownedGeometries: Set<THREE.BufferGeometry>;
+  lockingScrewMovingPart: THREE.Group | null;
 }
 
 const getWorldPosition = (root: THREE.Object3D, nodeName: string) => {
@@ -427,6 +429,7 @@ const createPistonLockingScrewPreview = (
   const frameMaterial = getPreviewMaterial(root, 'ProtectiveFrame_TopSlab');
   const shaftMaterial = getPreviewMaterial(root, 'PistonRod');
   const assembly = new THREE.Group();
+  const movingPart = new THREE.Group();
   const axisOrigin = new THREE.Vector3(
     topSlabBounds.max.x,
     (topSlabBounds.min.y + topSlabBounds.max.y) / 2,
@@ -440,12 +443,20 @@ const createPistonLockingScrewPreview = (
     axis: 'local_X',
     interactionDeferred: true,
   };
+  movingPart.name = 'PistonLockingScrew_MovingPart_Preview';
+  movingPart.userData = {
+    loosePositionX: 0,
+    tightTravelM: LOCKING_SCREW_CONTACT_GAP_M,
+    previewTurns: LOCKING_SCREW_PREVIEW_TURNS,
+  };
+  assembly.add(movingPart);
 
   const addAxialMesh = (
     geometry: THREE.BufferGeometry,
     material: THREE.Material,
     name: string,
     localX: number,
+    parent: THREE.Object3D = movingPart,
   ) => {
     ownedGeometries.add(geometry);
     const mesh = new THREE.Mesh(geometry, material);
@@ -455,7 +466,7 @@ const createPistonLockingScrewPreview = (
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     mesh.raycast = () => undefined;
-    assembly.add(mesh);
+    parent.add(mesh);
     return mesh;
   };
 
@@ -487,6 +498,7 @@ const createPistonLockingScrewPreview = (
     frameMaterial,
     'PistonLockingScrew_ThreadedSeat_Preview',
     LOCKING_SCREW_SEAT_DEPTH_M / 2,
+    assembly,
   );
 
   const knobCenterX = externalShaftEndLocalX + LOCKING_SCREW_KNOB_DEPTH_M / 2;
@@ -517,8 +529,22 @@ const createPistonLockingScrewPreview = (
     groove.castShadow = false;
     groove.receiveShadow = false;
     groove.raycast = () => undefined;
-    assembly.add(groove);
+    movingPart.add(groove);
   });
+
+  const witnessMarkGeometry = new THREE.BoxGeometry(0.00035, 0.0028, 0.00055);
+  ownedGeometries.add(witnessMarkGeometry);
+  const witnessMark = new THREE.Mesh(witnessMarkGeometry, shaftMaterial);
+  witnessMark.name = 'PistonLockingScrew_RotationWitnessMark_Preview';
+  witnessMark.position.set(
+    knobCenterX + LOCKING_SCREW_KNOB_DEPTH_M / 2 + 0.00012,
+    LOCKING_SCREW_KNOB_RADIUS_M * 0.45,
+    0,
+  );
+  witnessMark.castShadow = false;
+  witnessMark.receiveShadow = false;
+  witnessMark.raycast = () => undefined;
+  movingPart.add(witnessMark);
 
   addAxialMesh(
     new THREE.CylinderGeometry(
@@ -537,6 +563,7 @@ const createPistonLockingScrewPreview = (
   assembly.add(interactionAxis);
   root.add(assembly);
   root.updateWorldMatrix(true, true);
+  return movingPart;
 };
 
 const measurePreviewModel = (root: THREE.Object3D): PreviewBounds => {
@@ -614,6 +641,7 @@ const createPreviewModel = (
   });
 
   const ownedGeometries = new Set<THREE.BufferGeometry>();
+  let lockingScrewMovingPart: THREE.Group | null = null;
   if (mode !== 'source') {
     root.updateWorldMatrix(true, true);
     const instrumentBody = root.getObjectByName(INSTRUMENT_BODY_ROOT_NODE_NAME);
@@ -639,25 +667,27 @@ const createPreviewModel = (
       applyScaleCalibration(root, ownedGeometries);
     }
     if (mode === 'lockingScrew') {
-      createPistonLockingScrewPreview(root, ownedGeometries);
+      lockingScrewMovingPart = createPistonLockingScrewPreview(root, ownedGeometries);
     }
   }
 
   root.updateWorldMatrix(true, true);
   const bounds = measurePreviewModel(root);
   root.add(createPreviewBench(unifiedLightLabBenchSourceScene));
-  return { root, bounds, ownedMaterials, ownedGeometries };
+  return { root, bounds, ownedMaterials, ownedGeometries, lockingScrewMovingPart };
 };
 
 const FullModelPreview = ({
   sourceScene,
   unifiedLightLabBenchSourceScene,
   mode,
+  lockingScrewProgress,
   onBoundsReady,
 }: {
   sourceScene: THREE.Object3D;
   unifiedLightLabBenchSourceScene: THREE.Object3D;
   mode: PreviewMode;
+  lockingScrewProgress: number;
   onBoundsReady: (bounds: PreviewBounds) => void;
 }) => {
   const ownedModel = useMemo(
@@ -668,6 +698,20 @@ const FullModelPreview = ({
   useLayoutEffect(() => {
     onBoundsReady(ownedModel.bounds);
   }, [onBoundsReady, ownedModel.bounds]);
+
+  useLayoutEffect(() => {
+    const movingPart = ownedModel.lockingScrewMovingPart;
+    if (!movingPart) return;
+    movingPart.position.x = -LOCKING_SCREW_CONTACT_GAP_M * lockingScrewProgress;
+    movingPart.rotation.x = -Math.PI * 2 * LOCKING_SCREW_PREVIEW_TURNS
+      * lockingScrewProgress;
+    movingPart.parent!.userData.previewState = lockingScrewProgress <= 0.001
+      ? 'loose'
+      : lockingScrewProgress >= 0.999
+        ? 'tight'
+        : 'transition';
+    movingPart.updateWorldMatrix(true, true);
+  }, [lockingScrewProgress, ownedModel]);
 
   useEffect(() => () => {
     ownedModel.ownedGeometries.forEach((geometry) => geometry.dispose());
@@ -740,6 +784,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
   const [bounds, setBounds] = useState<PreviewBounds | null>(null);
   const [resetRevision, setResetRevision] = useState(0);
   const [modelReady, setModelReady] = useState(false);
+  const [lockingScrewProgress, setLockingScrewProgress] = useState(0);
   const handleBoundsReady = useCallback((nextBounds: PreviewBounds) => {
     setBounds(nextBounds);
     setModelReady(true);
@@ -748,15 +793,21 @@ export const PistonOscillationModelSizePreviewPage = () => {
     setModelReady(false);
     setBounds(null);
     setMode(nextMode);
+    setLockingScrewProgress(0);
     setResetRevision((value) => value + 1);
   }, []);
   const calibratedMode = mode === 'lockingScrew' || mode === 'scale';
+  const lockingScrewStateLabel = lockingScrewProgress <= 0.001
+    ? '完全松开'
+    : lockingScrewProgress >= 0.999
+      ? '完全旋紧'
+      : '旋紧过程中';
 
   return (
     <main className="piston-model-size-preview-page">
       <section
         className="piston-model-size-preview-stage"
-        aria-label="活塞振动法侧面锁紧螺钉静态模型临时预览"
+        aria-label="活塞振动法侧面锁紧螺钉动作轨迹临时预览"
         data-piston-model-size-preview-ready={modelReady ? 'true' : 'false'}
         data-piston-model-size-preview-mode={mode}
       >
@@ -782,6 +833,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
                   sourceScene={sourceScene}
                   unifiedLightLabBenchSourceScene={unifiedLightLabBenchSourceScene}
                   mode={mode}
+                  lockingScrewProgress={lockingScrewProgress}
                   onBoundsReady={handleBoundsReady}
                 />
               )}
@@ -811,11 +863,11 @@ export const PistonOscillationModelSizePreviewPage = () => {
 
         <header className="piston-model-size-preview-header">
           <div>
-            <span>活塞振动法 · 整机模型第三阶段</span>
-            <h1>侧面活塞锁紧螺钉静态模型</h1>
+            <span>活塞振动法 · 整机模型第四阶段</span>
+            <h1>侧面活塞锁紧螺钉动作预览</h1>
             <p>
-              在已确认的刻度与上限结构上增加锁紧螺钉；本断点只审查安装位置、
-              水平轴向、外形比例和整机可见性，不加入操作逻辑。
+              在已确认的静态模型上检查松紧端点与旋转—进退轨迹；本断点使用审查控件，
+              不代表最终鼠标操作方式，也不加入实验流程判定。
             </p>
           </div>
           <button type="button" onClick={() => setResetRevision((value) => value + 1)}>
@@ -880,17 +932,55 @@ export const PistonOscillationModelSizePreviewPage = () => {
             </div>
             <div>
               <dt>螺钉预览状态</dt>
-              <dd>{mode === 'lockingScrew' ? '完全松开' : '未显示'}</dd>
+              <dd>{mode === 'lockingScrew' ? lockingScrewStateLabel : '未显示'}</dd>
             </div>
           </dl>
+          {mode === 'lockingScrew' ? (
+            <section className="piston-locking-screw-motion-preview" aria-label="锁紧螺钉动作预览">
+              <strong>动作轨迹审查</strong>
+              <div className="piston-locking-screw-endpoints" role="group" aria-label="选择锁紧螺钉端点">
+                <button
+                  type="button"
+                  aria-pressed={lockingScrewProgress <= 0.001}
+                  onClick={() => setLockingScrewProgress(0)}
+                >
+                  完全松开
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={lockingScrewProgress >= 0.999}
+                  onClick={() => setLockingScrewProgress(1)}
+                >
+                  完全旋紧
+                </button>
+              </div>
+              <label htmlFor="piston-locking-screw-progress">
+                <span>旋转—进退轨迹</span>
+                <output>{Math.round(lockingScrewProgress * 100)}%</output>
+              </label>
+              <input
+                id="piston-locking-screw-progress"
+                type="range"
+                min="0"
+                max="100"
+                step="1"
+                value={Math.round(lockingScrewProgress * 100)}
+                onChange={(event) => setLockingScrewProgress(Number(event.target.value) / 100)}
+              />
+              <small>
+                审查值：轴向 {formatMillimeters(LOCKING_SCREW_CONTACT_GAP_M * lockingScrewProgress)}
+                {' · '}旋转 {(LOCKING_SCREW_PREVIEW_TURNS * lockingScrewProgress).toFixed(2)} 圈
+              </small>
+            </section>
+          ) : null}
         </aside>
 
         <aside className="piston-model-size-preview-notes" aria-label="锁紧螺钉阶段调整范围">
-          <strong>本阶段已加入</strong>
-          <p>右侧水平锁紧螺钉、滚花手拧头、螺纹座、螺纹轴、内侧接触端和独立运动轴。</p>
+          <strong>本断点请审查</strong>
+          <p>固定螺纹座保持不动；手钮、轴和接触端共同旋转，并沿轴线从 1 mm 间隙前进到恰好接触活塞杆。</p>
           <strong>本断点暂不加入</strong>
-          <p>旋转进退动效、旋紧状态、命中区域及活塞锁定判定。</p>
-          <small>默认展示完全松开状态；鼠标拖动可旋转整机，滚轮可缩放。</small>
+          <p>最终鼠标手势、命中区域、操作音效及活塞锁定判定。</p>
+          <small>拖动右侧滑杆可逐帧检查轨迹；1.5 圈只是动作审查值，不作为正式螺纹规格。</small>
         </aside>
       </section>
     </main>
