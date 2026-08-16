@@ -16,6 +16,17 @@ import {
   PistonOscillationInstrumentAsset,
 } from './PistonOscillationInstrumentModel.tsx';
 import { PISTON_OSCILLATION_CAMERA_VIEW_SCHEMES } from './pistonOscillationCameraViews.ts';
+import {
+  PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
+  PISTON_EQUILIBRIUM_HEIGHT_MAX_MM,
+  PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
+  PISTON_EQUILIBRIUM_HEIGHT_REVIEW_STEP_MM,
+  PISTON_EXPERIMENT_HEIGHTS_MM,
+  PISTON_MODEL_VERTICAL_AXIS,
+  PISTON_SCALE_CALIBRATION_HEIGHT_MM,
+  clampPistonEquilibriumHeightMm,
+  getPistonAssemblyTargetWorldY,
+} from './pistonOscillationModelMotion.ts';
 import './PistonOscillationModelSizePreviewPage.css';
 
 const OFFICIAL_PISTON_DIAMETER_M = 0.0325;
@@ -31,7 +42,6 @@ const QUICK_DISCONNECT_NODE_NAME = 'Connector_Main_QuickDisconnect';
 const SCALE_TICKS_NODE_NAME = 'ScaleTicks_Unnumbered';
 const SCALE_LABEL_VALUES = [10, 20, 30, 40, 50, 60, 70, 80, 90] as const;
 const SCALE_MAX_TICK_MM = 85;
-const SCALE_PREVIEW_PISTON_HEIGHT_MM = 85;
 const PISTON_TOP_CLEARANCE_M = 0.0007;
 const UPPER_UNMARKED_EXTENSION_M = 0.01;
 const LOCKING_SCREW_KNOB_RADIUS_M = 0.0065;
@@ -86,7 +96,7 @@ const BODY_HEIGHT_FOLLOWER_NODE_NAMES = [
   'AXIS_RodClamp',
 ] as const;
 
-type PreviewMode = 'hose' | 'lockingScrew' | 'scale' | 'corrected' | 'source';
+type PreviewMode = 'height' | 'hose' | 'lockingScrew' | 'scale' | 'corrected' | 'source';
 type HosePreviewState = 'connected' | 'disconnected';
 
 interface PreviewBounds {
@@ -107,6 +117,8 @@ interface OwnedPreviewModel {
   hoseDragHitTarget: THREE.Mesh | null;
   hoseSnapRing: THREE.Mesh | null;
   hoseConnectorWorldPosition: THREE.Vector3 | null;
+  pistonAssembly: THREE.Object3D | null;
+  pistonAssemblyWorldYAtScaleCalibration: number | null;
 }
 
 const getWorldPosition = (root: THREE.Object3D, nodeName: string) => {
@@ -832,13 +844,18 @@ const applyScaleCalibration = (
   root.updateWorldMatrix(true, true);
   const updatedPistonBounds = new THREE.Box3().setFromObject(piston);
   const pistonTargetLowerEdgeY = scaleZeroWorldY
-    + SCALE_PREVIEW_PISTON_HEIGHT_MM / 1000;
+    + PISTON_SCALE_CALIBRATION_HEIGHT_MM / 1000;
   const pistonAssemblyWorldY = pistonAssembly.getWorldPosition(new THREE.Vector3()).y;
   moveObjectWorldY(
     root,
     pistonAssembly,
     pistonAssemblyWorldY + pistonTargetLowerEdgeY - updatedPistonBounds.min.y,
   );
+  return {
+    pistonAssembly,
+    pistonAssemblyWorldYAtScaleCalibration:
+      pistonAssembly.getWorldPosition(new THREE.Vector3()).y,
+  };
 };
 
 const getPreviewMaterial = (root: THREE.Object3D, nodeName: string) => {
@@ -1081,6 +1098,8 @@ const createPreviewModel = (
   let hoseDragHitTarget: THREE.Mesh | null = null;
   let hoseSnapRing: THREE.Mesh | null = null;
   let hoseConnectorWorldPosition: THREE.Vector3 | null = null;
+  let pistonAssembly: THREE.Object3D | null = null;
+  let pistonAssemblyWorldYAtScaleCalibration: number | null = null;
   if (mode !== 'source') {
     root.updateWorldMatrix(true, true);
     const instrumentBody = root.getObjectByName(INSTRUMENT_BODY_ROOT_NODE_NAME);
@@ -1102,11 +1121,19 @@ const createPreviewModel = (
     ownedGeometries.add(correctedExternalHose.geometry);
     root.add(correctedExternalHose.hose);
     connectedHose = correctedExternalHose.hose;
-    if (mode === 'scale' || mode === 'lockingScrew' || mode === 'hose') {
+    if (
+      mode === 'height'
+      || mode === 'scale'
+      || mode === 'lockingScrew'
+      || mode === 'hose'
+    ) {
       root.updateWorldMatrix(true, true);
-      applyScaleCalibration(root, ownedGeometries);
+      const heightRig = applyScaleCalibration(root, ownedGeometries);
+      pistonAssembly = heightRig.pistonAssembly;
+      pistonAssemblyWorldYAtScaleCalibration =
+        heightRig.pistonAssemblyWorldYAtScaleCalibration;
     }
-    if (mode === 'lockingScrew' || mode === 'hose') {
+    if (mode === 'height' || mode === 'lockingScrew' || mode === 'hose') {
       lockingScrewMovingPart = createPistonLockingScrewPreview(root, ownedGeometries);
     }
     if (mode === 'hose') {
@@ -1157,6 +1184,8 @@ const createPreviewModel = (
     hoseDragHitTarget,
     hoseSnapRing,
     hoseConnectorWorldPosition,
+    pistonAssembly,
+    pistonAssemblyWorldYAtScaleCalibration,
   };
 };
 
@@ -1164,6 +1193,8 @@ const FullModelPreview = ({
   sourceScene,
   unifiedLightLabBenchSourceScene,
   mode,
+  pistonEquilibriumHeightMm,
+  pistonOscillationOffsetMm,
   lockingScrewProgress,
   hoseState,
   hoseFocused,
@@ -1179,6 +1210,8 @@ const FullModelPreview = ({
   sourceScene: THREE.Object3D;
   unifiedLightLabBenchSourceScene: THREE.Object3D;
   mode: PreviewMode;
+  pistonEquilibriumHeightMm: number;
+  pistonOscillationOffsetMm: number;
   lockingScrewProgress: number;
   hoseState: HosePreviewState;
   hoseFocused: boolean;
@@ -1202,6 +1235,38 @@ const FullModelPreview = ({
   useLayoutEffect(() => {
     onBoundsReady(ownedModel.bounds);
   }, [onBoundsReady, ownedModel.bounds]);
+
+  useLayoutEffect(() => {
+    const {
+      pistonAssembly,
+      pistonAssemblyWorldYAtScaleCalibration,
+    } = ownedModel;
+    if (
+      mode !== 'height'
+      || !pistonAssembly
+      || pistonAssemblyWorldYAtScaleCalibration === null
+    ) return;
+
+    const targetWorldY = getPistonAssemblyTargetWorldY(
+      pistonAssemblyWorldYAtScaleCalibration,
+      {
+        equilibriumHeightMm: pistonEquilibriumHeightMm,
+        oscillationOffsetMm: pistonOscillationOffsetMm,
+      },
+    );
+    moveObjectWorldY(ownedModel.root, pistonAssembly, targetWorldY);
+    pistonAssembly.userData = {
+      ...pistonAssembly.userData,
+      runtimeMotionAxis: PISTON_MODEL_VERTICAL_AXIS,
+      equilibriumHeightMm: pistonEquilibriumHeightMm,
+      oscillationOffsetMm: pistonOscillationOffsetMm,
+    };
+  }, [
+    mode,
+    ownedModel,
+    pistonEquilibriumHeightMm,
+    pistonOscillationOffsetMm,
+  ]);
 
   useLayoutEffect(() => {
     onHoseFocusPointReady(ownedModel.hoseConnectorWorldPosition?.clone() ?? null);
@@ -1405,10 +1470,13 @@ const formatMillimeters = (meters: number) => `${(meters * 1000).toFixed(2)} mm`
 
 export const PistonOscillationModelSizePreviewPage = () => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const [mode, setMode] = useState<PreviewMode>('hose');
+  const [mode, setMode] = useState<PreviewMode>('height');
   const [bounds, setBounds] = useState<PreviewBounds | null>(null);
   const [resetRevision, setResetRevision] = useState(0);
   const [modelReady, setModelReady] = useState(false);
+  const [pistonEquilibriumHeightMm, setPistonEquilibriumHeightMm] = useState(
+    PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
+  );
   const [lockingScrewProgress, setLockingScrewProgress] = useState(0);
   const [hoseState, setHoseState] = useState<HosePreviewState>('connected');
   const [hoseFocused, setHoseFocused] = useState(false);
@@ -1425,6 +1493,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
     setModelReady(false);
     setBounds(null);
     setMode(nextMode);
+    setPistonEquilibriumHeightMm(PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM);
     setLockingScrewProgress(0);
     setHoseState('connected');
     setHoseFocused(false);
@@ -1462,7 +1531,10 @@ export const PistonOscillationModelSizePreviewPage = () => {
     setHoseGhostOffset([0, 0, 0]);
     setResetRevision((value) => value + 1);
   }, []);
-  const calibratedMode = mode === 'hose' || mode === 'lockingScrew' || mode === 'scale';
+  const calibratedMode = mode === 'height'
+    || mode === 'hose'
+    || mode === 'lockingScrew'
+    || mode === 'scale';
   const hoseGhostDistance = Math.hypot(hoseGhostOffset[0], hoseGhostOffset[2]);
   const hoseWithinMagneticRange = hoseGhostDistance <= HOSE_MAGNETIC_SNAP_RADIUS_M;
   const lockingScrewStateLabel = lockingScrewProgress <= 0.001
@@ -1475,9 +1547,10 @@ export const PistonOscillationModelSizePreviewPage = () => {
     <main className="piston-model-size-preview-page">
       <section
         className="piston-model-size-preview-stage"
-        aria-label="活塞振动法软管拖拽幽灵与磁吸边界整机临时预览"
+        aria-label="活塞振动法活塞连续高度骨架整机临时预览"
         data-piston-model-size-preview-ready={modelReady ? 'true' : 'false'}
         data-piston-model-size-preview-mode={mode}
+        data-piston-equilibrium-height-mm={pistonEquilibriumHeightMm}
         data-piston-hose-state={hoseState}
         data-piston-hose-focused={hoseFocused ? 'true' : 'false'}
         data-piston-hose-dragging={hoseDragging ? 'true' : 'false'}
@@ -1505,6 +1578,8 @@ export const PistonOscillationModelSizePreviewPage = () => {
                   sourceScene={sourceScene}
                   unifiedLightLabBenchSourceScene={unifiedLightLabBenchSourceScene}
                   mode={mode}
+                  pistonEquilibriumHeightMm={pistonEquilibriumHeightMm}
+                  pistonOscillationOffsetMm={0}
                   lockingScrewProgress={lockingScrewProgress}
                   hoseState={hoseState}
                   hoseFocused={hoseFocused}
@@ -1547,11 +1622,11 @@ export const PistonOscillationModelSizePreviewPage = () => {
 
         <header className="piston-model-size-preview-header">
           <div>
-            <span>活塞振动法 · 整机模型第六阶段</span>
-            <h1>软管拖拽幽灵与磁吸边界预览</h1>
+            <span>活塞振动法 · 整机模型第七阶段</span>
+            <h1>活塞连续高度骨架预览</h1>
             <p>
-              双击白色快接头进入聚焦视角，再按住接头拖动；连接实体保留原位，
-              半透明幽灵随鼠标移动，松手位置决定复位或转为断开实体。
+              以石墨活塞下沿为读数基准；切换七个正式高度或拖动连续高度滑杆，
+              检查石墨活塞、活塞杆和顶部平台是否沿世界竖直轴同步移动。
             </p>
           </div>
           <button type="button" onClick={restoreOverview}>
@@ -1562,6 +1637,13 @@ export const PistonOscillationModelSizePreviewPage = () => {
         <aside className="piston-model-size-preview-controls" aria-label="模型阶段切换">
           <strong>模型阶段</strong>
           <div role="group" aria-label="选择模型阶段">
+            <button
+              type="button"
+              aria-pressed={mode === 'height'}
+              onClick={() => selectMode('height')}
+            >
+              高度骨架
+            </button>
             <button
               type="button"
               aria-pressed={mode === 'hose'}
@@ -1615,7 +1697,11 @@ export const PistonOscillationModelSizePreviewPage = () => {
             </div>
             <div>
               <dt>活塞下沿</dt>
-              <dd>{calibratedMode ? '85 mm' : '原始位置'}</dd>
+              <dd>{mode === 'height'
+                ? `${pistonEquilibriumHeightMm.toFixed(1)} mm`
+                : calibratedMode
+                  ? '85 mm'
+                  : '原始位置'}</dd>
             </div>
             <div>
               <dt>上方新增留白</dt>
@@ -1625,7 +1711,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
               <dt>螺钉预览状态</dt>
               <dd>{mode === 'lockingScrew'
                 ? lockingScrewStateLabel
-                : mode === 'hose'
+                : mode === 'height' || mode === 'hose'
                   ? '完全松开'
                   : '未显示'}</dd>
             </div>
@@ -1638,6 +1724,45 @@ export const PistonOscillationModelSizePreviewPage = () => {
                 : '固定形态'}</dd>
             </div>
           </dl>
+          {mode === 'height' ? (
+            <section className="piston-height-motion-preview" aria-label="活塞连续高度骨架预览">
+              <strong>七个正式高度</strong>
+              <div
+                className="piston-height-endpoints"
+                role="group"
+                aria-label="选择活塞平衡高度"
+              >
+                {PISTON_EXPERIMENT_HEIGHTS_MM.map((heightMm) => (
+                  <button
+                    key={heightMm}
+                    type="button"
+                    aria-pressed={Math.abs(pistonEquilibriumHeightMm - heightMm) < 0.001}
+                    onClick={() => setPistonEquilibriumHeightMm(heightMm)}
+                  >
+                    {heightMm} mm
+                  </button>
+                ))}
+              </div>
+              <label htmlFor="piston-equilibrium-height">
+                <span>连续平衡高度</span>
+                <output>{pistonEquilibriumHeightMm.toFixed(1)} mm</output>
+              </label>
+              <input
+                id="piston-equilibrium-height"
+                type="range"
+                min={PISTON_EQUILIBRIUM_HEIGHT_MIN_MM}
+                max={PISTON_EQUILIBRIUM_HEIGHT_MAX_MM}
+                step={PISTON_EQUILIBRIUM_HEIGHT_REVIEW_STEP_MM}
+                value={pistonEquilibriumHeightMm}
+                onChange={(event) => setPistonEquilibriumHeightMm(
+                  clampPistonEquilibriumHeightMm(Number(event.target.value)),
+                )}
+              />
+              <small>
+                运行时轴：{PISTON_MODEL_VERTICAL_AXIS}；本断点振动位移输入固定为 0 mm。
+              </small>
+            </section>
+          ) : null}
           {mode === 'hose' ? (
             <section className="piston-hose-state-preview" aria-label="软管拖拽与实体状态预览">
               <strong>实体状态审查</strong>
@@ -1721,12 +1846,12 @@ export const PistonOscillationModelSizePreviewPage = () => {
           ) : null}
         </aside>
 
-        <aside className="piston-model-size-preview-notes" aria-label="软管拖拽幽灵阶段调整范围">
+        <aside className="piston-model-size-preview-notes" aria-label="活塞连续高度骨架阶段调整范围">
           <strong>本断点请审查</strong>
-          <p>双击接头进入聚焦；拖动时原实体不动，软管与白色接头的半透明幽灵共同位移，蓝色圆环显示磁吸边界。</p>
+          <p>依次切换 80、70、60、50、40、30、20 mm，检查活塞下沿对刻度、顶部组件随动和全行程结构连续性。</p>
           <strong>本断点暂不加入</strong>
-          <p>卡扣声音、拖拽阻尼、正式教程提示及实验流程状态机。</p>
-          <small>范围内松手会吸回接通状态；越界松手会切换为已经确认的断开实体形态。</small>
+          <p>按压手势、振动轨迹、锁紧约束、命中区域、聚焦视角和实验流程状态机。</p>
+          <small>连续滑杆只用于检查模型骨架；正式实验仍按七个目标高度从高到低进行。</small>
         </aside>
       </section>
     </main>
