@@ -179,18 +179,21 @@
   font-weight: 720;
 }
 
-.piston-locking-screw-motion-preview {
+.piston-locking-screw-motion-preview,
+.piston-hose-state-preview {
   border-top: 1px solid rgba(100, 116, 139, 0.2);
   margin-top: 12px;
   padding-top: 10px;
 }
 
-.piston-locking-screw-motion-preview > strong {
+.piston-locking-screw-motion-preview > strong,
+.piston-hose-state-preview > strong {
   color: #455666;
   font-size: 10px;
 }
 
-.piston-model-size-preview-controls .piston-locking-screw-endpoints {
+.piston-model-size-preview-controls .piston-locking-screw-endpoints,
+.piston-model-size-preview-controls .piston-hose-state-endpoints {
   margin-top: 7px;
 }
 
@@ -221,6 +224,14 @@
   color: #788694;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+.piston-hose-state-preview small {
+  display: block;
+  margin-top: 7px;
+  color: #788694;
+  font-size: 9px;
   line-height: 1.45;
 }
 
@@ -306,7 +317,8 @@
     padding-top: 4px;
   }
 
-  .piston-locking-screw-motion-preview {
+  .piston-locking-screw-motion-preview,
+  .piston-hose-state-preview {
     margin-top: 8px;
     padding-top: 7px;
   }
