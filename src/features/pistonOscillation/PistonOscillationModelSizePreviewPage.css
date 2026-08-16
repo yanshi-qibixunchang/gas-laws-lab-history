@@ -179,6 +179,7 @@
   font-weight: 720;
 }
 
+.piston-hit-target-review,
 .piston-height-motion-preview,
 .piston-locking-screw-motion-preview,
 .piston-hose-state-preview {
@@ -187,6 +188,7 @@
   padding-top: 10px;
 }
 
+.piston-hit-target-review > strong,
 .piston-height-motion-preview > strong,
 .piston-locking-screw-motion-preview > strong,
 .piston-hose-state-preview > strong {
@@ -194,6 +196,7 @@
   font-size: 10px;
 }
 
+.piston-model-size-preview-controls .piston-hit-target-hose-state,
 .piston-model-size-preview-controls .piston-height-endpoints,
 .piston-model-size-preview-controls .piston-locking-screw-endpoints,
 .piston-model-size-preview-controls .piston-hose-state-endpoints {
@@ -231,6 +234,49 @@
   color: #788694;
   font-size: 9px;
   font-variant-numeric: tabular-nums;
+  line-height: 1.45;
+}
+
+.piston-hit-target-review ul {
+  display: grid;
+  gap: 5px;
+  margin: 8px 0 0;
+  padding: 0;
+  color: #667584;
+  font-size: 10px;
+  list-style: none;
+}
+
+.piston-hit-target-review li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.piston-hit-target-review li span {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.14);
+}
+
+.piston-hit-target-review [data-hit-target-color="platform"] {
+  background: #22a8dd;
+}
+
+.piston-hit-target-review [data-hit-target-color="screw"] {
+  background: #f59e0b;
+}
+
+.piston-hit-target-review [data-hit-target-color="hose"] {
+  background: #a855f7;
+}
+
+.piston-hit-target-review small {
+  display: block;
+  margin-top: 7px;
+  color: #788694;
+  font-size: 9px;
   line-height: 1.45;
 }
 
@@ -324,6 +370,7 @@
     padding-top: 4px;
   }
 
+  .piston-hit-target-review,
   .piston-height-motion-preview,
   .piston-locking-screw-motion-preview,
   .piston-hose-state-preview {

@@ -17,6 +17,10 @@ import {
 } from './PistonOscillationInstrumentModel.tsx';
 import { PISTON_OSCILLATION_CAMERA_VIEW_SCHEMES } from './pistonOscillationCameraViews.ts';
 import {
+  PISTON_MODEL_HIT_TARGETS,
+  createPistonModelHitTargetMetadata,
+} from './pistonOscillationModelHitTargets.ts';
+import {
   PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
   PISTON_EQUILIBRIUM_HEIGHT_MAX_MM,
   PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
@@ -96,12 +100,28 @@ const BODY_HEIGHT_FOLLOWER_NODE_NAMES = [
   'AXIS_RodClamp',
 ] as const;
 
-type PreviewMode = 'height' | 'hose' | 'lockingScrew' | 'scale' | 'corrected' | 'source';
+type PreviewMode =
+  | 'hitTargets'
+  | 'height'
+  | 'hose'
+  | 'lockingScrew'
+  | 'scale'
+  | 'corrected'
+  | 'source';
 type HosePreviewState = 'connected' | 'disconnected';
 
 interface PreviewBounds {
   center: THREE.Vector3;
   span: number;
+}
+
+interface PreviewHitTargets {
+  pistonPressPlatform: THREE.Mesh;
+  pistonLockingScrew: THREE.Mesh;
+  connectedHoseConnector: THREE.Mesh;
+  connectedHoseBody: THREE.Mesh;
+  detachedHoseConnector: THREE.Mesh;
+  detachedHoseBody: THREE.Mesh;
 }
 
 interface OwnedPreviewModel {
@@ -119,6 +139,7 @@ interface OwnedPreviewModel {
   hoseConnectorWorldPosition: THREE.Vector3 | null;
   pistonAssembly: THREE.Object3D | null;
   pistonAssemblyWorldYAtScaleCalibration: number | null;
+  hitTargets: PreviewHitTargets | null;
 }
 
 const getWorldPosition = (root: THREE.Object3D, nodeName: string) => {
@@ -234,7 +255,7 @@ const createCorrectedExternalHose = (
   hose.name = 'Hose_Main_SizeCorrectedPreview';
   hose.castShadow = false;
   hose.receiveShadow = false;
-  return { hose, geometry, material };
+  return { hose, curve, geometry, material };
 };
 
 const rotateTabletopDirectionInCameraView = (
@@ -1015,6 +1036,199 @@ const createPistonLockingScrewPreview = (
   return movingPart;
 };
 
+const createHitTargetReviewMaterial = (
+  color: THREE.ColorRepresentation,
+  ownedMaterials: Set<THREE.Material>,
+) => {
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    transparent: true,
+    opacity: 0.82,
+    depthTest: false,
+    depthWrite: false,
+    wireframe: true,
+  });
+  ownedMaterials.add(material);
+  return material;
+};
+
+const attachWorldBoxHitTarget = (
+  root: THREE.Object3D,
+  sourceObject: THREE.Object3D,
+  followParent: THREE.Object3D,
+  key: keyof typeof PISTON_MODEL_HIT_TARGETS,
+  padding: THREE.Vector3,
+  color: THREE.ColorRepresentation,
+  ownedMaterials: Set<THREE.Material>,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+) => {
+  root.updateWorldMatrix(true, true);
+  const bounds = new THREE.Box3().setFromObject(sourceObject);
+  const center = bounds.getCenter(new THREE.Vector3());
+  const size = bounds.getSize(new THREE.Vector3()).addScaledVector(padding, 2);
+  const geometry = new THREE.BoxGeometry(size.x, size.y, size.z);
+  const hitTarget = new THREE.Mesh(
+    geometry,
+    createHitTargetReviewMaterial(color, ownedMaterials),
+  );
+  ownedGeometries.add(geometry);
+  hitTarget.name = PISTON_MODEL_HIT_TARGETS[key].objectName;
+  hitTarget.position.copy(center);
+  hitTarget.renderOrder = 40;
+  hitTarget.raycast = () => undefined;
+  hitTarget.userData = createPistonModelHitTargetMetadata(key);
+  root.add(hitTarget);
+  followParent.attach(hitTarget);
+  return hitTarget;
+};
+
+const attachWorldSphereHitTarget = (
+  root: THREE.Object3D,
+  sourceObject: THREE.Object3D,
+  followParent: THREE.Object3D,
+  key: keyof typeof PISTON_MODEL_HIT_TARGETS,
+  radius: number,
+  color: THREE.ColorRepresentation,
+  ownedMaterials: Set<THREE.Material>,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+) => {
+  root.updateWorldMatrix(true, true);
+  const center = new THREE.Box3().setFromObject(sourceObject).getCenter(new THREE.Vector3());
+  const geometry = new THREE.SphereGeometry(radius, 20, 14);
+  const hitTarget = new THREE.Mesh(
+    geometry,
+    createHitTargetReviewMaterial(color, ownedMaterials),
+  );
+  ownedGeometries.add(geometry);
+  hitTarget.name = PISTON_MODEL_HIT_TARGETS[key].objectName;
+  hitTarget.position.copy(center);
+  hitTarget.renderOrder = 40;
+  hitTarget.raycast = () => undefined;
+  hitTarget.userData = createPistonModelHitTargetMetadata(key);
+  root.add(hitTarget);
+  followParent.attach(hitTarget);
+  return hitTarget;
+};
+
+const attachWorldTubeHitTarget = (
+  root: THREE.Object3D,
+  curve: THREE.Curve<THREE.Vector3>,
+  followParent: THREE.Object3D,
+  key: keyof typeof PISTON_MODEL_HIT_TARGETS,
+  tubularSegments: number,
+  color: THREE.ColorRepresentation,
+  ownedMaterials: Set<THREE.Material>,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+) => {
+  const geometry = new THREE.TubeGeometry(
+    curve,
+    tubularSegments,
+    HOSE_RADIUS_M * 2,
+    10,
+    false,
+  );
+  const hitTarget = new THREE.Mesh(
+    geometry,
+    createHitTargetReviewMaterial(color, ownedMaterials),
+  );
+  ownedGeometries.add(geometry);
+  hitTarget.name = PISTON_MODEL_HIT_TARGETS[key].objectName;
+  hitTarget.renderOrder = 39;
+  hitTarget.raycast = () => undefined;
+  hitTarget.userData = {
+    ...createPistonModelHitTargetMetadata(key),
+    hitDiameterScale: 2,
+  };
+  root.add(hitTarget);
+  if (followParent !== root) followParent.attach(hitTarget);
+  return hitTarget;
+};
+
+const createPistonHitTargetReviewObjects = (
+  root: THREE.Object3D,
+  pistonAssembly: THREE.Object3D,
+  lockingScrewMovingPart: THREE.Group,
+  connectedHoseCurve: THREE.Curve<THREE.Vector3>,
+  quickDisconnect: THREE.Object3D,
+  detachedHoseAssembly: THREE.Group,
+  ownedMaterials: Set<THREE.Material>,
+  ownedGeometries: Set<THREE.BufferGeometry>,
+): PreviewHitTargets => {
+  const massPlatform = getRequiredObject(root, 'MassPlatform');
+  const screwKnob = getRequiredObject(
+    lockingScrewMovingPart,
+    PISTON_MODEL_HIT_TARGETS.pistonLockingScrew.sourceObjectName,
+  );
+  const detachedConnector = getRequiredObject(
+    detachedHoseAssembly,
+    PISTON_MODEL_HIT_TARGETS.detachedHoseConnector.sourceObjectName,
+  );
+  const detachedHoseCurve = createDisconnectedHosePath(root).curve;
+
+  return {
+    pistonPressPlatform: attachWorldBoxHitTarget(
+      root,
+      massPlatform,
+      pistonAssembly,
+      'pistonPressPlatform',
+      new THREE.Vector3(0.006, 0.003, 0.006),
+      '#22a8dd',
+      ownedMaterials,
+      ownedGeometries,
+    ),
+    pistonLockingScrew: attachWorldBoxHitTarget(
+      root,
+      screwKnob,
+      lockingScrewMovingPart,
+      'pistonLockingScrew',
+      new THREE.Vector3(0.006, 0.006, 0.003),
+      '#f59e0b',
+      ownedMaterials,
+      ownedGeometries,
+    ),
+    connectedHoseConnector: attachWorldSphereHitTarget(
+      root,
+      quickDisconnect,
+      quickDisconnect,
+      'connectedHoseConnector',
+      0.021,
+      '#a855f7',
+      ownedMaterials,
+      ownedGeometries,
+    ),
+    connectedHoseBody: attachWorldTubeHitTarget(
+      root,
+      connectedHoseCurve,
+      root,
+      'connectedHoseBody',
+      160,
+      '#a855f7',
+      ownedMaterials,
+      ownedGeometries,
+    ),
+    detachedHoseConnector: attachWorldSphereHitTarget(
+      root,
+      detachedConnector,
+      detachedConnector,
+      'detachedHoseConnector',
+      0.021,
+      '#a855f7',
+      ownedMaterials,
+      ownedGeometries,
+    ),
+    detachedHoseBody: attachWorldTubeHitTarget(
+      root,
+      detachedHoseCurve,
+      detachedHoseAssembly,
+      'detachedHoseBody',
+      180,
+      '#a855f7',
+      ownedMaterials,
+      ownedGeometries,
+    ),
+  };
+};
+
 const measurePreviewModel = (root: THREE.Object3D): PreviewBounds => {
   root.updateWorldMatrix(true, true);
   const bounds = new THREE.Box3();
@@ -1092,6 +1306,7 @@ const createPreviewModel = (
   const ownedGeometries = new Set<THREE.BufferGeometry>();
   let lockingScrewMovingPart: THREE.Group | null = null;
   let connectedHose: THREE.Object3D | null = null;
+  let connectedHoseCurve: THREE.Curve<THREE.Vector3> | null = null;
   let quickDisconnect: THREE.Object3D | null = null;
   let detachedHoseAssembly: THREE.Group | null = null;
   let hoseGhostAssembly: THREE.Group | null = null;
@@ -1100,6 +1315,7 @@ const createPreviewModel = (
   let hoseConnectorWorldPosition: THREE.Vector3 | null = null;
   let pistonAssembly: THREE.Object3D | null = null;
   let pistonAssemblyWorldYAtScaleCalibration: number | null = null;
+  let hitTargets: PreviewHitTargets | null = null;
   if (mode !== 'source') {
     root.updateWorldMatrix(true, true);
     const instrumentBody = root.getObjectByName(INSTRUMENT_BODY_ROOT_NODE_NAME);
@@ -1121,8 +1337,10 @@ const createPreviewModel = (
     ownedGeometries.add(correctedExternalHose.geometry);
     root.add(correctedExternalHose.hose);
     connectedHose = correctedExternalHose.hose;
+    connectedHoseCurve = correctedExternalHose.curve;
     if (
-      mode === 'height'
+      mode === 'hitTargets'
+      || mode === 'height'
       || mode === 'scale'
       || mode === 'lockingScrew'
       || mode === 'hose'
@@ -1133,10 +1351,15 @@ const createPreviewModel = (
       pistonAssemblyWorldYAtScaleCalibration =
         heightRig.pistonAssemblyWorldYAtScaleCalibration;
     }
-    if (mode === 'height' || mode === 'lockingScrew' || mode === 'hose') {
+    if (
+      mode === 'hitTargets'
+      || mode === 'height'
+      || mode === 'lockingScrew'
+      || mode === 'hose'
+    ) {
       lockingScrewMovingPart = createPistonLockingScrewPreview(root, ownedGeometries);
     }
-    if (mode === 'hose') {
+    if (mode === 'hitTargets' || mode === 'hose') {
       quickDisconnect = getRequiredObject(root, QUICK_DISCONNECT_NODE_NAME);
       connectedHose.userData = {
         ...connectedHose.userData,
@@ -1147,7 +1370,7 @@ const createPreviewModel = (
 
   root.updateWorldMatrix(true, true);
   const bounds = measurePreviewModel(root);
-  if (mode === 'hose') {
+  if (mode === 'hitTargets' || mode === 'hose') {
     detachedHoseAssembly = createDetachedHoseAssembly(
       root,
       ownedMaterials,
@@ -1158,17 +1381,33 @@ const createPreviewModel = (
     if (!connectedHose || !quickDisconnect) {
       throw new Error('Piston-oscillation hose preview is missing a connected endpoint.');
     }
-    const dragReviewObjects = createHoseDragReviewObjects(
-      connectedHose,
-      quickDisconnect,
-      ownedMaterials,
-      ownedGeometries,
-    );
-    hoseGhostAssembly = dragReviewObjects.ghostAssembly;
-    hoseDragHitTarget = dragReviewObjects.hitTarget;
-    hoseSnapRing = dragReviewObjects.snapRing;
-    hoseConnectorWorldPosition = dragReviewObjects.connectorWorldPosition;
-    root.add(hoseGhostAssembly);
+    if (mode === 'hose') {
+      const dragReviewObjects = createHoseDragReviewObjects(
+        connectedHose,
+        quickDisconnect,
+        ownedMaterials,
+        ownedGeometries,
+      );
+      hoseGhostAssembly = dragReviewObjects.ghostAssembly;
+      hoseDragHitTarget = dragReviewObjects.hitTarget;
+      hoseSnapRing = dragReviewObjects.snapRing;
+      hoseConnectorWorldPosition = dragReviewObjects.connectorWorldPosition;
+      root.add(hoseGhostAssembly);
+    } else {
+      if (!pistonAssembly || !lockingScrewMovingPart || !connectedHoseCurve) {
+        throw new Error('Piston-oscillation hit target preview is missing a motion parent.');
+      }
+      hitTargets = createPistonHitTargetReviewObjects(
+        root,
+        pistonAssembly,
+        lockingScrewMovingPart,
+        connectedHoseCurve,
+        quickDisconnect,
+        detachedHoseAssembly,
+        ownedMaterials,
+        ownedGeometries,
+      );
+    }
   }
   root.add(createPreviewBench(unifiedLightLabBenchSourceScene));
   return {
@@ -1186,6 +1425,7 @@ const createPreviewModel = (
     hoseConnectorWorldPosition,
     pistonAssembly,
     pistonAssemblyWorldYAtScaleCalibration,
+    hitTargets,
   };
 };
 
@@ -1242,7 +1482,7 @@ const FullModelPreview = ({
       pistonAssemblyWorldYAtScaleCalibration,
     } = ownedModel;
     if (
-      mode !== 'height'
+      (mode !== 'height' && mode !== 'hitTargets')
       || !pistonAssembly
       || pistonAssemblyWorldYAtScaleCalibration === null
     ) return;
@@ -1294,11 +1534,16 @@ const FullModelPreview = ({
       hoseGhostAssembly,
       hoseDragHitTarget,
       hoseSnapRing,
+      hitTargets,
     } = ownedModel;
     if (!connectedHose || !quickDisconnect || !detachedHoseAssembly) return;
     const connected = hoseState === 'connected';
     connectedHose.visible = connected;
-    quickDisconnect.visible = connected;
+    quickDisconnect.visible = true;
+    DETACHED_CONNECTOR_NODE_NAMES.forEach((nodeName) => {
+      const detachableNode = quickDisconnect.getObjectByName(nodeName);
+      if (detachableNode) detachableNode.visible = connected;
+    });
     detachedHoseAssembly.visible = !connected;
     if (hoseGhostAssembly) {
       hoseGhostAssembly.visible = connected && hoseDragging;
@@ -1312,6 +1557,14 @@ const FullModelPreview = ({
       ringMaterial.color.set(
         ghostDistance <= HOSE_MAGNETIC_SNAP_RADIUS_M ? '#3f9dcc' : '#cf704f',
       );
+    }
+    if (hitTargets) {
+      hitTargets.pistonPressPlatform.visible = true;
+      hitTargets.pistonLockingScrew.visible = true;
+      hitTargets.connectedHoseConnector.visible = connected;
+      hitTargets.connectedHoseBody.visible = connected;
+      hitTargets.detachedHoseConnector.visible = !connected;
+      hitTargets.detachedHoseBody.visible = !connected;
     }
     quickDisconnect.userData.previewState = connected
       ? 'connected_sealed'
@@ -1470,7 +1723,7 @@ const formatMillimeters = (meters: number) => `${(meters * 1000).toFixed(2)} mm`
 
 export const PistonOscillationModelSizePreviewPage = () => {
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
-  const [mode, setMode] = useState<PreviewMode>('height');
+  const [mode, setMode] = useState<PreviewMode>('hitTargets');
   const [bounds, setBounds] = useState<PreviewBounds | null>(null);
   const [resetRevision, setResetRevision] = useState(0);
   const [modelReady, setModelReady] = useState(false);
@@ -1531,7 +1784,8 @@ export const PistonOscillationModelSizePreviewPage = () => {
     setHoseGhostOffset([0, 0, 0]);
     setResetRevision((value) => value + 1);
   }, []);
-  const calibratedMode = mode === 'height'
+  const calibratedMode = mode === 'hitTargets'
+    || mode === 'height'
     || mode === 'hose'
     || mode === 'lockingScrew'
     || mode === 'scale';
@@ -1547,7 +1801,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
     <main className="piston-model-size-preview-page">
       <section
         className="piston-model-size-preview-stage"
-        aria-label="活塞振动法活塞连续高度骨架整机临时预览"
+        aria-label="活塞振动法核心对象独立命中体整机临时预览"
         data-piston-model-size-preview-ready={modelReady ? 'true' : 'false'}
         data-piston-model-size-preview-mode={mode}
         data-piston-equilibrium-height-mm={pistonEquilibriumHeightMm}
@@ -1555,6 +1809,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
         data-piston-hose-focused={hoseFocused ? 'true' : 'false'}
         data-piston-hose-dragging={hoseDragging ? 'true' : 'false'}
         data-piston-hose-within-magnetic-range={hoseWithinMagneticRange ? 'true' : 'false'}
+        data-piston-hit-target-review={mode === 'hitTargets' ? 'true' : 'false'}
       >
         <Canvas
           camera={{ position: [0.2, 0.52, 0.9], fov: 38, near: 0.002, far: 20 }}
@@ -1622,11 +1877,11 @@ export const PistonOscillationModelSizePreviewPage = () => {
 
         <header className="piston-model-size-preview-header">
           <div>
-            <span>活塞振动法 · 整机模型第七阶段</span>
-            <h1>活塞连续高度骨架预览</h1>
+            <span>活塞振动法 · 整机模型第八阶段</span>
+            <h1>核心对象独立命中体预览</h1>
             <p>
-              以石墨活塞下沿为读数基准；切换七个正式高度或拖动连续高度滑杆，
-              检查石墨活塞、活塞杆和顶部平台是否沿世界竖直轴同步移动。
+              半透明线框只显示命中范围：蓝色为顶部按压平台、橙色为锁紧螺钉，
+              紫色为当前软管及接头；本断点不响应点击，也不决定聚焦策略。
             </p>
           </div>
           <button type="button" onClick={restoreOverview}>
@@ -1637,6 +1892,13 @@ export const PistonOscillationModelSizePreviewPage = () => {
         <aside className="piston-model-size-preview-controls" aria-label="模型阶段切换">
           <strong>模型阶段</strong>
           <div role="group" aria-label="选择模型阶段">
+            <button
+              type="button"
+              aria-pressed={mode === 'hitTargets'}
+              onClick={() => selectMode('hitTargets')}
+            >
+              命中体
+            </button>
             <button
               type="button"
               aria-pressed={mode === 'height'}
@@ -1697,7 +1959,7 @@ export const PistonOscillationModelSizePreviewPage = () => {
             </div>
             <div>
               <dt>活塞下沿</dt>
-              <dd>{mode === 'height'
+              <dd>{mode === 'height' || mode === 'hitTargets'
                 ? `${pistonEquilibriumHeightMm.toFixed(1)} mm`
                 : calibratedMode
                   ? '85 mm'
@@ -1711,19 +1973,53 @@ export const PistonOscillationModelSizePreviewPage = () => {
               <dt>螺钉预览状态</dt>
               <dd>{mode === 'lockingScrew'
                 ? lockingScrewStateLabel
-                : mode === 'height' || mode === 'hose'
+                : mode === 'hitTargets' || mode === 'height' || mode === 'hose'
                   ? '完全松开'
                   : '未显示'}</dd>
             </div>
             <div>
               <dt>软管状态</dt>
-              <dd>{mode === 'hose'
+              <dd>{mode === 'hitTargets' || mode === 'hose'
                 ? hoseState === 'connected'
                   ? '接通密封'
                   : '断开通大气'
                 : '固定形态'}</dd>
             </div>
           </dl>
+          {mode === 'hitTargets' ? (
+            <section className="piston-hit-target-review" aria-label="核心对象命中体审查">
+              <strong>当前显示 3 类命中对象</strong>
+              <ul aria-label="命中体颜色说明">
+                <li><span data-hit-target-color="platform" />顶部按压平台</li>
+                <li><span data-hit-target-color="screw" />侧面锁紧螺钉</li>
+                <li><span data-hit-target-color="hose" />当前软管及接头</li>
+              </ul>
+              <div
+                className="piston-hit-target-hose-state"
+                role="group"
+                aria-label="选择软管命中体状态"
+              >
+                <button
+                  type="button"
+                  aria-pressed={hoseState === 'connected'}
+                  onClick={() => selectHoseState('connected')}
+                >
+                  接通位置
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={hoseState === 'disconnected'}
+                  onClick={() => selectHoseState('disconnected')}
+                >
+                  桌面位置
+                </button>
+              </div>
+              <small>
+                软管语义仍是一类对象；整条软管命中直径为可见管径的两倍，
+                接通与断开状态分别使用对应的管线和接头命中实体。
+              </small>
+            </section>
+          ) : null}
           {mode === 'height' ? (
             <section className="piston-height-motion-preview" aria-label="活塞连续高度骨架预览">
               <strong>七个正式高度</strong>
@@ -1846,12 +2142,12 @@ export const PistonOscillationModelSizePreviewPage = () => {
           ) : null}
         </aside>
 
-        <aside className="piston-model-size-preview-notes" aria-label="活塞连续高度骨架阶段调整范围">
+        <aside className="piston-model-size-preview-notes" aria-label="核心对象独立命中体阶段调整范围">
           <strong>本断点请审查</strong>
-          <p>依次切换 80、70、60、50、40、30、20 mm，检查活塞下沿对刻度、顶部组件随动和全行程结构连续性。</p>
+          <p>检查三种颜色的命中范围是否覆盖正确对象、是否过大误碰邻近部件；切换软管状态检查紫色命中体是否覆盖整条管线及接头。</p>
           <strong>本断点暂不加入</strong>
-          <p>按压手势、振动轨迹、锁紧约束、命中区域、聚焦视角和实验流程状态机。</p>
-          <small>连续滑杆只用于检查模型骨架；正式实验仍按七个目标高度从高到低进行。</small>
+          <p>点击、双击、拖动、旋转、悬停反馈、聚焦视角及命中优先级。</p>
+          <small>命中体当前不可操作；聚焦需求将在正式交互阶段按你的后续规则决定。</small>
         </aside>
       </section>
     </main>
