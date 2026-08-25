@@ -1,26 +1,25 @@
 {
-  "asset": "EX5531_TD8572A_ratio_specific_heats_final.glb",
-  "purpose": "Air heat-capacity-ratio experiment apparatus for the piston-oscillation method",
-  "sourceRepository": "https://github.com/zyl57863-cmd/ex5531-ratio-specific-heats-blender-model",
-  "sourceTag": "v1.2.1",
-  "sourceCommit": "79a26a2a7b13e082ac32507d02df20cbb2bd02e3",
-  "sourcePath": "deliverables_ex5531_final/EX5531_TD8572A_ratio_specific_heats_final.glb",
-  "sha256": "BE1681B872ED89196107856E1D37C6F57AF2D812272F34A41036F5F594C947C1",
-  "bytes": 7231720,
+  "asset": "piston-oscillation.glb",
+  "purpose": "Piston-oscillation method instrument, sensor, interface, hoses, and laboratory bench",
+  "sha256": "9CBC8E5331631F663B49F766D4352A758C52B97A313F75EA4041B6229694D370",
+  "bytes": 7507832,
   "format": "glTF 2.0 binary",
-  "generator": "Khronos glTF Blender I/O v5.2.39",
-  "extensionsUsed": [
-    "KHR_materials_transmission",
-    "KHR_materials_ior"
-  ],
-  "runtimeNotes": {
-    "externalUris": false,
-    "animationCount": 1,
-    "animationPlaybackEnabledInApp": false,
-    "pistonInteractionEnabledInApp": false,
-    "sourceTabletopVisibleInApp": false,
-    "visibleTabletopAsset": "../shared/unified-light-lab-bench.glb",
-    "visibleTabletopProfile": "light",
-    "darkTabletopAdaptationEnabled": false
+  "generator": "Three.js GLTFExporter r182",
+  "source": {
+    "repository": "https://github.com/zyl57863-cmd/ex5531-ratio-specific-heats-blender-model",
+    "tag": "v1.2.1",
+    "commit": "79a26a2a7b13e082ac32507d02df20cbb2bd02e3",
+    "path": "deliverables_ex5531_final/EX5531_TD8572A_ratio_specific_heats_final.glb",
+    "sha256": "BE1681B872ED89196107856E1D37C6F57AF2D812272F34A41036F5F594C947C1"
+  },
+  "modelContract": {
+    "pistonDiameterMm": 32.5,
+    "scaleTickRangeMm": [0, 85],
+    "scaleLabelRangeMm": [10, 80],
+    "experimentHeightRangeMm": [20, 80],
+    "lockingScrewTurns": 3,
+    "lockingScrewTravelMm": 2,
+    "hoseStates": ["connected", "disconnected"],
+    "materialPalette": "deep-blue-gray-low-gloss"
   }
 }

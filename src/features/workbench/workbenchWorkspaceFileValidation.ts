@@ -71,6 +71,8 @@ const PISTON_OSCILLATION_FILE_KEYS = [
   ...BASE_FILE_KEYS,
   'pistonOscillationSchemaVersion',
   'previewCameraPreset',
+  'pistonOscillationLessonIntroAutoShown',
+  'pistonOscillationGuideSession',
 ] as const;
 
 const isFiniteNumber = (value: unknown): value is number => (
@@ -403,7 +405,7 @@ export const isCanonicalPistonOscillationWorkspaceFile = (
         WorkbenchFileState,
         { kind: 'heatCapacityPistonOscillation' }
       >['previewCameraPreset'],
-    )
+    ) || typeof value.pistonOscillationLessonIntroAutoShown !== 'boolean'
   ) return false;
   const fallback = createDefaultHeatCapacityPistonOscillationFile(1);
   return value.runState === 'idle' &&
@@ -412,5 +414,8 @@ export const isCanonicalPistonOscillationWorkspaceFile = (
     areCanonicalPersistenceValuesEqual(value.appliedParams, fallback.appliedParams) &&
     areCanonicalPersistenceValuesEqual(value.stats, fallback.stats) &&
     areCanonicalPersistenceValuesEqual(value.chartData, fallback.chartData) &&
-    value.finalChartData === null;
+    value.finalChartData === null &&
+    isPersistenceRecord(value.pistonOscillationGuideSession) &&
+    value.pistonOscillationGuideSession.schemaVersion ===
+      fallback.pistonOscillationGuideSession.schemaVersion;
 };

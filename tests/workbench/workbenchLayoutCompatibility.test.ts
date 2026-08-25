@@ -13,13 +13,18 @@ import {
   createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO,
 } from '../../src/features/workbench/workbenchState.ts';
 
 const defaults = createDefaultWorkbenchLayoutDefaults();
 assert.equal(defaults.standard.liveWorkspaceSplitRatio > 0, true);
 assert.equal(defaults.ideal.resultsHeightRatio > 0, true);
 assert.equal(defaults.heatCapacity.liveWorkspaceSplitRatio > defaults.ideal.liveWorkspaceSplitRatio, true);
-assert.deepEqual(defaults.heatCapacityPistonOscillation, defaults.heatCapacity);
+assert.equal(
+  defaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio,
+  WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO,
+);
+assert.notDeepEqual(defaults.heatCapacityPistonOscillation, defaults.heatCapacity);
 assert.notEqual(defaults.heatCapacityPistonOscillation, defaults.heatCapacity);
 
 const normalizedLegacyLayout = normalizeIdealWindowLayoutState({
@@ -46,6 +51,10 @@ const normalizedDefaults = sanitizeWorkbenchLayoutDefaults({
   ideal: sanitizeIdealResultWindowDefaults({
     backHeightRatio: 0.41,
   }),
+  heatCapacityPistonOscillation: {
+    resultsHeightRatio: 0.5,
+    liveWorkspaceSplitRatio: 0.66,
+  },
 });
 
 assert.equal(normalizedDefaults.ideal.resultsHeightRatio, 0.41);

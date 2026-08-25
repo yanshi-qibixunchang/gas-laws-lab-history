@@ -48,11 +48,18 @@ import {
   PromptToastRegion,
   type PromptToastMessage,
 } from '../../components/prompts/PromptFeedback.tsx';
+import { PromptViewportFeedback } from '../../components/prompts/PromptViewportFeedback.tsx';
 import { PROMPT_FEEDBACK_COPY } from '../../components/prompts/promptFeedbackCopy.ts';
 import {
   PROMPT_TOAST_DURATION_MS,
   type PromptFeedbackKind,
 } from '../../components/prompts/promptFeedbackPolicy.ts';
+import {
+  createPromptViewportFeedbackMessage,
+  resolvePromptViewportFeedbackAdvance,
+  resolvePromptViewportFeedbackShow,
+  type PromptViewportFeedbackMessage,
+} from '../../components/prompts/promptViewportFeedbackController.ts';
 import {
   areWorkbenchParamsEqual,
   adjustHeatCapacityPressureZeroCoarse,
@@ -133,11 +140,16 @@ import {
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   shouldCommitHeatCapacityRealtimeTick,
   startHeatCapacityGuideWorkbenchState,
+  startPistonOscillationGuideWorkbenchState,
+  editPistonOscillationGuideParameterWorkbenchState,
+  commitPistonOscillationGuideParameterWorkbenchState,
+  transitionPistonOscillationGuideWorkbenchState,
   prepareNextHeatCapacityFreeExperimentWorkbenchState,
   submitHeatCapacityCalculationStepWorkbenchState,
   stepHeatCapacityWorkbenchFile,
   updateHeatCapacityCalculationDraftWorkbenchState,
   revealHeatCapacityCalculationAnswerWorkbenchState,
+  WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   WORKBENCH_LIVE_SPLIT_MIN_RATIO,
   WORKBENCH_LIVE_SPLIT_MAX_RATIO,
   clampWorkbenchLiveSplitRatio,
@@ -445,10 +457,40 @@ import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
 import {
+  PistonOscillationAcquisitionPanel,
+  PistonOscillationCalculationWindow,
+  PistonOscillationDataProcessingPanel,
   PistonOscillationInstrumentScene,
-  PistonOscillationRealtimeUnavailable,
+  PISTON_OSCILLATION_DEMO_DURATION_MS,
+  getPistonOscillationDemoFrame,
+  getPistonOscillationGuideHeightResetPresentation,
+  getPistonOscillationGuideInstrumentRestoreState,
+  getPistonOscillationGuideRequestedFocusMode,
+  getPistonOscillationGuideStrongContextKind,
+  getPistonOscillationGuideStrongTargetId,
   getPistonOscillationShellCopy,
+  type PistonOscillationDemoFrame,
+  type PistonOscillationGuideAcquisitionEvent,
+  type PistonOscillationGuideAcquisitionCue,
+  type PistonOscillationGuideInstrumentSnapshot,
+  type PistonOscillationGuideSupportLossEvent,
+  type PistonOscillationGuideStrongTargetId,
+  type PistonOscillationGuideVisualCue,
+  type PistonOscillationReleaseEvent,
+  type PistonOscillationShellCopy,
 } from '../pistonOscillation/index.ts';
+import type {
+  PistonOscillationGuideAction,
+  PistonOscillationGuideActionContext,
+  PistonOscillationGuideEvent,
+  PistonOscillationGuideGuardResult,
+  PistonOscillationGuideStep,
+} from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
+  getPistonOscillationGuideActionGuard,
+  PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
+  PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
+} from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
   WorkbenchTopCommands,
   type WorkbenchTopMenuId,
@@ -1141,6 +1183,7 @@ interface GuideHeatCapacityGuardResult {
 
 const GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000;
 const GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000;
+const PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS = 3000;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS = 250;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_POINTER_FALLBACK_MS = 320;
 const HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 * 60 * 1000;
@@ -1157,7 +1200,481 @@ const HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS = 120;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE = 0.72;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS = 2;
+const PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX =
+  HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
+const PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX = 60;
+const PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS =
+  GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS;
 const HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS = 180 as const;
+
+interface PistonOscillationGuideStrongCutout {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rx: number;
+}
+
+interface PistonOscillationGuideStrongMaskLayout {
+  top: number;
+  width: number;
+  height: number;
+  cutout: PistonOscillationGuideStrongCutout;
+  contextCutouts: PistonOscillationGuideStrongCutout[];
+  card: {
+    x: number;
+    y: number;
+    width: number;
+    compact: boolean;
+  };
+}
+
+type PistonOscillationGuideLessonDialogState =
+  | { kind: 'intro'; fileId: string; pageIndex: number; closing: boolean }
+  | { kind: 'heightReset'; fileId: string; closing: boolean }
+  | { kind: 'completion'; fileId: string; closing: boolean };
+
+interface PistonOscillationGuideCompletionToastState {
+  id: number;
+  fileId: string;
+  kicker: string;
+  message: string;
+}
+
+interface PistonOscillationGuideLessonView {
+  key: string;
+  title: string;
+  body: string;
+}
+
+type PistonOscillationGuideFeedbackSource = 'guide';
+type PistonOscillationGuideFeedbackState = PromptViewportFeedbackMessage<
+  PistonOscillationGuideFeedbackSource
+>;
+
+const PISTON_OSCILLATION_GUIDE_STRONG_TARGET_SELECTORS: Partial<
+Record<PistonOscillationGuideStrongTargetId, string>
+> = {
+  settings: '.piston-acquisition-settings',
+  heightStageAction: '[data-piston-guide-target="height-stage-action"]',
+  operationMirror: '[data-piston-focus-operation-mirror="true"]',
+  primary: '[data-piston-guide-target="primary"]',
+  save: '[data-piston-guide-target="save"]',
+  periodTool: '[data-piston-guide-target="period-tool"]',
+  periodChart: '[data-piston-guide-target="period-chart"]',
+  periodEndpoints: '[data-piston-guide-target="period-endpoints"]',
+  periodAnswer: '[data-piston-guide-target="period-answer"]',
+  periodNext: '[data-piston-guide-target="period-next"]',
+};
+
+const clampPistonOscillationGuideCutout = (
+  value: number,
+  minimum: number,
+  maximum: number,
+) => Math.min(maximum, Math.max(minimum, value));
+
+const getPistonOscillationGuideRoundedRectPath = (
+  cutout: PistonOscillationGuideStrongCutout,
+) => {
+  const radius = Math.max(0, Math.min(cutout.rx, cutout.width / 2, cutout.height / 2));
+  const right = cutout.x + cutout.width;
+  const bottom = cutout.y + cutout.height;
+  return [
+    `M ${cutout.x + radius} ${cutout.y}`,
+    `H ${right - radius}`,
+    `Q ${right} ${cutout.y} ${right} ${cutout.y + radius}`,
+    `V ${bottom - radius}`,
+    `Q ${right} ${bottom} ${right - radius} ${bottom}`,
+    `H ${cutout.x + radius}`,
+    `Q ${cutout.x} ${bottom} ${cutout.x} ${bottom - radius}`,
+    `V ${cutout.y + radius}`,
+    `Q ${cutout.x} ${cutout.y} ${cutout.x + radius} ${cutout.y}`,
+    'Z',
+  ].join(' ');
+};
+
+const getPistonOscillationGuideStrongDimPath = (
+  layout: PistonOscillationGuideStrongMaskLayout,
+) => {
+  const targetCoveredByContext = layout.contextCutouts.some((context) => (
+    context.x <= layout.cutout.x
+    && context.y <= layout.cutout.y
+    && context.x + context.width >= layout.cutout.x + layout.cutout.width
+    && context.y + context.height >= layout.cutout.y + layout.cutout.height
+  ));
+  return [
+    `M 0 0 H ${layout.width} V ${layout.height} H 0 Z`,
+    ...(targetCoveredByContext
+      ? []
+      : [getPistonOscillationGuideRoundedRectPath(layout.cutout)]),
+    ...layout.contextCutouts.map(getPistonOscillationGuideRoundedRectPath),
+  ].join(' ');
+};
+
+const getPistonOscillationGuideStrongMaskLayout = (
+  root: HTMLElement,
+  targetId: PistonOscillationGuideStrongTargetId,
+): PistonOscillationGuideStrongMaskLayout | null => {
+  const rootRect = root.getBoundingClientRect();
+  if (rootRect.width <= 0 || rootRect.height <= 0) return null;
+  const localWidth = Math.max(1, root.clientWidth || root.offsetWidth);
+  const localHeight = Math.max(1, root.clientHeight || root.offsetHeight);
+  const scaleX = rootRect.width / localWidth;
+  const scaleY = rootRect.height / localHeight;
+  if (!Number.isFinite(scaleX) || scaleX <= 0 || !Number.isFinite(scaleY) || scaleY <= 0) {
+    return null;
+  }
+  const toLocalX = (viewportX: number) => (viewportX - rootRect.left) / scaleX;
+  const toLocalY = (viewportY: number) => (viewportY - rootRect.top) / scaleY;
+  const dockHeaders = Array.from(root.querySelectorAll<HTMLElement>('.studio-dock-header'));
+  const top = Math.max(0, Math.round(Math.max(
+    0,
+    ...dockHeaders.map((header) => toLocalY(header.getBoundingClientRect().bottom)),
+  )));
+  const width = Math.max(1, Math.round(localWidth));
+  const height = Math.max(1, Math.round(localHeight - top));
+  const toCutout = (
+    rect: Pick<DOMRect, 'left' | 'top' | 'right' | 'bottom'>,
+    padding: number,
+    rx: number,
+  ): PistonOscillationGuideStrongCutout | null => {
+    const x = clampPistonOscillationGuideCutout(toLocalX(rect.left) - padding, 0, width - 1);
+    const y = clampPistonOscillationGuideCutout(toLocalY(rect.top) - top - padding, 0, height - 1);
+    const right = clampPistonOscillationGuideCutout(
+      toLocalX(rect.right) + padding,
+      x + 1,
+      width,
+    );
+    const bottom = clampPistonOscillationGuideCutout(
+      toLocalY(rect.bottom) - top + padding,
+      y + 1,
+      height,
+    );
+    if (right <= x || bottom <= y) return null;
+    return { x, y, width: right - x, height: bottom - y, rx };
+  };
+  const stage = root.querySelector<HTMLElement>('[data-piston-focus-interaction-preview="true"]');
+  const projectedCutout = (
+    xAttribute: string | undefined,
+    yAttribute: string | undefined,
+    targetWidth: number,
+    targetHeight: number,
+    rx: number,
+  ): PistonOscillationGuideStrongCutout | null => {
+    if (!stage) return null;
+    const projectedX = Number(xAttribute);
+    const projectedY = Number(yAttribute);
+    if (!Number.isFinite(projectedX) || !Number.isFinite(projectedY)) return null;
+    const stageRect = stage.getBoundingClientRect();
+    const stageLeft = toLocalX(stageRect.left);
+    const stageTop = toLocalY(stageRect.top) - top;
+    const stageWidth = stageRect.width / scaleX;
+    const stageHeight = stageRect.height / scaleY;
+    const centerX = stageLeft + ((projectedX + 1) / 2) * stageWidth;
+    const centerY = stageTop + ((1 - projectedY) / 2) * stageHeight;
+    const x = clampPistonOscillationGuideCutout(centerX - targetWidth / 2, 0, width - 1);
+    const y = clampPistonOscillationGuideCutout(centerY - targetHeight / 2, 0, height - 1);
+    return {
+      x,
+      y,
+      width: Math.min(targetWidth, width - x),
+      height: Math.min(targetHeight, height - y),
+      rx,
+    };
+  };
+  const projectedBoundsCutout = (
+    leftAttribute: string | undefined,
+    topAttribute: string | undefined,
+    rightAttribute: string | undefined,
+    bottomAttribute: string | undefined,
+    padding: number,
+    rx: number,
+  ): PistonOscillationGuideStrongCutout | null => {
+    if (!stage) return null;
+    const projectedLeft = Number(leftAttribute);
+    const projectedTop = Number(topAttribute);
+    const projectedRight = Number(rightAttribute);
+    const projectedBottom = Number(bottomAttribute);
+    if (
+      !Number.isFinite(projectedLeft)
+      || !Number.isFinite(projectedTop)
+      || !Number.isFinite(projectedRight)
+      || !Number.isFinite(projectedBottom)
+      || projectedRight <= projectedLeft
+      || projectedTop <= projectedBottom
+    ) return null;
+    const stageRect = stage.getBoundingClientRect();
+    const stageLeft = toLocalX(stageRect.left);
+    const stageTop = toLocalY(stageRect.top) - top;
+    const stageWidth = stageRect.width / scaleX;
+    const stageHeight = stageRect.height / scaleY;
+    const rawLeft = stageLeft + ((projectedLeft + 1) / 2) * stageWidth - padding;
+    const rawTop = stageTop + ((1 - projectedTop) / 2) * stageHeight - padding;
+    const rawRight = stageLeft + ((projectedRight + 1) / 2) * stageWidth + padding;
+    const rawBottom = stageTop + ((1 - projectedBottom) / 2) * stageHeight + padding;
+    const x = clampPistonOscillationGuideCutout(rawLeft, 0, width - 1);
+    const y = clampPistonOscillationGuideCutout(rawTop, 0, height - 1);
+    const right = clampPistonOscillationGuideCutout(rawRight, x + 1, width);
+    const bottom = clampPistonOscillationGuideCutout(rawBottom, y + 1, height);
+    return { x, y, width: right - x, height: bottom - y, rx };
+  };
+  const selector = PISTON_OSCILLATION_GUIDE_STRONG_TARGET_SELECTORS[targetId];
+  const target = selector ? root.querySelector<HTMLElement>(selector) : null;
+  let cutout: PistonOscillationGuideStrongCutout | null = null;
+  if (target) {
+    const rect = target.getBoundingClientRect();
+    const isPeriodChart = targetId === 'periodChart';
+    const padding = isPeriodChart ? 0 : targetId === 'operationMirror' ? 6 : 10;
+    cutout = toCutout(
+      rect,
+      padding,
+      isPeriodChart || targetId === 'operationMirror' ? 2 : 8,
+    );
+  }
+  if (!cutout && stage && targetId === 'platform') {
+    cutout = projectedCutout(
+      stage.dataset.pistonFocusPlatformX,
+      stage.dataset.pistonFocusPlatformY,
+      154,
+      92,
+      18,
+    );
+  }
+  if (!cutout && stage && (
+    targetId === 'hoseDisconnect' || targetId === 'hoseReconnect'
+  )) {
+    const attributePrefix = targetId === 'hoseDisconnect'
+      ? 'pistonFocusHoseConnectedHandle'
+      : 'pistonFocusHoseDetachedHandle';
+    cutout = projectedBoundsCutout(
+      stage.dataset[`${attributePrefix}Left`],
+      stage.dataset[`${attributePrefix}Top`],
+      stage.dataset[`${attributePrefix}Right`],
+      stage.dataset[`${attributePrefix}Bottom`],
+      8,
+      18,
+    );
+  }
+  if (!cutout) return null;
+
+  const contextCutouts: PistonOscillationGuideStrongCutout[] = [];
+  const contextKind = getPistonOscillationGuideStrongContextKind(targetId);
+  if (contextKind === 'scaleMirror') {
+    const mirror = root.querySelector<HTMLElement>('[data-piston-focus-operation-mirror="true"]');
+    const mirrorCutout = mirror ? toCutout(mirror.getBoundingClientRect(), 4, 2) : null;
+    if (mirrorCutout) contextCutouts.push(mirrorCutout);
+  } else if (contextKind === 'mainScrew' && stage) {
+    const mainScrewCutout = projectedCutout(
+      stage.dataset.pistonFocusMainScrewX,
+      stage.dataset.pistonFocusMainScrewY,
+      92,
+      72,
+      30,
+    );
+    if (mainScrewCutout) contextCutouts.push(mainScrewCutout);
+  }
+  const obstacleSelectors = [
+    '[data-piston-oscillation-guide-step-panel="true"]',
+    '[data-piston-focus-panel]',
+    '[data-piston-focus-interaction-hints="true"]',
+    '[data-piston-focus-operation-mirror="true"]',
+    '.piston-acquisition-panel-heading',
+    '.piston-acquisition-settings',
+    '.piston-acquisition-live-readout',
+    '.piston-acquisition-chart-wrap',
+    '.piston-acquisition-actions',
+    '.piston-acquisition-note',
+    '.piston-processing-run-list',
+    '.piston-processing-selection-heading',
+    '.piston-processing-calculation',
+    '.piston-processing-footer',
+    '.studio-live-workspace-resizer',
+  ];
+  const protectedObstacles = obstacleSelectors.flatMap((obstacleSelector) => (
+    Array.from(root.querySelectorAll<HTMLElement>(obstacleSelector))
+      .map((element) => toCutout(element.getBoundingClientRect(), 8, 0))
+      .filter((rect): rect is PistonOscillationGuideStrongCutout => rect !== null)
+  ));
+  const obstacles = [...protectedObstacles];
+  obstacles.push(cutout, ...contextCutouts);
+  const renderedStrongCard = root.querySelector<HTMLElement>(
+    '.studio-piston-guide-strong-mask .studio-heat-guide-strong-card',
+  );
+  const renderedStrongCardCompact = renderedStrongCard?.classList.contains(
+    'studio-piston-guide-strong-card-compact',
+  ) ?? false;
+  const renderedStrongCardHeight = renderedStrongCard?.offsetHeight ?? null;
+  const resizer = root.querySelector<HTMLElement>('.studio-live-workspace-resizer');
+  const dividerX = resizer
+    ? toLocalX(resizer.getBoundingClientRect().left)
+    : width / 2;
+  const preferRightPane = targetId === 'platform'
+    || targetId === 'heightStageAction'
+    || targetId === 'operationMirror'
+    || targetId === 'hoseDisconnect'
+    || targetId === 'hoseReconnect';
+  const chooseCard = (
+    compact: boolean,
+    placementObstacles: PistonOscillationGuideStrongCutout[] = obstacles,
+  ) => {
+    const cardWidth = Math.min(compact ? 232 : 340, Math.max(210, width - 24));
+    const estimatedCardHeight = compact ? 168 : 112;
+    const cardHeight = renderedStrongCardHeight !== null
+      && renderedStrongCardCompact === compact
+      ? Math.max(estimatedCardHeight, renderedStrongCardHeight)
+      : estimatedCardHeight;
+    const contentLeft = 12;
+    const contentTop = 12;
+    const contentRight = Math.max(contentLeft, width - 12);
+    const contentBottom = Math.max(contentTop, height - 12);
+    const expandedObstacles = placementObstacles.map((obstacle) => ({
+      left: Math.max(contentLeft, obstacle.x - 6),
+      right: Math.min(contentRight, obstacle.x + obstacle.width + 6),
+      top: Math.max(contentTop, obstacle.y - 6),
+      bottom: Math.min(contentBottom, obstacle.y + obstacle.height + 6),
+    })).filter((obstacle) => obstacle.right > obstacle.left && obstacle.bottom > obstacle.top);
+    const xEdges = Array.from(new Set([
+      contentLeft,
+      contentRight,
+      ...expandedObstacles.flatMap((obstacle) => [obstacle.left, obstacle.right]),
+    ])).sort((first, second) => first - second);
+    const candidates: {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+      area: number;
+      preferred: boolean;
+    }[] = [];
+    for (let leftIndex = 0; leftIndex < xEdges.length - 1; leftIndex += 1) {
+      for (let rightIndex = leftIndex + 1; rightIndex < xEdges.length; rightIndex += 1) {
+        const left = xEdges[leftIndex];
+        const right = xEdges[rightIndex];
+        const availableWidth = right - left;
+        if (availableWidth < cardWidth) continue;
+        const blockingIntervals = expandedObstacles
+          .filter((obstacle) => obstacle.left < right && obstacle.right > left)
+          .map((obstacle) => ({ top: obstacle.top, bottom: obstacle.bottom }))
+          .sort((first, second) => first.top - second.top);
+        const freeIntervals: { top: number; bottom: number }[] = [];
+        let freeTop = contentTop;
+        for (const interval of blockingIntervals) {
+          if (interval.top > freeTop) freeIntervals.push({ top: freeTop, bottom: interval.top });
+          freeTop = Math.max(freeTop, interval.bottom);
+        }
+        if (freeTop < contentBottom) freeIntervals.push({ top: freeTop, bottom: contentBottom });
+        for (const interval of freeIntervals) {
+          const availableHeight = interval.bottom - interval.top;
+          if (availableHeight < cardHeight) continue;
+          const centerX = left + availableWidth / 2;
+          candidates.push({
+            left,
+            top: interval.top,
+            width: availableWidth,
+            height: availableHeight,
+            area: availableWidth * availableHeight,
+            preferred: preferRightPane ? centerX > dividerX : centerX < dividerX,
+          });
+        }
+      }
+    }
+    const preferredCandidates = candidates.filter((candidate) => candidate.preferred);
+    const availableCandidates = preferredCandidates.length > 0 ? preferredCandidates : candidates;
+    const largest = availableCandidates.reduce<(typeof candidates)[number] | null>(
+      (best, candidate) => !best || candidate.area > best.area ? candidate : best,
+      null,
+    );
+    if (!largest) return null;
+    return {
+      x: Math.round(largest.left + (largest.width - cardWidth) / 2),
+      y: Math.round(largest.top + (largest.height - cardHeight) / 2),
+      width: cardWidth,
+      compact,
+    };
+  };
+  const selectedCard = chooseCard(false)
+    ?? chooseCard(true)
+    ?? chooseCard(true, protectedObstacles)
+    ?? {
+      x: preferRightPane
+        ? Math.max(12, width - Math.min(232, width - 24) - 12)
+        : 12,
+      y: 12,
+      width: Math.min(232, width - 24),
+      compact: true,
+    };
+  return {
+    top,
+    width,
+    height,
+    cutout,
+    contextCutouts,
+    card: {
+      x: selectedCard.x,
+      y: selectedCard.y,
+      width: selectedCard.width,
+      compact: selectedCard.compact,
+    },
+  };
+};
+
+const getPistonOscillationGuideReminderText = (
+  copy: PistonOscillationShellCopy,
+  step: PistonOscillationGuideStep,
+  measurementIndex: 0 | 1 | 2,
+  targetId?: PistonOscillationGuideStrongTargetId | null,
+): string => {
+  const measurementNumber = measurementIndex + 1;
+  const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
+  switch (step) {
+    case 'parameterSetup': return copy.guide.parameterSetupDetail;
+    case 'firstHeightAdjustment':
+    case 'nextHeightAdjustment': return copy.guide.adjustHeightDetail(targetHeightMm);
+    case 'screwLock': return copy.guide.lockScrewDetail;
+    case 'hoseReconnect': return copy.guide.reconnectHoseDetail;
+    case 'screwLoosen': return copy.guide.loosenScrewDetail;
+    case 'baselineStabilizing': return copy.guide.startAcquisitionDetail;
+    case 'acquisitionReady': return copy.guide.startAcquisitionDetail;
+    case 'waitingTrigger': return copy.guide.releasePistonDetail;
+    case 'recording': return copy.guide.recordingDetail;
+    case 'pauseAvailable':
+    case 'curveFrozen': return copy.guide.pauseRecordingDetail;
+    case 'awaitingSaveOrRedo': return copy.guide.saveCurveDetail(measurementNumber);
+    case 'crossRunStabilizing': return copy.guide.crossRunStabilizingDetail;
+    case 'crossRunDisconnect': return copy.guide.crossRunDisconnectDetail;
+    case 'periodProcessing':
+      if (targetId === 'periodTool') return copy.processing.selectionToolReminder;
+      if (targetId === 'periodEndpoints') return copy.processing.endpointReminder;
+      if (targetId === 'periodAnswer') return copy.processing.periodReminder;
+      if (targetId === 'periodNext') return copy.processing.nextReminder;
+      return copy.processing.selectionReminder;
+    case 'calculationReady': return copy.processing.calculationReady;
+    case 'completionReview': return copy.guide.completedDetail;
+    case 'completed': return copy.guide.completedDetail;
+    default: return copy.guide.reminderBody;
+  }
+};
+
+const getPistonOscillationGuideGuardFeedbackText = (
+  copy: PistonOscillationShellCopy,
+  action: PistonOscillationGuideAction,
+  guard: PistonOscillationGuideGuardResult,
+  targetHeightMm: number,
+) => {
+  if (guard.reason === 'wrongTargetHeight') {
+    return copy.feedback.targetHeightRequired(targetHeightMm);
+  }
+  if (guard.reason === 'rightHandMustBeReleased') {
+    return copy.feedback.releaseRightHandBeforeLock;
+  }
+  if (guard.reason === 'bothHandsRequired') return copy.feedback.bothHandsBeforePress;
+  if (guard.reason === 'leftHandRequired') {
+    return action === 'disconnectHose'
+      ? copy.feedback.leftHandBeforeDisconnect
+      : copy.feedback.leftHandBeforeLock;
+  }
+  return copy.feedback.wrongStep;
+};
 
 interface HeatCapacityGuideChecklistStepDefinition {
   id: string;
@@ -2245,7 +2762,11 @@ const isPistonOscillationDevelopmentPanelKey = (
   panel: WorkbenchPanelKey,
 ) => (
   file.kind === 'heatCapacityPistonOscillation' &&
-  isHeatCapacityPanelKey(panel)
+  isHeatCapacityPanelKey(panel) &&
+  !(
+    panel === 'heatCapacityGuide'
+    && file.pistonOscillationGuideSession.dataProcessing !== null
+  )
 );
 const shouldCollapseWorkbenchParameterSidebar = (
   file: WorkbenchFileState | undefined,
@@ -2253,6 +2774,9 @@ const shouldCollapseWorkbenchParameterSidebar = (
   file?.kind === 'heatCapacity' ||
   file?.kind === 'heatCapacityPistonOscillation'
 );
+const shouldCollapseWorkbenchFileSidebar = (
+  file: WorkbenchFileState | undefined,
+) => file?.kind === 'heatCapacityPistonOscillation';
 const LEFT_SIDEBAR_MIN = 220;
 const LEFT_SIDEBAR_MAX = 420;
 const PARAM_SIDEBAR_MIN = 240;
@@ -3782,6 +4306,18 @@ const createHeatCapacityPanels = (
   { key: 'heatCapacityReview', title: heatCopy.reviewTitle, hint: heatCopy.reviewHint, icon: <PanelTopOpen size={13} /> },
 ];
 
+const createPistonOscillationPanels = (
+  copy: WorkbenchCopy,
+  pistonCopy: PistonOscillationShellCopy,
+  heatCopy: ReturnType<typeof getHeatCapacityRealtimeCopy>,
+): PanelDefinition[] => [
+  { key: 'preview', title: copy.panels.previewTitle, hint: copy.panels.previewHint, icon: <Gauge size={13} />, defaultVisible: true },
+  { key: 'realtime', title: copy.panels.heatRealtimeTitle, hint: copy.panels.heatRealtimeHint, icon: <BarChart3 size={13} />, defaultVisible: true },
+  { key: 'heatCapacityGuide', title: pistonCopy.processing.navigationItem, hint: pistonCopy.processing.hint, icon: <PanelTopOpen size={13} /> },
+  { key: 'heatCapacityRecords', title: heatCopy.recordsTitle, hint: heatCopy.recordsHint, icon: <Table2 size={13} /> },
+  { key: 'heatCapacityReview', title: heatCopy.reviewTitle, hint: heatCopy.reviewHint, icon: <BookOpen size={13} /> },
+];
+
 const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSectionKey; title: string; icon: React.ReactNode }> => [
   { key: 'summary', title: copy.panels.summaryTitle, icon: <Gauge size={12} /> },
   { key: 'dataTable', title: copy.panels.dataTableTitle, icon: <Table2 size={12} /> },
@@ -3796,6 +4332,11 @@ const getLocalizedWorkbenchPanelTitle = (
     createStandardPanels(workbenchCopies[nextLanguage]),
     createIdealPanels(workbenchCopies[nextLanguage]),
     createHeatCapacityPanels(workbenchCopies[nextLanguage], getHeatCapacityRealtimeCopy(nextLanguage)),
+    createPistonOscillationPanels(
+      workbenchCopies[nextLanguage],
+      getPistonOscillationShellCopy(nextLanguage),
+      getHeatCapacityRealtimeCopy(nextLanguage),
+    ),
   ];
   for (const sourceLanguage of Object.keys(workbenchCopies) as WorkbenchLanguagePreference[]) {
     const sourceGroups = getPanelGroups(sourceLanguage);
@@ -3817,6 +4358,11 @@ const getLocalizedWorkbenchTabTitle = (
     createResultsSections(workbenchCopies[nextLanguage]),
     createIdealPanels(workbenchCopies[nextLanguage]).filter((panel) => isIdealResultWindowKey(panel.key)),
     createHeatCapacityPanels(workbenchCopies[nextLanguage], getHeatCapacityRealtimeCopy(nextLanguage)),
+    createPistonOscillationPanels(
+      workbenchCopies[nextLanguage],
+      getPistonOscillationShellCopy(nextLanguage),
+      getHeatCapacityRealtimeCopy(nextLanguage),
+    ),
   ];
   for (const sourceLanguage of Object.keys(workbenchCopies) as WorkbenchLanguagePreference[]) {
     const sourceGroups = getTabGroups(sourceLanguage);
@@ -4237,9 +4783,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         id: initialHeatCapacityRefreshSession.guide.toastQueue.current.id,
         text: initialHeatCapacityRefreshSession.guide.toastQueue.current.text,
         level: initialHeatCapacityRefreshSession.guide.toastQueue.current.level,
+        kind: initialHeatCapacityRefreshSession.guide.toastQueue.current.level,
         priority: initialHeatCapacityRefreshSession.guide.toastQueue.current.priority,
         source: initialHeatCapacityRefreshSession.guide.toastQueue.current.source,
         createdAt: initialHeatCapacityRefreshSession.guide.toastQueue.current.createdAtMs,
+        durationMs: HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
       } satisfies HeatCapacityToastMessage
     : null;
   const initialHeatCapacityRefreshPendingToast = initialHeatCapacityRefreshSession?.guide.toastQueue.pending[0]
@@ -4247,9 +4795,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         id: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].id,
         text: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].text,
         level: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].level,
+        kind: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].level,
         priority: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].priority,
         source: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].source,
         createdAt: initialHeatCapacityRefreshSession.guide.toastQueue.pending[0].createdAtMs,
+        durationMs: HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
       } satisfies HeatCapacityToastMessage
     : null;
   const initialHeatCapacityRefreshLessonDialog: HeatCapacityGuideLessonDialogState | null = (() => {
@@ -4338,13 +4888,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         };
       }
       if (file.kind === 'heatCapacityPistonOscillation') {
+        const storedSplitRatio = clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio);
         return {
           ...file,
           runState: 'idle' as const,
-          liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
-            file.liveWorkspaceSplitRatio ??
-              defaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio,
-          ),
+          liveWorkspaceSplitRatio:
+            storedSplitRatio === WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO
+              ? defaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio
+              : storedSplitRatio,
         };
       }
       return {
@@ -4652,14 +5203,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const heatCapacityModeTransitionRefreshResumedRef = useRef(false);
   const scheduleHeatCapacityModeTargetPreparationRef = useRef<(requestId: number) => void>(() => undefined);
   const workbenchTranslation = translations[settingsLanguagePreference === 'en' ? 'en-GB' : settingsLanguagePreference];
+  const initialActiveWorkbenchFile = initialSession.files.find(
+    (file) => file.id === initialSession.activeFileId,
+  );
   const [leftCollapsed, setLeftCollapsed] = useState(() => (
+    shouldCollapseWorkbenchFileSidebar(initialActiveWorkbenchFile) ||
     getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshLayout, 'leftCollapsed')
   ));
   const [parametersCollapsed, setParametersCollapsed] = useState(() => (
     typeof initialHeatCapacityRefreshLayout.parametersCollapsed === 'boolean'
       ? initialHeatCapacityRefreshLayout.parametersCollapsed
       : shouldCollapseWorkbenchParameterSidebar(
-          initialSession.files.find((file) => file.id === initialSession.activeFileId),
+          initialActiveWorkbenchFile,
         )
   ));
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => clamp(
@@ -4702,6 +5257,191 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const [idealAdvancedSettingsOpen, setIdealAdvancedSettingsOpen] = useState(false);
   const [idealAdvancedSettingsBodyVisible, setIdealAdvancedSettingsBodyVisible] = useState(false);
   const [parameterInputDrafts, setParameterInputDrafts] = useState<Record<string, string>>({});
+  const [pistonOscillationReleaseEventsByFileId, setPistonOscillationReleaseEventsByFileId] =
+    useState<Record<string, PistonOscillationReleaseEvent>>({});
+  const [pistonOscillationMeasurementCyclesByFileId, setPistonOscillationMeasurementCyclesByFileId] =
+    useState<Record<string, number>>({});
+  const [pistonOscillationGuidePulseElapsedMs, setPistonOscillationGuidePulseElapsedMs] =
+    useState(0);
+  const [pistonOscillationPeriodSelectionToolActive, setPistonOscillationPeriodSelectionToolActive] =
+    useState(false);
+  const [pistonOscillationGuideFeedback, setPistonOscillationGuideFeedback] =
+    useState<PistonOscillationGuideFeedbackState | null>(null);
+  const [pistonOscillationGuideStrongReminderActiveContext, setPistonOscillationGuideStrongReminderActiveContext] =
+    useState<string | null>(null);
+  const [pistonOscillationGuideStrongReminderClockContext, setPistonOscillationGuideStrongReminderClockContext] =
+    useState<string | null>(null);
+  const [pistonOscillationGuideLessonDialog, setPistonOscillationGuideLessonDialog] =
+    useState<PistonOscillationGuideLessonDialogState | null>(null);
+  const [pistonOscillationGuideLessonOutgoingView, setPistonOscillationGuideLessonOutgoingView] =
+    useState<PistonOscillationGuideLessonView | null>(null);
+  const [pistonOscillationGuideCompletionToast, setPistonOscillationGuideCompletionToast] =
+    useState<PistonOscillationGuideCompletionToastState | null>(null);
+  const [pistonOscillationGuideStrongMaskLayout, setPistonOscillationGuideStrongMaskLayout] =
+    useState<PistonOscillationGuideStrongMaskLayout | null>(null);
+  const [pistonOscillationGuideHeightAdjustmentStage, setPistonOscillationGuideHeightAdjustmentStage] =
+    useState<PistonOscillationGuideInstrumentSnapshot['heightAdjustmentStage']>('readingHeight');
+  const [pistonOscillationGuideTargetHeightReady, setPistonOscillationGuideTargetHeightReady] =
+    useState(false);
+  const [pistonOscillationGuideHeightHandoffComplete, setPistonOscillationGuideHeightHandoffComplete] =
+    useState(false);
+  const [pistonOscillationGuideHoseDragging, setPistonOscillationGuideHoseDragging] =
+    useState(false);
+  const [pistonOscillationGuideHoseState, setPistonOscillationGuideHoseState] =
+    useState<PistonOscillationGuideInstrumentSnapshot['hoseState'] | null>(null);
+  const [pistonOscillationGuideResetFeedback, setPistonOscillationGuideResetFeedback] =
+    useState(false);
+  const [pistonOscillationGuideChecklistViewedIndex, setPistonOscillationGuideChecklistViewedIndex] =
+    useState(0);
+  const pistonOscillationGuideResetFeedbackTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuidePreviousSessionRef = useRef<{
+    fileId: string;
+    status: 'idle' | 'active' | 'completed';
+    step: PistonOscillationGuideStep;
+  } | null>(null);
+  const pistonOscillationGuideFeedbackCurrentRef =
+    useRef<PistonOscillationGuideFeedbackState | null>(null);
+  const pistonOscillationGuideFeedbackPendingRef =
+    useRef<PistonOscillationGuideFeedbackState | null>(null);
+  const pistonOscillationGuideFeedbackTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideFeedbackTimerGenerationRef = useRef(0);
+  const pistonOscillationGuideStrongReminderTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideLessonCloseTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideLessonTransitionTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideCompletionToastTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideLessonDialogRef = useRef<HTMLElement | null>(null);
+  const pistonOscillationGuideLessonReturnFocusRef = useRef<HTMLElement | null>(null);
+  const pistonOscillationGuideMissCountRef = useRef(0);
+  const pistonOscillationGuideInstrumentSnapshotRef =
+    useRef<PistonOscillationGuideInstrumentSnapshot | null>(null);
+  const pistonOscillationGuideTargetHeightReadyRef = useRef(false);
+  const pistonOscillationGuideHeightHandoffCompleteRef = useRef(false);
+  const pistonOscillationGuideStrongTargetContextRef = useRef<string | null>(null);
+  const pistonOscillationGuideResumeStrongReminderAfterLessonRef = useRef(false);
+  const pistonOscillationGuideStrongReminderActiveContextRef = useRef<string | null>(null);
+  const setPistonOscillationGuideStrongReminderActive = (
+    active: boolean,
+    expectedContext?: string | null,
+  ) => {
+    if (active) {
+      if (
+        !expectedContext
+        || expectedContext !== pistonOscillationGuideStrongTargetContextRef.current
+      ) return;
+      pistonOscillationGuideStrongReminderActiveContextRef.current = expectedContext;
+      setPistonOscillationGuideStrongReminderActiveContext(expectedContext);
+      return;
+    }
+    pistonOscillationGuideStrongReminderActiveContextRef.current = null;
+    setPistonOscillationGuideStrongReminderActiveContext(null);
+  };
+  const isPistonOscillationGuideStrongReminderActive = () => (
+    pistonOscillationGuideStrongReminderActiveContextRef.current !== null
+    && pistonOscillationGuideStrongReminderActiveContextRef.current
+      === pistonOscillationGuideStrongTargetContextRef.current
+  );
+  const setPistonOscillationGuideFeedbackCurrent = (
+    message: PistonOscillationGuideFeedbackState | null,
+  ) => {
+    pistonOscillationGuideFeedbackCurrentRef.current = message;
+    setPistonOscillationGuideFeedback(message);
+  };
+  const setPistonOscillationGuideFeedbackPending = (
+    message: PistonOscillationGuideFeedbackState | null,
+  ) => {
+    pistonOscillationGuideFeedbackPendingRef.current = message;
+  };
+  const clearPistonOscillationGuideFeedback = () => {
+    pistonOscillationGuideFeedbackTimerGenerationRef.current += 1;
+    if (pistonOscillationGuideFeedbackTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideFeedbackTimerRef.current);
+      pistonOscillationGuideFeedbackTimerRef.current = null;
+    }
+    setPistonOscillationGuideFeedbackCurrent(null);
+    setPistonOscillationGuideFeedbackPending(null);
+  };
+  const schedulePistonOscillationGuideFeedbackAdvance = (delayMs: number) => {
+    if (pistonOscillationGuideFeedbackTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideFeedbackTimerRef.current);
+      pistonOscillationGuideFeedbackTimerRef.current = null;
+    }
+    const timerGeneration = ++pistonOscillationGuideFeedbackTimerGenerationRef.current;
+    pistonOscillationGuideFeedbackTimerRef.current = window.setTimeout(() => {
+      if (timerGeneration !== pistonOscillationGuideFeedbackTimerGenerationRef.current) return;
+      pistonOscillationGuideFeedbackTimerRef.current = null;
+      const nextState = resolvePromptViewportFeedbackAdvance({
+        current: pistonOscillationGuideFeedbackCurrentRef.current,
+        pending: pistonOscillationGuideFeedbackPendingRef.current,
+      }, Date.now());
+      setPistonOscillationGuideFeedbackPending(nextState.pending);
+      setPistonOscillationGuideFeedbackCurrent(nextState.current);
+      if (nextState.shouldContinueTimer && nextState.current) {
+        schedulePistonOscillationGuideFeedbackAdvance(nextState.current.durationMs);
+      }
+    }, Math.max(0, delayMs));
+  };
+  const showPistonOscillationGuideFeedback = (
+    text: string,
+    kind: PromptFeedbackKind,
+    source: PistonOscillationGuideFeedbackSource,
+    options: { durationMs?: number; priority?: number } = {},
+  ) => {
+    const nextMessage = createPromptViewportFeedbackMessage(text, kind, {
+      source,
+      durationMs: options.durationMs,
+      priority: options.priority,
+    });
+    const nextState = resolvePromptViewportFeedbackShow({
+      current: pistonOscillationGuideFeedbackCurrentRef.current,
+      pending: pistonOscillationGuideFeedbackPendingRef.current,
+    }, nextMessage, { interrupt: true });
+    if (!nextState.changed) return;
+    setPistonOscillationGuideFeedbackCurrent(nextState.current);
+    setPistonOscillationGuideFeedbackPending(nextState.pending);
+    if (nextState.shouldRestartTimer && nextState.current) {
+      schedulePistonOscillationGuideFeedbackAdvance(nextState.current.durationMs);
+    }
+  };
+  const clearPistonOscillationGuideCompletionToast = () => {
+    if (pistonOscillationGuideCompletionToastTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideCompletionToastTimerRef.current);
+      pistonOscillationGuideCompletionToastTimerRef.current = null;
+    }
+    setPistonOscillationGuideCompletionToast(null);
+  };
+  const showPistonOscillationGuideCompletionToast = (
+    fileId: string,
+    kicker: string,
+    message: string,
+  ) => {
+    if (pistonOscillationGuideCompletionToastTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideCompletionToastTimerRef.current);
+    }
+    setPistonOscillationGuideCompletionToast({
+      id: Date.now(),
+      fileId,
+      kicker,
+      message,
+    });
+    pistonOscillationGuideCompletionToastTimerRef.current = window.setTimeout(() => {
+      pistonOscillationGuideCompletionToastTimerRef.current = null;
+      setPistonOscillationGuideCompletionToast(null);
+    }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
+  };
+  const pistonOscillationGuideChecklistTrackRef = useRef<HTMLDivElement | null>(null);
+  const pistonOscillationGuideChecklistFrameRef = useRef<number | null>(null);
+  const pistonOscillationGuideChecklistSnapTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideChecklistReturnTimerRef = useRef<number | null>(null);
+  const pistonOscillationGuideChecklistPendingWheelDeltaRef = useRef(0);
+  const pistonOscillationGuideChecklistVisualOffsetRef = useRef(0);
+  const pistonOscillationGuideChecklistViewedIndexRef = useRef(0);
+  const pistonOscillationGuideChecklistCurrentIndexRef = useRef(0);
+  const pistonOscillationGuideChecklistPageLengthRef = useRef(1);
+  const [pistonOscillationDemoPlayback, setPistonOscillationDemoPlayback] = useState<{
+    fileId: string | null;
+    phase: 'idle' | 'running' | 'terminated' | 'completed';
+    elapsedMs: number;
+  }>({ fileId: null, phase: 'idle', elapsedMs: 0 });
   const [parameterErrors, setParameterErrors] = useState<string[]>([]);
   const [heatCapacityBasicInputDrafts, setHeatCapacityBasicInputDrafts] = useState<Record<string, string>>(() => (
     getHeatCapacityRefreshStringMap(initialHeatCapacityRefreshDrafts, 'heatCapacityBasicInputDrafts')
@@ -4729,6 +5469,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const [heatCapacityBatchSetupRequestedFileId, setHeatCapacityBatchSetupRequestedFileId] =
     useState<string | null>(null);
   const [heatCapacityCalculationReviewOpen, setHeatCapacityCalculationReviewOpen] =
+    useState(false);
+  const [pistonOscillationCalculationReviewOpen, setPistonOscillationCalculationReviewOpen] =
+    useState(false);
+  const [pistonOscillationDataProcessingReviewOpen, setPistonOscillationDataProcessingReviewOpen] =
     useState(false);
   const [heatCapacityReportExportOpen, setHeatCapacityReportExportOpen] = useState(false);
   const [heatCapacityReportSelectedGroupIds, setHeatCapacityReportSelectedGroupIds] = useState<string[]>([]);
@@ -5398,6 +6142,237 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const activePistonOscillationDemoPlaybackPhase =
+    activeFile.kind === 'heatCapacityPistonOscillation'
+    && pistonOscillationDemoPlayback.fileId === activeFile.id
+      ? pistonOscillationDemoPlayback.phase
+      : 'idle';
+  const activePistonOscillationDemoFrame: PistonOscillationDemoFrame | null =
+    activePistonOscillationDemoPlaybackPhase === 'running'
+      ? getPistonOscillationDemoFrame(
+        pistonOscillationDemoPlayback.elapsedMs,
+        settingsLanguagePreference,
+      )
+      : null;
+  const activePistonOscillationGuideSession =
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession
+      : null;
+  const pistonOscillationMandatoryDataProcessing = Boolean(
+    activePistonOscillationGuideSession?.status === 'active'
+    && (
+      activePistonOscillationGuideSession.step === 'periodProcessing'
+      || activePistonOscillationGuideSession.step === 'calculationReady'
+      || activePistonOscillationGuideSession.step === 'completionReview'
+    )
+  );
+  const pistonOscillationCompletedDataProcessingReview = Boolean(
+    pistonOscillationDataProcessingReviewOpen
+    && activePistonOscillationGuideSession?.status === 'completed'
+    && activePistonOscillationGuideSession.dataProcessing?.status === 'completed'
+  );
+  const activePistonOscillationDataProcessing = Boolean(
+    activePistonOscillationGuideSession?.dataProcessing
+    && (
+      pistonOscillationMandatoryDataProcessing
+      || pistonOscillationCompletedDataProcessingReview
+    )
+  );
+  const activePistonOscillationCalculationSession =
+    activePistonOscillationGuideSession?.dataProcessing?.calculationSession ?? null;
+  const pistonOscillationCalculationAutoOpen = Boolean(
+    activePistonOscillationGuideSession?.status === 'active'
+    && activePistonOscillationGuideSession.step === 'calculationReady'
+    && activePistonOscillationCalculationSession
+    && activePistonOscillationCalculationSession.status !== 'completed'
+  );
+  const pistonOscillationCalculationWindowOpen = Boolean(
+    activePistonOscillationCalculationSession
+    && (
+      pistonOscillationCalculationAutoOpen
+      || pistonOscillationCalculationReviewOpen
+    )
+  );
+  const activePistonOscillationGuideSelected =
+    activePistonOscillationGuideSession?.status === 'active'
+    || (
+      activePistonOscillationGuideSession?.status === 'completed'
+      && !activePistonOscillationGuideSession.completionExited
+    );
+  const activePistonOscillationGuideTimeFrozen =
+    activePistonOscillationGuideSession?.heightReset !== null;
+  const activePistonOscillationGuideInstrumentRestoreState =
+    activePistonOscillationGuideSession
+      ? getPistonOscillationGuideInstrumentRestoreState(
+        activePistonOscillationGuideSession,
+      )
+      : null;
+  const activePistonOscillationGuideSnapTargetHeightMm =
+    activePistonOscillationGuideSession?.status === 'active'
+    && (
+      activePistonOscillationGuideSession.step === 'firstHeightAdjustment'
+      || activePistonOscillationGuideSession.step === 'nextHeightAdjustment'
+    )
+      ? PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
+        activePistonOscillationGuideSession.measurementIndex
+      ]
+      : null;
+  useEffect(() => {
+    setPistonOscillationGuidePulseElapsedMs(0);
+    clearPistonOscillationGuideFeedback();
+    setPistonOscillationGuideStrongReminderActive(false);
+    pistonOscillationGuideMissCountRef.current = 0;
+    if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
+      pistonOscillationGuideStrongReminderTimerRef.current = null;
+    }
+  }, [
+    activeFile.id,
+    activePistonOscillationGuideSession?.startedAtMs,
+    activePistonOscillationGuideSession?.measurementIndex,
+    activePistonOscillationGuideSession?.step,
+  ]);
+  useEffect(() => {
+    setPistonOscillationCalculationReviewOpen(false);
+    setPistonOscillationDataProcessingReviewOpen(false);
+  }, [activeFile.id, activePistonOscillationGuideSession?.startedAtMs]);
+  useEffect(() => {
+    if (
+      activeFile.kind !== 'heatCapacityPistonOscillation'
+      || activeFile.pistonOscillationGuideSession.status === 'completed'
+    ) return;
+    setPistonOscillationDataProcessingReviewOpen(false);
+  }, [
+    activeFile.kind,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession.status
+      : null,
+  ]);
+  useEffect(() => {
+    if (activeFile.kind !== 'heatCapacityPistonOscillation') {
+      setPistonOscillationGuideLessonDialog(null);
+      setPistonOscillationGuideLessonOutgoingView(null);
+      return;
+    }
+    setPistonOscillationGuideLessonOutgoingView(null);
+    const session = activeFile.pistonOscillationGuideSession;
+    if (session.heightReset?.phase === 'explaining') {
+      setPistonOscillationGuideLessonDialog((current) => (
+        current?.kind === 'heightReset' && current.fileId === activeFile.id
+          ? current
+          : { kind: 'heightReset', fileId: activeFile.id, closing: false }
+      ));
+      return;
+    }
+    setPistonOscillationGuideLessonDialog((current) => (
+      current?.kind === 'heightReset' ? null : current
+    ));
+    if (!activeFile.pistonOscillationLessonIntroAutoShown) {
+      setPistonOscillationGuideLessonOutgoingView(null);
+      setPistonOscillationGuideLessonDialog({
+        kind: 'intro',
+        fileId: activeFile.id,
+        pageIndex: 0,
+        closing: false,
+      });
+      updateFileById(activeFile.id, (file) => (
+        file.kind === 'heatCapacityPistonOscillation'
+          ? {
+              ...file,
+              pistonOscillationLessonIntroAutoShown: true,
+              updatedAt: Date.now(),
+            }
+          : file
+      ));
+      return;
+    }
+    setPistonOscillationGuideLessonDialog((current) => (
+      current && current.fileId !== activeFile.id ? null : current
+    ));
+  }, [
+    activeFile.id,
+    activeFile.kind,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationLessonIntroAutoShown
+      : null,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession.heightReset?.phase
+      : null,
+  ]);
+  useEffect(() => {
+    if (
+      activePistonOscillationGuideSession?.status === 'idle'
+      || activePistonOscillationGuideSession?.step === 'firstHeightAdjustment'
+      || activePistonOscillationGuideSession?.step === 'nextHeightAdjustment'
+    ) {
+      setPistonOscillationGuideHeightAdjustmentStage('readingHeight');
+    } else if (activePistonOscillationGuideSession?.step === 'screwLock') {
+      setPistonOscillationGuideHeightAdjustmentStage('lockingHeight');
+    }
+    pistonOscillationGuideTargetHeightReadyRef.current = false;
+    setPistonOscillationGuideTargetHeightReady(false);
+    pistonOscillationGuideHeightHandoffCompleteRef.current = false;
+    setPistonOscillationGuideHeightHandoffComplete(false);
+    setPistonOscillationGuideHoseDragging(false);
+  }, [
+    activeFile.id,
+    activePistonOscillationGuideSession?.measurementIndex,
+    activePistonOscillationGuideSession?.startedAtMs,
+    activePistonOscillationGuideSession?.status,
+    activePistonOscillationGuideSession?.step,
+  ]);
+  useEffect(() => {
+    if (
+      activePistonOscillationGuideSession?.status !== 'active'
+      || activePistonOscillationGuideTimeFrozen
+      || pistonOscillationGuideLessonDialog !== null
+    ) return undefined;
+    let previousAtMs = performance.now();
+    const timer = window.setInterval(() => {
+      const nowMs = performance.now();
+      const deltaMs = nowMs - previousAtMs;
+      previousAtMs = nowMs;
+      setPistonOscillationGuidePulseElapsedMs((elapsedMs) => elapsedMs + deltaMs);
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [
+    activeFile.id,
+    activePistonOscillationGuideSession?.status,
+    activePistonOscillationGuideTimeFrozen,
+    pistonOscillationGuideLessonDialog,
+  ]);
+  useEffect(() => {
+    if (
+      pistonOscillationDemoPlayback.phase !== 'running'
+      || pistonOscillationGuideLessonDialog !== null
+    ) return undefined;
+    const playbackFileId = pistonOscillationDemoPlayback.fileId;
+    const startedAtMs = performance.now() - pistonOscillationDemoPlayback.elapsedMs;
+    const timer = window.setInterval(() => {
+      setPistonOscillationDemoPlayback((current) => {
+        if (current.phase !== 'running' || current.fileId !== playbackFileId) return current;
+        const elapsedMs = Math.min(
+          PISTON_OSCILLATION_DEMO_DURATION_MS,
+          performance.now() - startedAtMs,
+        );
+        return {
+          ...current,
+          elapsedMs,
+          phase: elapsedMs >= PISTON_OSCILLATION_DEMO_DURATION_MS
+            ? 'completed'
+            : 'running',
+        };
+      });
+    }, 50);
+    return () => window.clearInterval(timer);
+  }, [
+    pistonOscillationDemoPlayback.fileId,
+    pistonOscillationDemoPlayback.phase,
+    pistonOscillationGuideLessonDialog,
+  ]);
+  useEffect(() => {
+    if (shouldCollapseWorkbenchFileSidebar(activeFile)) setLeftCollapsed(true);
+  }, [activeFile.id, activeFile.kind]);
   const activeHeatCapacityFreeBatchProgress = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityFreeBatchProgress(activeFile)
     : null;
@@ -5519,13 +6494,249 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     [settingsLanguagePreference],
   );
   const pistonOscillationCopy = getPistonOscillationShellCopy(settingsLanguagePreference);
+  const pistonGuideStep = activePistonOscillationGuideSession?.step ?? null;
+  const pistonGuideHeightConfirmationReady = Boolean(
+    pistonOscillationGuideTargetHeightReady
+    && (
+      pistonGuideStep === 'firstHeightAdjustment'
+      || pistonGuideStep === 'nextHeightAdjustment'
+    )
+  );
+  const pistonGuideHeightHandoffComplete = Boolean(
+    pistonGuideHeightConfirmationReady
+    && pistonOscillationGuideHeightHandoffComplete
+  );
+  const pistonGuidePulseDelayMs = pistonGuideHeightConfirmationReady
+    ? PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS
+    : GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS;
+  const pistonGuidePulseCycleElapsedMs = Math.max(
+    0,
+    pistonOscillationGuidePulseElapsedMs - pistonGuidePulseDelayMs,
+  );
+  const pistonGuidePulseIndex = Math.floor(pistonGuidePulseCycleElapsedMs / 4_000);
+  const pistonGuidePulseWithinCycleMs = pistonGuidePulseCycleElapsedMs % 4_000;
+  const pistonGuidePulseActive = Boolean(
+    activePistonOscillationGuideSession?.status === 'active'
+    && pistonOscillationGuidePulseElapsedMs >= pistonGuidePulseDelayMs
+    && pistonGuidePulseWithinCycleMs < 2_200,
+  );
+  const pistonGuideVisualCue: PistonOscillationGuideVisualCue = !pistonGuidePulseActive
+    ? null
+    : pistonGuideStep === 'firstHeightAdjustment'
+      || pistonGuideStep === 'nextHeightAdjustment'
+        ? pistonGuideHeightConfirmationReady ? 'heightStageAction' : 'platform'
+        : pistonGuideStep === 'waitingTrigger'
+          ? 'platform'
+        : pistonGuideStep === 'screwLock'
+          ? pistonGuidePulseIndex === 0 ? 'mirrorOutline' : 'screw'
+          : pistonGuideStep === 'screwLoosen'
+            ? pistonGuidePulseIndex === 0 ? 'mirrorOutline' : 'screw'
+          : pistonGuideStep === 'hoseReconnect'
+            ? 'hoseReconnect'
+            : pistonGuideStep === 'crossRunDisconnect'
+              ? 'hoseDisconnect'
+            : null;
+  const pistonGuideAcquisitionCue: PistonOscillationGuideAcquisitionCue =
+    !pistonGuidePulseActive
+      ? null
+      : pistonGuideStep === 'parameterSetup'
+        ? 'settings'
+        : pistonGuideStep === 'acquisitionReady'
+          ? 'start'
+          : pistonGuideStep === 'pauseAvailable'
+            ? 'pause'
+            : pistonGuideStep === 'awaitingSaveOrRedo'
+              ? 'save'
+              : null;
+  const pistonGuideRequestedFocusMode =
+    activePistonOscillationGuideSession?.status === 'active'
+    || activePistonOscillationGuideSession?.status === 'completed'
+      ? getPistonOscillationGuideHeightResetPresentation(
+        activePistonOscillationGuideSession.heightReset,
+      )?.focusMode ?? getPistonOscillationGuideRequestedFocusMode(
+        activePistonOscillationGuideSession.step,
+      )
+      : undefined;
+  const pistonGuideExpectedStrongTargetId =
+    activePistonOscillationGuideSession?.status === 'active'
+      ? getPistonOscillationGuideStrongTargetId(
+        activePistonOscillationGuideSession.step,
+        pistonOscillationGuideHeightAdjustmentStage,
+        pistonGuideHeightHandoffComplete,
+        activePistonOscillationGuideSession,
+        pistonOscillationPeriodSelectionToolActive,
+      )
+      : null;
+  const pistonGuideStrongTargetContext = pistonGuideExpectedStrongTargetId
+    && activePistonOscillationGuideSession
+      ? [
+          activeFile.id,
+          activePistonOscillationGuideSession.startedAtMs,
+          activePistonOscillationGuideSession.measurementIndex,
+          activePistonOscillationGuideSession.step,
+          activePistonOscillationGuideSession.dataProcessing?.activeRunIndex ?? 'none',
+          pistonGuideExpectedStrongTargetId,
+        ].join(':')
+      : null;
+  const pistonOscillationGuideStrongReminderActive =
+    pistonOscillationGuideStrongReminderActiveContext !== null
+    && pistonOscillationGuideStrongReminderActiveContext === pistonGuideStrongTargetContext;
+  const pistonGuideStrongTargetContextChanged =
+    pistonOscillationGuideStrongTargetContextRef.current !== pistonGuideStrongTargetContext;
+  useEffect(() => {
+    if (pistonOscillationGuideStrongTargetContextRef.current === pistonGuideStrongTargetContext) {
+      return;
+    }
+    pistonOscillationGuideStrongTargetContextRef.current = pistonGuideStrongTargetContext;
+    setPistonOscillationGuideStrongReminderClockContext(null);
+    setPistonOscillationGuideStrongReminderActive(false);
+    setPistonOscillationGuidePulseElapsedMs(0);
+    clearPistonOscillationGuideFeedback();
+    pistonOscillationGuideMissCountRef.current = 0;
+    if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
+      pistonOscillationGuideStrongReminderTimerRef.current = null;
+    }
+  }, [pistonGuideStrongTargetContext]);
+  useEffect(() => {
+    if (
+      pistonGuideStrongTargetContext === null
+      || pistonOscillationGuideStrongReminderClockContext !== null
+      || pistonOscillationGuidePulseElapsedMs
+        >= PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS
+    ) return;
+    setPistonOscillationGuideStrongReminderClockContext(
+      pistonGuideStrongTargetContext,
+    );
+  }, [
+    pistonGuideStrongTargetContext,
+    pistonOscillationGuidePulseElapsedMs,
+    pistonOscillationGuideStrongReminderClockContext,
+  ]);
+  useEffect(() => {
+    if (
+      activePistonOscillationGuideSession?.status !== 'active'
+      || pistonGuideStrongTargetContextChanged
+      || pistonGuideExpectedStrongTargetId === null
+      || pistonOscillationGuideStrongReminderClockContext
+        !== pistonGuideStrongTargetContext
+      || pistonOscillationGuideStrongReminderActive
+      || activePistonOscillationGuideTimeFrozen
+      || pistonOscillationGuideLessonDialog !== null
+      || pistonOscillationGuidePulseElapsedMs
+        < PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS
+    ) return;
+    setPistonOscillationGuideStrongReminderActive(
+      true,
+      pistonGuideStrongTargetContext,
+    );
+  }, [
+    activePistonOscillationGuideSession?.status,
+    activePistonOscillationGuideTimeFrozen,
+    pistonGuideExpectedStrongTargetId,
+    pistonOscillationGuideStrongReminderActive,
+    pistonOscillationGuideStrongReminderClockContext,
+    pistonGuideStrongTargetContextChanged,
+    pistonOscillationGuideLessonDialog,
+    pistonOscillationGuidePulseElapsedMs,
+  ]);
+  const pistonGuideStrongHoseInteractionHidden = Boolean(
+    (pistonGuideExpectedStrongTargetId === 'hoseDisconnect'
+      || pistonGuideExpectedStrongTargetId === 'hoseReconnect')
+    && (
+      pistonOscillationGuideHoseDragging
+      || (
+        pistonGuideExpectedStrongTargetId === 'hoseDisconnect'
+        && pistonOscillationGuideHoseState === 'disconnected'
+      )
+      || (
+        pistonGuideExpectedStrongTargetId === 'hoseReconnect'
+        && pistonOscillationGuideHoseState === 'connected'
+      )
+    )
+  );
+  const pistonGuideStrongTargetId =
+    activePistonOscillationGuideSession?.status === 'active'
+    && pistonOscillationGuideStrongReminderActive
+    && !activePistonOscillationGuideTimeFrozen
+    && pistonOscillationGuideLessonDialog === null
+    && !pistonGuideStrongHoseInteractionHidden
+      ? pistonGuideExpectedStrongTargetId
+      : null;
+  const pistonGuideStrongReminderText = activePistonOscillationGuideSession
+    ? getPistonOscillationGuideReminderText(
+      pistonOscillationCopy,
+      activePistonOscillationGuideSession.step,
+      activePistonOscillationGuideSession.measurementIndex,
+      pistonGuideExpectedStrongTargetId,
+    )
+    : '';
+  useLayoutEffect(() => {
+    if (!pistonGuideStrongTargetId) {
+      setPistonOscillationGuideStrongMaskLayout(null);
+      return undefined;
+    }
+    const root = liveWorkspaceRef.current;
+    if (!root) return undefined;
+    const updateLayout = () => {
+      const nextLayout = getPistonOscillationGuideStrongMaskLayout(
+        root,
+        pistonGuideStrongTargetId,
+      );
+      setPistonOscillationGuideStrongMaskLayout((currentLayout) => {
+        if (
+          !nextLayout
+          || !currentLayout
+          || pistonGuideStrongTargetId !== 'platform'
+          || currentLayout.top !== nextLayout.top
+          || currentLayout.width !== nextLayout.width
+          || currentLayout.height !== nextLayout.height
+        ) return nextLayout;
+        const renderedCard = root.querySelector<HTMLElement>(
+          '.studio-piston-guide-strong-mask .studio-heat-guide-strong-card',
+        );
+        const stableCardHeight = renderedCard?.offsetHeight
+          ?? (currentLayout.card.compact ? 168 : 112);
+        const stableCardRight = currentLayout.card.x + currentLayout.card.width;
+        const stableCardBottom = currentLayout.card.y + stableCardHeight;
+        const cutoutRight = nextLayout.cutout.x + nextLayout.cutout.width;
+        const cutoutBottom = nextLayout.cutout.y + nextLayout.cutout.height;
+        const overlapsMovingCutout = !(
+          stableCardRight + 8 <= nextLayout.cutout.x
+          || cutoutRight + 8 <= currentLayout.card.x
+          || stableCardBottom + 8 <= nextLayout.cutout.y
+          || cutoutBottom + 8 <= currentLayout.card.y
+        );
+        return overlapsMovingCutout
+          ? nextLayout
+          : { ...nextLayout, card: currentLayout.card };
+      });
+    };
+    updateLayout();
+    const observer = new ResizeObserver(updateLayout);
+    observer.observe(root);
+    root.addEventListener('scroll', updateLayout, true);
+    const timer = window.setInterval(
+      updateLayout,
+      pistonGuideStrongTargetId === 'platform' ? 32 : 120,
+    );
+    return () => {
+      observer.disconnect();
+      root.removeEventListener('scroll', updateLayout, true);
+      window.clearInterval(timer);
+    };
+  }, [pistonGuideStrongTargetId]);
   const heatCapacityPanels = useMemo(
     () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy),
     [heatCapacityRealtimeCopy, workbenchCopy],
   );
   const pistonOscillationPanels = useMemo(
-    () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy),
-    [heatCapacityRealtimeCopy, workbenchCopy],
+    () => createPistonOscillationPanels(
+      workbenchCopy,
+      pistonOscillationCopy,
+      heatCapacityRealtimeCopy,
+    ),
+    [heatCapacityRealtimeCopy, pistonOscillationCopy, workbenchCopy],
   );
   const resultsSections = useMemo(() => createResultsSections(workbenchCopy), [workbenchCopy]);
   const idealResultWindowPanels = useMemo(
@@ -6843,6 +8054,611 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const updateActiveFile = (updater: (file: WorkbenchFileState) => WorkbenchFileState) => {
     updateFileById(activeFileIdRef.current, updater);
   };
+
+  const applyPistonOscillationGuideEvents = (
+    file: WorkbenchFileState,
+    events: readonly PistonOscillationGuideEvent[],
+  ): WorkbenchFileState => events.reduce<WorkbenchFileState>(
+    (current, event) => current.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationGuideWorkbenchState(current, event)
+      : current,
+    file,
+  );
+
+  const handlePistonOscillationGuideActionAttempt = (
+    action: PistonOscillationGuideAction,
+    context: PistonOscillationGuideActionContext,
+  ): PistonOscillationGuideGuardResult => {
+    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') {
+      return { allowed: true, reason: 'allowed' };
+    }
+    const session = liveFile.pistonOscillationGuideSession;
+    const guard = getPistonOscillationGuideActionGuard(session, action, context);
+    const releaseOnly = action === 'platformRelease' || action === 'leftHandRelease';
+    if (guard.allowed) {
+      if (!isPistonOscillationGuideStrongReminderActive()) {
+        setPistonOscillationGuidePulseElapsedMs(0);
+      }
+      if (!releaseOnly) {
+        clearPistonOscillationGuideFeedback();
+      }
+      return guard;
+    }
+
+    const heightSubmitRequiresReset = action === 'confirmHeight'
+      && (
+        session.step === 'firstHeightAdjustment'
+        || session.step === 'nextHeightAdjustment'
+      )
+      && (
+        guard.reason === 'wrongTargetHeight'
+        || guard.reason === 'leftHandRequired'
+        || guard.reason === 'rightHandMustBeReleased'
+      );
+    if (heightSubmitRequiresReset) {
+      const heightMm = typeof context.heightMm === 'number' && Number.isFinite(context.heightMm)
+        ? Math.max(0, context.heightMm)
+        : 0;
+      pistonOscillationGuideResumeStrongReminderAfterLessonRef.current =
+        isPistonOscillationGuideStrongReminderActive();
+      pistonOscillationGuideMissCountRef.current = 0;
+      clearPistonOscillationGuideFeedback();
+      setPistonOscillationGuideStrongReminderActive(false);
+      setPistonOscillationGuidePulseElapsedMs(0);
+      setPistonOscillationGuideTargetHeightReady(false);
+      pistonOscillationGuideTargetHeightReadyRef.current = false;
+      setPistonOscillationGuideHeightHandoffComplete(false);
+      pistonOscillationGuideHeightHandoffCompleteRef.current = false;
+      setPistonOscillationGuideHeightAdjustmentStage('readingHeight');
+      updateFileById(liveFile.id, (file) => applyPistonOscillationGuideEvents(file, [{
+        type: 'beginHeightReset',
+        reason: 'wrongHeightConfirmation',
+        heightMm,
+        nowMs: Date.now(),
+      }]));
+      return guard;
+    }
+
+    const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex];
+    const message = getPistonOscillationGuideGuardFeedbackText(
+      pistonOscillationCopy,
+      action,
+      guard,
+      targetHeightMm,
+    );
+    showPistonOscillationGuideFeedback(message, 'warning', 'guide');
+    if (!isPistonOscillationGuideStrongReminderActive()) {
+      setPistonOscillationGuidePulseElapsedMs(0);
+    }
+
+    pistonOscillationGuideMissCountRef.current += 1;
+    if (
+      pistonOscillationGuideMissCountRef.current >= 2
+      && !isPistonOscillationGuideStrongReminderActive()
+    ) {
+      const expectedFileId = liveFile.id;
+      const expectedStep = session.step;
+      const expectedTargetContext = pistonOscillationGuideStrongTargetContextRef.current;
+      if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
+        window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
+      }
+      pistonOscillationGuideStrongReminderTimerRef.current = window.setTimeout(() => {
+        pistonOscillationGuideStrongReminderTimerRef.current = null;
+        const currentFile = filesRef.current.find((file) => file.id === expectedFileId);
+        if (
+          currentFile?.kind === 'heatCapacityPistonOscillation'
+          && currentFile.pistonOscillationGuideSession.status === 'active'
+          && currentFile.pistonOscillationGuideSession.step === expectedStep
+          && currentFile.pistonOscillationGuideSession.heightReset === null
+          && pistonOscillationGuideStrongTargetContextRef.current === expectedTargetContext
+        ) {
+          setPistonOscillationGuideStrongReminderActive(
+            true,
+            expectedTargetContext,
+          );
+        }
+      }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
+    }
+    return guard;
+  };
+
+  const handlePistonOscillationGuideHeightConfirmed = (
+    snapshot: PistonOscillationGuideInstrumentSnapshot,
+  ) => {
+    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
+      type: 'confirmHeight',
+      heightMm: Math.round(snapshot.equilibriumHeightMm),
+      leftHandSupporting: snapshot.spaceHeld,
+      rightHandReleased: !snapshot.mouseHeld,
+      nowMs: Date.now(),
+    }]));
+  };
+
+  const handlePistonOscillationGuideSupportLoss = (
+    event: PistonOscillationGuideSupportLossEvent,
+  ) => {
+    pistonOscillationGuideResumeStrongReminderAfterLessonRef.current =
+      isPistonOscillationGuideStrongReminderActive();
+    clearPistonOscillationGuideFeedback();
+    setPistonOscillationGuideStrongReminderActive(false);
+    setPistonOscillationGuidePulseElapsedMs(0);
+    setPistonOscillationGuideTargetHeightReady(false);
+    pistonOscillationGuideTargetHeightReadyRef.current = false;
+    setPistonOscillationGuideHeightHandoffComplete(false);
+    pistonOscillationGuideHeightHandoffCompleteRef.current = false;
+    setPistonOscillationGuideHeightAdjustmentStage('readingHeight');
+    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
+      type: 'beginHeightReset',
+      reason: 'supportLost',
+      heightMm: event.heightMm,
+      nowMs: Date.now(),
+    }]));
+  };
+
+  const handlePistonOscillationGuideHeightResetComplete = () => {
+    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
+      type: 'heightResetComplete',
+      nowMs: Date.now(),
+    }]));
+  };
+
+  const closePistonOscillationGuideLessonDialog = () => {
+    if (!pistonOscillationGuideLessonDialog || pistonOscillationGuideLessonDialog.closing) return;
+    const closingKind = pistonOscillationGuideLessonDialog.kind;
+    const closingFileId = pistonOscillationGuideLessonDialog.fileId;
+    setPistonOscillationGuideLessonDialog((current) => (
+      current ? { ...current, closing: true } : current
+    ));
+    if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
+      pistonOscillationGuideLessonTransitionTimerRef.current = null;
+    }
+    setPistonOscillationGuideLessonOutgoingView(null);
+    if (pistonOscillationGuideLessonCloseTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideLessonCloseTimerRef.current);
+    }
+    pistonOscillationGuideLessonCloseTimerRef.current = window.setTimeout(() => {
+      pistonOscillationGuideLessonCloseTimerRef.current = null;
+      setPistonOscillationGuideLessonDialog(null);
+      if (closingKind === 'heightReset') {
+        updateFileById(closingFileId, (file) => applyPistonOscillationGuideEvents(file, [{
+          type: 'dismissHeightReset',
+          nowMs: Date.now(),
+        }]));
+        if (pistonOscillationGuideResumeStrongReminderAfterLessonRef.current) {
+          pistonOscillationGuideResumeStrongReminderAfterLessonRef.current = false;
+          setPistonOscillationGuideStrongReminderActive(
+            true,
+            pistonOscillationGuideStrongTargetContextRef.current,
+          );
+        }
+      } else if (closingKind === 'completion') {
+        const liveFile = filesRef.current.find((file) => file.id === closingFileId);
+        if (
+          liveFile?.kind === 'heatCapacityPistonOscillation'
+          && liveFile.pistonOscillationGuideSession.status === 'active'
+          && liveFile.pistonOscillationGuideSession.step === 'completionReview'
+          && liveFile.pistonOscillationGuideSession.dataProcessing?.status === 'completed'
+        ) {
+          updateFileById(closingFileId, (file) => applyPistonOscillationGuideEvents(file, [{
+            type: 'acknowledgeCompletion',
+            nowMs: Date.now(),
+          }]));
+          if (activeFileIdRef.current === closingFileId) {
+            setLeftCollapsed(false);
+          }
+          showPistonOscillationGuideCompletionToast(
+            closingFileId,
+            pistonOscillationCopy.guide.completionToastKicker,
+            pistonOscillationCopy.guide.completionToast,
+          );
+          window.setTimeout(() => {
+            void flushWorkspacePersistenceRef.current();
+          }, 0);
+        }
+      }
+    }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
+  };
+
+  const openPistonOscillationGuideLessonIntro = () => {
+    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
+    if (pistonOscillationGuideLessonDialog?.kind === 'heightReset') return;
+    if (pistonOscillationGuideLessonCloseTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideLessonCloseTimerRef.current);
+      pistonOscillationGuideLessonCloseTimerRef.current = null;
+    }
+    if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
+      pistonOscillationGuideLessonTransitionTimerRef.current = null;
+    }
+    setPistonOscillationGuideLessonOutgoingView(null);
+    setPistonOscillationGuideLessonDialog({
+      kind: 'intro',
+      fileId: liveFile.id,
+      pageIndex: 0,
+      closing: false,
+    });
+  };
+
+  const getPistonOscillationGuideLessonView = (
+    dialog: PistonOscillationGuideLessonDialogState,
+  ): PistonOscillationGuideLessonView | null => {
+    if (dialog.kind === 'intro') {
+      const pageIndex = Math.max(
+        0,
+        Math.min(pistonOscillationCopy.lesson.pages.length - 1, dialog.pageIndex),
+      );
+      const page = pistonOscillationCopy.lesson.pages[pageIndex];
+      return {
+        key: `intro-${pageIndex}`,
+        title: page.title,
+        body: page.body,
+      };
+    }
+    if (dialog.kind === 'completion') {
+      return {
+        key: 'guide-completion',
+        title: pistonOscillationCopy.guide.completedTitle,
+        body: pistonOscillationCopy.guide.completedDetail,
+      };
+    }
+    const heightReset = activePistonOscillationGuideSession?.heightReset;
+    if (!heightReset) return null;
+    return heightReset.reason === 'wrongHeightConfirmation'
+      ? {
+          key: `height-reset-wrong-${heightReset.targetHeightMm}`,
+          title: pistonOscillationCopy.recovery.wrongHeightTitle,
+          body: pistonOscillationCopy.recovery.wrongHeightBody(heightReset.targetHeightMm),
+        }
+      : {
+          key: `height-reset-support-${heightReset.targetHeightMm}`,
+          title: pistonOscillationCopy.recovery.supportLostTitle,
+          body: pistonOscillationCopy.recovery.supportLostBody(heightReset.targetHeightMm),
+        };
+  };
+
+  const advancePistonOscillationGuideLessonDialog = () => {
+    if (!pistonOscillationGuideLessonDialog) return;
+    if (pistonOscillationGuideLessonDialog.kind === 'intro') {
+      const pageIndex = pistonOscillationGuideLessonDialog.pageIndex;
+      if (pageIndex < pistonOscillationCopy.lesson.pages.length - 1) {
+        const outgoingView = getPistonOscillationGuideLessonView(
+          pistonOscillationGuideLessonDialog,
+        );
+        setPistonOscillationGuideLessonOutgoingView(outgoingView);
+        setPistonOscillationGuideLessonDialog({
+          ...pistonOscillationGuideLessonDialog,
+          pageIndex: pageIndex + 1,
+        });
+        if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
+          window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
+        }
+        pistonOscillationGuideLessonTransitionTimerRef.current = window.setTimeout(() => {
+          pistonOscillationGuideLessonTransitionTimerRef.current = null;
+          setPistonOscillationGuideLessonOutgoingView(null);
+        }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
+        return;
+      }
+      closePistonOscillationGuideLessonDialog();
+      return;
+    }
+    closePistonOscillationGuideLessonDialog();
+  };
+
+  const handlePistonOscillationGuideLessonDialogKeyDown = (
+    event: React.KeyboardEvent<HTMLElement>,
+  ) => {
+    if (event.key === 'Tab') {
+      const dialog = pistonOscillationGuideLessonDialogRef.current;
+      if (!dialog) return;
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
+        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
+      )).filter((element) => !element.hasAttribute('hidden'));
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const activeElement = document.activeElement;
+      if (
+        event.shiftKey
+          ? activeElement === first || !dialog.contains(activeElement)
+          : activeElement === last || !dialog.contains(activeElement)
+      ) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      }
+      return;
+    }
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      closePistonOscillationGuideLessonDialog();
+      return;
+    }
+    if (event.target instanceof HTMLElement && event.target.closest('button')) return;
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      event.stopPropagation();
+      advancePistonOscillationGuideLessonDialog();
+    }
+  };
+
+  useEffect(() => {
+    if (!pistonOscillationGuideLessonDialog) {
+      const returnTarget = pistonOscillationGuideLessonReturnFocusRef.current;
+      pistonOscillationGuideLessonReturnFocusRef.current = null;
+      if (returnTarget?.isConnected) {
+        window.requestAnimationFrame(() => returnTarget.focus());
+      }
+      return undefined;
+    }
+    if (
+      pistonOscillationGuideLessonReturnFocusRef.current === null
+      && document.activeElement instanceof HTMLElement
+      && !pistonOscillationGuideLessonDialogRef.current?.contains(document.activeElement)
+    ) {
+      pistonOscillationGuideLessonReturnFocusRef.current = document.activeElement;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      pistonOscillationGuideLessonDialogRef.current?.focus();
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [
+    pistonOscillationGuideLessonDialog?.kind,
+    pistonOscillationGuideLessonDialog?.kind === 'intro'
+      ? pistonOscillationGuideLessonDialog.pageIndex
+      : null,
+  ]);
+
+  const handlePistonOscillationGuideInstrumentSnapshot = (
+    snapshot: PistonOscillationGuideInstrumentSnapshot,
+  ) => {
+    const previousSnapshot = pistonOscillationGuideInstrumentSnapshotRef.current;
+    const previousHeightAdjustmentStage = previousSnapshot?.heightAdjustmentStage;
+    pistonOscillationGuideInstrumentSnapshotRef.current = snapshot;
+    if (previousHeightAdjustmentStage !== snapshot.heightAdjustmentStage) {
+      setPistonOscillationGuideHeightAdjustmentStage(snapshot.heightAdjustmentStage);
+    }
+    if (previousSnapshot?.hoseDragging !== snapshot.hoseDragging) {
+      setPistonOscillationGuideHoseDragging(snapshot.hoseDragging);
+    }
+    if (previousSnapshot?.hoseState !== snapshot.hoseState) {
+      setPistonOscillationGuideHoseState(snapshot.hoseState);
+    }
+    if (
+      activeFile.kind !== 'heatCapacityPistonOscillation'
+      || activeFile.pistonOscillationGuideSession.status !== 'active'
+    ) return;
+    const currentSession = activeFile.pistonOscillationGuideSession;
+    const currentStep = currentSession.step;
+    const isAtHeight = (heightMm: number) => (
+      Math.abs(snapshot.equilibriumHeightMm - heightMm) <= 0.25
+    );
+    const currentTargetHeightMm =
+      PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[currentSession.measurementIndex];
+    const targetHeightReady = (
+      currentStep === 'firstHeightAdjustment'
+      || currentStep === 'nextHeightAdjustment'
+    ) && isAtHeight(currentTargetHeightMm);
+    if (pistonOscillationGuideTargetHeightReadyRef.current !== targetHeightReady) {
+      pistonOscillationGuideTargetHeightReadyRef.current = targetHeightReady;
+      setPistonOscillationGuideTargetHeightReady(targetHeightReady);
+      setPistonOscillationGuidePulseElapsedMs(0);
+    }
+    const heightHandoffComplete = Boolean(
+      targetHeightReady
+      && snapshot.spaceHeld
+      && !snapshot.mouseHeld
+    );
+    if (
+      pistonOscillationGuideHeightHandoffCompleteRef.current
+      !== heightHandoffComplete
+    ) {
+      pistonOscillationGuideHeightHandoffCompleteRef.current = heightHandoffComplete;
+      setPistonOscillationGuideHeightHandoffComplete(heightHandoffComplete);
+    }
+    const snapshotCanAdvance = (
+      (currentStep === 'screwLock' && snapshot.lockingScrewState === 'locked')
+      || (currentStep === 'hoseReconnect' && snapshot.hoseState === 'connected')
+      || (currentStep === 'screwLoosen' && snapshot.lockingScrewState === 'loose')
+      || (currentStep === 'crossRunDisconnect'
+        && snapshot.spaceHeld
+        && snapshot.hoseState === 'disconnected')
+    );
+    if (!snapshotCanAdvance) return;
+    setPistonOscillationGuideStrongReminderActive(false);
+    setPistonOscillationGuidePulseElapsedMs(0);
+    pistonOscillationGuideMissCountRef.current = 0;
+    const nowMs = Date.now();
+    updateActiveFile((file) => {
+      if (
+        file.kind !== 'heatCapacityPistonOscillation'
+        || file.pistonOscillationGuideSession.status !== 'active'
+      ) return file;
+      let nextFile: WorkbenchFileState = file;
+      for (let guard = 0; guard < 8; guard += 1) {
+        if (nextFile.kind !== 'heatCapacityPistonOscillation') break;
+        const nextSession = nextFile.pistonOscillationGuideSession;
+        const step = nextSession.step;
+        let event: PistonOscillationGuideEvent | null = null;
+        if (step === 'screwLock' && snapshot.lockingScrewState === 'locked') {
+          event = { type: 'lockScrew', nowMs };
+        } else if (step === 'hoseReconnect' && snapshot.hoseState === 'connected') {
+          event = { type: 'reconnectHose', nowMs };
+        } else if (step === 'screwLoosen' && snapshot.lockingScrewState === 'loose') {
+          event = { type: 'loosenScrew', nowMs };
+        } else if (
+          step === 'crossRunDisconnect'
+          && snapshot.spaceHeld
+          && snapshot.hoseState === 'disconnected'
+        ) {
+          event = { type: 'disconnectHose', nowMs };
+        }
+        if (!event) break;
+        const advanced = applyPistonOscillationGuideEvents(nextFile, [event]);
+        if (advanced === nextFile) break;
+        nextFile = advanced;
+      }
+      return nextFile;
+    });
+  };
+
+  const handlePistonOscillationGuideAcquisitionEvent = (
+    event: PistonOscillationGuideAcquisitionEvent,
+  ) => {
+    const nowMs = Date.now();
+    updateActiveFile((file) => {
+      switch (event.type) {
+        case 'startAcquisition':
+          return applyPistonOscillationGuideEvents(file, [
+            { type: 'startAcquisition', nowMs },
+          ]);
+        case 'triggered':
+          return applyPistonOscillationGuideEvents(file, [
+            { type: 'releasePiston', bothHandsReleased: true, nowMs },
+          ]);
+        case 'recordingReady':
+          return applyPistonOscillationGuideEvents(file, [
+            {
+              type: 'updateRecording',
+              recordedDurationS: event.candidate.acquisitionSettings.recordedDurationS,
+              samples: event.candidate.samples,
+              candidate: event.candidate,
+              nowMs,
+            },
+          ]);
+        case 'curvePaused':
+          return applyPistonOscillationGuideEvents(file, [
+            {
+              type: 'updateRecording',
+              recordedDurationS: event.candidate.acquisitionSettings.recordedDurationS,
+              samples: event.candidate.samples,
+              candidate: event.candidate,
+              nowMs,
+            },
+            { type: 'pauseRecording', nowMs },
+            { type: 'curveFreezeComplete', nowMs },
+          ]);
+        case 'saveMeasurement':
+          return applyPistonOscillationGuideEvents(file, [
+            { type: 'saveMeasurement', nowMs },
+          ]);
+        default:
+          return file;
+      }
+    });
+  };
+
+  const handlePistonOscillationGuideProcessingEvent = (
+    event: PistonOscillationGuideEvent,
+  ) => {
+    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [event]));
+  };
+
+  const completeAndExitPistonOscillationCalculation = () => {
+    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
+      type: 'completeCalculation',
+      nowMs: Date.now(),
+    }]));
+    setPistonOscillationCalculationReviewOpen(false);
+    window.setTimeout(() => {
+      void flushWorkspacePersistenceRef.current();
+    }, 0);
+  };
+
+  const closePistonOscillationCalculationReview = () => {
+    const calculationStatus = activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession.dataProcessing?.calculationSession?.status
+      : null;
+    if (calculationStatus !== 'completed') return;
+    setPistonOscillationCalculationReviewOpen(false);
+  };
+
+  const openPistonOscillationDataProcessingReview = () => {
+    if (
+      activeFile.kind !== 'heatCapacityPistonOscillation'
+      || activeFile.pistonOscillationGuideSession.status !== 'completed'
+      || activeFile.pistonOscillationGuideSession.dataProcessing?.status !== 'completed'
+    ) return;
+    setSelectedPanel('heatCapacityGuide');
+    setPistonOscillationCalculationReviewOpen(false);
+    setPistonOscillationDataProcessingReviewOpen(true);
+  };
+
+  const openPistonOscillationCalculationReview = () => {
+    if (
+      activeFile.kind !== 'heatCapacityPistonOscillation'
+      || activeFile.pistonOscillationGuideSession.dataProcessing?.calculationSession?.status
+        !== 'completed'
+    ) return;
+    setSelectedPanel('heatCapacityGuide');
+    setPistonOscillationDataProcessingReviewOpen(true);
+    setPistonOscillationCalculationReviewOpen(true);
+  };
+
+  const closePistonOscillationDataProcessingReview = () => {
+    setPistonOscillationCalculationReviewOpen(false);
+    setPistonOscillationDataProcessingReviewOpen(false);
+  };
+
+  const handlePistonOscillationGuideProcessingInteractionStart = () => {
+    clearPistonOscillationGuideFeedback();
+    setPistonOscillationGuideStrongReminderActive(false);
+    setPistonOscillationGuidePulseElapsedMs(0);
+  };
+
+  const handlePistonOscillationGuideInvalidPeriodSelection = () => {
+    const targetContext = pistonOscillationGuideStrongTargetContextRef.current;
+    if (!targetContext) return;
+    setPistonOscillationGuideStrongReminderActive(true, targetContext);
+  };
+
+  useEffect(() => {
+    const snapshot = pistonOscillationGuideInstrumentSnapshotRef.current;
+    const guideSession = activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession
+      : null;
+    const guideStep = guideSession?.step;
+    const baselineStep = guideStep === 'baselineStabilizing'
+      || guideStep === 'crossRunStabilizing';
+    const baselineHeightIndex = guideStep === 'crossRunStabilizing'
+      ? Math.max(0, (guideSession?.measurementIndex ?? 0) - 1)
+      : guideSession?.measurementIndex ?? 0;
+    const expectedBaselineHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
+      baselineHeightIndex as 0 | 1 | 2
+    ];
+    if (
+      guideSession?.status !== 'active'
+      || !baselineStep
+      || pistonOscillationGuidePulseElapsedMs < 1_200
+      || snapshot?.hoseState !== 'connected'
+      || snapshot.lockingScrewState !== 'loose'
+      || snapshot.spaceHeld
+      || snapshot.mouseHeld
+      || snapshot.pistonPhase !== 'idle'
+      || Math.abs(snapshot.equilibriumHeightMm - expectedBaselineHeightMm) > 0.25
+    ) return;
+    updateFileById(activeFile.id, (file) => applyPistonOscillationGuideEvents(file, [
+      { type: 'baselineStabilized', nowMs: Date.now() },
+    ]));
+  }, [
+    activeFile.id,
+    activeFile.kind,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession.status
+      : null,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession.step
+      : null,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationGuideSession.measurementIndex
+      : null,
+    pistonOscillationGuidePulseElapsedMs,
+  ]);
 
   const updateHeatCapacityFreeEquilibriumSpeedMultiplier = (multiplier: number) => {
     if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return;
@@ -9221,6 +11037,268 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
     activeHeatCapacityGuideStep,
   ]);
+
+  const applyPistonOscillationGuideChecklistView = (
+    viewedIndex: number,
+    visualOffsetPx = 0,
+    animate = true,
+  ) => {
+    const clampedIndex = Math.max(
+      0,
+      Math.min(pistonOscillationGuideChecklistPageLengthRef.current - 1, viewedIndex),
+    );
+    const clampedOffset = Math.max(
+      -PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX * 0.48,
+      Math.min(
+        PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX * 0.48,
+        visualOffsetPx,
+      ),
+    );
+    pistonOscillationGuideChecklistViewedIndexRef.current = clampedIndex;
+    pistonOscillationGuideChecklistVisualOffsetRef.current = clampedOffset;
+    setPistonOscillationGuideChecklistViewedIndex((current) => (
+      current === clampedIndex ? current : clampedIndex
+    ));
+    const track = pistonOscillationGuideChecklistTrackRef.current;
+    if (!track) return;
+    const baseOffset = PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX
+      - clampedIndex * PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
+    track.style.setProperty('--studio-heat-guide-step-base-offset', `${baseOffset}px`);
+    track.style.setProperty('--studio-heat-guide-step-visual-offset', `${clampedOffset}px`);
+    track.classList.toggle('studio-heat-guide-step-track-snapping', animate);
+  };
+
+  const clearPistonOscillationGuideChecklistTimers = () => {
+    if (pistonOscillationGuideChecklistFrameRef.current !== null) {
+      window.cancelAnimationFrame(pistonOscillationGuideChecklistFrameRef.current);
+      pistonOscillationGuideChecklistFrameRef.current = null;
+    }
+    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
+      pistonOscillationGuideChecklistSnapTimerRef.current = null;
+    }
+    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
+      pistonOscillationGuideChecklistReturnTimerRef.current = null;
+    }
+  };
+
+  const returnPistonOscillationGuideChecklistToCurrentStep = () => {
+    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
+    applyPistonOscillationGuideChecklistView(
+      pistonOscillationGuideChecklistCurrentIndexRef.current,
+      0,
+      true,
+    );
+  };
+
+  const processPistonOscillationGuideChecklistWheelFrame = () => {
+    pistonOscillationGuideChecklistFrameRef.current = null;
+    const pendingDelta = pistonOscillationGuideChecklistPendingWheelDeltaRef.current;
+    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
+    if (!pendingDelta) return;
+
+    let nextIndex = pistonOscillationGuideChecklistViewedIndexRef.current;
+    let nextOffset = pistonOscillationGuideChecklistVisualOffsetRef.current
+      - pendingDelta * HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE;
+    let committedSteps = 0;
+    const rowHeight = PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
+    const halfRow = rowHeight / 2;
+    while (
+      nextOffset <= -halfRow
+      && nextIndex < pistonOscillationGuideChecklistPageLengthRef.current - 1
+      && committedSteps < HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS
+    ) {
+      nextIndex += 1;
+      nextOffset += rowHeight;
+      committedSteps += 1;
+    }
+    while (
+      nextOffset >= halfRow
+      && nextIndex > 0
+      && committedSteps < HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS
+    ) {
+      nextIndex -= 1;
+      nextOffset -= rowHeight;
+      committedSteps += 1;
+    }
+    if (nextIndex <= 0 && nextOffset > 0) nextOffset = 0;
+    if (
+      nextIndex >= pistonOscillationGuideChecklistPageLengthRef.current - 1
+      && nextOffset < 0
+    ) nextOffset = 0;
+
+    applyPistonOscillationGuideChecklistView(nextIndex, nextOffset, false);
+    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
+    }
+    pistonOscillationGuideChecklistSnapTimerRef.current = window.setTimeout(() => {
+      pistonOscillationGuideChecklistSnapTimerRef.current = null;
+      applyPistonOscillationGuideChecklistView(
+        pistonOscillationGuideChecklistViewedIndexRef.current,
+        0,
+        true,
+      );
+    }, HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS);
+    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
+    }
+    pistonOscillationGuideChecklistReturnTimerRef.current = window.setTimeout(() => {
+      pistonOscillationGuideChecklistReturnTimerRef.current = null;
+      returnPistonOscillationGuideChecklistToCurrentStep();
+    }, HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS);
+  };
+
+  const handlePistonOscillationGuideChecklistWheel = (
+    event: React.WheelEvent<HTMLDivElement>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const deltaModeScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1;
+    const normalizedDelta = Math.max(-180, Math.min(180, event.deltaY * deltaModeScale));
+    pistonOscillationGuideChecklistPendingWheelDeltaRef.current += normalizedDelta;
+    if (pistonOscillationGuideChecklistFrameRef.current === null) {
+      pistonOscillationGuideChecklistFrameRef.current = window.requestAnimationFrame(
+        processPistonOscillationGuideChecklistWheelFrame,
+      );
+    }
+  };
+
+  const handlePistonOscillationGuideChecklistKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+  ) => {
+    const currentIndex = pistonOscillationGuideChecklistViewedIndexRef.current;
+    const lastIndex = Math.max(
+      0,
+      pistonOscillationGuideChecklistPageLengthRef.current - 1,
+    );
+    const nextIndex = event.key === 'ArrowDown'
+      ? Math.min(lastIndex, currentIndex + 1)
+      : event.key === 'ArrowUp'
+        ? Math.max(0, currentIndex - 1)
+        : event.key === 'PageDown'
+          ? Math.min(lastIndex, currentIndex + 3)
+          : event.key === 'PageUp'
+            ? Math.max(0, currentIndex - 3)
+            : event.key === 'Home'
+              ? 0
+              : event.key === 'End'
+                ? lastIndex
+                : null;
+    if (nextIndex === null) return;
+    event.preventDefault();
+    event.stopPropagation();
+    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
+    if (pistonOscillationGuideChecklistFrameRef.current !== null) {
+      window.cancelAnimationFrame(pistonOscillationGuideChecklistFrameRef.current);
+      pistonOscillationGuideChecklistFrameRef.current = null;
+    }
+    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
+      pistonOscillationGuideChecklistSnapTimerRef.current = null;
+    }
+    applyPistonOscillationGuideChecklistView(nextIndex, 0, true);
+    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
+    }
+    pistonOscillationGuideChecklistReturnTimerRef.current = window.setTimeout(() => {
+      pistonOscillationGuideChecklistReturnTimerRef.current = null;
+      returnPistonOscillationGuideChecklistToCurrentStep();
+    }, HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS);
+  };
+
+  useLayoutEffect(() => {
+    const track = pistonOscillationGuideChecklistTrackRef.current;
+    if (!activePistonOscillationGuideSelected || !track) {
+      clearPistonOscillationGuideChecklistTimers();
+      return;
+    }
+    const currentIndex = Number(track.dataset.pistonGuideCurrentIndex ?? 0);
+    const pageLength = Number(track.dataset.pistonGuidePageLength ?? 1);
+    pistonOscillationGuideChecklistPageLengthRef.current = Math.max(1, pageLength);
+    pistonOscillationGuideChecklistCurrentIndexRef.current = Math.max(0, currentIndex);
+    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
+    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
+      pistonOscillationGuideChecklistSnapTimerRef.current = null;
+    }
+    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
+      pistonOscillationGuideChecklistReturnTimerRef.current = null;
+    }
+    applyPistonOscillationGuideChecklistView(currentIndex, 0, true);
+  }, [
+    activeFile.id,
+    activePistonOscillationGuideSelected,
+    activePistonOscillationGuideSession?.measurementIndex,
+    activePistonOscillationGuideSession?.status,
+    activePistonOscillationGuideSession?.step,
+  ]);
+
+  useLayoutEffect(() => {
+    const currentSession = activeFile.kind === 'heatCapacityPistonOscillation'
+      ? {
+          fileId: activeFile.id,
+          status: activeFile.pistonOscillationGuideSession.status,
+          step: activeFile.pistonOscillationGuideSession.step,
+        }
+      : null;
+    const previousSession = pistonOscillationGuidePreviousSessionRef.current;
+    pistonOscillationGuidePreviousSessionRef.current = currentSession;
+
+    const completionReviewEntered = currentSession?.status === 'active'
+      && currentSession.step === 'completionReview'
+      && (
+        previousSession?.fileId !== currentSession.fileId
+        || previousSession.step !== 'completionReview'
+      );
+    if (completionReviewEntered) {
+      clearPistonOscillationGuideFeedback();
+      setPistonOscillationGuideLessonOutgoingView(null);
+      setPistonOscillationGuideLessonDialog({
+        kind: 'completion',
+        fileId: currentSession.fileId,
+        closing: false,
+      });
+      return;
+    }
+    setPistonOscillationGuideLessonDialog((current) => (
+      current?.kind === 'completion'
+      && (
+        currentSession?.fileId !== current.fileId
+        || currentSession.status !== 'active'
+        || currentSession.step !== 'completionReview'
+      )
+        ? null
+        : current
+    ));
+  }, [
+    activeFile.id,
+    activeFile.kind,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? `${activeFile.pistonOscillationGuideSession.status}:${activeFile.pistonOscillationGuideSession.step}`
+      : null,
+  ]);
+
+  useEffect(() => () => {
+    clearPistonOscillationGuideChecklistTimers();
+    pistonOscillationGuideFeedbackTimerGenerationRef.current += 1;
+    if (pistonOscillationGuideFeedbackTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideFeedbackTimerRef.current);
+    }
+    if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
+    }
+    if (pistonOscillationGuideLessonCloseTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideLessonCloseTimerRef.current);
+    }
+    if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
+    }
+    if (pistonOscillationGuideCompletionToastTimerRef.current !== null) {
+      window.clearTimeout(pistonOscillationGuideCompletionToastTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     const activeGuideLessonFile = activeFile.kind === 'heatCapacity' &&
@@ -16956,6 +19034,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       showPistonOscillationDevelopmentNotice('navigationItem');
       return;
     }
+    if (
+      activeFile.kind === 'heatCapacityPistonOscillation'
+      && panel === 'heatCapacityGuide'
+      && activeFile.pistonOscillationGuideSession.dataProcessing !== null
+    ) {
+      setSelectedPanel('realtime');
+      return;
+    }
     setSelectedPanel(panel);
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
@@ -17061,6 +19147,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       showPistonOscillationDevelopmentNotice('navigationItem');
       return;
     }
+    if (
+      activeFile.kind === 'heatCapacityPistonOscillation'
+      && panel === 'heatCapacityGuide'
+      && activeFile.pistonOscillationGuideSession.dataProcessing !== null
+    ) {
+      setSelectedPanel('realtime');
+      return;
+    }
     if (LOCKED_PANEL_KEYS.includes(panel)) {
       setSelectedPanel(panel);
       handleLockedPanel(availablePanels.find((item) => item.key === panel)?.title ?? panel);
@@ -17075,13 +19169,25 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const isWindowPanelVisible = (panel: WorkbenchPanelKey) => (
-    activeFile.visiblePanels.includes(panel)
+    (
+      activeFile.kind === 'heatCapacityPistonOscillation'
+      && panel === 'heatCapacityGuide'
+      && activeFile.pistonOscillationGuideSession.dataProcessing !== null
+    ) || activeFile.visiblePanels.includes(panel)
   );
 
   const toggleWindowPanel = (panel: WorkbenchPanelKey) => {
     if (!guardWorkbenchTutorialAction('open-results-window')) return;
     if (isPistonOscillationDevelopmentPanelKey(activeFile, panel)) {
       showPistonOscillationDevelopmentNotice('navigationItem');
+      return;
+    }
+    if (
+      activeFile.kind === 'heatCapacityPistonOscillation'
+      && panel === 'heatCapacityGuide'
+      && activeFile.pistonOscillationGuideSession.dataProcessing !== null
+    ) {
+      setSelectedPanel('realtime');
       return;
     }
     if (LOCKED_PANEL_KEYS.includes(panel)) {
@@ -19070,6 +21176,512 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
+  const renderPistonOscillationModeControl = () => {
+    if (activeFile.kind !== 'heatCapacityPistonOscillation') return null;
+    const demoSelected = pistonOscillationDemoPlayback.fileId === activeFile.id
+      && pistonOscillationDemoPlayback.phase !== 'idle';
+    const demoRunning = demoSelected && pistonOscillationDemoPlayback.phase === 'running';
+    const labels = pistonOscillationCopy.modes;
+    const guideSessionSelected = activeFile.pistonOscillationGuideSession.status === 'active'
+      || (
+        activeFile.pistonOscillationGuideSession.status === 'completed'
+        && !activeFile.pistonOscillationGuideSession.completionExited
+      );
+    const guideCompleted = activeFile.pistonOscillationGuideSession.status === 'completed';
+    const guideSelected = !demoSelected && guideSessionSelected;
+    const startDemo = () => {
+      clearPistonOscillationGuideCompletionToast();
+      if (guideSessionSelected) {
+        updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+          ? transitionPistonOscillationGuideWorkbenchState(file, {
+            type: 'exitSession',
+            nowMs: Date.now(),
+          })
+          : file);
+      }
+      setPistonOscillationDemoPlayback({
+        fileId: activeFile.id,
+        phase: 'running',
+        elapsedMs: 0,
+      });
+    };
+    const stopDemo = () => {
+      setPistonOscillationDemoPlayback((current) => (
+        current.fileId === activeFile.id && current.phase === 'running'
+          ? { ...current, phase: 'terminated' }
+          : current
+      ));
+    };
+    const startGuide = () => {
+      if (guideSelected) return;
+      clearPistonOscillationGuideCompletionToast();
+      setPistonOscillationDemoPlayback({ fileId: null, phase: 'idle', elapsedMs: 0 });
+      if (guideSessionSelected) return;
+      if (
+        activeFile.pistonOscillationGuideSession.status === 'completed'
+        && activeFile.pistonOscillationGuideSession.completionExited
+      ) {
+        updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+          ? transitionPistonOscillationGuideWorkbenchState(file, {
+            type: 'reopenCompletedSession',
+            nowMs: Date.now(),
+          })
+          : file);
+        return;
+      }
+      updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+        ? startPistonOscillationGuideWorkbenchState(file)
+        : file);
+    };
+    const exitGuide = () => {
+      clearPistonOscillationGuideCompletionToast();
+      updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+        ? transitionPistonOscillationGuideWorkbenchState(file, {
+          type: 'exitSession',
+          nowMs: Date.now(),
+        })
+        : file);
+    };
+    const resetGuide = () => {
+      clearPistonOscillationGuideCompletionToast();
+      if (pistonOscillationGuideResetFeedbackTimerRef.current !== null) {
+        window.clearTimeout(pistonOscillationGuideResetFeedbackTimerRef.current);
+      }
+      setPistonOscillationGuideResetFeedback(true);
+      pistonOscillationGuideResetFeedbackTimerRef.current = window.setTimeout(() => {
+        setPistonOscillationGuideResetFeedback(false);
+        pistonOscillationGuideResetFeedbackTimerRef.current = null;
+      }, 650);
+      updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+        ? transitionPistonOscillationGuideWorkbenchState(file, {
+          type: 'resetSession',
+          nowMs: Date.now(),
+        })
+        : file);
+    };
+    const pistonModeExpanded = demoSelected || guideSelected;
+    const pistonModeName = demoSelected ? 'demo' : guideSelected ? 'guide' : 'explore';
+
+    return (
+      <div className="studio-heat-mode-control-row">
+        <div
+          className={`studio-heat-mode-control studio-heat-mode-control-${pistonModeName} ${pistonModeExpanded ? 'studio-heat-mode-control-expanded' : ''}`}
+          data-piston-oscillation-mode-control="true"
+          data-piston-oscillation-demo-phase={
+            demoSelected ? pistonOscillationDemoPlayback.phase : 'idle'
+          }
+        >
+          <div
+            className={`studio-heat-mode-segment studio-heat-mode-segment-demo ${demoSelected ? 'studio-heat-mode-segment-active' : ''}`}
+            data-piston-oscillation-mode-segment="demo"
+          >
+            <button
+              type="button"
+              className={`studio-heat-mode-button ${demoSelected ? 'studio-heat-mode-button-active' : ''}`}
+              data-piston-oscillation-mode="demo"
+              aria-pressed={demoSelected}
+              onClick={startDemo}
+            >
+              {labels.demo}
+            </button>
+            <div
+              className="studio-heat-mode-actions studio-heat-mode-actions-demo"
+              aria-hidden={!demoRunning}
+            >
+              {demoRunning ? (
+                <button
+                  type="button"
+                  className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
+                  data-piston-oscillation-mode-action="stop-demo"
+                  data-prompt-tooltip={labels.stopDemo}
+                  aria-label={labels.stopDemo}
+                  onClick={stopDemo}
+                >
+                  <Square size={12} strokeWidth={2.8} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+          <div
+            className={`studio-heat-mode-segment studio-heat-mode-segment-guide ${guideSelected ? 'studio-heat-mode-segment-active' : ''}`}
+            data-piston-oscillation-mode-segment="guide"
+          >
+            <button
+              type="button"
+              className={`studio-heat-mode-button ${guideSelected ? 'studio-heat-mode-button-active' : ''}`}
+              data-piston-oscillation-mode="guide"
+              aria-pressed={guideSelected}
+              onClick={startGuide}
+            >
+              {labels.guide}
+            </button>
+            <div
+              className="studio-heat-mode-actions studio-heat-mode-actions-guide"
+              aria-hidden={!guideSelected}
+            >
+              {guideSelected ? (
+                <>
+                  <button
+                    type="button"
+                    className={`studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger${
+                      pistonOscillationGuideResetFeedback
+                        ? ' studio-heat-mode-action-feedback'
+                        : ''
+                    }`}
+                    data-piston-oscillation-mode-action="reset-guide"
+                    data-prompt-tooltip={labels.resetGuide}
+                    aria-label={labels.resetGuide}
+                    onClick={resetGuide}
+                  >
+                    <RotateCcw size={13} strokeWidth={2.7} />
+                  </button>
+                  <button
+                    type="button"
+                    className={`studio-heat-mode-action studio-heat-mode-action-icon${
+                      guideCompleted ? '' : ' studio-heat-mode-action-danger'
+                    }`}
+                    data-piston-oscillation-mode-action="exit-guide"
+                    data-prompt-tooltip={labels.exitGuide}
+                    aria-label={labels.exitGuide}
+                    onClick={exitGuide}
+                  >
+                    {guideCompleted ? (
+                      <LogOut size={13} strokeWidth={2.7} />
+                    ) : (
+                      <Square size={12} strokeWidth={2.8} />
+                    )}
+                  </button>
+                </>
+              ) : null}
+            </div>
+          </div>
+          <div
+            className="studio-heat-mode-segment studio-piston-mode-segment-disabled"
+            data-piston-oscillation-mode-segment="free"
+          >
+            <button
+              type="button"
+              className="studio-heat-mode-button"
+              data-piston-oscillation-mode="free"
+              data-prompt-tooltip={labels.unavailable}
+              aria-label={`${labels.free} · ${labels.unavailable}`}
+              disabled
+            >
+              {labels.free}
+            </button>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="studio-heat-guide-lesson-button"
+          data-piston-oscillation-guide-lesson-button="true"
+          data-prompt-tooltip={pistonOscillationCopy.lesson.buttonLabel}
+          aria-label={pistonOscillationCopy.lesson.buttonLabel}
+          onClick={openPistonOscillationGuideLessonIntro}
+        >
+          <Wrench size={18} strokeWidth={2.1} />
+        </button>
+      </div>
+    );
+  };
+
+  const renderPistonOscillationGuideStepPanel = () => {
+    if (
+      activeFile.kind !== 'heatCapacityPistonOscillation'
+      || (
+        activeFile.pistonOscillationGuideSession.status !== 'active'
+        && activeFile.pistonOscillationGuideSession.status !== 'completed'
+      )
+      || !activePistonOscillationGuideSelected
+      || activePistonOscillationDemoPlaybackPhase !== 'idle'
+    ) return null;
+    const guideSession = activeFile.pistonOscillationGuideSession;
+    if (
+      guideSession.step === 'periodProcessing'
+      || guideSession.step === 'calculationReady'
+      || guideSession.step === 'completionReview'
+    ) return null;
+    type GuidePanelStep = {
+      id: string;
+      steps: readonly PistonOscillationGuideStep[];
+      title: string;
+      detail: string;
+    };
+    const createAcquisitionSteps = (
+      measurementNumber: number,
+    ): readonly GuidePanelStep[] => [
+      { id: `screwLock-${measurementNumber}`, steps: ['screwLock'], title: pistonOscillationCopy.guide.lockScrewTitle, detail: pistonOscillationCopy.guide.lockScrewDetail },
+      { id: `hoseReconnect-${measurementNumber}`, steps: ['hoseReconnect'], title: pistonOscillationCopy.guide.reconnectHoseTitle, detail: pistonOscillationCopy.guide.reconnectHoseDetail },
+      { id: `screwLoosen-${measurementNumber}`, steps: ['screwLoosen'], title: pistonOscillationCopy.guide.loosenScrewTitle, detail: pistonOscillationCopy.guide.loosenScrewDetail },
+      { id: `acquisitionReady-${measurementNumber}`, steps: ['baselineStabilizing', 'acquisitionReady'], title: pistonOscillationCopy.guide.startAcquisitionTitle, detail: pistonOscillationCopy.guide.startAcquisitionDetail },
+      { id: `waitingTrigger-${measurementNumber}`, steps: ['waitingTrigger'], title: pistonOscillationCopy.guide.releasePistonTitle, detail: pistonOscillationCopy.guide.releasePistonDetail },
+      { id: `recording-${measurementNumber}`, steps: ['recording'], title: pistonOscillationCopy.guide.recordingTitle, detail: pistonOscillationCopy.guide.recordingDetail },
+      { id: `pauseRecording-${measurementNumber}`, steps: ['pauseAvailable', 'curveFrozen'], title: pistonOscillationCopy.guide.pauseRecordingTitle, detail: pistonOscillationCopy.guide.pauseRecordingDetail },
+      { id: `saveCurve-${measurementNumber}`, steps: ['awaitingSaveOrRedo'], title: pistonOscillationCopy.guide.saveCurveTitle(measurementNumber), detail: pistonOscillationCopy.guide.saveCurveDetail(measurementNumber) },
+    ];
+    const createFollowingMeasurementPage = (
+      measurementIndex: 1 | 2,
+    ): readonly GuidePanelStep[] => {
+      const measurementNumber = measurementIndex + 1;
+      const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
+      return [
+        { id: `crossRunStabilizing-${measurementNumber}`, steps: ['crossRunStabilizing'], title: pistonOscillationCopy.guide.crossRunStabilizingTitle, detail: pistonOscillationCopy.guide.crossRunStabilizingDetail },
+        { id: `crossRunDisconnect-${measurementNumber}`, steps: ['crossRunDisconnect'], title: pistonOscillationCopy.guide.crossRunDisconnectTitle, detail: pistonOscillationCopy.guide.crossRunDisconnectDetail },
+        { id: `nextHeightAdjustment-${measurementNumber}`, steps: ['nextHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(targetHeightMm), detail: pistonOscillationCopy.guide.adjustHeightDetail(targetHeightMm) },
+        ...createAcquisitionSteps(measurementNumber),
+      ];
+    };
+    const guidePages: readonly (readonly GuidePanelStep[])[] = [
+      [
+        { id: 'parameterSetup-1', steps: ['parameterSetup'], title: pistonOscillationCopy.guide.parameterSetupTitle, detail: pistonOscillationCopy.guide.parameterSetupDetail },
+        { id: 'firstHeightAdjustment-1', steps: ['firstHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]), detail: pistonOscillationCopy.guide.adjustHeightDetail(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]) },
+        ...createAcquisitionSteps(1),
+      ],
+      createFollowingMeasurementPage(1),
+      createFollowingMeasurementPage(2),
+    ];
+    const currentPageIndex = guideSession.status === 'completed'
+      ? 2
+      : guideSession.measurementIndex;
+    const currentPage = guidePages[currentPageIndex];
+    const guideCompleted = guideSession.status === 'completed';
+    const currentLocalStepIndex = guideCompleted
+      ? currentPage.length - 1
+      : Math.max(
+          0,
+          currentPage.findIndex((step) => step.steps.includes(guideSession.step)),
+        );
+    const currentPageViewedIndex = Math.max(
+      0,
+      Math.min(currentPage.length - 1, pistonOscillationGuideChecklistViewedIndex),
+    );
+    const currentStepNumber = currentPageViewedIndex + 1;
+    const totalStepCount = currentPage.length;
+    return (
+      <section
+        className="studio-heat-guide-step-panel studio-piston-guide-step-panel"
+        data-piston-oscillation-guide-step-panel="true"
+        aria-label={pistonOscillationCopy.guide.checklist}
+      >
+        <div className="studio-heat-guide-step-header">
+          <span>{pistonOscillationCopy.guide.checklist}</span>
+          <em>{pistonOscillationCopy.guide.stepLabel} {currentStepNumber} / {totalStepCount}</em>
+          <strong>
+            {pistonOscillationCopy.acquisition.measurement(
+              guideSession.measurementIndex + 1,
+              PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
+            )}
+          </strong>
+        </div>
+        <div className="studio-piston-guide-pages" aria-live="polite">
+          <div
+            className="studio-piston-guide-page-track"
+            style={{ transform: `translate3d(-${currentPageIndex * 100}%, 0, 0)` }}
+          >
+            {guidePages.map((page, pageIndex) => {
+              const pageCurrentIndex = pageIndex === currentPageIndex
+                ? currentLocalStepIndex
+                : pageIndex < currentPageIndex ? page.length - 1 : 0;
+              const pageViewedIndex = pageIndex === currentPageIndex
+                ? currentPageViewedIndex
+                : pageCurrentIndex;
+              const pageBaseOffset = PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX
+                - pageViewedIndex * PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
+              return (
+                <div
+                  key={`measurement-page-${pageIndex + 1}`}
+                  className="studio-piston-guide-page"
+                  data-piston-oscillation-guide-page={pageIndex + 1}
+                  aria-hidden={pageIndex !== currentPageIndex}
+                >
+                  <div
+                    className="studio-heat-guide-step-list"
+                    data-piston-oscillation-guide-step-list="true"
+                    role="listbox"
+                    tabIndex={pageIndex === currentPageIndex ? 0 : -1}
+                    aria-label={
+                      pageIndex === currentPageIndex
+                        ? `${pistonOscillationCopy.guide.checklist}: ${pistonOscillationCopy.guide.stepLabel} ${currentStepNumber} / ${totalStepCount}`
+                        : undefined
+                    }
+                    aria-activedescendant={
+                      pageIndex === currentPageIndex
+                        ? `piston-guide-step-${pageIndex}-${page[pageViewedIndex]?.id}`
+                        : undefined
+                    }
+                    onWheel={
+                      pageIndex === currentPageIndex
+                        ? handlePistonOscillationGuideChecklistWheel
+                        : undefined
+                    }
+                    onKeyDown={
+                      pageIndex === currentPageIndex
+                        ? handlePistonOscillationGuideChecklistKeyDown
+                        : undefined
+                    }
+                  >
+                    <div className="studio-heat-guide-step-fade studio-heat-guide-step-fade-top" />
+                    <div className="studio-heat-guide-step-center-rail" />
+                    <div
+                      ref={
+                        pageIndex === currentPageIndex
+                          ? pistonOscillationGuideChecklistTrackRef
+                          : undefined
+                      }
+                      className="studio-heat-guide-step-track studio-heat-guide-step-track-snapping"
+                      data-piston-guide-current-index={pageCurrentIndex}
+                      data-piston-guide-page-length={page.length}
+                      style={{
+                        '--studio-heat-guide-step-base-offset': `${pageBaseOffset}px`,
+                        '--studio-heat-guide-step-visual-offset': `${pistonOscillationGuideChecklistVisualOffsetRef.current}px`,
+                      } as React.CSSProperties}
+                    >
+                      {page.map((step, index) => {
+                        const status = pageIndex < currentPageIndex || (
+                          pageIndex === currentPageIndex
+                          && (guideCompleted || index < currentLocalStepIndex)
+                        )
+                          ? 'done'
+                          : pageIndex === currentPageIndex && index === currentLocalStepIndex
+                            ? 'current'
+                            : 'upcoming';
+                        const centered = index === pageViewedIndex;
+                        return (
+                          <div
+                            key={step.id}
+                            id={`piston-guide-step-${pageIndex}-${step.id}`}
+                            role="option"
+                            aria-selected={centered}
+                            aria-current={centered ? 'step' : undefined}
+                            className={`studio-heat-guide-step-row studio-heat-guide-step-row-${status} ${centered ? 'studio-heat-guide-step-row-centered' : ''}`}
+                            data-piston-oscillation-guide-step={
+                              pageIndex === currentPageIndex
+                              && step.steps.includes(guideSession.step)
+                                ? guideSession.step
+                                : step.id
+                            }
+                            data-piston-oscillation-guide-step-status={status}
+                            style={{
+                              '--studio-heat-guide-step-distance': Math.abs(index - pageViewedIndex),
+                              '--studio-heat-guide-step-signed-distance': index - pageViewedIndex,
+                            } as React.CSSProperties}
+                          >
+                            <span className="studio-heat-guide-step-marker" aria-hidden="true"><i /></span>
+                            <span className="studio-heat-guide-step-text">
+                              <strong>{step.title}</strong>
+                              <em>{step.detail}</em>
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="studio-heat-guide-step-fade studio-heat-guide-step-fade-bottom" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        <div className="studio-piston-guide-page-dots" aria-label={`${currentPageIndex + 1} / 3`}>
+          {[0, 1, 2].map((pageIndex) => (
+            <i key={pageIndex} className={pageIndex === currentPageIndex ? 'is-active' : ''} aria-hidden="true" />
+          ))}
+        </div>
+      </section>
+    );
+  };
+
+  const renderPistonOscillationGuideLessonOverlay = () => {
+    if (
+      !pistonOscillationGuideLessonDialog
+      || pistonOscillationGuideLessonDialog.fileId !== activeFile.id
+    ) return null;
+    const lessonView = getPistonOscillationGuideLessonView(
+      pistonOscillationGuideLessonDialog,
+    );
+    if (!lessonView) return null;
+    return (
+      <div
+        className={`studio-heat-guide-lesson-layer studio-piston-guide-lesson-layer studio-heat-guide-lesson-layer-${
+          pistonOscillationGuideLessonDialog.closing ? 'closing' : 'open'
+        }`}
+        data-piston-oscillation-guide-lesson-layer="true"
+        role="presentation"
+        onMouseDown={advancePistonOscillationGuideLessonDialog}
+      >
+        <section
+          ref={pistonOscillationGuideLessonDialogRef}
+          className={`studio-heat-guide-lesson-card studio-piston-guide-lesson-card-long studio-heat-guide-lesson-card-${
+            pistonOscillationGuideLessonDialog.kind === 'intro' ? 'intro' : 'step'
+          } ${
+            pistonOscillationGuideLessonDialog.kind === 'completion'
+              ? 'studio-piston-guide-lesson-card-completion'
+              : ''
+          }`}
+          data-piston-oscillation-guide-lesson-dialog="true"
+          data-piston-oscillation-guide-lesson-kind={pistonOscillationGuideLessonDialog.kind}
+          role="dialog"
+          aria-label={
+            pistonOscillationGuideLessonDialog.kind === 'completion'
+              ? pistonOscillationCopy.guide.completedTitle
+              : pistonOscillationCopy.lesson.label
+          }
+          aria-modal="true"
+          tabIndex={-1}
+          onMouseDown={(event) => event.stopPropagation()}
+          onKeyDown={handlePistonOscillationGuideLessonDialogKeyDown}
+        >
+          <button
+            type="button"
+            className="studio-heat-guide-lesson-close"
+            aria-label={pistonOscillationCopy.lesson.close}
+            onMouseDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              closePistonOscillationGuideLessonDialog();
+            }}
+          >
+            <X size={13} strokeWidth={2.7} />
+          </button>
+          <div className="studio-heat-guide-lesson-kicker">
+            <span>{pistonOscillationCopy.lesson.label}</span>
+          </div>
+          <div
+            className={`studio-heat-guide-lesson-content-stack ${
+              pistonOscillationGuideLessonOutgoingView
+                ? 'studio-piston-guide-lesson-content-stack-transitioning'
+                : ''
+            }`}
+          >
+            {pistonOscillationGuideLessonOutgoingView ? (
+              <div
+                key={`outgoing-${pistonOscillationGuideLessonOutgoingView.key}`}
+                className="studio-heat-guide-lesson-content studio-heat-guide-lesson-content-outgoing"
+                aria-hidden="true"
+              >
+                <strong>{renderScientificText(pistonOscillationGuideLessonOutgoingView.title)}</strong>
+                <p>{renderScientificText(pistonOscillationGuideLessonOutgoingView.body)}</p>
+              </div>
+            ) : null}
+            <div
+              key={`current-${lessonView.key}`}
+              className="studio-heat-guide-lesson-content studio-heat-guide-lesson-content-current"
+            >
+              <strong>{renderScientificText(lessonView.title)}</strong>
+              <p>{renderScientificText(lessonView.body)}</p>
+            </div>
+          </div>
+          <div className="studio-heat-guide-lesson-hint">
+            {pistonOscillationCopy.recovery.continueHint}
+          </div>
+        </section>
+      </div>
+    );
+  };
+
+  const pistonOscillationGuideStepPanel = renderPistonOscillationGuideStepPanel();
+  const pistonOscillationGuideLessonOverlay = renderPistonOscillationGuideLessonOverlay();
+
   const renderPreviewPanel = () => (
     <div
       className={`studio-preview ${
@@ -19535,20 +22147,25 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     </div>
                   ) : null}
                   {!activeHeatCapacityModalLocked && heatCapacityToastCurrent ? (
-                    <div
+                    <PromptViewportFeedback
                       key={heatCapacityToastCurrent.id}
-                      className={`studio-heat-guide-step-hint studio-heat-guide-step-hint-${heatCapacityToastCurrent.level}`}
-                      data-heat-capacity-guide-step-hint="true"
-                      data-heat-capacity-toast="true"
-                      data-heat-capacity-toast-level={heatCapacityToastCurrent.level}
-                      data-prompt-feedback-kind={heatCapacityToastCurrent.level}
-                      role={heatCapacityToastCurrent.level === 'danger' ? 'alert' : 'status'}
-                      aria-live={heatCapacityToastCurrent.level === 'danger' ? 'assertive' : 'polite'}
-                      aria-atomic="true"
+                      id={heatCapacityToastCurrent.id}
+                      kind={heatCapacityToastCurrent.level}
+                      label={PROMPT_FEEDBACK_COPY[settingsLanguagePreference].kindLabels[
+                        heatCapacityToastCurrent.level
+                      ]}
+                      durationMs={heatCapacityToastCurrent.durationMs}
+                      dataAttributes={{
+                        'data-heat-capacity-guide-step-hint': 'true',
+                        'data-heat-capacity-toast': 'true',
+                        'data-heat-capacity-toast-level': heatCapacityToastCurrent.level,
+                        'data-prompt-feedback-source': heatCapacityToastCurrent.source,
+                        'data-prompt-feedback-placement': 'viewport-center',
+                        'data-prompt-feedback-owner': 'heat-capacity',
+                      }}
                     >
-                      <span className="studio-heat-toast-kicker">{heatCapacityToastCurrent.level}</span>
-                      <strong>{renderScientificText(heatCapacityToastCurrent.text)}</strong>
-                    </div>
+                      {renderScientificText(heatCapacityToastCurrent.text)}
+                    </PromptViewportFeedback>
                   ) : null}
                 </>
               );
@@ -19931,9 +22548,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   }
                   overlayBottomRight={heatCapacityBottomRightOverlay}
                   overlayCenter={heatCapacityCenterOverlay}
-                  overlayCenterAboveGuideMask={
-                    activeHeatCapacityModalLocked || guideHeatCapacityStrongReminderActive
-                  }
+                  overlayCenterAboveGuideMask
                   overlayBottomCenter={heatCapacityBottomCenterOverlay}
                   overlayGuideMask={heatCapacityGuideMaskOverlay}
                   guideFocusMode={heatCapacityGuideFocusMode}
@@ -20021,12 +22636,121 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             })()}
           </div>
         ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
-          <PistonOscillationInstrumentScene
-            key={activeFile.id}
-            language={settingsLanguagePreference}
-            sceneTheme={resolvedWorkbenchTheme}
-            cameraPreset={activeFile.previewCameraPreset}
-          />
+          <div className="studio-piston-oscillation-preview-mount">
+            <PistonOscillationInstrumentScene
+              key={activeFile.id}
+              language={settingsLanguagePreference}
+              sceneTheme={resolvedWorkbenchTheme}
+              cameraPreset={activeFile.previewCameraPreset}
+              guideSessionRevision={
+                activeFile.pistonOscillationGuideSession.startedAtMs ?? 0
+              }
+              measurementCycleRevision={
+                pistonOscillationMeasurementCyclesByFileId[activeFile.id] ?? 0
+              }
+              demoFrame={activePistonOscillationDemoFrame ?? undefined}
+              demoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
+              guideTimeFrozen={
+                activePistonOscillationGuideTimeFrozen
+                || pistonOscillationGuideLessonDialog !== null
+              }
+              guideVisualCue={pistonGuideVisualCue}
+              guidePulseElapsedSeconds={pistonGuidePulseWithinCycleMs / 1_000}
+              guideRequestedFocusMode={pistonGuideRequestedFocusMode}
+              guideSnapTargetHeightMm={activePistonOscillationGuideSnapTargetHeightMm}
+              guideInitialInstrumentState={
+                activePistonOscillationGuideInstrumentRestoreState
+              }
+              guideHeightReset={activePistonOscillationGuideSession?.heightReset
+                ? {
+                    revision: activePistonOscillationGuideSession.updatedAtMs ?? 0,
+                    phase: activePistonOscillationGuideSession.heightReset.phase,
+                    startedHeightMm:
+                      activePistonOscillationGuideSession.heightReset.startedHeightMm,
+                  }
+                : null}
+              viewportWarningFeedbackId={
+                pistonOscillationGuideFeedback?.kind === 'warning'
+                || pistonOscillationGuideFeedback?.kind === 'danger'
+                  ? pistonOscillationGuideFeedback.id
+                  : null
+              }
+              overlayTopRight={pistonOscillationGuideStepPanel}
+              overlayCenter={pistonOscillationGuideCompletionToast?.fileId === activeFile.id ? (
+                <div
+                  key={pistonOscillationGuideCompletionToast.id}
+                  className="studio-heat-demo-complete-toast"
+                  data-piston-oscillation-guide-complete-toast="true"
+                  data-prompt-feedback-kind="success"
+                  role="status"
+                  aria-live="polite"
+                  aria-atomic="true"
+                >
+                  <span className="studio-heat-toast-kicker">
+                    {pistonOscillationGuideCompletionToast.kicker}
+                  </span>
+                  <strong>{pistonOscillationGuideCompletionToast.message}</strong>
+                </div>
+              ) : pistonOscillationGuideFeedback ? (
+                <PromptViewportFeedback
+                  key={pistonOscillationGuideFeedback.id}
+                  id={pistonOscillationGuideFeedback.id}
+                  kind={pistonOscillationGuideFeedback.kind}
+                  label={PROMPT_FEEDBACK_COPY[settingsLanguagePreference].kindLabels[
+                    pistonOscillationGuideFeedback.kind
+                  ]}
+                  durationMs={pistonOscillationGuideFeedback.durationMs}
+                  dataAttributes={{
+                    'data-piston-guide-feedback': 'true',
+                    'data-prompt-feedback-source': pistonOscillationGuideFeedback.source,
+                    'data-prompt-feedback-placement': 'viewport-center',
+                    'data-prompt-feedback-owner': 'piston-oscillation',
+                  }}
+                >
+                  {renderScientificText(pistonOscillationGuideFeedback.text)}
+                </PromptViewportFeedback>
+              ) : null}
+              overlayCenterAboveGuideMask={
+                pistonOscillationGuideCompletionToast?.fileId === activeFile.id
+                || pistonOscillationGuideFeedback !== null
+              }
+              onGuideActionAttempt={
+                activePistonOscillationGuideSelected
+                && activePistonOscillationDemoPlaybackPhase === 'idle'
+                  ? handlePistonOscillationGuideActionAttempt
+                  : undefined
+              }
+              onGuideHeightConfirmed={
+                activePistonOscillationGuideSelected
+                && activePistonOscillationDemoPlaybackPhase === 'idle'
+                  ? handlePistonOscillationGuideHeightConfirmed
+                  : undefined
+              }
+              onGuideSupportLoss={
+                activePistonOscillationGuideSession?.status === 'active'
+                && activePistonOscillationDemoPlaybackPhase === 'idle'
+                  ? handlePistonOscillationGuideSupportLoss
+                  : undefined
+              }
+              onGuideHeightResetComplete={
+                activePistonOscillationGuideSession?.heightReset?.phase === 'resetting'
+                  ? handlePistonOscillationGuideHeightResetComplete
+                  : undefined
+              }
+              onGuideInstrumentSnapshotChange={
+                activePistonOscillationGuideSelected
+                && activePistonOscillationDemoPlaybackPhase === 'idle'
+                  ? handlePistonOscillationGuideInstrumentSnapshot
+                  : undefined
+              }
+              onReleaseEvent={(event) => {
+                setPistonOscillationReleaseEventsByFileId((current) => ({
+                  ...current,
+                  [activeFile.id]: event,
+                }));
+              }}
+            />
+          </div>
         ) : (
         <div className="studio-canvas-host">
           <SimulationCanvas
@@ -20328,9 +23052,69 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.kind === 'heatCapacityPistonOscillation' ? (
       <div
         className="studio-realtime-panel studio-realtime-panel-piston-oscillation"
-        data-piston-oscillation-realtime="placeholder"
+        data-piston-oscillation-realtime={
+          activePistonOscillationDataProcessing ? 'data-processing' : 'acquisition'
+        }
       >
-        <PistonOscillationRealtimeUnavailable language={settingsLanguagePreference} />
+        {activePistonOscillationDataProcessing ? (
+          <PistonOscillationDataProcessingPanel
+            language={settingsLanguagePreference}
+            guideSession={activeFile.pistonOscillationGuideSession}
+            pulseActive={pistonGuidePulseActive}
+            pulseTarget={pistonGuideExpectedStrongTargetId}
+            onGuideEvent={handlePistonOscillationGuideProcessingEvent}
+            onInteractionStart={handlePistonOscillationGuideProcessingInteractionStart}
+            onSelectionModeChange={setPistonOscillationPeriodSelectionToolActive}
+            onInvalidSelection={handlePistonOscillationGuideInvalidPeriodSelection}
+            reviewMode={pistonOscillationCompletedDataProcessingReview}
+            onOpenCalculationReview={openPistonOscillationCalculationReview}
+            onCloseReview={closePistonOscillationDataProcessingReview}
+          />
+        ) : (
+          <PistonOscillationAcquisitionPanel
+          language={settingsLanguagePreference}
+          releaseEvent={pistonOscillationReleaseEventsByFileId[activeFile.id] ?? null}
+          demoFrame={activePistonOscillationDemoFrame ?? undefined}
+          guideSession={
+            activePistonOscillationGuideSelected
+            && activePistonOscillationDemoPlaybackPhase === 'idle'
+              ? activeFile.pistonOscillationGuideSession
+              : undefined
+          }
+          guidePaused={
+            activePistonOscillationGuideTimeFrozen
+            || pistonOscillationGuideLessonDialog !== null
+          }
+          guideCue={pistonGuideAcquisitionCue}
+          onGuideAcquisitionEvent={
+            activePistonOscillationDemoPlaybackPhase === 'idle'
+              ? handlePistonOscillationGuideAcquisitionEvent
+              : undefined
+          }
+          onGuideActionAttempt={
+            activePistonOscillationGuideSelected
+            && activePistonOscillationDemoPlaybackPhase === 'idle'
+              ? handlePistonOscillationGuideActionAttempt
+              : undefined
+          }
+          onGuideParameterEdit={(field, value) => {
+            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+              ? editPistonOscillationGuideParameterWorkbenchState(file, field, value)
+              : file);
+          }}
+          onGuideParameterCommit={(field) => {
+            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+              ? commitPistonOscillationGuideParameterWorkbenchState(file, field)
+              : file);
+          }}
+          onRunRetained={() => {
+            setPistonOscillationMeasurementCyclesByFileId((current) => ({
+              ...current,
+              [activeFile.id]: (current[activeFile.id] ?? 0) + 1,
+            }));
+          }}
+          />
+        )}
       </div>
     ) : activeFile.kind === 'heatCapacity' ? renderHeatCapacityRealtimePanel() : (
     <div className={`studio-realtime-panel ${activeFile.kind === 'ideal' ? 'studio-realtime-panel-ideal' : 'studio-realtime-panel-standard'}`}>
@@ -21730,18 +24514,29 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const renderDockHeader = (panel: PanelDefinition) => (
+  const renderDockHeader = (panel: PanelDefinition) => {
+    const isProcessingRealtime = activePistonOscillationDataProcessing
+      && panel.key === 'realtime';
+    const headerTitle = isProcessingRealtime
+      ? pistonOscillationCopy.processing.title
+      : panel.title;
+    const renderedHeaderHint = isProcessingRealtime
+      ? renderScientificText(pistonOscillationCopy.processing.hint)
+      : renderScientificText(panel.hint);
+    const showPanelActions = isProcessingRealtime
+      || (panel.key === 'preview' && !activePistonOscillationDataProcessing);
+    return (
     <div className="studio-dock-header">
       <div>
-        <span>{panel.title}</span>
-        <small>{renderScientificText(panel.hint)}</small>
+        <span>{headerTitle}</span>
+        <small>{renderedHeaderHint}</small>
       </div>
-      {panel.key === 'preview' ? (
+      {showPanelActions ? (
         <div className="studio-panel-actions">
           {activeFile.kind === 'heatCapacity'
             ? renderHeatCapacityModeControl()
             : activeFile.kind === 'heatCapacityPistonOscillation'
-              ? null
+              ? renderPistonOscillationModeControl()
               : (
             <button
               type="button"
@@ -21772,11 +24567,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         </div>
       ) : null}
     </div>
-  );
+    );
+  };
 
   const renderDockPanel = (panel: PanelDefinition, optional = false) => (
     <section
-      className={`studio-dock-panel ${optional ? 'studio-optional-panel' : 'studio-fixed-panel'} ${panel.key === 'results' ? 'studio-results-window' : ''}`}
+      className={`studio-dock-panel studio-dock-panel-${panel.key} ${optional ? 'studio-optional-panel' : 'studio-fixed-panel'} ${panel.key === 'results' ? 'studio-results-window' : ''}`}
       key={panel.key}
       onClick={() => setSelectedPanel(panel.key)}
     >
@@ -22447,6 +25243,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         onCompleteAndExit={completeAndExitHeatCapacityCalculation}
         onClose={closeHeatCapacityCalculationReview}
       />
+      <PistonOscillationCalculationWindow
+        open={pistonOscillationCalculationWindowOpen}
+        language={settingsLanguagePreference}
+        guideSession={activePistonOscillationGuideSession}
+        onGuideEvent={handlePistonOscillationGuideProcessingEvent}
+        onCompleteAndExit={completeAndExitPistonOscillationCalculation}
+        onClose={closePistonOscillationCalculationReview}
+      />
       {renderHeatCapacityAdvancedParameterDialog()}
       <div
         className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`}
@@ -22845,7 +25649,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 ) : activeFile.kind === 'heatCapacity' ? (
                   renderHeatCapacityPanelTree()
                 ) : availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
-                  const visible = activeFile.visiblePanels.includes(panel.key);
+                  const visible = isWindowPanelVisible(panel.key);
                   const locked = LOCKED_PANEL_KEYS.includes(panel.key);
                   const developmentUnavailable = isPistonOscillationDevelopmentPanelKey(activeFile, panel.key);
                   return (
@@ -22869,6 +25673,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                             showPistonOscillationDevelopmentNotice('navigationItem');
                           } else if (locked) {
                             handleLockedPanel(panel.title);
+                          } else if (
+                            activeFile.kind === 'heatCapacityPistonOscillation'
+                            && panel.key === 'heatCapacityGuide'
+                          ) {
+                            openPistonOscillationDataProcessingReview();
                           } else if (panel.key === 'results' && activeFile.kind === 'ideal') {
                             openIdealResultsWindow('experimentPoints', true);
                           } else {
@@ -22881,6 +25690,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                           } else if (locked) {
                             setSelectedPanel(panel.key);
                             handleLockedPanel(panel.title);
+                          } else if (
+                            activeFile.kind === 'heatCapacityPistonOscillation'
+                            && panel.key === 'heatCapacityGuide'
+                          ) {
+                            openPistonOscillationDataProcessingReview();
                           } else if (panel.key === 'results') {
                             if (activeFile.kind === 'ideal') {
                               openIdealResultsWindow('experimentPoints', true);
@@ -23074,7 +25888,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 aria-hidden="true"
               />
               <div
-                className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0 || (activeFile.kind === 'heatCapacity' && activeFile.openHeatCapacityTabs.length > 0)) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
+                className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${activePistonOscillationDataProcessing ? 'studio-center-workspace-piston-processing' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0 || (activeFile.kind === 'heatCapacity' && activeFile.openHeatCapacityTabs.length > 0)) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
                 ref={centerWorkspaceRef}
               >
                 {isWorkbenchEmpty ? (
@@ -23088,15 +25902,32 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 ) : (
                   <>
                     <div
-                      className={`studio-live-workspace ${liveWorkspaceResizing ? 'studio-live-workspace-resizing' : ''}`}
+                      className={`studio-live-workspace ${
+                        liveWorkspaceResizing ? 'studio-live-workspace-resizing' : ''
+                      } ${
+                        activePistonOscillationDataProcessing
+                          ? 'studio-live-workspace-piston-processing'
+                          : ''
+                      }`}
                       style={liveWorkspaceStyle}
                       ref={liveWorkspaceRef}
+                      data-piston-guide-strong-active={
+                        pistonOscillationGuideStrongReminderActive ? 'true' : 'false'
+                      }
+                      data-piston-guide-strong-expected-target={
+                        pistonGuideExpectedStrongTargetId ?? 'none'
+                      }
+                      data-piston-guide-strong-context={pistonGuideStrongTargetContext ?? 'none'}
+                      data-piston-guide-pulse-elapsed-ms={
+                        Math.round(pistonOscillationGuidePulseElapsedMs)
+                      }
                     >
                       {primaryPanels[0] ? renderDockPanel(primaryPanels[0]) : null}
                       <button
                         type="button"
                         className="studio-live-workspace-resizer"
                         aria-label={workbenchCopy.panels.liveWorkspaceResizeAria}
+                        disabled={activePistonOscillationDataProcessing}
                         onPointerDown={startLiveWorkspaceResize}
                       />
                       <div
@@ -23110,6 +25941,64 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                           {auxiliaryPanels.map((panel) => renderDockPanel(panel, true))}
                         </div>
                       ) : null}
+                      {activeFile.kind === 'heatCapacityPistonOscillation'
+                      && pistonGuideStrongTargetId
+                      && pistonOscillationGuideStrongMaskLayout ? (
+                        <div
+                          className="studio-heat-guide-strong-mask studio-piston-guide-strong-mask"
+                          data-piston-guide-strong-mask="true"
+                          data-piston-guide-strong-mask-target={pistonGuideStrongTargetId}
+                          data-piston-guide-strong-mask-blocking="false"
+                          role="status"
+                          aria-live="polite"
+                          style={{
+                            top: `${pistonOscillationGuideStrongMaskLayout.top}px`,
+                            right: 0,
+                            bottom: 0,
+                            left: 0,
+                          }}
+                        >
+                          <svg
+                            className="studio-heat-guide-strong-cutout-svg"
+                            viewBox={`0 0 ${pistonOscillationGuideStrongMaskLayout.width} ${pistonOscillationGuideStrongMaskLayout.height}`}
+                            aria-hidden="true"
+                          >
+                            <path
+                              className="studio-heat-guide-strong-dim"
+                              d={getPistonOscillationGuideStrongDimPath(
+                                pistonOscillationGuideStrongMaskLayout,
+                              )}
+                              fillRule="evenodd"
+                              clipRule="evenodd"
+                            />
+                            <rect
+                              className="studio-heat-guide-strong-cutout-outline"
+                              {...pistonOscillationGuideStrongMaskLayout.cutout}
+                              fill="var(--studio-piston-guide-cutout-fill)"
+                              stroke="var(--studio-piston-guide-cutout-stroke)"
+                              strokeWidth="1.5"
+                              vectorEffect="non-scaling-stroke"
+                            />
+                          </svg>
+                          <div
+                            className={`studio-heat-guide-strong-card ${
+                              pistonOscillationGuideStrongMaskLayout.card.compact
+                                ? 'studio-piston-guide-strong-card-compact'
+                                : ''
+                            }`}
+                            style={{
+                              left: `${pistonOscillationGuideStrongMaskLayout.card.x}px`,
+                              top: `${pistonOscillationGuideStrongMaskLayout.card.y}px`,
+                              width: `${pistonOscillationGuideStrongMaskLayout.card.width}px`,
+                            }}
+                          >
+                            <strong>{renderScientificText(pistonGuideStrongReminderText)}</strong>
+                          </div>
+                        </div>
+                      ) : null}
+                      {activeFile.kind === 'heatCapacityPistonOscillation'
+                        ? pistonOscillationGuideLessonOverlay
+                        : null}
                     </div>
                     {resultsPanel && activeFile.kind === 'standard' ? (
                       <div
@@ -23223,7 +26112,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               </aside>
               ) : null}
 
-              {!isWorkbenchEmpty && effectiveParametersCollapsed ? (
+              {!isWorkbenchEmpty
+              && activeFile.kind !== 'heatCapacityPistonOscillation'
+              && effectiveParametersCollapsed ? (
                 <button type="button" className="studio-rail-button studio-right-rail" onClick={openParameterSidebarFromRail}>
                   {workbenchCopy.parameters.title}
                 </button>

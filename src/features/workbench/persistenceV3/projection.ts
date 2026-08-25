@@ -23,6 +23,15 @@ import {
   normalizeHardSphereEngineSnapshot,
 } from '../../../domain/hardSphere/hardSphereSnapshotCodec.ts';
 import {
+  normalizePistonOscillationGuideSession,
+  type PistonOscillationGuideSession,
+} from '../../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import type {
+  PistonOscillationCalculationAnswerState,
+  PistonOscillationDataProcessingSession,
+  PistonOscillationPeriodAnswerState,
+} from '../../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
   projectHardSphereEngineOntoWorkspaceFile,
 } from '../workbenchHardSphereProjection.ts';
 import {
@@ -88,6 +97,9 @@ import {
 } from './contract.ts';
 
 export const WORKBENCH_PERSISTENCE_V3_FILE_PROJECTION_VERSION = 1 as const;
+
+export const PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION = 3 as const;
+export const PISTON_OSCILLATION_GUIDE_DERIVED_CACHE_VERSION = 1 as const;
 
 export interface WorkbenchPersistenceV3ClassifiedFields {
   authoritative: Record<string, unknown>;
@@ -255,10 +267,151 @@ const areCanonicalValuesEqual = (
   }
 };
 
+const createPistonOscillationPeriodAnswerAuthority = (
+  answer: PistonOscillationPeriodAnswerState,
+) => ({
+  draftRaw: answer.draftRaw,
+  status: answer.status,
+  feedback: answer.feedback,
+  attemptCount: answer.attemptCount,
+});
+
+const createPistonOscillationCalculationAnswerAuthority = (
+  answer: PistonOscillationCalculationAnswerState,
+) => ({
+  draftRaw: answer.draftRaw,
+  status: answer.status,
+  feedback: answer.feedback,
+  attempts: answer.attempts,
+});
+
+const createPistonOscillationDataProcessingAuthority = (
+  session: PistonOscillationDataProcessingSession,
+) => ({
+  schemaVersion: session.schemaVersion,
+  processingPolicy: session.processingPolicy,
+  status: session.status,
+  activeRunIndex: session.activeRunIndex,
+  runs: session.runs.map((run) => ({
+    rawMeasurementRecordId: run.rawMeasurementRecordId,
+    measurementIndex: run.measurementIndex,
+    selection: run.selection === null
+      ? null
+      : {
+          algorithmVersion: run.selection.algorithmVersion,
+          rangeStartTimeS: run.selection.rangeStartTimeS,
+          rangeEndTimeS: run.selection.rangeEndTimeS,
+          leftEndpoint: run.selection.leftEndpoint === null
+            ? null
+            : { sampleIndex: run.selection.leftEndpoint.sampleIndex },
+          rightEndpoint: run.selection.rightEndpoint === null
+            ? null
+            : { sampleIndex: run.selection.rightEndpoint.sampleIndex },
+          selectedAtMs: run.selection.selectedAtMs,
+        },
+    answers: {
+      t1: createPistonOscillationPeriodAnswerAuthority(run.answers.t1),
+      t2: createPistonOscillationPeriodAnswerAuthority(run.answers.t2),
+      period: createPistonOscillationPeriodAnswerAuthority(run.answers.period),
+    },
+    result: run.result === null
+      ? null
+      : {
+          leftSampleIndex: run.result.leftSampleIndex,
+          rightSampleIndex: run.result.rightSampleIndex,
+          completedAtMs: run.result.completedAtMs,
+        },
+  })),
+  linearFitResult: session.linearFitResult === null
+    ? null
+    : {
+        algorithmVersion: session.linearFitResult.algorithmVersion,
+        selectedRunIndices: session.linearFitResult.selectedRunIndices,
+        completedAtMs: session.linearFitResult.completedAtMs,
+      },
+  calculationSession: session.calculationSession === null
+    ? null
+    : {
+        schemaVersion: session.calculationSession.schemaVersion,
+        status: session.calculationSession.status,
+        knowns: session.calculationSession.knowns,
+        selectedRunIndices: session.calculationSession.selectedRunIndices,
+        activeFieldId: session.calculationSession.activeFieldId,
+        answers: {
+          area: createPistonOscillationCalculationAnswerAuthority(
+            session.calculationSession.answers.area,
+          ),
+          gamma: createPistonOscillationCalculationAnswerAuthority(
+            session.calculationSession.answers.gamma,
+          ),
+          relativeError: createPistonOscillationCalculationAnswerAuthority(
+            session.calculationSession.answers.relativeError,
+          ),
+        },
+        startedAtMs: session.calculationSession.startedAtMs,
+        completedAtMs: session.calculationSession.completedAtMs,
+      },
+  audit: session.audit,
+  startedAtMs: session.startedAtMs,
+  updatedAtMs: session.updatedAtMs,
+});
+
+const createPistonOscillationGuideSessionAuthority = (
+  session: PistonOscillationGuideSession,
+) => ({
+  ...session,
+  dataProcessing: session.dataProcessing === null
+    ? null
+    : createPistonOscillationDataProcessingAuthority(session.dataProcessing),
+});
+
+const createPistonOscillationGuideDerivedCache = (
+  session: PistonOscillationGuideSession,
+) => ({
+  cacheVersion: PISTON_OSCILLATION_GUIDE_DERIVED_CACHE_VERSION,
+  dataProcessing: session.dataProcessing,
+});
+
 export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
   source: WorkbenchPersistenceV3FileProjection,
   canonical: WorkbenchPersistenceV3FileProjection,
 ) => {
+  if (
+    source.fileKind === 'heatCapacityPistonOscillation' &&
+    canonical.fileKind === 'heatCapacityPistonOscillation' &&
+    source.fileId === canonical.fileId
+  ) {
+    const sourceAuthority = source.fields.authoritative;
+    const canonicalAuthority = canonical.fields.authoritative;
+    const sourceProjectionVersion =
+      sourceAuthority.pistonGuideSessionProjectionVersion;
+    if (
+      (
+        sourceProjectionVersion !== undefined
+        && sourceProjectionVersion !== 1
+        && sourceProjectionVersion !== 2
+      ) ||
+      canonicalAuthority.pistonGuideSessionProjectionVersion !==
+        PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
+    ) return false;
+    try {
+      const migratedAuthority = canonicalClone(sourceAuthority);
+      migratedAuthority.pistonGuideSessionProjectionVersion =
+        PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
+      if (
+        migratedAuthority.lessonIntroAutoShown === undefined &&
+        canonicalAuthority.lessonIntroAutoShown === false
+      ) {
+        migratedAuthority.lessonIntroAutoShown = false;
+      }
+      migratedAuthority.guideSession = canonicalClone(
+        canonicalAuthority.guideSession,
+      );
+      return areCanonicalValuesEqual(migratedAuthority, canonicalAuthority);
+    } catch {
+      return false;
+    }
+  }
   if (
     source.fileKind !== 'heatCapacity' ||
     canonical.fileKind !== 'heatCapacity' ||
@@ -2049,6 +2202,7 @@ const projectPistonOscillationFile = (
 ): WorkbenchPersistenceV3DecodeResult<{
   projection: WorkbenchPersistenceV3FileProjection;
   repaired: boolean;
+  guideCacheRepaired: boolean;
 }> => {
   if (
     file.pistonOscillationSchemaVersion >
@@ -2089,6 +2243,21 @@ const projectPistonOscillationFile = (
     ...createCommonUiCheckpoint(file, fallback),
     previewCameraPreset,
   };
+  const guideSession = normalizePistonOscillationGuideSession(
+    file.pistonOscillationGuideSession,
+  );
+  const guideCacheRepaired = !areCanonicalValuesEqual(
+    guideSession,
+    file.pistonOscillationGuideSession,
+  );
+  const uiCheckpointRepaired = !areCanonicalValuesEqual(
+    {
+      visiblePanels: file.visiblePanels,
+      liveWorkspaceSplitRatio: file.liveWorkspaceSplitRatio,
+      previewCameraPreset: file.previewCameraPreset,
+    },
+    uiCheckpoint,
+  );
   return createWorkbenchPersistenceV3Success('exact', {
     projection: {
       projectionVersion: WORKBENCH_PERSISTENCE_V3_FILE_PROJECTION_VERSION,
@@ -2100,21 +2269,24 @@ const projectPistonOscillationFile = (
           metadata: createMetadata(file),
           pistonOscillationSchemaVersion:
             file.pistonOscillationSchemaVersion,
+          lessonIntroAutoShown: file.pistonOscillationLessonIntroAutoShown,
+          pistonGuideSessionProjectionVersion:
+            PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
+          guideSession: createPistonOscillationGuideSessionAuthority(
+            guideSession,
+          ),
         }),
         relation: canonicalClone(createCommonRelation(file)),
-        derived: {},
+        derived: canonicalClone({
+          pistonGuideDataProcessingCache:
+            createPistonOscillationGuideDerivedCache(guideSession),
+        }),
         quality: {},
         uiCheckpoint: canonicalClone(uiCheckpoint),
       },
     },
-    repaired: !areCanonicalValuesEqual(
-      {
-        visiblePanels: file.visiblePanels,
-        liveWorkspaceSplitRatio: file.liveWorkspaceSplitRatio,
-        previewCameraPreset: file.previewCameraPreset,
-      },
-      uiCheckpoint,
-    ),
+    repaired: guideCacheRepaired || uiCheckpointRepaired,
+    guideCacheRepaired,
   });
 };
 
@@ -2212,8 +2384,15 @@ export const projectWorkbenchPersistenceV3File = (
                 fileKind: file.kind,
                 phase: 'capture',
                 category: 'derived-cache',
-                code: 'persistence-v3-piston-ui-checkpoint-repaired',
-                message: 'Piston-oscillation UI checkpoint was repaired.',
+                code: result.value.guideCacheRepaired
+                  ? 'persistence-v3-piston-guide-cache-reprojected'
+                  : 'persistence-v3-piston-ui-checkpoint-repaired',
+                message: result.value.guideCacheRepaired
+                  ? 'Piston-oscillation derived processing values were rebuilt from recorded observations and endpoint sample indices.'
+                  : 'Piston-oscillation UI checkpoint was repaired.',
+                fieldPath: result.value.guideCacheRepaired
+                  ? 'fields.authoritative.guideSession.dataProcessing'
+                  : 'fields.uiCheckpoint',
               })]
             : [],
         );
@@ -2858,20 +3037,41 @@ const reprojectPistonOscillationFile = (
     )
       ? ui.previewCameraPreset as typeof fallback.previewCameraPreset
       : fallback.previewCameraPreset;
+  const guideSession = normalizePistonOscillationGuideSession(
+    projection.fields.authoritative.guideSession,
+  );
+  const migrated =
+    projection.fields.authoritative.pistonGuideSessionProjectionVersion !==
+      PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
+  const expectedDerivedCache = createPistonOscillationGuideDerivedCache(
+    guideSession,
+  );
+  const repaired = !migrated && !areCanonicalValuesEqual(
+    projection.fields.derived.pistonGuideDataProcessingCache,
+    expectedDerivedCache,
+  );
+  const lessonIntroAutoShown =
+    projection.fields.authoritative.lessonIntroAutoShown === true;
   return {
-    ...fallback,
-    id: projection.fileId,
-    ...metadata,
-    pistonOscillationSchemaVersion:
-      WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
-    visiblePanels: normalizeVisiblePanels(
-      ui.visiblePanels,
-      fallback.visiblePanels,
-    ),
-    liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
-      ui.liveWorkspaceSplitRatio,
-    ),
-    previewCameraPreset,
+    file: {
+      ...fallback,
+      id: projection.fileId,
+      ...metadata,
+      pistonOscillationSchemaVersion:
+        WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
+      visiblePanels: normalizeVisiblePanels(
+        ui.visiblePanels,
+        fallback.visiblePanels,
+      ),
+      liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(
+        ui.liveWorkspaceSplitRatio,
+      ),
+      previewCameraPreset,
+      pistonOscillationLessonIntroAutoShown: lessonIntroAutoShown,
+      pistonOscillationGuideSession: guideSession,
+    },
+    migrated,
+    repaired,
   };
 };
 
@@ -2968,8 +3168,46 @@ export const reprojectWorkbenchPersistenceV3File = (
               'fields.authoritative.pistonOscillationSchemaVersion',
           });
         }
-        const file = reprojectPistonOscillationFile(projection, index);
-        return file === null
+        const guideProjectionVersion = projection.fields.authoritative
+          .pistonGuideSessionProjectionVersion;
+        if (
+          Number.isInteger(guideProjectionVersion) &&
+          (guideProjectionVersion as number) >
+            PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
+        ) {
+          return projectionFailure('unsupported-future', projection, {
+            fileId: projection.fileId,
+            fileKind: projection.fileKind,
+            phase: 'restore',
+            category: 'unsupported-future',
+            code: 'persistence-v3-piston-guide-authority-version-future',
+            message:
+              'The piston-oscillation guide authority requires a newer application.',
+            fieldPath:
+              'fields.authoritative.pistonGuideSessionProjectionVersion',
+          });
+        }
+        if (
+          guideProjectionVersion !== undefined &&
+          guideProjectionVersion !== 1 &&
+          guideProjectionVersion !== 2 &&
+          guideProjectionVersion !==
+            PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
+        ) {
+          return projectionFailure('quarantined', projection, {
+            fileId: projection.fileId,
+            fileKind: projection.fileKind,
+            phase: 'restore',
+            category: 'schema-version',
+            code: 'persistence-v3-piston-guide-authority-version-invalid',
+            message:
+              'The piston-oscillation guide authority version is invalid.',
+            fieldPath:
+              'fields.authoritative.pistonGuideSessionProjectionVersion',
+          });
+        }
+        const result = reprojectPistonOscillationFile(projection, index);
+        return result === null
           ? projectionFailure('quarantined', projection, {
               fileId: projection.fileId,
               fileKind: projection.fileKind,
@@ -2978,7 +3216,27 @@ export const reprojectWorkbenchPersistenceV3File = (
               code: 'persistence-v3-piston-reproject-failed',
               message: 'Piston-oscillation projection cannot be restored.',
             })
-          : createWorkbenchPersistenceV3Success('exact', file);
+          : createWorkbenchPersistenceV3Success(
+              result.migrated
+                ? 'migrated'
+                : result.repaired
+                  ? 'repaired-cache'
+                  : 'exact',
+              result.file,
+              result.repaired
+                ? [createFileDiagnostic({
+                    fileId: projection.fileId,
+                    fileKind: projection.fileKind,
+                    phase: 'restore',
+                    category: 'derived-cache',
+                    code: 'persistence-v3-piston-guide-cache-repaired',
+                    message:
+                      'Piston-oscillation derived processing values were rebuilt from recorded observations and endpoint sample indices.',
+                    fieldPath:
+                      'fields.derived.pistonGuideDataProcessingCache',
+                  })]
+                : [],
+            );
       }
       default:
         return assertNeverWorkbenchFileKind(projection.fileKind);

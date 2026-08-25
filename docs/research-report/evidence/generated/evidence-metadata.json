@@ -423,8 +423,8 @@
     },
     {
       "path": "src/features/workbench/workbenchState.ts",
-      "sha256": "ea7f01c43a352219a9d0a44cabccc7071fc36d444bcc3a72125f4218cc7232d3",
-      "bytes": 277544
+      "sha256": "929b494c84397d3625313754e955baf52042dd4adaf451593beb6423f02c1eca",
+      "bytes": 280107
     }
   ],
   "generatedFiles": [

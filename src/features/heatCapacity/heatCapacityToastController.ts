@@ -1,4 +1,12 @@
 import { PROMPT_TOAST_DURATION_MS } from '../../components/prompts/promptFeedbackPolicy.ts';
+import {
+  createPromptViewportFeedbackMessage,
+  resolvePromptViewportFeedbackAdvance,
+  resolvePromptViewportFeedbackClear,
+  resolvePromptViewportFeedbackShow,
+  type PromptViewportFeedbackMessage,
+  type PromptViewportFeedbackQueueState,
+} from '../../components/prompts/promptViewportFeedbackController.ts';
 
 export type HeatCapacityToastLevel = 'info' | 'success' | 'warning' | 'danger';
 
@@ -9,14 +17,13 @@ export type HeatCapacityToastSource =
   | 'pressure-close-valve'
   | 'pressure-alarm';
 
-export interface HeatCapacityToastMessage {
-  id: string;
-  text: string;
+export type HeatCapacityToastMessage = Omit<
+  PromptViewportFeedbackMessage<HeatCapacityToastSource>,
+  'kind'
+> & {
+  kind: HeatCapacityToastLevel;
   level: HeatCapacityToastLevel;
-  priority: number;
-  source: HeatCapacityToastSource;
-  createdAt: number;
-}
+};
 
 export interface HeatCapacityToastQueueState {
   current: HeatCapacityToastMessage | null;
@@ -64,14 +71,16 @@ export const createHeatCapacityToastMessage = (
   level: HeatCapacityToastLevel = 'info',
   options: HeatCapacityToastCreateOptions = {},
 ): HeatCapacityToastMessage => {
-  const now = options.now ?? Date.now();
-  return {
-    id: options.id ?? `${now}-${Math.random().toString(36).slice(2)}`,
-    text,
-    level,
+  const message = createPromptViewportFeedbackMessage(text, level, {
+    id: options.id,
+    now: options.now,
     priority: options.priority ?? HEAT_CAPACITY_TOAST_PRIORITY[level],
     source: options.source ?? 'guide',
-    createdAt: now,
+    durationMs: HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
+  });
+  return {
+    ...message,
+    level,
   };
 };
 
@@ -102,62 +111,21 @@ export const resolveHeatCapacityToastShow = (
   const { current, pending, pressureAlertActive } = state;
   if (!isHeatCapacityPressureToast(nextMessage) && pressureAlertActive) return unchangedToastQueue(state);
   if (isHeatCapacityPressureToast(current) && !isHeatCapacityPressureToast(nextMessage)) return unchangedToastQueue(state);
-
-  if (options.interrupt) {
-    if (current && current.priority > nextMessage.priority) return unchangedToastQueue(state);
-    return {
-      current: nextMessage,
-      pending: null,
-      changed: true,
-      shouldRestartTimer: true,
-    };
-  }
-
-  if (!current) {
-    return {
-      current: nextMessage,
-      pending,
-      changed: true,
-      shouldRestartTimer: true,
-    };
-  }
-
-  if (nextMessage.priority < current.priority) return unchangedToastQueue(state);
   if (isHeatCapacityPressureToast(pending) && !isHeatCapacityPressureToast(nextMessage)) {
     return unchangedToastQueue(state);
   }
-  if (!pending || nextMessage.priority >= pending.priority) {
-    return {
-      current,
-      pending: nextMessage,
-      changed: true,
-      shouldRestartTimer: false,
-    };
-  }
-
-  return unchangedToastQueue(state);
+  return resolvePromptViewportFeedbackShow(
+    { current, pending } satisfies PromptViewportFeedbackQueueState<HeatCapacityToastMessage>,
+    nextMessage,
+    options,
+  );
 };
 
 export const resolveHeatCapacityToastAdvance = (
   state: HeatCapacityToastQueueState,
   now: number,
 ): HeatCapacityToastAdvanceUpdate => {
-  if (!state.pending) {
-    return {
-      current: null,
-      pending: null,
-      shouldContinueTimer: false,
-    };
-  }
-
-  return {
-    current: {
-      ...state.pending,
-      createdAt: now,
-    },
-    pending: null,
-    shouldContinueTimer: true,
-  };
+  return resolvePromptViewportFeedbackAdvance(state, now);
 };
 
 export const resolveHeatCapacityToastClear = (
@@ -165,30 +133,5 @@ export const resolveHeatCapacityToastClear = (
   predicate: (message: HeatCapacityToastMessage | null) => boolean,
   now: number,
 ): HeatCapacityToastQueueUpdate => {
-  const clearCurrent = predicate(state.current);
-  const clearPending = predicate(state.pending);
-  if (!clearCurrent && !clearPending) return unchangedToastQueue(state);
-
-  if (!clearCurrent) {
-    return {
-      current: state.current,
-      pending: null,
-      changed: true,
-      shouldRestartTimer: false,
-    };
-  }
-
-  const nextCurrent = clearPending || !state.pending
-    ? null
-    : {
-        ...state.pending,
-        createdAt: now,
-      };
-
-  return {
-    current: nextCurrent,
-    pending: null,
-    changed: true,
-    shouldRestartTimer: Boolean(nextCurrent),
-  };
+  return resolvePromptViewportFeedbackClear(state, predicate, now);
 };

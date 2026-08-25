@@ -16,6 +16,13 @@ const styleSource = readFileSync(join(
   'heatCapacity',
   'HeatCapacityCalculationWindow.css',
 ), 'utf8');
+const sharedKnownGridSource = readFileSync(join(
+  process.cwd(),
+  'src',
+  'components',
+  'calculation',
+  'CalculationKnownGrid.tsx',
+), 'utf8');
 const shellSource = readFileSync(join(
   process.cwd(),
   'src',
@@ -77,8 +84,13 @@ assert.match(
 assert.match(styleSource, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/, 'known values should use four equal strips');
 assert.match(
   componentSource,
-  /const placeholderCount = 4 - row\.length[\s\S]*studio-heat-calculation-known-placeholder/,
-  'a short known-value row should be padded on the left and therefore right-aligned',
+  /<CalculationKnownGrid[\s\S]*shortRowAlignment="end"[\s\S]*placeholder:\s*'studio-heat-calculation-known-placeholder'/,
+  'the heat-capacity adapter should retain right-aligned short rows through the shared known-value grid',
+);
+assert.match(
+  sharedKnownGridSource,
+  /const placeholderCount = Math\.max\(0, columns - row\.length\)[\s\S]*shortRowAlignment === 'end' \? placeholders/,
+  'the shared known-value grid should own short-row padding behavior',
 );
 assert.match(
   guideKnownDataSource,
@@ -91,6 +103,16 @@ assert.match(
   'numeric cells should share the longest calculated width and center their values',
 );
 assert.match(styleSource, /\.studio-heat-calculation-known-label[\s\S]*justify-content:\s*flex-start/, 'variable labels should be left-aligned');
+assert.match(
+  styleSource,
+  /\.studio-heat-calculation-step-active\s*\{[\s\S]*background:\s*color-mix[\s\S]*0 0 0 1px/,
+  'active heat-capacity calculation steps should use the shared symmetric emphasis treatment',
+);
+assert.doesNotMatch(
+  styleSource,
+  /\.studio-heat-calculation-step-active\s*\{[^}]*inset\s+3px\s+0\s+0/,
+  'active heat-capacity calculation steps must not use a heavy left rail',
+);
 
 assert.match(
   componentSource,

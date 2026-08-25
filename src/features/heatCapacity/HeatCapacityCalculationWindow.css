@@ -201,9 +201,10 @@
 
 .studio-heat-calculation-step-active {
   border-color: var(--studio-accent-border);
+  background: color-mix(in srgb, var(--studio-accent-softer) 74%, var(--studio-surface));
   box-shadow:
-    inset 3px 0 0 var(--studio-accent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.035);
+    0 0 0 1px color-mix(in srgb, var(--studio-accent) 14%, transparent),
+    0 5px 12px color-mix(in srgb, var(--studio-accent) 7%, transparent);
 }
 
 .studio-heat-calculation-step-header {

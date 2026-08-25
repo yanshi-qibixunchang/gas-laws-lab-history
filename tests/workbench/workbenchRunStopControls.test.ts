@@ -66,8 +66,8 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'heatCapacity'[\s\S]*?\? renderHeatCapacityModeControl\(\)[\s\S]*?activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*?\? null[\s\S]*?: \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
-  'heat capacity should use the unified mode bar, piston preview should expose no runtime controls, and standard or ideal previews should keep the compact run/pause button',
+  /activeFile\.kind === 'heatCapacity'[\s\S]*?\? renderHeatCapacityModeControl\(\)[\s\S]*?activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*?\? renderPistonOscillationModeControl\(\)[\s\S]*?: \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
+  'heat capacity and piston experiments should use their mode bars while standard or ideal previews keep the compact run/pause button',
 );
 
 assert.match(

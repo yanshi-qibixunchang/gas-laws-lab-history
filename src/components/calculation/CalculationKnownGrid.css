@@ -1,0 +1,67 @@
+.calculation-known-grid {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.calculation-known-row {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: repeat(var(--calculation-known-columns, 4), minmax(0, 1fr));
+  gap: 6px;
+}
+
+.calculation-known-placeholder {
+  visibility: hidden;
+}
+
+.calculation-known-item {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) minmax(var(--calculation-known-value-width, 8ch), auto);
+  overflow: hidden;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 4px;
+  background: var(--studio-surface-2);
+}
+
+.calculation-known-label,
+.calculation-known-value {
+  display: flex;
+  min-width: 0;
+  min-height: 27px;
+  align-items: center;
+  padding: 0 8px;
+  font-size: 11px;
+}
+
+.calculation-known-label {
+  justify-content: flex-start;
+  overflow: hidden;
+  color: var(--studio-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calculation-known-value {
+  justify-content: center;
+  border-left: 1px solid var(--studio-border);
+  color: var(--studio-text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.calculation-known-value-pending {
+  background:
+    linear-gradient(
+      135deg,
+      transparent 0,
+      transparent 45%,
+      var(--studio-border-soft) 45%,
+      var(--studio-border-soft) 55%,
+      transparent 55%,
+      transparent 100%
+    );
+  background-size: 8px 8px;
+  opacity: 0.54;
+}

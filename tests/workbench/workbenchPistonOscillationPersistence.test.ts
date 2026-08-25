@@ -44,6 +44,8 @@ for (const cameraPreset of WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS) {
     experimentKind: 'heatCapacityPistonOscillation',
     pistonOscillationSchemaVersion: 1,
     preview: { cameraPreset },
+    lessonIntroAutoShown: false,
+    guideSession: file.pistonOscillationGuideSession,
   });
   assert.equal('modelVersion' in payload, false);
   assert.equal('glbPath' in payload, false);
@@ -51,11 +53,19 @@ for (const cameraPreset of WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS) {
 }
 
 const validPayload = createPistonOscillationPersistencePayload(baseFile, 40);
+const preLessonPayload = {
+  experimentKind: 'heatCapacityPistonOscillation',
+  pistonOscillationSchemaVersion: 1,
+  preview: { cameraPreset: 'overview' },
+};
+assert.equal(validatePistonOscillationPersistencePayload(preLessonPayload).valid, true);
 [
   { ...validPayload, experimentKind: 'heatCapacity' },
   { ...validPayload, pistonOscillationSchemaVersion: 2 },
   { ...validPayload, preview: {} },
   { ...validPayload, preview: { cameraPreset: 'rear' } },
+  { ...validPayload, lessonIntroAutoShown: 'yes' },
+  { ...validPayload, guideSession: 'invalid' },
   { ...validPayload, unknown: true },
   { ...validPayload, preview: { cameraPreset: 'overview', unknown: true } },
 ].forEach((payload) => {
@@ -88,7 +98,19 @@ assert.equal(restored.updatedAt, 20);
 assert.equal(restored.lastOpenedAt, 30);
 assert.equal(restored.liveWorkspaceSplitRatio, 0.63);
 assert.equal(restored.previewCameraPreset, 'overview');
+assert.equal(restored.pistonOscillationLessonIntroAutoShown, false);
+assert.deepEqual(
+  restored.pistonOscillationGuideSession,
+  baseFile.pistonOscillationGuideSession,
+);
 assert.equal(restored.runState, 'idle');
+assert.equal(
+  restorePistonOscillationFileFromPersistencePayload(
+    fileEnvelope,
+    preLessonPayload,
+  ).pistonOscillationLessonIntroAutoShown,
+  false,
+);
 
 const normalizedRuntime = normalizePistonOscillationRuntimeState({
   ...baseFile,

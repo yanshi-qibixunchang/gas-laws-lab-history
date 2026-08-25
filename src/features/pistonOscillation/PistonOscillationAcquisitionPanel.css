@@ -1,0 +1,621 @@
+.piston-acquisition-panel {
+  --piston-acquisition-panel-border: var(--studio-border, #3a4652);
+  --piston-acquisition-panel-bg: var(--studio-surface-2, #262d35);
+  --piston-acquisition-surface: var(--studio-surface, #20262d);
+  --piston-acquisition-surface-soft: #18232d;
+  --piston-acquisition-border: var(--studio-border-soft, #303943);
+  --piston-acquisition-border-strong: #526778;
+  --piston-acquisition-text: var(--studio-text, #e1e6ec);
+  --piston-acquisition-muted: var(--studio-muted, #a8b2bd);
+  --piston-acquisition-subtle: var(--studio-subtle, #7f8b98);
+  --piston-acquisition-data: #8fc9ed;
+  --piston-acquisition-axis: #91a7b6;
+  --piston-acquisition-axis-label: #c5d4df;
+  --piston-acquisition-grid: #344654;
+  --piston-acquisition-curve: #4aa9df;
+  --piston-acquisition-trigger: #e6aa50;
+  --piston-acquisition-trigger-text: #f1c177;
+  --piston-acquisition-empty: #8496a3;
+  --piston-acquisition-success: #6dc18a;
+  --piston-acquisition-action-bg: rgba(24, 35, 45, 0.94);
+  --piston-acquisition-action-text: #a8b8c4;
+  --piston-acquisition-action-primary: #77b8e3;
+  --piston-acquisition-action-hover: #a7d6f2;
+  --piston-acquisition-action-active-bg: rgba(77, 163, 236, 0.18);
+  --piston-acquisition-input-invalid-bg: #3a2427;
+  --piston-acquisition-phase-bg: #1d2933;
+  --piston-acquisition-phase-border: #617382;
+  --piston-acquisition-phase-text: #b5c3ce;
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto auto auto minmax(220px, 1fr) auto;
+  gap: 10px;
+  overflow: hidden;
+  border: 1px solid var(--piston-acquisition-panel-border);
+  background: var(--piston-acquisition-panel-bg);
+  padding: 14px;
+  isolation: isolate;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    color 180ms ease;
+}
+
+.studio-theme-light .piston-acquisition-panel {
+  --piston-acquisition-panel-border: #8e9eaa;
+  --piston-acquisition-panel-bg: #f4f7f9;
+  --piston-acquisition-surface: #ffffff;
+  --piston-acquisition-surface-soft: #fbfcfd;
+  --piston-acquisition-border: #ccd5db;
+  --piston-acquisition-border-strong: #9dafbb;
+  --piston-acquisition-text: #263f52;
+  --piston-acquisition-muted: #6d7e8a;
+  --piston-acquisition-subtle: #71828e;
+  --piston-acquisition-data: #1f516f;
+  --piston-acquisition-axis: #71838f;
+  --piston-acquisition-axis-label: #4e6270;
+  --piston-acquisition-grid: #e1e7eb;
+  --piston-acquisition-curve: #167ab4;
+  --piston-acquisition-trigger: #d49338;
+  --piston-acquisition-trigger-text: #a36c20;
+  --piston-acquisition-empty: #94a2ac;
+  --piston-acquisition-success: #39734e;
+  --piston-acquisition-action-bg: rgba(255, 255, 255, 0.94);
+  --piston-acquisition-action-text: #60717d;
+  --piston-acquisition-action-primary: #28628f;
+  --piston-acquisition-action-hover: #174f79;
+  --piston-acquisition-action-active-bg: rgba(40, 98, 143, 0.14);
+  --piston-acquisition-input-invalid-bg: #fff5f4;
+  --piston-acquisition-phase-bg: #ffffff;
+  --piston-acquisition-phase-border: #9aaab5;
+  --piston-acquisition-phase-text: #60717d;
+}
+
+.piston-acquisition-panel-heading,
+.piston-acquisition-live-readout,
+.piston-acquisition-note {
+  display: flex;
+  align-items: center;
+}
+
+.piston-acquisition-panel-heading {
+  min-height: 36px;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.piston-acquisition-run-summary {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+}
+
+.piston-acquisition-settings span,
+.piston-acquisition-live-readout span {
+  color: var(--piston-acquisition-muted);
+  font-size: 10px;
+}
+
+.piston-acquisition-run-summary > span:first-child {
+  color: var(--piston-acquisition-text);
+  font-family: inherit;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.piston-acquisition-title {
+  color: var(--piston-acquisition-text);
+  font-size: 14px;
+}
+
+.piston-acquisition-phase {
+  border: 1px solid var(--piston-acquisition-phase-border);
+  border-radius: 999px;
+  background: var(--piston-acquisition-phase-bg);
+  color: var(--piston-acquisition-phase-text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.2;
+  padding: 3px 9px;
+}
+
+.studio-params-collapsed
+  .studio-realtime-panel-piston-oscillation
+  .piston-acquisition-run-summary {
+  margin-inline-end: 12px;
+}
+
+.piston-acquisition-phase.is-armed {
+  border-color: color-mix(in srgb, var(--studio-warning, #c09a57) 72%, transparent);
+  background: var(--studio-warning-soft, rgba(192, 154, 87, 0.16));
+  color: var(--studio-warning, #c09a57);
+}
+
+.piston-acquisition-phase.is-recording {
+  border-color: var(--studio-accent-border, rgba(107, 149, 189, 0.48));
+  background: var(--studio-accent-soft, rgba(76, 120, 161, 0.2));
+  color: var(--piston-acquisition-action-primary);
+}
+
+.piston-acquisition-phase.is-stopped {
+  border-color: color-mix(in srgb, var(--studio-success, #61a87a) 72%, transparent);
+  background: var(--studio-success-soft, rgba(97, 168, 122, 0.16));
+  color: var(--piston-acquisition-success);
+}
+
+.studio-theme-light .piston-acquisition-phase.is-armed {
+  border-color: #d29a3a;
+  background: #fff8e8;
+  color: #91621e;
+}
+
+.studio-theme-light .piston-acquisition-phase.is-recording {
+  border-color: #2f82b9;
+  background: #eaf6fd;
+  color: #1e6898;
+}
+
+.studio-theme-light .piston-acquisition-phase.is-stopped {
+  border-color: #52906a;
+  background: #edf8f0;
+  color: #39734e;
+}
+
+.piston-acquisition-settings {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.piston-acquisition-settings label {
+  display: flex;
+  min-width: 0;
+  min-height: 34px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--piston-acquisition-border);
+  background: var(--piston-acquisition-surface);
+  padding: 5px 8px;
+}
+
+.piston-acquisition-settings label > div {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 6px;
+}
+
+.piston-acquisition-settings input {
+  width: 78px;
+  height: 26px;
+  border: 1px solid var(--piston-acquisition-border-strong);
+  border-radius: 3px;
+  background: var(--piston-acquisition-surface-soft);
+  color: var(--piston-acquisition-text);
+  font: 700 12px/1 var(--app-font-ui, "Noto Sans SC", sans-serif);
+  padding: 0 7px;
+}
+
+.piston-acquisition-settings.is-demo-highlighted {
+  position: relative;
+  z-index: 3;
+}
+
+.piston-acquisition-settings.is-demo-highlighted::after {
+  position: absolute;
+  inset: -4px;
+  border: 3px solid #2b8ec8;
+  content: '';
+  pointer-events: none;
+  animation: piston-demo-focus-breathe 1.724s ease-in-out infinite;
+}
+
+.piston-acquisition-settings.is-demo-highlighted input {
+  border-color: #087bc1;
+  background: var(--piston-acquisition-surface);
+  box-shadow: inset 0 0 0 1px rgba(8, 123, 193, 0.28);
+}
+
+.piston-acquisition-settings.is-guide-highlighted {
+  position: relative;
+  z-index: 5;
+}
+
+.piston-acquisition-settings.is-guide-highlighted::after {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid rgba(22, 163, 74, 0.34);
+  content: '';
+  pointer-events: none;
+  animation: studio-heat-guide-record-pulse-light 1.1s ease-in-out infinite;
+}
+
+.piston-acquisition-settings input[aria-invalid='true'] {
+  border-color: #c2413b;
+  background: var(--piston-acquisition-input-invalid-bg);
+  box-shadow: inset 0 0 0 1px rgba(194, 65, 59, 0.2);
+}
+
+.piston-guide-parameter-feedback {
+  position: absolute;
+  z-index: 12;
+  right: 18px;
+  bottom: 18px;
+  display: grid;
+  width: min(420px, calc(100% - 36px));
+  gap: 3px;
+  border: 1px solid var(--prompt-warning-border, rgba(192, 154, 87, 0.5));
+  border-radius: var(--prompt-radius-window, 4px);
+  background: color-mix(
+    in srgb,
+    var(--prompt-warning, #c09a57) 7%,
+    var(--prompt-feedback-surface, #303943)
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--prompt-warning, #c09a57) 9%, transparent),
+    var(--prompt-feedback-shadow, 0 12px 26px rgba(15, 23, 42, 0.3));
+  color: var(--prompt-text, #eef4f8);
+  padding: 9px 14px 10px;
+  pointer-events: none;
+  animation: pistonGuideParameterFeedbackIn 180ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.piston-guide-parameter-feedback strong {
+  overflow-wrap: anywhere;
+  color: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+@keyframes pistonGuideParameterFeedbackIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.piston-acquisition-settings small {
+  color: var(--piston-acquisition-subtle);
+  font-size: 9px;
+  font-style: normal;
+}
+
+.piston-acquisition-live-readout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  overflow: hidden;
+  border: 1px solid var(--piston-acquisition-border);
+  background: var(--piston-acquisition-border);
+}
+
+.piston-acquisition-live-readout > div {
+  display: grid;
+  gap: 2px;
+  background: var(--piston-acquisition-surface);
+  padding: 6px 9px;
+}
+
+.piston-acquisition-live-readout strong {
+  color: var(--piston-acquisition-data);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+}
+
+.piston-acquisition-live-readout strong small {
+  color: var(--piston-acquisition-muted);
+  font-size: 9px;
+}
+
+.piston-acquisition-chart-wrap {
+  position: relative;
+  display: grid;
+  min-height: 0;
+  grid-template-rows: minmax(0, 1fr) 36px;
+  overflow: hidden;
+  border: 1px solid var(--piston-acquisition-border);
+  background: var(--piston-acquisition-surface);
+}
+
+.piston-acquisition-chart-wrap svg {
+  display: block;
+  grid-row: 1;
+  width: 100%;
+  height: 100%;
+}
+
+.piston-acquisition-chart-bg {
+  fill: var(--piston-acquisition-surface-soft);
+}
+
+.piston-acquisition-grid-line {
+  stroke: var(--piston-acquisition-grid);
+  stroke-width: 1;
+}
+
+.piston-acquisition-chart-wrap text {
+  fill: var(--piston-acquisition-muted);
+  font-size: 10px;
+}
+
+.piston-acquisition-axis {
+  stroke: var(--piston-acquisition-axis);
+  stroke-width: 1.2;
+}
+
+.piston-acquisition-axis-label {
+  fill: var(--piston-acquisition-axis-label) !important;
+  font-weight: 650;
+}
+
+.piston-acquisition-trigger-line {
+  stroke: var(--piston-acquisition-trigger);
+  stroke-dasharray: 6 5;
+  stroke-width: 1.5;
+}
+
+.piston-acquisition-trigger-label {
+  fill: var(--piston-acquisition-trigger-text) !important;
+  font-weight: 700;
+}
+
+.piston-acquisition-pressure-path {
+  fill: none;
+  stroke: var(--piston-acquisition-curve);
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  stroke-width: 1.6;
+}
+
+.piston-acquisition-pressure-sample-markers {
+  fill: var(--piston-acquisition-curve);
+  stroke: var(--piston-acquisition-curve);
+  stroke-width: 0.75;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.piston-acquisition-empty-label {
+  fill: var(--piston-acquisition-empty) !important;
+  font-size: 12px !important;
+}
+
+.piston-acquisition-note {
+  min-height: 24px;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--piston-acquisition-muted);
+  font-size: 9px;
+}
+
+.piston-acquisition-note strong {
+  color: var(--piston-acquisition-success);
+}
+
+.piston-acquisition-actions {
+  position: absolute;
+  bottom: 4px;
+  left: 8px;
+  z-index: 2;
+  display: grid;
+  width: 84px;
+  height: 28px;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--piston-acquisition-border-strong);
+  border-radius: 0;
+  background: var(--piston-acquisition-action-bg);
+}
+
+.piston-acquisition-actions button {
+  display: inline-flex;
+  min-width: 0;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--piston-acquisition-action-text);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.piston-acquisition-actions button:not(:disabled):active {
+  background: var(--piston-acquisition-action-active-bg);
+}
+
+.piston-acquisition-action-feedback {
+  display: inline-grid;
+  align-items: center;
+  justify-items: center;
+  line-height: 0;
+  transform: scale(1);
+  transform-origin: center;
+  transition: transform 240ms cubic-bezier(0.18, 1.65, 0.35, 1);
+  will-change: transform;
+}
+
+.piston-acquisition-actions button:not(:disabled):active .piston-acquisition-action-feedback {
+  transform: scale(0.72);
+  transition: none;
+}
+
+.piston-acquisition-actions button.is-primary {
+  color: var(--piston-acquisition-action-primary);
+}
+
+.piston-acquisition-actions button:hover:not(:disabled),
+.piston-acquisition-actions button:focus-visible {
+  color: var(--piston-acquisition-action-hover);
+}
+
+.piston-acquisition-actions button:focus-visible {
+  outline: 1px solid #2f82b9;
+  outline-offset: -2px;
+}
+
+.piston-acquisition-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.piston-acquisition-actions button.is-demo-pressed {
+  background: #dcecf7;
+  color: #174f79;
+  animation: piston-acquisition-demo-press 480ms ease-in-out infinite alternate;
+}
+
+.piston-acquisition-actions button.is-demo-highlighted {
+  position: relative;
+  z-index: 3;
+  background: #d7efff;
+  color: #075985;
+  animation: piston-demo-control-breathe 1.724s ease-in-out infinite;
+}
+
+.piston-acquisition-actions button.is-guide-highlighted {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
+  overflow: hidden;
+  background: #117db8;
+  color: #fff;
+  opacity: 1;
+  animation: piston-acquisition-guide-fill-pulse 1.1s ease-in-out infinite;
+}
+
+.piston-acquisition-actions button.is-guide-highlighted::after {
+  position: absolute;
+  inset: 2px;
+  z-index: 0;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  content: '';
+  pointer-events: none;
+  animation: piston-acquisition-guide-outline-pulse 1.1s ease-in-out infinite;
+}
+
+.piston-acquisition-actions button.is-guide-highlighted > .piston-acquisition-action-feedback {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes piston-demo-focus-breathe {
+  0%, 100% {
+    border-color: #2b8ec8;
+    box-shadow:
+      0 0 0 2px rgba(8, 123, 193, 0.24),
+      0 0 12px rgba(8, 123, 193, 0.26);
+    transform: scale(1);
+  }
+  50% {
+    border-color: #006eae;
+    box-shadow:
+      0 0 0 5px rgba(8, 123, 193, 0.42),
+      0 0 28px rgba(8, 123, 193, 0.54);
+    transform: scale(1.018);
+  }
+}
+
+@keyframes piston-demo-control-breathe {
+  0%, 100% {
+    background: #d7efff;
+    box-shadow: inset 0 0 0 2px #268aca;
+    transform: scale(1);
+  }
+  50% {
+    background: #9edcff;
+    box-shadow:
+      inset 0 0 0 2px #006eae,
+      0 0 16px rgba(0, 110, 174, 0.68);
+    transform: scale(1.1);
+  }
+}
+
+@keyframes piston-acquisition-demo-press {
+  from { transform: scale(1); }
+  to { transform: scale(0.88); }
+}
+
+@keyframes piston-acquisition-guide-fill-pulse {
+  0%, 100% {
+    background: #117db8;
+    color: #fff;
+  }
+  50% {
+    background: #249bd3;
+    color: #fff;
+  }
+}
+
+@keyframes piston-acquisition-guide-outline-pulse {
+  0%, 100% {
+    inset: 3px;
+    border-color: rgba(255, 255, 255, 0.72);
+    opacity: 0.78;
+  }
+  50% {
+    inset: 0;
+    border-color: #fff;
+    opacity: 1;
+  }
+}
+
+.studio-realtime-panel-piston-oscillation .piston-acquisition-panel {
+  width: 100%;
+  height: 100%;
+  grid-template-rows: auto auto auto minmax(150px, 1fr) auto;
+  gap: 8px;
+  border: 0;
+  padding: 12px;
+}
+
+@media (max-width: 1120px) {
+  .piston-focus-interaction-preview-page.is-acquisition-preview
+    .piston-focus-interaction-preview-workspace {
+    grid-template-columns: minmax(0, 1fr) minmax(350px, 0.9fr);
+  }
+
+  .piston-acquisition-settings {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piston-acquisition-actions button {
+    transition: color 80ms ease, background-color 80ms ease, opacity 80ms ease;
+  }
+
+  .piston-acquisition-actions button:not(:disabled):active {
+    opacity: 0.72;
+  }
+
+  .piston-acquisition-action-feedback,
+  .piston-acquisition-actions button:not(:disabled):active .piston-acquisition-action-feedback {
+    transform: none;
+    transition: none;
+    will-change: auto;
+  }
+
+  .piston-acquisition-actions button.is-guide-highlighted {
+    background: #117db8;
+    color: #fff;
+    opacity: 1;
+    animation: none;
+  }
+
+  .piston-acquisition-actions button.is-guide-highlighted::after {
+    inset: 1px;
+    border-color: #fff;
+    opacity: 1;
+    animation: none;
+  }
+}

@@ -5,11 +5,16 @@ import {
 } from '../../src/features/pistonOscillation/pistonOscillationModelHitTargets.ts';
 
 assert.deepEqual(Object.keys(PISTON_MODEL_HIT_TARGETS), [
-  'pistonPressPlatform',
+  'pistonPlatform',
+  'pistonCylinderFocusEntry',
+  'pistonFrameFocusEntry',
+  'pistonLockingScrewFocusEntry',
   'pistonLockingScrew',
   'connectedHoseConnector',
+  'connectedHoseHandle',
   'connectedHoseBody',
   'detachedHoseConnector',
+  'detachedHoseHandle',
   'detachedHoseBody',
 ]);
 
@@ -17,12 +22,20 @@ const objectNames = Object.values(PISTON_MODEL_HIT_TARGETS).map(({ objectName })
 assert.equal(new Set(objectNames).size, objectNames.length, 'hit target object names must be unique');
 
 assert.equal(
-  PISTON_MODEL_HIT_TARGETS.pistonPressPlatform.sourceObjectName,
+  PISTON_MODEL_HIT_TARGETS.pistonPlatform.sourceObjectName,
   'MassPlatform',
 );
 assert.equal(
   PISTON_MODEL_HIT_TARGETS.pistonLockingScrew.sourceObjectName,
-  'PistonLockingScrew_KnurledKnob_Preview',
+  'PistonLockingScrew_KnurledKnob',
+);
+assert.equal(
+  PISTON_MODEL_HIT_TARGETS.pistonCylinderFocusEntry.sourceObjectName,
+  'Cylinder_Pyrex',
+);
+assert.equal(
+  PISTON_MODEL_HIT_TARGETS.pistonFrameFocusEntry.sourceObjectName,
+  'ProtectiveFrame',
 );
 assert.equal(
   PISTON_MODEL_HIT_TARGETS.connectedHoseConnector.semanticRole,
@@ -31,6 +44,14 @@ assert.equal(
 assert.equal(
   PISTON_MODEL_HIT_TARGETS.detachedHoseConnector.semanticRole,
   'reconnect_hose',
+);
+assert.equal(
+  PISTON_MODEL_HIT_TARGETS.connectedHoseHandle.semanticRole,
+  PISTON_MODEL_HIT_TARGETS.connectedHoseConnector.semanticRole,
+);
+assert.equal(
+  PISTON_MODEL_HIT_TARGETS.detachedHoseHandle.semanticRole,
+  PISTON_MODEL_HIT_TARGETS.detachedHoseConnector.semanticRole,
 );
 assert.equal(
   PISTON_MODEL_HIT_TARGETS.connectedHoseBody.semanticRole,
@@ -45,8 +66,8 @@ for (const key of Object.keys(PISTON_MODEL_HIT_TARGETS) as Array<keyof typeof PI
   assert.deepEqual(createPistonModelHitTargetMetadata(key), {
     hitTargetId: PISTON_MODEL_HIT_TARGETS[key].id,
     semanticRole: PISTON_MODEL_HIT_TARGETS[key].semanticRole,
-    focusPolicy: 'deferred',
-    interactionEnabled: false,
+    focusPolicy: PISTON_MODEL_HIT_TARGETS[key].focusPolicy,
+    interactionEnabled: true,
   });
 }
 

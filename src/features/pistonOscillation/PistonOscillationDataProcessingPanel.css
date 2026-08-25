@@ -1,0 +1,1046 @@
+.piston-processing-panel {
+  --piston-processing-bg: #111922;
+  --piston-processing-surface: #18232f;
+  --piston-processing-surface-soft: #1d2b39;
+  --piston-processing-border: rgba(148, 184, 220, 0.22);
+  --piston-processing-border-strong: rgba(125, 211, 252, 0.68);
+  --piston-processing-text: #edf5fc;
+  --piston-processing-muted: #a9bccd;
+  --piston-processing-accent: #4da3ec;
+  --piston-processing-accent-strong: #2278c9;
+  --piston-processing-accent-soft: rgba(77, 163, 236, 0.16);
+  --piston-processing-selection: rgba(37, 99, 235, 0.2);
+  --piston-processing-selection-outside: rgba(6, 17, 29, 0.24);
+  --piston-processing-ring: #86c8f4;
+  --piston-processing-callout-bg: #dbeefe;
+  --piston-processing-callout-border: #1d6fb8;
+  --piston-processing-callout-text: #0d365a;
+  --piston-processing-success: #4fd1a3;
+  --piston-processing-success-soft: rgba(30, 166, 120, 0.14);
+  --piston-processing-warning: #f5b85a;
+  --piston-processing-warning-soft: rgba(217, 139, 34, 0.14);
+  --piston-processing-danger: #ff8f92;
+  --piston-processing-danger-soft: rgba(214, 67, 74, 0.14);
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: repeat(4, auto);
+  align-content: start;
+  gap: 12px;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: 14px 16px 16px;
+  background: var(--piston-processing-bg);
+  color: var(--piston-processing-text);
+  animation: pistonProcessingWorkspaceEnter 320ms cubic-bezier(0.2, 0, 0, 1) both;
+  transition:
+    background-color 220ms ease,
+    color 220ms ease;
+}
+
+.studio-theme-light .piston-processing-panel {
+  --piston-processing-bg: #ffffff;
+  --piston-processing-surface: #ffffff;
+  --piston-processing-surface-soft: #eef5fb;
+  --piston-processing-border: rgba(58, 105, 150, 0.2);
+  --piston-processing-border-strong: rgba(29, 111, 184, 0.7);
+  --piston-processing-text: #17324b;
+  --piston-processing-muted: #5e7488;
+  --piston-processing-accent: #2e83ce;
+  --piston-processing-accent-strong: #1d6fb8;
+  --piston-processing-accent-soft: rgba(46, 131, 206, 0.12);
+  --piston-processing-selection: rgba(37, 99, 235, 0.18);
+  --piston-processing-selection-outside: rgba(210, 225, 239, 0.26);
+  --piston-processing-ring: #1d6fb8;
+  --piston-processing-callout-bg: #e4f2fd;
+  --piston-processing-callout-border: #1d6fb8;
+  --piston-processing-callout-text: #123d61;
+  --piston-processing-success: #157a5d;
+  --piston-processing-success-soft: rgba(21, 122, 93, 0.1);
+  --piston-processing-warning: #9a5f12;
+  --piston-processing-warning-soft: rgba(196, 120, 22, 0.11);
+  --piston-processing-danger: #b8323a;
+  --piston-processing-danger-soft: rgba(184, 50, 58, 0.1);
+}
+
+.piston-processing-panel-empty {
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+}
+
+.piston-processing-panel-empty p {
+  max-width: 480px;
+  margin: 8px 0 0;
+  color: var(--piston-processing-muted);
+}
+
+.piston-processing-run-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.piston-processing-run-list button {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 5px;
+  background: var(--piston-processing-surface);
+  padding: 9px 11px;
+  color: var(--piston-processing-muted);
+  text-align: left;
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    color 180ms ease,
+    opacity 180ms ease;
+}
+
+.piston-processing-run-list button strong {
+  color: var(--piston-processing-text);
+  font-size: 13px;
+}
+
+.piston-processing-run-list button small {
+  font-size: 10px;
+  font-style: normal;
+}
+
+.piston-processing-run-list button.is-active {
+  border-color: var(--piston-processing-border-strong);
+  background: var(--piston-processing-accent-soft);
+  color: var(--piston-processing-accent-strong);
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--piston-processing-accent) 18%, transparent),
+    0 5px 12px color-mix(in srgb, var(--piston-processing-accent-strong) 9%, transparent);
+}
+
+.piston-processing-run-list button.is-completed {
+  background: var(--piston-processing-success-soft);
+  color: var(--piston-processing-success);
+}
+
+.piston-processing-run-list button.is-viewing {
+  border-color: var(--piston-processing-border-strong);
+  background: var(--piston-processing-accent-soft);
+  color: var(--piston-processing-accent-strong);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--piston-processing-accent) 15%, transparent);
+  cursor: pointer;
+  opacity: 1;
+}
+
+.piston-processing-panel.is-review-mode .piston-processing-run-list button:not(.is-viewing) {
+  cursor: pointer;
+}
+
+.piston-processing-panel.is-review-mode .piston-processing-run-list button:hover,
+.piston-processing-panel.is-review-mode .piston-processing-run-list button:focus-visible {
+  border-color: var(--piston-processing-border-strong);
+  outline: none;
+}
+
+.piston-processing-run-list button:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.piston-processing-selection-section,
+.piston-period-calculation-section {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  border: 0;
+  border-bottom: 1px solid var(--piston-processing-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 4px 0 12px;
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease;
+}
+
+.piston-processing-selection-section {
+  grid-template-rows: repeat(3, auto);
+  align-content: start;
+  gap: 8px;
+  padding-top: 2px;
+  padding-bottom: 9px;
+}
+
+.piston-processing-section-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.piston-processing-section-heading > div:first-child {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.piston-processing-section-heading strong {
+  color: var(--piston-processing-text);
+  font-size: 13px;
+}
+
+.piston-processing-section-heading span {
+  color: var(--piston-processing-muted);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.piston-processing-view-tools {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.piston-processing-view-tools > span {
+  max-width: 420px;
+  text-align: right;
+}
+
+.piston-processing-view-tools button {
+  display: inline-flex;
+  min-height: 29px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 4px;
+  background: var(--piston-processing-surface-soft);
+  padding: 0 9px;
+  color: var(--piston-processing-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.piston-processing-view-tools button:hover,
+.piston-processing-view-tools button:focus-visible {
+  border-color: var(--piston-processing-border-strong);
+  outline: none;
+}
+
+.piston-period-chart-wrap {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto 14px 32px;
+  overflow: hidden;
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 3px;
+  background: var(--piston-processing-surface-soft);
+  transition:
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 220ms ease;
+}
+
+.piston-period-chart-viewport {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+  background: var(--piston-processing-surface-soft);
+}
+
+.piston-period-chart-viewport svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: default;
+  touch-action: none;
+  user-select: none;
+}
+
+.piston-period-interaction-surface {
+  fill: transparent;
+  cursor: grab;
+  pointer-events: all;
+}
+
+.piston-period-chart-viewport svg.is-selection .piston-period-interaction-surface {
+  cursor: crosshair;
+}
+
+.piston-period-chart-viewport svg.is-grabbing .piston-period-interaction-surface {
+  cursor: grabbing;
+}
+
+.piston-period-chart-viewport svg:focus-visible {
+  outline: 2px solid var(--piston-processing-accent);
+  outline-offset: -3px;
+}
+
+.piston-period-chart-footer {
+  display: grid;
+  min-width: 0;
+  height: 32px;
+  grid-template-columns: 84px minmax(0, 1fr) 84px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+}
+
+.piston-period-horizontal-scrollbar {
+  min-width: 0;
+  height: 14px;
+  box-sizing: border-box;
+  overflow-x: scroll;
+  overflow-y: hidden;
+  border-top: 1px solid color-mix(in srgb, var(--piston-processing-border) 65%, transparent);
+  background: color-mix(in srgb, var(--piston-processing-surface) 88%, transparent);
+  scrollbar-color: var(--piston-processing-border-strong) var(--piston-processing-surface-soft);
+  scrollbar-width: thin;
+}
+
+.piston-period-horizontal-scrollbar:focus-visible {
+  outline: 2px solid var(--piston-processing-accent);
+  outline-offset: -2px;
+}
+
+.piston-period-horizontal-scrollbar::-webkit-scrollbar {
+  height: 10px;
+}
+
+.piston-period-horizontal-scrollbar::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--piston-processing-surface-soft);
+}
+
+.piston-period-horizontal-scrollbar::-webkit-scrollbar-thumb {
+  min-width: 34px;
+  border: 2px solid var(--piston-processing-surface-soft);
+  border-radius: 999px;
+  background: var(--piston-processing-border-strong);
+}
+
+.piston-period-horizontal-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--piston-processing-accent-strong);
+}
+
+.piston-period-horizontal-scrollbar-content {
+  height: 1px;
+  pointer-events: none;
+}
+
+.piston-period-axis-footer-label {
+  grid-column: 2;
+  justify-self: center;
+  color: var(--piston-processing-text);
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.piston-processing-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  border: 0;
+  white-space: nowrap;
+}
+
+.piston-period-chart-background {
+  fill: var(--piston-processing-surface);
+}
+
+.piston-period-selection-outside {
+  fill: var(--piston-processing-selection-outside);
+}
+
+.piston-period-selection-band {
+  fill: var(--piston-processing-selection);
+}
+
+.piston-period-grid-line {
+  stroke: var(--piston-processing-border);
+  stroke-width: 0.7;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-pressure-path {
+  fill: none;
+  stroke: var(--piston-processing-accent-strong);
+  stroke-width: 1.4;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-sample-markers {
+  fill: var(--piston-processing-accent-strong);
+  stroke: var(--piston-processing-accent-strong);
+  stroke-width: 0.5;
+  opacity: 0.78;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-sample-markers.is-normal {
+  stroke-width: 0.6;
+  opacity: 0.92;
+}
+
+.piston-period-sample-markers.is-sparse {
+  stroke-width: 0.7;
+  opacity: 1;
+}
+
+.piston-period-extremum-ring {
+  fill: var(--piston-processing-surface);
+  stroke: var(--piston-processing-ring);
+  stroke-width: 1.45;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-extremum-ring.is-endpoint {
+  stroke-width: 2.7;
+  filter: drop-shadow(0 0 4px var(--piston-processing-accent));
+}
+
+.piston-period-keyboard-extremum {
+  fill: var(--piston-processing-surface);
+  stroke: var(--piston-processing-accent-strong);
+  stroke-width: 2.2;
+  pointer-events: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-keyboard-extremum.is-anchor {
+  stroke-dasharray: 3 2;
+}
+
+.piston-period-keyboard-extremum.is-cursor {
+  filter: drop-shadow(0 0 4px var(--piston-processing-accent));
+}
+
+.piston-period-drag-rectangle {
+  fill: rgba(46, 131, 206, 0.08);
+  stroke: var(--piston-processing-accent-strong);
+  stroke-width: 1;
+  stroke-dasharray: 5 3;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-plot-frame {
+  fill: none;
+  stroke: var(--piston-processing-text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-inward-tick {
+  stroke: var(--piston-processing-text);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-period-tick-label,
+.piston-period-axis-label {
+  fill: var(--piston-processing-muted);
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 11px;
+}
+
+.piston-period-axis-label {
+  fill: var(--piston-processing-text);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.piston-period-selection-info-object {
+  overflow: visible;
+  pointer-events: none;
+}
+
+.piston-period-selection-info {
+  display: grid;
+  height: 100%;
+  box-sizing: border-box;
+  align-content: center;
+  gap: 6px;
+  border: 1.5px solid var(--piston-processing-callout-border);
+  border-radius: 0;
+  background: var(--piston-processing-callout-bg);
+  padding: 10px 12px;
+  color: var(--piston-processing-callout-text);
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  box-shadow: 0 6px 18px rgba(17, 73, 119, 0.12);
+}
+
+.piston-period-selection-info span {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px;
+  font-size: 13px;
+  line-height: 1.3;
+}
+
+.piston-period-selection-info em {
+  font-style: normal;
+  font-weight: 650;
+}
+
+.piston-period-selection-info strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 750;
+}
+
+.piston-processing-chart-actions {
+  position: static;
+  align-self: center;
+  justify-self: start;
+  margin: 0;
+  border-color: var(--piston-processing-border);
+  background: color-mix(in srgb, var(--piston-processing-surface) 94%, transparent);
+  box-shadow: 0 2px 8px rgba(17, 73, 119, 0.1);
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.piston-processing-chart-actions button {
+  color: var(--piston-processing-muted);
+}
+
+.piston-processing-chart-actions button.is-primary,
+.piston-processing-chart-actions button:hover:not(:disabled),
+.piston-processing-chart-actions button:focus-visible {
+  color: var(--piston-processing-accent-strong);
+}
+
+.piston-processing-chart-actions button.is-active {
+  background: var(--piston-processing-accent-soft);
+  color: var(--piston-processing-accent-strong);
+}
+
+.piston-processing-chart-actions button:focus-visible {
+  outline-color: var(--piston-processing-accent-strong);
+}
+
+.piston-period-selection-helper,
+.piston-period-selection-warning {
+  min-height: 28px;
+  box-sizing: border-box;
+  border-radius: 4px;
+  padding: 6px 9px;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.piston-period-selection-helper {
+  background: var(--piston-processing-accent-soft);
+  color: var(--piston-processing-muted);
+}
+
+.piston-period-selection-warning {
+  border: 1px solid color-mix(in srgb, var(--piston-processing-warning) 48%, transparent);
+  background: var(--piston-processing-warning-soft);
+  color: var(--piston-processing-warning);
+}
+
+.piston-period-calculation-section {
+  align-content: start;
+}
+
+.piston-period-height-chip {
+  flex: 0 0 auto;
+  border: 1px solid var(--piston-processing-border-strong);
+  border-radius: 999px;
+  background: var(--piston-processing-accent-soft);
+  padding: 4px 10px;
+  color: var(--piston-processing-accent-strong) !important;
+  font-weight: 750;
+}
+
+.piston-period-calculation-locked,
+.piston-period-step-waiting {
+  display: grid;
+  gap: 4px;
+  border: 1px dashed var(--piston-processing-border);
+  border-radius: 5px;
+  background: var(--piston-processing-surface-soft);
+  padding: 14px;
+  color: var(--piston-processing-muted);
+  font-size: 11px;
+}
+
+.piston-period-calculation-locked strong {
+  color: var(--piston-processing-text);
+  font-size: 12px;
+}
+
+.piston-period-calculation-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.piston-period-calculation-step {
+  display: grid;
+  min-width: 0;
+  align-content: start;
+  gap: 10px;
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 5px;
+  background: var(--piston-processing-surface-soft);
+  padding: 11px;
+  opacity: 0.72;
+  transition:
+    opacity 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease,
+    background-color 220ms ease;
+}
+
+.piston-period-calculation-step.is-active {
+  border-color: var(--piston-processing-border-strong);
+  opacity: 1;
+}
+
+.piston-period-calculation-step.is-resolved {
+  border-color: color-mix(in srgb, var(--piston-processing-success) 42%, transparent);
+  background: var(--piston-processing-success-soft);
+  opacity: 0.9;
+}
+
+.piston-period-calculation-step > header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.piston-period-calculation-step > header > span {
+  display: inline-grid;
+  width: 22px;
+  height: 22px;
+  flex: 0 0 22px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--piston-processing-accent-strong);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.piston-period-calculation-step > header > div {
+  display: grid;
+  gap: 2px;
+}
+
+.piston-period-calculation-step > header strong {
+  color: var(--piston-processing-text);
+  font-size: 12px;
+}
+
+.piston-period-calculation-step > header small {
+  color: var(--piston-processing-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.piston-period-endpoint-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.piston-period-answer-field {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 6px;
+}
+
+.piston-period-answer-field.has-feedback {
+  border-color: color-mix(in srgb, var(--piston-processing-danger) 42%, transparent);
+  background: var(--piston-processing-danger-soft);
+}
+
+.piston-period-answer-field.is-correct {
+  border-color: color-mix(in srgb, var(--piston-processing-success) 42%, transparent);
+  background: var(--piston-processing-success-soft);
+}
+
+.piston-period-answer-field > label {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  color: var(--piston-processing-text);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.piston-period-answer-input-wrap {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 5px;
+}
+
+.piston-period-answer-input-wrap input {
+  width: 100%;
+  min-width: 0;
+  height: 28px;
+  box-sizing: border-box;
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 3px;
+  outline: none;
+  background: var(--piston-processing-surface);
+  padding: 0 7px;
+  color: var(--piston-processing-text);
+  font: 600 12px/1 "Segoe UI", "Microsoft YaHei", sans-serif;
+}
+
+.piston-period-answer-input-wrap input:focus {
+  border-color: var(--piston-processing-accent-strong);
+  box-shadow: 0 0 0 2px var(--piston-processing-accent-soft);
+}
+
+.piston-period-answer-input-wrap input:disabled {
+  opacity: 0.75;
+}
+
+.piston-period-answer-input-wrap small,
+.piston-period-answer-precision {
+  color: var(--piston-processing-muted);
+  font-size: 9.5px;
+  font-weight: 500;
+}
+
+.piston-period-answer-precision {
+  padding-left: 2px;
+}
+
+.piston-period-answer-feedback {
+  display: grid;
+  min-height: 36px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 6px;
+  font-size: 9.5px;
+}
+
+.piston-period-answer-feedback > strong {
+  color: var(--piston-processing-danger);
+  font-weight: 700;
+}
+
+.piston-period-answer-field.is-correct .piston-period-answer-feedback > strong {
+  color: var(--piston-processing-success);
+}
+
+.piston-period-answer-feedback > span {
+  color: var(--piston-processing-muted);
+  white-space: nowrap;
+}
+
+.piston-period-answer-feedback > span.is-placeholder {
+  opacity: 0;
+}
+
+.piston-period-answer-feedback > div,
+.piston-period-answer-feedback > i {
+  display: flex;
+  min-height: 22px;
+  grid-column: 1 / -1;
+  gap: 5px;
+}
+
+.piston-period-answer-feedback button {
+  min-height: 22px;
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 3px;
+  background: var(--piston-processing-surface);
+  padding: 0 7px;
+  color: var(--piston-processing-text);
+  font-size: 9.5px;
+  cursor: pointer;
+}
+
+.piston-period-answer-feedback button.is-reveal {
+  border-color: color-mix(in srgb, var(--piston-processing-danger) 38%, transparent);
+  color: var(--piston-processing-danger);
+}
+
+.piston-period-step-confirm {
+  display: inline-flex;
+  min-height: 29px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  justify-self: end;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: var(--piston-processing-accent-strong);
+  padding: 0 11px;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.piston-period-step-confirm:disabled {
+  background: var(--piston-processing-border);
+  color: var(--piston-processing-muted);
+  cursor: default;
+  opacity: 0.7;
+}
+
+.piston-period-formula-row {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+}
+
+.piston-period-formula {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  border: 1px solid var(--piston-processing-border-strong);
+  background: var(--piston-processing-accent-soft);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--piston-processing-accent) 8%, transparent);
+  padding: 7px 9px;
+  color: var(--piston-processing-text);
+  font-family: Cambria, "Times New Roman", serif;
+}
+
+.piston-period-formula strong {
+  font-size: 14px;
+}
+
+.piston-period-formula span {
+  color: var(--piston-processing-muted);
+  font-size: 12px;
+}
+
+.piston-period-result-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.piston-period-result-strip span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--piston-processing-success) 34%, transparent);
+  border-radius: 4px;
+  background: var(--piston-processing-success-soft);
+  padding: 7px 9px;
+}
+
+.piston-period-result-strip em {
+  color: var(--piston-processing-muted);
+  font-style: normal;
+  font-size: 10px;
+}
+
+.piston-period-result-strip strong {
+  overflow: hidden;
+  color: var(--piston-processing-success);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.piston-period-review-audit {
+  border: 1px solid var(--piston-processing-border);
+  border-radius: 4px;
+  background: var(--piston-processing-surface-soft);
+  padding: 7px 9px;
+  color: var(--piston-processing-muted);
+  font-size: 10.5px;
+}
+
+.piston-processing-navigation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-top: 1px solid var(--piston-processing-border);
+  border-radius: 0;
+  background: transparent;
+  padding: 10px 0 0;
+}
+
+.piston-processing-navigation > div {
+  min-width: 0;
+  color: var(--piston-processing-muted);
+  font-size: 11px;
+  text-align: center;
+}
+
+.piston-processing-navigation > div strong {
+  color: var(--piston-processing-success);
+}
+
+.piston-processing-navigation > button {
+  display: inline-flex;
+  min-height: 31px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+  padding: 0 12px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.piston-processing-navigation > button.is-secondary {
+  border: 1px solid var(--piston-processing-border);
+  background: var(--piston-processing-surface-soft);
+  color: var(--piston-processing-muted);
+}
+
+.piston-processing-navigation > button.is-primary {
+  border: 1px solid transparent;
+  background: var(--piston-processing-accent-strong);
+  color: #fff;
+  cursor: pointer;
+}
+
+.piston-processing-navigation.is-review-navigation > button {
+  cursor: pointer;
+}
+
+.piston-processing-navigation > button:disabled {
+  cursor: default;
+  opacity: 0.46;
+}
+
+.piston-processing-ready-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid color-mix(in srgb, var(--piston-processing-success) 45%, transparent);
+  border-radius: 6px;
+  background: var(--piston-processing-success-soft);
+  padding: 11px 13px;
+  color: var(--piston-processing-success);
+}
+
+.piston-processing-ready-banner > div {
+  display: grid;
+  gap: 2px;
+}
+
+.piston-processing-ready-banner strong {
+  font-size: 12px;
+}
+
+.piston-processing-ready-banner span {
+  color: var(--piston-processing-muted);
+  font-size: 10.5px;
+}
+
+.piston-processing-extrema-count {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.piston-period-chart-wrap.is-guide-pulsing,
+.piston-period-calculation-step.is-guide-pulsing,
+.piston-period-answer-field.is-guide-pulsing,
+.piston-processing-chart-actions button.is-guide-pulsing,
+.piston-processing-navigation > button.is-guide-pulsing {
+  animation: pistonProcessingGuidePulse 2.2s ease-in-out infinite;
+}
+
+@keyframes pistonProcessingWorkspaceEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes pistonProcessingGuidePulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--piston-processing-accent) 0%, transparent);
+  }
+
+  45% {
+    border-color: var(--piston-processing-border-strong);
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--piston-processing-accent) 18%, transparent);
+  }
+}
+
+@media (max-width: 1080px) {
+  .piston-processing-view-tools > span {
+    display: none;
+  }
+
+  .piston-period-calculation-flow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .piston-processing-panel {
+    padding-inline: 10px;
+  }
+
+  .piston-processing-section-heading,
+  .piston-processing-view-tools {
+    align-items: flex-start;
+  }
+
+  .piston-processing-section-heading {
+    flex-direction: column;
+  }
+
+  .piston-period-endpoint-fields,
+  .piston-period-result-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piston-processing-panel,
+  .piston-period-chart-wrap.is-guide-pulsing,
+  .piston-period-calculation-step.is-guide-pulsing,
+  .piston-period-answer-field.is-guide-pulsing,
+  .piston-processing-chart-actions button.is-guide-pulsing,
+  .piston-processing-navigation > button.is-guide-pulsing {
+    animation-duration: 80ms;
+    animation-iteration-count: 1;
+    transition-duration: 80ms;
+  }
+}

@@ -9,29 +9,40 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-const pistonHosePreviewEnabled = import.meta.env.DEV &&
-  new URLSearchParams(window.location.search).get('pistonHosePreview') === '1';
-const pistonModelSizePreviewEnabled = import.meta.env.DEV &&
-  new URLSearchParams(window.location.search).get('pistonModelSizePreview') === '1';
+const pistonFocusInteractionPreviewEnabled = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('pistonFocusInteractionPreview') === '1';
+const pistonAcquisitionPreviewEnabled = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('pistonAcquisitionPreview') === '1';
+const pistonSoftwareCameraCalibrationEnabled = import.meta.env.DEV &&
+  new URLSearchParams(window.location.search).get('pistonCameraCalibration') === '1';
 const productIntroCapture = import.meta.env.DEV
   ? new URLSearchParams(window.location.search).get('productIntroCapture')
   : null;
 
-if (pistonModelSizePreviewEnabled) {
-  void import('../features/pistonOscillation/PistonOscillationModelSizePreviewPage.tsx')
+if (pistonSoftwareCameraCalibrationEnabled) {
+  void import('../features/pistonOscillation/PistonOscillationSoftwareCameraCalibrationPage.tsx')
     .then((module) => {
       root.render(
         <React.StrictMode>
-          <module.PistonOscillationModelSizePreviewPage />
+          <module.PistonOscillationSoftwareCameraCalibrationPage />
         </React.StrictMode>,
       );
     });
-} else if (pistonHosePreviewEnabled) {
-  void import('../features/pistonOscillation/PistonOscillationHoseDirectionPreviewPage.tsx')
+} else if (pistonAcquisitionPreviewEnabled) {
+  void import('../features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.tsx')
     .then((module) => {
       root.render(
         <React.StrictMode>
-          <module.PistonOscillationHoseDirectionPreviewPage />
+          <module.PistonOscillationFocusInteractionPreviewPage acquisitionPreview />
+        </React.StrictMode>,
+      );
+    });
+} else if (pistonFocusInteractionPreviewEnabled) {
+  void import('../features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.tsx')
+    .then((module) => {
+      root.render(
+        <React.StrictMode>
+          <module.PistonOscillationFocusInteractionPreviewPage />
         </React.StrictMode>,
       );
     });

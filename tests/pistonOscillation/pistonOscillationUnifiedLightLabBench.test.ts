@@ -89,7 +89,6 @@ const requiredBenchNodeNames = [
 const nodeNames = new Set((gltf.nodes ?? []).map((node) => node.name));
 for (const nodeName of requiredBenchNodeNames) {
   assert.equal(nodeNames.has(nodeName), true, `the shared light bench must contain ${nodeName}`);
-  assert.match(modelSource, new RegExp(`['"]${nodeName}['"]`));
 }
 
 const externalUris: string[] = [];
@@ -116,21 +115,20 @@ assert.equal(provenance.runtimeNotes?.pistonOscillationSourceTabletopVisible, fa
 
 assert.match(
   modelSource,
-  /models\/shared\/unified-light-lab-bench\.glb/,
+  /models\/piston-oscillation\/piston-oscillation\.glb/,
 );
 assert.match(
   modelSource,
-  /useGLTF\(\s*PISTON_OSCILLATION_UNIFIED_LIGHT_LAB_BENCH_GLB_PATH,\s*\)/,
+  /['"]PistonOscillation_UnifiedLightLabBench['"]/,
 );
-assert.match(modelSource, /sourceTabletop\.visible = false/);
-assert.match(modelSource, /position:\s*\[-0\.1,\s*0,\s*-0\.1146875\]/);
-assert.match(
+assert.doesNotMatch(
   modelSource,
-  /scale:\s*\[0\.19230769230769232,\s*0\.16666666666666666,\s*0\.28125\]/,
+  /PISTON_OSCILLATION_UNIFIED_LIGHT_LAB_BENCH_GLB_PATH|models\/shared\/unified-light-lab-bench\.glb/,
+  'the canonical piston model must already contain its approved bench',
 );
-assert.match(
+assert.doesNotMatch(
   sceneSource,
-  /unifiedLightLabBenchSourceScene=\{unifiedLightLabBenchSourceScene\}/,
+  /unifiedLightLabBenchSourceScene/,
 );
 assert.doesNotMatch(
   modelSource,

@@ -248,6 +248,16 @@ assert.match(
   /studio-settings-section studio-settings-control-row studio-settings-performance-row[\s\S]*studio-settings-control-surface[\s\S]*studio-settings-performance-segmented/,
   '3D performance settings should align label and segmented control in the same engineering row pattern',
 );
+assert.match(
+  styles,
+  /\.studio-settings-performance-row\s*\{[\s\S]*grid-template-columns:\s*1fr;[\s\S]*gap:\s*10px;/,
+  'the performance selector should receive the full settings width so long English labels are not clipped',
+);
+assert.match(
+  styles,
+  /\.studio-settings-performance-option strong\s*\{[\s\S]*overflow:\s*visible;[\s\S]*text-overflow:\s*clip;[\s\S]*white-space:\s*nowrap;/,
+  'performance tier labels should remain fully readable instead of using ellipsis',
+);
 
 assert.match(
   generalWindowSource,

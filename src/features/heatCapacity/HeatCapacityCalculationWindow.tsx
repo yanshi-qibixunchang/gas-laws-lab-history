@@ -2,6 +2,11 @@ import {
   useId,
   type CSSProperties,
 } from 'react';
+import {
+  CalculationKnownGrid,
+  splitCalculationKnownDataRows,
+  type CalculationKnownDatum,
+} from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
   getHeatCapacityCalculationWorkflowField,
@@ -32,11 +37,7 @@ export interface HeatCapacityCalculationWindowProps {
   onClose: () => void;
 }
 
-interface HeatCapacityKnownDatum {
-  key: string;
-  label: string;
-  value: string;
-}
+type HeatCapacityKnownDatum = CalculationKnownDatum;
 
 const COPY = {
   'zh-CN': {
@@ -342,16 +343,6 @@ const buildPotentialKnownValues = (
   return values;
 };
 
-const splitKnownDataRows = (
-  data: readonly HeatCapacityKnownDatum[],
-) => {
-  const rows: HeatCapacityKnownDatum[][] = [];
-  for (let index = 0; index < data.length; index += 4) {
-    rows.push(data.slice(index, index + 4));
-  }
-  return rows;
-};
-
 const getStepFormula = (
   kind: HeatCapacityCalculationStepKind,
   field: HeatCapacityCalculationWorkflowField,
@@ -614,7 +605,7 @@ export const HeatCapacityCalculationWindow = ({
     : session.aggregateSelected
       ? buildAggregateKnownData(session)
       : buildGroupKnownData(session, selectedGroupIndex);
-  const knownRows = splitKnownDataRows(knownData);
+  const knownRows = splitCalculationKnownDataRows(knownData);
   const knownTitle = session.mode === 'guide'
     ? copy.knownGuide
     : session.aggregateSelected
@@ -707,41 +698,21 @@ export const HeatCapacityCalculationWindow = ({
           <header>
             <strong id={`${generatedId}-known-title`}>{knownTitle}</strong>
           </header>
-          <div
-            className="studio-heat-calculation-known-grid"
+          <CalculationKnownGrid
+            rows={knownRows}
+            columns={4}
+            shortRowAlignment="end"
             style={knownGridStyle}
-            data-known-grid-columns="4"
-          >
-            {knownRows.map((row, rowIndex) => {
-              const placeholderCount = 4 - row.length;
-              return (
-                <div
-                  className="studio-heat-calculation-known-row"
-                  key={`known-row-${rowIndex}`}
-                >
-                  {Array.from({ length: placeholderCount }, (_, index) => (
-                    <span
-                      className="studio-heat-calculation-known-placeholder"
-                      key={`known-placeholder-${rowIndex}-${index}`}
-                      aria-hidden="true"
-                    />
-                  ))}
-                  {row.map((datum) => (
-                    <span className="studio-heat-calculation-known-item" key={datum.key}>
-                      <span className="studio-heat-calculation-known-label">{datum.label}</span>
-                      <span
-                        className={`studio-heat-calculation-known-value ${
-                          datum.value === '' ? 'studio-heat-calculation-known-value-pending' : ''
-                        }`}
-                      >
-                        {datum.value || '\u00A0'}
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              );
-            })}
-          </div>
+            classNames={{
+              grid: 'studio-heat-calculation-known-grid',
+              row: 'studio-heat-calculation-known-row',
+              placeholder: 'studio-heat-calculation-known-placeholder',
+              item: 'studio-heat-calculation-known-item',
+              label: 'studio-heat-calculation-known-label',
+              value: 'studio-heat-calculation-known-value',
+              pendingValue: 'studio-heat-calculation-known-value-pending',
+            }}
+          />
         </section>
 
         <div className="studio-heat-calculation-steps" data-scroll-on-overflow="true">

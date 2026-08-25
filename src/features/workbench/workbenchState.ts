@@ -293,6 +293,13 @@ import {
   normalizeHeatCapacityGuideSpeedMultiplier,
 } from '../../domain/heatCapacity/heatCapacityGuideExperimentTimerModel.ts';
 import {
+  createDefaultPistonOscillationGuideSession,
+  transitionPistonOscillationGuideSession,
+  type PistonOscillationGuideEvent,
+  type PistonOscillationGuideParameterField,
+  type PistonOscillationGuideSession,
+} from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
   WORKBENCH_FILE_NAME_PREFIX_BY_KIND,
   type WorkbenchFileKind,
 } from './workbenchFileKind.ts';
@@ -337,6 +344,7 @@ export const WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0.48;
 export const WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0.34;
 export const WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0.66;
 export const WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO = 0.66;
+export const WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO = 0.56605;
 export const HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG = 0;
 export const HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG = 90;
 
@@ -1184,6 +1192,8 @@ export interface WorkbenchHeatCapacityPistonOscillationState extends WorkbenchFi
   kind: 'heatCapacityPistonOscillation';
   pistonOscillationSchemaVersion: typeof WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION;
   previewCameraPreset: WorkbenchPistonOscillationCameraPreset;
+  pistonOscillationLessonIntroAutoShown: boolean;
+  pistonOscillationGuideSession: PistonOscillationGuideSession;
 }
 
 export type WorkbenchFileState =
@@ -6356,13 +6366,72 @@ export const createDefaultHeatCapacityPistonOscillationFile = (
     {
       ...defaults,
       liveWorkspaceSplitRatio:
-        defaults?.liveWorkspaceSplitRatio ?? WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+        defaults?.liveWorkspaceSplitRatio ?? WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO,
     },
   ),
   kind: 'heatCapacityPistonOscillation',
   pistonOscillationSchemaVersion: WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
   previewCameraPreset: 'overview',
+  pistonOscillationLessonIntroAutoShown: false,
+  pistonOscillationGuideSession: createDefaultPistonOscillationGuideSession(),
 });
+
+export const startPistonOscillationGuideWorkbenchState = (
+  file: WorkbenchHeatCapacityPistonOscillationState,
+  now = Date.now(),
+): WorkbenchHeatCapacityPistonOscillationState => ({
+  ...file,
+  updatedAt: now,
+  previewCameraPreset: 'overview',
+  pistonOscillationGuideSession: transitionPistonOscillationGuideSession(
+    file.pistonOscillationGuideSession,
+    { type: 'start', nowMs: now },
+  ),
+});
+
+export const editPistonOscillationGuideParameterWorkbenchState = (
+  file: WorkbenchHeatCapacityPistonOscillationState,
+  field: PistonOscillationGuideParameterField,
+  value: string,
+  now = Date.now(),
+): WorkbenchHeatCapacityPistonOscillationState => ({
+  ...file,
+  updatedAt: now,
+  pistonOscillationGuideSession: transitionPistonOscillationGuideSession(
+    file.pistonOscillationGuideSession,
+    { type: 'editParameter', field, value, nowMs: now },
+  ),
+});
+
+export const commitPistonOscillationGuideParameterWorkbenchState = (
+  file: WorkbenchHeatCapacityPistonOscillationState,
+  field: PistonOscillationGuideParameterField,
+  now = Date.now(),
+): WorkbenchHeatCapacityPistonOscillationState => ({
+  ...file,
+  updatedAt: now,
+  pistonOscillationGuideSession: transitionPistonOscillationGuideSession(
+    file.pistonOscillationGuideSession,
+    { type: 'commitParameter', field, nowMs: now },
+  ),
+});
+
+export const transitionPistonOscillationGuideWorkbenchState = (
+  file: WorkbenchHeatCapacityPistonOscillationState,
+  event: PistonOscillationGuideEvent,
+): WorkbenchHeatCapacityPistonOscillationState => {
+  const pistonOscillationGuideSession = transitionPistonOscillationGuideSession(
+    file.pistonOscillationGuideSession,
+    event,
+  );
+  if (pistonOscillationGuideSession === file.pistonOscillationGuideSession) return file;
+  return {
+    ...file,
+    updatedAt: event.nowMs,
+    previewCameraPreset: event.type === 'resetSession' ? 'overview' : file.previewCameraPreset,
+    pistonOscillationGuideSession,
+  };
+};
 
 export const isHeatCapacityFreePreheatRequired = (
   file: Pick<

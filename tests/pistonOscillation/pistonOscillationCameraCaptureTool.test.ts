@@ -122,28 +122,19 @@ assert.doesNotMatch(
 
 assert.match(
   sceneSource,
-  /isPistonOscillationCameraCaptureEnabled/,
-  'the piston scene should import and evaluate the dev-only camera-capture gate',
+  /<PistonOscillationInteractionWorkspace[\s\S]*embedded[\s\S]*initialMode="overview"/,
+  'the formal scene should use the confirmed interaction workspace rather than the retired static camera shell',
 );
-assert.match(
+assert.doesNotMatch(
   sceneSource,
-  /const cameraCaptureEnabled\s*=\s*useMemo\(\s*\(\)\s*=>\s*isPistonOscillationCameraCaptureEnabled\(\),\s*\[\],?\s*\)/,
-  'the scene should evaluate the temporary switch once per mount',
-);
-assert.match(
-  sceneSource,
-  /<PistonOscillationCameraCaptureBridge[\s\S]*enabled=\{cameraCaptureEnabled && modelReady\}[\s\S]*controlsRef=\{controlsRef\}[\s\S]*bounds=\{modelBounds\}[\s\S]*baseFov=/,
-  'the Canvas should mount a bridge with the live controls, model bounds, and base scheme FOV',
-);
-assert.match(
-  sceneSource,
-  /<PistonOscillationCameraCapturePanel[\s\S]*enabled=\{cameraCaptureEnabled\}/,
-  'the scene overlay should mount the panel behind the same development-only gate',
+  /PistonOscillationCameraCapture(?:Bridge|Panel)/,
+  'the completed calibration controls should stay outside the formal interaction scene',
 );
 assert.equal(
   (sceneSource.match(/<button\b/g) ?? []).length,
-  1,
-  'keeping the dev panel in its own module must leave the normal scene source with one reset button',
+  0,
+  'the formal scene should delegate overlay controls to the shared interaction workspace',
 );
+assert.match(sceneSource, /restoreDefaultViewLabel=\{copy\.preview\.restoreDefaultView\}/);
 
 console.log('pistonOscillationCameraCaptureTool tests passed');

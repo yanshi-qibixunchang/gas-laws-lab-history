@@ -55,8 +55,8 @@ assert.match(
 
 assert.match(
   source,
-  /!isWorkbenchEmpty && effectiveParametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
-  'Current Parameters rail should only render after a study file exists',
+  /!isWorkbenchEmpty[\s\S]*?activeFile\.kind !== 'heatCapacityPistonOscillation'[\s\S]*?effectiveParametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
+  'Current Parameters rail should only render after a compatible study file exists',
 );
 
 assert.match(

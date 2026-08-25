@@ -5,6 +5,7 @@ const WORKBENCH_REQUIRED_CHUNK_NAMES = [
   'react-renderer',
   'react-three',
   'heat-capacity-scene',
+  'piston-oscillation',
   'simulation-domain',
   'workbench-core',
   'audio',
@@ -38,6 +39,9 @@ const getWorkbenchChunkName = (id) => {
   }
   if (normalizedId.includes('/src/features/heatCapacity/')) {
     return 'heat-capacity-scene';
+  }
+  if (normalizedId.includes('/src/features/pistonOscillation/')) {
+    return 'piston-oscillation';
   }
   if (/\/src\/features\/workbench\/workbench[^/]*\.(?:ts|tsx)$/.test(normalizedId)) {
     return 'workbench-core';

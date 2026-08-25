@@ -36,6 +36,14 @@ assert.equal(
   'heat-capacity-scene',
 );
 assert.equal(
+  buildPolicy.getWorkbenchChunkName('/repo/src/features/pistonOscillation/PistonOscillationDataProcessingPanel.tsx'),
+  'piston-oscillation',
+);
+assert.equal(
+  buildPolicy.getWorkbenchChunkName('/repo/src/features/pistonOscillation/PistonOscillationCalculationWindow.tsx'),
+  'piston-oscillation',
+);
+assert.equal(
   buildPolicy.getWorkbenchChunkName('/repo/src/features/workbench/workbenchState.ts'),
   'workbench-core',
 );
@@ -57,6 +65,7 @@ assert.deepEqual(buildPolicy.WORKBENCH_REQUIRED_CHUNK_NAMES, [
   'react-renderer',
   'react-three',
   'heat-capacity-scene',
+  'piston-oscillation',
   'simulation-domain',
   'workbench-core',
   'audio',

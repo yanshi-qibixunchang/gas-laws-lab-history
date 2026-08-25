@@ -59,6 +59,11 @@
   cursor: grabbing;
 }
 
+.piston-oscillation-view-reset:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
 .piston-oscillation-scene-status {
   position: absolute;
   z-index: 3;
@@ -91,15 +96,6 @@
 
 .piston-oscillation-scene-status-error {
   border-color: rgba(245, 158, 11, 0.46);
-}
-
-.piston-oscillation-realtime-unavailable {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--piston-placeholder-surface-muted) 88%, #6b7280) 0%,
-      var(--piston-placeholder-surface-muted) 100%
-    );
 }
 
 .studio-preview.studio-preview-piston-oscillation {

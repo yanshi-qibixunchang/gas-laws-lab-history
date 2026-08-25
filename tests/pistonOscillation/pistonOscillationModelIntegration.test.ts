@@ -10,7 +10,7 @@ import {
 } from '../../src/features/pistonOscillation/pistonOscillationCameraViews.ts';
 
 const modelPath = new URL(
-  '../../public/models/piston-oscillation/EX5531_TD8572A_ratio_specific_heats_final.glb',
+  '../../public/models/piston-oscillation/piston-oscillation.glb',
   import.meta.url,
 );
 const modelSource = readFileSync(
@@ -21,14 +21,22 @@ const sceneSource = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationInstrumentScene.tsx', import.meta.url),
   'utf8',
 );
+const interactionWorkspaceSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.tsx', import.meta.url),
+  'utf8',
+);
+const interactiveModelSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationInteractiveModel.tsx', import.meta.url),
+  'utf8',
+);
 const binary = readFileSync(modelPath);
 
 const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const JSON_CHUNK_TYPE = 0x4e4f534a;
 const BIN_CHUNK_TYPE = 0x004e4942;
-const EXPECTED_GLB_BYTES = 7_231_720;
-const EXPECTED_GLB_SHA256 = 'BE1681B872ED89196107856E1D37C6F57AF2D812272F34A41036F5F594C947C1';
+const EXPECTED_GLB_BYTES = 7_507_832;
+const EXPECTED_GLB_SHA256 = '9CBC8E5331631F663B49F766D4352A758C52B97A313F75EA4041B6229694D370';
 
 assert.equal(binary.readUInt32LE(0), GLB_MAGIC, 'the bundled model must retain the binary glTF magic');
 assert.equal(binary.readUInt32LE(4), GLB_VERSION, 'the bundled model must remain glTF 2.0');
@@ -37,7 +45,7 @@ assert.equal(binary.length, EXPECTED_GLB_BYTES, 'the reviewed GLB byte length mu
 assert.equal(
   createHash('sha256').update(binary).digest('hex').toUpperCase(),
   EXPECTED_GLB_SHA256,
-  'the bundled GLB must match the reviewed v1.2.1 asset',
+  'the bundled GLB must match the approved canonical piston-oscillation asset',
 );
 
 const chunks: Array<{ type: number; payload: Buffer }> = [];
@@ -67,19 +75,26 @@ const gltf = JSON.parse(
   [key: string]: unknown;
 };
 assert.equal(gltf.asset?.version, '2.0');
-assert.equal(gltf.asset?.generator, 'Khronos glTF Blender I/O v5.2.39');
-assert.equal(gltf.animations?.length, 1, 'the source animation may remain embedded but must not be played by the app');
+assert.equal(gltf.asset?.generator, 'THREE.GLTFExporter r182');
+assert.equal(gltf.animations?.length ?? 0, 0, 'the canonical model must not carry a fixed source animation');
 
 const requiredNodeNames = [
+  'PistonOscillationInstrument_ROOT',
   'Cylinder_Pyrex',
   'PistonAssembly_MOV',
   'Piston_Graphite',
   'PistonRod',
   'MassPlatform_UpperPlate',
-  'ScaleTicks_Unnumbered',
+  'ScaleTicks_0_to_85mm',
+  'ScaleLabel_80',
+  'ProtectiveFrame_BackSolidInsert',
+  'PistonLockingScrew_MovingPart',
+  'PistonLockingScrew_KnurledKnob',
   'PressureSensor_ROOT',
   'UniversalInterface_ROOT',
-  'Hose_Main_Default',
+  'Hose_Main_Connected',
+  'Hose_Main_DisconnectedAssembly',
+  'PistonOscillation_UnifiedLightLabBench',
 ] as const;
 const nodeNames = new Set((gltf.nodes ?? []).map((node) => node.name));
 for (const nodeName of requiredNodeNames) {
@@ -87,22 +102,14 @@ for (const nodeName of requiredNodeNames) {
   assert.match(modelSource, new RegExp(`['"]${nodeName}['"]`));
 }
 
-const pistonAssembly = gltf.nodes?.find((node) => node.name === 'PistonAssembly_MOV');
-assert.deepEqual(
-  pistonAssembly?.extras,
-  {
-    interaction: 'slide_z',
-    min: 0,
-    max: 0.1,
-    initial: 0.06,
-    strokeBaseZ: 0.135,
-    axis: 'local_Z',
-    locked: false,
-    lockedByPneumaticSealWhen: 'Connector_Main_QuickDisconnect.connected_sealed',
-    freeVolumeAdjustmentWhen: 'Connector_Main_QuickDisconnect.disconnected_open_to_atmosphere',
-  },
-  'the piston metadata must remain available for a later interaction phase',
+assert.equal(
+  (gltf.nodes ?? []).some((node) => node.extras !== undefined),
+  false,
+  'interaction state must live in the software layer rather than GLB node metadata',
 );
+assert.equal(nodeNames.has('ScaleLabel_90'), false);
+assert.equal(nodeNames.has('ScaleTicks_Unnumbered'), false);
+assert.equal(nodeNames.has('Hose_Main_Default'), false);
 
 const externalUris: string[] = [];
 const collectExternalUris = (value: unknown, path = 'gltf') => {
@@ -121,15 +128,19 @@ assert.deepEqual(externalUris, [], 'the bundled GLB must not depend on external 
 
 assert.match(
   modelSource,
-  /`\$\{import\.meta\.env\.BASE_URL\}models\/piston-oscillation\/EX5531_TD8572A_ratio_specific_heats_final\.glb`/,
+  /`\$\{import\.meta\.env\.BASE_URL\}models\/piston-oscillation\/piston-oscillation\.glb`/,
   'the app must resolve the model under the configured Vite base path',
 );
 assert.match(modelSource, /useGLTF\(PISTON_OSCILLATION_GLB_PATH\)/);
 assert.match(modelSource, /mesh\.raycast = \(\) => undefined/);
-assert.match(sceneSource, /clearPistonOscillationInstrumentModelCache\(\)/);
-assert.match(sceneSource, /enabled=\{!cameraTransitionActive\}/);
-assert.match(sceneSource, /onTransitionActiveChange\(true\)/);
-assert.match(sceneSource, /onTransitionActiveChange\(false\)/);
+assert.match(modelSource, /let visibilityCursor: THREE\.Object3D \| null = object/);
+assert.match(modelSource, /if \(!visibilityCursor\.visible\) return/);
+assert.match(
+  sceneSource,
+  /<PistonOscillationInteractionWorkspace[\s\S]*embedded[\s\S]*initialMode="overview"[\s\S]*cameraPreset=\{cameraPreset\}[\s\S]*sceneTheme=\{sceneTheme\}/,
+  'the formal scene should mount the accepted interactive model and state controller',
+);
+assert.match(sceneSource, /onReleaseEvent=\{onReleaseEvent\}/);
 assert.doesNotMatch(modelSource, /\.geometry\.dispose\(\)|\.texture\.dispose\(\)|\.map\.dispose\(\)/);
 
 const integratedSceneSource = `${modelSource}\n${sceneSource}`;
@@ -143,30 +154,37 @@ assert.doesNotMatch(
 assert.doesNotMatch(
   modelSource,
   /\bon(?:Click|DoubleClick|PointerDown|PointerUp|PointerMove|PointerOver|PointerOut)\s*=/,
-  'the model itself must remain non-interactive in this delivery phase',
+  'the static source loader must leave interaction to the canonical interactive wrapper',
 );
+assert.match(interactiveModelSource, /PistonOscillationInteractiveModel/);
+assert.match(interactiveModelSource, /onPointerDown=\{handlePointerDown\}/);
+assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 3/);
+assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.002/);
 
-const sceneButtons = sceneSource.match(/<button\b/g) ?? [];
-assert.equal(sceneButtons.length, 1, 'the normal scene must expose only the default-view reset button');
-const resetButton = sceneSource.match(/<button\b[\s\S]*?<\/button>/)?.[0] ?? '';
+const resetButton = interactionWorkspaceSource.match(
+  /<button\b[\s\S]*?data-piston-oscillation-view-reset="true"[\s\S]*?<\/button>/,
+)?.[0] ?? '';
 assert.match(resetButton, /data-piston-oscillation-view-reset="true"/);
 assert.match(
   resetButton,
-  /className="studio-heat-view-reset"/,
+  /className="studio-heat-view-reset piston-oscillation-view-reset"/,
   'the piston reset control should reuse the reviewed heat-capacity button styling',
 );
-assert.match(resetButton, /\{copy\.preview\.restoreDefaultView\}/);
-assert.match(resetButton, /onClick=\{\(\) => setResetRevision\(\(revision\) => revision \+ 1\)\}/);
-assert.match(sceneSource, /<OrbitControls[\s\S]*enableRotate[\s\S]*enableZoom/);
-assert.doesNotMatch(
+assert.match(resetButton, /\{restoreDefaultViewLabel\}/);
+assert.match(
   sceneSource,
-  /enableDamping=\{false\}/,
-  'piston orbiting should retain Drei OrbitControls damping and release inertia',
+  /onRestoreDefaultView=\{\(\) => \{[\s\S]*if \(!demoFrame\) setOverviewRevision\(\(revision\) => revision \+ 1\);/,
+);
+assert.match(resetButton, /disabled=\{demoActive\}/);
+assert.match(
+  interactionWorkspaceSource,
+  /studio-preview-overlay-slot studio-preview-overlay-slot-top-right[\s\S]*studio-heat-demo-step-panel studio-heat-demo-step-panel-\$\{demoStepPanelMode\}[\s\S]*data-piston-oscillation-view-reset="true"/,
+  'the demo step panel and reset control must use the shared top-right overlay stack',
 );
 assert.doesNotMatch(
   sceneSource,
-  /minPolarAngle=\{0\.62\}|maxPolarAngle=\{1\.42\}/,
-  'the heat-capacity vertical limits must not block the piston scene top-view preset',
+  /data-preview-overlay-layer="piston-oscillation"/,
+  'the formal piston scene must not mount a full-scene overlay above the interaction canvas',
 );
 
 const expectedPresets = ['overview', 'front', 'side', 'top'] as const;

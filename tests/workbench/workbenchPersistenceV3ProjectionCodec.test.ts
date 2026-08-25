@@ -7,12 +7,16 @@ import {
   createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  commitPistonOscillationGuideParameterWorkbenchState,
+  editPistonOscillationGuideParameterWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  startPistonOscillationGuideWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type WorkbenchFileState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
+  PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
   createWorkbenchPersistenceV3SemanticProjection,
   projectWorkbenchPersistenceV3File,
   reprojectWorkbenchPersistenceV3File,
@@ -54,6 +58,34 @@ import {
 import {
   createHeatCapacityAutoDemoProfile,
 } from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
+import {
+  advancePistonOscillationPeriodRun,
+  createPistonOscillationRawMeasurementRecord,
+  createPistonOscillationSensorObservationSnapshot,
+  createPistonOscillationDataProcessingSession,
+  findPistonOscillationExtrema,
+  formatPistonOscillationEndpointTime,
+  formatPistonOscillationPeriod,
+  selectPistonOscillationPeriodRange,
+  submitPistonOscillationLinearFit,
+  submitPistonOscillationPeriod,
+  submitPistonOscillationPeriodEndpoints,
+  togglePistonOscillationFitRun,
+  updatePistonOscillationPeriodAnswerDraft,
+  type PistonOscillationDataProcessingSession,
+  type PistonOscillationRawSample,
+} from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
+  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
+  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+  createPistonOscillationEquilibriumState,
+} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  createPistonOscillationAirMaterialSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
+import {
+  createPistonOscillationEquivalentLossSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 
 const files: WorkbenchFileState[] = [
   createDefaultStandardFile(1),
@@ -1972,6 +2004,484 @@ if (futurePistonAuthority.ok) {
 }
 assert.equal(futurePistonAuthority.status, 'unsupported-future');
 assert.deepEqual(futurePistonAuthority.raw, futurePistonAuthorityRecord);
+
+const createPersistencePistonMeasurement = (
+  measurementIndex: 0 | 1 | 2,
+  targetHeightMm: number,
+  periodSampleCount: number,
+) => {
+  const samples: PistonOscillationRawSample[] = Array.from(
+    { length: 2_001 },
+    (_, sampleIndex) => ({
+      sampleIndex,
+      timeS: sampleIndex / 1_000,
+      absolutePressureKpa: Math.trunc((
+        101.32 + 6 * Math.exp(-sampleIndex / 500)
+          * Math.cos(2 * Math.PI * sampleIndex / periodSampleCount)
+      ) * 100) / 100,
+    }),
+  );
+  const sensorObservationSnapshot =
+    createPistonOscillationSensorObservationSnapshot({
+      sampleRateHz: 1000,
+      triggerSourceSampleIndex: 0,
+    });
+  return createPistonOscillationRawMeasurementRecord({
+    recordId: `persistence-guide-${measurementIndex}`,
+    capturedAtMs: 10_500 + measurementIndex,
+    measurementIndex,
+    targetHeightMm,
+    confirmedHeightMm: targetHeightMm,
+    sampleRateHz: 1000,
+    triggerThresholdKpa: 105,
+    recordedDurationS: 2,
+    samples,
+    sensorObservationSnapshot,
+    physicsSnapshot: {
+      modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+      provenance: 'captured',
+      airMaterial: createPistonOscillationAirMaterialSnapshot(),
+      equivalentLoss: createPistonOscillationEquivalentLossSnapshot(),
+      config: { ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG },
+      equilibrium: createPistonOscillationEquilibriumState(targetHeightMm),
+      initialDisplacementM: 0,
+      initialVelocityMPerS: 0,
+      integrationSubstepsPerSample: 1,
+      triggerTimeS: 0,
+    },
+  });
+};
+const pistonGuideMeasurements = [
+  createPersistencePistonMeasurement(0, 80, 40),
+  createPersistencePistonMeasurement(1, 70, 36),
+  createPersistencePistonMeasurement(2, 60, 32),
+];
+
+const completePersistencePistonProcessing = () => {
+  let processing = createPistonOscillationDataProcessingSession(
+    pistonGuideMeasurements,
+    10_500,
+  );
+  for (let runIndex = 0; runIndex < processing.runs.length; runIndex += 1) {
+    const extrema = findPistonOscillationExtrema(
+      pistonGuideMeasurements[runIndex]!.samples,
+    );
+    const left = extrema[2];
+    const right = extrema[8];
+    assert.ok(left && right, 'test record must expose at least three periods');
+    processing = selectPistonOscillationPeriodRange(
+      processing,
+      pistonGuideMeasurements,
+      runIndex,
+      left.timeS,
+      right.timeS,
+      3,
+      10_600 + runIndex * 100,
+    );
+    const selection = processing.runs[runIndex]!.selection;
+    assert.equal(selection?.issue, null);
+    assert.ok(selection?.leftEndpoint && selection.rightEndpoint);
+    processing = updatePistonOscillationPeriodAnswerDraft(
+      processing,
+      runIndex,
+      't1',
+      formatPistonOscillationEndpointTime(selection.leftEndpoint.timeS),
+      10_610 + runIndex * 100,
+    );
+    processing = updatePistonOscillationPeriodAnswerDraft(
+      processing,
+      runIndex,
+      't2',
+      formatPistonOscillationEndpointTime(selection.rightEndpoint.timeS),
+      10_620 + runIndex * 100,
+    );
+    processing = submitPistonOscillationPeriodEndpoints(
+      processing,
+      runIndex,
+      10_630 + runIndex * 100,
+    );
+    const expectedPeriod = processing.runs[runIndex]!.answers.period.expectedValue;
+    assert.notEqual(expectedPeriod, null);
+    processing = updatePistonOscillationPeriodAnswerDraft(
+      processing,
+      runIndex,
+      'period',
+      formatPistonOscillationPeriod(expectedPeriod!),
+      10_640 + runIndex * 100,
+    );
+    processing = submitPistonOscillationPeriod(
+      processing,
+      runIndex,
+      10_650 + runIndex * 100,
+    );
+    assert.ok(processing.runs[runIndex]!.result);
+    processing = advancePistonOscillationPeriodRun(
+      processing,
+      10_660 + runIndex * 100,
+      pistonGuideMeasurements,
+    );
+  }
+  for (let runIndex = 0; runIndex < processing.runs.length; runIndex += 1) {
+    processing = togglePistonOscillationFitRun(
+      processing,
+      runIndex,
+      11_000 + runIndex,
+    );
+  }
+  processing = submitPistonOscillationLinearFit(
+    processing,
+    11_100,
+    { requireAllRuns: true },
+  );
+  assert.ok(processing.linearFitResult);
+  assert.ok(processing.calculationSession?.answers.gamma.expectedValue);
+  return processing satisfies PistonOscillationDataProcessingSession;
+};
+const pistonGuideDataProcessing = completePersistencePistonProcessing();
+
+let pistonGuideFile = createDefaultHeatCapacityPistonOscillationFile(451);
+pistonGuideFile = startPistonOscillationGuideWorkbenchState(pistonGuideFile, 10_000);
+pistonGuideFile = editPistonOscillationGuideParameterWorkbenchState(
+  pistonGuideFile,
+  'sampleRateHz',
+  '1000',
+  10_100,
+);
+pistonGuideFile = commitPistonOscillationGuideParameterWorkbenchState(
+  pistonGuideFile,
+  'sampleRateHz',
+  10_200,
+);
+pistonGuideFile = editPistonOscillationGuideParameterWorkbenchState(
+  pistonGuideFile,
+  'triggerThresholdKpa',
+  '105',
+  10_300,
+);
+pistonGuideFile = commitPistonOscillationGuideParameterWorkbenchState(
+  pistonGuideFile,
+  'triggerThresholdKpa',
+  10_400,
+);
+pistonGuideFile = {
+  ...pistonGuideFile,
+  pistonOscillationGuideSession: {
+    ...pistonGuideFile.pistonOscillationGuideSession,
+    status: 'active',
+    measurementIndex: 2,
+    step: 'calculationReady',
+    updatedAtMs: 10_500,
+    acquisitionCandidate: null,
+    savedMeasurements: pistonGuideMeasurements,
+    dataProcessing: pistonGuideDataProcessing,
+  },
+};
+const pistonGuideProjection = projectWorkbenchPersistenceV3File(pistonGuideFile, 451);
+if (!pistonGuideProjection.ok) {
+  throw new Error(pistonGuideProjection.diagnostics[0].message);
+}
+assert.equal(pistonGuideProjection.status, 'exact');
+assert.equal(
+  pistonGuideProjection.value.fields.authoritative
+    .pistonGuideSessionProjectionVersion,
+  PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
+);
+const pistonGuideAuthority = pistonGuideProjection.value.fields.authoritative
+  .guideSession as {
+    savedMeasurements: Array<{
+      sensorObservationSnapshot: {
+        sampleRateHz: number;
+        pressureResolutionKpa: number;
+        pressureQuantization: string;
+      };
+    }>;
+    dataProcessing: {
+      processingPolicy: {
+        policyVersion: string;
+        guidedMinimumPeriodCount: number;
+      };
+      runs: Array<{
+        selection: {
+          leftEndpoint: { sampleIndex: number };
+          rightEndpoint: { sampleIndex: number };
+          extrema?: unknown;
+          periodCount?: unknown;
+        };
+        result: {
+          leftSampleIndex: number;
+          rightSampleIndex: number;
+          periodS?: unknown;
+          periodSquaredS2?: unknown;
+        };
+      }>;
+      linearFitResult: {
+        algorithmVersion: string;
+        selectedRunIndices: number[];
+        slopeMPerS2?: unknown;
+      };
+    };
+  };
+assert.deepEqual(
+  pistonGuideAuthority.savedMeasurements[0]!.sensorObservationSnapshot,
+  pistonGuideMeasurements[0]!.sensorObservationSnapshot,
+  'formal sensor-observation policy must be authoritative',
+);
+assert.deepEqual(
+  pistonGuideAuthority.dataProcessing.processingPolicy,
+  pistonGuideDataProcessing.processingPolicy,
+  'the versioned period-selection policy must be authoritative',
+);
+assert.deepEqual(
+  pistonGuideAuthority.dataProcessing.runs.map((run) => ({
+    selection: [
+      run.selection.leftEndpoint.sampleIndex,
+      run.selection.rightEndpoint.sampleIndex,
+    ],
+    result: [run.result.leftSampleIndex, run.result.rightSampleIndex],
+  })),
+  pistonGuideDataProcessing.runs.map((run) => ({
+    selection: [
+      run.selection!.leftEndpoint!.sampleIndex,
+      run.selection!.rightEndpoint!.sampleIndex,
+    ],
+    result: [run.result!.leftSampleIndex, run.result!.rightSampleIndex],
+  })),
+  'endpoint sample indices must remain authoritative for selection and result recovery',
+);
+assert.equal(
+  Object.hasOwn(pistonGuideAuthority.dataProcessing.runs[0]!.selection, 'extrema'),
+  false,
+);
+assert.equal(
+  Object.hasOwn(pistonGuideAuthority.dataProcessing.runs[0]!.selection, 'periodCount'),
+  false,
+);
+assert.equal(
+  Object.hasOwn(pistonGuideAuthority.dataProcessing.runs[0]!.result, 'periodS'),
+  false,
+);
+assert.equal(
+  pistonGuideAuthority.dataProcessing.linearFitResult.algorithmVersion,
+  pistonGuideDataProcessing.linearFitResult!.algorithmVersion,
+  'the fit algorithm version must remain authoritative across recovery',
+);
+assert.equal(
+  Object.hasOwn(
+    pistonGuideAuthority.dataProcessing.runs[0]!.result,
+    'periodSquaredS2',
+  ),
+  false,
+);
+assert.equal(
+  Object.hasOwn(
+    pistonGuideAuthority.dataProcessing.linearFitResult,
+    'slopeMPerS2',
+  ),
+  false,
+);
+const pistonGuideDerivedCache = pistonGuideProjection.value.fields.derived
+  .pistonGuideDataProcessingCache as {
+    cacheVersion: number;
+    dataProcessing: PistonOscillationDataProcessingSession;
+  };
+assert.equal(pistonGuideDerivedCache.cacheVersion, 1);
+assert.deepEqual(
+  pistonGuideDerivedCache.dataProcessing,
+  pistonGuideDataProcessing,
+  'recomputable period, fit, and calculation values belong to the derived cache',
+);
+const pistonGuideEncoded = encodeWorkbenchPersistenceV3FileProjection(
+  pistonGuideProjection.value,
+  451,
+);
+if (!pistonGuideEncoded.ok) {
+  throw new Error(pistonGuideEncoded.diagnostics[0].message);
+}
+const pistonGuideDecoded = decodeWorkbenchPersistenceV3FileRecord(
+  structuredClone(pistonGuideEncoded.value),
+  451,
+);
+if (!pistonGuideDecoded.ok) {
+  throw new Error(pistonGuideDecoded.diagnostics[0].message);
+}
+assert.equal(pistonGuideDecoded.status, 'exact');
+const pistonGuideReprojected = reprojectWorkbenchPersistenceV3File(
+  pistonGuideDecoded.value,
+  451,
+);
+if (!pistonGuideReprojected.ok) {
+  throw new Error(pistonGuideReprojected.diagnostics[0].message);
+}
+assert.equal(pistonGuideReprojected.value.kind, 'heatCapacityPistonOscillation');
+if (pistonGuideReprojected.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected Piston guide file reprojection.');
+}
+assert.deepEqual(
+  pistonGuideReprojected.value.pistonOscillationGuideSession,
+  pistonGuideFile.pistonOscillationGuideSession,
+  'Piston guide drafts, processing state, and all three recorded curves must survive V3 persistence',
+);
+assert.deepEqual(
+  pistonGuideReprojected.value.pistonOscillationGuideSession.savedMeasurements.map(
+    (measurement) => ({
+      targetHeightMm: measurement.targetHeightMm,
+      sampleCount: measurement.samples.length,
+    }),
+  ),
+  [
+    { targetHeightMm: 80, sampleCount: 2_001 },
+    { targetHeightMm: 70, sampleCount: 2_001 },
+    { targetHeightMm: 60, sampleCount: 2_001 },
+  ],
+  'the persisted measurement contract must remain independent of the physics producer',
+);
+
+const legacyPistonGuideRecord = structuredClone(pistonGuideEncoded.value);
+delete legacyPistonGuideRecord.projection.fields.authoritative
+  .pistonGuideSessionProjectionVersion;
+delete legacyPistonGuideRecord.projection.fields.authoritative
+  .lessonIntroAutoShown;
+legacyPistonGuideRecord.projection.fields.authoritative.guideSession =
+  structuredClone(pistonGuideFile.pistonOscillationGuideSession);
+legacyPistonGuideRecord.projection.fields.derived = {};
+const migratedPistonGuide = decodeWorkbenchPersistenceV3FileRecord(
+  legacyPistonGuideRecord,
+  451,
+);
+if (!migratedPistonGuide.ok) {
+  throw new Error(migratedPistonGuide.diagnostics[0].message);
+}
+assert.equal(
+  migratedPistonGuide.status,
+  'migrated',
+  'legacy V3 projections with a complete guide session must migrate to split authority/cache fields',
+);
+assert.equal(
+  migratedPistonGuide.value.fields.authoritative
+    .pistonGuideSessionProjectionVersion,
+  PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
+);
+
+const versionTwoPistonGuideRecord = structuredClone(pistonGuideEncoded.value);
+versionTwoPistonGuideRecord.projection.fields.authoritative
+  .pistonGuideSessionProjectionVersion = 2;
+delete (versionTwoPistonGuideRecord.projection.fields.authoritative
+  .guideSession as Record<string, unknown>).completionExited;
+const migratedVersionTwoPistonGuide = decodeWorkbenchPersistenceV3FileRecord(
+  versionTwoPistonGuideRecord,
+  451,
+);
+if (!migratedVersionTwoPistonGuide.ok) {
+  throw new Error(migratedVersionTwoPistonGuide.diagnostics[0].message);
+}
+assert.equal(migratedVersionTwoPistonGuide.status, 'migrated');
+assert.equal(
+  migratedVersionTwoPistonGuide.value.fields.authoritative
+    .pistonGuideSessionProjectionVersion,
+  PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
+  'projection v2 must migrate the completed-exit state explicitly',
+);
+const migratedVersionTwoFile = reprojectWorkbenchPersistenceV3File(
+  migratedVersionTwoPistonGuide.value,
+  451,
+);
+if (!migratedVersionTwoFile.ok) {
+  throw new Error(migratedVersionTwoFile.diagnostics[0].message);
+}
+assert.equal(migratedVersionTwoFile.value.kind, 'heatCapacityPistonOscillation');
+if (migratedVersionTwoFile.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected migrated Piston guide file.');
+}
+assert.equal(
+  migratedVersionTwoFile.value.pistonOscillationGuideSession.completionExited,
+  false,
+);
+
+const versionOnePistonGuideRecord = structuredClone(pistonGuideEncoded.value);
+versionOnePistonGuideRecord.projection.fields.authoritative
+  .pistonGuideSessionProjectionVersion = 1;
+const versionOneGuideSession = versionOnePistonGuideRecord.projection.fields
+  .authoritative.guideSession as {
+    dataProcessing: { linearFitResult: Record<string, unknown> };
+  };
+delete versionOneGuideSession.dataProcessing.linearFitResult.algorithmVersion;
+const migratedVersionOnePistonGuide = decodeWorkbenchPersistenceV3FileRecord(
+  versionOnePistonGuideRecord,
+  451,
+);
+if (!migratedVersionOnePistonGuide.ok) {
+  throw new Error(migratedVersionOnePistonGuide.diagnostics[0].message);
+}
+assert.equal(migratedVersionOnePistonGuide.status, 'migrated');
+assert.equal(
+  migratedVersionOnePistonGuide.value.fields.authoritative
+    .pistonGuideSessionProjectionVersion,
+  PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
+  'projection v1 must migrate explicitly to the versioned fit authority contract',
+);
+
+const tamperedPistonGuideRecord = structuredClone(pistonGuideEncoded.value);
+const tamperedPistonGuideCache = tamperedPistonGuideRecord.projection.fields
+  .derived.pistonGuideDataProcessingCache as {
+    dataProcessing: PistonOscillationDataProcessingSession;
+  };
+tamperedPistonGuideCache.dataProcessing.runs[0]!.result!.periodS = 99;
+tamperedPistonGuideCache.dataProcessing.runs[0]!.result!.periodSquaredS2 = 9_801;
+tamperedPistonGuideCache.dataProcessing.linearFitResult!.slopeMPerS2 = 123_456;
+tamperedPistonGuideCache.dataProcessing.linearFitResult!.rSquared = -99;
+tamperedPistonGuideCache.dataProcessing.calculationSession!.answers.gamma
+  .expectedValue = 987;
+const repairedPistonGuide = decodeWorkbenchPersistenceV3FileRecord(
+  tamperedPistonGuideRecord,
+  451,
+);
+if (!repairedPistonGuide.ok) {
+  throw new Error(repairedPistonGuide.diagnostics[0].message);
+}
+assert.equal(repairedPistonGuide.status, 'repaired-cache');
+assert.ok(repairedPistonGuide.diagnostics.some((diagnostic) => (
+  diagnostic.category === 'derived-cache'
+  && diagnostic.recovery === 'recompute-derived'
+)));
+const repairedPistonGuideFile = reprojectWorkbenchPersistenceV3File(
+  repairedPistonGuide.value,
+  451,
+);
+if (!repairedPistonGuideFile.ok) {
+  throw new Error(repairedPistonGuideFile.diagnostics[0].message);
+}
+assert.equal(repairedPistonGuideFile.value.kind, 'heatCapacityPistonOscillation');
+if (repairedPistonGuideFile.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected repaired Piston guide file reprojection.');
+}
+const repairedProcessing = repairedPistonGuideFile.value
+  .pistonOscillationGuideSession.dataProcessing;
+assert.ok(repairedProcessing?.linearFitResult);
+assert.deepEqual(
+  repairedProcessing!.runs.map((run) => ({
+    leftSampleIndex: run.result?.leftSampleIndex,
+    rightSampleIndex: run.result?.rightSampleIndex,
+    periodS: run.result?.periodS,
+    periodSquaredS2: run.result?.periodSquaredS2,
+  })),
+  pistonGuideDataProcessing.runs.map((run) => ({
+    leftSampleIndex: run.result?.leftSampleIndex,
+    rightSampleIndex: run.result?.rightSampleIndex,
+    periodS: run.result?.periodS,
+    periodSquaredS2: run.result?.periodSquaredS2,
+  })),
+  'T and T-squared must be recalculated from authoritative endpoint sample indices',
+);
+assert.deepEqual(
+  repairedProcessing!.linearFitResult,
+  pistonGuideDataProcessing.linearFitResult,
+  'linear fit must be recalculated after restoring period results',
+);
+assert.equal(
+  repairedProcessing!.calculationSession!.answers.gamma.expectedValue,
+  pistonGuideDataProcessing.calculationSession!.answers.gamma.expectedValue,
+  'gamma must be recalculated from the restored fit rather than trusted from cache',
+);
 
 const heatModeProjection = projectWorkbenchPersistenceV3File(
   createDefaultHeatCapacityFile(46),

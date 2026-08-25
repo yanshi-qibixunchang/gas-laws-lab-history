@@ -27,6 +27,240 @@ export interface PistonOscillationShellCopy {
     navigationItem: string;
     rightSidebar: string;
   };
+  modes: {
+    demo: string;
+    guide: string;
+    free: string;
+    stopDemo: string;
+    resetGuide: string;
+    exitGuide: string;
+    unavailable: string;
+  };
+  demoPresentation: {
+    stepCounter: (current: number, total: number) => string;
+    completed: string;
+    terminated: string;
+    running: string;
+    completedStatus: string;
+    terminatedStatus: string;
+    targetLabel: string;
+    criterionLabel: string;
+    observationLabel: string;
+    instrumentOperation: string;
+  };
+  hands: {
+    left: string;
+    right: string;
+  };
+  lesson: {
+    buttonLabel: string;
+    label: string;
+    pages: readonly {
+      title: string;
+      body: string;
+    }[];
+    close: string;
+  };
+  recovery: {
+    label: string;
+    supportLostTitle: string;
+    supportLostBody: (heightMm: number) => string;
+    wrongHeightTitle: string;
+    wrongHeightBody: (heightMm: number) => string;
+    continueHint: string;
+  };
+  feedback: {
+    wrongStep: string;
+    targetHeightRequired: (heightMm: number) => string;
+    leftHandBeforeLock: string;
+    releaseRightHandBeforeLock: string;
+    leftHandBeforeDisconnect: string;
+    bothHandsBeforePress: string;
+  };
+  interaction: {
+    focusEntryAria: string;
+    lockedHints: readonly string[];
+    disconnectedHints: readonly string[];
+    connectedHints: readonly string[];
+    overviewHints: readonly string[];
+    hoseInRange: string;
+    hoseOutsideRange: string;
+    hoseConnected: string;
+    hoseDisconnected: string;
+    lockedStatus: string;
+    looseStatus: string;
+    scaleReadingTitle: string;
+    heightAdjustmentTitle: string;
+    pistonFocusTitle: string;
+    hoseFocusTitle: string;
+    hoseLabel: string;
+    scaleReadingMirrorAria: string;
+    lockingScrewMirrorAria: string;
+    waitingHeightDrag: string;
+    waitingBothHands: string;
+    rightHandReady: string;
+    leftHandReady: string;
+    oneHandReady: string;
+    handoffInProgress: string;
+    rightHandDragging: string;
+    platformSupported: string;
+    oneHandHolding: string;
+    screwHolding: string;
+    bothHandsPressing: string;
+    falling: string;
+    rebounding: string;
+    experimentPress: string;
+    heightAdjustment: string;
+    heightFixed: string;
+    screwLabel: string;
+    platformModeLabel: string;
+    equilibriumHeightLabel: string;
+    handStatusLabel: string;
+    bothHandsStatusLabel: string;
+    displacementLabel: string;
+    releaseGapLabel: string;
+    switchingView: string;
+    supportBeforeMirror: string;
+    focusLocked: string;
+    confirmHeight: string;
+    returnScale: string;
+    exitFocus: string;
+  };
+  acquisition: {
+    title: string;
+    measurement: (current: number, total: number) => string;
+    phases: Record<'idle' | 'armed' | 'recording' | 'stopped', string>;
+    sampleRate: string;
+    triggerThreshold: string;
+    absolutePressure: string;
+    formalSamples: string;
+    recordingTime: string;
+    pointsUnit: string;
+    pressureAxis: string;
+    timeAxis: string;
+    triggerLine: (value: number) => string;
+    waitingTrigger: string;
+    emptyCurve: string;
+    start: string;
+    pause: string;
+    redo: string;
+    save: string;
+    actionsAria: string;
+    curveAria: string;
+    preTriggerNote: string;
+    demoSaved: string;
+    saved: string;
+  };
+  guide: {
+    checklist: string;
+    stepLabel: string;
+    parameterSetupTitle: string;
+    parameterSetupDetail: string;
+    adjustHeightTitle: (heightMm: number) => string;
+    adjustHeightDetail: (heightMm: number) => string;
+    lockScrewTitle: string;
+    lockScrewDetail: string;
+    reconnectHoseTitle: string;
+    reconnectHoseDetail: string;
+    loosenScrewTitle: string;
+    loosenScrewDetail: string;
+    startAcquisitionTitle: string;
+    startAcquisitionDetail: string;
+    releasePistonTitle: string;
+    releasePistonDetail: string;
+    recordingTitle: string;
+    recordingDetail: string;
+    pauseRecordingTitle: string;
+    pauseRecordingDetail: string;
+    saveCurveTitle: (measurementNumber: number) => string;
+    saveCurveDetail: (measurementNumber: number) => string;
+    crossRunStabilizingTitle: string;
+    crossRunStabilizingDetail: string;
+    crossRunDisconnectTitle: string;
+    crossRunDisconnectDetail: string;
+    completedTitle: string;
+    completedDetail: string;
+    completionToastKicker: string;
+    completionToast: string;
+    sampleRateInvalid: string;
+    triggerThresholdInvalid: string;
+    reminderTitle: string;
+    reminderBody: string;
+  };
+  processing: {
+    title: string;
+    hint: string;
+    navigationItem: string;
+    unavailableTitle: string;
+    unavailableBody: string;
+    runListAria: string;
+    runLabel: (number: number) => string;
+    runState: Record<'active' | 'completed' | 'pending', string>;
+    selectionTitle: string;
+    selectionInstruction: (minimumPeriods: number) => string;
+    wheelHint: string;
+    moveTool: string;
+    selectTool: string;
+    clearSelection: string;
+    resetView: string;
+    horizontalScrollbar: string;
+    chartAria: (runNumber: number, heightMm: number) => string;
+    chartKeyboardInstructions: string;
+    timeAxis: string;
+    pressureAxis: string;
+    leftEndpoint: string;
+    rightEndpoint: string;
+    periodCount: string;
+    selectionTooShort: string;
+    guidedMinimumWarning: (minimumPeriods: number) => string;
+    selectionAccepted: (extremaCount: number, periodCount: string) => string;
+    dragHint: string;
+    preprocessingTitle: string;
+    preprocessingInstruction: string;
+    calculationLockedTitle: string;
+    calculationLockedBody: string;
+    endpointCheckTitle: string;
+    endpointCheckInstruction: string;
+    t1Label: string;
+    t2Label: string;
+    endpointPrecision: string;
+    checkEndpoints: string;
+    periodCheckTitle: string;
+    periodCheckInstruction: string;
+    periodLabel: string;
+    periodPrecision: string;
+    checkPeriod: string;
+    periodWaiting: string;
+    previousRun: string;
+    nextRun: string;
+    nextStep: string;
+    calculationReady: string;
+    navigationUnlocked: string;
+    navigationLocked: string;
+    calculationReadyDetail: string;
+    reviewTitle: string;
+    reviewInstruction: string;
+    reviewRunSummary: (number: number, total: number) => string;
+    reviewAttemptSummary: (endpointAttempts: number, periodAttempts: number) => string;
+    closeReview: string;
+    viewFitAndCalculation: string;
+    correctRecorded: string;
+    correct: string;
+    revealedRecorded: string;
+    revealed: string;
+    feedback: Record<
+      'empty' | 'invalid' | 'numeric-wrong' | 'precision-wrong' | 'wrong',
+      string
+    >;
+    reference: string;
+    continueAnswer: string;
+    revealAnswer: string;
+    selectionToolReminder: string;
+    selectionReminder: string;
+    endpointReminder: string;
+    periodReminder: string;
+    nextReminder: string;
+  };
 }
 
 export const PISTON_OSCILLATION_SHELL_COPY = {
@@ -55,6 +289,284 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       navigationItem: '该实验内容仍在开发中，暂时无法打开。',
       rightSidebar: '当前参数区域仍在开发阶段，暂时无法展开，敬请期待。',
     },
+    modes: {
+      demo: '演示',
+      guide: '引导',
+      free: '自由',
+      stopDemo: '终止演示',
+      resetGuide: '重置引导',
+      exitGuide: '退出引导',
+      unavailable: '暂未开放',
+    },
+    demoPresentation: {
+      stepCounter: (current, total) => `步骤 ${current} / ${total}`,
+      completed: '演示完成',
+      terminated: '演示已终止。',
+      running: '演示中',
+      completedStatus: '已完成',
+      terminatedStatus: '已终止',
+      targetLabel: '操作目标',
+      criterionLabel: '完成判据',
+      observationLabel: '观察重点',
+      instrumentOperation: '仪器操作',
+    },
+    hands: {
+      left: '左手（Space）',
+      right: '右手（鼠标左键）',
+    },
+    lesson: {
+      buttonLabel: '实验说明',
+      label: '实验说明',
+      pages: [
+        {
+          title: '实验目标',
+          body: '本实验通过改变气柱高度，使石墨活塞在密闭气体弹力作用下产生衰减振动，并同步记录绝对压强随时间的变化。完成不同高度的测量后，可利用振动周期与气柱高度的关系计算空气比热容比。',
+        },
+        {
+          title: '为什么最低从 30 mm 开始',
+          body: '在 10、20 mm 时，密闭气体的有效体积较小。在本软件采用统一按压操作和采集判据的前提下，相同的活塞位移会造成更大的相对体积变化和压强变化，更容易偏离分析所要求的小振幅条件；振动周期也更短，周期读取更容易受到按压差异和选点误差影响。为使曲线清晰、各次测量更易重复，当前流程从 30 mm 开始取点。',
+        },
+        {
+          title: '双手操作方式',
+          body: '本实验需要两只手协同操作。软件使用左手（Space）模拟托住顶部平台，使用右手（鼠标左键）模拟抓取、拖动和按压顶部平台，以及操作压力传感器软管与侧面锁紧螺钉。调节高度可以分多次完成：只要左手（Space）或右手（鼠标左键）仍在托住平台，交接就是有效的。移开右手（鼠标左键）去确认高度或操作螺钉前，应先用左手（Space）接住平台，并一直保持到螺钉锁紧。引导模式中若两只手同时离开，仪器会动态复位到 0 mm 并暂停显示说明；自由模式中平台则按真实物理下落。',
+        },
+        {
+          title: '重新查看',
+          body: '如果后续忘记这些内容，可以点击右上角、演示 / 引导 / 自由模式按钮右侧的扳手图标，重新查看实验说明。',
+        },
+      ],
+      close: '关闭实验说明',
+    },
+    recovery: {
+      label: '实验说明',
+      supportLostTitle: '双手不能同时离开平台',
+      supportLostBody: (heightMm) => `软管断开且侧面锁紧螺钉松开时，顶部平台必须由左手（Space）托住，或由右手（鼠标左键）抓住。刚才左手（Space）与右手（鼠标左键）同时离开，仪器已动态复位到 0 mm。请从 0 mm 重新调至 ${heightMm} mm；移开右手（鼠标左键）前，先用左手（Space）接住顶部平台，并保持到螺钉真正锁紧。`,
+      wrongHeightTitle: '当前条件不能确认高度',
+      wrongHeightBody: (heightMm) => `只有石墨活塞下沿对准 ${heightMm} mm、左手（Space）正在托住顶部平台，并且右手（鼠标左键）已经离开平台时，才能点击“高度已调好，去固定”。刚才确认条件未满足，仪器已动态复位到 0 mm。你可以分多次调节高度；请从 0 mm 重新开始，满足全部条件后再确认。`,
+      continueHint: '点击空白区域来继续',
+    },
+    feedback: {
+      wrongStep: '请先完成当前引导步骤。',
+      targetHeightRequired: (heightMm) => `请先将石墨活塞下沿对准 ${heightMm} mm。`,
+      leftHandBeforeLock: '移开右手（鼠标左键）前，请先用左手（Space）托住顶部平台，并保持到螺钉锁紧。',
+      releaseRightHandBeforeLock: '请先让右手（鼠标左键）离开顶部平台，再用它操作高度按钮或侧面锁紧螺钉。',
+      leftHandBeforeDisconnect: '请先用左手（Space）托住顶部平台，再用右手（鼠标左键）断开压力传感器软管。',
+      bothHandsBeforePress: '请让左手（Space）与右手（鼠标左键）全部就位，再双手下压顶部平台。',
+    },
+    interaction: {
+      focusEntryAria: '双击进入活塞操作视角',
+      lockedHints: [
+        '当前侧面锁紧螺钉已固定活塞高度',
+        '保持左手（Space）托住顶部平台，并用右手（鼠标左键）在左上操作镜中旋松螺钉',
+        '螺钉松开后，根据软管状态调节高度或双手按压',
+      ],
+      disconnectedHints: [
+        '用右手（鼠标左键）拖动顶部平台至目标高度',
+        '移开右手（鼠标左键）前，先用左手（Space）接住顶部平台',
+        '保持左手（Space）托住，并用右手（鼠标左键）在左上操作镜中旋紧螺钉',
+      ],
+      connectedHints: [
+        '让左手（Space）与右手（鼠标左键）全部就位后双手下压',
+        '两只手全部松开后释放活塞',
+        '左上操作镜用于观察和操作侧面锁紧螺钉',
+      ],
+      overviewHints: [
+        '双击顶部平台、玻璃管、黑色框架或侧面锁紧螺钉：进入活塞操作视角',
+        '用右手（鼠标左键）拖动软管或接头：断开或接回软管',
+        '右手（鼠标左键）拖动空白区域：旋转模型',
+        '右键拖动：平移模型',
+        '滚轮：缩放模型',
+      ],
+      hoseInRange: '磁吸范围内',
+      hoseOutsideRange: '已越过磁吸范围',
+      hoseConnected: '已接通密封',
+      hoseDisconnected: '已断开通大气',
+      lockedStatus: '已锁紧',
+      looseStatus: '已松开',
+      scaleReadingTitle: '刻度读取',
+      heightAdjustmentTitle: '高度调节',
+      pistonFocusTitle: '活塞聚焦',
+      hoseFocusTitle: '软管聚焦',
+      hoseLabel: '软管',
+      scaleReadingMirrorAria: '刻度读取操作镜',
+      lockingScrewMirrorAria: '锁紧螺钉操作镜',
+      waitingHeightDrag: '等待右手（鼠标左键）拖动',
+      waitingBothHands: '等待左手（Space）与右手（鼠标左键）',
+      rightHandReady: '右手（鼠标左键）已抓住',
+      leftHandReady: '左手（Space）已托住',
+      oneHandReady: '左手（Space）或右手（鼠标左键）已就位',
+      handoffInProgress: '左手（Space）与右手（鼠标左键）交接中',
+      rightHandDragging: '右手（鼠标左键）拖动中',
+      platformSupported: '左手（Space）或右手（鼠标左键）正在托住',
+      oneHandHolding: '左手（Space）或右手（鼠标左键）仍在托住',
+      screwHolding: '螺钉固定中',
+      bothHandsPressing: '左手（Space）与右手（鼠标左键）下压中',
+      falling: '未固定，平台下落中',
+      rebounding: '回弹振动中',
+      experimentPress: '实验按压',
+      heightAdjustment: '平衡高度调节',
+      heightFixed: '高度已固定',
+      screwLabel: '侧面锁紧螺钉',
+      platformModeLabel: '平台模式',
+      equilibriumHeightLabel: '平衡高度',
+      handStatusLabel: '左手（Space）、右手（鼠标左键）',
+      bothHandsStatusLabel: '左手（Space）、右手（鼠标左键）',
+      displacementLabel: '下压位移',
+      releaseGapLabel: '松手时间差',
+      switchingView: '正在切换视角',
+      supportBeforeMirror: '请先用左手（Space）托住平台，并让右手（鼠标左键）离开平台',
+      focusLocked: '聚焦视角已锁定',
+      confirmHeight: '高度已调好，去固定',
+      returnScale: '返回刻度读取',
+      exitFocus: '退出聚焦',
+    },
+    acquisition: {
+      title: '压力数据采集',
+      measurement: (current, total) => `第 ${current} 次测量 · 共 ${total} 次`,
+      phases: {
+        idle: '未开始',
+        armed: '等待触发',
+        recording: '已触发 · 记录中',
+        stopped: '已停止 · 曲线冻结',
+      },
+      sampleRate: '采样频率',
+      triggerThreshold: '下降触发阈值',
+      absolutePressure: '当前绝对压强',
+      formalSamples: '正式样本',
+      recordingTime: '记录时间',
+      pointsUnit: '点',
+      pressureAxis: '绝对压强 / kPa',
+      timeAxis: '触发后时间 / s',
+      triggerLine: (value) => `下降触发 ${value.toFixed(1)} kPa`,
+      waitingTrigger: '等待压力由高向低越过阈值',
+      emptyCurve: '开始采集并操作活塞后显示正式曲线',
+      start: '开始采集',
+      pause: '暂停采集',
+      redo: '重做本次',
+      save: '保存本次',
+      actionsAria: '本次压力采集操作',
+      curveAria: '当前测量的绝对压力时间曲线',
+      preTriggerNote: '触发前高压段仅用于监视，不写入本次测量。',
+      demoSaved: '保存操作已完成',
+      saved: '本次曲线已保存',
+    },
+    guide: {
+      checklist: '引导步骤',
+      stepLabel: '步骤',
+      parameterSetupTitle: '设置采集参数',
+      parameterSetupDetail: '输入 1000 Hz 和 105 kPa；两项正确后自动进入下一步。',
+      adjustHeightTitle: (heightMm) => `进入聚焦并调至 ${heightMm} mm`,
+      adjustHeightDetail: (heightMm) => `双击顶部平台进入聚焦；用右手（鼠标左键）抓住并拖动顶部平台，将石墨活塞下沿对准 ${heightMm} mm；移开右手（鼠标左键）前，先用左手（Space）托住顶部平台，再点击“高度已调好，去固定”。`,
+      lockScrewTitle: '旋紧侧面锁紧螺钉',
+      lockScrewDetail: '持续用左手（Space）托住顶部平台，并用右手（鼠标左键）在左上操作镜中旋紧侧面锁紧螺钉；达到功能锁紧后再松开左手（Space）。',
+      reconnectHoseTitle: '接回压力传感器软管',
+      reconnectHoseDetail: '将白色接头拖入平台接口的磁吸范围，恢复密封。',
+      loosenScrewTitle: '旋松锁紧螺钉',
+      loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
+      startAcquisitionTitle: '开始压力采集',
+      startAcquisitionDetail: '点击图表左下角的开始按钮，进入等待下降触发状态。',
+      releasePistonTitle: '双手下压并同时释放',
+      releasePistonDetail: '双击顶部平台进入聚焦；让左手（Space）与右手（鼠标左键）全部就位，双手下压顶部平台，再同时松开双手。',
+      recordingTitle: '记录压力振荡曲线',
+      recordingDetail: '压力向下跨过 105 kPa 后自动触发，继续记录至 0.500 s。',
+      pauseRecordingTitle: '暂停本次采集',
+      pauseRecordingDetail: '记录时间达到 0.500 s 后点击暂停，冻结本次曲线。',
+      saveCurveTitle: (measurementNumber) => `保存第 ${measurementNumber} 次测量`,
+      saveCurveDetail: (measurementNumber) => `检查曲线后点击保存，将它记入第 ${measurementNumber} 次测量。`,
+      crossRunStabilizingTitle: '停止采集并等待活塞稳定',
+      crossRunStabilizingDetail: '确认当前曲线已保存，等待活塞完全停止振动。',
+      crossRunDisconnectTitle: '托住平台并断开软管',
+      crossRunDisconnectDetail: '保持左手（Space）托住顶部平台，用右手（鼠标左键）拖出白色接头，使气缸与大气连通。',
+      completedTitle: '数据处理与计算已完成',
+      completedDetail: '80、70、60 mm 三次测量、周期预处理、线性拟合与结果计算均已完成，全部过程和结果已保存。引导模式使用三组不同高度的数据，帮助你以最简流程体验一次完整拟合；在正式实验或自由模式中，建议采集更多不同高度的数据点，以减小随机波动和个别异常数据对拟合的影响，提高斜率、截距及最终计算结果的稳定性和可信度。',
+      completionToastKicker: '系统',
+      completionToast: '引导模式已结束',
+      sampleRateInvalid: '采样频率应设置为 1000 Hz。',
+      triggerThresholdInvalid: '下降触发阈值应设置为 105 kPa。',
+      reminderTitle: '请完成采集参数设置',
+      reminderBody: '两个输入框属于同一个步骤，请依次填写 1000 Hz 和 105 kPa。',
+    },
+    processing: {
+      title: '数据处理',
+      hint: '框选振荡区间并逐组计算周期',
+      navigationItem: '数据处理',
+      unavailableTitle: '周期数据尚未就绪',
+      unavailableBody: '请先完成并保存本轮全部压力曲线。',
+      runListAria: '待处理的压力曲线',
+      runLabel: (number) => `第 ${number} 幅`,
+      runState: {
+        active: '处理中',
+        completed: '已记录',
+        pending: '待处理',
+      },
+      selectionTitle: '框选周期范围',
+      selectionInstruction: (minimumPeriods) => `先用手型工具观察曲线；需要取值时切换为十字框选。本次引导需选取至少 ${minimumPeriods} 个完整周期。`,
+      wheelHint: '滚轮滚动页面 · 鼠标横向滚轮或触控板横向手势平移 · Ctrl + 滚轮缩放时间轴',
+      moveTool: '移动视图；点击切换为框选（Shift）',
+      selectTool: '框选周期；点击切换为移动（Shift）',
+      clearSelection: '清除当前选区',
+      resetView: '恢复默认视图',
+      horizontalScrollbar: '横向移动曲线可见时间范围',
+      chartAria: (runNumber, heightMm) => `第 ${runNumber} 幅、活塞高度 ${heightMm} 毫米的绝对压强时间曲线`,
+      chartKeyboardInstructions: '键盘操作：按 Shift 切换移动与框选。移动模式用方向键平移、Home 恢复默认视图；框选模式用左右方向键定位极值，按 Enter 依次确定两个端点，按 Escape 取消。',
+      timeAxis: '时间 t / s',
+      pressureAxis: '绝对压强 P / kPa',
+      leftEndpoint: '左端点',
+      rightEndpoint: '右端点',
+      periodCount: '周期数',
+      selectionTooShort: '选取范围过短，尚无法确定振动周期。请扩大时间范围，使选区至少包含两个相邻的极值点。',
+      guidedMinimumWarning: (minimumPeriods) => `本次测量需要选取至少 ${minimumPeriods} 个完整周期。请扩大时间范围后重新框选。`,
+      selectionAccepted: (extremaCount, periodCount) => `已标记 ${extremaCount} 个波峰与波谷；两端极值点之间包含 ${periodCount} 个周期。`,
+      dragHint: '点击手型工具切换为十字框选，再在图中横向拖动。',
+      preprocessingTitle: '本幅曲线预处理',
+      preprocessingInstruction: '先核对两个端点的时间坐标，再根据端点时间和周期数计算单个周期。',
+      calculationLockedTitle: '请先完成框选',
+      calculationLockedBody: '选择有效的周期范围后，端点坐标校验将自动解锁。',
+      endpointCheckTitle: '第一步：核对端点时间',
+      endpointCheckInstruction: '输入信息框中左、右端点的横坐标 t₁ 与 t₂，并一次提交校验。',
+      t1Label: '左端点时间 t₁',
+      t2Label: '右端点时间 t₂',
+      endpointPrecision: '按图中显示的 3 位小数观测时间原样填写',
+      checkEndpoints: '校验 t₁、t₂',
+      periodCheckTitle: '第二步：计算单个周期',
+      periodCheckInstruction: '使用 T = (t₂ − t₁) / N 计算单个振动周期。',
+      periodLabel: '单个周期 T',
+      periodPrecision: '保留 4 位有效数字',
+      checkPeriod: '校验周期 T',
+      periodWaiting: '端点时间校验完成后显示周期计算。',
+      previousRun: '上一幅',
+      nextRun: '下一幅',
+      nextStep: '下一步',
+      calculationReady: '三组周期数据已记录，可以进入下一阶段。',
+      navigationUnlocked: '本幅周期结果已记录，可以继续。',
+      navigationLocked: '周期结果正确录入后才能继续。',
+      calculationReadyDetail: '三幅曲线的周期结果已保存。点击“下一步”打开拟合与计算窗口。',
+      reviewTitle: '周期数据处理回顾',
+      reviewInstruction: '点击上方任一幅曲线查看已保存的选区、端点、周期计算与校验结果。回顾中可调整视图，不会改写实验数据。',
+      reviewRunSummary: (number, total) => `正在回顾第 ${number} 幅，共 ${total} 幅`,
+      reviewAttemptSummary: (endpointAttempts, periodAttempts) => `校验记录：端点提交 ${endpointAttempts} 次，周期提交 ${periodAttempts} 次`,
+      closeReview: '关闭回顾',
+      viewFitAndCalculation: '查看拟合与计算',
+      correctRecorded: '正确，计算值已被记录。',
+      correct: '正确。',
+      revealedRecorded: '已显示正确值，计算值已被记录。',
+      revealed: '已显示正确值。',
+      feedback: {
+        empty: '请先填写答案。',
+        invalid: '请输入合法的十进制数值。',
+        'numeric-wrong': '数值不正确，请重新计算。',
+        'precision-wrong': '数值正确，但精度不符合要求。',
+        wrong: '答案不正确，请检查数值与精度。',
+      },
+      reference: '参考值：',
+      continueAnswer: '继续作答',
+      revealAnswer: '查看并继续',
+      selectionToolReminder: '点击下方的手形／十字图标，可在“移动视图”和“框选周期”两种状态间切换；也可按 Shift 快速切换。切换到十字状态后，在曲线内拖动完成框选。',
+      selectionReminder: '请在曲线上横向框选至少三个完整周期。',
+      endpointReminder: '请读取并校验信息框中的 t₁ 与 t₂。',
+      periodReminder: '请使用端点时间和周期数计算单个周期 T。',
+      nextReminder: '本幅周期结果已经记录，请继续处理下一幅曲线。',
+    },
   },
   'zh-TW': {
     experimentName: '空氣熱容比（活塞振動法）',
@@ -81,6 +593,284 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       navigationItem: '此實驗內容仍在開發中，暫時無法開啟。',
       rightSidebar: '目前參數區域仍在開發階段，暫時無法展開，敬請期待。',
     },
+    modes: {
+      demo: '演示',
+      guide: '引導',
+      free: '自由',
+      stopDemo: '終止演示',
+      resetGuide: '重置引導',
+      exitGuide: '退出引導',
+      unavailable: '暫未開放',
+    },
+    demoPresentation: {
+      stepCounter: (current, total) => `步驟 ${current} / ${total}`,
+      completed: '演示完成',
+      terminated: '演示已終止。',
+      running: '演示中',
+      completedStatus: '已完成',
+      terminatedStatus: '已終止',
+      targetLabel: '操作目標',
+      criterionLabel: '完成判據',
+      observationLabel: '觀察重點',
+      instrumentOperation: '儀器操作',
+    },
+    hands: {
+      left: '左手（Space）',
+      right: '右手（滑鼠左鍵）',
+    },
+    lesson: {
+      buttonLabel: '實驗說明',
+      label: '實驗說明',
+      pages: [
+        {
+          title: '實驗目標',
+          body: '本實驗透過改變氣柱高度，使石墨活塞在密閉氣體彈力作用下產生衰減振動，並同步記錄絕對壓強隨時間的變化。完成不同高度的測量後，可利用振動週期與氣柱高度的關係計算空氣比熱容比。',
+        },
+        {
+          title: '為什麼最低從 30 mm 開始',
+          body: '在 10、20 mm 時，密閉氣體的有效體積較小。在本軟體採用統一按壓操作和採集判據的前提下，相同的活塞位移會造成更大的相對體積變化和壓強變化，更容易偏離分析所要求的小振幅條件；振動週期也更短，週期讀取更容易受到按壓差異和選點誤差影響。為使曲線清楚、各次測量更易重複，目前流程從 30 mm 開始取點。',
+        },
+        {
+          title: '雙手操作方式',
+          body: '本實驗需要兩隻手協同操作。軟體使用左手（Space）模擬托住頂部平台，使用右手（滑鼠左鍵）模擬抓取、拖動和按壓頂部平台，以及操作壓力感測器軟管與側面鎖緊螺釘。調節高度可以分多次完成：只要左手（Space）或右手（滑鼠左鍵）仍在托住平台，交接就是有效的。移開右手（滑鼠左鍵）去確認高度或操作螺釘前，應先用左手（Space）接住平台，並一直保持到螺釘鎖緊。引導模式中若兩隻手同時離開，儀器會動態復位到 0 mm 並暫停顯示說明；自由模式中平台則按真實物理下落。',
+        },
+        {
+          title: '重新查看',
+          body: '如果後續忘記這些內容，可以點擊右上角、演示 / 引導 / 自由模式按鈕右側的扳手圖示，重新查看實驗說明。',
+        },
+      ],
+      close: '關閉實驗說明',
+    },
+    recovery: {
+      label: '實驗說明',
+      supportLostTitle: '雙手不能同時離開平台',
+      supportLostBody: (heightMm) => `軟管斷開且側面鎖緊螺釘鬆開時，頂部平台必須由左手（Space）托住，或由右手（滑鼠左鍵）抓住。剛才左手（Space）與右手（滑鼠左鍵）同時離開，儀器已動態復位到 0 mm。請從 0 mm 重新調至 ${heightMm} mm；移開右手（滑鼠左鍵）前，先用左手（Space）接住頂部平台，並保持到螺釘真正鎖緊。`,
+      wrongHeightTitle: '目前條件不能確認高度',
+      wrongHeightBody: (heightMm) => `只有石墨活塞下沿對準 ${heightMm} mm、左手（Space）正在托住頂部平台，並且右手（滑鼠左鍵）已經離開平台時，才能點擊「高度已調好，去固定」。剛才確認條件未滿足，儀器已動態復位到 0 mm。你可以分多次調節高度；請從 0 mm 重新開始，滿足全部條件後再確認。`,
+      continueHint: '點擊空白區域來繼續',
+    },
+    feedback: {
+      wrongStep: '請先完成目前引導步驟。',
+      targetHeightRequired: (heightMm) => `請先將石墨活塞下沿對準 ${heightMm} mm。`,
+      leftHandBeforeLock: '移開右手（滑鼠左鍵）前，請先用左手（Space）托住頂部平台，並保持到螺釘鎖緊。',
+      releaseRightHandBeforeLock: '請先讓右手（滑鼠左鍵）離開頂部平台，再用它操作高度按鈕或側面鎖緊螺釘。',
+      leftHandBeforeDisconnect: '請先用左手（Space）托住頂部平台，再用右手（滑鼠左鍵）斷開壓力感測器軟管。',
+      bothHandsBeforePress: '請讓左手（Space）與右手（滑鼠左鍵）全部就位，再雙手下壓頂部平台。',
+    },
+    interaction: {
+      focusEntryAria: '雙擊進入活塞操作視角',
+      lockedHints: [
+        '目前側面鎖緊螺釘已固定活塞高度',
+        '保持左手（Space）托住頂部平台，並用右手（滑鼠左鍵）在左上操作鏡中旋鬆螺釘',
+        '螺釘鬆開後，根據軟管狀態調節高度或雙手按壓',
+      ],
+      disconnectedHints: [
+        '用右手（滑鼠左鍵）拖動頂部平台至目標高度',
+        '移開右手（滑鼠左鍵）前，先用左手（Space）接住頂部平台',
+        '保持左手（Space）托住，並用右手（滑鼠左鍵）在左上操作鏡中旋緊螺釘',
+      ],
+      connectedHints: [
+        '讓左手（Space）與右手（滑鼠左鍵）全部就位後雙手下壓',
+        '兩隻手全部鬆開後釋放活塞',
+        '左上操作鏡用於觀察和操作側面鎖緊螺釘',
+      ],
+      overviewHints: [
+        '雙擊頂部平台、玻璃管、黑色框架或側面鎖緊螺釘：進入活塞操作視角',
+        '用右手（滑鼠左鍵）拖動軟管或接頭：斷開或接回軟管',
+        '右手（滑鼠左鍵）拖動空白區域：旋轉模型',
+        '右鍵拖動：平移模型',
+        '滾輪：縮放模型',
+      ],
+      hoseInRange: '磁吸範圍內',
+      hoseOutsideRange: '已越過磁吸範圍',
+      hoseConnected: '已接通密封',
+      hoseDisconnected: '已斷開通大氣',
+      lockedStatus: '已鎖緊',
+      looseStatus: '已鬆開',
+      scaleReadingTitle: '刻度讀取',
+      heightAdjustmentTitle: '高度調節',
+      pistonFocusTitle: '活塞聚焦',
+      hoseFocusTitle: '軟管聚焦',
+      hoseLabel: '軟管',
+      scaleReadingMirrorAria: '刻度讀取操作鏡',
+      lockingScrewMirrorAria: '鎖緊螺釘操作鏡',
+      waitingHeightDrag: '等待右手（滑鼠左鍵）拖動',
+      waitingBothHands: '等待左手（Space）與右手（滑鼠左鍵）',
+      rightHandReady: '右手（滑鼠左鍵）已抓住',
+      leftHandReady: '左手（Space）已托住',
+      oneHandReady: '左手（Space）或右手（滑鼠左鍵）已就位',
+      handoffInProgress: '左手（Space）與右手（滑鼠左鍵）交接中',
+      rightHandDragging: '右手（滑鼠左鍵）拖動中',
+      platformSupported: '左手（Space）或右手（滑鼠左鍵）正在托住',
+      oneHandHolding: '左手（Space）或右手（滑鼠左鍵）仍在托住',
+      screwHolding: '螺釘固定中',
+      bothHandsPressing: '左手（Space）與右手（滑鼠左鍵）下壓中',
+      falling: '尚未固定，平台下落中',
+      rebounding: '回彈振動中',
+      experimentPress: '實驗按壓',
+      heightAdjustment: '平衡高度調節',
+      heightFixed: '高度已固定',
+      screwLabel: '側面鎖緊螺釘',
+      platformModeLabel: '平台模式',
+      equilibriumHeightLabel: '平衡高度',
+      handStatusLabel: '左手（Space）、右手（滑鼠左鍵）',
+      bothHandsStatusLabel: '左手（Space）、右手（滑鼠左鍵）',
+      displacementLabel: '下壓位移',
+      releaseGapLabel: '鬆手時間差',
+      switchingView: '正在切換視角',
+      supportBeforeMirror: '請先用左手（Space）托住平台，並讓右手（滑鼠左鍵）離開平台',
+      focusLocked: '聚焦視角已鎖定',
+      confirmHeight: '高度已調好，去固定',
+      returnScale: '返回刻度讀取',
+      exitFocus: '退出聚焦',
+    },
+    acquisition: {
+      title: '壓力資料採集',
+      measurement: (current, total) => `第 ${current} 次測量 · 共 ${total} 次`,
+      phases: {
+        idle: '尚未開始',
+        armed: '等待觸發',
+        recording: '已觸發 · 記錄中',
+        stopped: '已停止 · 曲線凍結',
+      },
+      sampleRate: '採樣頻率',
+      triggerThreshold: '下降觸發閾值',
+      absolutePressure: '目前絕對壓強',
+      formalSamples: '正式樣本',
+      recordingTime: '記錄時間',
+      pointsUnit: '點',
+      pressureAxis: '絕對壓強 / kPa',
+      timeAxis: '觸發後時間 / s',
+      triggerLine: (value) => `下降觸發 ${value.toFixed(1)} kPa`,
+      waitingTrigger: '等待壓力由高向低越過閾值',
+      emptyCurve: '開始採集並操作活塞後顯示正式曲線',
+      start: '開始採集',
+      pause: '暫停採集',
+      redo: '重做本次',
+      save: '儲存本次',
+      actionsAria: '本次壓力採集操作',
+      curveAria: '目前測量的絕對壓力時間曲線',
+      preTriggerNote: '觸發前高壓段僅用於監視，不寫入本次測量。',
+      demoSaved: '儲存操作已完成',
+      saved: '本次曲線已儲存',
+    },
+    guide: {
+      checklist: '引導步驟',
+      stepLabel: '步驟',
+      parameterSetupTitle: '設定採集參數',
+      parameterSetupDetail: '輸入 1000 Hz 與 105 kPa；兩項正確後自動進入下一步。',
+      adjustHeightTitle: (heightMm) => `進入聚焦並調至 ${heightMm} mm`,
+      adjustHeightDetail: (heightMm) => `雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）抓住並拖動頂部平台，將石墨活塞下沿對準 ${heightMm} mm；移開右手（滑鼠左鍵）前，先用左手（Space）托住頂部平台，再點擊「高度已調好，去固定」。`,
+      lockScrewTitle: '旋緊側面鎖緊螺釘',
+      lockScrewDetail: '持續用左手（Space）托住頂部平台，並用右手（滑鼠左鍵）在左上操作鏡中旋緊側面鎖緊螺釘；達到功能鎖緊後再鬆開左手（Space）。',
+      reconnectHoseTitle: '接回壓力感測器軟管',
+      reconnectHoseDetail: '將白色接頭拖入平台接口的磁吸範圍，恢復密封。',
+      loosenScrewTitle: '旋鬆鎖緊螺釘',
+      loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
+      startAcquisitionTitle: '開始壓力採集',
+      startAcquisitionDetail: '點擊圖表左下角的開始按鈕，進入等待下降觸發狀態。',
+      releasePistonTitle: '雙手下壓並同時釋放',
+      releasePistonDetail: '雙擊頂部平台進入聚焦；讓左手（Space）與右手（滑鼠左鍵）全部就位，雙手下壓頂部平台，再同時鬆開雙手。',
+      recordingTitle: '記錄壓力振盪曲線',
+      recordingDetail: '壓力向下跨越 105 kPa 後自動觸發，繼續記錄至 0.500 s。',
+      pauseRecordingTitle: '暫停本次採集',
+      pauseRecordingDetail: '記錄時間達到 0.500 s 後點擊暫停，凍結本次曲線。',
+      saveCurveTitle: (measurementNumber) => `儲存第 ${measurementNumber} 次測量`,
+      saveCurveDetail: (measurementNumber) => `檢查曲線後點擊儲存，將它記入第 ${measurementNumber} 次測量。`,
+      crossRunStabilizingTitle: '停止採集並等待活塞穩定',
+      crossRunStabilizingDetail: '確認目前曲線已儲存，等待活塞完全停止振動。',
+      crossRunDisconnectTitle: '托住平台並斷開軟管',
+      crossRunDisconnectDetail: '保持左手（Space）托住頂部平台，用右手（滑鼠左鍵）拖出白色接頭，使氣缸與大氣連通。',
+      completedTitle: '資料處理與計算已完成',
+      completedDetail: '80、70、60 mm 三次測量、週期預處理、線性擬合與結果計算均已完成，全部過程與結果已儲存。引導模式使用三組不同高度的資料，協助你以最簡流程體驗一次完整擬合；在正式實驗或自由模式中，建議採集更多不同高度的資料點，以減小隨機波動和個別異常資料對擬合的影響，提高斜率、截距及最終計算結果的穩定性和可信度。',
+      completionToastKicker: '系統',
+      completionToast: '引導模式已結束',
+      sampleRateInvalid: '採樣頻率應設定為 1000 Hz。',
+      triggerThresholdInvalid: '下降觸發閾值應設定為 105 kPa。',
+      reminderTitle: '請完成採集參數設定',
+      reminderBody: '兩個輸入框屬於同一個步驟，請依次填寫 1000 Hz 與 105 kPa。',
+    },
+    processing: {
+      title: '資料處理',
+      hint: '框選振盪區間並逐組計算週期',
+      navigationItem: '資料處理',
+      unavailableTitle: '週期資料尚未就緒',
+      unavailableBody: '請先完成並儲存本輪全部壓力曲線。',
+      runListAria: '待處理的壓力曲線',
+      runLabel: (number) => `第 ${number} 幅`,
+      runState: {
+        active: '處理中',
+        completed: '已記錄',
+        pending: '待處理',
+      },
+      selectionTitle: '框選週期範圍',
+      selectionInstruction: (minimumPeriods) => `先用手型工具觀察曲線；需要取值時切換為十字框選。本次引導需選取至少 ${minimumPeriods} 個完整週期。`,
+      wheelHint: '滾輪捲動頁面 · 滑鼠橫向滾輪或觸控板橫向手勢平移 · Ctrl + 滾輪縮放時間軸',
+      moveTool: '移動視圖；點擊切換為框選（Shift）',
+      selectTool: '框選週期；點擊切換為移動（Shift）',
+      clearSelection: '清除目前選區',
+      resetView: '恢復預設視圖',
+      horizontalScrollbar: '橫向移動曲線可見時間範圍',
+      chartAria: (runNumber, heightMm) => `第 ${runNumber} 幅、活塞高度 ${heightMm} 毫米的絕對壓強時間曲線`,
+      chartKeyboardInstructions: '鍵盤操作：按 Shift 切換移動與框選。移動模式用方向鍵平移、Home 恢復預設視圖；框選模式用左右方向鍵定位極值，按 Enter 依次確定兩個端點，按 Escape 取消。',
+      timeAxis: '時間 t / s',
+      pressureAxis: '絕對壓強 P / kPa',
+      leftEndpoint: '左端點',
+      rightEndpoint: '右端點',
+      periodCount: '週期數',
+      selectionTooShort: '選取範圍過短，尚無法確定振動週期。請擴大時間範圍，使選區至少包含兩個相鄰的極值點。',
+      guidedMinimumWarning: (minimumPeriods) => `本次測量需要選取至少 ${minimumPeriods} 個完整週期。請擴大時間範圍後重新框選。`,
+      selectionAccepted: (extremaCount, periodCount) => `已標記 ${extremaCount} 個波峰與波谷；兩端極值點之間包含 ${periodCount} 個週期。`,
+      dragHint: '點擊手型工具切換為十字框選，再在圖中橫向拖動。',
+      preprocessingTitle: '本幅曲線預處理',
+      preprocessingInstruction: '先核對兩個端點的時間座標，再根據端點時間與週期數計算單個週期。',
+      calculationLockedTitle: '請先完成框選',
+      calculationLockedBody: '選擇有效的週期範圍後，端點座標校驗將自動解鎖。',
+      endpointCheckTitle: '第一步：核對端點時間',
+      endpointCheckInstruction: '輸入資訊框中左、右端點的橫座標 t₁ 與 t₂，並一次提交校驗。',
+      t1Label: '左端點時間 t₁',
+      t2Label: '右端點時間 t₂',
+      endpointPrecision: '按圖中顯示的 3 位小數觀測時間原樣填寫',
+      checkEndpoints: '校驗 t₁、t₂',
+      periodCheckTitle: '第二步：計算單個週期',
+      periodCheckInstruction: '使用 T = (t₂ − t₁) / N 計算單個振動週期。',
+      periodLabel: '單個週期 T',
+      periodPrecision: '保留 4 位有效數字',
+      checkPeriod: '校驗週期 T',
+      periodWaiting: '端點時間校驗完成後顯示週期計算。',
+      previousRun: '上一幅',
+      nextRun: '下一幅',
+      nextStep: '下一步',
+      calculationReady: '三組週期資料已記錄，可以進入下一階段。',
+      navigationUnlocked: '本幅週期結果已記錄，可以繼續。',
+      navigationLocked: '週期結果正確錄入後才能繼續。',
+      calculationReadyDetail: '三幅曲線的週期結果已儲存。點擊「下一步」開啟擬合與計算視窗。',
+      reviewTitle: '週期資料處理回顧',
+      reviewInstruction: '點擊上方任一幅曲線查看已儲存的選區、端點、週期計算與校驗結果。回顧中可調整視圖，不會改寫實驗資料。',
+      reviewRunSummary: (number, total) => `正在回顧第 ${number} 幅，共 ${total} 幅`,
+      reviewAttemptSummary: (endpointAttempts, periodAttempts) => `校驗記錄：端點提交 ${endpointAttempts} 次，週期提交 ${periodAttempts} 次`,
+      closeReview: '關閉回顧',
+      viewFitAndCalculation: '查看擬合與計算',
+      correctRecorded: '正確，計算值已被記錄。',
+      correct: '正確。',
+      revealedRecorded: '已顯示正確值，計算值已被記錄。',
+      revealed: '已顯示正確值。',
+      feedback: {
+        empty: '請先填寫答案。',
+        invalid: '請輸入合法的十進位數值。',
+        'numeric-wrong': '數值不正確，請重新計算。',
+        'precision-wrong': '數值正確，但精度不符合要求。',
+        wrong: '答案不正確，請檢查數值與精度。',
+      },
+      reference: '參考值：',
+      continueAnswer: '繼續作答',
+      revealAnswer: '查看並繼續',
+      selectionToolReminder: '點擊下方的手形／十字圖示，可在「移動視圖」與「框選週期」兩種狀態間切換；也可按 Shift 快速切換。切換到十字狀態後，在曲線內拖曳完成框選。',
+      selectionReminder: '請在曲線上橫向框選至少三個完整週期。',
+      endpointReminder: '請讀取並校驗資訊框中的 t₁ 與 t₂。',
+      periodReminder: '請使用端點時間與週期數計算單個週期 T。',
+      nextReminder: '本幅週期結果已經記錄，請繼續處理下一幅曲線。',
+    },
   },
   en: {
     experimentName: 'Air Heat-Capacity Ratio (Piston Oscillation)',
@@ -106,6 +896,284 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     unavailable: {
       navigationItem: 'This experiment content is still in development and cannot be opened yet.',
       rightSidebar: 'The current-parameters area is still in development and cannot be expanded yet.',
+    },
+    modes: {
+      demo: 'Demo',
+      guide: 'Guide',
+      free: 'Free',
+      stopDemo: 'Stop demo',
+      resetGuide: 'Reset guide',
+      exitGuide: 'Exit guide',
+      unavailable: 'Not available yet',
+    },
+    demoPresentation: {
+      stepCounter: (current, total) => `Step ${current} / ${total}`,
+      completed: 'Demo complete',
+      terminated: 'Demo terminated.',
+      running: 'Demo running',
+      completedStatus: 'Completed',
+      terminatedStatus: 'Terminated',
+      targetLabel: 'Target',
+      criterionLabel: 'Completion criterion',
+      observationLabel: 'Observe',
+      instrumentOperation: 'Instrument controls',
+    },
+    hands: {
+      left: 'left hand (Space)',
+      right: 'right hand (left mouse button)',
+    },
+    lesson: {
+      buttonLabel: 'Experiment notes',
+      label: 'Experiment notes',
+      pages: [
+        {
+          title: 'Experiment objective',
+          body: 'This experiment changes the gas-column height so the graphite piston undergoes damped oscillation under the elastic force of the sealed gas while absolute pressure is recorded over time. After measurements at different heights, the relationship between oscillation period and gas-column height is used to calculate the heat-capacity ratio of air.',
+        },
+        {
+          title: 'Why measurements begin at 30 mm',
+          body: 'At 10 and 20 mm, the effective volume of the sealed gas is small. With the common pressing action and acquisition criteria used in this software, the same piston displacement produces larger fractional changes in volume and pressure, making it easier to leave the small-amplitude regime required by the analysis. The oscillation period is also shorter, so period measurements become more sensitive to differences in the press and point selection. To keep the curves clear and the measurements repeatable, the current procedure begins at 30 mm.',
+        },
+        {
+          title: 'Two-hand operation',
+          body: 'This experiment requires coordinated use of both hands. The left hand (Space) supports the top platform. The right hand (left mouse button) grabs, drags, and presses the top platform and operates the pressure-sensor hose and side locking screw. Height may be adjusted in several passes: a handoff remains valid while either the left hand (Space) or right hand (left mouse button) still supports the platform. Before moving the right hand (left mouse button) to confirm the height or operate the screw, take over support with the left hand (Space) and keep supporting until the screw is locked. In Guide mode, releasing both hands resets the instrument to 0 mm with an animation and pauses for an explanation; in Free mode, the platform falls under the physical model.',
+        },
+        {
+          title: 'View again',
+          body: 'If you forget these instructions, select the wrench to the right of the Demo / Guide / Free mode buttons in the upper-right corner to reopen the experiment notes.',
+        },
+      ],
+      close: 'Close experiment notes',
+    },
+    recovery: {
+      label: 'Experiment notes',
+      supportLostTitle: 'Do not release both hands',
+      supportLostBody: (heightMm) => `When the hose is disconnected and the side locking screw is loose, the top platform must be supported by the left hand (Space) or held by the right hand (left mouse button). Both hands were just released, so the instrument has animated back to 0 mm. Adjust it again from 0 mm to ${heightMm} mm. Before moving the right hand (left mouse button) away, take over support with the left hand (Space) and keep supporting until the screw is truly locked.`,
+      wrongHeightTitle: 'The height cannot be confirmed yet',
+      wrongHeightBody: (heightMm) => `Select “Height set, secure it” only when the graphite piston lower edge is aligned with ${heightMm} mm, the left hand (Space) is supporting the top platform, and the right hand (left mouse button) has released the platform. Those conditions were not all met, so the instrument has animated back to 0 mm. You may adjust the height in several passes; restart from 0 mm and confirm only after all conditions are met.`,
+      continueHint: 'Select the blank area to continue',
+    },
+    feedback: {
+      wrongStep: 'Complete the current guide step first.',
+      targetHeightRequired: (heightMm) => `Align the graphite piston lower edge with ${heightMm} mm first.`,
+      leftHandBeforeLock: 'Before moving the right hand (left mouse button) away, support the top platform with the left hand (Space) and keep supporting it until the screw is locked.',
+      releaseRightHandBeforeLock: 'Release the top platform with the right hand (left mouse button) before using it on the height button or side locking screw.',
+      leftHandBeforeDisconnect: 'Support the top platform with the left hand (Space) before using the right hand (left mouse button) to disconnect the pressure-sensor hose.',
+      bothHandsBeforePress: 'Put the left hand (Space) and right hand (left mouse button) in place before pressing the top platform with both hands.',
+    },
+    interaction: {
+      focusEntryAria: 'Double-click to enter the piston operation view',
+      lockedHints: [
+        'The side locking screw currently secures the piston height',
+        'Keep the left hand (Space) supporting the platform and use the right hand (left mouse button) to loosen the screw in the upper-left operation mirror',
+        'After loosening the screw, adjust the height or press with both hands as required by the hose state',
+      ],
+      disconnectedHints: [
+        'Use the right hand (left mouse button) to drag the top platform to the target height',
+        'Before moving the right hand (left mouse button) away, take over support with the left hand (Space)',
+        'Keep the left hand (Space) supporting the platform and use the right hand (left mouse button) to tighten the screw in the upper-left operation mirror',
+      ],
+      connectedHints: [
+        'Put the left hand (Space) and right hand (left mouse button) in place, then press with both hands',
+        'Release both hands to release the piston',
+        'Use the upper-left operation mirror to inspect and operate the side locking screw',
+      ],
+      overviewHints: [
+        'Double-click the top platform, glass tube, black frame, or side locking screw to enter the piston view',
+        'Use the right hand (left mouse button) to drag the hose or connector and disconnect or reconnect it',
+        'Drag a blank area with the right hand (left mouse button) to rotate the model',
+        'Right-drag to pan the model',
+        'Use the wheel to zoom',
+      ],
+      hoseInRange: 'Inside magnetic range',
+      hoseOutsideRange: 'Outside magnetic range',
+      hoseConnected: 'Sealed connection',
+      hoseDisconnected: 'Open to atmosphere',
+      lockedStatus: 'Locked',
+      looseStatus: 'Loose',
+      scaleReadingTitle: 'Scale reading',
+      heightAdjustmentTitle: 'Height adjustment',
+      pistonFocusTitle: 'Piston focus',
+      hoseFocusTitle: 'Hose focus',
+      hoseLabel: 'Hose',
+      scaleReadingMirrorAria: 'Scale-reading operation mirror',
+      lockingScrewMirrorAria: 'Locking-screw operation mirror',
+      waitingHeightDrag: 'Waiting for the right hand (left mouse button) to drag',
+      waitingBothHands: 'Waiting for left hand (Space) and right hand (left mouse button)',
+      rightHandReady: 'right hand (left mouse button) is holding',
+      leftHandReady: 'left hand (Space) is supporting',
+      oneHandReady: 'left hand (Space) or right hand (left mouse button) is ready',
+      handoffInProgress: 'left hand (Space) and right hand (left mouse button) handoff',
+      rightHandDragging: 'right hand (left mouse button) is dragging',
+      platformSupported: 'left hand (Space) or right hand (left mouse button) is supporting',
+      oneHandHolding: 'left hand (Space) or right hand (left mouse button) is still supporting',
+      screwHolding: 'Screw is securing the height',
+      bothHandsPressing: 'left hand (Space) and right hand (left mouse button) are pressing',
+      falling: 'Unsecured platform is falling',
+      rebounding: 'Rebound oscillation',
+      experimentPress: 'Experiment press',
+      heightAdjustment: 'Equilibrium-height adjustment',
+      heightFixed: 'Height secured',
+      screwLabel: 'Side locking screw',
+      platformModeLabel: 'Platform mode',
+      equilibriumHeightLabel: 'Equilibrium height',
+      handStatusLabel: 'left hand (Space), right hand (left mouse button)',
+      bothHandsStatusLabel: 'left hand (Space), right hand (left mouse button)',
+      displacementLabel: 'Press displacement',
+      releaseGapLabel: 'Release-time gap',
+      switchingView: 'Switching view',
+      supportBeforeMirror: 'Support the platform with the left hand (Space), then release it with the right hand (left mouse button)',
+      focusLocked: 'Piston focus is locked',
+      confirmHeight: 'Height set, secure it',
+      returnScale: 'Return to scale view',
+      exitFocus: 'Exit focus',
+    },
+    acquisition: {
+      title: 'Pressure data acquisition',
+      measurement: (current, total) => `Measurement ${current} of ${total}`,
+      phases: {
+        idle: 'Not started',
+        armed: 'Waiting for trigger',
+        recording: 'Triggered · recording',
+        stopped: 'Stopped · curve frozen',
+      },
+      sampleRate: 'Sample rate',
+      triggerThreshold: 'Falling-edge threshold',
+      absolutePressure: 'Current absolute pressure',
+      formalSamples: 'Recorded samples',
+      recordingTime: 'Recording time',
+      pointsUnit: 'pts',
+      pressureAxis: 'Absolute pressure / kPa',
+      timeAxis: 'Time after trigger / s',
+      triggerLine: (value) => `Falling trigger ${value.toFixed(1)} kPa`,
+      waitingTrigger: 'Waiting for pressure to cross the threshold downward',
+      emptyCurve: 'Start acquisition and operate the piston to display the curve',
+      start: 'Start acquisition',
+      pause: 'Pause acquisition',
+      redo: 'Redo measurement',
+      save: 'Save measurement',
+      actionsAria: 'Current pressure acquisition controls',
+      curveAria: 'Absolute pressure curve for the current measurement',
+      preTriggerNote: 'The high-pressure segment before triggering is monitored but not recorded.',
+      demoSaved: 'Save action complete',
+      saved: 'Measurement curve saved',
+    },
+    guide: {
+      checklist: 'Guide steps',
+      stepLabel: 'Step',
+      parameterSetupTitle: 'Set acquisition parameters',
+      parameterSetupDetail: 'Enter 1000 Hz and 105 kPa. The next step starts when both values are correct.',
+      adjustHeightTitle: (heightMm) => `Focus the piston and set ${heightMm} mm`,
+      adjustHeightDetail: (heightMm) => `Double-click the top platform to enter focus mode. Use the right hand (left mouse button) to hold and drag the top platform until the lower edge of the graphite piston is aligned with ${heightMm} mm. Before moving the right hand (left mouse button) away, support the top platform with the left hand (Space), then select “Height set, secure it”.`,
+      lockScrewTitle: 'Tighten the side locking screw',
+      lockScrewDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to tighten the side locking screw in the upper-left operation mirror. Release the left hand (Space) only after the screw is functionally locked.',
+      reconnectHoseTitle: 'Reconnect the pressure-sensor hose',
+      reconnectHoseDetail: 'Drag the white connector into the magnetic area at the platform port to reseal the system.',
+      loosenScrewTitle: 'Loosen the locking screw',
+      loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then loosen the side locking screw in the upper-left operation mirror so the piston can move freely in the sealed system.',
+      startAcquisitionTitle: 'Start pressure acquisition',
+      startAcquisitionDetail: 'Select Start at the lower-left of the chart to arm the falling-edge trigger.',
+      releasePistonTitle: 'Press with both hands and release together',
+      releasePistonDetail: 'Double-click the top platform to enter focus mode. Put the left hand (Space) and right hand (left mouse button) in place, press the top platform with both hands, then release both hands at the same time.',
+      recordingTitle: 'Record the pressure oscillation curve',
+      recordingDetail: 'Recording triggers when pressure crosses 105 kPa downward; continue to 0.500 s.',
+      pauseRecordingTitle: 'Pause this acquisition',
+      pauseRecordingDetail: 'After 0.500 s of recording, select Pause to freeze the current curve.',
+      saveCurveTitle: (measurementNumber) => `Save measurement ${measurementNumber}`,
+      saveCurveDetail: (measurementNumber) => `Check the frozen curve, then select Save to store it as measurement ${measurementNumber}.`,
+      crossRunStabilizingTitle: 'Stop acquisition and let the piston settle',
+      crossRunStabilizingDetail: 'Confirm that the current curve is saved, then wait until the piston stops completely.',
+      crossRunDisconnectTitle: 'Support the platform and disconnect the hose',
+      crossRunDisconnectDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to pull out the white connector so the cylinder is open to the atmosphere.',
+      completedTitle: 'Data processing and calculations complete',
+      completedDetail: 'The measurements at 80, 70, and 60 mm, period preprocessing, linear fit, and result calculations are complete, and the full process and results have been saved. Guided mode uses three different heights to demonstrate a complete fit with the simplest workflow. In a formal experiment or Free mode, collect more data points at different heights to reduce the influence of random variation and isolated outliers, and to improve the stability and credibility of the fitted slope, intercept, and final result.',
+      completionToastKicker: 'SYSTEM',
+      completionToast: 'Guided mode has ended',
+      sampleRateInvalid: 'Set the sample rate to 1000 Hz.',
+      triggerThresholdInvalid: 'Set the falling-edge threshold to 105 kPa.',
+      reminderTitle: 'Complete the acquisition settings',
+      reminderBody: 'The two inputs form one step. Enter 1000 Hz and 105 kPa.',
+    },
+    processing: {
+      title: 'Data processing',
+      hint: 'Select an oscillation interval and calculate each period',
+      navigationItem: 'Data processing',
+      unavailableTitle: 'Period data is not ready',
+      unavailableBody: 'Complete and save every pressure curve in this run first.',
+      runListAria: 'Pressure curves awaiting processing',
+      runLabel: (number) => `Curve ${number}`,
+      runState: {
+        active: 'In progress',
+        completed: 'Recorded',
+        pending: 'Pending',
+      },
+      selectionTitle: 'Select a period range',
+      selectionInstruction: (minimumPeriods) => `Inspect the curve with the hand tool, then switch to the crosshair to select a range. This guide requires at least ${minimumPeriods} complete periods.`,
+      wheelHint: 'Wheel scrolls the page · Mouse horizontal wheel or trackpad gesture pans horizontally · Ctrl + wheel zooms the time axis',
+      moveTool: 'Move view; select to switch to range selection (Shift)',
+      selectTool: 'Select periods; select to switch to move view (Shift)',
+      clearSelection: 'Clear current selection',
+      resetView: 'Restore default view',
+      horizontalScrollbar: 'Move the visible time range horizontally',
+      chartAria: (runNumber, heightMm) => `Absolute-pressure time curve ${runNumber} at a piston height of ${heightMm} millimetres`,
+      chartKeyboardInstructions: 'Keyboard: press Shift to switch between move and range selection. In move mode, use the arrow keys to pan and Home to reset. In selection mode, use Left and Right to locate extrema, press Enter to set each endpoint, and press Escape to cancel.',
+      timeAxis: 'Time t / s',
+      pressureAxis: 'Absolute pressure P / kPa',
+      leftEndpoint: 'Left endpoint',
+      rightEndpoint: 'Right endpoint',
+      periodCount: 'Periods',
+      selectionTooShort: 'The selected range is too short to determine a period. Expand it to include at least two adjacent extrema.',
+      guidedMinimumWarning: (minimumPeriods) => `This measurement requires at least ${minimumPeriods} complete periods. Expand the time range and select again.`,
+      selectionAccepted: (extremaCount, periodCount) => `${extremaCount} peaks and troughs marked; the two endpoint extrema span ${periodCount} periods.`,
+      dragHint: 'Select the hand tool to switch to the crosshair, then drag horizontally in the chart.',
+      preprocessingTitle: 'Preprocess this curve',
+      preprocessingInstruction: 'First verify both endpoint time coordinates, then calculate one period from the endpoint times and period count.',
+      calculationLockedTitle: 'Make a selection first',
+      calculationLockedBody: 'Endpoint verification unlocks after a valid period range is selected.',
+      endpointCheckTitle: 'Step 1: verify endpoint times',
+      endpointCheckInstruction: 'Enter the horizontal coordinates t₁ and t₂ shown for the left and right endpoints, then submit them together.',
+      t1Label: 'Left endpoint time t₁',
+      t2Label: 'Right endpoint time t₂',
+      endpointPrecision: 'Enter the observed time exactly as shown, with 3 decimal places',
+      checkEndpoints: 'Check t₁ and t₂',
+      periodCheckTitle: 'Step 2: calculate one period',
+      periodCheckInstruction: 'Use T = (t₂ − t₁) / N to calculate one oscillation period.',
+      periodLabel: 'Single period T',
+      periodPrecision: 'Use 4 significant figures',
+      checkPeriod: 'Check period T',
+      periodWaiting: 'The period calculation appears after both endpoint times are verified.',
+      previousRun: 'Previous curve',
+      nextRun: 'Next curve',
+      nextStep: 'Next step',
+      calculationReady: 'All three period results are recorded. You can continue to the next stage.',
+      navigationUnlocked: 'This curve\'s period result is recorded. You can continue.',
+      navigationLocked: 'Record the correct period result before continuing.',
+      calculationReadyDetail: 'All three period results are saved. Select Next step to open the fitting and calculation window.',
+      reviewTitle: 'Review period data processing',
+      reviewInstruction: 'Select any curve above to inspect its saved range, endpoints, period calculation, and validation result. You can adjust the view without changing the saved experiment data.',
+      reviewRunSummary: (number, total) => `Reviewing curve ${number} of ${total}`,
+      reviewAttemptSummary: (endpointAttempts, periodAttempts) => `Validation record: ${endpointAttempts} endpoint submissions and ${periodAttempts} period submissions`,
+      closeReview: 'Close review',
+      viewFitAndCalculation: 'View fit and calculations',
+      correctRecorded: 'Correct. The calculated value has been recorded.',
+      correct: 'Correct.',
+      revealedRecorded: 'The correct value is shown and has been recorded.',
+      revealed: 'The correct value is shown.',
+      feedback: {
+        empty: 'Enter an answer first.',
+        invalid: 'Enter a valid decimal number.',
+        'numeric-wrong': 'The value is incorrect. Calculate it again.',
+        'precision-wrong': 'The value is correct, but its precision does not meet the requirement.',
+        wrong: 'The answer is incorrect. Check both the value and precision.',
+      },
+      reference: 'Reference:',
+      continueAnswer: 'Continue answering',
+      revealAnswer: 'Show and continue',
+      selectionToolReminder: 'Select the hand/crosshair button below to switch between Move view and Select periods. You can also press Shift to switch quickly. After the crosshair is active, drag inside the curve to select a range.',
+      selectionReminder: 'Select at least three complete periods on the curve.',
+      endpointReminder: 'Read and verify t₁ and t₂ in the information box.',
+      periodReminder: 'Use the endpoint times and period count to calculate T.',
+      nextReminder: 'This period result is recorded. Continue with the next curve.',
     },
   },
 } as const satisfies Record<PistonOscillationLanguage, PistonOscillationShellCopy>;

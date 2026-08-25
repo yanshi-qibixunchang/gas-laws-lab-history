@@ -4,6 +4,7 @@ import {
   IDEAL_RESULT_HEIGHT_RATIO,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
+  WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO,
   type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealWindowLayout,
   type WorkbenchFileState,
@@ -130,7 +131,7 @@ export const createDefaultWorkbenchLayoutDefaults = (): WorkbenchLayoutDefaults 
   },
   heatCapacityPistonOscillation: {
     resultsHeightRatio: IDEAL_RESULT_HEIGHT_RATIO,
-    liveWorkspaceSplitRatio: WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
+    liveWorkspaceSplitRatio: WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO,
   },
 });
 
@@ -193,6 +194,19 @@ export const sanitizeWorkbenchLayoutDefaultState = (
   ),
 });
 
+const sanitizePistonOscillationLayoutDefaultState = (
+  defaults: unknown,
+): WorkbenchLayoutDefaultState => {
+  const sanitized = sanitizeWorkbenchLayoutDefaultState(defaults);
+  return {
+    ...sanitized,
+    liveWorkspaceSplitRatio:
+      sanitized.liveWorkspaceSplitRatio === WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO
+        ? WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO
+        : sanitized.liveWorkspaceSplitRatio,
+  };
+};
+
 export const sanitizeIdealResultWindowDefaults = (
   defaults: unknown,
 ): WorkbenchLayoutDefaultState => {
@@ -217,7 +231,7 @@ export const sanitizeWorkbenchLayoutDefaults = (
     standard: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.standard ?? fallback.standard),
     ideal: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.ideal ?? fallback.ideal),
     heatCapacity: sanitizeWorkbenchLayoutDefaultState(storedDefaults?.heatCapacity ?? fallback.heatCapacity),
-    heatCapacityPistonOscillation: sanitizeWorkbenchLayoutDefaultState(
+    heatCapacityPistonOscillation: sanitizePistonOscillationLayoutDefaultState(
       storedDefaults?.heatCapacityPistonOscillation ?? fallback.heatCapacityPistonOscillation,
     ),
   };

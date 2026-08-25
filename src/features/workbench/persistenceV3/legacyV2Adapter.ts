@@ -73,6 +73,9 @@ import {
 import {
   decodeHeatCapacityV3AuthorityValues,
 } from './heatCapacityValueDecoder.ts';
+import {
+  normalizePistonOscillationGuideSession,
+} from '../../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 
 const WORKBENCH_SESSION_SCHEMA_FAMILY =
   'hard-sphere-lab.workbench-session' as const;
@@ -914,8 +917,23 @@ const LEGACY_PAYLOAD_KEYS_BY_KIND = {
     'experimentKind',
     'pistonOscillationSchemaVersion',
     'preview',
+    'lessonIntroAutoShown',
+    'guideSession',
   ],
 } as const satisfies Record<WorkbenchFileKind, readonly string[]>;
+
+const PRE_GUIDE_PISTON_PAYLOAD_KEYS = [
+  'experimentKind',
+  'pistonOscillationSchemaVersion',
+  'preview',
+  'lessonIntroAutoShown',
+] as const;
+
+const PRE_LESSON_PISTON_PAYLOAD_KEYS = [
+  'experimentKind',
+  'pistonOscillationSchemaVersion',
+  'preview',
+] as const;
 
 const LEGACY_PAYLOAD_VERSION_BY_KIND = {
   standard: {
@@ -1910,6 +1928,10 @@ const hasValidLegacyPistonPayloadRecursiveShape = (
   payload.experimentKind === 'heatCapacityPistonOscillation' &&
   payload.pistonOscillationSchemaVersion ===
     WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION &&
+  (payload.lessonIntroAutoShown === undefined
+    || typeof payload.lessonIntroAutoShown === 'boolean') &&
+  (payload.guideSession === undefined
+    || isPlainPersistenceRecord(payload.guideSession)) &&
   isPlainPersistenceRecord(payload.preview) &&
   hasExactOwnKeys(payload.preview, ['cameraPreset']) &&
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS.includes(
@@ -1945,6 +1967,11 @@ const rebuildLegacyPistonFile = (
       WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
     previewCameraPreset:
       preview.cameraPreset as typeof fallback.previewCameraPreset,
+    pistonOscillationLessonIntroAutoShown:
+      envelope.payload.lessonIntroAutoShown === true,
+    pistonOscillationGuideSession: normalizePistonOscillationGuideSession(
+      envelope.payload.guideSession,
+    ),
   };
 };
 
@@ -4196,6 +4223,12 @@ export const decodeLegacyWorkbenchFileEnvelopeToV3Projection = (
     !hasExactOwnKeys(
       payloadRecord,
       LEGACY_PAYLOAD_KEYS_BY_KIND[fileKind],
+    ) && !(
+      fileKind === 'heatCapacityPistonOscillation'
+      && (
+        hasExactOwnKeys(payloadRecord, PRE_GUIDE_PISTON_PAYLOAD_KEYS)
+        || hasExactOwnKeys(payloadRecord, PRE_LESSON_PISTON_PAYLOAD_KEYS)
+      )
     )
   ) {
     return fail(

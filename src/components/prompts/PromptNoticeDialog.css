@@ -19,9 +19,11 @@
 }
 
 .prompt-notice-details {
-  border-left: 3px solid var(--prompt-tone);
+  border: 1px solid var(--prompt-tone-border);
+  border-radius: var(--prompt-dialog-radius-control);
+  background: color-mix(in srgb, var(--prompt-tone-soft) 80%, var(--prompt-surface-raised));
   color: var(--prompt-muted);
-  padding-left: var(--prompt-space-2);
+  padding: var(--prompt-space-2) 10px;
 }
 
 .prompt-notice-actions {

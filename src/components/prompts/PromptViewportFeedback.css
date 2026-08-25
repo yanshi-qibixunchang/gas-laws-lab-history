@@ -1,0 +1,81 @@
+.prompt-viewport-feedback {
+  --prompt-viewport-feedback-tone: var(--prompt-accent, #5e91bf);
+  --prompt-viewport-feedback-border: var(--prompt-accent-border, rgba(96, 148, 201, 0.5));
+  display: grid;
+  width: min(520px, calc(100% - 80px));
+  gap: 3px;
+  border: 1px solid var(--prompt-viewport-feedback-border);
+  border-radius: var(--prompt-radius-window, 4px);
+  background: color-mix(
+    in srgb,
+    var(--prompt-viewport-feedback-tone) 7%,
+    var(--prompt-feedback-surface, #303943)
+  );
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--prompt-viewport-feedback-tone) 9%, transparent),
+    var(--prompt-feedback-shadow, 0 12px 26px rgba(15, 23, 42, 0.3));
+  color: var(--prompt-text, #eef4f8);
+  padding: 9px 14px 10px;
+  pointer-events: none;
+  text-align: left;
+  animation:
+    promptViewportFeedbackIn var(--studio-overlay-enter-duration, 180ms) var(--studio-overlay-motion-ease, cubic-bezier(0.2, 0, 0, 1)) both,
+    promptViewportFeedbackOut var(--studio-overlay-exit-duration, 160ms) var(--studio-overlay-motion-ease, cubic-bezier(0.2, 0, 0, 1)) var(--prompt-viewport-feedback-exit-delay, 1820ms) forwards;
+}
+
+.prompt-viewport-feedback-success {
+  --prompt-viewport-feedback-tone: var(--prompt-success, #69b787);
+  --prompt-viewport-feedback-border: var(--prompt-success-border, rgba(105, 183, 135, 0.5));
+}
+
+.prompt-viewport-feedback-warning {
+  --prompt-viewport-feedback-tone: var(--prompt-warning, #c09a57);
+  --prompt-viewport-feedback-border: var(--prompt-warning-border, rgba(192, 154, 87, 0.5));
+}
+
+.prompt-viewport-feedback-danger {
+  --prompt-viewport-feedback-tone: var(--prompt-danger, #c46868);
+  --prompt-viewport-feedback-border: var(--prompt-danger-border, rgba(196, 104, 104, 0.52));
+}
+
+.prompt-viewport-feedback-kicker {
+  color: var(--prompt-viewport-feedback-tone);
+  font-family: var(--prompt-font-data, Consolas, monospace);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.prompt-viewport-feedback strong {
+  overflow-wrap: anywhere;
+  color: var(--prompt-text, #eef4f8);
+  font-family: var(--app-font-ui, "Segoe UI", sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+@keyframes promptViewportFeedbackIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes promptViewportFeedbackOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(8px); }
+}
+
+@media (max-width: 520px) {
+  .prompt-viewport-feedback {
+    width: calc(100% - 24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prompt-viewport-feedback {
+    animation-duration: 1ms !important;
+  }
+}
