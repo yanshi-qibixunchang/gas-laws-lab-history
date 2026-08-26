@@ -62,6 +62,14 @@ export interface PistonOscillationReleaseInput {
   initialVelocityMmPerS?: number;
 }
 
+export interface PistonOscillationInstantaneousThermodynamicState {
+  displacementM: number;
+  pressurePa: number;
+  temperatureK: number;
+  equilibrium: PistonOscillationEquilibriumState;
+  config: PistonOscillationPhysicsConfig;
+}
+
 export const PISTON_OSCILLATION_CYLINDER_DIAMETER_M = 0.0325;
 export const PISTON_OSCILLATION_CYLINDER_DIAMETER_TOLERANCE_M = 0.0001;
 export const PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG = 0.0485;
@@ -231,6 +239,34 @@ const getThermodynamicState = (
     pressurePa: equilibrium.equilibriumPressurePa * compressionRatio ** config.gamma,
     temperatureK: config.ambientTemperatureK
       * compressionRatio ** (config.gamma - 1),
+  };
+};
+
+export const getPistonOscillationInstantaneousThermodynamicState = (
+  equilibriumHeightMm: number,
+  displacementMm: number,
+  configInput: Partial<PistonOscillationPhysicsConfig> = {},
+): PistonOscillationInstantaneousThermodynamicState => {
+  const config = normalizePistonOscillationPhysicsConfig(configInput);
+  const equilibrium = createPistonOscillationEquilibriumState(
+    equilibriumHeightMm,
+    config,
+  );
+  const normalizedDisplacementMm = assertFiniteRange(
+    'displacementMm',
+    displacementMm,
+    -80,
+    80,
+  );
+  if (equilibriumHeightMm + normalizedDisplacementMm < 0) {
+    throw new RangeError('The piston motion cannot pass below the 0 mm stop.');
+  }
+  const displacementM = normalizedDisplacementMm / 1_000;
+  return {
+    displacementM,
+    ...getThermodynamicState(displacementM, equilibrium, config),
+    equilibrium,
+    config,
   };
 };
 

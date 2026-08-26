@@ -115,6 +115,7 @@ export type PistonOscillationGuideStrongTargetId =
   | 'hoseDisconnect'
   | 'hoseReconnect'
   | 'primary'
+  | 'redo'
   | 'save'
   | 'periodTool'
   | 'periodChart'

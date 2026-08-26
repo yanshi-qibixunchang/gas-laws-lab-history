@@ -10,6 +10,7 @@ import {
 } from './PistonOscillationFocusInteractionPreviewPage.tsx';
 import type { PistonOscillationReleaseEvent } from './PistonOscillationAcquisitionPanel.tsx';
 import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
+import type { PistonOscillationLivePhysicalState } from './pistonOscillationLivePressureChannel.ts';
 import type {
   PistonOscillationGuideFocusMode,
   PistonOscillationGuideInstrumentRestoreState,
@@ -52,6 +53,9 @@ export interface PistonOscillationInstrumentSceneProps {
   measurementCycleRevision?: number;
   guideSessionRevision?: number;
   onReleaseEvent?: (event: PistonOscillationReleaseEvent) => void;
+  onLivePhysicalStateChange?: (
+    state: PistonOscillationLivePhysicalState,
+  ) => void;
   demoFrame?: PistonOscillationDemoFrame;
   demoPlaybackPhase?: 'idle' | 'running' | 'terminated' | 'completed';
   guidePaused?: boolean;
@@ -85,6 +89,7 @@ export const PistonOscillationInstrumentScene = ({
   measurementCycleRevision = 0,
   guideSessionRevision = 0,
   onReleaseEvent,
+  onLivePhysicalStateChange,
   demoFrame,
   demoPlaybackPhase,
   guidePaused,
@@ -129,6 +134,7 @@ export const PistonOscillationInstrumentScene = ({
           measurementCycleRevision={measurementCycleRevision}
           guideSessionRevision={guideSessionRevision}
           onReleaseEvent={onReleaseEvent}
+          onLivePhysicalStateChange={onLivePhysicalStateChange}
           demoFrame={demoFrame}
           demoPlaybackPhase={demoPlaybackPhase}
           guidePaused={guidePaused}

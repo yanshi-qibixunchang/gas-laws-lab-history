@@ -506,36 +506,22 @@
 }
 
 .piston-processing-chart-actions {
-  position: static;
+  --piston-chart-action-border: var(--piston-processing-border);
+  --piston-chart-action-bg: color-mix(in srgb, var(--piston-processing-surface) 94%, transparent);
+  --piston-chart-action-text: var(--piston-processing-muted);
+  --piston-chart-action-primary: var(--piston-processing-accent-strong);
+  --piston-chart-action-hover: var(--piston-processing-accent-strong);
+  --piston-chart-action-focus: var(--piston-processing-accent-strong);
+  --piston-chart-action-active-bg: var(--piston-processing-accent-soft);
+  --piston-chart-action-shadow: 0 2px 8px rgba(17, 73, 119, 0.1);
   align-self: center;
   justify-self: start;
   margin: 0;
-  border-color: var(--piston-processing-border);
-  background: color-mix(in srgb, var(--piston-processing-surface) 94%, transparent);
-  box-shadow: 0 2px 8px rgba(17, 73, 119, 0.1);
-  transition:
-    border-color 220ms ease,
-    background-color 220ms ease,
-    box-shadow 220ms ease;
-}
-
-.piston-processing-chart-actions button {
-  color: var(--piston-processing-muted);
-}
-
-.piston-processing-chart-actions button.is-primary,
-.piston-processing-chart-actions button:hover:not(:disabled),
-.piston-processing-chart-actions button:focus-visible {
-  color: var(--piston-processing-accent-strong);
 }
 
 .piston-processing-chart-actions button.is-active {
   background: var(--piston-processing-accent-soft);
   color: var(--piston-processing-accent-strong);
-}
-
-.piston-processing-chart-actions button:focus-visible {
-  outline-color: var(--piston-processing-accent-strong);
 }
 
 .piston-period-selection-helper,
@@ -974,7 +960,6 @@
 .piston-period-chart-wrap.is-guide-pulsing,
 .piston-period-calculation-step.is-guide-pulsing,
 .piston-period-answer-field.is-guide-pulsing,
-.piston-processing-chart-actions button.is-guide-pulsing,
 .piston-processing-navigation > button.is-guide-pulsing {
   animation: pistonProcessingGuidePulse 2.2s ease-in-out infinite;
 }
@@ -1037,7 +1022,6 @@
   .piston-period-chart-wrap.is-guide-pulsing,
   .piston-period-calculation-step.is-guide-pulsing,
   .piston-period-answer-field.is-guide-pulsing,
-  .piston-processing-chart-actions button.is-guide-pulsing,
   .piston-processing-navigation > button.is-guide-pulsing {
     animation-duration: 80ms;
     animation-iteration-count: 1;

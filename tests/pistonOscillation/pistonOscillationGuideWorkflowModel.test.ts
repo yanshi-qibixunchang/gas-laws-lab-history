@@ -71,7 +71,7 @@ const createCandidate = (
     targetHeightMm,
     confirmedHeightMm,
     sampleRateHz,
-    triggerThresholdKpa: 105,
+    triggerThresholdKpa: 120,
     recordedDurationS,
     samples: formalSamples,
     physicsSnapshot: {
@@ -135,7 +135,7 @@ session = transition(
   transition(session, {
     type: 'editParameter',
     field: 'triggerThresholdKpa',
-    value: '105',
+    value: '120',
     nowMs: 150,
   }),
   { type: 'commitParameter', field: 'triggerThresholdKpa', nowMs: 160 },
@@ -334,6 +334,14 @@ session = transition(session, {
 assert.equal(session.step, 'recording');
 assert.equal(session.acquisitionCandidate, null);
 
+const discardedOverpressureAttempt = transition(session, {
+  type: 'discardAcquisitionAttempt',
+  nowMs: 315,
+});
+assert.equal(discardedOverpressureAttempt.step, 'waitingTrigger');
+assert.equal(discardedOverpressureAttempt.acquisitionCandidate, null);
+assert.equal(discardedOverpressureAttempt.savedMeasurements.length, 0);
+
 const shortSamples: PistonOscillationRawSample[] = [
   { sampleIndex: 0, timeS: 0, absolutePressureKpa: 104.8 },
   { sampleIndex: 1, timeS: 0.4, absolutePressureKpa: 101.4 },
@@ -405,7 +413,7 @@ assert.equal(
 
 session = transition(session, { type: 'saveMeasurement', nowMs: 370 });
 assert.equal(session.status, 'active');
-assert.equal(session.step, 'crossRunStabilizing');
+assert.equal(session.step, 'crossRunDisconnect');
 assert.equal(session.measurementIndex, 1);
 assert.equal(session.acquisitionCandidate, null);
 assert.equal(session.savedMeasurements.length, 1);
@@ -416,7 +424,7 @@ assert.deepEqual(session.savedMeasurements[0], {
 
 const restored = normalizePistonOscillationGuideSession(structuredClone(session));
 assert.equal(restored.status, 'active');
-assert.equal(restored.step, 'crossRunStabilizing');
+assert.equal(restored.step, 'crossRunDisconnect');
 assert.deepEqual(restored.parameterDrafts, session.parameterDrafts);
 assert.deepEqual(restored.savedMeasurements, session.savedMeasurements);
 
@@ -425,7 +433,7 @@ const completeCrossRunPreparation = (
   targetHeightMm: number,
   nowMs: number,
 ) => {
-  let next = transition(source, { type: 'baselineStabilized', nowMs });
+  let next = source;
   assert.equal(next.step, 'crossRunDisconnect');
 
   const redundantLockEvent = { type: 'lockScrew', nowMs: nowMs + 2 } as const;
@@ -543,7 +551,7 @@ const completeAcquisition = (
 session = completeCrossRunPreparation(session, 70, 500);
 session = completeAcquisition(session, 600);
 assert.equal(session.status, 'active');
-assert.equal(session.step, 'crossRunStabilizing');
+assert.equal(session.step, 'crossRunDisconnect');
 assert.equal(session.measurementIndex, 2);
 assert.equal(session.savedMeasurements.length, 2);
 assert.deepEqual(
@@ -552,13 +560,13 @@ assert.deepEqual(
 );
 assert.deepEqual(session.parameterDrafts, {
   sampleRateHz: '1000',
-  triggerThresholdKpa: '105',
+  triggerThresholdKpa: '120',
 });
 assert.equal(session.parametersLocked, true);
 
 const secondRunCheckpoint = normalizePistonOscillationGuideSession(structuredClone(session));
 assert.equal(secondRunCheckpoint.measurementIndex, 2);
-assert.equal(secondRunCheckpoint.step, 'crossRunStabilizing');
+assert.equal(secondRunCheckpoint.step, 'crossRunDisconnect');
 assert.deepEqual(secondRunCheckpoint.savedMeasurements, session.savedMeasurements);
 
 session = completeCrossRunPreparation(session, 60, 700);

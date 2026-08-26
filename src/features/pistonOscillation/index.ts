@@ -43,12 +43,19 @@ export {
   type PistonOscillationDemoFrame,
 } from './pistonOscillationDemoTimeline.ts';
 export {
+  createPistonOscillationLivePressureChannel,
+  type PistonOscillationLivePhysicalState,
+  type PistonOscillationLivePressureChannel,
+  type PistonOscillationLivePressureObservation,
+} from './pistonOscillationLivePressureChannel.ts';
+export {
   PISTON_OSCILLATION_GLB_PATH,
   PISTON_OSCILLATION_REQUIRED_NODE_NAMES,
   clearPistonOscillationInstrumentModelCache,
 } from './PistonOscillationInstrumentModel.tsx';
 export {
   PistonOscillationInteractiveModel,
+  PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS,
   PISTON_OSCILLATION_HOSE_MAGNETIC_SNAP_RADIUS_M,
   PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M,
   PISTON_OSCILLATION_LOCKING_SCREW_TURNS,

@@ -4646,7 +4646,10 @@
   --studio-piston-guide-page-dot-active: #67e8f9;
   --studio-piston-guide-page-dot-ring: rgba(56, 189, 248, 0.12);
   grid-template-rows: auto minmax(0, 1fr) 14px;
+  box-sizing: border-box;
   height: 220px;
+  min-height: 220px;
+  max-height: 220px;
 }
 
 .studio-piston-guide-pages {
@@ -4677,11 +4680,27 @@
 }
 
 .studio-piston-guide-page .studio-heat-guide-step-center-rail {
-  top: 60px;
+  top: 52px;
+  height: 64px;
 }
 
 .studio-piston-guide-page .studio-heat-guide-step-fade {
-  height: 52px;
+  height: 44px;
+}
+
+.studio-piston-guide-page .studio-heat-guide-step-row {
+  height: 64px;
+}
+
+.studio-piston-guide-page .studio-heat-guide-step-row:not(.studio-heat-guide-step-row-centered)
+  .studio-heat-guide-step-text em {
+  -webkit-line-clamp: 1;
+}
+
+.studio-piston-guide-page .studio-heat-guide-step-row-centered
+  .studio-heat-guide-step-text em {
+  -webkit-line-clamp: 3;
+  line-height: 1.12;
 }
 
 .studio-piston-guide-page-dots {
@@ -6237,18 +6256,13 @@
   --studio-piston-guide-cutout-fill: rgba(56, 189, 248, 0.1);
   --studio-piston-guide-cutout-stroke: rgba(125, 211, 252, 0.95);
   --studio-piston-guide-cutout-shadow: rgba(56, 189, 248, 0.35);
-  z-index: 33;
+  z-index: 35;
   pointer-events: none;
   animation: studioPistonGuideStrongMaskEnter 180ms cubic-bezier(0.2, 0, 0, 1) both;
 }
 
-.studio-piston-guide-strong-mask,
-.studio-piston-guide-strong-mask * {
-  pointer-events: none !important;
-}
-
 .studio-piston-guide-strong-mask .studio-heat-guide-strong-dim {
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .studio-piston-guide-strong-mask .studio-heat-guide-strong-card {

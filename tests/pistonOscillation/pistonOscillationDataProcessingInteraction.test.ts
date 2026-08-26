@@ -9,6 +9,18 @@ const panelStyle = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationDataProcessingPanel.css', import.meta.url),
   'utf8',
 );
+const acquisitionSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx', import.meta.url),
+  'utf8',
+);
+const acquisitionStyle = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationAcquisitionPanel.css', import.meta.url),
+  'utf8',
+);
+const chartControlsStyle = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationChartControls.css', import.meta.url),
+  'utf8',
+);
 const workbenchSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
@@ -54,8 +66,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /piston-acquisition-actions piston-processing-chart-actions[\s\S]*<Crosshair[\s\S]*<Hand[\s\S]*<Eraser[\s\S]*<Focus/,
-  'period processing must reuse the acquisition action shell for its three reviewed chart tools',
+  /piston-chart-action-strip piston-processing-chart-actions[\s\S]*<Crosshair[\s\S]*<Hand[\s\S]*<Eraser[\s\S]*<Focus/,
+  'period processing must use the shared three-button chart control strip',
 );
 assert.match(
   panelSource,
@@ -160,13 +172,38 @@ assert.doesNotMatch(
 );
 assert.match(
   panelStyle,
-  /\.piston-period-chart-wrap\s*\{[\s\S]*grid-template-rows:\s*auto 14px 32px;[\s\S]*\.piston-period-chart-footer\s*\{[\s\S]*grid-template-columns:\s*84px minmax\(0, 1fr\) 84px;[\s\S]*\.piston-processing-chart-actions\s*\{[\s\S]*position:\s*static;[\s\S]*justify-self:\s*start;/,
+  /\.piston-period-chart-wrap\s*\{[\s\S]*grid-template-rows:\s*auto 14px 32px;[\s\S]*\.piston-period-chart-footer\s*\{[\s\S]*grid-template-columns:\s*84px minmax\(0, 1fr\) 84px;[\s\S]*\.piston-processing-chart-actions\s*\{[\s\S]*--piston-chart-action-border:[\s\S]*justify-self:\s*start;/,
   'the chart must reserve one compact scrollbar row while keeping the tools and x-axis title in a shared footer',
 );
 assert.match(
   panelSource,
   /className="piston-period-chart-footer"[\s\S]*piston-processing-chart-actions[\s\S]*className="piston-period-axis-footer-label"\>\{copy\.timeAxis\}/,
   'the compact footer must keep the tools on the left and the localized x-axis title centered',
+);
+assert.match(
+  acquisitionSource,
+  /className="piston-acquisition-chart-viewport"[\s\S]*className="piston-acquisition-plot-frame"[\s\S]*className="piston-acquisition-chart-footer"[\s\S]*piston-chart-action-strip piston-acquisition-actions[\s\S]*piston-acquisition-axis-footer-label/,
+  'acquisition must mirror the processing chart shell without changing its observation data',
+);
+assert.match(
+  acquisitionStyle,
+  /--piston-acquisition-surface-soft:\s*#1d2b39;[\s\S]*\.studio-theme-light \.piston-acquisition-panel\s*\{[\s\S]*--piston-acquisition-surface-soft:\s*#eef5fb;/,
+  'the matching tinted chart surround must remain theme-aware',
+);
+assert.match(
+  chartControlsStyle,
+  /\.piston-chart-action-strip\s*\{[\s\S]*width:\s*84px;[\s\S]*height:\s*28px;[\s\S]*grid-template-columns:\s*repeat\(3, 1fr\);[\s\S]*\.piston-chart-action-strip button\s*\{[\s\S]*height:\s*26px;/,
+  'both chart footers must inherit exactly the same strip and button dimensions',
+);
+assert.match(
+  panelSource,
+  /selectionToolPulse \? 'is-guide-highlighted' : ''/,
+  'the period mode switch must inherit the approved acquisition strong-fill cue',
+);
+assert.match(
+  chartControlsStyle,
+  /button\.is-guide-highlighted\s*\{[\s\S]*background:\s*#117db8;[\s\S]*piston-chart-action-guide-fill-pulse 1\.1s[\s\S]*button\.is-guide-highlighted::after\s*\{[\s\S]*border:\s*2px solid rgba\(255, 255, 255, 0\.78\);/,
+  'ordinary and strong period-tool reminders must use the approved acquisition fill and closed outline pulse',
 );
 assert.match(
   panelSource,
@@ -227,6 +264,11 @@ assert.match(
   workbenchSource,
   /root\.addEventListener\('scroll', updateLayout, true\);[\s\S]*root\.removeEventListener\('scroll', updateLayout, true\);/,
   'the strong reminder cutout must track its target while the processing workspace scrolls',
+);
+assert.match(
+  workbenchSource,
+  /const top = root\.classList\.contains\('studio-live-workspace-piston-processing'\)[\s\S]*\? 0[\s\S]*: dockHeaderBottom/,
+  'a processing reminder must dim the title, run list, selection instructions, and chart as one continuous workspace',
 );
 assert.match(
   workbenchSource,

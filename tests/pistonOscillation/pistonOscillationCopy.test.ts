@@ -15,7 +15,7 @@ const expectedHandCopy = {
 
 const expectedGuideCopy = {
   'zh-CN': {
-    adjustHeightDetail: '双击顶部平台进入聚焦；用右手（鼠标左键）抓住并拖动顶部平台，将石墨活塞下沿对准 70 mm；移开右手（鼠标左键）前，先用左手（Space）托住顶部平台，再点击“高度已调好，去固定”。',
+    adjustHeightDetail: '双击顶部平台进入聚焦；用右手（鼠标左键）拖至 70 mm。松开右手前，用左手（Space）托住平台，再确认高度。',
     loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
     releasePistonDetail: '双击顶部平台进入聚焦；让左手（Space）与右手（鼠标左键）全部就位，双手下压顶部平台，再同时松开双手。',
     completedTitle: '数据处理与计算已完成',
@@ -24,7 +24,7 @@ const expectedGuideCopy = {
     completionToast: '引导模式已结束',
   },
   'zh-TW': {
-    adjustHeightDetail: '雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）抓住並拖動頂部平台，將石墨活塞下沿對準 70 mm；移開右手（滑鼠左鍵）前，先用左手（Space）托住頂部平台，再點擊「高度已調好，去固定」。',
+    adjustHeightDetail: '雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）拖至 70 mm。鬆開右手前，用左手（Space）托住平台，再確認高度。',
     loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
     releasePistonDetail: '雙擊頂部平台進入聚焦；讓左手（Space）與右手（滑鼠左鍵）全部就位，雙手下壓頂部平台，再同時鬆開雙手。',
     completedTitle: '資料處理與計算已完成',
@@ -33,7 +33,7 @@ const expectedGuideCopy = {
     completionToast: '引導模式已結束',
   },
   en: {
-    adjustHeightDetail: 'Double-click the top platform to enter focus mode. Use the right hand (left mouse button) to hold and drag the top platform until the lower edge of the graphite piston is aligned with 70 mm. Before moving the right hand (left mouse button) away, support the top platform with the left hand (Space), then select “Height set, secure it”.',
+    adjustHeightDetail: 'Double-click the platform. Drag it to 70 mm with the right hand (left mouse button). Hold it with the left hand (Space) before releasing the mouse, then confirm the height.',
     loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then loosen the side locking screw in the upper-left operation mirror so the piston can move freely in the sealed system.',
     releasePistonDetail: 'Double-click the top platform to enter focus mode. Put the left hand (Space) and right hand (left mouse button) in place, press the top platform with both hands, then release both hands at the same time.',
     completedTitle: 'Data processing and calculations complete',
@@ -55,6 +55,8 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
   assert.ok(copy.realtime.ariaLabel.length > 0);
   assert.ok(copy.realtime.title.length > 0);
   assert.ok(copy.realtime.body.length > 0);
+  assert.match(copy.acquisition.qualityUpperLine(130), /130/);
+  assert.match(copy.acquisition.pressureIndicator(120.26), /120\.26/);
   assert.ok(copy.unavailable.navigationItem.length > 0);
   assert.ok(copy.unavailable.rightSidebar.length > 0);
   assert.deepEqual(copy.hands, expectedHandCopy[language]);
@@ -131,6 +133,27 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     assert.match(copy.guide.saveCurveDetail(measurementNumber), new RegExp(`${measurementNumber}`));
   }
   assert.match(copy.guide.completedDetail, /80[\s\S]*70[\s\S]*60/);
+  for (const value of [
+    copy.guide.pressureTooLowFeedback,
+    copy.guide.pressureTooHighFeedback,
+    copy.guide.pressureTooLowStrongReminder,
+    copy.guide.pressureTooHighStrongReminder,
+    copy.guide.pressureRangeLessonTitle,
+    copy.guide.pressureRangeLessonBody,
+    copy.guide.lockingScrewLessonTitle,
+    copy.guide.lockingScrewLessonBody,
+    copy.guide.multiPeriodLessonTitle,
+    copy.guide.multiPeriodLessonBody,
+  ]) {
+    assert.ok(value.length > 0, `${language} should localize the pressure and period lessons`);
+  }
+  assert.match(copy.guide.pressureRangeLessonBody, /120[\s\S]*130/);
+  assert.match(copy.guide.multiPeriodLessonBody, /1000[\s\S]*0\.001[\s\S]*t₂[\s\S]*t₁/);
+  assert.doesNotMatch(
+    copy.guide.multiPeriodLessonBody,
+    /t_[12]|T\^2|\\frac|\$\$/,
+    `${language} must not expose source-style formula markup to the user`,
+  );
   assert.equal('pauseGuide' in copy.modes, false);
   assert.equal('resumeGuide' in copy.modes, false);
   assert.ok(copy.modes.resetGuide.length > 0);

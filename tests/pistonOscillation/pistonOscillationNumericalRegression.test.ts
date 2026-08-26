@@ -31,6 +31,9 @@ import {
   PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 import {
+  PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
+} from '../../src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
   roundRatioSignificantFiguresHalfEven,
 } from '../../src/domain/calculation/decimalHalfEven.ts';
 
@@ -47,8 +50,9 @@ import {
 
 const CURRENT_MODEL_HEIGHTS_MM = [80, 70, 60] as const;
 const CURRENT_MODEL_SAMPLE_RATE_HZ = 1_000;
-const CURRENT_MODEL_TRIGGER_THRESHOLD_KPA = 105;
-const CURRENT_MODEL_PRESS_DISPLACEMENT_MM = -8;
+const CURRENT_MODEL_TRIGGER_THRESHOLD_KPA =
+  PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;
+const CURRENT_MODEL_PRESS_DISPLACEMENTS_MM = [10.5, 9.8, 9] as const;
 const CURRENT_MODEL_RECORDING_DURATION_S = 0.5;
 const CURRENT_MODEL_MINIMUM_PERIOD_COUNT = 3;
 
@@ -71,7 +75,7 @@ assert.equal(
 const regressionRuns = CURRENT_MODEL_HEIGHTS_MM.map((heightMm, measurementIndex) => {
   const trajectory = simulatePistonOscillationRelease({
     equilibriumHeightMm: heightMm,
-    initialDisplacementMm: CURRENT_MODEL_PRESS_DISPLACEMENT_MM,
+    initialDisplacementMm: -CURRENT_MODEL_PRESS_DISPLACEMENTS_MM[measurementIndex],
   });
   assert.equal(trajectory.sampleRateHz, CURRENT_MODEL_SAMPLE_RATE_HZ);
   const observations = createPistonOscillationSensorObservationSeries(
@@ -93,7 +97,10 @@ const regressionRuns = CURRENT_MODEL_HEIGHTS_MM.map((heightMm, measurementIndex)
   assert.ok(trigger, `${heightMm} mm must cross the falling trigger on an observed sample`);
   assert.equal(trigger.timeS, trigger.sampleIndex / CURRENT_MODEL_SAMPLE_RATE_HZ);
   assert.ok(trigger.absolutePressureKpa < CURRENT_MODEL_TRIGGER_THRESHOLD_KPA);
-  assert.ok(observations.samples[trigger.sampleIndex - 1]!.absolutePressureKpa >= 105);
+  assert.ok(
+    observations.samples[trigger.sampleIndex - 1]!.absolutePressureKpa
+      >= CURRENT_MODEL_TRIGGER_THRESHOLD_KPA,
+  );
 
   const samples = createPistonOscillationRecordedObservationSamples(
     observations,
@@ -209,23 +216,23 @@ assert.deepEqual(
   [
     {
       heightMm: 80,
-      triggerSampleIndex: 8,
-      firstLeftSampleIndex: 11,
-      firstRightSampleIndex: 124,
+      triggerSampleIndex: 3,
+      firstLeftSampleIndex: 16,
+      firstRightSampleIndex: 129,
       periodS: 0.03767,
     },
     {
       heightMm: 70,
-      triggerSampleIndex: 8,
-      firstLeftSampleIndex: 10,
-      firstRightSampleIndex: 117,
+      triggerSampleIndex: 3,
+      firstLeftSampleIndex: 15,
+      firstRightSampleIndex: 122,
       periodS: 0.03567,
     },
     {
       heightMm: 60,
-      triggerSampleIndex: 7,
-      firstLeftSampleIndex: 10,
-      firstRightSampleIndex: 109,
+      triggerSampleIndex: 3,
+      firstLeftSampleIndex: 14,
+      firstRightSampleIndex: 113,
       periodS: 0.033,
     },
   ],

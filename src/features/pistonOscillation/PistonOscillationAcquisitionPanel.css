@@ -2,7 +2,7 @@
   --piston-acquisition-panel-border: var(--studio-border, #3a4652);
   --piston-acquisition-panel-bg: var(--studio-surface-2, #262d35);
   --piston-acquisition-surface: var(--studio-surface, #20262d);
-  --piston-acquisition-surface-soft: #18232d;
+  --piston-acquisition-surface-soft: #1d2b39;
   --piston-acquisition-border: var(--studio-border-soft, #303943);
   --piston-acquisition-border-strong: #526778;
   --piston-acquisition-text: var(--studio-text, #e1e6ec);
@@ -15,6 +15,12 @@
   --piston-acquisition-curve: #4aa9df;
   --piston-acquisition-trigger: #e6aa50;
   --piston-acquisition-trigger-text: #f1c177;
+  --piston-acquisition-quality-upper: #8798a5;
+  --piston-acquisition-quality-upper-text: #aab7c1;
+  --piston-acquisition-indicator-fill: #18232d;
+  --piston-acquisition-indicator-below: #4aa9df;
+  --piston-acquisition-indicator-valid: #55d6f2;
+  --piston-acquisition-indicator-over: #f08b69;
   --piston-acquisition-empty: #8496a3;
   --piston-acquisition-success: #6dc18a;
   --piston-acquisition-action-bg: rgba(24, 35, 45, 0.94);
@@ -47,7 +53,7 @@
   --piston-acquisition-panel-border: #8e9eaa;
   --piston-acquisition-panel-bg: #f4f7f9;
   --piston-acquisition-surface: #ffffff;
-  --piston-acquisition-surface-soft: #fbfcfd;
+  --piston-acquisition-surface-soft: #eef5fb;
   --piston-acquisition-border: #ccd5db;
   --piston-acquisition-border-strong: #9dafbb;
   --piston-acquisition-text: #263f52;
@@ -60,6 +66,12 @@
   --piston-acquisition-curve: #167ab4;
   --piston-acquisition-trigger: #d49338;
   --piston-acquisition-trigger-text: #a36c20;
+  --piston-acquisition-quality-upper: #93a4af;
+  --piston-acquisition-quality-upper-text: #6f818d;
+  --piston-acquisition-indicator-fill: #fbfcfd;
+  --piston-acquisition-indicator-below: #167ab4;
+  --piston-acquisition-indicator-valid: #008fbd;
+  --piston-acquisition-indicator-over: #cc5a3c;
   --piston-acquisition-empty: #94a2ac;
   --piston-acquisition-success: #39734e;
   --piston-acquisition-action-bg: rgba(255, 255, 255, 0.94);
@@ -240,6 +252,106 @@
   box-shadow: inset 0 0 0 1px rgba(194, 65, 59, 0.2);
 }
 
+.piston-acquisition-settings label.is-demo-keyboard-active {
+  border-color: var(--piston-acquisition-action-primary);
+  background: color-mix(
+    in srgb,
+    var(--piston-acquisition-action-primary) 10%,
+    var(--piston-acquisition-surface)
+  );
+  box-shadow: inset 0 0 0 1px color-mix(
+    in srgb,
+    var(--piston-acquisition-action-primary) 34%,
+    transparent
+  );
+}
+
+.piston-demo-virtual-keyboard {
+  position: absolute;
+  z-index: 18;
+  top: 104px;
+  right: 16px;
+  display: grid;
+  width: min(224px, calc(100% - 32px));
+  gap: 8px;
+  border: 1px solid var(--piston-acquisition-border-strong);
+  background: color-mix(
+    in srgb,
+    var(--piston-acquisition-panel-bg) 96%,
+    transparent
+  );
+  box-shadow: 0 14px 30px rgba(4, 14, 24, 0.3);
+  color: var(--piston-acquisition-text);
+  padding: 9px;
+  pointer-events: none;
+  animation: piston-demo-keyboard-enter 180ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.studio-theme-light .piston-demo-virtual-keyboard {
+  box-shadow: 0 14px 28px rgba(55, 81, 98, 0.2);
+}
+
+.piston-demo-virtual-keyboard-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-bottom: 1px solid var(--piston-acquisition-border);
+  padding: 0 2px 7px;
+}
+
+.piston-demo-virtual-keyboard-heading strong {
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.piston-demo-virtual-keyboard-heading span {
+  color: var(--piston-acquisition-action-primary);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.piston-demo-virtual-keyboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.piston-demo-virtual-keyboard-grid > span {
+  display: grid;
+  min-width: 0;
+  height: 28px;
+  place-items: center;
+  border: 1px solid var(--piston-acquisition-border);
+  background: var(--piston-acquisition-surface);
+  color: var(--piston-acquisition-text);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  transition:
+    border-color 90ms ease,
+    background-color 90ms ease,
+    color 90ms ease,
+    transform 90ms ease;
+}
+
+.piston-demo-virtual-keyboard-grid > span.is-function-key {
+  color: var(--piston-acquisition-muted);
+  font-size: 9px;
+}
+
+.piston-demo-virtual-keyboard-grid > span.is-pressed {
+  border-color: var(--piston-acquisition-action-primary);
+  background: var(--piston-acquisition-action-primary);
+  color: #fff;
+  transform: scale(0.92);
+}
+
+@keyframes piston-demo-keyboard-enter {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .piston-guide-parameter-feedback {
   position: absolute;
   z-index: 12;
@@ -313,22 +425,51 @@
 .piston-acquisition-chart-wrap {
   position: relative;
   display: grid;
+  min-width: 0;
   min-height: 0;
-  grid-template-rows: minmax(0, 1fr) 36px;
+  grid-template-rows: minmax(0, 1fr) 32px;
   overflow: hidden;
   border: 1px solid var(--piston-acquisition-border);
+  background: var(--piston-acquisition-surface-soft);
+}
+
+.piston-acquisition-chart-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   background: var(--piston-acquisition-surface);
 }
 
-.piston-acquisition-chart-wrap svg {
+.piston-acquisition-chart-viewport svg {
   display: block;
-  grid-row: 1;
   width: 100%;
   height: 100%;
 }
 
 .piston-acquisition-chart-bg {
-  fill: var(--piston-acquisition-surface-soft);
+  fill: var(--piston-acquisition-surface);
+}
+
+.piston-acquisition-chart-footer {
+  display: grid;
+  min-width: 0;
+  height: 32px;
+  grid-template-columns: 84px minmax(0, 1fr) 84px;
+  align-items: center;
+  box-sizing: border-box;
+  padding: 0 8px;
+}
+
+.piston-acquisition-axis-footer-label {
+  grid-column: 2;
+  justify-self: center;
+  color: var(--piston-acquisition-text);
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1;
+  white-space: nowrap;
 }
 
 .piston-acquisition-grid-line {
@@ -341,9 +482,15 @@
   font-size: 10px;
 }
 
-.piston-acquisition-axis {
+.piston-acquisition-axis,
+.piston-acquisition-plot-frame {
   stroke: var(--piston-acquisition-axis);
   stroke-width: 1.2;
+  vector-effect: non-scaling-stroke;
+}
+
+.piston-acquisition-plot-frame {
+  fill: none;
 }
 
 .piston-acquisition-axis-label {
@@ -360,6 +507,42 @@
 .piston-acquisition-trigger-label {
   fill: var(--piston-acquisition-trigger-text) !important;
   font-weight: 700;
+}
+
+.piston-acquisition-quality-upper-line {
+  stroke: var(--piston-acquisition-quality-upper);
+  stroke-dasharray: 2 5;
+  stroke-width: 1.1;
+  opacity: 0.82;
+}
+
+.piston-acquisition-quality-upper-label {
+  fill: var(--piston-acquisition-quality-upper-text) !important;
+  font-weight: 650;
+}
+
+.piston-acquisition-pressure-indicator {
+  fill: var(--piston-acquisition-indicator-fill);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  transition:
+    stroke 120ms ease,
+    filter 120ms ease;
+}
+
+.piston-acquisition-pressure-indicator.is-below {
+  stroke: var(--piston-acquisition-indicator-below);
+}
+
+.piston-acquisition-pressure-indicator.is-valid {
+  stroke: var(--piston-acquisition-indicator-valid);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--piston-acquisition-indicator-valid) 72%, transparent));
+}
+
+.piston-acquisition-pressure-indicator.is-over {
+  stroke: var(--piston-acquisition-indicator-over);
+  filter: drop-shadow(0 0 3px color-mix(in srgb, var(--piston-acquisition-indicator-over) 65%, transparent));
 }
 
 .piston-acquisition-pressure-path {
@@ -396,41 +579,15 @@
 }
 
 .piston-acquisition-actions {
-  position: absolute;
-  bottom: 4px;
-  left: 8px;
-  z-index: 2;
-  display: grid;
-  width: 84px;
-  height: 28px;
-  grid-template-columns: repeat(3, 1fr);
-  align-items: stretch;
-  overflow: hidden;
-  border: 1px solid var(--piston-acquisition-border-strong);
-  border-radius: 0;
-  background: var(--piston-acquisition-action-bg);
-}
-
-.piston-acquisition-actions button {
-  display: inline-flex;
-  min-width: 0;
-  height: 26px;
-  align-items: center;
-  justify-content: center;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  color: var(--piston-acquisition-action-text);
-  cursor: pointer;
-  padding: 0;
-  transition:
-    color 120ms ease,
-    background-color 120ms ease,
-    opacity 120ms ease;
-}
-
-.piston-acquisition-actions button:not(:disabled):active {
-  background: var(--piston-acquisition-action-active-bg);
+  --piston-chart-action-border: var(--piston-acquisition-border-strong);
+  --piston-chart-action-bg: var(--piston-acquisition-action-bg);
+  --piston-chart-action-text: var(--piston-acquisition-action-text);
+  --piston-chart-action-primary: var(--piston-acquisition-action-primary);
+  --piston-chart-action-hover: var(--piston-acquisition-action-hover);
+  --piston-chart-action-focus: #2f82b9;
+  --piston-chart-action-active-bg: var(--piston-acquisition-action-active-bg);
+  align-self: center;
+  justify-self: start;
 }
 
 .piston-acquisition-action-feedback {
@@ -442,30 +599,6 @@
   transform-origin: center;
   transition: transform 240ms cubic-bezier(0.18, 1.65, 0.35, 1);
   will-change: transform;
-}
-
-.piston-acquisition-actions button:not(:disabled):active .piston-acquisition-action-feedback {
-  transform: scale(0.72);
-  transition: none;
-}
-
-.piston-acquisition-actions button.is-primary {
-  color: var(--piston-acquisition-action-primary);
-}
-
-.piston-acquisition-actions button:hover:not(:disabled),
-.piston-acquisition-actions button:focus-visible {
-  color: var(--piston-acquisition-action-hover);
-}
-
-.piston-acquisition-actions button:focus-visible {
-  outline: 1px solid #2f82b9;
-  outline-offset: -2px;
-}
-
-.piston-acquisition-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.45;
 }
 
 .piston-acquisition-actions button.is-demo-pressed {
@@ -480,32 +613,6 @@
   background: #d7efff;
   color: #075985;
   animation: piston-demo-control-breathe 1.724s ease-in-out infinite;
-}
-
-.piston-acquisition-actions button.is-guide-highlighted {
-  position: relative;
-  z-index: 3;
-  isolation: isolate;
-  overflow: hidden;
-  background: #117db8;
-  color: #fff;
-  opacity: 1;
-  animation: piston-acquisition-guide-fill-pulse 1.1s ease-in-out infinite;
-}
-
-.piston-acquisition-actions button.is-guide-highlighted::after {
-  position: absolute;
-  inset: 2px;
-  z-index: 0;
-  border: 2px solid rgba(255, 255, 255, 0.78);
-  content: '';
-  pointer-events: none;
-  animation: piston-acquisition-guide-outline-pulse 1.1s ease-in-out infinite;
-}
-
-.piston-acquisition-actions button.is-guide-highlighted > .piston-acquisition-action-feedback {
-  position: relative;
-  z-index: 1;
 }
 
 @keyframes piston-demo-focus-breathe {
@@ -545,30 +652,6 @@
   to { transform: scale(0.88); }
 }
 
-@keyframes piston-acquisition-guide-fill-pulse {
-  0%, 100% {
-    background: #117db8;
-    color: #fff;
-  }
-  50% {
-    background: #249bd3;
-    color: #fff;
-  }
-}
-
-@keyframes piston-acquisition-guide-outline-pulse {
-  0%, 100% {
-    inset: 3px;
-    border-color: rgba(255, 255, 255, 0.72);
-    opacity: 0.78;
-  }
-  50% {
-    inset: 0;
-    border-color: #fff;
-    opacity: 1;
-  }
-}
-
 .studio-realtime-panel-piston-oscillation .piston-acquisition-panel {
   width: 100%;
   height: 100%;
@@ -590,12 +673,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .piston-acquisition-actions button {
-    transition: color 80ms ease, background-color 80ms ease, opacity 80ms ease;
-  }
-
-  .piston-acquisition-actions button:not(:disabled):active {
-    opacity: 0.72;
+  .piston-demo-virtual-keyboard,
+  .piston-demo-virtual-keyboard-grid > span {
+    animation: none;
+    transition: none;
   }
 
   .piston-acquisition-action-feedback,
@@ -605,17 +686,4 @@
     will-change: auto;
   }
 
-  .piston-acquisition-actions button.is-guide-highlighted {
-    background: #117db8;
-    color: #fff;
-    opacity: 1;
-    animation: none;
-  }
-
-  .piston-acquisition-actions button.is-guide-highlighted::after {
-    inset: 1px;
-    border-color: #fff;
-    opacity: 1;
-    animation: none;
-  }
 }

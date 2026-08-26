@@ -139,6 +139,8 @@ export interface PistonOscillationShellCopy {
     pressureAxis: string;
     timeAxis: string;
     triggerLine: (value: number) => string;
+    qualityUpperLine: (value: number) => string;
+    pressureIndicator: (value: number) => string;
     waitingTrigger: string;
     emptyCurve: string;
     start: string;
@@ -150,6 +152,10 @@ export interface PistonOscillationShellCopy {
     preTriggerNote: string;
     demoSaved: string;
     saved: string;
+    virtualKeyboard: string;
+    keyboardNext: string;
+    keyboardConfirm: string;
+    keyboardBackspace: string;
   };
   guide: {
     checklist: string;
@@ -186,6 +192,16 @@ export interface PistonOscillationShellCopy {
     triggerThresholdInvalid: string;
     reminderTitle: string;
     reminderBody: string;
+    pressureTooLowFeedback: string;
+    pressureTooHighFeedback: string;
+    pressureTooLowStrongReminder: string;
+    pressureTooHighStrongReminder: string;
+    pressureRangeLessonTitle: string;
+    pressureRangeLessonBody: string;
+    lockingScrewLessonTitle: string;
+    lockingScrewLessonBody: string;
+    multiPeriodLessonTitle: string;
+    multiPeriodLessonBody: string;
   };
   processing: {
     title: string;
@@ -438,6 +454,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       pressureAxis: '绝对压强 / kPa',
       timeAxis: '触发后时间 / s',
       triggerLine: (value) => `下降触发 ${value.toFixed(1)} kPa`,
+      qualityUpperLine: (value) => `测量质量上限 ${value.toFixed(1)} kPa`,
+      pressureIndicator: (value) => `压强指示点 ${value.toFixed(2)} kPa`,
       waitingTrigger: '等待压力由高向低越过阈值',
       emptyCurve: '开始采集并操作活塞后显示正式曲线',
       start: '开始采集',
@@ -449,14 +467,18 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       preTriggerNote: '触发前高压段仅用于监视，不写入本次测量。',
       demoSaved: '保存操作已完成',
       saved: '本次曲线已保存',
+      virtualKeyboard: '屏幕数字键盘',
+      keyboardNext: '下一项',
+      keyboardConfirm: '确认',
+      keyboardBackspace: '退格',
     },
     guide: {
       checklist: '引导步骤',
       stepLabel: '步骤',
       parameterSetupTitle: '设置采集参数',
-      parameterSetupDetail: '输入 1000 Hz 和 105 kPa；两项正确后自动进入下一步。',
+      parameterSetupDetail: '输入 1000 Hz 和 120 kPa；两项正确后自动进入下一步。',
       adjustHeightTitle: (heightMm) => `进入聚焦并调至 ${heightMm} mm`,
-      adjustHeightDetail: (heightMm) => `双击顶部平台进入聚焦；用右手（鼠标左键）抓住并拖动顶部平台，将石墨活塞下沿对准 ${heightMm} mm；移开右手（鼠标左键）前，先用左手（Space）托住顶部平台，再点击“高度已调好，去固定”。`,
+      adjustHeightDetail: (heightMm) => `双击顶部平台进入聚焦；用右手（鼠标左键）拖至 ${heightMm} mm。松开右手前，用左手（Space）托住平台，再确认高度。`,
       lockScrewTitle: '旋紧侧面锁紧螺钉',
       lockScrewDetail: '持续用左手（Space）托住顶部平台，并用右手（鼠标左键）在左上操作镜中旋紧侧面锁紧螺钉；达到功能锁紧后再松开左手（Space）。',
       reconnectHoseTitle: '接回压力传感器软管',
@@ -468,9 +490,9 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       releasePistonTitle: '双手下压并同时释放',
       releasePistonDetail: '双击顶部平台进入聚焦；让左手（Space）与右手（鼠标左键）全部就位，双手下压顶部平台，再同时松开双手。',
       recordingTitle: '记录压力振荡曲线',
-      recordingDetail: '压力向下跨过 105 kPa 后自动触发，继续记录至 0.500 s。',
-      pauseRecordingTitle: '暂停本次采集',
-      pauseRecordingDetail: '记录时间达到 0.500 s 后点击暂停，冻结本次曲线。',
+      recordingDetail: '压力向下跨过 120 kPa 后自动触发，继续记录至 0.500 s。',
+      pauseRecordingTitle: '等待活塞稳定并暂停采集',
+      pauseRecordingDetail: '记录时间达到 0.500 s 后，等待活塞完全停止振动，再点击暂停，冻结本次曲线。',
       saveCurveTitle: (measurementNumber) => `保存第 ${measurementNumber} 次测量`,
       saveCurveDetail: (measurementNumber) => `检查曲线后点击保存，将它记入第 ${measurementNumber} 次测量。`,
       crossRunStabilizingTitle: '停止采集并等待活塞稳定',
@@ -482,9 +504,19 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       completionToastKicker: '系统',
       completionToast: '引导模式已结束',
       sampleRateInvalid: '采样频率应设置为 1000 Hz。',
-      triggerThresholdInvalid: '下降触发阈值应设置为 105 kPa。',
+      triggerThresholdInvalid: '下降触发阈值应设置为 120 kPa。',
       reminderTitle: '请完成采集参数设置',
-      reminderBody: '两个输入框属于同一个步骤，请依次填写 1000 Hz 和 105 kPa。',
+      reminderBody: '两个输入框属于同一个步骤，请依次填写 1000 Hz 和 120 kPa。',
+      pressureTooLowFeedback: '最高压强未达到 120 kPa，尚未触发记录；无需重做，请再次下压。',
+      pressureTooHighFeedback: '本次最高压强超过 130 kPa，初始压缩幅度过大，不符合实验规范。请点击“重做”。',
+      pressureTooLowStrongReminder: '请继续下压，使压强指示点进入 120–130 kPa 后，再同时松开双手。',
+      pressureTooHighStrongReminder: '请点击“重做”，并将最高压强控制在 120–130 kPa 后重新操作。',
+      pressureRangeLessonTitle: '下压压强范围',
+      pressureRangeLessonBody: '按实验规范，本实验将 120 kPa 作为下降触发值。下压时应使压强指示进入 120–130 kPa，再同时松开双手；压强由高向低越过 120 kPa 时，系统开始记录正式曲线。若最高压强低于 120 kPa，记录不会触发；若超过 130 kPa，则初始压缩幅度过大，不符合本实验的小振幅测量条件。将三次测量的初始压强控制在同一范围，也有助于保持各组曲线的初始条件一致。',
+      lockingScrewLessonTitle: '锁紧螺钉与定容',
+      lockingScrewLessonBody: '锁紧螺钉用于在读数和接管时把活塞稳定固定在目标刻度，使每组测量从确定的气体体积开始。活塞位置的变化会直接改变密闭气体体积，而高度与周期平方的拟合斜率决定最终的空气比热容比；若用手扶住平台，读数时的细小位移和松手时的漂移都会改变高度数据，并传递到拟合结果。应先用螺钉固定刻度，接管完成后再完全旋松，使活塞在密封条件下自由振动。',
+      multiPeriodLessonTitle: '多周期测量',
+      multiPeriodLessonBody: '传感器以 1000 Hz 采样，相邻时间点间隔为 0.001 s。只用一个周期时，任一端点相差一个采样点都会直接影响周期结果。选取同相位的两个端点并跨越 N 个完整周期，再按 T = (t₂ − t₁) / N 计算平均周期，可将端点读数误差分摊到多个周期，使 T、T² 以及后续线性拟合更稳定。',
     },
     processing: {
       title: '数据处理',
@@ -742,6 +774,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       pressureAxis: '絕對壓強 / kPa',
       timeAxis: '觸發後時間 / s',
       triggerLine: (value) => `下降觸發 ${value.toFixed(1)} kPa`,
+      qualityUpperLine: (value) => `測量品質上限 ${value.toFixed(1)} kPa`,
+      pressureIndicator: (value) => `壓強指示點 ${value.toFixed(2)} kPa`,
       waitingTrigger: '等待壓力由高向低越過閾值',
       emptyCurve: '開始採集並操作活塞後顯示正式曲線',
       start: '開始採集',
@@ -753,14 +787,18 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       preTriggerNote: '觸發前高壓段僅用於監視，不寫入本次測量。',
       demoSaved: '儲存操作已完成',
       saved: '本次曲線已儲存',
+      virtualKeyboard: '螢幕數字鍵盤',
+      keyboardNext: '下一項',
+      keyboardConfirm: '確認',
+      keyboardBackspace: '退格',
     },
     guide: {
       checklist: '引導步驟',
       stepLabel: '步驟',
       parameterSetupTitle: '設定採集參數',
-      parameterSetupDetail: '輸入 1000 Hz 與 105 kPa；兩項正確後自動進入下一步。',
+      parameterSetupDetail: '輸入 1000 Hz 與 120 kPa；兩項正確後自動進入下一步。',
       adjustHeightTitle: (heightMm) => `進入聚焦並調至 ${heightMm} mm`,
-      adjustHeightDetail: (heightMm) => `雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）抓住並拖動頂部平台，將石墨活塞下沿對準 ${heightMm} mm；移開右手（滑鼠左鍵）前，先用左手（Space）托住頂部平台，再點擊「高度已調好，去固定」。`,
+      adjustHeightDetail: (heightMm) => `雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）拖至 ${heightMm} mm。鬆開右手前，用左手（Space）托住平台，再確認高度。`,
       lockScrewTitle: '旋緊側面鎖緊螺釘',
       lockScrewDetail: '持續用左手（Space）托住頂部平台，並用右手（滑鼠左鍵）在左上操作鏡中旋緊側面鎖緊螺釘；達到功能鎖緊後再鬆開左手（Space）。',
       reconnectHoseTitle: '接回壓力感測器軟管',
@@ -772,9 +810,9 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       releasePistonTitle: '雙手下壓並同時釋放',
       releasePistonDetail: '雙擊頂部平台進入聚焦；讓左手（Space）與右手（滑鼠左鍵）全部就位，雙手下壓頂部平台，再同時鬆開雙手。',
       recordingTitle: '記錄壓力振盪曲線',
-      recordingDetail: '壓力向下跨越 105 kPa 後自動觸發，繼續記錄至 0.500 s。',
-      pauseRecordingTitle: '暫停本次採集',
-      pauseRecordingDetail: '記錄時間達到 0.500 s 後點擊暫停，凍結本次曲線。',
+      recordingDetail: '壓力向下跨越 120 kPa 後自動觸發，繼續記錄至 0.500 s。',
+      pauseRecordingTitle: '等待活塞穩定並暫停採集',
+      pauseRecordingDetail: '記錄時間達到 0.500 s 後，等待活塞完全停止振動，再點擊暫停，凍結本次曲線。',
       saveCurveTitle: (measurementNumber) => `儲存第 ${measurementNumber} 次測量`,
       saveCurveDetail: (measurementNumber) => `檢查曲線後點擊儲存，將它記入第 ${measurementNumber} 次測量。`,
       crossRunStabilizingTitle: '停止採集並等待活塞穩定',
@@ -786,9 +824,19 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       completionToastKicker: '系統',
       completionToast: '引導模式已結束',
       sampleRateInvalid: '採樣頻率應設定為 1000 Hz。',
-      triggerThresholdInvalid: '下降觸發閾值應設定為 105 kPa。',
+      triggerThresholdInvalid: '下降觸發閾值應設定為 120 kPa。',
       reminderTitle: '請完成採集參數設定',
-      reminderBody: '兩個輸入框屬於同一個步驟，請依次填寫 1000 Hz 與 105 kPa。',
+      reminderBody: '兩個輸入框屬於同一個步驟，請依次填寫 1000 Hz 與 120 kPa。',
+      pressureTooLowFeedback: '最高壓強未達到 120 kPa，尚未觸發記錄；無需重做，請再次下壓。',
+      pressureTooHighFeedback: '本次最高壓強超過 130 kPa，初始壓縮幅度過大，不符合實驗規範。請點擊「重做」。',
+      pressureTooLowStrongReminder: '請繼續下壓，使壓強指示點進入 120–130 kPa 後，再同時鬆開雙手。',
+      pressureTooHighStrongReminder: '請點擊「重做」，並將最高壓強控制在 120–130 kPa 後重新操作。',
+      pressureRangeLessonTitle: '下壓壓強範圍',
+      pressureRangeLessonBody: '按實驗規範，本實驗將 120 kPa 作為下降觸發值。下壓時應使壓強指示進入 120–130 kPa，再同時鬆開雙手；壓強由高向低越過 120 kPa 時，系統開始記錄正式曲線。若最高壓強低於 120 kPa，記錄不會觸發；若超過 130 kPa，則初始壓縮幅度過大，不符合本實驗的小振幅測量條件。將三次測量的初始壓強控制在同一範圍，也有助於保持各組曲線的初始條件一致。',
+      lockingScrewLessonTitle: '鎖緊螺釘與定容',
+      lockingScrewLessonBody: '鎖緊螺釘用於在讀值和接管時把活塞穩定固定在目標刻度，使每組測量從確定的氣體體積開始。活塞位置的變化會直接改變密閉氣體體積，而高度與週期平方的擬合斜率決定最終的空氣比熱容比；若用手扶住平台，讀值時的細小位移和鬆手時的漂移都會改變高度資料，並傳遞到擬合結果。應先用螺釘固定刻度，接管完成後再完全旋鬆，使活塞在密封條件下自由振動。',
+      multiPeriodLessonTitle: '多週期測量',
+      multiPeriodLessonBody: '感測器以 1000 Hz 取樣，相鄰時間點間隔為 0.001 s。只用一個週期時，任一端點相差一個取樣點都會直接影響週期結果。選取同相位的兩個端點並跨越 N 個完整週期，再按 T = (t₂ − t₁) / N 計算平均週期，可將端點讀值誤差分攤到多個週期，使 T、T² 以及後續線性擬合更穩定。',
     },
     processing: {
       title: '資料處理',
@@ -1046,6 +1094,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       pressureAxis: 'Absolute pressure / kPa',
       timeAxis: 'Time after trigger / s',
       triggerLine: (value) => `Falling trigger ${value.toFixed(1)} kPa`,
+      qualityUpperLine: (value) => `Measurement-quality limit ${value.toFixed(1)} kPa`,
+      pressureIndicator: (value) => `Pressure indicator ${value.toFixed(2)} kPa`,
       waitingTrigger: 'Waiting for pressure to cross the threshold downward',
       emptyCurve: 'Start acquisition and operate the piston to display the curve',
       start: 'Start acquisition',
@@ -1057,14 +1107,18 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       preTriggerNote: 'The high-pressure segment before triggering is monitored but not recorded.',
       demoSaved: 'Save action complete',
       saved: 'Measurement curve saved',
+      virtualKeyboard: 'On-screen numeric keypad',
+      keyboardNext: 'Next field',
+      keyboardConfirm: 'Confirm',
+      keyboardBackspace: 'Backspace',
     },
     guide: {
       checklist: 'Guide steps',
       stepLabel: 'Step',
       parameterSetupTitle: 'Set acquisition parameters',
-      parameterSetupDetail: 'Enter 1000 Hz and 105 kPa. The next step starts when both values are correct.',
+      parameterSetupDetail: 'Enter 1000 Hz and 120 kPa. The next step starts when both values are correct.',
       adjustHeightTitle: (heightMm) => `Focus the piston and set ${heightMm} mm`,
-      adjustHeightDetail: (heightMm) => `Double-click the top platform to enter focus mode. Use the right hand (left mouse button) to hold and drag the top platform until the lower edge of the graphite piston is aligned with ${heightMm} mm. Before moving the right hand (left mouse button) away, support the top platform with the left hand (Space), then select “Height set, secure it”.`,
+      adjustHeightDetail: (heightMm) => `Double-click the platform. Drag it to ${heightMm} mm with the right hand (left mouse button). Hold it with the left hand (Space) before releasing the mouse, then confirm the height.`,
       lockScrewTitle: 'Tighten the side locking screw',
       lockScrewDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to tighten the side locking screw in the upper-left operation mirror. Release the left hand (Space) only after the screw is functionally locked.',
       reconnectHoseTitle: 'Reconnect the pressure-sensor hose',
@@ -1076,9 +1130,9 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       releasePistonTitle: 'Press with both hands and release together',
       releasePistonDetail: 'Double-click the top platform to enter focus mode. Put the left hand (Space) and right hand (left mouse button) in place, press the top platform with both hands, then release both hands at the same time.',
       recordingTitle: 'Record the pressure oscillation curve',
-      recordingDetail: 'Recording triggers when pressure crosses 105 kPa downward; continue to 0.500 s.',
-      pauseRecordingTitle: 'Pause this acquisition',
-      pauseRecordingDetail: 'After 0.500 s of recording, select Pause to freeze the current curve.',
+      recordingDetail: 'Recording triggers when pressure crosses 120 kPa downward; continue to 0.500 s.',
+      pauseRecordingTitle: 'Let the piston settle and pause acquisition',
+      pauseRecordingDetail: 'After 0.500 s of recording, wait until the piston stops oscillating, then select Pause to freeze the current curve.',
       saveCurveTitle: (measurementNumber) => `Save measurement ${measurementNumber}`,
       saveCurveDetail: (measurementNumber) => `Check the frozen curve, then select Save to store it as measurement ${measurementNumber}.`,
       crossRunStabilizingTitle: 'Stop acquisition and let the piston settle',
@@ -1090,9 +1144,19 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       completionToastKicker: 'SYSTEM',
       completionToast: 'Guided mode has ended',
       sampleRateInvalid: 'Set the sample rate to 1000 Hz.',
-      triggerThresholdInvalid: 'Set the falling-edge threshold to 105 kPa.',
+      triggerThresholdInvalid: 'Set the falling-edge threshold to 120 kPa.',
       reminderTitle: 'Complete the acquisition settings',
-      reminderBody: 'The two inputs form one step. Enter 1000 Hz and 105 kPa.',
+      reminderBody: 'The two inputs form one step. Enter 1000 Hz and 120 kPa.',
+      pressureTooLowFeedback: 'The peak pressure did not reach 120 kPa, so recording was not triggered. No redo is needed; press again.',
+      pressureTooHighFeedback: 'The peak pressure exceeded 130 kPa. The initial compression was too large and does not meet the experiment procedure. Select Redo.',
+      pressureTooLowStrongReminder: 'Press farther until the pressure indicator enters 120–130 kPa, then release both hands together.',
+      pressureTooHighStrongReminder: 'Select Redo, then repeat the operation with the peak pressure kept within 120–130 kPa.',
+      pressureRangeLessonTitle: 'Pressing-pressure range',
+      pressureRangeLessonBody: 'Following the experiment procedure, 120 kPa is used as the falling-edge trigger. Press until the pressure indication enters 120–130 kPa, then release both hands together; formal recording begins when the pressure crosses 120 kPa downward. A peak below 120 kPa does not trigger recording. A peak above 130 kPa gives an initial compression that is too large for the small-amplitude measurement condition. Keeping all three measurements within the same initial-pressure range also makes their starting conditions more consistent.',
+      lockingScrewLessonTitle: 'Locking screw and fixed volume',
+      lockingScrewLessonBody: 'The locking screw holds the piston steadily at the target scale mark while the height is read and the hose is connected, so each measurement starts from a defined gas volume. A change in piston position directly changes the sealed gas volume, while the slope of the height-versus-period-squared fit determines the final ratio of specific heats. Holding the platform by hand can introduce small reading shifts and release drift that propagate into the fitted result. Lock the scale position first, then fully loosen the screw after reconnecting the hose so the piston can oscillate freely in the sealed system.',
+      multiPeriodLessonTitle: 'Multi-period measurement',
+      multiPeriodLessonBody: 'The sensor samples at 1000 Hz, so adjacent time points are 0.001 s apart. When only one period is used, a one-sample difference at either endpoint directly changes the period result. Select two same-phase endpoints spanning N complete periods and calculate the mean period with T = (t₂ − t₁) / N. This distributes endpoint-reading error across several periods and makes T, T², and the subsequent linear fit more stable.',
     },
     processing: {
       title: 'Data processing',

@@ -180,13 +180,13 @@ assert.match(
 );
 assert.match(
   previewSource,
-  /name="HIT_PistonLockingScrew_OperationMirror"[\s\S]*gesture:\s*'circular_drag'[\s\S]*onPointerDown=[\s\S]*setPointerCapture[\s\S]*onPointerMove=[\s\S]*normalizeAngleDelta[\s\S]*PISTON_OSCILLATION_LOCKING_SCREW_TURNS/,
+  /name="HIT_PistonLockingScrew_OperationMirror"[\s\S]*gesture:\s*'circular_drag'[\s\S]*onPointerDown=[\s\S]*setPointerCapture[\s\S]*onPointerMove=[\s\S]*normalizeAngleDelta[\s\S]*PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS/,
   'the operation mirror should expose a circular drag target tied to the reviewed screw travel',
 );
 assert.match(
   interactiveModelSource,
-  /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 3;[\s\S]*PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.002;/,
-  'the locking screw should preserve its thread pitch while doubling both rotation and axial travel',
+  /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 6;[\s\S]*PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.004;[\s\S]*PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS = 3;/,
+  'the locking screw should double visible rotation and axial travel without lengthening the gesture',
 );
 assert.match(
   interactiveModelSource,
@@ -636,6 +636,11 @@ assert.match(
   previewSource,
   /const releaseStartedAtMs = performance\.now\(\);[\s\S]*const releaseEvent: PistonOscillationReleaseEvent = \{[\s\S]*startedAtMs: releaseStartedAtMs,[\s\S]*trajectory,[\s\S]*\};[\s\S]*startPistonRebound\(trajectory,\s*releaseStartedAtMs\);/,
   'one release must publish and animate the same trajectory with the same startedAtMs origin',
+);
+assert.match(
+  previewSource,
+  /onLivePhysicalStateChange\?\.\(\{[\s\S]*observedAtMs: performance\.now\(\),[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*displacementMm: pistonOffsetMm,[\s\S]*\}\)/,
+  'the formal scene must publish the same live piston height and displacement used by its interaction model',
 );
 assert.match(
   previewSource,

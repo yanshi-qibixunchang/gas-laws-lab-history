@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import { Check, Play, RotateCcw, Square } from 'lucide-react';
 import {
   type PistonOscillationTrajectory,
@@ -26,7 +34,10 @@ import {
   findPistonAcquisitionFallingTriggerSeconds,
   getPistonAcquisitionPresetPressureKpa,
 } from './pistonOscillationPresetAcquisition.ts';
-import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
+import {
+  getPistonOscillationDemoTrajectory,
+  type PistonOscillationDemoFrame,
+} from './pistonOscillationDemoTimeline.ts';
 import type {
   PistonOscillationGuideAction,
   PistonOscillationGuideActionContext,
@@ -36,8 +47,11 @@ import type {
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
+  PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
+  PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ,
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
+  PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
@@ -45,6 +59,10 @@ import {
   type PistonOscillationLanguage,
 } from './pistonOscillationCopy.ts';
 import './PistonOscillationAcquisitionPanel.css';
+import './PistonOscillationChartControls.css';
+import type {
+  PistonOscillationLivePressureChannel,
+} from './pistonOscillationLivePressureChannel.ts';
 
 type AcquisitionPhase = 'idle' | 'armed' | 'recording' | 'stopped';
 
@@ -52,11 +70,20 @@ export type PistonOscillationGuideAcquisitionCue =
   | 'settings'
   | 'start'
   | 'pause'
+  | 'redo'
   | 'save'
   | null;
 
 export type PistonOscillationGuideAcquisitionEvent =
   | { type: 'startAcquisition' }
+  | { type: 'restoreInterruptedAcquisition' }
+  | {
+      type: 'pressureAttemptRejected';
+      reason: 'underpressure' | 'overpressure';
+      peakPressureKpa: number;
+    }
+  | { type: 'pressureAttemptAccepted'; peakPressureKpa: number }
+  | { type: 'redoOverpressureAttempt' }
   | { type: 'triggered' }
   | {
       type: 'recordingReady';
@@ -81,7 +108,9 @@ const GRAPH_RIGHT_MARGIN = 24;
 const GRAPH_TOP = 24;
 const GRAPH_BOTTOM = 334;
 const GRAPH_MIN_PRESSURE_KPA = 96;
-const GRAPH_MAX_PRESSURE_KPA = 109;
+const GRAPH_MAX_PRESSURE_KPA = 121;
+const GUIDE_MONITORING_GRAPH_MIN_PRESSURE_KPA = 96;
+const GUIDE_MONITORING_GRAPH_MAX_PRESSURE_KPA = 132;
 
 interface PressureGraphDomain {
   minimumKpa: number;
@@ -92,8 +121,33 @@ interface PressureGraphDomain {
 const DEFAULT_PRESSURE_GRAPH_DOMAIN: PressureGraphDomain = {
   minimumKpa: GRAPH_MIN_PRESSURE_KPA,
   maximumKpa: GRAPH_MAX_PRESSURE_KPA,
-  ticksKpa: [96, 99, 102, 105, 108],
+  ticksKpa: [96, 102, 108, 114, 120],
 };
+
+const getGuidedPressureGraphDomain = (
+  domain: PressureGraphDomain,
+): PressureGraphDomain => {
+  const minimumKpa = Math.min(
+    domain.minimumKpa,
+    GUIDE_MONITORING_GRAPH_MIN_PRESSURE_KPA,
+  );
+  const maximumKpa = Math.max(
+    domain.maximumKpa,
+    GUIDE_MONITORING_GRAPH_MAX_PRESSURE_KPA,
+  );
+  const tickStepKpa = (maximumKpa - minimumKpa) / 4;
+  return {
+    minimumKpa,
+    maximumKpa,
+    ticksKpa: Array.from(
+      { length: 5 },
+      (_, index) => minimumKpa + tickStepKpa * index,
+    ),
+  };
+};
+
+const subscribeToNoLivePressure = () => () => undefined;
+const getNoLivePressure = () => null;
 
 const getObservedPressureGraphDomain = (
   samples: readonly PistonOscillationObservedSample[],
@@ -211,8 +265,10 @@ const buildPressureSampleMarkerPath = (
 export const PistonOscillationAcquisitionPanel = ({
   language,
   releaseEvent,
+  livePressureChannel,
   demoFrame,
   guideSession,
+  guidePauseReady = true,
   onGuideParameterEdit,
   onGuideParameterCommit,
   guidePaused = false,
@@ -223,8 +279,10 @@ export const PistonOscillationAcquisitionPanel = ({
 }: {
   language: PistonOscillationLanguage;
   releaseEvent: PistonOscillationReleaseEvent | null;
+  livePressureChannel?: PistonOscillationLivePressureChannel;
   demoFrame?: PistonOscillationDemoFrame;
   guideSession?: PistonOscillationGuideSession;
+  guidePauseReady?: boolean;
   onGuideParameterEdit?: (
     field: PistonOscillationGuideParameterField,
     value: string,
@@ -240,6 +298,11 @@ export const PistonOscillationAcquisitionPanel = ({
   onRunRetained?: () => void;
 }) => {
   const copy = getPistonOscillationShellCopy(language).acquisition;
+  const livePressureObservation = useSyncExternalStore(
+    livePressureChannel?.subscribe ?? subscribeToNoLivePressure,
+    livePressureChannel?.getSnapshot ?? getNoLivePressure,
+    getNoLivePressure,
+  );
   const [guideRejectedControl, setGuideRejectedControl] = useState<
     'settings' | 'primary' | 'save' | null
   >(null);
@@ -267,6 +330,9 @@ export const PistonOscillationAcquisitionPanel = ({
   }, []);
   const [phase, setPhase] = useState<AcquisitionPhase>('idle');
   const phaseRef = useRef<AcquisitionPhase>('idle');
+  const [guidePressureIssue, setGuidePressureIssue] = useState<
+    'underpressure' | 'overpressure' | null
+  >(null);
   const [sampleRateHz, setSampleRateHz] = useState(
     PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
   );
@@ -286,6 +352,14 @@ export const PistonOscillationAcquisitionPanel = ({
   const guideSelected = guideSession?.status === 'active'
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
+  const configuredSampleRateHz = guideSelected
+    ? Number(guideSession?.parameterDrafts.sampleRateHz)
+      || PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
+    : sampleRateHz;
+  const configuredTriggerKpa = guideSelected
+    ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
+      || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
+    : triggerKpa;
   const guideSessionStartedAtMs = guideSession === undefined
     ? undefined
     : guideSession.startedAtMs;
@@ -295,6 +369,13 @@ export const PistonOscillationAcquisitionPanel = ({
     && guideCue === 'settings';
   const guideTriggeredNotifiedRef = useRef(false);
   const guideRecordingReadyNotifiedRef = useRef(false);
+  const guidePendingOverpressurePeakKpaRef = useRef<number | null>(null);
+  const handledReleaseEventIdRef = useRef<number | null>(releaseEvent?.id ?? null);
+  const preTriggerPeakPressureKpaRef = useRef(
+    quantizePistonOscillationObservedPressureKpa(
+      PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+    ),
+  );
   const guidePauseStartedAtMsRef = useRef<number | null>(null);
   const guideAccumulatedPauseMsRef = useRef(0);
   const previousGuideMeasurementIndexRef = useRef(guideMeasurementIndex);
@@ -331,12 +412,29 @@ export const PistonOscillationAcquisitionPanel = ({
     setActiveTrajectory(null);
     setStopElapsedSeconds(null);
     setRetained(false);
+    setGuidePressureIssue(null);
     setDisplayNowMs(performance.now());
     guideTriggeredNotifiedRef.current = false;
     guideRecordingReadyNotifiedRef.current = false;
+    guidePendingOverpressurePeakKpaRef.current = null;
+    preTriggerPeakPressureKpaRef.current = quantizePistonOscillationObservedPressureKpa(
+      PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+    );
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
   }, [updatePhase]);
+
+  useEffect(() => {
+    if (
+      !livePressureObservation
+      || phaseRef.current !== 'armed'
+      || cycleStartMs !== null
+    ) return;
+    preTriggerPeakPressureKpaRef.current = Math.max(
+      preTriggerPeakPressureKpaRef.current,
+      livePressureObservation.absolutePressureKpa,
+    );
+  }, [cycleStartMs, livePressureObservation]);
 
   useEffect(() => {
     if (guideSessionStartedAtMs === undefined) return;
@@ -355,6 +453,37 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [guideMeasurementIndex, resetRun]);
 
   useEffect(() => {
+    if (!guideActive) return;
+    const guideStep = guideSession.step;
+    if (guideStep === 'waitingTrigger' && phaseRef.current === 'idle') {
+      resetRun();
+      handledReleaseEventIdRef.current = releaseEvent?.id ?? null;
+      updatePhase('armed');
+      return;
+    }
+    if (
+      guideStep === 'recording'
+      && guideSession.acquisitionCandidate === null
+      && phaseRef.current === 'idle'
+    ) {
+      resetRun();
+      handledReleaseEventIdRef.current = releaseEvent?.id ?? null;
+      updatePhase('armed');
+      onGuideAcquisitionEvent?.({ type: 'restoreInterruptedAcquisition' });
+    }
+  }, [
+    guideActive,
+    guideMeasurementIndex,
+    guideSession?.acquisitionCandidate,
+    guideSession?.step,
+    guideSessionStartedAtMs,
+    onGuideAcquisitionEvent,
+    releaseEvent?.id,
+    resetRun,
+    updatePhase,
+  ]);
+
+  useEffect(() => {
     const nowMs = performance.now();
     if (guidePaused) {
       guidePauseStartedAtMsRef.current ??= nowMs;
@@ -369,6 +498,8 @@ export const PistonOscillationAcquisitionPanel = ({
 
   useEffect(() => {
     if (!releaseEvent || phaseRef.current !== 'armed') return;
+    if (handledReleaseEventIdRef.current === releaseEvent.id) return;
+    handledReleaseEventIdRef.current = releaseEvent.id;
     const nextTrajectory = releaseEvent.trajectory ?? null;
     const nextObservationSeries = nextTrajectory
       ? createPistonOscillationSensorObservationSeries(
@@ -379,12 +510,50 @@ export const PistonOscillationAcquisitionPanel = ({
     const nextTriggerSample = nextObservationSeries
       ? findPistonOscillationObservedFallingTriggerSample(
         nextObservationSeries,
-        triggerKpa,
+        configuredTriggerKpa,
       )
       : null;
     const nextTriggerSeconds = nextObservationSeries
       ? nextTriggerSample?.timeS ?? null
-      : findPistonAcquisitionFallingTriggerSeconds(triggerKpa, sampleRateHz);
+      : findPistonAcquisitionFallingTriggerSeconds(
+        configuredTriggerKpa,
+        configuredSampleRateHz,
+      );
+    if (guideActive && nextObservationSeries) {
+      const releasePressureKpa = nextObservationSeries.samples[0]?.absolutePressureKpa
+        ?? Number.NEGATIVE_INFINITY;
+      const peakPressureKpa = Math.max(
+        preTriggerPeakPressureKpaRef.current,
+        releasePressureKpa,
+      );
+      if (peakPressureKpa < PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA) {
+        guidePendingOverpressurePeakKpaRef.current = null;
+        setGuidePressureIssue('underpressure');
+        setCycleStartMs(null);
+        setTriggerSeconds(null);
+        setTriggerSourceSampleIndex(null);
+        setActiveTrajectory(null);
+        setStopElapsedSeconds(null);
+        preTriggerPeakPressureKpaRef.current = quantizePistonOscillationObservedPressureKpa(
+          PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+        );
+        onGuideAcquisitionEvent?.({
+          type: 'pressureAttemptRejected',
+          reason: 'underpressure',
+          peakPressureKpa,
+        });
+        return;
+      } else if (peakPressureKpa > PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA) {
+        guidePendingOverpressurePeakKpaRef.current = peakPressureKpa;
+        setGuidePressureIssue(null);
+        preTriggerPeakPressureKpaRef.current = peakPressureKpa;
+      } else {
+        guidePendingOverpressurePeakKpaRef.current = null;
+        setGuidePressureIssue(null);
+        preTriggerPeakPressureKpaRef.current = peakPressureKpa;
+        onGuideAcquisitionEvent?.({ type: 'pressureAttemptAccepted', peakPressureKpa });
+      }
+    }
     setActiveTrajectory(nextTrajectory);
     setCycleStartMs(releaseEvent.startedAtMs);
     setTriggerSeconds(nextTriggerSeconds);
@@ -394,7 +563,14 @@ export const PistonOscillationAcquisitionPanel = ({
     guideRecordingReadyNotifiedRef.current = false;
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
-  }, [releaseEvent, sampleRateHz, triggerKpa]);
+  }, [
+    configuredSampleRateHz,
+    configuredTriggerKpa,
+    guideActive,
+    onGuideAcquisitionEvent,
+    releaseEvent,
+    updatePhase,
+  ]);
 
   useEffect(() => {
     if (
@@ -455,33 +631,63 @@ export const PistonOscillationAcquisitionPanel = ({
       0,
       stopElapsedSeconds ?? localElapsedSinceReleaseSeconds - triggerSeconds,
     );
+  const restoredGuidePauseCandidate = !demoFrame
+    && activeTrajectory === null
+    && guideSession?.step === 'pauseAvailable'
+    ? guideSession.acquisitionCandidate
+    : null;
   const restoredGuideCandidate = !demoFrame
-    && phase === 'idle'
+    && activeTrajectory === null
     && (guideSession?.step === 'curveFrozen' || guideSession?.step === 'awaitingSaveOrRedo')
     ? guideSession.acquisitionCandidate
     : null;
   const restoredGuideSavedMeasurement = !demoFrame
-    && phase === 'idle'
+    && activeTrajectory === null
     && guideSession?.status === 'completed'
     ? guideSession.savedMeasurements.find(
         (measurement) => measurement.measurementIndex === guideSession.measurementIndex,
       ) ?? null
     : null;
-  const restoredGuideMeasurement = restoredGuideCandidate ?? restoredGuideSavedMeasurement;
+  const restoredGuideMeasurement = restoredGuidePauseCandidate
+    ?? restoredGuideCandidate
+    ?? restoredGuideSavedMeasurement;
   const demoActive = demoFrame !== undefined;
+  const demoTrajectory = useMemo(
+    () => demoFrame
+      ? getPistonOscillationDemoTrajectory(demoFrame.measurementIndex)
+      : null,
+    [demoFrame?.measurementIndex],
+  );
+  const demoObservationSeries = useMemo(
+    () => demoTrajectory
+      ? createPistonOscillationSensorObservationSeries(
+        demoTrajectory.samples,
+        demoTrajectory.sampleRateHz,
+      )
+      : null,
+    [demoTrajectory],
+  );
+  const demoTriggerSample = useMemo(
+    () => demoObservationSeries
+      ? findPistonOscillationObservedFallingTriggerSample(
+        demoObservationSeries,
+        PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
+      )
+      : null,
+    [demoObservationSeries],
+  );
   const effectivePhase = demoFrame?.acquisitionPhase
-    ?? (restoredGuideMeasurement ? 'stopped' : phase);
+    ?? (restoredGuidePauseCandidate
+      ? 'recording'
+      : restoredGuideMeasurement ? 'stopped' : phase);
   const effectiveSampleRateHz = demoFrame
     ? Number(demoFrame.sampleRateInput) || PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ
-    : restoredGuideMeasurement?.acquisitionSettings.sampleRateHz ?? sampleRateHz;
+    : restoredGuideMeasurement?.acquisitionSettings.sampleRateHz ?? configuredSampleRateHz;
   const effectiveTriggerKpa = demoFrame
-    ? Number(demoFrame.triggerInput) || PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA
-    : restoredGuideMeasurement?.acquisitionSettings.triggerThresholdKpa ?? triggerKpa;
+    ? Number(demoFrame.triggerInput) || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
+    : restoredGuideMeasurement?.acquisitionSettings.triggerThresholdKpa ?? configuredTriggerKpa;
   const effectiveTriggerSeconds = demoFrame
-    ? findPistonAcquisitionFallingTriggerSeconds(
-      PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
-      PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
-    )
+    ? demoTriggerSample?.timeS ?? null
     : restoredGuideMeasurement ? 0 : triggerSeconds;
   const elapsedSinceReleaseSeconds = restoredGuideMeasurement
     ?.acquisitionSettings.recordedDurationS
@@ -491,7 +697,7 @@ export const PistonOscillationAcquisitionPanel = ({
     ?.acquisitionSettings.recordedDurationS
     ?? demoFrame?.formalElapsedSeconds
     ?? localFormalElapsedSeconds;
-  const graphMinimumDomainSeconds = guideSelected
+  const graphMinimumDomainSeconds = guideSelected || demoFrame
     ? PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
     : 0.8;
   const activeObservationSeries = useMemo<PistonOscillationSensorObservationSeries | null>(
@@ -506,6 +712,23 @@ export const PistonOscillationAcquisitionPanel = ({
   const displayedObservationSamples = useMemo<PistonOscillationObservedSample[]>(() => {
     if (restoredGuideMeasurement) return restoredGuideMeasurement.samples;
     if (formalElapsedSeconds <= 0 || effectiveTriggerSeconds === null) return [];
+    if (demoObservationSeries && demoTriggerSample) {
+      const maximumIntervalCount = Math.max(
+        0,
+        demoObservationSeries.samples.length - demoTriggerSample.sampleIndex - 1,
+      );
+      const intervalCount = Math.min(
+        maximumIntervalCount,
+        Math.max(0, Math.floor(
+          formalElapsedSeconds * demoObservationSeries.sampleRateHz + 1e-9,
+        )),
+      );
+      return createPistonOscillationRecordedObservationSamples(
+        demoObservationSeries,
+        demoTriggerSample.sampleIndex,
+        intervalCount / demoObservationSeries.sampleRateHz,
+      );
+    }
     if (activeObservationSeries && triggerSourceSampleIndex !== null) {
       const maximumIntervalCount = Math.max(
         0,
@@ -539,6 +762,8 @@ export const PistonOscillationAcquisitionPanel = ({
     });
   }, [
     activeObservationSeries,
+    demoObservationSeries,
+    demoTriggerSample,
     effectiveSampleRateHz,
     effectiveTriggerSeconds,
     formalElapsedSeconds,
@@ -560,14 +785,23 @@ export const PistonOscillationAcquisitionPanel = ({
         activeObservationSeries.sampleRateHz,
       );
     }
+    if (demoObservationSeries) {
+      return getObservedPressureKpa(
+        demoObservationSeries.samples,
+        secondsSinceRelease,
+        demoObservationSeries.sampleRateHz,
+      );
+    }
     return quantizePistonOscillationObservedPressureKpa(
       getPistonAcquisitionPresetPressureKpa(secondsSinceRelease) * 1_000,
     );
-  }, [activeObservationSeries, restoredGuideMeasurement]);
+  }, [activeObservationSeries, demoObservationSeries, restoredGuideMeasurement]);
   const currentPressureKpa = elapsedSinceReleaseSeconds === null
-    ? quantizePistonOscillationObservedPressureKpa(
-      PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
-    )
+    ? effectivePhase === 'armed' && livePressureObservation
+      ? livePressureObservation.absolutePressureKpa
+      : quantizePistonOscillationObservedPressureKpa(
+        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+      )
     : getEffectivePressureKpa(elapsedSinceReleaseSeconds);
   const sampleCount = effectivePhase === 'idle' || effectivePhase === 'armed'
     ? 0
@@ -575,8 +809,26 @@ export const PistonOscillationAcquisitionPanel = ({
   const graphRight = graphWidth - GRAPH_RIGHT_MARGIN;
   const graphCenterX = (GRAPH_LEFT + graphRight) / 2;
   const pressureGraphDomain = useMemo(
-    () => restoredGuideMeasurement
+    () => {
+      const domain = restoredGuideMeasurement
       ? getRecordedPressureGraphDomain(restoredGuideMeasurement)
+      : demoObservationSeries && demoTriggerSample
+        ? getObservedPressureGraphDomain(demoObservationSeries.samples.slice(
+          demoTriggerSample.sampleIndex,
+          Math.min(
+            demoObservationSeries.samples.length,
+            demoTriggerSample.sampleIndex
+              + Math.floor(graphMinimumDomainSeconds * demoObservationSeries.sampleRateHz)
+              + 1,
+          ),
+        ).map((sample, sampleIndex) => ({
+          sampleIndex,
+          timeS: getPistonOscillationObservedTimeS(
+            sampleIndex,
+            demoObservationSeries.sampleRateHz,
+          ),
+          absolutePressureKpa: sample.absolutePressureKpa,
+        })))
       : activeObservationSeries && triggerSourceSampleIndex !== null
         ? getObservedPressureGraphDomain(activeObservationSeries.samples.slice(
           triggerSourceSampleIndex,
@@ -594,10 +846,18 @@ export const PistonOscillationAcquisitionPanel = ({
           ),
           absolutePressureKpa: sample.absolutePressureKpa,
         })))
-        : DEFAULT_PRESSURE_GRAPH_DOMAIN,
+        : DEFAULT_PRESSURE_GRAPH_DOMAIN;
+      return guideSelected || demoFrame
+        ? getGuidedPressureGraphDomain(domain)
+        : domain;
+    },
     [
       activeObservationSeries,
+      demoObservationSeries,
+      demoTriggerSample,
+      demoFrame,
       graphMinimumDomainSeconds,
+      guideSelected,
       restoredGuideMeasurement,
       triggerSourceSampleIndex,
     ],
@@ -640,7 +900,23 @@ export const PistonOscillationAcquisitionPanel = ({
   );
   const graphDomainSeconds = Math.max(graphMinimumDomainSeconds, formalElapsedSeconds);
   const triggerY = pressureToY(effectiveTriggerKpa, pressureGraphDomain);
+  const qualityUpperY = pressureToY(
+    PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
+    pressureGraphDomain,
+  );
   const triggerValueVisible = !demoFrame || demoFrame.triggerInput.length > 0;
+  const pressureIndicatorVisible = Boolean(
+    (guideSelected || demoActive)
+    && effectivePhase === 'armed'
+    && !restoredGuideMeasurement,
+  );
+  const pressureIndicatorState = currentPressureKpa
+    < PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
+      ? 'below'
+      : currentPressureKpa <= PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA
+        ? 'valid'
+        : 'over';
+  const pressureIndicatorY = pressureToY(currentPressureKpa, pressureGraphDomain);
 
   const buildGuideCandidate = useCallback((durationS: number) => {
     if (
@@ -708,6 +984,18 @@ export const PistonOscillationAcquisitionPanel = ({
     if (!candidate || candidate.samples.length < 2) return;
     guideRecordingReadyNotifiedRef.current = true;
     setStopElapsedSeconds(candidate.acquisitionSettings.recordedDurationS);
+    const overpressurePeakKpa = guidePendingOverpressurePeakKpaRef.current;
+    if (overpressurePeakKpa !== null) {
+      guidePendingOverpressurePeakKpaRef.current = null;
+      setGuidePressureIssue('overpressure');
+      updatePhase('stopped');
+      onGuideAcquisitionEvent?.({
+        type: 'pressureAttemptRejected',
+        reason: 'overpressure',
+        peakPressureKpa: overpressurePeakKpa,
+      });
+      return;
+    }
     onGuideAcquisitionEvent?.({ type: 'recordingReady', candidate });
   }, [
     buildGuideCandidate,
@@ -716,17 +1004,49 @@ export const PistonOscillationAcquisitionPanel = ({
     guidePaused,
     onGuideAcquisitionEvent,
     phase,
+    updatePhase,
   ]);
 
   const handleStart = () => {
+    // The scene may still retain the preceding run's release event. Arming
+    // establishes a new observation boundary, so only a later release may trigger it.
+    handledReleaseEventIdRef.current = releaseEvent?.id ?? null;
     setCycleStartMs(null);
     setTriggerSeconds(null);
     setTriggerSourceSampleIndex(null);
     setActiveTrajectory(null);
     setStopElapsedSeconds(null);
     setRetained(false);
+    setGuidePressureIssue(null);
+    guidePendingOverpressurePeakKpaRef.current = null;
+    preTriggerPeakPressureKpaRef.current = livePressureObservation?.absolutePressureKpa
+      ?? quantizePistonOscillationObservedPressureKpa(
+        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+      );
     updatePhase('armed');
     if (guideActive) onGuideAcquisitionEvent?.({ type: 'startAcquisition' });
+  };
+
+  const handleGuideOverpressureRedo = () => {
+    setCycleStartMs(null);
+    setTriggerSeconds(null);
+    setTriggerSourceSampleIndex(null);
+    setActiveTrajectory(null);
+    setStopElapsedSeconds(null);
+    setRetained(false);
+    setGuidePressureIssue(null);
+    guidePendingOverpressurePeakKpaRef.current = null;
+    preTriggerPeakPressureKpaRef.current = livePressureObservation?.absolutePressureKpa
+      ?? quantizePistonOscillationObservedPressureKpa(
+        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+      );
+    guideTriggeredNotifiedRef.current = false;
+    guideRecordingReadyNotifiedRef.current = false;
+    guidePauseStartedAtMsRef.current = null;
+    guideAccumulatedPauseMsRef.current = 0;
+    setDisplayNowMs(performance.now());
+    updatePhase('armed');
+    onGuideAcquisitionEvent?.({ type: 'redoOverpressureAttempt' });
   };
 
   const handleStop = () => {
@@ -734,8 +1054,8 @@ export const PistonOscillationAcquisitionPanel = ({
       resetRun();
       return;
     }
-    if (phaseRef.current !== 'recording') return;
-    const candidate = buildGuideCandidate(formalElapsedSeconds);
+    if (phaseRef.current !== 'recording' && restoredGuidePauseCandidate === null) return;
+    const candidate = restoredGuidePauseCandidate ?? buildGuideCandidate(formalElapsedSeconds);
     if (guideActive && candidate) {
       onGuideAcquisitionEvent?.({ type: 'curvePaused', candidate });
     }
@@ -745,8 +1065,12 @@ export const PistonOscillationAcquisitionPanel = ({
 
   const acquisitionActive = effectivePhase === 'armed' || effectivePhase === 'recording';
   const effectiveRetained = retained || restoredGuideSavedMeasurement !== null;
-  const measurementNumber = (guideSession?.measurementIndex ?? 0) + 1;
-  const totalMeasurements = guideSelected
+  const measurementNumber = demoFrame
+    ? demoFrame.measurementIndex + 1
+    : (guideSession?.measurementIndex ?? 0) + 1;
+  const totalMeasurements = demoFrame
+    ? demoFrame.measurementCount
+    : guideSelected
     ? PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS
     : PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS;
   const guideFeedback = guideSession?.feedbackCode === 'sampleRateInvalid'
@@ -761,7 +1085,11 @@ export const PistonOscillationAcquisitionPanel = ({
     guideActive
     && (
       (phase === 'idle' && guideSession.step === 'acquisitionReady')
-      || (phase === 'recording' && guideSession.step === 'pauseAvailable')
+      || (
+        effectivePhase === 'recording'
+        && guideSession.step === 'pauseAvailable'
+        && guidePauseReady
+      )
     )
   );
   const guideSaveAllowed = Boolean(
@@ -806,7 +1134,11 @@ export const PistonOscillationAcquisitionPanel = ({
           demoFrame?.highlightControl === 'settings' ? 'settings' : undefined
         }
       >
-        <label>
+        <label className={
+          demoFrame?.virtualKeyboardField === 'sampleRate'
+            ? 'is-demo-keyboard-active'
+            : undefined
+        }>
           <span>{copy.sampleRate}</span>
           <div>
             <input
@@ -841,13 +1173,17 @@ export const PistonOscillationAcquisitionPanel = ({
             <small>Hz</small>
           </div>
         </label>
-        <label>
+        <label className={
+          demoFrame?.virtualKeyboardField === 'trigger'
+            ? 'is-demo-keyboard-active'
+            : undefined
+        }>
           <span>{copy.triggerThreshold}</span>
           <div>
             <input
               type="number"
               min={96}
-              max={108}
+              max={guideSelected || demoActive ? 140 : 108}
               step={0.1}
               value={demoFrame?.triggerInput
                 ?? (guideSelected ? guideSession.parameterDrafts.triggerThresholdKpa : triggerKpa)}
@@ -878,6 +1214,59 @@ export const PistonOscillationAcquisitionPanel = ({
         </label>
       </div>
 
+      {demoFrame?.virtualKeyboardVisible ? (
+        <div
+          className="piston-demo-virtual-keyboard"
+          data-piston-demo-virtual-keyboard="true"
+          data-piston-demo-keyboard-field={demoFrame.virtualKeyboardField ?? 'none'}
+          role="group"
+          aria-label={copy.virtualKeyboard}
+        >
+          <div className="piston-demo-virtual-keyboard-heading">
+            <strong>{copy.virtualKeyboard}</strong>
+            <span>
+              {demoFrame.virtualKeyboardField === 'sampleRate'
+                ? copy.sampleRate
+                : copy.triggerThreshold}
+            </span>
+          </div>
+          <div className="piston-demo-virtual-keyboard-grid" aria-hidden="true">
+            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((key) => (
+              <span
+                key={key}
+                className={demoFrame.virtualKeyboardPressedKey === key ? 'is-pressed' : undefined}
+                data-piston-demo-key={key}
+              >
+                {key}
+              </span>
+            ))}
+            <span
+              className="is-function-key"
+              data-piston-demo-key="backspace"
+              title={copy.keyboardBackspace}
+            >
+              ←
+            </span>
+            <span
+              className={demoFrame.virtualKeyboardPressedKey === '0' ? 'is-pressed' : undefined}
+              data-piston-demo-key="0"
+            >
+              0
+            </span>
+            <span
+              className={`is-function-key ${
+                demoFrame.virtualKeyboardPressedKey === 'action' ? 'is-pressed' : ''
+              }`.trim()}
+              data-piston-demo-key="action"
+            >
+              {demoFrame.virtualKeyboardField === 'sampleRate'
+                ? copy.keyboardNext
+                : copy.keyboardConfirm}
+            </span>
+          </div>
+        </div>
+      ) : null}
+
       {guideFeedback ? (
         <div
           key={`${guideSession?.feedbackCode}:${guideSession?.updatedAtMs}`}
@@ -906,8 +1295,15 @@ export const PistonOscillationAcquisitionPanel = ({
       </div>
 
       <div ref={chartWrapRef} className="piston-acquisition-chart-wrap">
-        <svg viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`} role="img" aria-label={copy.curveAria}>
-          <rect x="0" y="0" width={graphWidth} height={GRAPH_HEIGHT} className="piston-acquisition-chart-bg" />
+        <div className="piston-acquisition-chart-viewport">
+          <svg viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`} role="img" aria-label={copy.curveAria}>
+          <rect
+            x={GRAPH_LEFT}
+            y={GRAPH_TOP}
+            width={graphRight - GRAPH_LEFT}
+            height={GRAPH_BOTTOM - GRAPH_TOP}
+            className="piston-acquisition-chart-bg"
+          />
           {pressureGraphDomain.ticksKpa.map((pressure) => {
             const y = pressureToY(pressure, pressureGraphDomain);
             return (
@@ -944,6 +1340,25 @@ export const PistonOscillationAcquisitionPanel = ({
               </text>
             </>
           ) : null}
+          {guideSelected || demoActive ? (
+            <>
+              <line
+                x1={GRAPH_LEFT}
+                x2={graphRight}
+                y1={qualityUpperY}
+                y2={qualityUpperY}
+                className="piston-acquisition-quality-upper-line"
+              />
+              <text
+                x={graphRight - 4}
+                y={qualityUpperY + 13}
+                textAnchor="end"
+                className="piston-acquisition-quality-upper-label"
+              >
+                {copy.qualityUpperLine(PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA)}
+              </text>
+            </>
+          ) : null}
           {pressurePath ? <path d={pressurePath} className="piston-acquisition-pressure-path" /> : null}
           {pressureSampleMarkerPath ? (
             <path
@@ -952,19 +1367,40 @@ export const PistonOscillationAcquisitionPanel = ({
               aria-hidden="true"
             />
           ) : null}
-          <line x1={GRAPH_LEFT} x2={graphRight} y1={GRAPH_BOTTOM} y2={GRAPH_BOTTOM} className="piston-acquisition-axis" />
-          <line x1={GRAPH_LEFT} x2={GRAPH_LEFT} y1={GRAPH_TOP} y2={GRAPH_BOTTOM} className="piston-acquisition-axis" />
+          <rect
+            x={GRAPH_LEFT}
+            y={GRAPH_TOP}
+            width={graphRight - GRAPH_LEFT}
+            height={GRAPH_BOTTOM - GRAPH_TOP}
+            className="piston-acquisition-plot-frame"
+          />
+          {pressureIndicatorVisible ? (
+            <circle
+              cx={GRAPH_LEFT}
+              cy={pressureIndicatorY}
+              r="5"
+              className={`piston-acquisition-pressure-indicator is-${pressureIndicatorState}`}
+              data-piston-pressure-indicator={pressureIndicatorState}
+            >
+              <title>{copy.pressureIndicator(currentPressureKpa)}</title>
+            </circle>
+          ) : null}
           <text x="18" y="179" transform="rotate(-90 18 179)" textAnchor="middle" className="piston-acquisition-axis-label">
             {copy.pressureAxis}
           </text>
-          <text x={graphCenterX} y="372" textAnchor="middle" className="piston-acquisition-axis-label">{copy.timeAxis}</text>
           {!pressurePath ? (
             <text x={graphCenterX} y="179" textAnchor="middle" className="piston-acquisition-empty-label">
               {effectivePhase === 'armed' ? copy.waitingTrigger : copy.emptyCurve}
             </text>
           ) : null}
-        </svg>
-        <div className="piston-acquisition-actions" role="group" aria-label={copy.actionsAria}>
+          </svg>
+        </div>
+        <div className="piston-acquisition-chart-footer">
+          <div
+            className="piston-chart-action-strip piston-acquisition-actions"
+            role="group"
+            aria-label={copy.actionsAria}
+          >
           <button
             type="button"
             data-piston-acquisition-action="primary"
@@ -997,8 +1433,13 @@ export const PistonOscillationAcquisitionPanel = ({
               )) return;
               (acquisitionActive ? handleStop : handleStart)();
             }}
-            disabled={demoActive || guidePaused}
-            aria-disabled={demoActive || guidePaused || !guidePrimaryAllowed}
+            disabled={demoActive || guidePaused || guidePressureIssue === 'overpressure'}
+            aria-disabled={
+              demoActive
+              || guidePaused
+              || guidePressureIssue === 'overpressure'
+              || !guidePrimaryAllowed
+            }
           >
             <span className="piston-acquisition-action-feedback" aria-hidden="true">
               {acquisitionActive ? (
@@ -1011,13 +1452,28 @@ export const PistonOscillationAcquisitionPanel = ({
           <button
             type="button"
             data-piston-acquisition-action="redo"
+            data-piston-guide-target="redo"
             aria-label={copy.redo}
             title={copy.redo}
+            className={guideCue === 'redo' ? 'is-guide-highlighted' : undefined}
             onClick={() => {
-              if (!demoActive) resetRun();
+              if (demoActive || guidePaused) return;
+              if (guideSelected && guidePressureIssue === 'overpressure') {
+                handleGuideOverpressureRedo();
+                return;
+              }
+              if (!guideSelected) resetRun();
             }}
-            disabled={guideSelected || (!demoActive && phase === 'idle')}
-            aria-disabled={demoActive || guideSelected}
+            disabled={demoActive || guidePaused || (
+              guideSelected
+                ? guidePressureIssue !== 'overpressure'
+                : phase === 'idle'
+            )}
+            aria-disabled={demoActive || guidePaused || (
+              guideSelected
+                ? guidePressureIssue !== 'overpressure'
+                : phase === 'idle'
+            )}
           >
             <span className="piston-acquisition-action-feedback" aria-hidden="true">
               <RotateCcw size={14} strokeWidth={2.3} aria-hidden="true" />
@@ -1056,6 +1512,8 @@ export const PistonOscillationAcquisitionPanel = ({
               <Check size={15} strokeWidth={2.5} aria-hidden="true" />
             </span>
           </button>
+          </div>
+          <span className="piston-acquisition-axis-footer-label">{copy.timeAxis}</span>
         </div>
       </div>
 

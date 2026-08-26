@@ -31,7 +31,8 @@ export const PISTON_OSCILLATION_GUIDE_SESSION_SCHEMA_VERSION = 8 as const;
 export const PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM = [80, 70, 60] as const;
 export const PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS = 3 as const;
 export const PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ = 1000 as const;
-export const PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA = 105 as const;
+export const PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA = 120 as const;
+export const PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA = 130 as const;
 export const PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S = 0.5 as const;
 export const PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM = 0.25 as const;
 
@@ -147,6 +148,7 @@ export type PistonOscillationGuideEvent =
       candidate?: PistonOscillationGuideSavedMeasurement;
     } & PistonOscillationGuideTimedEvent)
   | ({ type: 'pauseRecording' } & PistonOscillationGuideTimedEvent)
+  | ({ type: 'discardAcquisitionAttempt' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'curveFreezeComplete' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'saveMeasurement' } & PistonOscillationGuideTimedEvent)
   | ({
@@ -405,6 +407,8 @@ const eventMatchesStep = (
     case 'updateRecording':
       return session.step === 'recording' || session.step === 'pauseAvailable';
     case 'pauseRecording':
+      return session.step === 'recording' || session.step === 'pauseAvailable';
+    case 'discardAcquisitionAttempt':
       return session.step === 'recording' || session.step === 'pauseAvailable';
     case 'curveFreezeComplete':
       return session.step === 'curveFrozen';
@@ -825,6 +829,11 @@ export const transitionPistonOscillationGuideSession = (
     }
     case 'pauseRecording':
       return advance('curveFrozen');
+    case 'discardAcquisitionAttempt':
+      return {
+        ...advance('waitingTrigger'),
+        acquisitionCandidate: null,
+      };
     case 'curveFreezeComplete':
       return advance('awaitingSaveOrRedo');
     case 'saveMeasurement': {
@@ -843,7 +852,7 @@ export const transitionPistonOscillationGuideSession = (
       return {
         ...session,
         status: 'active',
-        step: isFinalMeasurement ? 'periodProcessing' : 'crossRunStabilizing',
+        step: isFinalMeasurement ? 'periodProcessing' : 'crossRunDisconnect',
         measurementIndex: isFinalMeasurement
           ? session.measurementIndex
           : (session.measurementIndex + 1) as PistonOscillationGuideMeasurementIndex,

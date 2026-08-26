@@ -1,0 +1,144 @@
+.piston-chart-action-strip {
+  position: static;
+  z-index: 2;
+  display: grid;
+  width: 84px;
+  height: 28px;
+  box-sizing: border-box;
+  grid-template-columns: repeat(3, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid var(--piston-chart-action-border);
+  border-radius: 0;
+  background: var(--piston-chart-action-bg);
+  box-shadow: var(--piston-chart-action-shadow, none);
+  transition:
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+.piston-chart-action-strip button {
+  display: inline-flex;
+  min-width: 0;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--piston-chart-action-text);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    color 120ms ease,
+    background-color 120ms ease,
+    opacity 120ms ease;
+}
+
+.piston-chart-action-strip button:not(:disabled):active {
+  background: var(--piston-chart-action-active-bg);
+}
+
+.piston-chart-action-strip button:not(:disabled):active .piston-acquisition-action-feedback {
+  transform: scale(0.72);
+  transition: none;
+}
+
+.piston-chart-action-strip button.is-primary {
+  color: var(--piston-chart-action-primary);
+}
+
+.piston-chart-action-strip button:hover:not(:disabled),
+.piston-chart-action-strip button:focus-visible {
+  color: var(--piston-chart-action-hover);
+}
+
+.piston-chart-action-strip button:focus-visible {
+  outline: 1px solid var(--piston-chart-action-focus);
+  outline-offset: -2px;
+}
+
+.piston-chart-action-strip button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.piston-chart-action-strip button.is-guide-highlighted {
+  position: relative;
+  z-index: 3;
+  isolation: isolate;
+  overflow: hidden;
+  background: #117db8;
+  color: #fff;
+  opacity: 1;
+  animation: piston-chart-action-guide-fill-pulse 1.1s ease-in-out infinite;
+}
+
+.piston-chart-action-strip button.is-guide-highlighted::after {
+  position: absolute;
+  inset: 2px;
+  z-index: 0;
+  border: 2px solid rgba(255, 255, 255, 0.78);
+  content: '';
+  pointer-events: none;
+  animation: piston-chart-action-guide-outline-pulse 1.1s ease-in-out infinite;
+}
+
+.piston-chart-action-strip button.is-guide-highlighted > .piston-acquisition-action-feedback {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes piston-chart-action-guide-fill-pulse {
+  0%, 100% {
+    background: #117db8;
+    color: #fff;
+  }
+  50% {
+    background: #249bd3;
+    color: #fff;
+  }
+}
+
+@keyframes piston-chart-action-guide-outline-pulse {
+  0%, 100% {
+    inset: 3px;
+    border-color: rgba(255, 255, 255, 0.72);
+    opacity: 0.78;
+  }
+  50% {
+    inset: 0;
+    border-color: #fff;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .piston-chart-action-strip button {
+    transition: color 80ms ease, background-color 80ms ease, opacity 80ms ease;
+  }
+
+  .piston-chart-action-strip button:not(:disabled):active {
+    opacity: 0.72;
+  }
+
+  .piston-chart-action-strip button:not(:disabled):active .piston-acquisition-action-feedback {
+    transform: none;
+    transition: none;
+  }
+
+  .piston-chart-action-strip button.is-guide-highlighted {
+    background: #117db8;
+    color: #fff;
+    opacity: 1;
+    animation: none;
+  }
+
+  .piston-chart-action-strip button.is-guide-highlighted::after {
+    inset: 1px;
+    border-color: #fff;
+    opacity: 1;
+    animation: none;
+  }
+}

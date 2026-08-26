@@ -46,6 +46,7 @@ import {
   type PistonOscillationLanguage,
 } from './pistonOscillationCopy.ts';
 import './PistonOscillationDataProcessingPanel.css';
+import './PistonOscillationChartControls.css';
 
 const CHART_DEFAULT_WIDTH = 1080;
 const CHART_HEIGHT = 405;
@@ -1406,14 +1407,14 @@ export const PistonOscillationDataProcessingPanel = ({
           </div>
           <div className="piston-period-chart-footer">
             <div
-              className="piston-acquisition-actions piston-processing-chart-actions"
+              className="piston-chart-action-strip piston-processing-chart-actions"
               role="group"
               aria-label={copy.selectionTitle}
             >
               <button
                 type="button"
                 className={`is-primary ${chartMode === 'selection' ? 'is-active' : ''} ${
-                  selectionToolPulse ? 'is-guide-pulsing' : ''
+                  selectionToolPulse ? 'is-guide-highlighted' : ''
                 }`}
                 data-piston-guide-target="period-tool"
                 disabled={reviewMode || !canSelect}

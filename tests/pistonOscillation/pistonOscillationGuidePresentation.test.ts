@@ -228,7 +228,7 @@ const workspaceSource = readFileSync(
 );
 
 assert.match(workbenchSource, /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS\s*=\s*\n?\s*GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS/);
-assert.match(workbenchSource, /data-piston-guide-strong-mask-blocking="false"/);
+assert.match(workbenchSource, /data-piston-guide-strong-mask-blocking="true"/);
 assert.match(workbenchSource, /guideRequestedFocusMode=\{pistonGuideRequestedFocusMode\}/);
 assert.match(sceneSource, /guideRequestedFocusMode=\{guideRequestedFocusMode\}/);
 assert.match(workspaceSource, /if \(!guideRequestedFocusMode \|\| calibrationActive \|\| demoActive\) return/);
@@ -237,11 +237,12 @@ assert.doesNotMatch(
   /if \(!guideRequestedFocusMode[^\n]*guideInteractionPaused/,
   'time-frozen Guide interactions must not block restoration of the current step camera and operation mirror',
 );
-assert.match(workbenchCss, /\.studio-piston-guide-strong-mask,\s*\n\.studio-piston-guide-strong-mask \* \{\s*\n\s*pointer-events: none !important;/);
+assert.doesNotMatch(workbenchCss, /\.studio-piston-guide-strong-mask \* \{[\s\S]*pointer-events: none !important;/);
+assert.match(workbenchCss, /\.studio-piston-guide-strong-mask \.studio-heat-guide-strong-dim \{\s*\n\s*pointer-events: auto;/);
 assert.match(
   workbenchSource,
-  /const scaleX = rootRect\.width \/ localWidth;[\s\S]*const scaleY = rootRect\.height \/ localHeight;[\s\S]*querySelectorAll<HTMLElement>\('\.studio-dock-header'\)[\s\S]*const top = Math\.max[\s\S]*contextCutouts[\s\S]*getPistonOscillationGuideStrongContextKind/,
-  'the strong mask should convert scaled workspace coordinates, begin below the mode headers, and retain target context cutouts',
+  /const scaleX = rootRect\.width \/ localWidth;[\s\S]*const scaleY = rootRect\.height \/ localHeight;[\s\S]*querySelectorAll<HTMLElement>\('\.studio-dock-header'\)[\s\S]*const dockHeaderBottom = Math\.max[\s\S]*root\.classList\.contains\('studio-live-workspace-piston-processing'\)[\s\S]*\? 0[\s\S]*: dockHeaderBottom[\s\S]*contextCutouts[\s\S]*getPistonOscillationGuideStrongContextKind/,
+  'the strong mask should convert scaled workspace coordinates, cover the complete processing workspace, preserve instrument mode headers, and retain target context cutouts',
 );
 assert.match(
   workbenchSource,
@@ -260,13 +261,13 @@ assert.doesNotMatch(
 );
 assert.match(
   workbenchCss,
-  /\.studio-preview-overlay-layer\s*\{[\s\S]*z-index:\s*34;[\s\S]*\.studio-piston-guide-strong-mask\s*\{[\s\S]*z-index:\s*33;/,
-  'checklist, focus, and instruction overlays should remain one layer above the reminder wall',
+  /\.studio-preview-overlay-layer\s*\{[\s\S]*z-index:\s*34;[\s\S]*\.studio-piston-guide-strong-mask\s*\{[\s\S]*z-index:\s*35;/,
+  'the reminder wall should sit above scene-overlay controls so dimmed controls cannot bypass it',
 );
 assert.match(
   workbenchSource,
-  /getPistonOscillationGuideStrongDimPath[\s\S]*contextCutouts\.map\(getPistonOscillationGuideRoundedRectPath\)[\s\S]*data-piston-guide-strong-mask-blocking="false"[\s\S]*fillRule="evenodd"[\s\S]*studio-piston-guide-strong-card-compact/,
-  'the reminder should stay nonblocking and adapt its card around all protected context regions',
+  /getPistonOscillationGuideStrongDimPath[\s\S]*contextCutouts\.map\(getPistonOscillationGuideRoundedRectPath\)[\s\S]*data-piston-guide-strong-mask-blocking="true"[\s\S]*fillRule="evenodd"[\s\S]*studio-piston-guide-strong-card-compact/,
+  'the reminder should block the dimmed region while adapting its card around all protected context regions',
 );
 assert.match(
   workbenchSource,

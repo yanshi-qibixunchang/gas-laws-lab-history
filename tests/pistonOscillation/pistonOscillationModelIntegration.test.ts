@@ -158,8 +158,9 @@ assert.doesNotMatch(
 );
 assert.match(interactiveModelSource, /PistonOscillationInteractiveModel/);
 assert.match(interactiveModelSource, /onPointerDown=\{handlePointerDown\}/);
-assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 3/);
-assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.002/);
+assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 6/);
+assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.004/);
+assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS = 3/);
 
 const resetButton = interactionWorkspaceSource.match(
   /<button\b[\s\S]*?data-piston-oscillation-view-reset="true"[\s\S]*?<\/button>/,

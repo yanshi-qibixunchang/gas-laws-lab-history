@@ -13,6 +13,7 @@ import {
   createPistonOscillationEquilibriumState,
   findPistonOscillationFallingTriggerTimeS,
   getPistonCylinderAreaM2,
+  getPistonOscillationInstantaneousThermodynamicState,
   getPistonOscillationSmallSignalFrequencyHz,
   getPistonOscillationTrajectorySampleAt,
   normalizePistonOscillationPhysicsConfig,
@@ -85,6 +86,27 @@ assert.ok(
   ) < 1e-15,
 );
 assert.ok(equilibrium80.gasAmountMol > 0);
+
+const instantaneousPressedState = getPistonOscillationInstantaneousThermodynamicState(
+  80,
+  -10.5,
+);
+const equivalentReleaseState = simulatePistonOscillationRelease({
+  equilibriumHeightMm: 80,
+  initialDisplacementMm: -10.5,
+}).samples[0];
+assert.ok(equivalentReleaseState);
+assert.ok(
+  Math.abs(
+    instantaneousPressedState.pressurePa - (equivalentReleaseState?.pressurePa ?? 0)
+  ) < 1e-9,
+  'the live pressed-state pressure must use the same state equation as release trajectories',
+);
+assert.equal(instantaneousPressedState.config.gamma, PISTON_OSCILLATION_AIR_ADIABATIC_INDEX);
+assert.throws(
+  () => getPistonOscillationInstantaneousThermodynamicState(5, -6),
+  /cannot pass below the 0 mm stop/,
+);
 
 const trajectories = [60, 70, 80].map((equilibriumHeightMm) => (
   simulatePistonOscillationRelease({

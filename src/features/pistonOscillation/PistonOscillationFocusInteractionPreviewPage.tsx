@@ -29,20 +29,23 @@ import {
   simulatePistonOscillationRelease,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
-import type {
-  PistonOscillationGuideAction,
-  PistonOscillationGuideActionContext,
-  PistonOscillationGuideGuardResult,
+import {
+  type PistonOscillationGuideAction,
+  type PistonOscillationGuideActionContext,
+  type PistonOscillationGuideGuardResult,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import type { WorkbenchPistonOscillationCameraPreset } from '../workbench/workbenchState.ts';
 import usePreviewOverlayMotion from '../workbench/usePreviewOverlayMotion.ts';
 import { PistonOscillationInstrumentAsset } from './PistonOscillationInstrumentModel.tsx';
 import {
   PistonOscillationInteractiveModel,
-  PISTON_OSCILLATION_LOCKING_SCREW_TURNS,
+  PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS,
   type PistonOscillationDemoFocusTarget,
 } from './PistonOscillationInteractiveModel.tsx';
 import { PISTON_OSCILLATION_CAMERA_VIEW_SCHEMES } from './pistonOscillationCameraViews.ts';
+import type {
+  PistonOscillationLivePhysicalState,
+} from './pistonOscillationLivePressureChannel.ts';
 import { PISTON_MODEL_HIT_TARGETS } from './pistonOscillationModelHitTargets.ts';
 import {
   PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
@@ -197,7 +200,7 @@ interface HoseHandleBounds {
 }
 
 const FOCUS_TRANSITION_DURATION_MS = 360;
-const PISTON_PRESS_MAX_OFFSET_MM = 12;
+const PISTON_PRESS_DEFAULT_MAX_OFFSET_MM = 12;
 const PISTON_PRESS_DRAG_RANGE_PX = 150;
 const PISTON_REBOUND_VISIBLE_DURATION_MS = 800;
 const PISTON_HEIGHT_DRAG_MM_PER_PX = 0.3;
@@ -742,7 +745,7 @@ const mapPistonDragToOffsetMm = (dragDistancePx: number) => {
     1,
   );
   const resistanceCurve = (1 - Math.exp(-2.35 * normalized)) / (1 - Math.exp(-2.35));
-  return -PISTON_PRESS_MAX_OFFSET_MM * resistanceCurve;
+  return -PISTON_PRESS_DEFAULT_MAX_OFFSET_MM * resistanceCurve;
 };
 
 const PistonPlatformControl = ({
@@ -1066,7 +1069,7 @@ const OperationMirrorScrewControl = ({
         const delta = normalizeAngleDelta(nextAngle - dragRef.current.lastAngle);
         dragRef.current.lastAngle = nextAngle;
         const progressDelta = -delta /
-          (Math.PI * 2 * PISTON_OSCILLATION_LOCKING_SCREW_TURNS);
+          (Math.PI * 2 * PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS);
         onProgressDelta(progressDelta);
       }}
       onPointerUp={(event) => {
@@ -1292,6 +1295,9 @@ export interface PistonOscillationInteractionWorkspaceProps {
   measurementCycleRevision?: number;
   guideSessionRevision?: number;
   onReleaseEvent?: (event: PistonOscillationReleaseEvent) => void;
+  onLivePhysicalStateChange?: (
+    state: PistonOscillationLivePhysicalState,
+  ) => void;
   demoFrame?: PistonOscillationDemoFrame;
   demoPlaybackPhase?: 'idle' | 'running' | 'terminated' | 'completed';
   guidePaused?: boolean;
@@ -1335,6 +1341,7 @@ export const PistonOscillationInteractionWorkspace = ({
   measurementCycleRevision = 0,
   guideSessionRevision = 0,
   onReleaseEvent,
+  onLivePhysicalStateChange,
   demoFrame,
   demoPlaybackPhase,
   guidePaused = false,
@@ -1785,6 +1792,18 @@ export const PistonOscillationInteractionWorkspace = ({
   ]);
 
   useEffect(() => {
+    onLivePhysicalStateChange?.({
+      observedAtMs: performance.now(),
+      equilibriumHeightMm: pistonEquilibriumHeightMm,
+      displacementMm: pistonOffsetMm,
+    });
+  }, [
+    onLivePhysicalStateChange,
+    pistonEquilibriumHeightMm,
+    pistonOffsetMm,
+  ]);
+
+  useEffect(() => {
     if (calibrationMode) setMode(calibrationMode);
   }, [calibrationMode]);
   useEffect(() => {
@@ -2139,14 +2158,14 @@ export const PistonOscillationInteractionWorkspace = ({
     if (!demoFrame) return;
     cancelPistonRebound();
     cancelUnsupportedDrop();
-    const heightBeingAdjusted = demoFrame.activeControl === 'platform'
-      && demoFrame.equilibriumHeightMm < 79.999;
-    const pistonBeingPressed = demoFrame.activeControl === 'platform'
-      && demoFrame.equilibriumHeightMm >= 79.999;
+    const heightBeingAdjusted = demoFrame.platformAction === 'adjustHeight';
+    const pistonBeingPressed = demoFrame.platformAction === 'press';
     const platformBeingHeldForLocking = demoFrame.activeControl === 'screw'
       && demoFrame.hoseState === 'disconnected';
     const nextMouseHeld = heightBeingAdjusted || pistonBeingPressed;
-    const nextSpaceHeld = platformBeingHeldForLocking || pistonBeingPressed;
+    const nextSpaceHeld = demoFrame.leftHandSupporting
+      || platformBeingHeldForLocking
+      || pistonBeingPressed;
     const nextPistonPhase: PistonInteractionPhase = heightBeingAdjusted
       ? 'adjustingHeight'
       : pistonBeingPressed
