@@ -98,31 +98,22 @@ const sidebarRailSource = sourceSlice(
   'const openParameterSidebarFromRail = () => {',
   'const collapseHeatCapacityFreeParameterSidebarForExperimentAction',
 );
-assert.match(
+assert.match(sidebarRailSource, /setParametersCollapsed\(false\)/);
+assert.doesNotMatch(
   sidebarRailSource,
   /activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*showPistonOscillationDevelopmentNotice\('rightSidebar'\);[\s\S]*return;/,
+  'the Piston right rail must remain manually reopenable after a mode collapses it',
 );
-assert.ok(
-  sidebarRailSource.indexOf("activeFile.kind === 'heatCapacityPistonOscillation'") <
-    sidebarRailSource.indexOf('setParametersCollapsed(false)'),
+assert.match(workbenchSource, /const effectiveParametersCollapsed = parametersCollapsed;/);
+assert.doesNotMatch(
+  workbenchSource,
+  /shouldCollapseWorkbenchFileSidebar/,
+  'file activation must not keep a Piston-specific left-sidebar collapse rule',
 );
 assert.match(
   workbenchSource,
-  /const effectiveParametersCollapsed = \([\s\S]*parametersCollapsed \|\|[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'/,
-);
-assert.match(
-  workbenchSource,
-  /const shouldCollapseWorkbenchFileSidebar = \([\s\S]*file\?\.kind === 'heatCapacityPistonOscillation'/,
-);
-assert.match(
-  workbenchSource,
-  /shouldCollapseWorkbenchFileSidebar\(initialActiveWorkbenchFile\) \|\|[\s\S]*getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshLayout, 'leftCollapsed'\)/,
-  'a piston-oscillation file should start with the file sidebar collapsed',
-);
-assert.match(
-  workbenchSource,
-  /useEffect\(\(\) => \{[\s\S]*shouldCollapseWorkbenchFileSidebar\(activeFile\)[\s\S]*setLeftCollapsed\(true\);[\s\S]*\}, \[activeFile\.id, activeFile\.kind\]\);/,
-  'entering a piston-oscillation file should collapse the file sidebar',
+  /const selectFile = \(file: WorkbenchFileState\) => \{[\s\S]*setSelectedFileId\(file\.id\);[\s\S]*if \(file\.id === activeFileIdRef\.current\) return;[\s\S]*setLeftCollapsed\(false\);[\s\S]*setParametersCollapsed\(true\);/,
+  'activating any file should present the left file tree and collapse the right sidebar',
 );
 assert.match(
   workbenchSource,
@@ -131,7 +122,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /!isWorkbenchEmpty && activeFile\.kind !== 'heatCapacityPistonOscillation' \? \([\s\S]*<aside/,
+  /!isWorkbenchEmpty \? \([\s\S]*<aside[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*pistonOscillationCopy\.unavailable\.rightSidebar/,
+  'Piston should use the same reopenable right sidebar shell while its contents remain read-only',
 );
 
 const windowMenuSource = sourceSlice(
@@ -201,14 +193,29 @@ assert.match(
   /const exitGuide = \(\) => \{[\s\S]*type: 'exitSession'[\s\S]*onClick=\{exitGuide\}/,
   'the Guide exit control should dispatch its workflow event',
 );
-const startDemoSourceStart = pistonModeControlSource.indexOf('const startDemo = () => {');
-const stopDemoSourceStart = pistonModeControlSource.indexOf('const stopDemo = () => {');
-assert.ok(startDemoSourceStart >= 0 && stopDemoSourceStart > startDemoSourceStart);
-const startDemoSource = pistonModeControlSource.slice(startDemoSourceStart, stopDemoSourceStart);
 assert.match(
-  startDemoSource,
-  /if \(guideSessionSelected\)[\s\S]*type: 'exitSession'[\s\S]*setPistonOscillationDemoPlayback\(\{[\s\S]*phase: 'running'/,
-  'starting Demo from Guide should explicitly exit the Guide workflow before playback begins',
+  pistonModeControlSource,
+  /const activateDemo = \(\) => \{[\s\S]*guideSessionSelected[\s\S]*type: 'exitSession'[\s\S]*pistonOscillationDemoSession: demoSession[\s\S]*setLeftCollapsed\(true\);[\s\S]*setParametersCollapsed\(true\);/,
+  'confirmed Demo activation should clear an unfinished Guide and collapse both sidebars once',
+);
+assert.match(
+  pistonModeControlSource,
+  /const startDemo = \(\) => \{[\s\S]*if \(demoSelected\) return;[\s\S]*unfinishedGuide[\s\S]*requestPistonTeachingModeSwitch\(activateDemo\)/,
+  'reselecting Demo must be inert while switching away from an unfinished Guide requires confirmation',
+);
+assert.match(
+  pistonModeControlSource,
+  /const pauseDemo = \(\) => \{[\s\S]*pausePistonOscillationDemoSession[\s\S]*const resumeDemo = \(\) => \{[\s\S]*resumePistonOscillationDemoSession[\s\S]*const stopDemo = \(\) => \{[\s\S]*createDefaultPistonOscillationDemoSession[\s\S]*setLeftCollapsed\(false\);[\s\S]*const exitDemo = \(\) => \{[\s\S]*setLeftCollapsed\(false\);/,
+  'Demo must persist Pause/Resume and expose Stop while active plus Exit after natural completion',
+);
+assert.match(
+  pistonModeControlSource,
+  /data-piston-oscillation-mode-action=\{demoPaused \? 'resume-demo' : 'pause-demo'\}[\s\S]*data-piston-oscillation-mode-action="stop-demo"[\s\S]*demoCompleted \? \([\s\S]*data-piston-oscillation-mode-action="exit-demo"/,
+);
+assert.match(
+  pistonModeControlSource,
+  /const startGuide = \(\) => \{[\s\S]*if \(guideSelected\) return;[\s\S]*demoRunning \|\| demoPaused[\s\S]*requestPistonTeachingModeSwitch\(activateGuide\)/,
+  'reselecting Guide must be inert while switching away from an unfinished Demo requires confirmation',
 );
 
 const pistonGuidePanelSource = sourceSlice(
@@ -383,15 +390,24 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /activePistonOscillationGuideSession\?\.status !== 'active'[\s\S]*setPistonOscillationGuidePulseElapsedMs\(\(elapsedMs\) => elapsedMs \+ deltaMs\)/,
-  'Guide pause should freeze the step wait and breathing clock',
+  /PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS = 250[\s\S]*activePistonOscillationGuideSession\?\.status !== 'active'[\s\S]*setPistonOscillationGuidePulseElapsedMs\(\(elapsedMs\) => elapsedMs \+ deltaMs\)[\s\S]*PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS/,
+  'Guide pause should freeze its reduced-frequency scheduling clock instead of repainting the full Workbench at animation frame cadence',
 );
 assert.match(
   workbenchSource,
   /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS[\s\S]*pistonOscillationGuidePulseElapsedMs[\s\S]*data-piston-guide-strong-mask-blocking="true"/,
   'the Guide should add its ten-second strong reminder and block interactions outside the cutout',
 );
-assert.match(workbenchSource, /demoFrame=\{activePistonOscillationDemoFrame \?\? undefined\}/);
+assert.match(
+  workbenchSource,
+  /createPistonOscillationDemoPlaybackChannel\(\)[\s\S]*pistonOscillationDemoPlaybackChannel\.publish\([\s\S]*setPistonOscillationDemoPlayback\([\s\S]*demoPlaybackChannel=\{[\s\S]*activePistonOscillationDemoPlaybackPhase === 'idle'[\s\S]*pistonOscillationDemoPlaybackChannel[\s\S]*demoPlaybackFileId=\{activeFile\.id\}/,
+  'Demo playback should publish high-frequency frames through its focused channel while Workbench owns only lifecycle state',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /activePistonOscillationDemoFrame|getPistonOscillationDemoFrame\(/,
+  'the full Workbench must not derive every 50 ms demonstration frame',
+);
 assert.match(
   workbenchSource,
   /activePistonOscillationDemoPlaybackPhase[\s\S]*pistonOscillationDemoPlayback\.fileId === activeFile\.id[\s\S]*demoPlaybackPhase=\{activePistonOscillationDemoPlaybackPhase\}/,
@@ -442,8 +458,13 @@ assert.match(
 );
 assert.match(
   dataProcessingSource,
-  /reviewMode[\s\S]*setReviewRunIndex\(index\)[\s\S]*copy\.reviewAttemptSummary[\s\S]*copy\.viewFitAndCalculation/,
-  'the read-only B review must navigate saved Runs and expose the stored validation and C/D review entry',
+  /reviewMode[\s\S]*setReviewRunIndex\(index\)/,
+  'the read-only B review must navigate saved Runs',
+);
+assert.match(
+  dataProcessingSource,
+  /reviewMode \? \([\s\S]*piston-processing-navigation is-review-navigation[\s\S]*copy\.viewFitAndCalculation[\s\S]*copy\.reviewAttemptSummary/,
+  'the review action bar must appear above the saved validation summary and expose C/D review without scrolling to the bottom',
 );
 assert.match(
   workbenchSource,
@@ -467,8 +488,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /<PistonOscillationInstrumentScene[\s\S]*guideTimeFrozen=\{[\s\S]*activePistonOscillationGuideTimeFrozen[\s\S]*pistonOscillationGuideLessonDialog !== null[\s\S]*guideVisualCue=\{pistonGuideVisualCue\}[\s\S]*guidePulseElapsedSeconds=\{pistonGuidePulseWithinCycleMs \/ 1_000\}[\s\S]*onGuideInstrumentSnapshotChange=\{[\s\S]*handlePistonOscillationGuideInstrumentSnapshot/,
-  'the formal scene should freeze only for instructional recovery and continue to receive the cue clock and semantic snapshots',
+  /<PistonOscillationInstrumentScene[\s\S]*guideTimeFrozen=\{[\s\S]*activePistonOscillationGuideTimeFrozen[\s\S]*pistonOscillationGuideLessonDialog !== null[\s\S]*guideVisualCue=\{pistonGuideVisualCue\}[\s\S]*onGuideInstrumentSnapshotChange=\{[\s\S]*handlePistonOscillationGuideInstrumentSnapshot/,
+  'the formal scene should freeze only for instructional recovery and continue to receive semantic Guide cues and snapshots',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /guidePulseElapsedSeconds=\{pistonGuidePulseWithinCycleMs \/ 1_000\}/,
+  'Guide shell animation should advance inside the demand-rendered scene rather than forcing full Workbench rerenders',
 );
 assert.match(
   workbenchSource,

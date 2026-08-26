@@ -77,7 +77,7 @@ assert.match(
 
 assert.match(
   source,
-  /renderSectionTitle\(isWorkbenchEmpty \? workbenchCopy\.files\.panels : activeFile\.kind === 'heatCapacity'/,
+  /renderSectionTitle\(\s*isWorkbenchEmpty\s*\? workbenchCopy\.files\.panels/,
   'empty workbench panel section should keep a simple Panels title instead of repeating the no-open-files state',
 );
 
@@ -395,7 +395,7 @@ assert.match(
 
 assert.match(
   source,
-  /renderSectionTitle\(isWorkbenchEmpty \? workbenchCopy\.files\.panels[\s\S]*?, 'panels'\)/,
+  /renderSectionTitle\(\s*isWorkbenchEmpty\s*\?\s*workbenchCopy\.files\.panels[\s\S]*?'panels',?\s*\)/,
   'Panels section heading should opt into panel semantics',
 );
 

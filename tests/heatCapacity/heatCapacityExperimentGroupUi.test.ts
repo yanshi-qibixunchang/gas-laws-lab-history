@@ -19,8 +19,13 @@ assert.match(
 );
 assert.match(
   workbench,
-  /const enteredFreeMode =[\s\S]*const groupCompleted =[\s\S]*if \(enteredFreeMode \|\| groupCompleted\) setParametersCollapsed\(false\)/,
-  'the parameters sidebar should expand on Free Mode entry and group completion',
+  /const activateHeatCapacityModeFromExplore =[\s\S]*setLeftCollapsed\(true\);[\s\S]*setParametersCollapsed\(true\);/,
+  'starting a Heat teaching mode should collapse both sidebars once for the experiment workspace',
+);
+assert.doesNotMatch(
+  workbench,
+  /const enteredFreeMode =[\s\S]*const groupCompleted =[\s\S]*setParametersCollapsed\(false\)/,
+  'mode progress must not repeatedly override a user-selected right-sidebar state',
 );
 assert.match(
   workbench,

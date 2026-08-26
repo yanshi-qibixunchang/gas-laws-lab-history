@@ -4,6 +4,7 @@ import {
   PISTON_OSCILLATION_DEMO_DURATION_MS,
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS,
   PISTON_OSCILLATION_DEMO_OBSERVE_MS,
+  PISTON_OSCILLATION_DEMO_ORIENT_MS,
   PISTON_OSCILLATION_DEMO_PRE_HIGHLIGHT_MS,
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS,
   getPistonOscillationDemoFrame,
@@ -36,9 +37,15 @@ assert.equal(initial.measurementIndex, 0);
 assert.equal(initial.measurementCount, 3);
 assert.equal(initial.savedMeasurementCount, 0);
 assert.equal(initial.stage, 'reset');
+assert.equal(initial.operationCue, null);
 
-const firstHighlight = getPistonOscillationDemoFrame(
+const firstOrientation = getPistonOscillationDemoFrame(
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS + 100,
+);
+assert.equal(firstOrientation.stage, 'orient');
+assert.equal(firstOrientation.highlightControl, null);
+const firstHighlight = getPistonOscillationDemoFrame(
+  PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS + PISTON_OSCILLATION_DEMO_ORIENT_MS + 100,
 );
 assert.equal(firstHighlight.stage, 'highlight');
 assert.equal(firstHighlight.highlightControl, 'settings');
@@ -60,27 +67,33 @@ assert.equal(configured.sampleRateInput, '1000');
 assert.equal(configured.triggerInput, '120');
 assert.equal(configured.virtualKeyboardVisible, false);
 
-assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 26);
+assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 29);
+assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 260_850);
 assert.deepEqual(
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS.map(({ kind }) => kind),
   [
     'settings',
-    'adjustHeight', 'secureAndReconnect', 'restoreFreeMotion', 'startAcquisition',
+    'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
     'recordOscillation', 'stopAcquisition', 'saveRun',
     'settle', 'disconnect',
-    'adjustHeight', 'secureAndReconnect', 'restoreFreeMotion', 'startAcquisition',
+    'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
     'recordOscillation', 'stopAcquisition', 'saveRun',
     'settle', 'disconnect',
-    'adjustHeight', 'secureAndReconnect', 'restoreFreeMotion', 'startAcquisition',
+    'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
     'recordOscillation', 'stopAcquisition', 'saveRun',
   ],
 );
 assert.deepEqual(
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS.map(({ measurementIndex }) => measurementIndex),
-  [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
 );
 
 for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
+  if (window.kind !== 'settle') {
+    assert.equal(window.segments[0]?.stage, 'orient');
+    assert.equal(window.segments[0]?.control, null);
+    assert.ok(window.segments.some(({ stage }) => stage === 'highlight'));
+  }
   for (const highlightWindow of window.highlightWindows) {
     assert.equal(
       highlightWindow.endsAtMs - highlightWindow.startsAtMs,
@@ -88,6 +101,9 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
     );
   }
   assert.equal(window.endsAtMs - window.actionEndsAtMs, PISTON_OSCILLATION_DEMO_OBSERVE_MS);
+  const observed = getPistonOscillationDemoFrame(window.actionEndsAtMs + 100);
+  assert.equal(observed.stage, 'observe');
+  assert.equal(observed.stepIndex, window.stepIndex);
 }
 
 for (const measurementIndex of [0, 1, 2]) {
@@ -102,31 +118,88 @@ for (const measurementIndex of [0, 1, 2]) {
   const heightHandoff = frameInside(heightAction.startsAtMs, heightAction.endsAtMs, 0.9);
   assert.equal(heightHandoff.platformAction, 'adjustHeight');
   assert.equal(heightHandoff.leftHandSupporting, true);
+  assert.deepEqual(heightHandoff.operationCue, {
+    keys: ['space', 'mouseLeft'],
+    mouseAction: measurementIndex === 0 ? 'moveUp' : 'moveDown',
+  });
 
-  const seal = step(measurementIndex, 'secureAndReconnect');
+  const heightOrientation = step(measurementIndex, 'adjustHeight').segments[0]!;
+  assert.equal(heightOrientation.stage, 'orient');
+  assert.equal(heightOrientation.operationMirrorView, 'scaleReadingView');
+  const heightHighlight = step(measurementIndex, 'adjustHeight').segments[1]!;
+  assert.deepEqual(heightHighlight.highlightControls, ['platform', 'mirrorOutline']);
+
+  const seal = step(measurementIndex, 'secureHeight');
   assert.deepEqual(
     seal.segments.map(({ stage, control }) => `${stage}:${control}`),
-    [
-      'highlight:mirrorOutline', 'highlight:screw', 'action:screw', 'preview:null',
-      'highlight:hose', 'highlight:hoseSnap', 'action:hose',
-    ],
+    ['orient:null', 'highlight:screw', 'action:screw'],
   );
-  const connectAction = action(measurementIndex, 'secureAndReconnect', 'hose');
+  assert.ok(seal.segments.every(({ operationMirrorView }) => (
+    operationMirrorView === 'screwOperationView'
+  )));
+  assert.deepEqual(seal.segments[1]!.highlightControls, ['screw', 'mirrorOutline']);
+  const screwOrientation = getPistonOscillationDemoFrame(seal.segments[0]!.startsAtMs + 100);
+  assert.equal(screwOrientation.stage, 'orient');
+  assert.equal(screwOrientation.operationMirrorView, 'screwOperationView');
+  assert.deepEqual(screwOrientation.highlightControls, []);
+  assert.deepEqual(screwOrientation.operationCue, { keys: ['space'] });
+  const screwHighlight = getPistonOscillationDemoFrame(seal.segments[1]!.startsAtMs + 100);
+  assert.deepEqual(screwHighlight.highlightControls, ['screw', 'mirrorOutline']);
+  assert.deepEqual(screwHighlight.operationCue, { keys: ['space'] });
+  const screwAction = action(measurementIndex, 'secureHeight', 'screw');
+  assert.deepEqual(frameInside(screwAction.startsAtMs, screwAction.endsAtMs).operationCue, {
+    keys: ['space', 'mouseLeft'],
+    mouseAction: 'rotateClockwise',
+  });
+  assert.equal(getPistonOscillationDemoFrame(screwAction.endsAtMs).operationCue, null);
+
+  const reconnect = step(measurementIndex, 'reconnectHose');
+  assert.deepEqual(
+    reconnect.segments.map(({ stage, control }) => `${stage}:${control}`),
+    ['orient:null', 'highlight:hose', 'action:hose'],
+  );
+  assert.ok(reconnect.segments.every(({ focusMode }) => focusMode === 'overview'));
+  assert.deepEqual(reconnect.segments[1]!.highlightControls, ['hose', 'hoseSnap']);
+  const connectAction = action(measurementIndex, 'reconnectHose', 'hose');
   const connecting = frameInside(connectAction.startsAtMs, connectAction.endsAtMs, 0.5);
   assert.equal(connecting.hoseDragging, true);
   assert.equal(connecting.hoseState, 'disconnected');
+  assert.deepEqual(connecting.operationCue, {
+    keys: ['mouseLeft'],
+    mouseAction: 'click',
+  });
   const connected = getPistonOscillationDemoFrame(connectAction.endsAtMs);
   assert.equal(connected.hoseState, 'connected');
   assert.equal(connected.hoseDragging, false);
 
   const recordAction = action(measurementIndex, 'recordOscillation', 'platform');
+  const restoreStep = step(measurementIndex, 'restoreFreeMotion');
+  assert.deepEqual(
+    getPistonOscillationDemoFrame(restoreStep.startsAtMs + 100).operationCue,
+    { keys: ['space'] },
+  );
+  const restoreAction = action(measurementIndex, 'restoreFreeMotion', 'screw');
+  assert.deepEqual(frameInside(restoreAction.startsAtMs, restoreAction.endsAtMs).operationCue, {
+    keys: ['space', 'mouseLeft'],
+    mouseAction: 'rotateCounterclockwise',
+  });
+  const startAction = action(measurementIndex, 'startAcquisition', 'start');
+  assert.deepEqual(frameInside(startAction.startsAtMs, startAction.endsAtMs).operationCue, {
+    keys: ['space', 'mouseLeft'],
+    mouseAction: 'click',
+  });
   const pressing = getPistonOscillationDemoFrame(recordAction.startsAtMs + 500);
   assert.equal(pressing.platformAction, 'press');
   assert.equal(pressing.leftHandSupporting, true);
   assert.ok(pressing.pistonOffsetMm < 0);
+  assert.deepEqual(pressing.operationCue, {
+    keys: ['space', 'mouseLeft'],
+    mouseAction: 'moveDown',
+  });
   const recording = getPistonOscillationDemoFrame(recordAction.startsAtMs + 1_800);
   assert.equal(recording.acquisitionPhase, 'recording');
   assert.ok(recording.formalElapsedSeconds > 0);
+  assert.equal(recording.operationCue, null);
 
   const stopAction = action(measurementIndex, 'stopAcquisition', 'stop');
   const stopped = getPistonOscillationDemoFrame(stopAction.endsAtMs);
@@ -140,6 +213,9 @@ for (const measurementIndex of [0, 1, 2]) {
 }
 
 for (const nextMeasurementIndex of [1, 2]) {
+  const disconnectStep = step(nextMeasurementIndex, 'disconnect');
+  assert.ok(disconnectStep.segments.every(({ focusMode }) => focusMode === 'overview'));
+  assert.equal(disconnectStep.segments[1]!.control, 'hose');
   const disconnectAction = action(nextMeasurementIndex, 'disconnect', 'hose');
   const disconnecting = frameInside(disconnectAction.startsAtMs, disconnectAction.endsAtMs, 0.5);
   assert.equal(disconnecting.measurementIndex, nextMeasurementIndex);
@@ -147,9 +223,30 @@ for (const nextMeasurementIndex of [1, 2]) {
   assert.equal(disconnecting.hoseState, 'disconnected');
   assert.equal(disconnecting.hoseDragging, true);
   assert.ok(disconnecting.hoseGhostProgress > 0 && disconnecting.hoseGhostProgress < 1);
+  assert.deepEqual(disconnecting.operationCue, {
+    keys: ['space', 'mouseLeft'],
+    mouseAction: 'click',
+  });
   const disconnected = getPistonOscillationDemoFrame(disconnectAction.endsAtMs);
   assert.equal(disconnected.hoseState, 'disconnected');
   assert.equal(disconnected.acquisitionPhase, 'idle');
+}
+
+for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
+  const sampledTimes = [
+    window.startsAtMs + 1,
+    ...window.segments.map((segment) => (
+      segment.startsAtMs + (segment.endsAtMs - segment.startsAtMs) / 2
+    )),
+    window.actionEndsAtMs + 1,
+  ];
+  for (const sampledTime of sampledTimes) {
+    assert.equal(
+      getPistonOscillationDemoFrame(sampledTime).operationCue?.keys.includes('shift') ?? false,
+      false,
+      `demo must not present Shift during ${window.kind}`,
+    );
+  }
 }
 
 const trajectories = [0, 1, 2].map(getPistonOscillationDemoTrajectory);
@@ -166,6 +263,30 @@ assert.ok(new Set(trajectories.map((trajectory) => trajectory.samples[20].pressu
 for (const language of ['zh-CN', 'zh-TW', 'en'] as const) {
   const setup = getPistonOscillationDemoFrame(settingsAction.startsAtMs + 100, language);
   assert.match(setup.stepDescription, /1000 Hz.*120 kPa/);
+  for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
+    const frames = [
+      ...window.segments.map((segment) => getPistonOscillationDemoFrame(
+        segment.startsAtMs + (segment.endsAtMs - segment.startsAtMs) / 2,
+        language,
+      )),
+      getPistonOscillationDemoFrame(window.actionEndsAtMs + 100, language),
+    ];
+    const copyFields = frames.flatMap((frame) => [
+      frame.stepTarget,
+      frame.stepProgressCriterion,
+      frame.stepNote,
+    ]);
+    const maximumFieldLength = language === 'en' ? 86 : 38;
+    assert.ok(
+      copyFields.every((value) => value.length <= maximumFieldLength),
+      `${language} Demo copy for step ${window.stepIndex} must remain compact enough for the fixed overlay`,
+    );
+    const maximumDescriptionLength = language === 'en' ? 100 : 46;
+    assert.ok(
+      frames.every((frame) => frame.stepDescription.length <= maximumDescriptionLength),
+      `${language} Demo descriptions for every stage of step ${window.stepIndex} must remain compact`,
+    );
+  }
   const last = getPistonOscillationDemoFrame(PISTON_OSCILLATION_DEMO_DURATION_MS, language);
   assert.equal(last.completed, true);
   assert.equal(last.measurementIndex, 2);

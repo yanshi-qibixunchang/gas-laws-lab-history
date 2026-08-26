@@ -49,14 +49,14 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /!isWorkbenchEmpty && activeFile\.kind !== 'heatCapacityPistonOscillation' \? \([\s\S]*?<aside[\s\S]*?className=\{`studio-current-params/,
+  /!isWorkbenchEmpty \? \([\s\S]*?<aside[\s\S]*?className=\{`studio-current-params/,
   'Current Parameters panel should only render after a study file exists',
 );
 
 assert.match(
   source,
-  /!isWorkbenchEmpty[\s\S]*?activeFile\.kind !== 'heatCapacityPistonOscillation'[\s\S]*?effectiveParametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
-  'Current Parameters rail should only render after a compatible study file exists',
+  /!isWorkbenchEmpty && effectiveParametersCollapsed \? \([\s\S]*?studio-right-rail[\s\S]*?\) : null/,
+  'Current Parameters rail should only render after a study file exists',
 );
 
 assert.match(

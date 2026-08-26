@@ -76,6 +76,9 @@ import {
 import {
   normalizePistonOscillationGuideSession,
 } from '../../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
+  normalizePistonOscillationDemoSession,
+} from '../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 
 const WORKBENCH_SESSION_SCHEMA_FAMILY =
   'hard-sphere-lab.workbench-session' as const;
@@ -917,10 +920,31 @@ const LEGACY_PAYLOAD_KEYS_BY_KIND = {
     'experimentKind',
     'pistonOscillationSchemaVersion',
     'preview',
+    'operationVisualizationEnabled',
     'lessonIntroAutoShown',
+    'demoSession',
     'guideSession',
+    'materialsExpanded',
   ],
 } as const satisfies Record<WorkbenchFileKind, readonly string[]>;
+
+const PRE_OPERATION_VISUALIZATION_PISTON_PAYLOAD_KEYS = [
+  'experimentKind',
+  'pistonOscillationSchemaVersion',
+  'preview',
+  'lessonIntroAutoShown',
+  'demoSession',
+  'guideSession',
+  'materialsExpanded',
+] as const;
+
+const PRE_DEMO_PISTON_PAYLOAD_KEYS = [
+  'experimentKind',
+  'pistonOscillationSchemaVersion',
+  'preview',
+  'lessonIntroAutoShown',
+  'guideSession',
+] as const;
 
 const PRE_GUIDE_PISTON_PAYLOAD_KEYS = [
   'experimentKind',
@@ -1930,8 +1954,14 @@ const hasValidLegacyPistonPayloadRecursiveShape = (
     WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION &&
   (payload.lessonIntroAutoShown === undefined
     || typeof payload.lessonIntroAutoShown === 'boolean') &&
+  (payload.operationVisualizationEnabled === undefined
+    || typeof payload.operationVisualizationEnabled === 'boolean') &&
   (payload.guideSession === undefined
     || isPlainPersistenceRecord(payload.guideSession)) &&
+  (payload.demoSession === undefined
+    || isPlainPersistenceRecord(payload.demoSession)) &&
+  (payload.materialsExpanded === undefined
+    || typeof payload.materialsExpanded === 'boolean') &&
   isPlainPersistenceRecord(payload.preview) &&
   hasExactOwnKeys(payload.preview, ['cameraPreset']) &&
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS.includes(
@@ -1967,11 +1997,18 @@ const rebuildLegacyPistonFile = (
       WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
     previewCameraPreset:
       preview.cameraPreset as typeof fallback.previewCameraPreset,
+    pistonOscillationOperationVisualizationEnabled:
+      envelope.payload.operationVisualizationEnabled === true,
     pistonOscillationLessonIntroAutoShown:
       envelope.payload.lessonIntroAutoShown === true,
+    pistonOscillationDemoSession: normalizePistonOscillationDemoSession(
+      envelope.payload.demoSession,
+    ),
     pistonOscillationGuideSession: normalizePistonOscillationGuideSession(
       envelope.payload.guideSession,
     ),
+    pistonOscillationMaterialsExpanded:
+      envelope.payload.materialsExpanded !== false,
   };
 };
 
@@ -4226,7 +4263,12 @@ export const decodeLegacyWorkbenchFileEnvelopeToV3Projection = (
     ) && !(
       fileKind === 'heatCapacityPistonOscillation'
       && (
-        hasExactOwnKeys(payloadRecord, PRE_GUIDE_PISTON_PAYLOAD_KEYS)
+        hasExactOwnKeys(
+          payloadRecord,
+          PRE_OPERATION_VISUALIZATION_PISTON_PAYLOAD_KEYS,
+        )
+        || hasExactOwnKeys(payloadRecord, PRE_DEMO_PISTON_PAYLOAD_KEYS)
+        || hasExactOwnKeys(payloadRecord, PRE_GUIDE_PISTON_PAYLOAD_KEYS)
         || hasExactOwnKeys(payloadRecord, PRE_LESSON_PISTON_PAYLOAD_KEYS)
       )
     )

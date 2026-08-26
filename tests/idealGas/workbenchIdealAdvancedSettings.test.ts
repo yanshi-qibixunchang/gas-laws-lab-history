@@ -104,7 +104,7 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \? null : \([\s\S]*?renderWorkbenchParameterInputRow\(param\)/,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \|\| activeFile\.kind === 'heatCapacityPistonOscillation' \? null : \([\s\S]*?renderWorkbenchParameterInputRow\(param\)/,
   'standard files should render the same shared direct parameter input row',
 );
 
@@ -121,7 +121,7 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?workbenchCopy\.parameters\.advancedSettings[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \? null : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?workbenchCopy\.parameters\.advancedSettings[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \|\| activeFile\.kind === 'heatCapacityPistonOscillation' \? null : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
   'standard files should keep rendering parameter rows directly instead of using the ideal advanced drawer',
 );
 
@@ -150,4 +150,3 @@ assert.match(
 );
 
 console.log('workbenchIdealAdvancedSettings tests passed');
-

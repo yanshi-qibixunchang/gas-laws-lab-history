@@ -58,6 +58,11 @@ assert.doesNotMatch(panelSource, />Run 1\/7</);
 assert.match(panelSource, /phaseRef\.current === 'armed'[\s\S]*updatePhase\('recording'\)/);
 assert.match(
   panelSource,
+  /ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1000 \/ 30[\s\S]*nowMs - lastDisplayUpdateMs >= ACQUISITION_DISPLAY_FRAME_INTERVAL_MS[\s\S]*setDisplayNowMs\(nowMs\)/,
+  'the live chart should render at a bounded display cadence without changing the formal sensor sampling rate',
+);
+assert.match(
+  panelSource,
   /guideStep === 'waitingTrigger'[\s\S]*phaseRef\.current === 'idle'[\s\S]*handledReleaseEventIdRef\.current = releaseEvent\?\.id \?\? null[\s\S]*updatePhase\('armed'\)/,
   'a remounted waiting-trigger step must automatically restore the armed acquisition state',
 );

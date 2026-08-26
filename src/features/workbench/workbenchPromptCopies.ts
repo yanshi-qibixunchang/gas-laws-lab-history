@@ -12,6 +12,7 @@ interface WorkbenchConfirmationCopy {
 interface WorkbenchPromptCopySet {
   closeLabel: string;
   switchTeachingMode: WorkbenchConfirmationCopy;
+  switchPistonTeachingMode: WorkbenchConfirmationCopy;
   closeRunningExperiment: (fileName: string) => WorkbenchConfirmationCopy;
 }
 
@@ -23,6 +24,14 @@ export const workbenchPromptCopies: Record<WorkbenchLanguagePreference, Workbenc
       title: '切换实验模式？',
       body: '当前教学模式的进度将会重置。',
       consequence: '已记录的实验文件和数据不会受到影响。',
+      cancelLabel: '保留当前模式',
+      confirmLabel: '切换模式',
+    },
+    switchPistonTeachingMode: {
+      eyebrow: '注意',
+      title: '切换实验模式？',
+      body: '当前未完成的演示或引导进度将会重置。',
+      consequence: '切换未完成的引导时，本轮采集与数据处理记录会被清除；已经正常完成并保存的实验结果不受影响。',
       cancelLabel: '保留当前模式',
       confirmLabel: '切换模式',
     },
@@ -45,6 +54,14 @@ export const workbenchPromptCopies: Record<WorkbenchLanguagePreference, Workbenc
       cancelLabel: '保留目前模式',
       confirmLabel: '切換模式',
     },
+    switchPistonTeachingMode: {
+      eyebrow: '注意',
+      title: '切換實驗模式？',
+      body: '目前未完成的演示或引導進度將會重設。',
+      consequence: '切換未完成的引導時，本輪採集與資料處理記錄會被清除；已經正常完成並儲存的實驗結果不受影響。',
+      cancelLabel: '保留目前模式',
+      confirmLabel: '切換模式',
+    },
     closeRunningExperiment: (fileName) => ({
       eyebrow: '注意',
       title: '關閉正在執行的實驗檔案？',
@@ -61,6 +78,14 @@ export const workbenchPromptCopies: Record<WorkbenchLanguagePreference, Workbenc
       title: 'Switch experiment modes?',
       body: 'Progress in the current teaching mode will be reset.',
       consequence: 'Recorded experiment files and data will not be affected.',
+      cancelLabel: 'Keep Current Mode',
+      confirmLabel: 'Switch Mode',
+    },
+    switchPistonTeachingMode: {
+      eyebrow: 'Attention',
+      title: 'Switch experiment modes?',
+      body: 'Progress in the unfinished Demo or Guide mode will be reset.',
+      consequence: 'Switching away from an unfinished Guide clears the current acquisition and processing records. Normally completed and saved results are preserved.',
       cancelLabel: 'Keep Current Mode',
       confirmLabel: 'Switch Mode',
     },

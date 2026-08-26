@@ -271,24 +271,15 @@ const fileTabsSource = source.slice(
 );
 assert.ok(fileTabsSource.includes('className="studio-file-tab-close"'), 'each experiment tab should include a close button');
 assert.ok(fileTabsSource.includes('requestCloseWorkbenchFile(file)'), 'tab close buttons should close the experiment');
-const fileTabSingleClickSource = fileTabsSource.slice(
-  indexOfOrFail(fileTabsSource, 'className="studio-file-tab-select"', 'file tab select button should exist'),
-  indexOfOrFail(fileTabsSource, 'onDoubleClick={() => selectFile(file)}', 'file tab double-click handler should exist'),
-);
-assert.match(
-  fileTabSingleClickSource,
-  /onClick=\{\(\) => setSelectedFileId\(file\.id\)\}/,
-  'single-clicking an experiment tab should only select the tab',
-);
 assert.match(
   fileTabsSource,
-  /onDoubleClick=\{\(\) => selectFile\(file\)\}/,
-  'double-clicking an experiment tab should switch the active experiment',
+  /className="studio-file-tab-select"[\s\S]*?onClick=\{\(\) => selectFile\(file\)\}/,
+  'single-clicking an experiment tab should switch the active experiment',
 );
 assert.doesNotMatch(
-  fileTabSingleClickSource,
-  /selectFile\(file\)/,
-  'single-clicking an experiment tab should not switch the active experiment',
+  fileTabsSource,
+  /onDoubleClick=\{\(\) => selectFile\(file\)\}/,
+  'experiment tabs should follow browser conventions and not require double-click activation',
 );
 assert.ok(styles.includes('.studio-file-row-selected'), 'CSS should style selected experiment rows separately from active rows');
 assert.ok(styles.includes('.studio-file-tab-selected'), 'CSS should style selected experiment tabs separately from active tabs');

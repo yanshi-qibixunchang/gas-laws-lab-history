@@ -76,6 +76,14 @@ import {
 } from './PistonOscillationAcquisitionPanel.tsx';
 import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
 import {
+  PistonOscillationOperationCueView,
+  PistonOscillationOperationVisualizationToggle,
+} from './PistonOscillationOperationVisualization.tsx';
+import type {
+  PistonOscillationMouseAction,
+  PistonOscillationOperationCue,
+} from './pistonOscillationOperationVisualizationModel.ts';
+import {
   resolvePistonOscillationGuideHeightSnap,
   type PistonOscillationGuideFocusMode,
   type PistonOscillationGuideInstrumentRestoreState,
@@ -1299,7 +1307,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
     state: PistonOscillationLivePhysicalState,
   ) => void;
   demoFrame?: PistonOscillationDemoFrame;
-  demoPlaybackPhase?: 'idle' | 'running' | 'terminated' | 'completed';
+  demoPlaybackPhase?: 'idle' | 'running' | 'paused' | 'terminated' | 'completed';
   guidePaused?: boolean;
   guideTimeFrozen?: boolean;
   guideVisualCue?: PistonOscillationGuideVisualCue;
@@ -1321,6 +1329,9 @@ export interface PistonOscillationInteractionWorkspaceProps {
     event: PistonOscillationGuideSupportLossEvent,
   ) => void;
   onGuideHeightResetComplete?: () => void;
+  operationVisualizationEnabled?: boolean;
+  onOperationVisualizationToggle?: () => void;
+  showShiftOperationCue?: boolean;
   restoreDefaultViewLabel?: string;
   onRestoreDefaultView?: () => void;
 }
@@ -1361,6 +1372,9 @@ export const PistonOscillationInteractionWorkspace = ({
   onGuideHeightConfirmed,
   onGuideSupportLoss,
   onGuideHeightResetComplete,
+  operationVisualizationEnabled = false,
+  onOperationVisualizationToggle,
+  showShiftOperationCue = false,
   restoreDefaultViewLabel,
   onRestoreDefaultView,
 }: PistonOscillationInteractionWorkspaceProps) => {
@@ -1421,6 +1435,9 @@ export const PistonOscillationInteractionWorkspace = ({
   const [screwHitPoint, setScrewHitPoint] = useState<readonly [number, number] | null>(null);
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [mouseHeld, setMouseHeld] = useState(false);
+  const [mouseVisualizationAction, setMouseVisualizationAction] =
+    useState<PistonOscillationMouseAction | null>(null);
+  const [shiftVisualizationActive, setShiftVisualizationActive] = useState(false);
   const [platformHovered, setPlatformHovered] = useState(false);
   const [pistonOffsetMm, setPistonOffsetMm] = useState(0);
   const [pistonEquilibriumHeightMm, setPistonEquilibriumHeightMm] = useState(
@@ -1503,6 +1520,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const demoStepPanelTimerRef = useRef<number | null>(null);
   const demoFeedbackTimerRef = useRef<number | null>(null);
   const operationMirrorTimerRef = useRef<number | null>(null);
+  const shiftVisualizationTimerRef = useRef<number | null>(null);
   const parentTopRightPanelTimerRef = useRef<number | null>(null);
   const parentTopRightPanelMountedRef = useRef(overlayTopRightPresent);
   const operationMirrorWasVisibleRef = useRef(mode === 'pistonFocus');
@@ -1641,7 +1659,9 @@ export const PistonOscillationInteractionWorkspace = ({
       ? 'scaleReadingView'
       : calibrationActive
         ? 'screwOperationView'
-        : currentOperationMirrorViewOverride ?? automaticOperationMirrorView;
+        : demoFrame?.operationMirrorView
+          ?? currentOperationMirrorViewOverride
+          ?? automaticOperationMirrorView;
   const scaleReadingOperationMirrorActive = operationMirrorView === 'scaleReadingView';
   const screwOperationMirrorActive = operationMirrorView === 'screwOperationView';
   const operationMirrorScrewPose = screwOperationCalibrationPose
@@ -1680,14 +1700,16 @@ export const PistonOscillationInteractionWorkspace = ({
   const lockingScrewStatus = lockingScrewLocked
     ? interactionCopy.lockedStatus
     : interactionCopy.looseStatus;
+  const demoHighlightControls = demoFrame?.highlightControls
+    ?? (demoFrame?.highlightControl ? [demoFrame.highlightControl] : []);
   const demoMainFocusTarget: PistonOscillationDemoFocusTarget =
-    demoFrame?.highlightControl === 'platform'
+    demoHighlightControls.includes('platform')
       ? 'platform'
-      : demoFrame?.highlightControl === 'hose'
+      : demoHighlightControls.includes('hose')
         ? 'hose'
         : null;
   const demoMirrorFocusTarget: PistonOscillationDemoFocusTarget =
-    demoFrame?.highlightControl === 'screw' ? 'screw' : null;
+    demoHighlightControls.includes('screw') ? 'screw' : null;
   const guideFocusTarget: PistonOscillationDemoFocusTarget =
     guideVisualCue === 'platform'
     || guideVisualCue === 'screw'
@@ -1695,6 +1717,32 @@ export const PistonOscillationInteractionWorkspace = ({
       : guideVisualCue === 'hoseDisconnect' || guideVisualCue === 'hoseReconnect'
         ? 'hose'
       : null;
+  const effectiveOperationCue = useMemo<PistonOscillationOperationCue | null>(() => {
+    if (!operationVisualizationEnabled || calibrationActive) return null;
+    if (demoFrame) return demoFrame.operationCue;
+    if (showShiftOperationCue && shiftVisualizationActive) return { keys: ['shift'] };
+    const keys: PistonOscillationOperationCue['keys'][number][] = [];
+    if (spaceHeld) keys.push('space');
+    if (mouseHeld || screwDragging || hoseDragging) keys.push('mouseLeft');
+    if (keys.length === 0) return null;
+    return {
+      keys,
+      mouseAction: keys.includes('mouseLeft')
+        ? mouseVisualizationAction ?? 'click'
+        : undefined,
+    };
+  }, [
+    calibrationActive,
+    demoFrame,
+    hoseDragging,
+    mouseHeld,
+    mouseVisualizationAction,
+    operationVisualizationEnabled,
+    screwDragging,
+    showShiftOperationCue,
+    shiftVisualizationActive,
+    spaceHeld,
+  ]);
   const effectiveMainFocusTarget = demoMainFocusTarget
     ?? (guideFocusTarget === 'platform' || guideFocusTarget === 'hose'
       ? guideFocusTarget
@@ -1706,7 +1754,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const demoHoseDragProgress = demoFrame?.activeControl === 'hose'
     ? demoFrame.hoseGhostProgress
     : null;
-  const demoSnapGuideActive = demoFrame?.highlightControl === 'hoseSnap'
+  const demoSnapGuideActive = demoHighlightControls.includes('hoseSnap')
     || guideVisualCue === 'hoseSnap'
     || guideVisualCue === 'hoseReconnect';
   const enterOverview = useCallback(() => {
@@ -1853,7 +1901,7 @@ export const PistonOscillationInteractionWorkspace = ({
       displayedOverlayTopRightRef.current = null;
       setParentTopRightPanelMode('hidden');
       parentTopRightPanelTimerRef.current = null;
-    }, 160);
+    }, 1_290);
     return () => {
       if (parentTopRightPanelTimerRef.current !== null) {
         window.clearTimeout(parentTopRightPanelTimerRef.current);
@@ -1866,7 +1914,11 @@ export const PistonOscillationInteractionWorkspace = ({
       window.clearTimeout(demoStepPanelTimerRef.current);
       demoStepPanelTimerRef.current = null;
     }
-    if (effectiveDemoPlaybackPhase === 'running' && demoFrame) {
+    if (
+      (effectiveDemoPlaybackPhase === 'running'
+        || effectiveDemoPlaybackPhase === 'paused')
+      && demoFrame
+    ) {
       setDemoStepPanelMode('visible');
       return undefined;
     }
@@ -1999,13 +2051,30 @@ export const PistonOscillationInteractionWorkspace = ({
         || screwDragging
       ) return;
       event.preventDefault();
+      if (showShiftOperationCue) {
+        setShiftVisualizationActive(true);
+        if (shiftVisualizationTimerRef.current !== null) {
+          window.clearTimeout(shiftVisualizationTimerRef.current);
+        }
+        shiftVisualizationTimerRef.current = window.setTimeout(() => {
+          setShiftVisualizationActive(false);
+          shiftVisualizationTimerRef.current = null;
+        }, 220);
+      }
       setOperationMirrorViewOverride({
         view: togglePistonOscillationOperationMirrorView(operationMirrorView),
         automaticView: automaticOperationMirrorView,
       });
     };
     window.addEventListener('keydown', handleOperationMirrorShortcut);
-    return () => window.removeEventListener('keydown', handleOperationMirrorShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleOperationMirrorShortcut);
+      if (shiftVisualizationTimerRef.current !== null) {
+        window.clearTimeout(shiftVisualizationTimerRef.current);
+        shiftVisualizationTimerRef.current = null;
+      }
+      setShiftVisualizationActive(false);
+    };
   }, [
     calibrationActive,
     demoActive,
@@ -2015,6 +2084,7 @@ export const PistonOscillationInteractionWorkspace = ({
     automaticOperationMirrorView,
     operationMirrorView,
     screwDragging,
+    showShiftOperationCue,
   ]);
   const handleBoundsReady = useCallback((nextBounds: PreviewBounds) => {
     setBounds((current) => current ?? nextBounds);
@@ -2026,6 +2096,12 @@ export const PistonOscillationInteractionWorkspace = ({
   }, []);
   const handleEquilibriumHeightChange = useCallback((nextHeightMm: number) => {
     const clampedHeightMm = clampPistonEquilibriumHeightMm(nextHeightMm);
+    const previousHeightMm = pistonEquilibriumHeightMmRef.current;
+    if (Math.abs(clampedHeightMm - previousHeightMm) > 0.0001) {
+      setMouseVisualizationAction(
+        clampedHeightMm > previousHeightMm ? 'moveUp' : 'moveDown',
+      );
+    }
     unsupportedDropVelocityMmPerSRef.current = 0;
     pistonEquilibriumHeightMmRef.current = clampedHeightMm;
     setPistonEquilibriumHeightMm(clampedHeightMm);
@@ -2064,6 +2140,9 @@ export const PistonOscillationInteractionWorkspace = ({
         screwGuideGesturePendingDeltaRef.current = 0;
       }
     }
+    setMouseVisualizationAction(
+      committedDelta > 0 ? 'rotateClockwise' : 'rotateCounterclockwise',
+    );
     setLockingScrewProgress((currentProgress) => {
       const clampedProgress = Math.min(1, Math.max(0, currentProgress + committedDelta));
       lockingScrewProgressRef.current = clampedProgress;
@@ -2072,6 +2151,7 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [attemptGuideAction, guideInteractionPaused, onGuideActionAttempt]);
   const handleScrewDraggingChange = useCallback((dragging: boolean) => {
     setScrewDragging(dragging);
+    if (!dragging) setMouseVisualizationAction(null);
     screwGuideGestureAuthorizedActionRef.current = null;
     screwGuideGesturePendingDeltaRef.current = 0;
     screwGuideGestureRejectedRef.current = false;
@@ -2183,8 +2263,12 @@ export const PistonOscillationInteractionWorkspace = ({
       setOverviewPoseRevision((current) => current + 1);
     }
     setMode(demoFrame.focusMode);
-    if (heightBeingAdjusted) setHeightAdjustmentStage('readingHeight');
-    if (demoFrame.activeControl === 'screw') setHeightAdjustmentStage('lockingHeight');
+    if (demoFrame.operationMirrorView === 'scaleReadingView' || heightBeingAdjusted) {
+      setHeightAdjustmentStage('readingHeight');
+    }
+    if (demoFrame.operationMirrorView === 'screwOperationView') {
+      setHeightAdjustmentStage('lockingHeight');
+    }
     setHoseState(demoFrame.hoseState);
     setHoseDragging(demoFrame.hoseDragging);
     setHoseGhostOffset([0, 0, 0]);
@@ -2290,6 +2374,9 @@ export const PistonOscillationInteractionWorkspace = ({
     mouseHeldRef.current = held;
     setMouseHeld(held);
     if (held) {
+      setMouseVisualizationAction(
+        platformMode === 'press' ? 'moveDown' : 'click',
+      );
       heldInputInterruptedRef.current = false;
       cancelPistonRebound();
       if (platformMode === 'adjustHeight') setHeightAdjustmentStage('readingHeight');
@@ -2303,6 +2390,7 @@ export const PistonOscillationInteractionWorkspace = ({
       }
       return;
     }
+    setMouseVisualizationAction(null);
     mouseReleasedAtRef.current = releasedAtMs ?? performance.now();
     if (heldInputInterruptedRef.current) {
       setPistonPhase('idle');
@@ -2344,6 +2432,7 @@ export const PistonOscillationInteractionWorkspace = ({
       unsupportedDropVelocityMmPerSRef.current = 0;
     }
     setHoseDragging(true);
+    setMouseVisualizationAction('click');
     setHoseHovered(true);
     setHoseGhostOffset([0, 0, 0]);
     setHoseWithinMagneticRange(hoseState === 'connected');
@@ -2396,6 +2485,7 @@ export const PistonOscillationInteractionWorkspace = ({
         : 'disconnected';
     setHoseState(nextHoseState);
     setHoseDragging(false);
+    setMouseVisualizationAction(null);
     setHoseHovered(false);
     setHoseGhostOffset([0, 0, 0]);
     setHoseWithinMagneticRange(withinMagneticRange);
@@ -2823,6 +2913,7 @@ export const PistonOscillationInteractionWorkspace = ({
         data-piston-demo-active={demoActive ? 'true' : 'false'}
         data-piston-demo-control={demoFrame?.activeControl ?? 'none'}
         data-piston-demo-highlight={demoFrame?.highlightControl ?? 'none'}
+        data-piston-demo-highlights={demoHighlightControls.join(',') || 'none'}
         data-piston-demo-stage={demoFrame?.stage ?? 'none'}
         data-piston-guide-rejected-action={guideRejectedAction ?? 'none'}
         data-piston-viewport-warning-shake-revision={viewportWarningShakeRevision}
@@ -2832,7 +2923,7 @@ export const PistonOscillationInteractionWorkspace = ({
           camera={{ position: [0.2, 0.52, 0.9], fov: 38, near: 0.001, far: 20 }}
           events={createPistonOscillationPointerEvents}
           dpr={[1, 1.5]}
-          frameloop="always"
+          frameloop="demand"
           shadows="soft"
           gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
           onCreated={({ gl }) => {
@@ -2975,7 +3066,7 @@ export const PistonOscillationInteractionWorkspace = ({
           className={`piston-focus-interaction-operation-mirror ${
             screwDragging ? 'is-dragging' : screwHovered ? 'is-hovered' : ''
           } ${
-            demoFrame?.highlightControl === 'mirrorOutline'
+            demoHighlightControls.includes('mirrorOutline')
             || guideVisualCue === 'mirrorOutline'
               ? 'is-demo-outline-highlighted'
               : ''
@@ -3010,7 +3101,7 @@ export const PistonOscillationInteractionWorkspace = ({
             }}
             events={createPistonOscillationPointerEvents}
             dpr={[1, 1.5]}
-            frameloop={operationMirrorMode === 'hidden' ? 'demand' : 'always'}
+            frameloop="demand"
             shadows="soft"
             gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
             onCreated={({ gl }) => {
@@ -3127,10 +3218,41 @@ export const PistonOscillationInteractionWorkspace = ({
         </div>
 
         <div
+          className="piston-operation-visualization-cue-slot"
+          data-piston-operation-visualization-cue-slot="true"
+        >
+          <PistonOscillationOperationCueView
+            cue={effectiveOperationCue}
+            language={language}
+          />
+        </div>
+
+        <div
           ref={overlayMotionRef}
           className="studio-preview-overlay-layer piston-focus-interaction-overlay-layer"
           data-preview-overlay-layer="piston-oscillation"
         >
+          <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-left">
+            <div
+              className={`piston-operation-visualization-toggle-shell ${
+                mode === 'pistonFocus' ? 'is-hidden' : 'is-visible'
+              } ${
+                operationVisualizationEnabled ? 'is-enabled-visual' : 'is-disabled-visual'
+              }`}
+              data-piston-operation-visualization-toggle-shell="true"
+              data-piston-operation-visualization-visual-state={
+                operationVisualizationEnabled ? 'on' : 'off'
+              }
+              aria-hidden={mode === 'pistonFocus'}
+            >
+              <PistonOscillationOperationVisualizationToggle
+                enabled={operationVisualizationEnabled}
+                onToggle={() => onOperationVisualizationToggle?.()}
+                language={language}
+                disabled={mode === 'pistonFocus'}
+              />
+            </div>
+          </div>
           <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-right">
             {effectiveParentTopRightPanelMode !== 'hidden'
             && displayedOverlayTopRightRef.current ? (
@@ -3156,6 +3278,8 @@ export const PistonOscillationInteractionWorkspace = ({
                           displayedDemoFrame.stepIndex,
                           displayedDemoFrame.stepCount,
                         )
+                      : effectiveDemoPlaybackPhase === 'paused'
+                        ? demoPresentationCopy.paused
                       : effectiveDemoPlaybackPhase === 'completed'
                         ? demoPresentationCopy.completed
                         : demoPresentationCopy.terminated}
@@ -3163,6 +3287,8 @@ export const PistonOscillationInteractionWorkspace = ({
                   <i>
                     {effectiveDemoPlaybackPhase === 'running'
                       ? demoPresentationCopy.running
+                      : effectiveDemoPlaybackPhase === 'paused'
+                        ? demoPresentationCopy.pausedStatus
                       : effectiveDemoPlaybackPhase === 'completed'
                         ? demoPresentationCopy.completedStatus
                         : demoPresentationCopy.terminatedStatus}

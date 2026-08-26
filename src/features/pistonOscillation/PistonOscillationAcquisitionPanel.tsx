@@ -35,9 +35,14 @@ import {
   getPistonAcquisitionPresetPressureKpa,
 } from './pistonOscillationPresetAcquisition.ts';
 import {
+  getPistonOscillationDemoFrame,
   getPistonOscillationDemoTrajectory,
   type PistonOscillationDemoFrame,
 } from './pistonOscillationDemoTimeline.ts';
+import {
+  PISTON_OSCILLATION_IDLE_DEMO_PLAYBACK_SNAPSHOT,
+  type PistonOscillationDemoPlaybackChannel,
+} from './pistonOscillationDemoPlaybackChannel.ts';
 import type {
   PistonOscillationGuideAction,
   PistonOscillationGuideActionContext,
@@ -107,6 +112,7 @@ const GRAPH_LEFT = 64;
 const GRAPH_RIGHT_MARGIN = 24;
 const GRAPH_TOP = 24;
 const GRAPH_BOTTOM = 334;
+const ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1000 / 30;
 const GRAPH_MIN_PRESSURE_KPA = 96;
 const GRAPH_MAX_PRESSURE_KPA = 121;
 const GUIDE_MONITORING_GRAPH_MIN_PRESSURE_KPA = 96;
@@ -148,6 +154,8 @@ const getGuidedPressureGraphDomain = (
 
 const subscribeToNoLivePressure = () => () => undefined;
 const getNoLivePressure = () => null;
+const subscribeToNoDemoPlayback = () => () => undefined;
+const getNoDemoPlaybackSnapshot = () => PISTON_OSCILLATION_IDLE_DEMO_PLAYBACK_SNAPSHOT;
 
 const getObservedPressureGraphDomain = (
   samples: readonly PistonOscillationObservedSample[],
@@ -266,7 +274,9 @@ export const PistonOscillationAcquisitionPanel = ({
   language,
   releaseEvent,
   livePressureChannel,
-  demoFrame,
+  demoFrame: providedDemoFrame,
+  demoPlaybackChannel,
+  demoPlaybackFileId,
   guideSession,
   guidePauseReady = true,
   onGuideParameterEdit,
@@ -281,6 +291,8 @@ export const PistonOscillationAcquisitionPanel = ({
   releaseEvent: PistonOscillationReleaseEvent | null;
   livePressureChannel?: PistonOscillationLivePressureChannel;
   demoFrame?: PistonOscillationDemoFrame;
+  demoPlaybackChannel?: PistonOscillationDemoPlaybackChannel;
+  demoPlaybackFileId?: string;
   guideSession?: PistonOscillationGuideSession;
   guidePauseReady?: boolean;
   onGuideParameterEdit?: (
@@ -303,6 +315,24 @@ export const PistonOscillationAcquisitionPanel = ({
     livePressureChannel?.getSnapshot ?? getNoLivePressure,
     getNoLivePressure,
   );
+  const demoPlaybackSnapshot = useSyncExternalStore(
+    demoPlaybackChannel?.subscribe ?? subscribeToNoDemoPlayback,
+    demoPlaybackChannel?.getSnapshot ?? getNoDemoPlaybackSnapshot,
+    getNoDemoPlaybackSnapshot,
+  );
+  const demoFrame = useMemo(() => {
+    if (providedDemoFrame) return providedDemoFrame;
+    if (
+      !demoPlaybackFileId
+      || demoPlaybackSnapshot.fileId !== demoPlaybackFileId
+      || (
+        demoPlaybackSnapshot.phase !== 'running'
+        && demoPlaybackSnapshot.phase !== 'paused'
+        && demoPlaybackSnapshot.phase !== 'completed'
+      )
+    ) return undefined;
+    return getPistonOscillationDemoFrame(demoPlaybackSnapshot.elapsedMs, language);
+  }, [demoPlaybackFileId, demoPlaybackSnapshot, language, providedDemoFrame]);
   const [guideRejectedControl, setGuideRejectedControl] = useState<
     'settings' | 'primary' | 'save' | null
   >(null);
@@ -579,8 +609,15 @@ export const PistonOscillationAcquisitionPanel = ({
       || (phase !== 'armed' && phase !== 'recording')
     ) return;
     let frame = 0;
+    let lastDisplayUpdateMs = 0;
     const animate = (nowMs: number) => {
-      setDisplayNowMs(nowMs);
+      if (
+        lastDisplayUpdateMs === 0
+        || nowMs - lastDisplayUpdateMs >= ACQUISITION_DISPLAY_FRAME_INTERVAL_MS
+      ) {
+        lastDisplayUpdateMs = nowMs;
+        setDisplayNowMs(nowMs);
+      }
       if (
         phaseRef.current === 'armed'
         && triggerSeconds !== null

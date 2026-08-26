@@ -101,8 +101,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /INITIAL_OBSERVATION_VIEW_SPAN_S = 0\.2[\s\S]*getInitialTimeDomain[\s\S]*setViewDomain\(getInitialTimeDomain\(record\)\)/,
-  'the initial processing viewport must match the reviewed 200 ms observation window without discarding the full record',
+  /getInitialTimeDomain = \([\s\S]*\): TimeDomain => getFullTimeDomain\(record\)[\s\S]*setViewDomain\(getInitialTimeDomain\(record\)\)/,
+  'the initial processing viewport must show the complete recorded time range',
 );
 assert.match(
   panelSource,

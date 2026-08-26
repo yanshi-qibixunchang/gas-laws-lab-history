@@ -300,6 +300,10 @@ import {
   type PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
+  createDefaultPistonOscillationDemoSession,
+  type PistonOscillationDemoSession,
+} from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
+import {
   WORKBENCH_FILE_NAME_PREFIX_BY_KIND,
   type WorkbenchFileKind,
 } from './workbenchFileKind.ts';
@@ -1192,8 +1196,11 @@ export interface WorkbenchHeatCapacityPistonOscillationState extends WorkbenchFi
   kind: 'heatCapacityPistonOscillation';
   pistonOscillationSchemaVersion: typeof WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION;
   previewCameraPreset: WorkbenchPistonOscillationCameraPreset;
+  pistonOscillationOperationVisualizationEnabled: boolean;
   pistonOscillationLessonIntroAutoShown: boolean;
+  pistonOscillationDemoSession: PistonOscillationDemoSession;
   pistonOscillationGuideSession: PistonOscillationGuideSession;
+  pistonOscillationMaterialsExpanded: boolean;
 }
 
 export type WorkbenchFileState =
@@ -6372,8 +6379,11 @@ export const createDefaultHeatCapacityPistonOscillationFile = (
   kind: 'heatCapacityPistonOscillation',
   pistonOscillationSchemaVersion: WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
   previewCameraPreset: 'overview',
+  pistonOscillationOperationVisualizationEnabled: false,
   pistonOscillationLessonIntroAutoShown: false,
+  pistonOscillationDemoSession: createDefaultPistonOscillationDemoSession(),
   pistonOscillationGuideSession: createDefaultPistonOscillationGuideSession(),
+  pistonOscillationMaterialsExpanded: true,
 });
 
 export const startPistonOscillationGuideWorkbenchState = (

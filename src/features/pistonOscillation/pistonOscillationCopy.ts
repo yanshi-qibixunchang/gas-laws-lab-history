@@ -31,7 +31,10 @@ export interface PistonOscillationShellCopy {
     demo: string;
     guide: string;
     free: string;
+    pauseDemo: string;
+    resumeDemo: string;
     stopDemo: string;
+    exitDemo: string;
     resetGuide: string;
     exitGuide: string;
     unavailable: string;
@@ -41,7 +44,9 @@ export interface PistonOscillationShellCopy {
     completed: string;
     terminated: string;
     running: string;
+    paused: string;
     completedStatus: string;
+    pausedStatus: string;
     terminatedStatus: string;
     targetLabel: string;
     criterionLabel: string;
@@ -309,7 +314,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       demo: '演示',
       guide: '引导',
       free: '自由',
+      pauseDemo: '暂停演示',
+      resumeDemo: '继续演示',
       stopDemo: '终止演示',
+      exitDemo: '退出演示',
       resetGuide: '重置引导',
       exitGuide: '退出引导',
       unavailable: '暂未开放',
@@ -319,7 +327,9 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       completed: '演示完成',
       terminated: '演示已终止。',
       running: '演示中',
+      paused: '演示已暂停',
       completedStatus: '已完成',
+      pausedStatus: '已暂停',
       terminatedStatus: '已终止',
       targetLabel: '操作目标',
       criterionLabel: '完成判据',
@@ -629,7 +639,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       demo: '演示',
       guide: '引導',
       free: '自由',
+      pauseDemo: '暫停演示',
+      resumeDemo: '繼續演示',
       stopDemo: '終止演示',
+      exitDemo: '退出演示',
       resetGuide: '重置引導',
       exitGuide: '退出引導',
       unavailable: '暫未開放',
@@ -639,7 +652,9 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       completed: '演示完成',
       terminated: '演示已終止。',
       running: '演示中',
+      paused: '演示已暫停',
       completedStatus: '已完成',
+      pausedStatus: '已暫停',
       terminatedStatus: '已終止',
       targetLabel: '操作目標',
       criterionLabel: '完成判據',
@@ -949,7 +964,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       demo: 'Demo',
       guide: 'Guide',
       free: 'Free',
+      pauseDemo: 'Pause demo',
+      resumeDemo: 'Resume demo',
       stopDemo: 'Stop demo',
+      exitDemo: 'Exit demo',
       resetGuide: 'Reset guide',
       exitGuide: 'Exit guide',
       unavailable: 'Not available yet',
@@ -959,7 +977,9 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       completed: 'Demo complete',
       terminated: 'Demo terminated.',
       running: 'Demo running',
+      paused: 'Demo paused',
       completedStatus: 'Completed',
+      pausedStatus: 'Paused',
       terminatedStatus: 'Terminated',
       targetLabel: 'Target',
       criterionLabel: 'Completion criterion',

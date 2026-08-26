@@ -223,13 +223,13 @@
 
 .piston-focus-interaction-operation-mirror.is-visible {
   visibility: visible;
-  animation: studioOverlayEnterLeft 180ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: piston-operation-mirror-enter 1.29s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .piston-focus-interaction-operation-mirror.is-exiting {
   visibility: visible;
   pointer-events: none;
-  animation: studioOverlayExitLeft 160ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: piston-operation-mirror-exit 1.29s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
 .piston-focus-interaction-operation-mirror.is-hidden,
@@ -250,38 +250,71 @@
 .piston-focus-interaction-operation-mirror-canvas {
   background: #dce4e8;
   transform-origin: center;
+  will-change: filter, opacity, transform;
 }
 
 .piston-focus-interaction-operation-mirror.is-visible.is-scale-reading-view
   .piston-focus-interaction-operation-mirror-canvas {
-  animation: piston-operation-mirror-scale-view-settle 160ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: piston-operation-mirror-scale-view-settle 1.29s cubic-bezier(0.2, 0, 0, 1) both;
 }
 
 .piston-focus-interaction-operation-mirror.is-visible.is-screw-operation-view
   .piston-focus-interaction-operation-mirror-canvas {
-  animation: piston-operation-mirror-screw-view-settle 160ms cubic-bezier(0.2, 0, 0, 1) both;
+  animation: piston-operation-mirror-screw-view-settle 1.29s cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+@keyframes piston-operation-mirror-enter {
+  from {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate3d(-8px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    filter: none;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes piston-operation-mirror-exit {
+  from {
+    opacity: 1;
+    filter: none;
+    transform: translate3d(0, 0, 0);
+  }
+
+  to {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate3d(-8px, 0, 0);
+  }
 }
 
 @keyframes piston-operation-mirror-scale-view-settle {
   from {
-    filter: brightness(1.018) saturate(0.98);
-    transform: scale(1.002);
+    filter: blur(2.5px) brightness(1.06) saturate(0.82);
+    opacity: 0.18;
+    transform: scale(0.992);
   }
 
   to {
     filter: none;
+    opacity: 1;
     transform: scale(1);
   }
 }
 
 @keyframes piston-operation-mirror-screw-view-settle {
   from {
-    filter: brightness(1.018) saturate(0.98);
-    transform: scale(1.002);
+    filter: blur(2.5px) brightness(1.06) saturate(0.82);
+    opacity: 0.18;
+    transform: scale(0.992);
   }
 
   to {
     filter: none;
+    opacity: 1;
     transform: scale(1);
   }
 }
@@ -321,6 +354,176 @@
   border-bottom-color: #0ea5e9;
 }
 
+.piston-operation-visualization-toggle-shell {
+  position: relative;
+  z-index: 1;
+  width: max-content;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-6px, 0, 0);
+  transition:
+    opacity 1.29s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1.29s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.piston-operation-visualization-toggle-shell.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate3d(0, 0, 0);
+}
+
+.piston-operation-visualization-toggle-shell.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate3d(-6px, 0, 0);
+}
+
+.piston-operation-visualization-cue-slot {
+  position: absolute;
+  z-index: 36;
+  top: calc(50% + 14px);
+  left: 18px;
+  display: flex;
+  min-width: 230px;
+  min-height: 58px;
+  align-items: center;
+  pointer-events: none;
+}
+
+.piston-operation-visualization-cue {
+  display: inline-flex;
+  min-height: 52px;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(103, 232, 249, 0.62);
+  border-radius: 7px;
+  background: rgba(9, 18, 31, 0.86);
+  box-shadow: 0 14px 34px rgba(2, 6, 23, 0.3);
+  color: #e0f2fe;
+  padding: 7px 11px;
+  backdrop-filter: blur(8px);
+}
+
+.piston-operation-visualization-cue.is-visible {
+  animation: piston-operation-cue-enter 140ms cubic-bezier(0.2, 0, 0, 1) both;
+}
+
+.piston-operation-visualization-cue.is-exiting {
+  animation: piston-operation-cue-exit 1.35s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.piston-operation-cue-part {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.piston-operation-cue-plus {
+  color: rgba(186, 230, 253, 0.78);
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.piston-operation-cue-key {
+  display: inline-grid;
+  min-width: 54px;
+  min-height: 34px;
+  place-items: center;
+  border: 1px solid rgba(186, 230, 253, 0.72);
+  border-bottom-width: 3px;
+  border-radius: 5px;
+  background: linear-gradient(180deg, rgba(51, 65, 85, 0.96), rgba(15, 23, 42, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: #f0f9ff;
+  font-family: var(--app-font-ui, "Noto Sans SC", "Microsoft YaHei UI", "Segoe UI", sans-serif);
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0 10px;
+}
+
+.piston-operation-cue-key.is-space {
+  min-width: 72px;
+}
+
+.piston-operation-cue-mouse {
+  position: relative;
+  display: inline-grid;
+  width: 55px;
+  height: 46px;
+  place-items: center;
+}
+
+.piston-operation-cue-mouse svg {
+  width: 27px;
+  height: 38px;
+  overflow: visible;
+  fill: rgba(15, 23, 42, 0.9);
+  stroke: rgba(224, 242, 254, 0.9);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.piston-operation-cue-mouse .is-active-button {
+  fill: rgba(34, 211, 238, 0.66);
+  stroke: none;
+}
+
+.piston-operation-cue-direction {
+  position: absolute;
+  right: -1px;
+  bottom: -2px;
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border: 1px solid rgba(103, 232, 249, 0.78);
+  border-radius: 50%;
+  background: #0c4a6e;
+  color: #ecfeff;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+@keyframes piston-operation-cue-enter {
+  from { opacity: 0; transform: translate3d(-5px, 0, 0) scale(0.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+
+@keyframes piston-operation-cue-exit {
+  from { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+  to { opacity: 0; transform: translate3d(-3px, 0, 0) scale(0.99); }
+}
+
+.studio-theme-light .piston-operation-visualization-cue {
+  border-color: rgba(14, 116, 144, 0.36);
+  background: rgba(248, 250, 252, 0.92);
+  box-shadow: 0 12px 28px rgba(71, 85, 105, 0.18);
+  color: #0f4f76;
+}
+
+.studio-theme-light .piston-operation-cue-plus {
+  color: rgba(15, 79, 118, 0.7);
+}
+
+.studio-theme-light .piston-operation-cue-key {
+  border-color: rgba(14, 116, 144, 0.5);
+  background: linear-gradient(180deg, #ffffff, #e2e8f0);
+  box-shadow: inset 0 1px 0 #ffffff;
+  color: #0f172a;
+}
+
+.studio-theme-light .piston-operation-cue-mouse svg {
+  fill: #f8fafc;
+  stroke: #0f4f76;
+}
+
+.studio-theme-light .piston-operation-cue-mouse .is-active-button {
+  fill: rgba(14, 165, 233, 0.38);
+}
+
 .piston-focus-interaction-parent-top-right-panel {
   position: relative;
   z-index: 18;
@@ -348,6 +551,13 @@
 
 .piston-focus-interaction-parent-top-right-panel .studio-piston-guide-step-panel {
   animation: none;
+}
+
+[data-piston-demo-step-panel='true'] {
+  width: min(340px, 100%);
+  gap: 5px;
+  padding: 9px 12px;
+  line-height: 1.3;
 }
 
 .piston-focus-interaction-focus-panel {
@@ -477,6 +687,15 @@
 
   .piston-focus-interaction-operation-mirror-canvas {
     animation: none;
+  }
+
+  .piston-operation-visualization-toggle-shell {
+    transition-duration: 80ms;
+  }
+
+  .piston-operation-visualization-cue.is-visible,
+  .piston-operation-visualization-cue.is-exiting {
+    animation-duration: 80ms;
   }
 
   .piston-focus-interaction-parent-top-right-panel-visible,

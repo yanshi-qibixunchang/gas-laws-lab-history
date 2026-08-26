@@ -26,6 +26,9 @@ import {
   normalizePistonOscillationGuideSession,
   type PistonOscillationGuideSession,
 } from '../../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
+  normalizePistonOscillationDemoSession,
+} from '../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 import type {
   PistonOscillationCalculationAnswerState,
   PistonOscillationDataProcessingSession,
@@ -2242,7 +2245,14 @@ const projectPistonOscillationFile = (
   const uiCheckpoint = {
     ...createCommonUiCheckpoint(file, fallback),
     previewCameraPreset,
+    pistonOscillationOperationVisualizationEnabled:
+      file.pistonOscillationOperationVisualizationEnabled === true,
+    pistonOscillationMaterialsExpanded:
+      file.pistonOscillationMaterialsExpanded !== false,
   };
+  const demoSession = normalizePistonOscillationDemoSession(
+    file.pistonOscillationDemoSession,
+  );
   const guideSession = normalizePistonOscillationGuideSession(
     file.pistonOscillationGuideSession,
   );
@@ -2255,6 +2265,10 @@ const projectPistonOscillationFile = (
       visiblePanels: file.visiblePanels,
       liveWorkspaceSplitRatio: file.liveWorkspaceSplitRatio,
       previewCameraPreset: file.previewCameraPreset,
+      pistonOscillationOperationVisualizationEnabled:
+        file.pistonOscillationOperationVisualizationEnabled,
+      pistonOscillationMaterialsExpanded:
+        file.pistonOscillationMaterialsExpanded,
     },
     uiCheckpoint,
   );
@@ -2270,6 +2284,7 @@ const projectPistonOscillationFile = (
           pistonOscillationSchemaVersion:
             file.pistonOscillationSchemaVersion,
           lessonIntroAutoShown: file.pistonOscillationLessonIntroAutoShown,
+          demoSession,
           pistonGuideSessionProjectionVersion:
             PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
           guideSession: createPistonOscillationGuideSessionAuthority(
@@ -3040,6 +3055,9 @@ const reprojectPistonOscillationFile = (
   const guideSession = normalizePistonOscillationGuideSession(
     projection.fields.authoritative.guideSession,
   );
+  const demoSession = normalizePistonOscillationDemoSession(
+    projection.fields.authoritative.demoSession,
+  );
   const migrated =
     projection.fields.authoritative.pistonGuideSessionProjectionVersion !==
       PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
@@ -3067,8 +3085,13 @@ const reprojectPistonOscillationFile = (
         ui.liveWorkspaceSplitRatio,
       ),
       previewCameraPreset,
+      pistonOscillationOperationVisualizationEnabled:
+        ui.pistonOscillationOperationVisualizationEnabled === true,
       pistonOscillationLessonIntroAutoShown: lessonIntroAutoShown,
+      pistonOscillationDemoSession: demoSession,
       pistonOscillationGuideSession: guideSession,
+      pistonOscillationMaterialsExpanded:
+        ui.pistonOscillationMaterialsExpanded !== false,
     },
     migrated,
     repaired,

@@ -129,6 +129,11 @@ assert.match(
   'the injected panel should use the shared right-side entry and exit classes without replaying its own panel animation',
 );
 assert.match(
+  previewCss,
+  /\[data-piston-demo-step-panel='true'\]\s*\{[\s\S]*width:\s*min\(340px, 100%\);[\s\S]*gap:\s*5px;[\s\S]*padding:\s*9px 12px;[\s\S]*line-height:\s*1\.3;/,
+  'the Piston-only Demo panel should use the wider compact layout without resizing shared Heat or Guide panels',
+);
+assert.match(
   overlayMotionSource,
   /const OVERLAY_MOTION_DURATION_MS = 200;[\s\S]*querySelectorAll<HTMLElement>\('\[data-preview-overlay-item\]'\)[\s\S]*const deltaX = previousRect\.left - nextRect\.left;[\s\S]*const deltaY = previousRect\.top - nextRect\.top;[\s\S]*item\.animate\([\s\S]*translate3d\(\$\{deltaX\}px, \$\{deltaY\}px, 0\)[\s\S]*duration: OVERLAY_MOTION_DURATION_MS/,
   'the shared overlay hook should retain its 200 ms FLIP displacement contract',
@@ -269,8 +274,33 @@ assert.match(
 );
 assert.match(
   previewCss,
-  /\.piston-focus-interaction-operation-mirror\.is-visible\s*\{[\s\S]*animation:\s*studioOverlayEnterLeft 180ms cubic-bezier\(0\.2, 0, 0, 1\) both;[\s\S]*\.piston-focus-interaction-operation-mirror\.is-exiting\s*\{[\s\S]*animation:\s*studioOverlayExitLeft 160ms cubic-bezier\(0\.2, 0, 0, 1\) both;/,
-  'the operation mirror should use the same entry timing and easing as the stable experiment overlays',
+  /\.piston-focus-interaction-operation-mirror\.is-visible\s*\{[\s\S]*piston-operation-mirror-enter 1\.29s[\s\S]*\.piston-focus-interaction-operation-mirror\.is-exiting\s*\{[\s\S]*piston-operation-mirror-exit 1\.29s/,
+  'the operation mirror should use the approved slow cross-dissolve in both directions',
+);
+assert.match(
+  previewCss,
+  /is-scale-reading-view[\s\S]*piston-operation-mirror-scale-view-settle 1\.29s[\s\S]*is-screw-operation-view[\s\S]*piston-operation-mirror-screw-view-settle 1\.29s[\s\S]*filter:\s*blur\(2\.5px\)[\s\S]*opacity:\s*0\.18/,
+  'switching between scale and screw views should visibly dissolve before the next pulse begins',
+);
+assert.match(
+  previewSource,
+  /data-piston-operation-visualization-cue-slot="true"[\s\S]*data-piston-operation-visualization-toggle-shell="true"[\s\S]*PistonOscillationOperationVisualizationToggle/,
+  'the file-level operation visualization toggle and stable cue strip should share the instrument workspace',
+);
+assert.match(
+  previewSource,
+  /showShiftOperationCue = false[\s\S]*showShiftOperationCue && shiftVisualizationActive[\s\S]*if \(showShiftOperationCue\) \{[\s\S]*setShiftVisualizationActive\(true\)/,
+  'Shift should remain an opt-in future free-mode cue and stay hidden in the current demo and guide flows',
+);
+assert.match(
+  previewSource,
+  /is-enabled-visual[\s\S]*is-disabled-visual[\s\S]*data-piston-operation-visualization-visual-state=\{[\s\S]*operationVisualizationEnabled \? 'on' : 'off'/,
+  'the operation-visualization switch shell should retain its saved ON or OFF appearance throughout focus cross-dissolves',
+);
+assert.match(
+  previewCss,
+  /\.piston-operation-visualization-cue-slot\s*\{[\s\S]*top:\s*calc\(50% \+ 14px\);[\s\S]*left:\s*18px;[\s\S]*\.piston-operation-visualization-cue\.is-visible[\s\S]*140ms[\s\S]*\.piston-operation-visualization-cue\.is-exiting[\s\S]*1\.35s/,
+  'operation cues should stay in one fixed strip, appear quickly, and fade slowly',
 );
 assert.match(
   previewSource,
@@ -394,7 +424,7 @@ assert.doesNotMatch(
 );
 assert.match(
   previewSource,
-  /demoMainFocusTarget[\s\S]*demoFrame\?\.highlightControl === 'platform'[\s\S]*demoFrame\?\.highlightControl === 'hose'[\s\S]*demoMirrorFocusTarget[\s\S]*demoFrame\?\.highlightControl === 'screw'[\s\S]*demoHoseDragProgress[\s\S]*demoFrame\?\.activeControl === 'hose'[\s\S]*demoSnapGuideActive[\s\S]*demoFrame\?\.highlightControl === 'hoseSnap'/,
+  /demoHighlightControls[\s\S]*includes\('platform'\)[\s\S]*includes\('hose'\)[\s\S]*demoMirrorFocusTarget[\s\S]*includes\('screw'\)[\s\S]*demoHoseDragProgress[\s\S]*demoFrame\?\.activeControl === 'hose'[\s\S]*demoSnapGuideActive[\s\S]*includes\('hoseSnap'\)/,
   'the formal scene should route each demonstration target, hose ghost, and magnetic guide to its dedicated model behavior',
 );
 assert.match(
@@ -406,6 +436,16 @@ assert.match(
   previewSource,
   /demoFocusTarget=\{effectiveMainFocusTarget\}[\s\S]*demoFocusPulseElapsedSeconds=\{effectiveFocusPulseElapsedSeconds\}[\s\S]*demoHoseDragProgress=\{demoHoseDragProgress\}[\s\S]*demoSnapGuideActive=\{demoSnapGuideActive\}[\s\S]*demoFocusTarget=\{effectiveMirrorFocusTarget\}/,
   'the main scene and operation mirror should render the effective Demo-or-Guide exact-geometry targets',
+);
+assert.match(
+  previewSource,
+  /<Canvas[\s\S]*dpr=\{\[1, 1\.5\]\}[\s\S]*frameloop="demand"/,
+  'the main instrument scene should stop consuming full-frame GPU work while visually idle',
+);
+assert.match(
+  interactiveModelSource,
+  /const invalidate = useThree\(\(state\) => state\.invalidate\)[\s\S]*if \(activeShell \|\| demoSnapGuideActive\) invalidate\(\)/,
+  'active geometry cues must keep demand rendering alive without a Workbench-level animation clock',
 );
 assert.match(
   previewSource,
@@ -439,8 +479,8 @@ assert.match(
 );
 assert.match(
   interactiveModelSource,
-  /platform:\s*createFocusShellInstance\([\s\S]*\[massPlatform\][\s\S]*screw:\s*createFocusShellInstance\([\s\S]*\[lockingScrewMovingPart\][\s\S]*connectedHoseHandle:\s*createFocusShellInstance\([\s\S]*\[connectedMovableConnector\][\s\S]*detachedHoseHandle:\s*createFocusShellInstance\([\s\S]*\[detachedConnector\]/,
-  'hose guidance should pulse the gripped connector instead of outlining the unrelated full hose length',
+  /platform:\s*createFocusShellInstance\([\s\S]*\[massPlatform\][\s\S]*screw:\s*createFocusShellInstance\([\s\S]*\[lockingScrewMovingPart\][\s\S]*connectedHoseHandle:\s*createFocusShellInstance\([\s\S]*\[connectedHose, quickDisconnect\][\s\S]*detachedHoseHandle:\s*createFocusShellInstance\([\s\S]*\[detachedHose, detachedConnector\]/,
+  'hose guidance should pulse the connected or detached hose assembly instead of only its connector',
 );
 assert.match(
   interactiveModelSource,
@@ -455,7 +495,7 @@ assert.match(
 assert.match(
   previewCss,
   /\.piston-focus-interaction-operation-mirror\.is-demo-outline-highlighted::after[\s\S]*border-right:[\s\S]*border-bottom:[\s\S]*piston-demo-operation-mirror-outline-pulse/,
-  'the minimap introduction should pulse only its two visible dividers before the screw itself is highlighted',
+  'the operation-mirror border should pulse together with the control shown inside it',
 );
 assert.match(
   interactiveModelSource,

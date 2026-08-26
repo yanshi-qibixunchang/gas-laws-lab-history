@@ -43,11 +43,30 @@ export {
   type PistonOscillationDemoFrame,
 } from './pistonOscillationDemoTimeline.ts';
 export {
+  PistonOscillationOperationCueView,
+  PistonOscillationOperationVisualizationToggle,
+  type PistonOscillationOperationCueViewProps,
+  type PistonOscillationOperationVisualizationToggleProps,
+} from './PistonOscillationOperationVisualization.tsx';
+export {
+  createPistonOscillationOperationCueSignature,
+  type PistonOscillationMouseAction,
+  type PistonOscillationOperationCue,
+  type PistonOscillationOperationKey,
+} from './pistonOscillationOperationVisualizationModel.ts';
+export {
   createPistonOscillationLivePressureChannel,
   type PistonOscillationLivePhysicalState,
   type PistonOscillationLivePressureChannel,
   type PistonOscillationLivePressureObservation,
 } from './pistonOscillationLivePressureChannel.ts';
+export {
+  createPistonOscillationDemoPlaybackChannel,
+  PISTON_OSCILLATION_IDLE_DEMO_PLAYBACK_SNAPSHOT,
+  type PistonOscillationDemoPlaybackChannel,
+  type PistonOscillationDemoPlaybackPhase,
+  type PistonOscillationDemoPlaybackSnapshot,
+} from './pistonOscillationDemoPlaybackChannel.ts';
 export {
   PISTON_OSCILLATION_GLB_PATH,
   PISTON_OSCILLATION_REQUIRED_NODE_NAMES,

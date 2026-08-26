@@ -16,6 +16,10 @@ import {
   normalizePistonOscillationGuideSession,
   type PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
+  normalizePistonOscillationDemoSession,
+  type PistonOscillationDemoSession,
+} from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 
 export interface PistonOscillationPersistencePayloadV1 {
   experimentKind: 'heatCapacityPistonOscillation';
@@ -23,8 +27,11 @@ export interface PistonOscillationPersistencePayloadV1 {
   preview: {
     cameraPreset: WorkbenchHeatCapacityPistonOscillationState['previewCameraPreset'];
   };
+  operationVisualizationEnabled: boolean;
   lessonIntroAutoShown: boolean;
+  demoSession: PistonOscillationDemoSession;
   guideSession: PistonOscillationGuideSession;
+  materialsExpanded: boolean;
 }
 
 export interface PistonOscillationPayloadValidationResult {
@@ -60,8 +67,12 @@ export const createPistonOscillationPersistencePayload = (
     preview: {
       cameraPreset: file.previewCameraPreset,
     },
+    operationVisualizationEnabled:
+      file.pistonOscillationOperationVisualizationEnabled,
     lessonIntroAutoShown: file.pistonOscillationLessonIntroAutoShown,
+    demoSession: file.pistonOscillationDemoSession,
     guideSession: file.pistonOscillationGuideSession,
+    materialsExpanded: file.pistonOscillationMaterialsExpanded,
   };
 };
 
@@ -73,6 +84,25 @@ export const validatePistonOscillationPersistencePayload = (
     return { valid: false, errors: ['payload must be an object'] };
   }
   const hasCurrentFields = hasExactKeys(payload, [
+    'experimentKind',
+    'pistonOscillationSchemaVersion',
+    'preview',
+    'operationVisualizationEnabled',
+    'lessonIntroAutoShown',
+    'demoSession',
+    'guideSession',
+    'materialsExpanded',
+  ]);
+  const hasPreOperationVisualizationFields = hasExactKeys(payload, [
+    'experimentKind',
+    'pistonOscillationSchemaVersion',
+    'preview',
+    'lessonIntroAutoShown',
+    'demoSession',
+    'guideSession',
+    'materialsExpanded',
+  ]);
+  const hasPreDemoFields = hasExactKeys(payload, [
     'experimentKind',
     'pistonOscillationSchemaVersion',
     'preview',
@@ -90,7 +120,13 @@ export const validatePistonOscillationPersistencePayload = (
     'pistonOscillationSchemaVersion',
     'preview',
   ]);
-  if (!hasCurrentFields && !hasPreGuideFields && !hasPreLessonFields) {
+  if (
+    !hasCurrentFields
+    && !hasPreOperationVisualizationFields
+    && !hasPreDemoFields
+    && !hasPreGuideFields
+    && !hasPreLessonFields
+  ) {
     errors.push('payload fields are invalid');
   }
   if (payload.experimentKind !== 'heatCapacityPistonOscillation') {
@@ -100,16 +136,34 @@ export const validatePistonOscillationPersistencePayload = (
     errors.push('pistonOscillationSchemaVersion is unsupported');
   }
   if (
+    payload.operationVisualizationEnabled !== undefined
+    && typeof payload.operationVisualizationEnabled !== 'boolean'
+  ) {
+    errors.push('operationVisualizationEnabled is invalid');
+  }
+  if (
     payload.lessonIntroAutoShown !== undefined
     && typeof payload.lessonIntroAutoShown !== 'boolean'
   ) {
     errors.push('lessonIntroAutoShown is invalid');
   }
   if (
+    payload.demoSession !== undefined
+    && !isPersistenceRecord(payload.demoSession)
+  ) {
+    errors.push('demoSession is invalid');
+  }
+  if (
     payload.guideSession !== undefined
     && !isPersistenceRecord(payload.guideSession)
   ) {
     errors.push('guideSession is invalid');
+  }
+  if (
+    payload.materialsExpanded !== undefined
+    && typeof payload.materialsExpanded !== 'boolean'
+  ) {
+    errors.push('materialsExpanded is invalid');
   }
   const preview = isPersistenceRecord(payload.preview) ? payload.preview : null;
   if (
@@ -159,11 +213,18 @@ export const normalizePistonOscillationRuntimeState = (
     previewCameraPreset: isCameraPreset(value.previewCameraPreset)
       ? value.previewCameraPreset
       : fallback.previewCameraPreset,
+    pistonOscillationOperationVisualizationEnabled:
+      value.pistonOscillationOperationVisualizationEnabled === true,
     pistonOscillationLessonIntroAutoShown:
       value.pistonOscillationLessonIntroAutoShown === true,
+    pistonOscillationDemoSession: normalizePistonOscillationDemoSession(
+      value.pistonOscillationDemoSession,
+    ),
     pistonOscillationGuideSession: normalizePistonOscillationGuideSession(
       value.pistonOscillationGuideSession,
     ),
+    pistonOscillationMaterialsExpanded:
+      value.pistonOscillationMaterialsExpanded !== false,
   };
 };
 
@@ -189,10 +250,17 @@ export const restorePistonOscillationFileFromPersistencePayload = (
     previewCameraPreset: isCameraPreset(preview?.cameraPreset)
       ? preview.cameraPreset
       : 'overview',
+    pistonOscillationOperationVisualizationEnabled:
+      isPersistenceRecord(payload)
+      && payload.operationVisualizationEnabled === true,
     pistonOscillationLessonIntroAutoShown:
       isPersistenceRecord(payload) && payload.lessonIntroAutoShown === true,
+    pistonOscillationDemoSession:
+      isPersistenceRecord(payload) ? payload.demoSession : undefined,
     pistonOscillationGuideSession:
       isPersistenceRecord(payload) ? payload.guideSession : undefined,
+    pistonOscillationMaterialsExpanded:
+      !isPersistenceRecord(payload) || payload.materialsExpanded !== false,
   }, index);
   if (!restored) {
     throw new TypeError('Piston-oscillation file envelope is invalid.');

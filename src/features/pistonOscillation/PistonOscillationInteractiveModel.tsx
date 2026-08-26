@@ -990,7 +990,7 @@ const createInteractiveModelInstance = (
     connectedHoseHandle: createFocusShellInstance(
       root,
       'connectedHoseHandle',
-      [connectedMovableConnector],
+      [connectedHose, quickDisconnect],
       connectedMovableConnector,
       focusShellBreathMaterial,
       focusShellPulseMaterial,
@@ -998,7 +998,7 @@ const createInteractiveModelInstance = (
     detachedHoseHandle: createFocusShellInstance(
       root,
       'detachedHoseHandle',
-      [detachedConnector],
+      [detachedHose, detachedConnector],
       detachedConnector,
       focusShellBreathMaterial,
       focusShellPulseMaterial,
@@ -1130,6 +1130,7 @@ export const PistonOscillationInteractiveModel = ({
   const demoSnapGuideStartedAtRef = useRef<number | null>(null);
   const camera = useThree((state) => state.camera);
   const gl = useThree((state) => state.gl);
+  const invalidate = useThree((state) => state.invalidate);
   const model = useMemo(
     () => createInteractiveModelInstance(sourceScene, scaleReadingVisualEnhancement),
     [scaleReadingVisualEnhancement, sourceScene],
@@ -1310,6 +1311,8 @@ export const PistonOscillationInteractiveModel = ({
       model.snapRing.scale.setScalar(1);
       snapRingMaterial.opacity = 0.64;
     }
+
+    if (activeShell || demoSnapGuideActive) invalidate();
   });
 
   const getWithinMagneticRange = useCallback((offset: THREE.Vector3) => {

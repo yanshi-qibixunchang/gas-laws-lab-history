@@ -104,8 +104,8 @@ assert.match(
 );
 assert.match(
   previewSource,
-  /operationMirrorViewOverride\?\.automaticView === automaticOperationMirrorView[\s\S]*currentOperationMirrorViewOverride \?\? automaticOperationMirrorView[\s\S]*scaleReadingOperationMirrorActive = operationMirrorView === 'scaleReadingView'[\s\S]*screwOperationMirrorActive = operationMirrorView === 'screwOperationView'/,
-  'the automatic stage must drive the mirror unless a still-current view-only Shift override is active',
+  /operationMirrorViewOverride\?\.automaticView === automaticOperationMirrorView[\s\S]*demoFrame\?\.operationMirrorView[\s\S]*currentOperationMirrorViewOverride[\s\S]*automaticOperationMirrorView[\s\S]*scaleReadingOperationMirrorActive = operationMirrorView === 'scaleReadingView'[\s\S]*screwOperationMirrorActive = operationMirrorView === 'screwOperationView'/,
+  'Demo may stage a deliberate mirror transition while ordinary interaction still follows the current Shift override or automatic instrument state',
 );
 const shiftShortcutStart = previewSource.indexOf('const handleOperationMirrorShortcut');
 const shiftShortcutEnd = previewSource.indexOf(
@@ -149,8 +149,8 @@ assert.doesNotMatch(
 );
 assert.match(
   previewSource,
-  /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop=\{operationMirrorMode === 'hidden' \? 'demand' : 'always'\}[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
-  'one resident Canvas must switch between preloaded normal and scale-enhanced models plus persistent perspective and orthographic cameras',
+  /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop="demand"[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
+  'one demand-rendered resident Canvas must switch between preloaded normal and scale-enhanced models plus persistent cameras',
 );
 const screwModelGroup = previewSource.match(
   /<group visible=\{screwOperationMirrorActive\}>([\s\S]*?)<\/group>/,

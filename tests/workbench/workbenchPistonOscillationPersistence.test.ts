@@ -44,8 +44,11 @@ for (const cameraPreset of WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS) {
     experimentKind: 'heatCapacityPistonOscillation',
     pistonOscillationSchemaVersion: 1,
     preview: { cameraPreset },
+    operationVisualizationEnabled: false,
     lessonIntroAutoShown: false,
+    demoSession: file.pistonOscillationDemoSession,
     guideSession: file.pistonOscillationGuideSession,
+    materialsExpanded: true,
   });
   assert.equal('modelVersion' in payload, false);
   assert.equal('glbPath' in payload, false);
@@ -65,7 +68,10 @@ assert.equal(validatePistonOscillationPersistencePayload(preLessonPayload).valid
   { ...validPayload, preview: {} },
   { ...validPayload, preview: { cameraPreset: 'rear' } },
   { ...validPayload, lessonIntroAutoShown: 'yes' },
+  { ...validPayload, operationVisualizationEnabled: 'yes' },
+  { ...validPayload, demoSession: 'invalid' },
   { ...validPayload, guideSession: 'invalid' },
+  { ...validPayload, materialsExpanded: 'yes' },
   { ...validPayload, unknown: true },
   { ...validPayload, preview: { cameraPreset: 'overview', unknown: true } },
 ].forEach((payload) => {
@@ -98,11 +104,17 @@ assert.equal(restored.updatedAt, 20);
 assert.equal(restored.lastOpenedAt, 30);
 assert.equal(restored.liveWorkspaceSplitRatio, 0.63);
 assert.equal(restored.previewCameraPreset, 'overview');
+assert.equal(restored.pistonOscillationOperationVisualizationEnabled, false);
 assert.equal(restored.pistonOscillationLessonIntroAutoShown, false);
+assert.deepEqual(
+  restored.pistonOscillationDemoSession,
+  baseFile.pistonOscillationDemoSession,
+);
 assert.deepEqual(
   restored.pistonOscillationGuideSession,
   baseFile.pistonOscillationGuideSession,
 );
+assert.equal(restored.pistonOscillationMaterialsExpanded, true);
 assert.equal(restored.runState, 'idle');
 assert.equal(
   restorePistonOscillationFileFromPersistencePayload(
@@ -110,6 +122,18 @@ assert.equal(
     preLessonPayload,
   ).pistonOscillationLessonIntroAutoShown,
   false,
+);
+
+const enabledOperationVisualizationPayload = {
+  ...validPayload,
+  operationVisualizationEnabled: true,
+};
+assert.equal(
+  restorePistonOscillationFileFromPersistencePayload(
+    fileEnvelope,
+    enabledOperationVisualizationPayload,
+  ).pistonOscillationOperationVisualizationEnabled,
+  true,
 );
 
 const normalizedRuntime = normalizePistonOscillationRuntimeState({

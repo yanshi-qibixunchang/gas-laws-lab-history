@@ -55,7 +55,6 @@ const CHART_RIGHT_MARGIN = 30;
 const CHART_TOP = 24;
 const CHART_BOTTOM = 374;
 const MINIMUM_VISIBLE_TIME_SPAN_S = 0.12;
-const INITIAL_OBSERVATION_VIEW_SPAN_S = 0.2;
 const MINIMUM_DRAG_DISTANCE_PX = 4;
 
 interface TimeDomain {
@@ -132,16 +131,7 @@ const getFullTimeDomain = (record: PistonOscillationRawMeasurementRecord): TimeD
 
 const getInitialTimeDomain = (
   record: PistonOscillationRawMeasurementRecord,
-): TimeDomain => {
-  const full = getFullTimeDomain(record);
-  return {
-    startS: full.startS,
-    endS: Math.min(
-      full.endS,
-      Math.max(MINIMUM_VISIBLE_TIME_SPAN_S, INITIAL_OBSERVATION_VIEW_SPAN_S),
-    ),
-  };
-};
+): TimeDomain => getFullTimeDomain(record);
 
 const getRawPressureDomain = (
   record: PistonOscillationRawMeasurementRecord,
@@ -1128,6 +1118,26 @@ export const PistonOscillationDataProcessingPanel = ({
         })}
       </div>
 
+      {reviewMode ? (
+        <nav className="piston-processing-navigation is-review-navigation" aria-label={copy.reviewTitle}>
+          <button type="button" className="is-secondary" onClick={onCloseReview}>
+            <ChevronLeft size={15} aria-hidden="true" />
+            {copy.closeReview}
+          </button>
+          <div aria-live="polite">
+            <strong>{copy.reviewRunSummary(runIndex + 1, processing.runs.length)}</strong>
+          </div>
+          <button
+            type="button"
+            className="is-primary"
+            onClick={onOpenCalculationReview}
+          >
+            {copy.viewFitAndCalculation}
+            <ChevronRight size={15} aria-hidden="true" />
+          </button>
+        </nav>
+      ) : null}
+
       <section className="piston-processing-selection-section">
         <div className="piston-processing-section-heading">
           <div>
@@ -1654,25 +1664,7 @@ export const PistonOscillationDataProcessingPanel = ({
         ) : null}
       </section>
 
-      {reviewMode ? (
-        <footer className="piston-processing-navigation is-review-navigation">
-          <button type="button" className="is-secondary" onClick={onCloseReview}>
-            <ChevronLeft size={15} aria-hidden="true" />
-            {copy.closeReview}
-          </button>
-          <div aria-live="polite">
-            <strong>{copy.reviewRunSummary(runIndex + 1, processing.runs.length)}</strong>
-          </div>
-          <button
-            type="button"
-            className="is-primary"
-            onClick={onOpenCalculationReview}
-          >
-            {copy.viewFitAndCalculation}
-            <ChevronRight size={15} aria-hidden="true" />
-          </button>
-        </footer>
-      ) : (
+      {!reviewMode ? (
         <footer className="piston-processing-navigation">
           <button type="button" className="is-secondary" disabled aria-disabled="true">
             <ChevronLeft size={15} aria-hidden="true" />
@@ -1701,7 +1693,7 @@ export const PistonOscillationDataProcessingPanel = ({
             <ChevronRight size={15} aria-hidden="true" />
           </button>
         </footer>
-      )}
+      ) : null}
       {calculationReady ? (
         <div className="piston-processing-ready-banner" role="status">
           <Check size={18} aria-hidden="true" />

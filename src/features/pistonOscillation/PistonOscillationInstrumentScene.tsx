@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState, useSyncExternalStore } from 'react';
 import type { WorkbenchPistonOscillationCameraPreset } from '../workbench/workbenchState.ts';
 import {
   PistonOscillationInteractionWorkspace,
@@ -9,7 +9,14 @@ import {
   type PistonOscillationGuideVisualCue,
 } from './PistonOscillationFocusInteractionPreviewPage.tsx';
 import type { PistonOscillationReleaseEvent } from './PistonOscillationAcquisitionPanel.tsx';
-import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
+import {
+  getPistonOscillationDemoFrame,
+  type PistonOscillationDemoFrame,
+} from './pistonOscillationDemoTimeline.ts';
+import {
+  PISTON_OSCILLATION_IDLE_DEMO_PLAYBACK_SNAPSHOT,
+  type PistonOscillationDemoPlaybackChannel,
+} from './pistonOscillationDemoPlaybackChannel.ts';
 import type { PistonOscillationLivePhysicalState } from './pistonOscillationLivePressureChannel.ts';
 import type {
   PistonOscillationGuideFocusMode,
@@ -18,6 +25,9 @@ import type {
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import { getPistonOscillationShellCopy } from './pistonOscillationCopy.ts';
 import './PistonOscillationPlaceholders.css';
+
+const subscribeToNoDemoPlayback = () => () => undefined;
+const getNoDemoPlaybackSnapshot = () => PISTON_OSCILLATION_IDLE_DEMO_PLAYBACK_SNAPSHOT;
 
 class PistonOscillationInteractionSceneBoundary extends React.Component<{
   children: React.ReactNode;
@@ -57,7 +67,9 @@ export interface PistonOscillationInstrumentSceneProps {
     state: PistonOscillationLivePhysicalState,
   ) => void;
   demoFrame?: PistonOscillationDemoFrame;
-  demoPlaybackPhase?: 'idle' | 'running' | 'terminated' | 'completed';
+  demoPlaybackChannel?: PistonOscillationDemoPlaybackChannel;
+  demoPlaybackFileId?: string;
+  demoPlaybackPhase?: 'idle' | 'running' | 'paused' | 'terminated' | 'completed';
   guidePaused?: boolean;
   guideTimeFrozen?: boolean;
   guideVisualCue?: PistonOscillationGuideVisualCue;
@@ -79,6 +91,9 @@ export interface PistonOscillationInstrumentSceneProps {
     event: PistonOscillationGuideSupportLossEvent,
   ) => void;
   onGuideHeightResetComplete?: () => void;
+  operationVisualizationEnabled?: boolean;
+  onOperationVisualizationToggle?: () => void;
+  showShiftOperationCue?: boolean;
 }
 
 export const PistonOscillationInstrumentScene = ({
@@ -90,7 +105,9 @@ export const PistonOscillationInstrumentScene = ({
   guideSessionRevision = 0,
   onReleaseEvent,
   onLivePhysicalStateChange,
-  demoFrame,
+  demoFrame: providedDemoFrame,
+  demoPlaybackChannel,
+  demoPlaybackFileId,
   demoPlaybackPhase,
   guidePaused,
   guideTimeFrozen,
@@ -109,9 +126,30 @@ export const PistonOscillationInstrumentScene = ({
   onGuideHeightConfirmed,
   onGuideSupportLoss,
   onGuideHeightResetComplete,
+  operationVisualizationEnabled,
+  onOperationVisualizationToggle,
+  showShiftOperationCue,
 }: PistonOscillationInstrumentSceneProps) => {
   const copy = getPistonOscillationShellCopy(language);
   const [overviewRevision, setOverviewRevision] = useState(0);
+  const demoPlaybackSnapshot = useSyncExternalStore(
+    demoPlaybackChannel?.subscribe ?? subscribeToNoDemoPlayback,
+    demoPlaybackChannel?.getSnapshot ?? getNoDemoPlaybackSnapshot,
+    getNoDemoPlaybackSnapshot,
+  );
+  const demoFrame = useMemo(() => {
+    if (providedDemoFrame) return providedDemoFrame;
+    if (
+      !demoPlaybackFileId
+      || demoPlaybackSnapshot.fileId !== demoPlaybackFileId
+      || (
+        demoPlaybackSnapshot.phase !== 'running'
+        && demoPlaybackSnapshot.phase !== 'paused'
+        && demoPlaybackSnapshot.phase !== 'completed'
+      )
+    ) return undefined;
+    return getPistonOscillationDemoFrame(demoPlaybackSnapshot.elapsedMs, language);
+  }, [demoPlaybackFileId, demoPlaybackSnapshot, language, providedDemoFrame]);
 
   return (
     <section
@@ -154,6 +192,9 @@ export const PistonOscillationInstrumentScene = ({
           onGuideHeightConfirmed={onGuideHeightConfirmed}
           onGuideSupportLoss={onGuideSupportLoss}
           onGuideHeightResetComplete={onGuideHeightResetComplete}
+          operationVisualizationEnabled={operationVisualizationEnabled}
+          onOperationVisualizationToggle={onOperationVisualizationToggle}
+          showShiftOperationCue={showShiftOperationCue}
           restoreDefaultViewLabel={copy.preview.restoreDefaultView}
           onRestoreDefaultView={() => {
             if (!demoFrame) setOverviewRevision((revision) => revision + 1);
