@@ -2322,6 +2322,11 @@ assert.deepEqual(
   'Piston guide drafts, processing state, and all three recorded curves must survive V3 persistence',
 );
 assert.deepEqual(
+  pistonGuideReprojected.value.pistonOscillationFreeSession,
+  pistonGuideFile.pistonOscillationFreeSession,
+  'an independent empty Free Mode session must survive alongside Guide Mode state',
+);
+assert.deepEqual(
   pistonGuideReprojected.value.pistonOscillationGuideSession.savedMeasurements.map(
     (measurement) => ({
       targetHeightMm: measurement.targetHeightMm,

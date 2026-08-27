@@ -6,36 +6,17 @@ import {
   PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
   PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
   PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS,
-  findPistonAcquisitionFallingTriggerSeconds,
   getPistonAcquisitionFormalSampleCount,
-  getPistonAcquisitionPresetPressureKpa,
-} from '../../src/features/pistonOscillation/pistonOscillationPresetAcquisition.ts';
+} from '../../src/features/pistonOscillation/pistonOscillationAcquisitionConfig.ts';
 
 assert.equal(PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ, 1000);
 assert.equal(PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA, 105);
 assert.equal(PISTON_ACQUISITION_BASELINE_PRESSURE_KPA, 101.325);
 assert.equal(PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS, 6);
-assert.ok(
-  getPistonAcquisitionPresetPressureKpa(0) > PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
-  'the preset release should begin above the falling trigger threshold',
-);
-
-const triggerSeconds = findPistonAcquisitionFallingTriggerSeconds(
-  PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
-  PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
-);
-assert.notEqual(triggerSeconds, null);
-assert.ok((triggerSeconds ?? 1) > 0 && (triggerSeconds ?? 1) < 0.1);
-assert.ok(
-  getPistonAcquisitionPresetPressureKpa(triggerSeconds ?? 0)
-    < PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
-  'formal recording should begin at the first below-threshold sample',
-);
 assert.equal(getPistonAcquisitionFormalSampleCount(0, 1000), 0);
 assert.equal(getPistonAcquisitionFormalSampleCount(0.8, 1000), 801);
 assert.equal(getPistonAcquisitionFormalSampleCount(0.5, 1000), 501);
 
-const appEntrySource = readFileSync(join(process.cwd(), 'src', 'app', 'index.tsx'), 'utf8');
 const panelSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'pistonOscillation', 'PistonOscillationAcquisitionPanel.tsx'),
   'utf8',
@@ -73,11 +54,6 @@ assert.match(
   /\.piston-acquisition-panel\.is-powered-off[\s\S]*\.piston-acquisition-power-off-state[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/,
   'the powered-off status should occupy and center itself within the complete realtime content area',
 );
-assert.match(
-  appEntrySource,
-  /pistonAcquisitionPreviewEnabled\s*=\s*import\.meta\.env\.DEV[\s\S]*pistonAcquisitionPreview['"]\) === ['"]1['"]/,
-  'the acquisition review page must stay behind its development-only query switch',
-);
 assert.match(panelSource, /copy\.preTriggerNote/);
 assert.doesNotMatch(panelSource, />Run 1\/7</);
 assert.match(panelSource, /phaseRef\.current === 'armed'[\s\S]*updatePhase\('recording'\)/);
@@ -109,8 +85,18 @@ assert.match(
 assert.match(panelSource, /handleStop[\s\S]*setStopElapsedSeconds\(formalElapsedSeconds\)/);
 assert.match(
   panelSource,
-  /const nextTrajectory = releaseEvent\.trajectory \?\? null;[\s\S]*createPistonOscillationSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
+  /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*createPistonOscillationSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
   'formal acquisition must quantize the released trajectory before choosing its discrete falling-trigger sample',
+);
+assert.doesNotMatch(
+  panelSource,
+  /getPistonAcquisitionPresetPressureKpa|findPistonAcquisitionFallingTriggerSeconds/,
+  'formal acquisition must not retain a synthetic preset trajectory fallback',
+);
+assert.match(
+  panelSource,
+  /interface PistonOscillationReleaseEvent[\s\S]*trajectory: PistonOscillationTrajectory;/,
+  'every formal release event must carry its physical trajectory',
 );
 assert.match(
   panelSource,
@@ -219,7 +205,7 @@ assert.match(
 assert.match(
   panelSource,
   /activeObservationSeries && triggerSourceSampleIndex !== null[\s\S]*getObservedPressureGraphDomain\(activeObservationSeries\.samples\.slice\([\s\S]*DEFAULT_PRESSURE_GRAPH_DOMAIN/,
-  'formal graph bounds must use the observed post-trigger window while preset bounds remain a fallback',
+  'formal graph bounds must use the observed post-trigger window while the empty-state bounds remain a fallback',
 );
 assert.match(
   panelSource,
@@ -380,4 +366,4 @@ assert.match(
   'the strong fill and closed outline must remain visible without animation in reduced-motion mode',
 );
 
-console.log('pistonOscillationPresetAcquisition tests passed');
+console.log('pistonOscillationAcquisitionConfig tests passed');

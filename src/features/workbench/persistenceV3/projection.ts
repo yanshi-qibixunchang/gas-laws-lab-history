@@ -29,6 +29,9 @@ import {
 import {
   normalizePistonOscillationDemoSession,
 } from '../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
+import {
+  normalizePistonOscillationFreeSession,
+} from '../../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import type {
   PistonOscillationCalculationAnswerState,
   PistonOscillationDataProcessingSession,
@@ -413,6 +416,14 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
       ) {
         migratedAuthority.demoSession = canonicalClone(
           canonicalAuthority.demoSession,
+        );
+      }
+      if (
+        migratedAuthority.freeSession === undefined &&
+        canonicalAuthority.freeSession !== undefined
+      ) {
+        migratedAuthority.freeSession = canonicalClone(
+          canonicalAuthority.freeSession,
         );
       }
       migratedAuthority.guideSession = canonicalClone(
@@ -2264,9 +2275,16 @@ const projectPistonOscillationFile = (
   const guideSession = normalizePistonOscillationGuideSession(
     file.pistonOscillationGuideSession,
   );
+  const freeSession = normalizePistonOscillationFreeSession(
+    file.pistonOscillationFreeSession,
+  );
   const guideCacheRepaired = !areCanonicalValuesEqual(
     guideSession,
     file.pistonOscillationGuideSession,
+  );
+  const freeSessionRepaired = !areCanonicalValuesEqual(
+    freeSession,
+    file.pistonOscillationFreeSession,
   );
   const uiCheckpointRepaired = !areCanonicalValuesEqual(
     {
@@ -2298,6 +2316,7 @@ const projectPistonOscillationFile = (
           guideSession: createPistonOscillationGuideSessionAuthority(
             guideSession,
           ),
+          freeSession,
         }),
         relation: canonicalClone(createCommonRelation(file)),
         derived: canonicalClone({
@@ -2308,7 +2327,7 @@ const projectPistonOscillationFile = (
         uiCheckpoint: canonicalClone(uiCheckpoint),
       },
     },
-    repaired: guideCacheRepaired || uiCheckpointRepaired,
+    repaired: guideCacheRepaired || freeSessionRepaired || uiCheckpointRepaired,
     guideCacheRepaired,
   });
 };
@@ -3066,7 +3085,9 @@ const reprojectPistonOscillationFile = (
   const demoSession = normalizePistonOscillationDemoSession(
     projection.fields.authoritative.demoSession,
   );
-  const migrated =
+  const freeSessionSource = projection.fields.authoritative.freeSession;
+  const freeSession = normalizePistonOscillationFreeSession(freeSessionSource);
+  const migrated = !isPlainRecord(freeSessionSource) ||
     projection.fields.authoritative.pistonGuideSessionProjectionVersion !==
       PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
   const expectedDerivedCache = createPistonOscillationGuideDerivedCache(
@@ -3098,6 +3119,7 @@ const reprojectPistonOscillationFile = (
       pistonOscillationLessonIntroAutoShown: lessonIntroAutoShown,
       pistonOscillationDemoSession: demoSession,
       pistonOscillationGuideSession: guideSession,
+      pistonOscillationFreeSession: freeSession,
       pistonOscillationMaterialsExpanded:
         ui.pistonOscillationMaterialsExpanded !== false,
     },

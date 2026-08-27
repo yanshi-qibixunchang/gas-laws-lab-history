@@ -12,8 +12,7 @@
 - 扫描输入、关于操作结果和工作区保存状态已进入同一全局 Toast 堆栈；保存状态以稳定 ID 更新，避免重复叠加和相互遮挡。
 - 压强超限继续作为 3D 视图区内持续警报；教学遮罩、预热、等待和强引导继续作为过程反馈，只共享正式视觉变量。
 - 活跃入口的浏览器原生 Tooltip 已迁移；动态普通 DOM `title` 由全局 Provider 接管。`iframe title`、组件内容型 `title` 和 `document.title` 继续保留其语义。
-- `PersistenceFailureRecovery.tsx` 仍未挂载，但其窗口控制提示已按同一内部 Tooltip 契约整理，重新挂载时不会引入第二套交互。
-- 阶段零 `promptStylePreview=1` 临时入口及专用文件、测试已删除；相机捕获临时工具不属于该入口，继续保留。
+- 阶段零 `promptStylePreview=1` 临时入口及专用文件、测试已删除；绝热膨胀法的开发态相机输出工具独立保留。
 - 2026-07-23 起，阶段一确认窗口和阶段二告知/任务窗口统一采用 A 方案；阶段三 Toast、持续警报和 Tooltip 保持既有实现与作用域。
 
 ## 入口盘点表
@@ -61,8 +60,7 @@
 | `HeatCapacityCalculationWindow.tsx` | 未开放分组和操作提示 | 内部 Tooltip | 否 | 否 | 计算窗口 | 否 | 已迁移 |
 | `WorkbenchStudioPrototype.tsx` 多处提示 | 参数锁定、关系说明、模式控制、图表数据点、运行/停止、面板、文件和窗口控制 | 全局委托式内部 Tooltip | 否 | 否 | 工作台多区域 | 否 | 已迁移；支持悬停、聚焦、延迟、Esc 和边缘避让 |
 | `WorkbenchBuildNoticeWindow.tsx:144` iframe `title` | 内嵌法律材料的可访问名称 | iframe 语义名称，不是悬停提示 | 否 | 否 | 构建说明 | 否 | 有意保留，不纳入 Tooltip 替换 |
-| `PersistenceFailureRecovery.tsx` | 存储初始化完全失败后的恢复与更新页面 | 独立全屏恢复页，含状态/错误提示 | 是 | 是 | 应用恢复 | 是 | 当前未挂载；仅将窗口控制提示迁移到内部 Tooltip 契约，未改恢复业务 |
-| `PistonOscillationRealtimeUnavailable.tsx`、`PistonOscillationPreviewPlaceholder.tsx`、`PistonOscillationInstrumentScene.tsx` | 尚不可用、加载与场景错误 | 视图区内 `status` / `alert` | 否 | 否 | 活塞振动视图 | 否 | 视图区状态/错误；保持局部作用域 |
+| `PistonOscillationInstrumentScene.tsx` | 活塞振动场景加载错误 | 视图区内 `alert` | 否 | 否 | 活塞振动视图 | 否 | 视图区错误；保持局部作用域 |
 
 ## 原生 `title` 说明
 
@@ -72,7 +70,6 @@
 - `PromptDialogShell`、`DocumentDisclosure` 等 React 组件的内容属性：不是浏览器原生 Tooltip；
 - `iframe title`：无障碍名称，Provider 明确跳过，必须保留；
 - 活跃普通 DOM 的悬停 `title` 已改为 `data-prompt-tooltip`；Provider 同时观察后续动态挂载的普通 DOM `title`，防止回退到宿主提示；
-- `PersistenceFailureRecovery.tsx` 中 3 处窗口控制也已迁移，但页面挂载规则保持不变。
 
 ## 桌面端与浏览器端差异
 

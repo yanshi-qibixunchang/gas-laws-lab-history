@@ -12,12 +12,12 @@ const componentSource = readFileSync(join(
   'pistonOscillation',
   'PistonOscillationOperationVisualization.tsx',
 ), 'utf8');
-const previewCss = readFileSync(join(
+const workspaceCss = readFileSync(join(
   process.cwd(),
   'src',
   'features',
   'pistonOscillation',
-  'PistonOscillationFocusInteractionPreviewPage.css',
+  'PistonOscillationInteractionWorkspace.css',
 ), 'utf8');
 
 assert.equal(
@@ -56,7 +56,7 @@ assert.doesNotMatch(
   'focus transitions must not apply native disabled styling that redraws an ON switch as unavailable before it fades',
 );
 assert.match(
-  previewCss,
+  workspaceCss,
   /\.studio-theme-light \.piston-operation-visualization-cue[\s\S]*@media \(prefers-reduced-motion: reduce\)[\s\S]*\.piston-operation-visualization-cue\.is-visible/,
   'operation cues should include light-theme and reduced-motion adaptations',
 );

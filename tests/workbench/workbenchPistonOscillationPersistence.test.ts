@@ -48,6 +48,7 @@ for (const cameraPreset of WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS) {
     lessonIntroAutoShown: false,
     demoSession: file.pistonOscillationDemoSession,
     guideSession: file.pistonOscillationGuideSession,
+    freeSession: file.pistonOscillationFreeSession,
     materialsExpanded: true,
   });
   assert.equal('modelVersion' in payload, false);
@@ -56,6 +57,9 @@ for (const cameraPreset of WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS) {
 }
 
 const validPayload = createPistonOscillationPersistencePayload(baseFile, 40);
+const preFreePayload = { ...validPayload } as Partial<typeof validPayload>;
+delete preFreePayload.freeSession;
+assert.equal(validatePistonOscillationPersistencePayload(preFreePayload).valid, true);
 const preLessonPayload = {
   experimentKind: 'heatCapacityPistonOscillation',
   pistonOscillationSchemaVersion: 1,
@@ -71,6 +75,7 @@ assert.equal(validatePistonOscillationPersistencePayload(preLessonPayload).valid
   { ...validPayload, operationVisualizationEnabled: 'yes' },
   { ...validPayload, demoSession: 'invalid' },
   { ...validPayload, guideSession: 'invalid' },
+  { ...validPayload, freeSession: 'invalid' },
   { ...validPayload, materialsExpanded: 'yes' },
   { ...validPayload, unknown: true },
   { ...validPayload, preview: { cameraPreset: 'overview', unknown: true } },
@@ -113,6 +118,18 @@ assert.deepEqual(
 assert.deepEqual(
   restored.pistonOscillationGuideSession,
   baseFile.pistonOscillationGuideSession,
+);
+assert.deepEqual(
+  restored.pistonOscillationFreeSession,
+  baseFile.pistonOscillationFreeSession,
+);
+assert.deepEqual(
+  restorePistonOscillationFileFromPersistencePayload(
+    fileEnvelope,
+    preFreePayload,
+  ).pistonOscillationFreeSession,
+  baseFile.pistonOscillationFreeSession,
+  'pre-Free files must restore with an empty Free Mode session',
 );
 assert.equal(restored.pistonOscillationMaterialsExpanded, true);
 assert.equal(restored.runState, 'idle');

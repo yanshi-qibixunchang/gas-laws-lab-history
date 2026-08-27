@@ -304,6 +304,12 @@ import {
   type PistonOscillationDemoSession,
 } from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 import {
+  createDefaultPistonOscillationFreeSession,
+  transitionPistonOscillationFreeSession,
+  type PistonOscillationFreeEvent,
+  type PistonOscillationFreeSession,
+} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import {
   WORKBENCH_FILE_NAME_PREFIX_BY_KIND,
   type WorkbenchFileKind,
 } from './workbenchFileKind.ts';
@@ -1200,6 +1206,7 @@ export interface WorkbenchHeatCapacityPistonOscillationState extends WorkbenchFi
   pistonOscillationLessonIntroAutoShown: boolean;
   pistonOscillationDemoSession: PistonOscillationDemoSession;
   pistonOscillationGuideSession: PistonOscillationGuideSession;
+  pistonOscillationFreeSession: PistonOscillationFreeSession;
   pistonOscillationMaterialsExpanded: boolean;
 }
 
@@ -6383,6 +6390,7 @@ export const createDefaultHeatCapacityPistonOscillationFile = (
   pistonOscillationLessonIntroAutoShown: false,
   pistonOscillationDemoSession: createDefaultPistonOscillationDemoSession(),
   pistonOscillationGuideSession: createDefaultPistonOscillationGuideSession(),
+  pistonOscillationFreeSession: createDefaultPistonOscillationFreeSession(),
   pistonOscillationMaterialsExpanded: true,
 });
 
@@ -6440,6 +6448,36 @@ export const transitionPistonOscillationGuideWorkbenchState = (
     updatedAt: event.nowMs,
     previewCameraPreset: event.type === 'resetSession' ? 'overview' : file.previewCameraPreset,
     pistonOscillationGuideSession,
+  };
+};
+
+export const startPistonOscillationFreeWorkbenchState = (
+  file: WorkbenchHeatCapacityPistonOscillationState,
+  now = Date.now(),
+): WorkbenchHeatCapacityPistonOscillationState => ({
+  ...file,
+  updatedAt: now,
+  previewCameraPreset: 'overview',
+  pistonOscillationFreeSession: transitionPistonOscillationFreeSession(
+    file.pistonOscillationFreeSession,
+    { type: 'start', nowMs: now },
+  ),
+});
+
+export const transitionPistonOscillationFreeWorkbenchState = (
+  file: WorkbenchHeatCapacityPistonOscillationState,
+  event: PistonOscillationFreeEvent,
+): WorkbenchHeatCapacityPistonOscillationState => {
+  const pistonOscillationFreeSession = transitionPistonOscillationFreeSession(
+    file.pistonOscillationFreeSession,
+    event,
+  );
+  if (pistonOscillationFreeSession === file.pistonOscillationFreeSession) return file;
+  return {
+    ...file,
+    updatedAt: event.nowMs,
+    previewCameraPreset: event.type === 'reset' ? 'overview' : file.previewCameraPreset,
+    pistonOscillationFreeSession,
   };
 };
 

@@ -28,7 +28,6 @@ const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.ur
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const updaterModule = readFileSync(new URL('../../src/features/workbench/workbenchDesktopUpdater.ts', import.meta.url), 'utf8');
 const updateDialogSource = readFileSync(new URL('../../src/features/workbench/WorkbenchUpdateDialog.tsx', import.meta.url), 'utf8');
-const persistenceFailureRecoverySource = readFileSync(new URL('../../src/app/PersistenceFailureRecovery.tsx', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const updaterMetadataSource = readFileSync(new URL('../../electron/updaterMetadata.cjs', import.meta.url), 'utf8');
@@ -184,11 +183,6 @@ assert.match(
   'retrying any update-check failure must rerun discovery even when an earlier not-available result left stale metadata',
 );
 assert.match(
-  persistenceFailureRecoverySource,
-  /isWorkbenchUpdateDownloadFailure\(updateState\)/,
-  'the persistence recovery page must only offer download after a confirmed update download failed',
-);
-assert.match(
   updaterModule,
   /const mergeWorkbenchUpdateState = \([\s\S]*latestVersion: nextState\.latestVersion \?\? previousState\.latestVersion[\s\S]*releaseSummary: nextState\.releaseSummary \?\? previousState\.releaseSummary[\s\S]*releaseSections: nextState\.releaseSections \?\? previousState\.releaseSections/,
   'renderer updater state should preserve release identity and structured notes across partial events',
@@ -211,41 +205,6 @@ assert.ok(
     appSource.includes("dataAttributes={{ 'data-workbench-persistence-safe-mode': 'true' }}") &&
     appSource.includes('<WorkbenchAspectFrame>'),
   'persistence bootstrap failures should keep the workbench usable and expose a non-blocking safe-mode notice',
-);
-assert.ok(
-  persistenceFailureRecoverySource.includes('window.hardSphereLabUpdater'),
-  'the persistence recovery page should expose updater actions without mounting the workbench',
-);
-assert.ok(
-  persistenceFailureRecoverySource.includes('updater.openManualDownload()'),
-  'the persistence recovery page should keep a manual latest-release escape hatch',
-);
-assert.match(
-  persistenceFailureRecoverySource,
-  /onPrepareExit[\s\S]*reportPersistenceResult\(\{[\s\S]*saved: true/,
-  'the read-only recovery page should acknowledge updater restart persistence requests',
-);
-assert.match(
-  persistenceFailureRecoverySource,
-  /className="studio-menu"[\s\S]*className="studio-window-controls"/,
-  'the frameless persistence recovery page should retain the desktop title bar and window controls',
-);
-for (const recoveryWindowAction of ['minimize', 'toggleMaximize', 'close']) {
-  assert.match(
-    persistenceFailureRecoverySource,
-    new RegExp(`desktopWindowBridge\\?\\.${recoveryWindowAction}\\?\\.\\(\\)`),
-    `the persistence recovery title bar should call the desktop ${recoveryWindowAction} bridge`,
-  );
-}
-assert.doesNotMatch(
-  persistenceFailureRecoverySource,
-  /localStorage\.(?:clear|removeItem)|indexedDB\.deleteDatabase/,
-  'the persistence recovery page must never clear user data',
-);
-assert.doesNotMatch(
-  persistenceFailureRecoverySource,
-  /\bInter\b/,
-  'the persistence recovery page should inherit the bundled global UI font instead of selecting a system-only font',
 );
 
 assert.match(

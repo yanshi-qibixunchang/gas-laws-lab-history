@@ -14,7 +14,7 @@ const emptyWorkspaceSource = readFileSync(
   'utf8',
 );
 const placeholderStyles = readFileSync(
-  new URL('../../src/features/pistonOscillation/PistonOscillationPlaceholders.css', import.meta.url),
+  new URL('../../src/features/pistonOscillation/PistonOscillationInstrumentScene.css', import.meta.url),
   'utf8',
 );
 const acquisitionStyles = readFileSync(
@@ -38,11 +38,11 @@ const instrumentSceneSource = readFileSync(
   'utf8',
 );
 const focusInteractionSource = readFileSync(
-  new URL('../../src/features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.tsx', import.meta.url),
+  new URL('../../src/features/pistonOscillation/PistonOscillationInteractionWorkspace.tsx', import.meta.url),
   'utf8',
 );
 const focusInteractionStyles = readFileSync(
-  new URL('../../src/features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.css', import.meta.url),
+  new URL('../../src/features/pistonOscillation/PistonOscillationInteractionWorkspace.css', import.meta.url),
   'utf8',
 );
 const workbenchStyles = readFileSync(
@@ -414,11 +414,6 @@ assert.match(
   'demo completion and termination feedback should stay scoped to the piston file that owns the playback',
 );
 assert.match(workbenchSource, /PISTON_OSCILLATION_DEMO_DURATION_MS/);
-assert.doesNotMatch(
-  workbenchSource,
-  /PistonOscillationPreviewPlaceholder/,
-  'the integrated piston model must replace the preview placeholder',
-);
 assert.match(
   workbenchSource,
   /data-piston-oscillation-realtime=\{[\s\S]*activePistonOscillationDataProcessing \? 'data-processing' : 'acquisition'/,
@@ -652,6 +647,16 @@ assert.match(
   /pistonGuideStrongHoseInteractionHidden[\s\S]*pistonOscillationGuideHoseDragging[\s\S]*hoseDisconnect[\s\S]*pistonOscillationGuideHoseState === 'disconnected'[\s\S]*hoseReconnect[\s\S]*pistonOscillationGuideHoseState === 'connected'/,
   'hose reminders should hide only during the drag or after the endpoint has physically changed, allowing a failed rebound to restore the same reminder',
 );
+assert.doesNotMatch(
+  workbenchSource,
+  /pistonGuideStrongPlatformInteractionHidden|setPistonOscillationGuideMouseHeld/,
+  'an authorized platform drag should keep the reminder wall visible instead of hiding it while the mouse is held',
+);
+assert.match(
+  workbenchSource,
+  /stage\.dataset\.pistonFocusPlatformX[\s\S]*stage\.dataset\.pistonFocusPlatformY[\s\S]*pistonGuideStrongTargetId === 'platform' \? 32 : 120/,
+  'the platform cutout should follow the live projected platform position throughout the drag',
+);
 assert.match(
   workbenchSource,
   /closingKind === 'heightReset'[\s\S]*dismissHeightReset[\s\S]*pistonOscillationGuideResumeStrongReminderAfterLessonRef\.current[\s\S]*setPistonOscillationGuideStrongReminderActive\([\s\S]*true,[\s\S]*pistonOscillationGuideStrongTargetContextRef\.current/,
@@ -758,7 +763,7 @@ assert.match(
 );
 assert.match(
   workbenchStyles,
-  /\.studio-piston-guide-strong-mask\s*\{[\s\S]*z-index:\s*35;[\s\S]*\.studio-piston-guide-lesson-layer\s*\{[\s\S]*z-index:\s*37;/,
+  /\.studio-piston-guide-strong-mask\s*> \.studio-heat-guide-strong-cutout-svg\s*\{[\s\S]*z-index:\s*35;[\s\S]*\.studio-piston-guide-lesson-layer\s*\{[\s\S]*z-index:\s*37;/,
   'the piston feedback layer should remain between the strong reminder and exclusive lesson card',
 );
 assert.doesNotMatch(workbenchStyles, /\.studio-piston-guide-feedback/, 'the obsolete piston-only brown feedback surface should be removed');

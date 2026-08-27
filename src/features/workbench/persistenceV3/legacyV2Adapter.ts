@@ -79,6 +79,9 @@ import {
 import {
   normalizePistonOscillationDemoSession,
 } from '../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
+import {
+  normalizePistonOscillationFreeSession,
+} from '../../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 
 const WORKBENCH_SESSION_SCHEMA_FAMILY =
   'hard-sphere-lab.workbench-session' as const;
@@ -924,9 +927,21 @@ const LEGACY_PAYLOAD_KEYS_BY_KIND = {
     'lessonIntroAutoShown',
     'demoSession',
     'guideSession',
+    'freeSession',
     'materialsExpanded',
   ],
 } as const satisfies Record<WorkbenchFileKind, readonly string[]>;
+
+const PRE_FREE_PISTON_PAYLOAD_KEYS = [
+  'experimentKind',
+  'pistonOscillationSchemaVersion',
+  'preview',
+  'operationVisualizationEnabled',
+  'lessonIntroAutoShown',
+  'demoSession',
+  'guideSession',
+  'materialsExpanded',
+] as const;
 
 const PRE_OPERATION_VISUALIZATION_PISTON_PAYLOAD_KEYS = [
   'experimentKind',
@@ -1960,6 +1975,8 @@ const hasValidLegacyPistonPayloadRecursiveShape = (
     || isPlainPersistenceRecord(payload.guideSession)) &&
   (payload.demoSession === undefined
     || isPlainPersistenceRecord(payload.demoSession)) &&
+  (payload.freeSession === undefined
+    || isPlainPersistenceRecord(payload.freeSession)) &&
   (payload.materialsExpanded === undefined
     || typeof payload.materialsExpanded === 'boolean') &&
   isPlainPersistenceRecord(payload.preview) &&
@@ -2006,6 +2023,9 @@ const rebuildLegacyPistonFile = (
     ),
     pistonOscillationGuideSession: normalizePistonOscillationGuideSession(
       envelope.payload.guideSession,
+    ),
+    pistonOscillationFreeSession: normalizePistonOscillationFreeSession(
+      envelope.payload.freeSession,
     ),
     pistonOscillationMaterialsExpanded:
       envelope.payload.materialsExpanded !== false,
@@ -4264,6 +4284,10 @@ export const decodeLegacyWorkbenchFileEnvelopeToV3Projection = (
       fileKind === 'heatCapacityPistonOscillation'
       && (
         hasExactOwnKeys(
+          payloadRecord,
+          PRE_FREE_PISTON_PAYLOAD_KEYS,
+        )
+        || hasExactOwnKeys(
           payloadRecord,
           PRE_OPERATION_VISUALIZATION_PISTON_PAYLOAD_KEYS,
         )

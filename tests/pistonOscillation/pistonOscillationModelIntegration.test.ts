@@ -22,7 +22,7 @@ const sceneSource = readFileSync(
   'utf8',
 );
 const interactionWorkspaceSource = readFileSync(
-  new URL('../../src/features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.tsx', import.meta.url),
+  new URL('../../src/features/pistonOscillation/PistonOscillationInteractionWorkspace.tsx', import.meta.url),
   'utf8',
 );
 const interactiveModelSource = readFileSync(
@@ -162,7 +162,7 @@ assert.match(modelSource, /let visibilityCursor: THREE\.Object3D \| null = objec
 assert.match(modelSource, /if \(!visibilityCursor\.visible\) return/);
 assert.match(
   sceneSource,
-  /<PistonOscillationInteractionWorkspace[\s\S]*embedded[\s\S]*initialMode="overview"[\s\S]*cameraPreset=\{cameraPreset\}[\s\S]*sceneTheme=\{sceneTheme\}/,
+  /<PistonOscillationInteractionWorkspace[\s\S]*initialMode="overview"[\s\S]*cameraPreset=\{cameraPreset\}[\s\S]*sceneTheme=\{sceneTheme\}/,
   'the formal scene should mount the accepted interactive model and state controller',
 );
 assert.match(sceneSource, /onReleaseEvent=\{onReleaseEvent\}/);
@@ -183,7 +183,7 @@ assert.doesNotMatch(
 );
 assert.match(interactiveModelSource, /PistonOscillationInteractiveModel/);
 assert.match(interactiveModelSource, /onPointerDown=\{handlePointerDown\}/);
-assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 6/);
+assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 3/);
 assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.004/);
 assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS = 3/);
 

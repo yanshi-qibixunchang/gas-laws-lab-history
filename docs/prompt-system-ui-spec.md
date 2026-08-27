@@ -233,4 +233,4 @@ A 方案采用传统、紧凑、低装饰的桌面工程窗口表达，在保持
 - 工作台业务文案：`src/features/workbench/workbenchPromptCopies.ts`；
 - 设置、关于、构建说明、更新、自由模式组数、计算和高级参数窗口必须复用公共模态外壳，只保留各自尺寸与内部布局；
 - 强制告知必须使用 `PromptForcedNoticeDialog`，不得自行重新组合右上角关闭、`Esc` 或遮罩关闭；
-- 阶段零 `promptStylePreview=1` 视觉试验入口、源码与专用测试已在正式组件完成后删除；`dev:temp` 和 `cameraCapture=1` 属于相机输出工具，不在本次清理范围内。
+- 阶段零 `promptStylePreview=1` 视觉试验入口、源码与专用测试已在正式组件完成后删除；`dev:temp` 和 `cameraCapture=1` 仅服务于绝热膨胀法的开发态相机输出，不属于提示体系。

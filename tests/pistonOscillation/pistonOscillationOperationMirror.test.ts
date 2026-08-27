@@ -47,23 +47,23 @@ for (const state of [
 assert.equal(togglePistonOscillationOperationMirrorView('scaleReadingView'), 'screwOperationView');
 assert.equal(togglePistonOscillationOperationMirrorView('screwOperationView'), 'scaleReadingView');
 
-const previewSource = readFileSync(
+const workspaceSource = readFileSync(
   join(
     process.cwd(),
     'src',
     'features',
     'pistonOscillation',
-    'PistonOscillationFocusInteractionPreviewPage.tsx',
+    'PistonOscillationInteractionWorkspace.tsx',
   ),
   'utf8',
 );
-const previewCss = readFileSync(
+const workspaceCss = readFileSync(
   join(
     process.cwd(),
     'src',
     'features',
     'pistonOscillation',
-    'PistonOscillationFocusInteractionPreviewPage.css',
+    'PistonOscillationInteractionWorkspace.css',
   ),
   'utf8',
 );
@@ -93,22 +93,22 @@ const workbenchSource = readFileSync(
 );
 
 assert.match(
-  previewSource,
-  /formalHeightAdjustmentActive = !calibrationActive[\s\S]*mode === 'pistonFocus'[\s\S]*hoseState === 'disconnected'[\s\S]*heightFollowingActive = heightFollowingCalibrationActive[\s\S]*formalHeightAdjustmentActive/,
+  workspaceSource,
+  /formalHeightAdjustmentActive = !demoActive[\s\S]*mode === 'pistonFocus'[\s\S]*hoseState === 'disconnected'[\s\S]*heightFollowingActive = formalHeightAdjustmentActive/,
   'the formal piston focus must continuously follow height only while its hose is disconnected',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /getPistonOscillationAutomaticOperationMirrorView\(\{[\s\S]*hoseConnected: hoseState === 'connected'[\s\S]*lockingScrewLocked[\s\S]*screwDragging[\s\S]*heightAdjustmentStage/,
   'the formal mirror selection must use the explicit height-adjustment stage and instrument state',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /operationMirrorViewOverride\?\.automaticView === automaticOperationMirrorView[\s\S]*demoFrame\?\.operationMirrorView[\s\S]*currentOperationMirrorViewOverride[\s\S]*automaticOperationMirrorView[\s\S]*scaleReadingOperationMirrorActive = operationMirrorView === 'scaleReadingView'[\s\S]*screwOperationMirrorActive = operationMirrorView === 'screwOperationView'/,
   'Demo may stage a deliberate mirror transition while ordinary interaction still follows the current Shift override or automatic instrument state',
 );
-const shiftShortcutStart = previewSource.indexOf('const handleOperationMirrorShortcut');
-const shiftShortcutEnd = previewSource.indexOf(
+const shiftShortcutStart = workspaceSource.indexOf('const handleOperationMirrorShortcut');
+const shiftShortcutEnd = workspaceSource.indexOf(
   "window.addEventListener('keydown', handleOperationMirrorShortcut);",
   shiftShortcutStart,
 );
@@ -116,7 +116,7 @@ assert.ok(
   shiftShortcutStart >= 0 && shiftShortcutEnd > shiftShortcutStart,
   'the Shift operation-mirror shortcut should remain independently reviewable',
 );
-const shiftShortcutSource = previewSource.slice(shiftShortcutStart, shiftShortcutEnd);
+const shiftShortcutSource = workspaceSource.slice(shiftShortcutStart, shiftShortcutEnd);
 assert.match(
   shiftShortcutSource,
   /event\.key !== 'Shift'[\s\S]*event\.repeat[\s\S]*event\.ctrlKey[\s\S]*event\.metaKey[\s\S]*event\.altKey[\s\S]*isEditableKeyboardTarget\(event\.target\)[\s\S]*mouseHeldRef\.current[\s\S]*hoseDragging[\s\S]*screwDragging[\s\S]*setOperationMirrorViewOverride[\s\S]*togglePistonOscillationOperationMirrorView\(operationMirrorView\)/,
@@ -128,31 +128,31 @@ assert.doesNotMatch(
   'Shift mirror switching must not require Space, disable Guide, or mutate the semantic height-adjustment stage',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /handledMeasurementCycleRevisionRef\.current === measurementCycleRevision[\s\S]*setHeightAdjustmentStage\('readingHeight'\)/,
   'a new measurement-cycle revision must restore scale reading as the next height-adjustment stage',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /heightStageActionEnabled = heightStageActionVisible[\s\S]*onGuideActionAttempt \? true : spaceHeld && !mouseHeld[\s\S]*!hoseDragging[\s\S]*!screwDragging[\s\S]*data-piston-height-stage-action="true"[\s\S]*attemptGuideAction\('confirmHeight'\)[\s\S]*interactionCopy\.confirmHeight[\s\S]*interactionCopy\.returnScale/,
   'the focus panel must expose a reversible height action whose Guide path reports invalid handoff attempts instead of disabling feedback',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /screwDragStartProgressRef\.current = lockingScrewProgressRef\.current[\s\S]*loosenedDuringGesture[\s\S]*hoseState === 'disconnected'[\s\S]*setHeightAdjustmentStage\('readingHeight'\)/,
   'loosening the disconnected apparatus must return to scale reading after the screw gesture ends',
 );
 assert.doesNotMatch(
-  previewSource,
+  workspaceSource,
   /key=\{operationMirrorView\}|orthographic=\{scaleReadingOperationMirrorActive\}/,
   'changing mirror type must not remount the operation-mirror Canvas',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop="demand"[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
   'one demand-rendered resident Canvas must switch between preloaded normal and scale-enhanced models plus persistent cameras',
 );
-const screwModelGroup = previewSource.match(
+const screwModelGroup = workspaceSource.match(
   /<group visible=\{screwOperationMirrorActive\}>([\s\S]*?)<\/group>/,
 )?.[1] ?? '';
 assert.doesNotMatch(
@@ -161,17 +161,17 @@ assert.doesNotMatch(
   'the preloaded screw-operation model must retain the original non-enhanced materials',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /OperationMirrorFrameReadyBridge[\s\S]*reportedViewRef[\s\S]*onFrameReady\(view\)[\s\S]*operationMirrorModelsReady[\s\S]*operationMirrorRenderedView === operationMirrorView[\s\S]*data-piston-focus-operation-mirror-ready/,
   'the resident mirror should not reveal its first frame before both prepared models and the selected camera have rendered',
 );
 assert.match(
-  previewSource,
-  /!calibrationActive && !demoActive && !guideInteractionPaused && screwOperationMirrorActive[\s\S]*<OperationMirrorScrewControl/,
+  workspaceSource,
+  /!demoActive && !guideInteractionPaused && screwOperationMirrorActive[\s\S]*<OperationMirrorScrewControl/,
   'the screw interaction target must exist only in the active formal screw-operation mirror and freeze during Guide pause or recovery explanation',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /data-piston-focus-main-camera=[\s\S]*heightFollowingActive \? 'heightAdjustmentFocus' : mode[\s\S]*data-piston-focus-height-adjustment-stage=\{heightAdjustmentStage\}[\s\S]*data-piston-focus-operation-mirror-selection="height-adjustment-stage"/,
   'the formal scene must expose main-camera and mirror-selection state for deterministic review',
 );
@@ -183,13 +183,13 @@ assert.match(
   'the formal scene shell must forward the shared warning-feedback identity into the 3D workspace',
 );
 assert.match(
-  previewSource,
+  workspaceSource,
   /nextWarningFeedbackId = viewportWarningFeedbackId[\s\S]*demoFeedbackMessage\?\.kind === 'warning'[\s\S]*setViewportWarningShakeRevision[\s\S]*data-piston-viewport-warning-shake-revision=\{viewportWarningShakeRevision\}/,
   'every new shared warning must trigger one deterministic 3D-workspace shake revision',
 );
 assert.match(
-  previewCss,
-  /\.piston-focus-interaction-preview-stage\.is-viewport-warning-shaking-0[\s\S]*piston-viewport-warning-shake-a 320ms[\s\S]*\.piston-focus-interaction-preview-stage\.is-viewport-warning-shaking-1[\s\S]*piston-viewport-warning-shake-b 320ms/,
+  workspaceCss,
+  /\.piston-oscillation-interaction-stage\.is-viewport-warning-shaking-0[\s\S]*piston-viewport-warning-shake-a 320ms[\s\S]*\.piston-oscillation-interaction-stage\.is-viewport-warning-shaking-1[\s\S]*piston-viewport-warning-shake-b 320ms/,
   'alternating warning animation names must replay the same viewport shake for consecutive warnings',
 );
 assert.match(acquisitionSource, /onRunRetained\?: \(\) => void[\s\S]*onRunRetained\?\.\(\)/);

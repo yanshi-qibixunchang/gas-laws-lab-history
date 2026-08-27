@@ -1446,13 +1446,13 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
             <strong>{copy.processTitle}</strong>
           </div>
           <div
-            className={`hpr-trial-select studio-heat-free-display-scheme-control ${trialMenuOpen ? 'studio-heat-free-display-scheme-open' : ''}`}
+            className={`hpr-trial-select ${trialMenuOpen ? 'hpr-trial-select-open' : ''}`}
             data-hpr-trial-select="true"
             ref={trialSelectRef}
           >
             <button
               type="button"
-              className="hpr-trial-select-trigger studio-heat-free-display-scheme-trigger"
+              className="hpr-trial-select-trigger"
               aria-haspopup="listbox"
               aria-expanded={trialMenuOpen}
               onClick={() => setTrialMenuOpen((open) => !open)}
@@ -1462,18 +1462,18 @@ const HeatCapacityProcessReviewPanel: React.FC<HeatCapacityProcessReviewPanelPro
               </span>
               <ChevronDown
                 size={14}
-                className={`studio-heat-free-display-scheme-chevron ${trialMenuOpen ? 'studio-heat-free-display-scheme-chevron-open' : ''}`}
+                className={`hpr-trial-select-chevron ${trialMenuOpen ? 'hpr-trial-select-chevron-open' : ''}`}
               />
             </button>
             {trialMenuOpen ? (
-              <div className="hpr-trial-select-menu studio-heat-free-display-scheme-menu" role="listbox" aria-label={copy.processTitle}>
+              <div className="hpr-trial-select-menu" role="listbox" aria-label={copy.processTitle}>
                 {review.trialOptions.map((option) => (
                   <button
                     type="button"
                     role="option"
                     aria-selected={option.trialId === selectedTrialId}
                     key={option.trialId}
-                    className={option.trialId === selectedTrialId ? 'studio-heat-free-display-scheme-active' : ''}
+                    className={option.trialId === selectedTrialId ? 'hpr-trial-select-option-active' : ''}
                     onClick={() => {
                       onSelectedTrialChange(option.trialId);
                       setTrialMenuOpen(false);

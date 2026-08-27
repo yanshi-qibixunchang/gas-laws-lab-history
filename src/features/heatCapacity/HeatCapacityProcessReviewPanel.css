@@ -299,7 +299,16 @@
 
 .hpr-trial-select {
   position: relative;
+  z-index: 3;
+  display: inline-flex;
+  min-width: 210px;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
   margin-left: auto;
+  color: var(--studio-subtle);
+  font-size: 10px;
+  font-weight: 700;
 }
 
 .hpr-trial-select-trigger {
@@ -320,7 +329,7 @@
 
 .hpr-trial-select-trigger:hover,
 .hpr-trial-select-trigger:focus-visible,
-.hpr-trial-select.studio-heat-free-display-scheme-open .hpr-trial-select-trigger {
+.hpr-trial-select-open .hpr-trial-select-trigger {
   border-color: var(--studio-accent-border);
   background: var(--studio-accent-softer);
   outline: none;
@@ -331,6 +340,16 @@
   min-width: 0;
   flex-direction: column;
   gap: 1px;
+}
+
+.hpr-trial-select-chevron {
+  flex: 0 0 auto;
+  transform: rotate(0deg);
+  transition: transform 180ms ease;
+}
+
+.hpr-trial-select-chevron-open {
+  transform: rotate(180deg);
 }
 
 .hpr-trial-select-menu {
@@ -345,7 +364,7 @@
   border-radius: 6px;
   background: var(--studio-surface);
   box-shadow: 0 12px 28px rgba(7, 12, 18, 0.26);
-  animation: studioDisplaySchemeMenuIn 150ms ease both;
+  animation: hprTrialSelectMenuIn 150ms ease both;
 }
 
 .hpr-trial-select-menu button {
@@ -367,7 +386,7 @@
 
 .hpr-trial-select-menu button:hover,
 .hpr-trial-select-menu button:focus-visible,
-.hpr-trial-select-menu .studio-heat-free-display-scheme-active {
+.hpr-trial-select-menu .hpr-trial-select-option-active {
   background: rgba(79, 127, 184, 0.14);
   color: var(--studio-text);
   outline: none;
@@ -390,6 +409,18 @@
   line-height: 1.15;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@keyframes hprTrialSelectMenuIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .hpr-chart-shell {

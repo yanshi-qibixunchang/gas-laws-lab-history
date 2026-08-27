@@ -140,10 +140,12 @@ import {
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   shouldCommitHeatCapacityRealtimeTick,
   startHeatCapacityGuideWorkbenchState,
+  startPistonOscillationFreeWorkbenchState,
   startPistonOscillationGuideWorkbenchState,
   editPistonOscillationGuideParameterWorkbenchState,
   commitPistonOscillationGuideParameterWorkbenchState,
   transitionPistonOscillationGuideWorkbenchState,
+  transitionPistonOscillationFreeWorkbenchState,
   prepareNextHeatCapacityFreeExperimentWorkbenchState,
   submitHeatCapacityCalculationStepWorkbenchState,
   stepHeatCapacityWorkbenchFile,
@@ -464,6 +466,7 @@ import {
   PistonOscillationAcquisitionPanel,
   PistonOscillationCalculationWindow,
   PistonOscillationDataProcessingPanel,
+  PistonOscillationFreeSetupDialog,
   PistonOscillationInstrumentScene,
   PISTON_OSCILLATION_DEMO_DURATION_MS,
   createPistonOscillationDemoPlaybackChannel,
@@ -1376,7 +1379,7 @@ const getPistonOscillationGuideStrongMaskLayout = (
     if (right <= x || bottom <= y) return null;
     return { x, y, width: right - x, height: bottom - y, rx };
   };
-  const stage = root.querySelector<HTMLElement>('[data-piston-focus-interaction-preview="true"]');
+  const stage = root.querySelector<HTMLElement>('[data-piston-oscillation-interaction-workspace="true"]');
   const projectedCutout = (
     xAttribute: string | undefined,
     yAttribute: string | undefined,
@@ -1507,6 +1510,7 @@ const getPistonOscillationGuideStrongMaskLayout = (
     if (mainScrewCutout) contextCutouts.push(mainScrewCutout);
   }
   const obstacleSelectors = [
+    '[data-piston-operation-visualization-toggle-shell="true"]',
     '[data-piston-oscillation-guide-step-panel="true"]',
     '[data-piston-focus-panel]',
     '[data-piston-focus-interaction-hints="true"]',
@@ -5564,6 +5568,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     useState<HeatCapacityBatchGroupCount | null>(null);
   const [heatCapacityBatchSetupRequestedFileId, setHeatCapacityBatchSetupRequestedFileId] =
     useState<string | null>(null);
+  const [pistonOscillationFreeSetupRequestedFileId, setPistonOscillationFreeSetupRequestedFileId] =
+    useState<string | null>(null);
   const [heatCapacityCalculationReviewOpen, setHeatCapacityCalculationReviewOpen] =
     useState(false);
   const [pistonOscillationCalculationReviewOpen, setPistonOscillationCalculationReviewOpen] =
@@ -6273,6 +6279,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.kind === 'heatCapacityPistonOscillation'
       ? activeFile.pistonOscillationGuideSession
       : null;
+  const activePistonOscillationFreeSession =
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationFreeSession
+      : null;
+  const activePistonOscillationFreeSelected =
+    activePistonOscillationFreeSession?.status === 'active';
+  const pistonOscillationFreeSetupOpen =
+    activeFile.kind === 'heatCapacityPistonOscillation'
+    && pistonOscillationFreeSetupRequestedFileId === activeFile.id
+    && activeFile.pistonOscillationFreeSession.status === 'idle';
   const pistonOscillationMandatoryDataProcessing = Boolean(
     activePistonOscillationGuideSession?.status === 'active'
     && (
@@ -6318,7 +6334,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       ? false
       : activePistonOscillationGuideSelected
         ? activeFile.pistonOscillationGuideSession.powerOn
-        : pistonOscillationPowerOnByFileId[activeFile.id] ?? false
+        : activePistonOscillationFreeSelected
+          ? activeFile.pistonOscillationFreeSession.powerOn
+          : pistonOscillationPowerOnByFileId[activeFile.id] ?? false
     : false;
   const activePistonOscillationGuideTimeFrozen =
     activePistonOscillationGuideSession?.heightReset !== null;
@@ -6645,6 +6663,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.id,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
   ]);
+  useEffect(() => {
+    setPistonOscillationFreeSetupRequestedFileId(null);
+  }, [activeFile.id]);
   const effectiveParametersCollapsed = parametersCollapsed;
   const activeHeatCapacityPressureAlarmVisible = heatCapacityPressureAlarmVisible &&
     activeFile.kind === 'heatCapacity' &&
@@ -8303,10 +8324,96 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       }]));
       return;
     }
+    if (liveFile.pistonOscillationFreeSession.status === 'active') {
+      updateFileById(fileId, (file) => file.kind === 'heatCapacityPistonOscillation'
+        ? transitionPistonOscillationFreeWorkbenchState(file, {
+            type: 'setPower',
+            powerOn,
+            nowMs: Date.now(),
+          })
+        : file);
+      return;
+    }
     setPistonOscillationPowerOnByFileId((current) => ({
       ...current,
       [fileId]: powerOn,
     }));
+  };
+
+  const activatePistonOscillationFreeMode = (
+    targetHeightsMm: readonly number[] | null,
+  ) => {
+    if (desktopExitQuiescedRef.current) return;
+    const fileId = activeFileIdRef.current;
+    const liveFile = filesRef.current.find((file) => file.id === fileId);
+    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
+    const nowMs = Date.now();
+    const demoSession = createDefaultPistonOscillationDemoSession(nowMs);
+    const nextFiles = filesRef.current.map((file) => {
+      if (file.id !== fileId || file.kind !== 'heatCapacityPistonOscillation') return file;
+      const guideSelected = file.pistonOscillationGuideSession.status === 'active'
+        || (
+          file.pistonOscillationGuideSession.status === 'completed'
+          && !file.pistonOscillationGuideSession.completionExited
+        );
+      let nextFile = guideSelected
+        ? transitionPistonOscillationGuideWorkbenchState(file, {
+            type: 'exitSession',
+            nowMs,
+          })
+        : file;
+      nextFile = startPistonOscillationFreeWorkbenchState(nextFile, nowMs);
+      if (targetHeightsMm !== null) {
+        nextFile = transitionPistonOscillationFreeWorkbenchState(nextFile, {
+          type: 'setPlan',
+          targetHeightsMm,
+          nowMs,
+        });
+      }
+      return {
+        ...nextFile,
+        pistonOscillationDemoSession: demoSession,
+        updatedAt: nowMs,
+      };
+    });
+    clearPistonOscillationGuideCompletionToast();
+    filesRef.current = nextFiles;
+    setFiles(nextFiles);
+    scheduleWorkspacePersistenceRef.current('semantic');
+    void flushWorkspacePersistenceRef.current();
+    pistonOscillationDemoPlaybackChannel.publish({
+      fileId: null,
+      phase: 'idle',
+      elapsedMs: 0,
+    });
+    setPistonOscillationDemoPlayback({ fileId: null, phase: 'idle', elapsedMs: 0 });
+    setPistonOscillationPowerOnByFileId((current) => ({
+      ...current,
+      [fileId]: false,
+    }));
+    setPistonOscillationMeasurementCyclesByFileId((current) => ({
+      ...current,
+      [fileId]: (current[fileId] ?? 0) + 1,
+    }));
+    setPistonOscillationFreeSetupRequestedFileId(null);
+    setLeftCollapsed(true);
+    setParametersCollapsed(true);
+  };
+
+  const pausePistonOscillationFreeMode = () => {
+    const fileId = activeFileIdRef.current;
+    const nowMs = Date.now();
+    updateFileById(fileId, (file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, {
+          type: 'pause',
+          nowMs,
+        })
+      : file);
+    setPistonOscillationPowerOnByFileId((current) => ({
+      ...current,
+      [fileId]: false,
+    }));
+    setLeftCollapsed(false);
   };
 
   const handlePistonOscillationGuideActionAttempt = (
@@ -21739,6 +21846,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       );
     const guideCompleted = activeFile.pistonOscillationGuideSession.status === 'completed';
     const guideSelected = !demoSelected && guideSessionSelected;
+    const freeSelected = !demoSelected
+      && !guideSelected
+      && activeFile.pistonOscillationFreeSession.status === 'active';
     const commitPistonTeachingModeFile = (
       updater: (file: WorkbenchFileState) => WorkbenchFileState,
     ) => {
@@ -21778,12 +21888,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       clearPistonOscillationGuideCompletionToast();
       commitPistonTeachingModeFile((file) => {
         if (file.kind !== 'heatCapacityPistonOscillation') return file;
-        const nextFile = guideSessionSelected
+        let nextFile = guideSessionSelected
           ? transitionPistonOscillationGuideWorkbenchState(file, {
               type: 'exitSession',
               nowMs,
             })
           : file;
+        if (nextFile.pistonOscillationFreeSession.status === 'active') {
+          nextFile = transitionPistonOscillationFreeWorkbenchState(nextFile, {
+            type: 'pause',
+            nowMs,
+          });
+        }
         return {
           ...nextFile,
           pistonOscillationDemoSession: demoSession,
@@ -21801,7 +21917,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const startDemo = () => {
       if (demoSelected) return;
       const unfinishedGuide = guideSessionSelected && !guideCompleted;
-      if (unfinishedGuide) {
+      if (unfinishedGuide || freeSelected) {
         requestPistonTeachingModeSwitch(activateDemo);
         return;
       }
@@ -21870,13 +21986,19 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       const demoSession = createDefaultPistonOscillationDemoSession(nowMs);
       commitPistonTeachingModeFile((file) => {
         if (file.kind !== 'heatCapacityPistonOscillation') return file;
-        const nextFile = file.pistonOscillationGuideSession.status === 'completed'
-          && file.pistonOscillationGuideSession.completionExited
-          ? transitionPistonOscillationGuideWorkbenchState(file, {
+        const freePausedFile = file.pistonOscillationFreeSession.status === 'active'
+          ? transitionPistonOscillationFreeWorkbenchState(file, {
+              type: 'pause',
+              nowMs,
+            })
+          : file;
+        const nextFile = freePausedFile.pistonOscillationGuideSession.status === 'completed'
+          && freePausedFile.pistonOscillationGuideSession.completionExited
+          ? transitionPistonOscillationGuideWorkbenchState(freePausedFile, {
               type: 'reopenCompletedSession',
               nowMs,
             })
-          : startPistonOscillationGuideWorkbenchState(file);
+          : startPistonOscillationGuideWorkbenchState(freePausedFile);
         return {
           ...nextFile,
           pistonOscillationDemoSession: demoSession,
@@ -21893,7 +22015,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     };
     const startGuide = () => {
       if (guideSelected) return;
-      if (demoRunning || demoPaused) {
+      if (demoRunning || demoPaused || freeSelected) {
         requestPistonTeachingModeSwitch(activateGuide);
         return;
       }
@@ -21934,8 +22056,33 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         [activeFile.id]: false,
       }));
     };
-    const pistonModeExpanded = demoSelected || guideSelected;
-    const pistonModeName = demoSelected ? 'demo' : guideSelected ? 'guide' : 'explore';
+    const requestFreeSetup = () => {
+      setPistonOscillationFreeSetupRequestedFileId(activeFile.id);
+    };
+    const startFree = () => {
+      if (freeSelected) return;
+      const resumeOrConfigure = activeFile.pistonOscillationFreeSession.status === 'paused'
+        ? () => activatePistonOscillationFreeMode(null)
+        : requestFreeSetup;
+      const unfinishedGuide = guideSessionSelected && !guideCompleted;
+      if (demoRunning || demoPaused || unfinishedGuide) {
+        requestPistonTeachingModeSwitch(resumeOrConfigure);
+        return;
+      }
+      resumeOrConfigure();
+    };
+    const exitFree = () => {
+      if (!freeSelected) return;
+      pausePistonOscillationFreeMode();
+    };
+    const pistonModeExpanded = demoSelected || guideSelected || freeSelected;
+    const pistonModeName = demoSelected
+      ? 'demo'
+      : guideSelected
+        ? 'guide'
+        : freeSelected
+          ? 'free'
+          : 'explore';
 
     return (
       <div className="studio-heat-mode-control-row">
@@ -22056,19 +22203,35 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             </div>
           </div>
           <div
-            className="studio-heat-mode-segment studio-piston-mode-segment-disabled"
+            className={`studio-heat-mode-segment studio-heat-mode-segment-free ${freeSelected ? 'studio-heat-mode-segment-active' : ''}`}
             data-piston-oscillation-mode-segment="free"
           >
             <button
               type="button"
-              className="studio-heat-mode-button"
+              className={`studio-heat-mode-button ${freeSelected ? 'studio-heat-mode-button-active' : ''}`}
               data-piston-oscillation-mode="free"
-              data-prompt-tooltip={labels.unavailable}
-              aria-label={`${labels.free} · ${labels.unavailable}`}
-              disabled
+              aria-pressed={freeSelected}
+              onClick={startFree}
             >
               {labels.free}
             </button>
+            <div
+              className="studio-heat-mode-actions studio-heat-mode-actions-free"
+              aria-hidden={!freeSelected}
+            >
+              {freeSelected ? (
+                <button
+                  type="button"
+                  className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
+                  data-piston-oscillation-mode-action="exit-free"
+                  data-prompt-tooltip={labels.exitFree}
+                  aria-label={labels.exitFree}
+                  onClick={exitFree}
+                >
+                  <Square size={12} strokeWidth={2.8} />
+                </button>
+              ) : null}
+            </div>
           </div>
         </div>
         <button
@@ -23371,6 +23534,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               guideTimeFrozen={
                 activePistonOscillationGuideTimeFrozen
                 || pistonOscillationGuideLessonDialog !== null
+                || pistonOscillationFreeSetupOpen
               }
               guideVisualCue={pistonGuideVisualCue}
               guideRequestedFocusMode={pistonGuideRequestedFocusMode}
@@ -26091,6 +26255,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         onSelectedCountChange={setHeatCapacityBatchSetupSelection}
         onCancel={cancelHeatCapacityFreeBatchSetup}
         onConfirm={confirmHeatCapacityFreeBatchSetup}
+      />
+      <PistonOscillationFreeSetupDialog
+        open={pistonOscillationFreeSetupOpen}
+        language={settingsLanguagePreference}
+        initialTargetHeightsMm={activeFile.kind === 'heatCapacityPistonOscillation'
+          ? activeFile.pistonOscillationFreeSession.experimentPlan.targetHeightsMm
+          : undefined}
+        onCancel={() => setPistonOscillationFreeSetupRequestedFileId(null)}
+        onConfirm={(targetHeightsMm) => {
+          activatePistonOscillationFreeMode(targetHeightsMm);
+        }}
       />
       <HeatCapacityReportExportDialog
         open={heatCapacityReportExportOpen && activeFile.kind === 'heatCapacity'}

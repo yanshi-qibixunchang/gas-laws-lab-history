@@ -75,6 +75,7 @@ const PISTON_OSCILLATION_FILE_KEYS = [
   'pistonOscillationLessonIntroAutoShown',
   'pistonOscillationDemoSession',
   'pistonOscillationGuideSession',
+  'pistonOscillationFreeSession',
   'pistonOscillationMaterialsExpanded',
 ] as const;
 
@@ -425,5 +426,8 @@ export const isCanonicalPistonOscillationWorkspaceFile = (
       fallback.pistonOscillationDemoSession.schemaVersion &&
     isPersistenceRecord(value.pistonOscillationGuideSession) &&
     value.pistonOscillationGuideSession.schemaVersion ===
-      fallback.pistonOscillationGuideSession.schemaVersion;
+      fallback.pistonOscillationGuideSession.schemaVersion &&
+    isPersistenceRecord(value.pistonOscillationFreeSession) &&
+    value.pistonOscillationFreeSession.schemaVersion ===
+      fallback.pistonOscillationFreeSession.schemaVersion;
 };

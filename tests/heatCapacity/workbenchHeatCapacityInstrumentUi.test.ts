@@ -564,18 +564,18 @@ assert.match(processReviewPanelSource, /data-hpr-scroll-window="true"/, 'process
 assert.match(processReviewPanelSource, /data-hpr-trial-select="true"/, 'process review should expose a group-selection menu');
 assert.match(
   processReviewPanelSource,
-  /className=\{`hpr-trial-select studio-heat-free-display-scheme-control \$\{trialMenuOpen \? 'studio-heat-free-display-scheme-open' : ''\}`\}/,
-  'process review group selector should reuse the shared display-scheme dropdown control shell',
+  /className=\{`hpr-trial-select \$\{trialMenuOpen \? 'hpr-trial-select-open' : ''\}`\}/,
+  'process review group selector should own one unambiguous control shell',
 );
 assert.match(
   processReviewPanelSource,
-  /className="hpr-trial-select-trigger studio-heat-free-display-scheme-trigger"[\s\S]*<ChevronDown[\s\S]*studio-heat-free-display-scheme-chevron/,
-  'process review group selector should reuse the shared dropdown trigger and animated chevron',
+  /className="hpr-trial-select-trigger"[\s\S]*<ChevronDown[\s\S]*hpr-trial-select-chevron/,
+  'process review group selector should use its dedicated trigger and animated chevron',
 );
 assert.match(
   processReviewPanelSource,
-  /className="hpr-trial-select-menu studio-heat-free-display-scheme-menu"[\s\S]*className=\{option\.trialId === selectedTrialId \? 'studio-heat-free-display-scheme-active' : ''\}/,
-  'process review group selector menu should reuse the shared menu and active option styling',
+  /className="hpr-trial-select-menu"[\s\S]*className=\{option\.trialId === selectedTrialId \? 'hpr-trial-select-option-active' : ''\}/,
+  'process review group selector menu should use its dedicated menu and active option styling',
 );
 assert.match(
   processReviewStyleSource,
@@ -584,8 +584,8 @@ assert.match(
 );
 assert.match(
   processReviewStyleSource,
-  /\.hpr-trial-select-menu\s*\{[\s\S]*z-index:\s*6;[\s\S]*min-width:\s*142px;[\s\S]*border:\s*1px solid var\(--studio-accent-border\);[\s\S]*border-radius:\s*6px;[\s\S]*animation:\s*studioDisplaySchemeMenuIn 150ms ease both;/,
-  'process review group selector menu should match the display-scheme dropdown border, radius, width, and animation',
+  /\.hpr-trial-select-menu\s*\{[\s\S]*z-index:\s*6;[\s\S]*min-width:\s*142px;[\s\S]*border:\s*1px solid var\(--studio-accent-border\);[\s\S]*border-radius:\s*6px;[\s\S]*animation:\s*hprTrialSelectMenuIn 150ms ease both;/,
+  'process review group selector menu should retain its reviewed border, radius, width, and animation',
 );
 assert.match(processReviewPanelSource, /trialOptions\.map/, 'process review menu should list all reviewable groups');
 assert.match(processReviewPanelSource, /onSelectedTrialChange/, 'process review menu should report selected group changes to the workbench');
@@ -2359,7 +2359,7 @@ assert.match(styleSource, /\.studio-heat-free-params\.is-ideal-readonly[\s\S]*op
 assert.match(leftPanelSource, /groupCollection:[\s\S]*selectViewedHeatCapacityFreeExperimentGroup\(groupCollection\)/, 'Heat Capacity left panel should derive the viewed real-or-ideal scheme from the selected experiment group');
 assert.match(leftPanelSource, /<HeatCapacityExperimentGroupContextBar/, 'data/results should render the shared experiment-group and experiment selector');
 assert.doesNotMatch(`${leftPanelSource}\n${workbenchSource}`, /studio-heat-free-display-scheme-select/, 'real/ideal display switching should not use the browser-native select menu');
-assert.match(styleSource, /\.studio-heat-free-display-scheme-trigger[\s\S]*\.studio-heat-free-display-scheme-menu[\s\S]*\.studio-heat-free-display-scheme-active/, 'real/ideal display menus should share the custom language-menu visual pattern');
+assert.doesNotMatch(`${processReviewPanelSource}\n${processReviewStyleSource}\n${styleSource}`, /studio-heat-free-display-scheme-(?:control|open|trigger|chevron|menu|active)/, 'the removed display-scheme component must not leave reusable-looking class names behind');
 assert.match(`${leftPanelSource}\n${processReviewPanelSource}`, /理想实验条件不参与评分。/, 'ideal process review should explain why scoring is omitted');
 assert.match(processReviewPanelSource, /operationScore[\s\S]*--/, 'ideal process review should render scoring as placeholders');
 assert.match(workbenchSource, /acknowledgeHeatCapacityFreeFileNoticeWorkbenchState[\s\S]*advancedParametersRisk/, 'advanced risk confirmation should persist through the shared file acknowledgement object');

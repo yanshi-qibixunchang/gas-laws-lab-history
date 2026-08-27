@@ -1,21 +1,17 @@
 export {
-  PistonOscillationPreviewPlaceholder,
-  type PistonOscillationPreviewPlaceholderProps,
-} from './PistonOscillationPreviewPlaceholder.tsx';
-export {
   PistonOscillationInstrumentScene,
   type PistonOscillationInstrumentSceneProps,
 } from './PistonOscillationInstrumentScene.tsx';
 export {
   PistonOscillationInteractionWorkspace,
-  type FocusPreviewMode,
+  type PistonOscillationFocusMode,
   type PistonOscillationGuideInstrumentSnapshot,
   type PistonOscillationGuideActionAttempt,
   type PistonOscillationGuideHeightResetRequest,
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideVisualCue,
   type PistonOscillationInteractionWorkspaceProps,
-} from './PistonOscillationFocusInteractionPreviewPage.tsx';
+} from './PistonOscillationInteractionWorkspace.tsx';
 export {
   PistonOscillationAcquisitionPanel,
   type PistonOscillationGuideAcquisitionCue,
@@ -32,6 +28,12 @@ export {
   type PistonOscillationCalculationWindowProps,
   type PistonOscillationFitCalloutCorner,
 } from './PistonOscillationCalculationWindow.tsx';
+export {
+  PistonOscillationFreeSetupDialog,
+  PISTON_OSCILLATION_FREE_COUNT_OPTIONS,
+  type PistonOscillationFreeMeasurementCount,
+  type PistonOscillationFreeSetupDialogProps,
+} from './PistonOscillationFreeSetupDialog.tsx';
 export {
   PISTON_OSCILLATION_CALCULATION_COPY,
   getPistonOscillationCalculationCopy,

@@ -62,7 +62,6 @@ import {
   PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA,
   getPistonHeightAdjustmentCameraDefinition,
   type PistonOscillationFocusCameraDefinition,
-  type PistonOscillationOrthographicCameraDefinition,
 } from './pistonOscillationFocusViews.ts';
 import {
   getPistonOscillationAutomaticOperationMirrorView,
@@ -70,10 +69,7 @@ import {
   type PistonOscillationHeightAdjustmentStage,
   type PistonOscillationOperationMirrorView,
 } from './pistonOscillationOperationMirror.ts';
-import {
-  PistonOscillationAcquisitionPanel,
-  type PistonOscillationReleaseEvent,
-} from './PistonOscillationAcquisitionPanel.tsx';
+import type { PistonOscillationReleaseEvent } from './PistonOscillationAcquisitionPanel.tsx';
 import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
 import {
   PistonOscillationOperationCueView,
@@ -93,44 +89,10 @@ import {
   type PistonOscillationLanguage,
 } from './pistonOscillationCopy.ts';
 import '../workbench/WorkbenchStudioPrototype.css';
-import './PistonOscillationFocusInteractionPreviewPage.css';
+import './PistonOscillationInteractionWorkspace.css';
 
-export type FocusPreviewMode = 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
-export type PistonOscillationCameraCalibrationView =
-  | Exclude<FocusPreviewMode, 'powerFocus'>
-  | 'heightAdjustmentFocus'
-  | 'screwOperationView'
-  | 'scaleReadingView';
-
-export interface PistonOscillationCameraCalibrationSnapshot {
-  view: PistonOscillationCameraCalibrationView;
-  projection: 'perspective' | 'orthographic';
-  viewport: {
-    width: number;
-    height: number;
-    aspect: number;
-  };
-  position: [number, number, number];
-  target: [number, number, number];
-  fov: number | null;
-  zoom: number;
-  distance: number;
-  near: number;
-  far: number;
-  calibrationHeightMm?: number;
-  scaleReadingCenterHeightMm?: number;
-  orthographic?: {
-    left: number;
-    right: number;
-    top: number;
-    bottom: number;
-    visibleHeightMm: number;
-  };
-}
-
-export type PistonOscillationCameraCalibrationCapture =
-  () => PistonOscillationCameraCalibrationSnapshot;
-export type HosePreviewState = 'connected' | 'disconnected';
+export type PistonOscillationFocusMode = 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
+export type PistonOscillationHoseConnectionState = 'connected' | 'disconnected';
 export type PistonInteractionPhase =
   | 'idle'
   | 'ready'
@@ -142,8 +104,8 @@ export type PistonInteractionPhase =
 type PistonPlatformMode = 'press' | 'adjustHeight' | 'screwLocked';
 
 export interface PistonOscillationGuideInstrumentSnapshot {
-  focusMode: FocusPreviewMode;
-  hoseState: HosePreviewState;
+  focusMode: PistonOscillationFocusMode;
+  hoseState: PistonOscillationHoseConnectionState;
   hoseDragging: boolean;
   equilibriumHeightMm: number;
   lockingScrewProgress: number;
@@ -181,19 +143,19 @@ export type PistonOscillationGuideVisualCue =
   | 'heightStageAction'
   | null;
 
-interface PreviewBounds {
+interface PistonOscillationSceneBounds {
   center: THREE.Vector3;
   span: number;
 }
 
-interface FocusPreviewPose extends PistonOscillationFocusCameraDefinition {}
+interface PistonOscillationFocusPose extends PistonOscillationFocusCameraDefinition {}
 
 interface CameraTransition {
   startedAtMs: number;
   fromPosition: THREE.Vector3;
   fromTarget: THREE.Vector3;
   fromFov: number;
-  toPose: FocusPreviewPose;
+  toPose: PistonOscillationFocusPose;
 }
 
 interface ProjectedHoseHandleBounds {
@@ -241,9 +203,9 @@ const createPistonOscillationPointerEvents: typeof createPointerEvents = (store)
   };
 };
 const createOverviewPose = (
-  bounds: PreviewBounds,
+  bounds: PistonOscillationSceneBounds,
   cameraPreset: WorkbenchPistonOscillationCameraPreset,
-): FocusPreviewPose => {
+): PistonOscillationFocusPose => {
   if (cameraPreset === 'overview') return PISTON_OSCILLATION_CONFIRMED_OVERVIEW_CAMERA;
   const scheme = PISTON_OSCILLATION_CAMERA_VIEW_SCHEMES[cameraPreset];
   const target = bounds.center.clone().add(new THREE.Vector3(...scheme.targetOffset));
@@ -262,9 +224,9 @@ const createOverviewPose = (
 };
 
 export const offsetPistonOscillationOverviewPoseForHeight = (
-  pose: FocusPreviewPose,
+  pose: PistonOscillationFocusPose,
   heightMm: number,
-): FocusPreviewPose => {
+): PistonOscillationFocusPose => {
   const heightOffsetM = clampPistonEquilibriumHeightMm(heightMm) / 1000;
   return {
     ...pose,
@@ -277,7 +239,7 @@ export const offsetPistonOscillationOverviewPoseForHeight = (
 const applyPose = (
   camera: THREE.PerspectiveCamera,
   controls: OrbitControlsImpl,
-  pose: FocusPreviewPose,
+  pose: PistonOscillationFocusPose,
 ) => {
   camera.position.set(...pose.position);
   camera.fov = pose.fov;
@@ -289,37 +251,6 @@ const applyPose = (
   controls.update();
 };
 
-const getPerspectivePoseFromCalibrationSnapshot = (
-  snapshot: PistonOscillationCameraCalibrationSnapshot | undefined,
-): FocusPreviewPose | undefined => {
-  if (!snapshot || snapshot.projection !== 'perspective' || snapshot.fov === null) {
-    return undefined;
-  }
-  return {
-    viewport: { ...snapshot.viewport },
-    position: [...snapshot.position],
-    target: [...snapshot.target],
-    fov: snapshot.fov,
-    zoom: snapshot.zoom,
-    near: snapshot.near,
-    far: snapshot.far,
-  };
-};
-
-const getOrthographicPoseFromCalibrationSnapshot = (
-  snapshot: PistonOscillationCameraCalibrationSnapshot | undefined,
-): PistonOscillationOrthographicCameraDefinition | undefined => {
-  if (!snapshot || snapshot.projection !== 'orthographic') return undefined;
-  return {
-    viewport: { ...snapshot.viewport },
-    position: [...snapshot.position],
-    target: [...snapshot.target],
-    zoom: snapshot.zoom,
-    near: snapshot.near,
-    far: snapshot.far,
-  };
-};
-
 const MainCameraRig = ({
   bounds,
   mode,
@@ -329,10 +260,10 @@ const MainCameraRig = ({
   controlsRef,
   onTransitionActiveChange,
 }: {
-  bounds: PreviewBounds | null;
-  mode: FocusPreviewMode;
+  bounds: PistonOscillationSceneBounds | null;
+  mode: PistonOscillationFocusMode;
   cameraPreset: WorkbenchPistonOscillationCameraPreset;
-  poseOverride?: FocusPreviewPose;
+  poseOverride?: PistonOscillationFocusPose;
   poseKeyOverride?: string;
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
   onTransitionActiveChange: (active: boolean) => void;
@@ -410,7 +341,7 @@ const FixedCameraRig = ({
   pose,
   controlsRef,
 }: {
-  pose: FocusPreviewPose;
+  pose: PistonOscillationFocusPose;
   controlsRef?: React.MutableRefObject<OrbitControlsImpl | null>;
 }) => {
   const camera = useThree((state) => state.camera);
@@ -468,11 +399,9 @@ const HeightFollowingCameraRig = ({
 
 const ScaleReadingCameraRig = ({
   heightMm: _heightMm,
-  pose,
   controlsRef,
 }: {
   heightMm: number;
-  pose?: PistonOscillationOrthographicCameraDefinition;
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
 }) => {
   const camera = useThree((state) => state.camera);
@@ -486,7 +415,7 @@ const ScaleReadingCameraRig = ({
     if (!(camera instanceof THREE.OrthographicCamera)) return;
     const controls = controlsRef.current;
     if (!controls || appliedRef.current) return;
-    const initialPose = pose ?? PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA;
+    const initialPose = PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA;
     camera.position.set(...initialPose.position);
     camera.zoom = initialPose.zoom * (size.height / initialPose.viewport.height);
     camera.near = initialPose.near;
@@ -496,7 +425,7 @@ const ScaleReadingCameraRig = ({
     controls.update();
     appliedRef.current = true;
     invalidate();
-  }, [camera, controlsRef, invalidate, pose, size.height]);
+  }, [camera, controlsRef, invalidate, size.height]);
 
   useFrame(() => {
     if (!(camera instanceof THREE.OrthographicCamera)) return;
@@ -528,77 +457,6 @@ const ScaleReadingCameraRig = ({
     controls.update();
     invalidate();
   });
-
-  return null;
-};
-
-const roundCameraValue = (value: number) => Number(value.toFixed(4));
-
-const CameraCalibrationBridge = ({
-  view,
-  controlsRef,
-  onCaptureHandlerChange,
-}: {
-  view: PistonOscillationCameraCalibrationView;
-  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
-  onCaptureHandlerChange: (
-    handler: PistonOscillationCameraCalibrationCapture | null,
-  ) => void;
-}) => {
-  const camera = useThree((state) => state.camera);
-  const gl = useThree((state) => state.gl);
-  const size = useThree((state) => state.size);
-
-  useEffect(() => {
-    if (
-      !(camera instanceof THREE.PerspectiveCamera)
-      && !(camera instanceof THREE.OrthographicCamera)
-    ) {
-      onCaptureHandlerChange(null);
-      return undefined;
-    }
-
-    const capture: PistonOscillationCameraCalibrationCapture = () => {
-      const controls = controlsRef.current;
-      const target = controls?.target ?? new THREE.Vector3();
-      const width = gl.domElement.offsetWidth || Math.round(size.width);
-      const height = gl.domElement.offsetHeight || Math.round(size.height);
-      const perspective = camera instanceof THREE.PerspectiveCamera;
-      const orthographic = camera instanceof THREE.OrthographicCamera;
-      const normalizedZoom = orthographic && size.height > 0
-        ? camera.zoom * (height / size.height)
-        : camera.zoom;
-      return {
-        view,
-        projection: perspective ? 'perspective' : 'orthographic',
-        viewport: {
-          width,
-          height,
-          aspect: roundCameraValue(height > 0 ? width / height : 0),
-        },
-        position: camera.position.toArray().map(roundCameraValue) as [number, number, number],
-        target: target.toArray().map(roundCameraValue) as [number, number, number],
-        fov: perspective ? roundCameraValue(camera.fov) : null,
-        zoom: roundCameraValue(normalizedZoom),
-        distance: roundCameraValue(camera.position.distanceTo(target)),
-        near: roundCameraValue(camera.near),
-        far: roundCameraValue(camera.far),
-        ...(orthographic ? {
-          orthographic: {
-            left: roundCameraValue(-width / 2),
-            right: roundCameraValue(width / 2),
-            top: roundCameraValue(height / 2),
-            bottom: roundCameraValue(-height / 2),
-            visibleHeightMm: roundCameraValue(
-              (height / normalizedZoom) * 1000,
-            ),
-          },
-        } : {}),
-      };
-    };
-    onCaptureHandlerChange(capture);
-    return () => onCaptureHandlerChange(null);
-  }, [camera, controlsRef, gl.domElement, onCaptureHandlerChange, size.height, size.width, view]);
 
   return null;
 };
@@ -903,7 +761,7 @@ const PistonPlatformControl = ({
   return (
     <mesh
       ref={hitTargetRef}
-      name="HIT_PistonPlatform_FocusPreview"
+      name="HIT_PistonPlatform_InteractionWorkspace"
       visible={enabled}
       userData={{
         hitTargetId: 'piston_platform_focus_preview',
@@ -1147,7 +1005,7 @@ const OperationMirrorScrewControl = ({
   );
 };
 
-const PreviewLighting = ({
+const PistonOscillationSceneLighting = ({
   sceneTheme = 'light',
   scaleReadingDetail = false,
 }: {
@@ -1227,7 +1085,7 @@ const OperationMirrorFrameReadyBridge = ({
   return null;
 };
 
-const PreviewModel = ({
+const PistonOscillationSceneModel = ({
   powerOn = false,
   powerPressProgress = 0,
   powerInteractionEnabled = false,
@@ -1260,7 +1118,7 @@ const PreviewModel = ({
   powerOn?: boolean;
   powerPressProgress?: number;
   powerInteractionEnabled?: boolean;
-  hoseState: HosePreviewState;
+  hoseState: PistonOscillationHoseConnectionState;
   hoseInteractionEnabled?: boolean;
   hoseDragging?: boolean;
   hoseWithinMagneticRange?: boolean;
@@ -1278,7 +1136,7 @@ const PreviewModel = ({
   operationMirrorView?: PistonOscillationOperationMirrorView;
   onOperationMirrorFrameReady?: (view: PistonOscillationOperationMirrorView) => void;
   interactionEnabled?: boolean;
-  onBoundsReady: (bounds: PreviewBounds) => void;
+  onBoundsReady: (bounds: PistonOscillationSceneBounds) => void;
   onPistonFocusRequest?: () => void;
   onPowerPress?: () => void;
   onHoseHoverChange?: (hovered: boolean) => void;
@@ -1333,8 +1191,8 @@ const PreviewModel = ({
 );
 
 const getInteractionHints = (
-  mode: FocusPreviewMode,
-  hoseState: HosePreviewState,
+  mode: PistonOscillationFocusMode,
+  hoseState: PistonOscillationHoseConnectionState,
   lockingScrewLocked: boolean,
   copy: ReturnType<typeof getPistonOscillationShellCopy>['interaction'],
 ) => {
@@ -1350,20 +1208,8 @@ export interface PistonOscillationInteractionWorkspaceProps {
   language?: PistonOscillationLanguage;
   powerOn?: boolean;
   onPowerToggle?: (powerOn: boolean) => void;
-  acquisitionPreview?: boolean;
-  embedded?: boolean;
-  initialMode?: FocusPreviewMode;
+  initialMode?: PistonOscillationFocusMode;
   cameraPreset?: WorkbenchPistonOscillationCameraPreset;
-  cameraCalibrationView?: PistonOscillationCameraCalibrationView;
-  cameraCalibrationHeightMm?: number;
-  cameraCalibrationInitialSnapshot?: PistonOscillationCameraCalibrationSnapshot;
-  cameraCalibrationReviewSnapshots?: Partial<Record<
-    PistonOscillationCameraCalibrationView,
-    PistonOscillationCameraCalibrationSnapshot
-  >>;
-  onCameraCalibrationCaptureHandlerChange?: (
-    handler: PistonOscillationCameraCalibrationCapture | null,
-  ) => void;
   sceneTheme?: 'light' | 'dark';
   overviewRevision?: number;
   measurementCycleRevision?: number;
@@ -1406,15 +1252,8 @@ export const PistonOscillationInteractionWorkspace = ({
   language = 'zh-CN',
   powerOn = false,
   onPowerToggle,
-  acquisitionPreview = false,
-  embedded = false,
   initialMode = 'pistonFocus',
   cameraPreset = 'overview',
-  cameraCalibrationView,
-  cameraCalibrationHeightMm,
-  cameraCalibrationInitialSnapshot,
-  cameraCalibrationReviewSnapshots,
-  onCameraCalibrationCaptureHandlerChange,
   sceneTheme = 'light',
   overviewRevision = 0,
   measurementCycleRevision = 0,
@@ -1455,18 +1294,9 @@ export const PistonOscillationInteractionWorkspace = ({
   const handledOverviewRevisionRef = useRef(overviewRevision);
   const handledMeasurementCycleRevisionRef = useRef(measurementCycleRevision);
   const handledGuideSessionRevisionRef = useRef(guideSessionRevision);
-  const [mode, setMode] = useState<FocusPreviewMode>(initialMode);
-  const [bounds, setBounds] = useState<PreviewBounds | null>(null);
+  const [mode, setMode] = useState<PistonOscillationFocusMode>(initialMode);
+  const [bounds, setBounds] = useState<PistonOscillationSceneBounds | null>(null);
   const [transitionActive, setTransitionActive] = useState(false);
-  const heightAdjustmentCalibrationActive = cameraCalibrationView === 'heightAdjustmentFocus';
-  const scaleReadingCalibrationActive = cameraCalibrationView === 'scaleReadingView';
-  const heightFollowingCalibrationActive =
-    heightAdjustmentCalibrationActive || scaleReadingCalibrationActive;
-  const initialCalibrationHeightMmRef = useRef(
-    clampPistonEquilibriumHeightMm(
-      cameraCalibrationHeightMm ?? PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
-    ),
-  );
   const initialGuideHeightMm = clampPistonEquilibriumHeightMm(
     guideInitialInstrumentState?.equilibriumHeightMm
       ?? PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
@@ -1475,7 +1305,7 @@ export const PistonOscillationInteractionWorkspace = ({
     1,
     Math.max(0, guideInitialInstrumentState?.lockingScrewProgress ?? 0),
   );
-  const [hoseState, setHoseState] = useState<HosePreviewState>(
+  const [hoseState, setHoseState] = useState<PistonOscillationHoseConnectionState>(
     guideInitialInstrumentState?.hoseState ?? 'disconnected',
   );
   const [hoseDragging, setHoseDragging] = useState(false);
@@ -1522,8 +1352,6 @@ export const PistonOscillationInteractionWorkspace = ({
   );
   const [overviewPoseRevision, setOverviewPoseRevision] = useState(0);
   const [releaseGapMs, setReleaseGapMs] = useState<number | null>(null);
-  const [pistonReleaseEvent, setPistonReleaseEvent] =
-    useState<PistonOscillationReleaseEvent | null>(null);
   const releaseEventIdRef = useRef(0);
   const lockingScrewProgressRef = useRef(initialGuideScrewProgress);
   const spaceHeldRef = useRef(false);
@@ -1556,7 +1384,6 @@ export const PistonOscillationInteractionWorkspace = ({
   const screwGuideGestureAuthorizedActionRef =
     useRef<'tightenScrew' | 'loosenScrew' | null>(null);
   const screwGuideGestureRejectedRef = useRef(false);
-  const calibrationActive = cameraCalibrationView !== undefined;
   const demoActive = demoFrame !== undefined;
   const effectiveDemoPlaybackPhase = demoPlaybackPhase ?? (
     demoFrame?.completed ? 'completed' : demoFrame ? 'running' : 'idle'
@@ -1661,67 +1488,6 @@ export const PistonOscillationInteractionWorkspace = ({
     && parentTopRightPanelMode === 'hidden'
     ? 'visible'
     : parentTopRightPanelMode;
-  const calibrationMode: FocusPreviewMode | null =
-    cameraCalibrationView === 'screwOperationView'
-    || cameraCalibrationView === 'heightAdjustmentFocus'
-    || cameraCalibrationView === 'scaleReadingView'
-    ? 'pistonFocus'
-    : cameraCalibrationView ?? null;
-  const calibrationMainPoseOverride = useMemo(
-    () => {
-      const mainSnapshot = cameraCalibrationView === 'scaleReadingView'
-        ? cameraCalibrationReviewSnapshots?.heightAdjustmentFocus
-        : cameraCalibrationView === 'screwOperationView'
-          ? cameraCalibrationReviewSnapshots?.pistonFocus
-          : cameraCalibrationInitialSnapshot;
-      if (
-        cameraCalibrationView !== undefined
-      ) {
-        const capturedPose = getPerspectivePoseFromCalibrationSnapshot(
-          mainSnapshot,
-        );
-        if (capturedPose) return capturedPose;
-      }
-      return heightFollowingCalibrationActive
-        ? getPistonHeightAdjustmentCameraDefinition(initialCalibrationHeightMmRef.current)
-        : undefined;
-    }, [
-      cameraCalibrationInitialSnapshot,
-      cameraCalibrationReviewSnapshots,
-      cameraCalibrationView,
-      heightFollowingCalibrationActive,
-    ],
-  );
-  const screwOperationCalibrationPose = useMemo(
-    () => getPerspectivePoseFromCalibrationSnapshot(
-      cameraCalibrationReviewSnapshots?.screwOperationView
-      ?? (
-        cameraCalibrationView === 'screwOperationView'
-          ? cameraCalibrationInitialSnapshot
-          : undefined
-      ),
-    ),
-    [
-      cameraCalibrationInitialSnapshot,
-      cameraCalibrationReviewSnapshots,
-      cameraCalibrationView,
-    ],
-  );
-  const scaleReadingCalibrationPose = useMemo(
-    () => getOrthographicPoseFromCalibrationSnapshot(
-      cameraCalibrationReviewSnapshots?.scaleReadingView
-      ?? (
-        cameraCalibrationView === 'scaleReadingView'
-          ? cameraCalibrationInitialSnapshot
-          : undefined
-      ),
-    ),
-    [
-      cameraCalibrationInitialSnapshot,
-      cameraCalibrationReviewSnapshots,
-      cameraCalibrationView,
-    ],
-  );
   const focusActive = mode !== 'overview';
   const lockingScrewClampState = getPistonLockingScrewClampState(lockingScrewProgress);
   const lockingScrewLocked = lockingScrewClampState === 'locked';
@@ -1730,12 +1496,10 @@ export const PistonOscillationInteractionWorkspace = ({
     : hoseState === 'disconnected'
       ? 'adjustHeight'
       : 'press';
-  const formalHeightAdjustmentActive = !calibrationActive
-    && !demoActive
+  const formalHeightAdjustmentActive = !demoActive
     && mode === 'pistonFocus'
     && hoseState === 'disconnected';
-  const heightFollowingActive = heightFollowingCalibrationActive
-    || formalHeightAdjustmentActive;
+  const heightFollowingActive = formalHeightAdjustmentActive;
   const formalHeightAdjustmentPose = useMemo(
     () => formalHeightAdjustmentActive
       ? getPistonHeightAdjustmentCameraDefinition(pistonEquilibriumHeightMm)
@@ -1743,15 +1507,14 @@ export const PistonOscillationInteractionWorkspace = ({
     [formalHeightAdjustmentActive, pistonEquilibriumHeightMm],
   );
   const adaptiveOverviewPose = useMemo(() => (
-    !calibrationActive && mode === 'overview' && bounds
+    mode === 'overview' && bounds
       ? offsetPistonOscillationOverviewPoseForHeight(
         createOverviewPose(bounds, cameraPreset),
         overviewFramingHeightMm,
       )
       : undefined
-  ), [bounds, calibrationActive, cameraPreset, mode, overviewFramingHeightMm]);
-  const mainPoseOverride = calibrationMainPoseOverride
-    ?? formalHeightAdjustmentPose
+  ), [bounds, cameraPreset, mode, overviewFramingHeightMm]);
+  const mainPoseOverride = formalHeightAdjustmentPose
     ?? adaptiveOverviewPose;
   const automaticOperationMirrorView = getPistonOscillationAutomaticOperationMirrorView({
     hoseConnected: hoseState === 'connected',
@@ -1764,19 +1527,13 @@ export const PistonOscillationInteractionWorkspace = ({
       ? operationMirrorViewOverride.view
       : null;
   const operationMirrorView: PistonOscillationOperationMirrorView =
-    scaleReadingCalibrationActive
-      ? 'scaleReadingView'
-      : calibrationActive
-        ? 'screwOperationView'
-        : demoFrame?.operationMirrorView
-          ?? currentOperationMirrorViewOverride
-          ?? automaticOperationMirrorView;
+    demoFrame?.operationMirrorView
+      ?? currentOperationMirrorViewOverride
+      ?? automaticOperationMirrorView;
   const scaleReadingOperationMirrorActive = operationMirrorView === 'scaleReadingView';
   const screwOperationMirrorActive = operationMirrorView === 'screwOperationView';
-  const operationMirrorScrewPose = screwOperationCalibrationPose
-    ?? PISTON_OSCILLATION_CONFIRMED_FOCUS_CAMERAS.screwOperationView;
-  const operationMirrorScalePose = scaleReadingCalibrationPose
-    ?? PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA;
+  const operationMirrorScrewPose = PISTON_OSCILLATION_CONFIRMED_FOCUS_CAMERAS.screwOperationView;
+  const operationMirrorScalePose = PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA;
   const operationMirrorModelsReady = operationMirrorModelReady.scaleReadingView
     && operationMirrorModelReady.screwOperationView;
   const operationMirrorInitialFrameReady = operationMirrorModelsReady
@@ -1795,8 +1552,7 @@ export const PistonOscillationInteractionWorkspace = ({
       : operationMirrorMode === 'visible'
         ? 'is-visible'
         : 'is-hidden';
-  const heightStageActionVisible = !calibrationActive
-    && !demoActive
+  const heightStageActionVisible = !demoActive
     && mode === 'pistonFocus'
     && platformMode === 'adjustHeight';
   const heightStageActionEnabled = heightStageActionVisible
@@ -1834,7 +1590,7 @@ export const PistonOscillationInteractionWorkspace = ({
         ? 'hose'
       : null;
   const effectiveOperationCue = useMemo<PistonOscillationOperationCue | null>(() => {
-    if (!operationVisualizationEnabled || calibrationActive) return null;
+    if (!operationVisualizationEnabled) return null;
     if (demoFrame) return demoFrame.operationCue;
     if (showShiftOperationCue && shiftVisualizationActive) return { keys: ['shift'] };
     const keys: PistonOscillationOperationCue['keys'][number][] = [];
@@ -1848,7 +1604,6 @@ export const PistonOscillationInteractionWorkspace = ({
         : undefined,
     };
   }, [
-    calibrationActive,
     demoFrame,
     hoseDragging,
     mouseHeld,
@@ -1970,30 +1725,17 @@ export const PistonOscillationInteractionWorkspace = ({
   ]);
 
   useEffect(() => {
-    if (calibrationMode) setMode(calibrationMode);
-  }, [calibrationMode]);
-  useEffect(() => {
-    if (!guideRequestedFocusMode || calibrationActive || demoActive) return;
+    if (!guideRequestedFocusMode || demoActive) return;
     if (guideRequestedFocusMode === 'overview') {
       enterOverview();
       return;
     }
     setMode(guideRequestedFocusMode);
   }, [
-    calibrationActive,
     demoActive,
     enterOverview,
     guideRequestedFocusMode,
   ]);
-  useEffect(() => {
-    if (cameraCalibrationHeightMm === undefined) return;
-    const nextHeightMm = clampPistonEquilibriumHeightMm(cameraCalibrationHeightMm);
-    pistonEquilibriumHeightMmRef.current = nextHeightMm;
-    pistonOffsetMmRef.current = 0;
-    setPistonEquilibriumHeightMm(nextHeightMm);
-    setPistonOffsetMm(0);
-    setPistonPhase('idle');
-  }, [cameraCalibrationHeightMm]);
   useEffect(() => {
     if (!demoFrame) return;
     displayedDemoFrameRef.current = demoFrame;
@@ -2151,8 +1893,7 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [screwOperationMirrorActive]);
   useEffect(() => {
     if (
-      calibrationActive
-      || demoActive
+      demoActive
       || guideInteractionPaused
       || mode !== 'pistonFocus'
     ) return undefined;
@@ -2194,7 +1935,6 @@ export const PistonOscillationInteractionWorkspace = ({
       setShiftVisualizationActive(false);
     };
   }, [
-    calibrationActive,
     demoActive,
     guideInteractionPaused,
     hoseDragging,
@@ -2204,7 +1944,7 @@ export const PistonOscillationInteractionWorkspace = ({
     screwDragging,
     showShiftOperationCue,
   ]);
-  const handleBoundsReady = useCallback((nextBounds: PreviewBounds) => {
+  const handleBoundsReady = useCallback((nextBounds: PistonOscillationSceneBounds) => {
     setBounds((current) => current ?? nextBounds);
   }, []);
   const setPistonOffset = useCallback((nextOffsetMm: number) => {
@@ -2339,7 +2079,6 @@ export const PistonOscillationInteractionWorkspace = ({
     setOverviewFramingHeightMm(PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM);
     setOverviewPoseRevision((current) => current + 1);
     setReleaseGapMs(null);
-    setPistonReleaseEvent(null);
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
     guideHeightResetHandledRevisionRef.current = null;
@@ -2481,18 +2220,17 @@ export const PistonOscillationInteractionWorkspace = ({
       initialDisplacementMm,
     });
     const releaseStartedAtMs = performance.now();
-    if ((acquisitionPreview || onReleaseEvent) && initialDisplacementMm < -0.02) {
+    if (onReleaseEvent && initialDisplacementMm < -0.02) {
       releaseEventIdRef.current += 1;
       const releaseEvent: PistonOscillationReleaseEvent = {
         id: releaseEventIdRef.current,
         startedAtMs: releaseStartedAtMs,
         trajectory,
       };
-      setPistonReleaseEvent(releaseEvent);
-      onReleaseEvent?.(releaseEvent);
+      onReleaseEvent(releaseEvent);
     }
     startPistonRebound(trajectory, releaseStartedAtMs);
-  }, [acquisitionPreview, onReleaseEvent, setPistonOffset, startPistonRebound]);
+  }, [onReleaseEvent, setPistonOffset, startPistonRebound]);
   const handleMouseHeldChange = useCallback((held: boolean, releasedAtMs?: number) => {
     mouseHeldRef.current = held;
     setMouseHeld(held);
@@ -2529,12 +2267,6 @@ export const PistonOscillationInteractionWorkspace = ({
     }
     finishTwoHandRelease();
   }, [cancelPistonRebound, finishTwoHandRelease, platformMode]);
-  const selectHoseState = useCallback((nextState: HosePreviewState) => {
-    setHoseState(nextState);
-    setHoseDragging(false);
-    setHoseGhostOffset([0, 0, 0]);
-    setHoseWithinMagneticRange(nextState === 'connected');
-  }, []);
   const setHoseCameraClaim = useCallback((claimed: boolean) => {
     hoseCameraClaimedRef.current = claimed;
     const controls = controlsRef.current;
@@ -2601,7 +2333,7 @@ export const PistonOscillationInteractionWorkspace = ({
     setCameraGestureActive(false);
     const supportLostDuringDrag = hoseGuideSupportLostDuringDragRef.current;
     hoseGuideSupportLostDuringDragRef.current = false;
-    const nextHoseState: HosePreviewState = supportLostDuringDrag
+    const nextHoseState: PistonOscillationHoseConnectionState = supportLostDuringDrag
       ? 'disconnected'
       : withinMagneticRange
         ? 'connected'
@@ -2754,7 +2486,6 @@ export const PistonOscillationInteractionWorkspace = ({
   useEffect(() => {
     if (
       !onGuideActionAttempt
-      || calibrationActive
       || demoActive
       || guideInteractionPaused
       || guideHeightReset !== null
@@ -2775,7 +2506,6 @@ export const PistonOscillationInteractionWorkspace = ({
       heightMm: pistonEquilibriumHeightMmRef.current,
     });
   }, [
-    calibrationActive,
     demoActive,
     guideHeightReset,
     guideInteractionPaused,
@@ -2851,7 +2581,7 @@ export const PistonOscillationInteractionWorkspace = ({
   ]);
 
   useEffect(() => {
-    if (calibrationActive || demoActive || guideInteractionPaused) {
+    if (demoActive || guideInteractionPaused) {
       cancelUnsupportedDrop();
       if (!guideInteractionPaused) unsupportedDropVelocityMmPerSRef.current = 0;
       return undefined;
@@ -2922,7 +2652,6 @@ export const PistonOscillationInteractionWorkspace = ({
     lockingScrewClampState,
     mouseHeld,
     spaceHeld,
-    calibrationActive,
     demoActive,
     guideInteractionPaused,
     onGuideActionAttempt,
@@ -2944,57 +2673,16 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [enterOverview, overviewRevision]);
 
   return (
-    <div className={`piston-focus-interaction-preview-page studio-theme-${sceneTheme} ${
-      acquisitionPreview ? 'is-acquisition-preview ' : ''
-    }${
-      embedded ? 'is-embedded' : ''
-    }`.trim()}>
-      {!embedded ? (
-      <header className="piston-focus-interaction-preview-toolbar">
-        <div>
-          <strong>
-            {acquisitionPreview ? '活塞振动法 · 单次压力采集' : '活塞振动法 · 聚焦操作壳层'}
-          </strong>
-          <span>
-            {acquisitionPreview ? '预置数据审查页 · Run 1/6' : '临时审核控件，不进入正式实验界面'}
-          </span>
-        </div>
-        <div className="piston-focus-interaction-preview-modes" role="group" aria-label="审核视角">
-          <button type="button" aria-pressed={mode === 'overview'} onClick={() => setMode('overview')}>
-            默认视角
-          </button>
-          <button type="button" aria-pressed={mode === 'pistonFocus'} onClick={() => setMode('pistonFocus')}>
-            活塞聚焦
-          </button>
-        </div>
-        <div className="piston-focus-interaction-preview-review-controls">
-          <label>
-            <span>软管</span>
-            <select
-              value={hoseState}
-              onChange={(event) => selectHoseState(event.target.value as HosePreviewState)}
-            >
-              <option value="connected">接通</option>
-              <option value="disconnected">断开</option>
-            </select>
-          </label>
-          <label>
-            <span>螺钉行程</span>
-            <output>{Math.round(lockingScrewProgress * 100)}%</output>
-          </label>
-        </div>
-      </header>
-      ) : null}
-
-      <div className="piston-focus-interaction-preview-workspace">
+    <div className={`piston-oscillation-interaction-workspace studio-theme-${sceneTheme}`}>
+      <div className="piston-oscillation-interaction-workspace-content">
       <section
-        className={`piston-focus-interaction-preview-stage ${focusActive ? 'is-focused' : ''} ${
+        className={`piston-oscillation-interaction-stage ${focusActive ? 'is-focused' : ''} ${
           viewportWarningShakeRevision > 0
             ? `is-viewport-warning-shaking-${viewportWarningShakeRevision % 2}`
             : ''
         }`.trim()}
-        data-piston-focus-interaction-preview="true"
-        data-focus-preview-mode={mode}
+        data-piston-oscillation-interaction-workspace="true"
+        data-piston-focus-mode={mode}
         data-piston-focus-hose-state={hoseState}
         data-piston-focus-hose-dragging={hoseDragging ? 'true' : 'false'}
         data-piston-focus-guide-snap-target-mm={guideSnapTargetHeightMm ?? 'none'}
@@ -3061,20 +2749,18 @@ export const PistonOscillationInteractionWorkspace = ({
             gl.toneMappingExposure = 1;
           }}
         >
-          <PreviewLighting sceneTheme={sceneTheme} />
-          <PreviewModel
+          <PistonOscillationSceneLighting sceneTheme={sceneTheme} />
+          <PistonOscillationSceneModel
             powerOn={effectivePowerOn}
             powerPressProgress={effectivePowerPressProgress}
             powerInteractionEnabled={
-              !calibrationActive
-              && !demoActive
+              !demoActive
               && !guideInteractionPaused
               && (mode === 'overview' || mode === 'powerFocus')
             }
             hoseState={hoseState}
             hoseInteractionEnabled={
-              !calibrationActive
-              && !demoActive
+              !demoActive
               && !guideInteractionPaused
               && (!cameraGestureActive || hoseHovered || hoseDragging)
               && (mode === 'overview' || mode === 'pistonFocus')
@@ -3091,7 +2777,7 @@ export const PistonOscillationInteractionWorkspace = ({
             demoHoseDragProgress={demoHoseDragProgress}
             demoSnapGuideActive={demoSnapGuideActive}
             demoSnapGuidePulseElapsedSeconds={effectiveFocusPulseElapsedSeconds}
-            interactionEnabled={!calibrationActive && !demoActive && !guideInteractionPaused}
+            interactionEnabled={!demoActive && !guideInteractionPaused}
             onBoundsReady={handleBoundsReady}
             onPistonFocusRequest={() => setMode('pistonFocus')}
             onPowerPress={requestPowerPress}
@@ -3109,14 +2795,7 @@ export const PistonOscillationInteractionWorkspace = ({
               !guideInteractionPaused &&
               !hoseHovered &&
               !hoseDragging &&
-              (
-                !focusActive
-                || (
-                  calibrationActive
-                  && cameraCalibrationView !== 'screwOperationView'
-                  && cameraCalibrationView !== 'scaleReadingView'
-                )
-              )
+              !focusActive
             }
             enablePan
             enableRotate={!hoseHovered && !hoseDragging}
@@ -3149,16 +2828,6 @@ export const PistonOscillationInteractionWorkspace = ({
             heightMm={pistonEquilibriumHeightMm}
             controlsRef={controlsRef}
           />
-          {calibrationActive &&
-          cameraCalibrationView !== 'screwOperationView' &&
-          cameraCalibrationView !== 'scaleReadingView' &&
-          onCameraCalibrationCaptureHandlerChange ? (
-            <CameraCalibrationBridge
-              view={cameraCalibrationView}
-              controlsRef={controlsRef}
-              onCaptureHandlerChange={onCameraCalibrationCaptureHandlerChange}
-            />
-          ) : null}
           <HoseHandleProbe onChange={setHoseHandleBounds} />
           <PowerButtonProbe onChange={setPowerButtonBounds} />
           <PistonPlatformProbe onChange={setPistonPlatformPoint} />
@@ -3168,7 +2837,6 @@ export const PistonOscillationInteractionWorkspace = ({
             enabled={
               mode === 'pistonFocus'
               && !transitionActive
-              && !calibrationActive
               && !demoActive
               && !guideInteractionPaused
             }
@@ -3186,7 +2854,7 @@ export const PistonOscillationInteractionWorkspace = ({
           />
         </Canvas>
 
-        {mode === 'overview' && !transitionActive && !calibrationActive && !demoActive && !guideInteractionPaused && pistonPlatformPoint ? (
+        {mode === 'overview' && !transitionActive && !demoActive && !guideInteractionPaused && pistonPlatformPoint ? (
           <button
             type="button"
             className="piston-focus-interaction-entry-hotspot is-piston"
@@ -3249,7 +2917,7 @@ export const PistonOscillationInteractionWorkspace = ({
               gl.toneMappingExposure = 1;
             }}
           >
-            <PreviewLighting
+            <PistonOscillationSceneLighting
               sceneTheme={sceneTheme}
               scaleReadingDetail={scaleReadingOperationMirrorActive}
             />
@@ -3261,7 +2929,7 @@ export const PistonOscillationInteractionWorkspace = ({
               />
             ) : null}
             <group visible={screwOperationMirrorActive}>
-              <PreviewModel
+              <PistonOscillationSceneModel
                 hoseState={hoseState}
                 pistonEquilibriumHeightMm={pistonEquilibriumHeightMm}
                 pistonOscillationOffsetMm={pistonOffsetMm}
@@ -3271,12 +2939,12 @@ export const PistonOscillationInteractionWorkspace = ({
                 demoFocusPulseElapsedSeconds={effectiveFocusPulseElapsedSeconds}
                 operationMirrorView="screwOperationView"
                 onOperationMirrorFrameReady={handleOperationMirrorModelReady}
-                interactionEnabled={!calibrationActive && !demoActive && !guideInteractionPaused}
+                interactionEnabled={!demoActive && !guideInteractionPaused}
                 onBoundsReady={() => undefined}
               />
             </group>
             <group visible={scaleReadingOperationMirrorActive}>
-              <PreviewModel
+              <PistonOscillationSceneModel
                 hoseState={hoseState}
                 pistonEquilibriumHeightMm={pistonEquilibriumHeightMm}
                 pistonOscillationOffsetMm={pistonOffsetMm}
@@ -3287,7 +2955,7 @@ export const PistonOscillationInteractionWorkspace = ({
                 scaleReadingVisualEnhancement
                 operationMirrorView="scaleReadingView"
                 onOperationMirrorFrameReady={handleOperationMirrorModelReady}
-                interactionEnabled={!calibrationActive && !demoActive && !guideInteractionPaused}
+                interactionEnabled={!demoActive && !guideInteractionPaused}
                 onBoundsReady={() => undefined}
               />
             </group>
@@ -3312,10 +2980,7 @@ export const PistonOscillationInteractionWorkspace = ({
             <OrbitControls
               ref={mirrorControlsRef}
               makeDefault
-              enabled={
-                cameraCalibrationView === 'screwOperationView'
-                || cameraCalibrationView === 'scaleReadingView'
-              }
+              enabled={false}
               enablePan
               enableRotate
               enableZoom
@@ -3327,7 +2992,6 @@ export const PistonOscillationInteractionWorkspace = ({
             {scaleReadingOperationMirrorActive ? (
               <ScaleReadingCameraRig
                 heightMm={pistonEquilibriumHeightMm}
-                pose={scaleReadingCalibrationPose}
                 controlsRef={mirrorControlsRef}
               />
             ) : (
@@ -3336,15 +3000,7 @@ export const PistonOscillationInteractionWorkspace = ({
                 controlsRef={mirrorControlsRef}
               />
             )}
-            {(cameraCalibrationView === 'screwOperationView'
-              || cameraCalibrationView === 'scaleReadingView') &&
-            onCameraCalibrationCaptureHandlerChange ? (
-              <CameraCalibrationBridge
-                view={cameraCalibrationView}
-                controlsRef={mirrorControlsRef}
-                onCaptureHandlerChange={onCameraCalibrationCaptureHandlerChange}
-              />
-            ) : !calibrationActive && !demoActive && !guideInteractionPaused && screwOperationMirrorActive ? (
+            {!demoActive && !guideInteractionPaused && screwOperationMirrorActive ? (
               <OperationMirrorScrewControl
                 progress={lockingScrewProgress}
                 onProgressDelta={handleLockingScrewProgressDelta}
@@ -3373,22 +3029,18 @@ export const PistonOscillationInteractionWorkspace = ({
         >
           <div className="studio-preview-overlay-slot studio-preview-overlay-slot-top-left">
             <div
-              className={`piston-operation-visualization-toggle-shell ${
-                mode === 'pistonFocus' ? 'is-hidden' : 'is-visible'
-              } ${
+              className={`piston-operation-visualization-toggle-shell is-visible ${
                 operationVisualizationEnabled ? 'is-enabled-visual' : 'is-disabled-visual'
               }`}
               data-piston-operation-visualization-toggle-shell="true"
               data-piston-operation-visualization-visual-state={
                 operationVisualizationEnabled ? 'on' : 'off'
               }
-              aria-hidden={mode === 'pistonFocus'}
             >
               <PistonOscillationOperationVisualizationToggle
                 enabled={operationVisualizationEnabled}
                 onToggle={() => onOperationVisualizationToggle?.()}
                 language={language}
-                disabled={mode === 'pistonFocus'}
               />
             </div>
           </div>
@@ -3473,24 +3125,12 @@ export const PistonOscillationInteractionWorkspace = ({
                 <div
                   className="studio-heat-focus-panel studio-heat-focus-panel-pump piston-focus-interaction-focus-panel"
                   data-piston-focus-exit-panel="true"
-                  data-piston-focus-panel={
-                    scaleReadingCalibrationActive
-                      ? 'scaleReadingView'
-                      : heightAdjustmentCalibrationActive
-                        ? 'heightAdjustmentFocus'
-                        : mode
-                  }
+                  data-piston-focus-panel={mode}
                 >
                   <div className="studio-heat-focus-title">
-                    {
-                      scaleReadingCalibrationActive
-                        ? interactionCopy.scaleReadingTitle
-                        : heightAdjustmentCalibrationActive
-                          ? interactionCopy.heightAdjustmentTitle
-                        : mode === 'pistonFocus'
-                          ? interactionCopy.pistonFocusTitle
-                          : interactionCopy.hoseFocusTitle
-                    }
+                    {mode === 'pistonFocus'
+                      ? interactionCopy.pistonFocusTitle
+                      : interactionCopy.hoseFocusTitle}
                   </div>
                   <div className="studio-heat-focus-grid">
                     {mode === 'pistonFocus' ? (
@@ -3599,7 +3239,7 @@ export const PistonOscillationInteractionWorkspace = ({
                       type="button"
                       data-piston-focus-exit="true"
                       onClick={() => {
-                        if (!calibrationActive && !demoActive && !guideInteractionPaused) enterOverview();
+                        if (!demoActive && !guideInteractionPaused) enterOverview();
                       }}
                       disabled={transitionActive || demoActive || guideInteractionPaused}
                     >
@@ -3638,24 +3278,7 @@ export const PistonOscillationInteractionWorkspace = ({
           </div>
         ) : null}
       </section>
-      {acquisitionPreview ? (
-        <PistonOscillationAcquisitionPanel
-          language={language}
-          powerOn={effectivePowerOn}
-          releaseEvent={pistonReleaseEvent}
-        />
-      ) : null}
       </div>
     </div>
   );
 };
-
-export const PistonOscillationFocusInteractionPreviewPage = ({
-  acquisitionPreview = false,
-}: {
-  acquisitionPreview?: boolean;
-}) => (
-  <PistonOscillationInteractionWorkspace acquisitionPreview={acquisitionPreview} />
-);
-
-export default PistonOscillationFocusInteractionPreviewPage;

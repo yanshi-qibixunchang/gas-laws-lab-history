@@ -7,7 +7,7 @@ import {
   type PistonOscillationGuideInstrumentSnapshot,
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideVisualCue,
-} from './PistonOscillationFocusInteractionPreviewPage.tsx';
+} from './PistonOscillationInteractionWorkspace.tsx';
 import type { PistonOscillationReleaseEvent } from './PistonOscillationAcquisitionPanel.tsx';
 import {
   getPistonOscillationDemoFrame,
@@ -24,7 +24,7 @@ import type {
 } from './pistonOscillationGuidePresentation.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import { getPistonOscillationShellCopy } from './pistonOscillationCopy.ts';
-import './PistonOscillationPlaceholders.css';
+import './PistonOscillationInstrumentScene.css';
 
 const subscribeToNoDemoPlayback = () => () => undefined;
 const getNoDemoPlaybackSnapshot = () => PISTON_OSCILLATION_IDLE_DEMO_PLAYBACK_SNAPSHOT;
@@ -170,7 +170,6 @@ export const PistonOscillationInstrumentScene = ({
           language={language}
           powerOn={powerOn}
           onPowerToggle={onPowerToggle}
-          embedded
           initialMode="overview"
           cameraPreset={cameraPreset}
           sceneTheme={sceneTheme}

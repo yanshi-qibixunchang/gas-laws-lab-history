@@ -31,9 +31,7 @@ import {
   PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
   PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
   PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS,
-  findPistonAcquisitionFallingTriggerSeconds,
-  getPistonAcquisitionPresetPressureKpa,
-} from './pistonOscillationPresetAcquisition.ts';
+} from './pistonOscillationAcquisitionConfig.ts';
 import {
   getPistonOscillationDemoFrame,
   getPistonOscillationDemoTrajectory,
@@ -54,7 +52,6 @@ import type {
 import {
   PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
-  PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ,
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
   PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
@@ -103,7 +100,7 @@ export type PistonOscillationGuideAcquisitionEvent =
 export interface PistonOscillationReleaseEvent {
   id: number;
   startedAtMs: number;
-  trajectory?: PistonOscillationTrajectory;
+  trajectory: PistonOscillationTrajectory;
 }
 
 const GRAPH_DEFAULT_WIDTH = 860;
@@ -385,10 +382,6 @@ export const PistonOscillationAcquisitionPanel = ({
   const guideSelected = guideSession?.status === 'active'
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
-  const configuredSampleRateHz = guideSelected
-    ? Number(guideSession?.parameterDrafts.sampleRateHz)
-      || PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
-    : sampleRateHz;
   const configuredTriggerKpa = guideSelected
     ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
       || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
@@ -542,26 +535,17 @@ export const PistonOscillationAcquisitionPanel = ({
     if (!effectivePowerOn || !releaseEvent || phaseRef.current !== 'armed') return;
     if (handledReleaseEventIdRef.current === releaseEvent.id) return;
     handledReleaseEventIdRef.current = releaseEvent.id;
-    const nextTrajectory = releaseEvent.trajectory ?? null;
-    const nextObservationSeries = nextTrajectory
-      ? createPistonOscillationSensorObservationSeries(
-        nextTrajectory.samples,
-        nextTrajectory.sampleRateHz,
-      )
-      : null;
-    const nextTriggerSample = nextObservationSeries
-      ? findPistonOscillationObservedFallingTriggerSample(
-        nextObservationSeries,
-        configuredTriggerKpa,
-      )
-      : null;
-    const nextTriggerSeconds = nextObservationSeries
-      ? nextTriggerSample?.timeS ?? null
-      : findPistonAcquisitionFallingTriggerSeconds(
-        configuredTriggerKpa,
-        configuredSampleRateHz,
-      );
-    if (guideActive && nextObservationSeries) {
+    const nextTrajectory = releaseEvent.trajectory;
+    const nextObservationSeries = createPistonOscillationSensorObservationSeries(
+      nextTrajectory.samples,
+      nextTrajectory.sampleRateHz,
+    );
+    const nextTriggerSample = findPistonOscillationObservedFallingTriggerSample(
+      nextObservationSeries,
+      configuredTriggerKpa,
+    );
+    const nextTriggerSeconds = nextTriggerSample?.timeS ?? null;
+    if (guideActive) {
       const releasePressureKpa = nextObservationSeries.samples[0]?.absolutePressureKpa
         ?? Number.NEGATIVE_INFINITY;
       const peakPressureKpa = Math.max(
@@ -606,7 +590,6 @@ export const PistonOscillationAcquisitionPanel = ({
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
   }, [
-    configuredSampleRateHz,
     configuredTriggerKpa,
     effectivePowerOn,
     guideActive,
@@ -736,9 +719,6 @@ export const PistonOscillationAcquisitionPanel = ({
     ?? (restoredGuidePauseCandidate
       ? 'recording'
       : restoredGuideMeasurement ? 'stopped' : phase);
-  const effectiveSampleRateHz = demoFrame
-    ? Number(demoFrame.sampleRateInput) || PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ
-    : restoredGuideMeasurement?.acquisitionSettings.sampleRateHz ?? configuredSampleRateHz;
   const effectiveTriggerKpa = demoFrame
     ? Number(demoFrame.triggerInput) || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
     : restoredGuideMeasurement?.acquisitionSettings.triggerThresholdKpa ?? configuredTriggerKpa;
@@ -802,25 +782,11 @@ export const PistonOscillationAcquisitionPanel = ({
         intervalCount / activeObservationSeries.sampleRateHz,
       );
     }
-    const intervalCount = Math.max(
-      0,
-      Math.floor(formalElapsedSeconds * effectiveSampleRateHz + 1e-9),
-    );
-    return Array.from({ length: intervalCount + 1 }, (_, sampleIndex) => {
-      const timeS = getPistonOscillationObservedTimeS(sampleIndex, effectiveSampleRateHz);
-      return {
-        sampleIndex,
-        timeS,
-        absolutePressureKpa: quantizePistonOscillationObservedPressureKpa(
-          getPistonAcquisitionPresetPressureKpa(effectiveTriggerSeconds + timeS) * 1_000,
-        ),
-      };
-    });
+    return [];
   }, [
     activeObservationSeries,
     demoObservationSeries,
     demoTriggerSample,
-    effectiveSampleRateHz,
     effectiveTriggerSeconds,
     formalElapsedSeconds,
     restoredGuideMeasurement,
@@ -849,7 +815,7 @@ export const PistonOscillationAcquisitionPanel = ({
       );
     }
     return quantizePistonOscillationObservedPressureKpa(
-      getPistonAcquisitionPresetPressureKpa(secondsSinceRelease) * 1_000,
+      PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
     );
   }, [activeObservationSeries, demoObservationSeries, restoredGuideMeasurement]);
   const currentPressureKpa = elapsedSinceReleaseSeconds === null

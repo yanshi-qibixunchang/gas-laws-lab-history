@@ -692,11 +692,6 @@
 }
 
 @media (max-width: 1120px) {
-  .piston-focus-interaction-preview-page.is-acquisition-preview
-    .piston-focus-interaction-preview-workspace {
-    grid-template-columns: minmax(0, 1fr) minmax(350px, 0.9fr);
-  }
-
   .piston-acquisition-settings {
     grid-template-columns: 1fr;
   }

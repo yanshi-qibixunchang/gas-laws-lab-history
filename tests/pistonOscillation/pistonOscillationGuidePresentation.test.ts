@@ -231,7 +231,17 @@ const workspaceSource = readFileSync(
     'src',
     'features',
     'pistonOscillation',
-    'PistonOscillationFocusInteractionPreviewPage.tsx',
+    'PistonOscillationInteractionWorkspace.tsx',
+  ),
+  'utf8',
+);
+const workspaceCss = readFileSync(
+  join(
+    process.cwd(),
+    'src',
+    'features',
+    'pistonOscillation',
+    'PistonOscillationInteractionWorkspace.css',
   ),
   'utf8',
 );
@@ -240,7 +250,7 @@ assert.match(workbenchSource, /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS
 assert.match(workbenchSource, /data-piston-guide-strong-mask-blocking="true"/);
 assert.match(workbenchSource, /guideRequestedFocusMode=\{pistonGuideRequestedFocusMode\}/);
 assert.match(sceneSource, /guideRequestedFocusMode=\{guideRequestedFocusMode\}/);
-assert.match(workspaceSource, /if \(!guideRequestedFocusMode \|\| calibrationActive \|\| demoActive\) return/);
+assert.match(workspaceSource, /if \(!guideRequestedFocusMode \|\| demoActive\) return/);
 assert.doesNotMatch(
   workspaceSource,
   /if \(!guideRequestedFocusMode[^\n]*guideInteractionPaused/,
@@ -252,6 +262,11 @@ assert.match(
   workbenchSource,
   /const scaleX = rootRect\.width \/ localWidth;[\s\S]*const scaleY = rootRect\.height \/ localHeight;[\s\S]*querySelectorAll<HTMLElement>\('\.studio-dock-header'\)[\s\S]*const dockHeaderBottom = Math\.max[\s\S]*root\.classList\.contains\('studio-live-workspace-piston-processing'\)[\s\S]*\? 0[\s\S]*: dockHeaderBottom[\s\S]*contextCutouts[\s\S]*getPistonOscillationGuideStrongContextKind/,
   'the strong mask should convert scaled workspace coordinates, cover the complete processing workspace, preserve instrument mode headers, and retain target context cutouts',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /operationVisualizationToggleCutout/,
+  'the operation-visualization switch must sit above the Guide wall instead of becoming an SVG hole',
 );
 assert.match(
   workbenchSource,
@@ -269,9 +284,19 @@ assert.doesNotMatch(
   'overlay panels should sit above the reminder wall instead of becoming SVG holes',
 );
 assert.match(
+  workspaceCss,
+  /\.piston-focus-interaction-overlay-layer\s*\{\s*z-index:\s*auto;[\s\S]*\.studio-preview-overlay-slot-top-left,[\s\S]*\.studio-preview-overlay-slot-top-right,[\s\S]*\.studio-preview-overlay-slot-bottom-left[\s\S]*z-index:\s*36;[\s\S]*\.studio-preview-overlay-slot-bottom-right\s*\{\s*z-index:\s*34;/,
+  'presentation panels should sit above the z-index 35 Guide wall while the focus action panel remains gated below it',
+);
+assert.match(
   workbenchCss,
-  /\.studio-preview-overlay-layer\s*\{[\s\S]*z-index:\s*34;[\s\S]*\.studio-piston-guide-strong-mask\s*\{[\s\S]*z-index:\s*35;/,
-  'the reminder wall should sit above scene-overlay controls so dimmed controls cannot bypass it',
+  /\.studio-piston-guide-strong-mask\s*\{[\s\S]*z-index:\s*auto;[\s\S]*> \.studio-heat-guide-strong-cutout-svg\s*\{[\s\S]*z-index:\s*35;[\s\S]*> \.studio-heat-guide-strong-card\s*\{[\s\S]*z-index:\s*37;[\s\S]*\.studio-live-workspace\[data-piston-guide-strong-active='true'\][\s\S]*\.studio-dock-panel-realtime,[\s\S]*\.studio-live-workspace-resizer,[\s\S]*\.studio-optional-panels[\s\S]*z-index:\s*36;/,
+  'the strong wall should gate only the instrument and focus controls while main workspace panels and its reminder card remain above it',
+);
+assert.match(
+  workspaceCss,
+  /\.piston-focus-interaction-overlay-layer[\s\S]*\.studio-preview-overlay-slot\s*> \*\s*\{\s*pointer-events:\s*none;[\s\S]*\.piston-operation-visualization-toggle-shell\.is-visible,[\s\S]*\.piston-focus-interaction-parent-top-right-panel[\s\S]*> \*,[\s\S]*\.piston-oscillation-view-reset,[\s\S]*\.piston-focus-interaction-focus-panel\s*\{\s*pointer-events:\s*auto;/,
+  'piston overlays should explicitly opt interactive surfaces in so CSS bundle order cannot create transparent pointer blockers',
 );
 assert.match(
   workbenchSource,

@@ -37,7 +37,7 @@ export interface PistonOscillationShellCopy {
     exitDemo: string;
     resetGuide: string;
     exitGuide: string;
-    unavailable: string;
+    exitFree: string;
   };
   demoPresentation: {
     stepCounter: (current: number, total: number) => string;
@@ -328,7 +328,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       exitDemo: '退出演示',
       resetGuide: '重置引导',
       exitGuide: '退出引导',
-      unavailable: '暂未开放',
+      exitFree: '退出自由模式',
     },
     demoPresentation: {
       stepCounter: (current, total) => `步骤 ${current} / ${total}`,
@@ -661,7 +661,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       exitDemo: '退出演示',
       resetGuide: '重置引導',
       exitGuide: '退出引導',
-      unavailable: '暫未開放',
+      exitFree: '退出自由模式',
     },
     demoPresentation: {
       stepCounter: (current, total) => `步驟 ${current} / ${total}`,
@@ -994,7 +994,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       exitDemo: 'Exit demo',
       resetGuide: 'Reset guide',
       exitGuide: 'Exit guide',
-      unavailable: 'Not available yet',
+      exitFree: 'Exit Free mode',
     },
     demoPresentation: {
       stepCounter: (current, total) => `Step ${current} / ${total}`,

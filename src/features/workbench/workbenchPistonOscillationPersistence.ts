@@ -20,6 +20,10 @@ import {
   normalizePistonOscillationDemoSession,
   type PistonOscillationDemoSession,
 } from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
+import {
+  normalizePistonOscillationFreeSession,
+  type PistonOscillationFreeSession,
+} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 
 export interface PistonOscillationPersistencePayloadV1 {
   experimentKind: 'heatCapacityPistonOscillation';
@@ -31,6 +35,7 @@ export interface PistonOscillationPersistencePayloadV1 {
   lessonIntroAutoShown: boolean;
   demoSession: PistonOscillationDemoSession;
   guideSession: PistonOscillationGuideSession;
+  freeSession: PistonOscillationFreeSession;
   materialsExpanded: boolean;
 }
 
@@ -72,6 +77,7 @@ export const createPistonOscillationPersistencePayload = (
     lessonIntroAutoShown: file.pistonOscillationLessonIntroAutoShown,
     demoSession: file.pistonOscillationDemoSession,
     guideSession: file.pistonOscillationGuideSession,
+    freeSession: file.pistonOscillationFreeSession,
     materialsExpanded: file.pistonOscillationMaterialsExpanded,
   };
 };
@@ -84,6 +90,17 @@ export const validatePistonOscillationPersistencePayload = (
     return { valid: false, errors: ['payload must be an object'] };
   }
   const hasCurrentFields = hasExactKeys(payload, [
+    'experimentKind',
+    'pistonOscillationSchemaVersion',
+    'preview',
+    'operationVisualizationEnabled',
+    'lessonIntroAutoShown',
+    'demoSession',
+    'guideSession',
+    'freeSession',
+    'materialsExpanded',
+  ]);
+  const hasPreFreeFields = hasExactKeys(payload, [
     'experimentKind',
     'pistonOscillationSchemaVersion',
     'preview',
@@ -122,6 +139,7 @@ export const validatePistonOscillationPersistencePayload = (
   ]);
   if (
     !hasCurrentFields
+    && !hasPreFreeFields
     && !hasPreOperationVisualizationFields
     && !hasPreDemoFields
     && !hasPreGuideFields
@@ -158,6 +176,12 @@ export const validatePistonOscillationPersistencePayload = (
     && !isPersistenceRecord(payload.guideSession)
   ) {
     errors.push('guideSession is invalid');
+  }
+  if (
+    payload.freeSession !== undefined
+    && !isPersistenceRecord(payload.freeSession)
+  ) {
+    errors.push('freeSession is invalid');
   }
   if (
     payload.materialsExpanded !== undefined
@@ -223,6 +247,9 @@ export const normalizePistonOscillationRuntimeState = (
     pistonOscillationGuideSession: normalizePistonOscillationGuideSession(
       value.pistonOscillationGuideSession,
     ),
+    pistonOscillationFreeSession: normalizePistonOscillationFreeSession(
+      value.pistonOscillationFreeSession,
+    ),
     pistonOscillationMaterialsExpanded:
       value.pistonOscillationMaterialsExpanded !== false,
   };
@@ -259,6 +286,8 @@ export const restorePistonOscillationFileFromPersistencePayload = (
       isPersistenceRecord(payload) ? payload.demoSession : undefined,
     pistonOscillationGuideSession:
       isPersistenceRecord(payload) ? payload.guideSession : undefined,
+    pistonOscillationFreeSession:
+      isPersistenceRecord(payload) ? payload.freeSession : undefined,
     pistonOscillationMaterialsExpanded:
       !isPersistenceRecord(payload) || payload.materialsExpanded !== false,
   }, index);
