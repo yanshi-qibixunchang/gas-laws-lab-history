@@ -42,13 +42,34 @@ jobs:
           New-Item -ItemType Directory -Force -Path $downloadRoot, $evidenceRoot | Out-Null
           $oldName = "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
           $newName = "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
+          $oldBlockmapName = "$oldName.blockmap"
+          $newBlockmapName = "$newName.blockmap"
           $baseUrl = 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download'
           & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $oldName) "$baseUrl/v${{ inputs.old_version }}/$oldName"
           if ($LASTEXITCODE -ne 0) { throw "Old installer download failed with curl exit code $LASTEXITCODE." }
+          & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $oldBlockmapName) "$baseUrl/v${{ inputs.old_version }}/$oldBlockmapName"
+          if ($LASTEXITCODE -ne 0) { throw "Old blockmap download failed with curl exit code $LASTEXITCODE." }
           & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $newName) "$baseUrl/v${{ inputs.new_version }}/$newName"
           if ($LASTEXITCODE -ne 0) { throw "New installer download failed with curl exit code $LASTEXITCODE." }
+          & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $newBlockmapName) "$baseUrl/v${{ inputs.new_version }}/$newBlockmapName"
+          if ($LASTEXITCODE -ne 0) { throw "New blockmap download failed with curl exit code $LASTEXITCODE." }
           "HSL_UPGRADE_DOWNLOAD_ROOT=$downloadRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "HSL_UPGRADE_EVIDENCE_ROOT=$evidenceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Reconstruct the new installer from the differential update plan
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $oldInstaller = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
+          $newInstaller = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
+          $oldBlockmap = "$($oldInstaller).blockmap"
+          $newBlockmap = "$($newInstaller).blockmap"
+          node scripts/verifyDifferentialUpgrade.cjs `
+            $oldInstaller `
+            $oldBlockmap `
+            $newInstaller `
+            $newBlockmap |
+            Tee-Object -FilePath (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'differential-upgrade.json')
 
       - name: Install and seed the old packaged version
         shell: powershell
@@ -115,7 +136,7 @@ jobs:
           - Installation: silent NSIS in-place replacement at one absolute path
           - Old installer SHA256: `$oldHash`
           - New installer SHA256: `$newHash`
-          - Renderer validation: old-version self-restore, upgraded workspace restore, shared profile marker, experience profile, IndexedDB schema and semantic generation summaries, console errors, resource errors, clean exit
+          - Update validation: exact differential reconstruction, old-version self-restore, upgraded workspace restore, shared profile marker, experience profile, IndexedDB schema and semantic generation summaries, console errors, resource errors, clean exit
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload screenshots and structured evidence
