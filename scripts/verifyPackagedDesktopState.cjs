@@ -31,6 +31,7 @@ if (phase === 'verify' && (!comparePath || !fs.existsSync(comparePath))) {
 
 const markerKey = 'hsl_upgrade_smoke_from_5_3_1';
 const markerValue = 'created-by-packaged-5.3.1-before-6.1.1-replacement';
+const workspaceFileName = 'Piston Oscillation - 001';
 const sleep = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 class CdpClient {
@@ -198,12 +199,21 @@ const indexedDbSnapshotExpression = `
 const normalizeDatabaseSnapshot = (snapshot) => snapshot.map((database) => ({
   name: database.name,
   version: database.version,
-  stores: database.stores.map((store) => ({
-    storeName: store.storeName,
-    count: store.count,
-    keys: store.keys,
-  })),
+  stores: database.stores.map((store) => store.storeName).sort(),
 }));
+
+const getStoreSnapshot = (snapshot, databaseName, storeName) => (
+  snapshot
+    .find((database) => database.name === databaseName)
+    ?.stores.find((store) => store.storeName === storeName)
+  ?? null
+);
+
+const includesEveryKey = (currentKeys, previousKeys) => (
+  previousKeys.every((key) => currentKeys.some((candidate) => (
+    JSON.stringify(candidate) === JSON.stringify(key)
+  )))
+);
 
 const run = async () => {
   fs.mkdirSync(evidenceDirectory, { recursive: true });
@@ -300,6 +310,22 @@ const run = async () => {
       client,
       "Boolean(document.querySelector('.studio-workbench:not(.app-startup-experience):not(.first-run-experience)')) && !document.querySelector('.app-startup-experience')",
     );
+
+    if (phase === 'seed') {
+      const created = await evaluate(client, `(() => {
+        const button = document.querySelector(
+          '[data-workbench-create-experiment="heatCapacityPistonOscillation"]',
+        );
+        if (!(button instanceof HTMLButtonElement)) return false;
+        button.click();
+        return true;
+      })()`);
+      if (!created) throw new Error('Unable to create the packaged 5.3.1 piston-oscillation workspace file.');
+    }
+    await waitForEvaluation(
+      client,
+      `document.body.innerText.includes(${JSON.stringify(workspaceFileName)})`,
+    );
     await sleep(5_000);
 
     const rendererState = await evaluate(client, `(() => ({
@@ -312,6 +338,7 @@ const run = async () => {
       hasPersistenceSafeMode: Boolean(document.querySelector('[data-workbench-persistence-safe-mode="true"]')),
       marker: localStorage.getItem(${JSON.stringify(markerKey)}),
       experienceProfile: localStorage.getItem('hsl_experience_profile_v1'),
+      workspaceFileRestored: document.body.innerText.includes(${JSON.stringify(workspaceFileName)}),
       localStorageKeys: Object.keys(localStorage).sort(),
       dimensions: { innerWidth, innerHeight, devicePixelRatio },
     }))()`);
@@ -332,17 +359,41 @@ const run = async () => {
       ...events.httpErrors,
     ];
     const previous = comparePath ? JSON.parse(fs.readFileSync(comparePath, 'utf8')) : null;
+    const previousHeads = previous
+      ? getStoreSnapshot(
+          previous.indexedDb,
+          'hard-sphere-lab-workbench',
+          'persistenceV3GenerationHeads',
+        )
+      : null;
+    const currentHeads = getStoreSnapshot(
+      indexedDb,
+      'hard-sphere-lab-workbench',
+      'persistenceV3GenerationHeads',
+    );
+    const currentGenerations = getStoreSnapshot(
+      indexedDb,
+      'hard-sphere-lab-workbench',
+      'persistenceV3Generations',
+    );
     const checks = {
       workbenchLoaded: rendererState.hasWorkbench,
       startupHealthy: !rendererState.hasStartupFailure && !rendererState.hasPersistenceSafeMode,
       markerPresent: rendererState.marker === markerValue,
+      workspaceFileRestored: rendererState.workspaceFileRestored,
       rendererHasNoCriticalErrors: criticalErrors.length === 0,
       ...(previous ? {
         experienceProfilePreserved:
           rendererState.experienceProfile === previous.rendererState.experienceProfile,
-        indexedDbSchemaCountsAndKeysPreserved:
+        indexedDbSchemaPreserved:
           JSON.stringify(normalizeDatabaseSnapshot(indexedDb))
           === JSON.stringify(normalizeDatabaseSnapshot(previous.indexedDb)),
+        indexedDbPersistentNamespacePreserved:
+          previousHeads !== null
+          && currentHeads !== null
+          && includesEveryKey(currentHeads.keys, previousHeads.keys),
+        indexedDbHasReadableWorkspaceGeneration:
+          currentGenerations !== null && currentGenerations.count >= 1,
       } : {}),
     };
 
@@ -351,6 +402,7 @@ const run = async () => {
       generatedAt: new Date().toISOString(),
       phase,
       executablePath,
+      workspaceFileName,
       checks,
       passed: Object.values(checks).every(Boolean),
       rendererState,
