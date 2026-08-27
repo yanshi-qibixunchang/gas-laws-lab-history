@@ -49,6 +49,31 @@ const chartControlsStyles = readFileSync(
   'utf8',
 );
 assert.match(
+  panelSource,
+  /const effectivePowerOn = demoFrame\?\.powerOn \?\? powerOn;/,
+  'the realtime panel should use the demo power frame when Demo mode is active',
+);
+assert.match(
+  panelSource,
+  /previousPowerOnRef[\s\S]*if \(!wasPowerOn \|\| effectivePowerOn\) return;[\s\S]*resetRun\(\);/,
+  'switching the instrument off must clear any armed or recording acquisition state',
+);
+assert.match(
+  panelSource,
+  /if \(!effectivePowerOn \|\| !releaseEvent \|\| phaseRef\.current !== 'armed'\) return;[\s\S]*!effectivePowerOn[\s\S]*cycleStartMs === null/,
+  'neither a piston release nor the sampling clock may record while power is off',
+);
+assert.match(
+  panelSource,
+  /if \(!effectivePowerOn\) \{[\s\S]*className="piston-acquisition-panel is-powered-off"[\s\S]*copy\.powerOff[\s\S]*return \([\s\S]*className="piston-acquisition-panel"/,
+  'the powered-off branch should replace every inner control and chart with the localized shutdown status',
+);
+assert.match(
+  panelStyles,
+  /\.piston-acquisition-panel\.is-powered-off[\s\S]*\.piston-acquisition-power-off-state[\s\S]*align-items:\s*center;[\s\S]*justify-content:\s*center;/,
+  'the powered-off status should occupy and center itself within the complete realtime content area',
+);
+assert.match(
   appEntrySource,
   /pistonAcquisitionPreviewEnabled\s*=\s*import\.meta\.env\.DEV[\s\S]*pistonAcquisitionPreview['"]\) === ['"]1['"]/,
   'the acquisition review page must stay behind its development-only query switch',

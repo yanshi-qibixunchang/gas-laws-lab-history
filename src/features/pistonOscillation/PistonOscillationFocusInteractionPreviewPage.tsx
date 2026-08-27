@@ -95,9 +95,9 @@ import {
 import '../workbench/WorkbenchStudioPrototype.css';
 import './PistonOscillationFocusInteractionPreviewPage.css';
 
-export type FocusPreviewMode = 'overview' | 'pistonFocus' | 'hoseFocus';
+export type FocusPreviewMode = 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
 export type PistonOscillationCameraCalibrationView =
-  | FocusPreviewMode
+  | Exclude<FocusPreviewMode, 'powerFocus'>
   | 'heightAdjustmentFocus'
   | 'screwOperationView'
   | 'scaleReadingView';
@@ -171,6 +171,7 @@ export type PistonOscillationGuideActionAttempt = (
 ) => PistonOscillationGuideGuardResult;
 
 export type PistonOscillationGuideVisualCue =
+  | 'power'
   | 'platform'
   | 'screw'
   | 'hoseDisconnect'
@@ -196,6 +197,13 @@ interface CameraTransition {
 }
 
 interface ProjectedHoseHandleBounds {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
+}
+
+interface ProjectedPowerButtonBounds {
   left: number;
   top: number;
   right: number;
@@ -664,6 +672,50 @@ const HoseHandleProbe = ({
     if (key === lastKeyRef.current) return;
     lastKeyRef.current = key;
     onChange({ connected, detached });
+  });
+
+  return null;
+};
+
+const PowerButtonProbe = ({
+  onChange,
+}: {
+  onChange: (bounds: ProjectedPowerButtonBounds) => void;
+}) => {
+  const camera = useThree((state) => state.camera);
+  const scene = useThree((state) => state.scene);
+  const lastKeyRef = useRef('');
+
+  useFrame(() => {
+    const target = scene.getObjectByName(
+      PISTON_MODEL_HIT_TARGETS.universalInterfacePowerButton.objectName,
+    );
+    if (!target) return;
+    target.updateWorldMatrix(true, true);
+    const bounds = new THREE.Box3().setFromObject(target, true);
+    if (bounds.isEmpty()) return;
+    const projected = [
+      [bounds.min.x, bounds.min.y, bounds.min.z],
+      [bounds.min.x, bounds.min.y, bounds.max.z],
+      [bounds.min.x, bounds.max.y, bounds.min.z],
+      [bounds.min.x, bounds.max.y, bounds.max.z],
+      [bounds.max.x, bounds.min.y, bounds.min.z],
+      [bounds.max.x, bounds.min.y, bounds.max.z],
+      [bounds.max.x, bounds.max.y, bounds.min.z],
+      [bounds.max.x, bounds.max.y, bounds.max.z],
+    ].map(([x, y, z]) => new THREE.Vector3(x, y, z).project(camera));
+    const next = {
+      left: Math.min(...projected.map((point) => point.x)),
+      top: Math.max(...projected.map((point) => point.y)),
+      right: Math.max(...projected.map((point) => point.x)),
+      bottom: Math.min(...projected.map((point) => point.y)),
+    };
+    const key = [next.left, next.top, next.right, next.bottom]
+      .map((value) => value.toFixed(5))
+      .join(':');
+    if (key === lastKeyRef.current) return;
+    lastKeyRef.current = key;
+    onChange(next);
   });
 
   return null;
@@ -1176,6 +1228,9 @@ const OperationMirrorFrameReadyBridge = ({
 };
 
 const PreviewModel = ({
+  powerOn = false,
+  powerPressProgress = 0,
+  powerInteractionEnabled = false,
   hoseState,
   hoseInteractionEnabled = false,
   hoseDragging = false,
@@ -1196,11 +1251,15 @@ const PreviewModel = ({
   interactionEnabled = true,
   onBoundsReady,
   onPistonFocusRequest = () => undefined,
+  onPowerPress = () => undefined,
   onHoseHoverChange = () => undefined,
   onHoseDragStart = () => undefined,
   onHoseDragChange = () => undefined,
   onHoseDragEnd = () => undefined,
 }: {
+  powerOn?: boolean;
+  powerPressProgress?: number;
+  powerInteractionEnabled?: boolean;
   hoseState: HosePreviewState;
   hoseInteractionEnabled?: boolean;
   hoseDragging?: boolean;
@@ -1221,6 +1280,7 @@ const PreviewModel = ({
   interactionEnabled?: boolean;
   onBoundsReady: (bounds: PreviewBounds) => void;
   onPistonFocusRequest?: () => void;
+  onPowerPress?: () => void;
   onHoseHoverChange?: (hovered: boolean) => void;
   onHoseDragStart?: () => boolean | void;
   onHoseDragChange?: (offset: THREE.Vector3, withinMagneticRange: boolean) => void;
@@ -1232,6 +1292,9 @@ const PreviewModel = ({
         <>
           <PistonOscillationInteractiveModel
             sourceScene={sourceScene}
+            powerOn={powerOn}
+            powerPressProgress={powerPressProgress}
+            powerInteractionEnabled={powerInteractionEnabled}
             pistonEquilibriumHeightMm={pistonEquilibriumHeightMm}
             pistonOscillationOffsetMm={pistonOscillationOffsetMm}
             lockingScrewProgress={lockingScrewProgress}
@@ -1251,6 +1314,7 @@ const PreviewModel = ({
             onBoundsReady={onBoundsReady}
             onHoseFocusPointReady={() => undefined}
             onPistonFocusRequest={onPistonFocusRequest}
+            onPowerPress={onPowerPress}
             onHoseHoverChange={onHoseHoverChange}
             onHoseDragStart={onHoseDragStart}
             onHoseDragChange={onHoseDragChange}
@@ -1284,6 +1348,8 @@ const getInteractionHints = (
 
 export interface PistonOscillationInteractionWorkspaceProps {
   language?: PistonOscillationLanguage;
+  powerOn?: boolean;
+  onPowerToggle?: (powerOn: boolean) => void;
   acquisitionPreview?: boolean;
   embedded?: boolean;
   initialMode?: FocusPreviewMode;
@@ -1338,6 +1404,8 @@ export interface PistonOscillationInteractionWorkspaceProps {
 
 export const PistonOscillationInteractionWorkspace = ({
   language = 'zh-CN',
+  powerOn = false,
+  onPowerToggle,
   acquisitionPreview = false,
   embedded = false,
   initialMode = 'pistonFocus',
@@ -1418,6 +1486,9 @@ export const PistonOscillationInteractionWorkspace = ({
   );
   const [hoseWithinMagneticRange, setHoseWithinMagneticRange] = useState(false);
   const [hoseHandleBounds, setHoseHandleBounds] = useState<HoseHandleBounds | null>(null);
+  const [powerButtonBounds, setPowerButtonBounds] =
+    useState<ProjectedPowerButtonBounds | null>(null);
+  const [manualPowerPressProgress, setManualPowerPressProgress] = useState(0);
   const [pistonPlatformPoint, setPistonPlatformPoint] = useState<
     readonly [number, number] | null
   >(null);
@@ -1468,6 +1539,8 @@ export const PistonOscillationInteractionWorkspace = ({
   const guideHeightResetHandledRevisionRef = useRef<number | null>(null);
   const guideSupportLossReportedRef = useRef(false);
   const guideRejectedActionTimerRef = useRef<number | null>(null);
+  const powerPressAnimationFrameRef = useRef<number | null>(null);
+  const powerOnRef = useRef(powerOn);
   const hoseCameraClaimedRef = useRef(false);
   const hoseGuideSupportLostDuringDragRef = useRef(false);
   const [guideRejectedAction, setGuideRejectedAction] =
@@ -1526,6 +1599,10 @@ export const PistonOscillationInteractionWorkspace = ({
   const operationMirrorWasVisibleRef = useRef(mode === 'pistonFocus');
   if (overlayTopRightPresent) displayedOverlayTopRightRef.current = overlayTopRight;
 
+  useEffect(() => {
+    powerOnRef.current = powerOn;
+  }, [powerOn]);
+
   const attemptGuideAction = useCallback((
     action: PistonOscillationGuideAction,
     context: PistonOscillationGuideActionContext = {},
@@ -1548,6 +1625,38 @@ export const PistonOscillationInteractionWorkspace = ({
     }, 520);
     return false;
   }, [onGuideActionAttempt]);
+  const requestPowerPress = useCallback(() => {
+    if (powerPressAnimationFrameRef.current !== null) return;
+    const powerToggleAllowed = attemptGuideAction('togglePower');
+    const startedAtMs = performance.now();
+    let toggleCommitted = false;
+    const animate = (nowMs: number) => {
+      const elapsedMs = Math.max(0, nowMs - startedAtMs);
+      const nextProgress = elapsedMs <= 105
+        ? elapsedMs / 105
+        : elapsedMs <= 165
+          ? 1
+          : Math.max(0, 1 - ((elapsedMs - 165) / 145));
+      setManualPowerPressProgress(nextProgress);
+      if (!toggleCommitted && elapsedMs >= 165) {
+        toggleCommitted = true;
+        if (powerToggleAllowed) onPowerToggle?.(!powerOnRef.current);
+      }
+      if (elapsedMs < 310) {
+        powerPressAnimationFrameRef.current = window.requestAnimationFrame(animate);
+        return;
+      }
+      powerPressAnimationFrameRef.current = null;
+      setManualPowerPressProgress(0);
+    };
+    powerPressAnimationFrameRef.current = window.requestAnimationFrame(animate);
+  }, [attemptGuideAction, onPowerToggle]);
+  useEffect(() => () => {
+    if (powerPressAnimationFrameRef.current !== null) {
+      window.cancelAnimationFrame(powerPressAnimationFrameRef.current);
+      powerPressAnimationFrameRef.current = null;
+    }
+  }, []);
   const effectiveParentTopRightPanelMode = overlayTopRightPresent
     && parentTopRightPanelMode === 'hidden'
     ? 'visible'
@@ -1702,8 +1811,13 @@ export const PistonOscillationInteractionWorkspace = ({
     : interactionCopy.looseStatus;
   const demoHighlightControls = demoFrame?.highlightControls
     ?? (demoFrame?.highlightControl ? [demoFrame.highlightControl] : []);
+  const effectivePowerOn = demoFrame?.powerOn ?? powerOn;
+  const effectivePowerPressProgress = demoFrame?.powerButtonPressProgress
+    ?? manualPowerPressProgress;
   const demoMainFocusTarget: PistonOscillationDemoFocusTarget =
-    demoHighlightControls.includes('platform')
+    demoHighlightControls.includes('power')
+      ? 'power'
+      : demoHighlightControls.includes('platform')
       ? 'platform'
       : demoHighlightControls.includes('hose')
         ? 'hose'
@@ -1711,7 +1825,9 @@ export const PistonOscillationInteractionWorkspace = ({
   const demoMirrorFocusTarget: PistonOscillationDemoFocusTarget =
     demoHighlightControls.includes('screw') ? 'screw' : null;
   const guideFocusTarget: PistonOscillationDemoFocusTarget =
-    guideVisualCue === 'platform'
+    guideVisualCue === 'power'
+      ? 'power'
+      : guideVisualCue === 'platform'
     || guideVisualCue === 'screw'
       ? guideVisualCue
       : guideVisualCue === 'hoseDisconnect' || guideVisualCue === 'hoseReconnect'
@@ -1744,7 +1860,9 @@ export const PistonOscillationInteractionWorkspace = ({
     spaceHeld,
   ]);
   const effectiveMainFocusTarget = demoMainFocusTarget
-    ?? (guideFocusTarget === 'platform' || guideFocusTarget === 'hose'
+    ?? (guideFocusTarget === 'power'
+      || guideFocusTarget === 'platform'
+      || guideFocusTarget === 'hose'
       ? guideFocusTarget
       : null);
   const effectiveMirrorFocusTarget = demoMirrorFocusTarget
@@ -1860,7 +1978,7 @@ export const PistonOscillationInteractionWorkspace = ({
       enterOverview();
       return;
     }
-    setMode('pistonFocus');
+    setMode(guideRequestedFocusMode);
   }, [
     calibrationActive,
     demoActive,
@@ -2349,6 +2467,11 @@ export const PistonOscillationInteractionWorkspace = ({
     );
     const initialDisplacementMm = pistonOffsetMmRef.current;
     if (pistonEquilibriumHeightMmRef.current + initialDisplacementMm < 0) {
+      setPistonOffset(0);
+      setPistonPhase('idle');
+      return;
+    }
+    if (initialDisplacementMm >= -0.02) {
       setPistonOffset(0);
       setPistonPhase('idle');
       return;
@@ -2886,6 +3009,12 @@ export const PistonOscillationInteractionWorkspace = ({
         data-piston-focus-hose-detached-handle-top={hoseHandleBounds?.detached.top}
         data-piston-focus-hose-detached-handle-right={hoseHandleBounds?.detached.right}
         data-piston-focus-hose-detached-handle-bottom={hoseHandleBounds?.detached.bottom}
+        data-piston-power={effectivePowerOn ? 'on' : 'off'}
+        data-piston-power-press-progress={effectivePowerPressProgress.toFixed(4)}
+        data-piston-power-button-left={powerButtonBounds?.left}
+        data-piston-power-button-top={powerButtonBounds?.top}
+        data-piston-power-button-right={powerButtonBounds?.right}
+        data-piston-power-button-bottom={powerButtonBounds?.bottom}
         data-piston-focus-space-held={spaceHeld ? 'true' : 'false'}
         data-piston-focus-mouse-held={mouseHeld ? 'true' : 'false'}
         data-piston-focus-piston-phase={pistonPhase}
@@ -2934,6 +3063,14 @@ export const PistonOscillationInteractionWorkspace = ({
         >
           <PreviewLighting sceneTheme={sceneTheme} />
           <PreviewModel
+            powerOn={effectivePowerOn}
+            powerPressProgress={effectivePowerPressProgress}
+            powerInteractionEnabled={
+              !calibrationActive
+              && !demoActive
+              && !guideInteractionPaused
+              && (mode === 'overview' || mode === 'powerFocus')
+            }
             hoseState={hoseState}
             hoseInteractionEnabled={
               !calibrationActive
@@ -2957,6 +3094,7 @@ export const PistonOscillationInteractionWorkspace = ({
             interactionEnabled={!calibrationActive && !demoActive && !guideInteractionPaused}
             onBoundsReady={handleBoundsReady}
             onPistonFocusRequest={() => setMode('pistonFocus')}
+            onPowerPress={requestPowerPress}
             onHoseHoverChange={handleHoseHoverChange}
             onHoseDragStart={handleHoseDragStart}
             onHoseDragChange={handleHoseDragChange}
@@ -3022,6 +3160,7 @@ export const PistonOscillationInteractionWorkspace = ({
             />
           ) : null}
           <HoseHandleProbe onChange={setHoseHandleBounds} />
+          <PowerButtonProbe onChange={setPowerButtonBounds} />
           <PistonPlatformProbe onChange={setPistonPlatformPoint} />
           <PistonLockingScrewProbe onChange={setLockingScrewPoint} />
           <PistonPlatformClearanceProbe onChange={setPistonPlatformClearanceMm} />
@@ -3329,7 +3468,7 @@ export const PistonOscillationInteractionWorkspace = ({
           </div>
 
           <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-right">
-            {focusActive ? (
+            {focusActive && mode !== 'powerFocus' ? (
               <div data-preview-overlay-item="piston-focus-panel">
                 <div
                   className="studio-heat-focus-panel studio-heat-focus-panel-pump piston-focus-interaction-focus-panel"
@@ -3500,7 +3639,11 @@ export const PistonOscillationInteractionWorkspace = ({
         ) : null}
       </section>
       {acquisitionPreview ? (
-        <PistonOscillationAcquisitionPanel language={language} releaseEvent={pistonReleaseEvent} />
+        <PistonOscillationAcquisitionPanel
+          language={language}
+          powerOn={effectivePowerOn}
+          releaseEvent={pistonReleaseEvent}
+        />
       ) : null}
       </div>
     </div>

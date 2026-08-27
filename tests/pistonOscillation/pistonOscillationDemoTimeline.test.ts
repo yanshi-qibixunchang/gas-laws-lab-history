@@ -38,6 +38,8 @@ assert.equal(initial.measurementCount, 3);
 assert.equal(initial.savedMeasurementCount, 0);
 assert.equal(initial.stage, 'reset');
 assert.equal(initial.operationCue, null);
+assert.equal(initial.powerOn, false);
+assert.equal(initial.powerButtonPressProgress, 0);
 
 const firstOrientation = getPistonOscillationDemoFrame(
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS + 100,
@@ -48,9 +50,19 @@ const firstHighlight = getPistonOscillationDemoFrame(
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS + PISTON_OSCILLATION_DEMO_ORIENT_MS + 100,
 );
 assert.equal(firstHighlight.stage, 'highlight');
-assert.equal(firstHighlight.highlightControl, 'settings');
+assert.equal(firstHighlight.highlightControl, 'power');
 assert.equal(firstHighlight.highlightElapsedSeconds, 0.1);
 assert.equal(firstHighlight.virtualKeyboardVisible, false);
+
+const powerOnAction = action(0, 'powerOn', 'power');
+const powerOnPressed = getPistonOscillationDemoFrame(powerOnAction.startsAtMs + 165);
+assert.equal(powerOnPressed.powerOn, true);
+assert.equal(powerOnPressed.powerButtonPressProgress, 1);
+assert.deepEqual(powerOnPressed.operationCue, { keys: ['mouseLeft'], mouseAction: 'click' });
+assert.equal(getPistonOscillationDemoFrame(powerOnAction.endsAtMs).powerOn, true);
+
+const settingsHighlight = step(0, 'settings').highlightWindows[0]!;
+assert.equal(frameInside(settingsHighlight.startsAtMs, settingsHighlight.endsAtMs).highlightControl, 'settings');
 
 const settingsAction = action(0, 'settings', 'settings');
 const keyboardStart = frameInside(settingsAction.startsAtMs, settingsAction.endsAtMs, 0.08);
@@ -67,11 +79,12 @@ assert.equal(configured.sampleRateInput, '1000');
 assert.equal(configured.triggerInput, '120');
 assert.equal(configured.virtualKeyboardVisible, false);
 
-assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 29);
-assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 260_850);
+assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 31);
+assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 276_550);
 assert.deepEqual(
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS.map(({ kind }) => kind),
   [
+    'powerOn',
     'settings',
     'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
     'recordOscillation', 'stopAcquisition', 'saveRun',
@@ -81,11 +94,12 @@ assert.deepEqual(
     'settle', 'disconnect',
     'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
     'recordOscillation', 'stopAcquisition', 'saveRun',
+    'powerOff',
   ],
 );
 assert.deepEqual(
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS.map(({ measurementIndex }) => measurementIndex),
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
 );
 
 for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
@@ -291,7 +305,7 @@ for (const language of ['zh-CN', 'zh-TW', 'en'] as const) {
   assert.equal(last.completed, true);
   assert.equal(last.measurementIndex, 2);
   assert.equal(last.savedMeasurementCount, 3);
-  assert.match(last.stepDescription, language === 'en' ? /Demo mode ends here/ : /演示模式|演示模式/);
+  assert.match(last.stepDescription, language === 'en' ? /automatic shutdown/ : /演示模式|演示模式/);
 }
 
 const completed = getPistonOscillationDemoFrame(PISTON_OSCILLATION_DEMO_DURATION_MS);
@@ -299,5 +313,7 @@ assert.equal(completed.stage, 'observe');
 assert.equal(completed.acquisitionPhase, 'stopped');
 assert.equal(completed.formalElapsedSeconds, PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS);
 assert.match(completed.stepTitle, /演示完成/);
+assert.equal(completed.powerOn, false);
+assert.equal(completed.powerButtonPressProgress, 0);
 
 console.log('pistonOscillationDemoTimeline tests passed');

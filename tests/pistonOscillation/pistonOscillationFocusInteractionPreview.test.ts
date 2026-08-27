@@ -337,6 +337,11 @@ assert.match(
   /const handleHoseDragStart = useCallback[\s\S]*attemptGuideAction\(action\)[\s\S]*const handleHoseDragEnd = useCallback[\s\S]*const nextHoseState:[\s\S]*withinMagneticRange[\s\S]*setHoseState\(nextHoseState\)/,
   'Space should guard hose pickup, while the final connector boundary should determine whether the physical hose is disconnected and can trigger support-loss recovery',
 );
+assert.match(
+  previewSource,
+  /const requestPowerPress = useCallback[\s\S]*const powerToggleAllowed = attemptGuideAction\('togglePower'\);[\s\S]*setManualPowerPressProgress\(nextProgress\);[\s\S]*if \(powerToggleAllowed\) onPowerToggle\?\.\(!powerOnRef\.current\);/,
+  'an out-of-step Guide power press should still animate while leaving the underlying power state unchanged',
+);
 assert.doesNotMatch(
   previewSource,
   /hoseDragStartedWithSpaceHeldRef|hoseSupportTransferUntilMsRef|setSpaceHeld\(true\)[\s\S]*nextHoseState/,
@@ -671,6 +676,11 @@ assert.match(
   previewSource,
   /const initialDisplacementMm = pistonOffsetMmRef\.current;[\s\S]*simulatePistonOscillationRelease\(\{[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMmRef\.current,[\s\S]*initialDisplacementMm,[\s\S]*\}\)/,
   'formal release must create one nonlinear trajectory from the live height and press depth',
+);
+assert.match(
+  previewSource,
+  /const initialDisplacementMm = pistonOffsetMmRef\.current;[\s\S]*if \(initialDisplacementMm >= -0\.02\) \{[\s\S]*setPistonOffset\(0\);[\s\S]*setPistonPhase\('idle'\);[\s\S]*return;[\s\S]*\}[\s\S]*simulatePistonOscillationRelease/,
+  'releasing without a real downward press should stay idle instead of integrating across the 0 mm stop',
 );
 assert.match(
   previewSource,

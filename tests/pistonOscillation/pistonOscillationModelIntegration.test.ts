@@ -35,8 +35,8 @@ const GLB_MAGIC = 0x46546c67;
 const GLB_VERSION = 2;
 const JSON_CHUNK_TYPE = 0x4e4f534a;
 const BIN_CHUNK_TYPE = 0x004e4942;
-const EXPECTED_GLB_BYTES = 7_507_832;
-const EXPECTED_GLB_SHA256 = '9CBC8E5331631F663B49F766D4352A758C52B97A313F75EA4041B6229694D370';
+const EXPECTED_GLB_BYTES = 8_218_884;
+const EXPECTED_GLB_SHA256 = 'A72C2609713B2CD7B2624A5343CA8073A547153C2ECD14CC18E83D2AD007CDBC';
 
 assert.equal(binary.readUInt32LE(0), GLB_MAGIC, 'the bundled model must retain the binary glTF magic');
 assert.equal(binary.readUInt32LE(4), GLB_VERSION, 'the bundled model must remain glTF 2.0');
@@ -75,7 +75,7 @@ const gltf = JSON.parse(
   [key: string]: unknown;
 };
 assert.equal(gltf.asset?.version, '2.0');
-assert.equal(gltf.asset?.generator, 'THREE.GLTFExporter r182');
+assert.equal(gltf.asset?.generator, 'Khronos glTF Blender I/O v5.1.19');
 assert.equal(gltf.animations?.length ?? 0, 0, 'the canonical model must not carry a fixed source animation');
 
 const requiredNodeNames = [
@@ -102,11 +102,36 @@ for (const nodeName of requiredNodeNames) {
   assert.match(modelSource, new RegExp(`['"]${nodeName}['"]`));
 }
 
-assert.equal(
-  (gltf.nodes ?? []).some((node) => node.extras !== undefined),
-  false,
-  'interaction state must live in the software layer rather than GLB node metadata',
+const nodesWithAuthoringMetadata = (gltf.nodes ?? []).filter((node) => node.extras !== undefined);
+assert.ok(
+  nodesWithAuthoringMetadata.length > 0,
+  'the refined interface model should retain its reviewed construction metadata',
 );
+assert.deepEqual(
+  nodesWithAuthoringMetadata
+    .filter((node) => (
+      node.name !== 'DataCable_SensorToUniversal'
+      && !node.name?.startsWith('UniversalInterface_')
+    ))
+    .map((node) => node.name),
+  [],
+  'source-authored metadata must remain isolated from piston, screw, hose, scale, and hit-target nodes',
+);
+const authoredMetadataKeys = new Set(
+  nodesWithAuthoringMetadata.flatMap((node) => Object.keys(node.extras ?? {})),
+);
+const runtimeInteractionSources = `${modelSource}\n${interactiveModelSource}\n${interactionWorkspaceSource}`;
+for (const key of authoredMetadataKeys) {
+  assert.equal(
+    [
+      `userData.${key}`,
+      `userData['${key}']`,
+      `userData["${key}"]`,
+    ].some((token) => runtimeInteractionSources.includes(token)),
+    false,
+    `GLB authoring metadata key ${key} must not drive software interaction state`,
+  );
+}
 assert.equal(nodeNames.has('ScaleLabel_90'), false);
 assert.equal(nodeNames.has('ScaleTicks_Unnumbered'), false);
 assert.equal(nodeNames.has('Hose_Main_Default'), false);

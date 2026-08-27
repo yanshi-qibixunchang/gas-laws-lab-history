@@ -30,7 +30,7 @@ export const PISTON_OSCILLATION_HOSE_HANDLE_HIT_PADDING_M = 0.018;
 
 export type PistonOscillationHoseState = 'connected' | 'disconnected';
 
-export type PistonOscillationDemoFocusTarget = 'platform' | 'screw' | 'hose' | null;
+export type PistonOscillationDemoFocusTarget = 'platform' | 'screw' | 'hose' | 'power' | null;
 
 export type PistonOscillationDemoGuideTheme = 'light' | 'dark';
 
@@ -40,6 +40,7 @@ export interface PistonOscillationInteractiveBounds {
 }
 
 interface InteractiveHitTargets {
+  powerButton: THREE.Mesh;
   connectedConnector: THREE.Mesh;
   connectedHandle: THREE.Group;
   connectedBody: THREE.Mesh;
@@ -59,6 +60,12 @@ interface InteractiveModelInstance {
   ownedGeometries: Set<THREE.BufferGeometry>;
   pistonAssembly: THREE.Object3D;
   massPlatform: THREE.Object3D;
+  powerButton: THREE.Object3D;
+  powerSymbol: THREE.Object3D;
+  statusLed: THREE.Object3D;
+  powerButtonInitialPosition: THREE.Vector3;
+  powerSymbolInitialPosition: THREE.Vector3;
+  powerMaterialStates: PowerMaterialState[];
   pistonAssemblyWorldYAtScaleCalibration: number;
   lockingScrewMovingPart: THREE.Object3D;
   connectedHose: THREE.Object3D;
@@ -79,11 +86,20 @@ interface InteractiveModelInstance {
   focusShellBreathMaterial: THREE.MeshBasicMaterial;
   focusShellPulseMaterial: THREE.MeshBasicMaterial;
   focusShells: {
+    power: FocusShellInstance;
     platform: FocusShellInstance;
     screw: FocusShellInstance;
     connectedHoseHandle: FocusShellInstance;
     detachedHoseHandle: FocusShellInstance;
   };
+}
+
+interface PowerMaterialState {
+  material: THREE.Material;
+  color: THREE.Color | null;
+  offColor: THREE.Color | null;
+  emissive: THREE.Color | null;
+  emissiveIntensity: number | null;
 }
 
 interface FocusShellInstance {
@@ -155,6 +171,7 @@ const PISTON_FOCUS_SHELL_PULSE_PEAK_SCALE: Record<
   platform: 1.11,
   screw: 1.34,
   hose: 1.11,
+  power: 1.16,
 };
 
 const getPistonGuideCuePulse = (
@@ -429,6 +446,7 @@ const syncBoxHitTarget = (
   root: THREE.Object3D,
   source: THREE.Object3D,
   hitTarget: THREE.Mesh,
+  padding: readonly [number, number, number] = [0.018, 0.012, 0.018],
 ) => {
   root.updateWorldMatrix(true, true);
   source.updateWorldMatrix(true, true);
@@ -436,7 +454,7 @@ const syncBoxHitTarget = (
   const center = bounds.getCenter(new THREE.Vector3());
   const size = bounds.getSize(new THREE.Vector3());
   hitTarget.position.copy(root.worldToLocal(center));
-  hitTarget.scale.set(size.x + 0.018, size.y + 0.012, size.z + 0.018);
+  hitTarget.scale.set(size.x + padding[0], size.y + padding[1], size.z + padding[2]);
   hitTarget.updateWorldMatrix(true, true);
 };
 
@@ -446,6 +464,7 @@ const createBoxHitTarget = (
   objectName: string,
   material: THREE.Material,
   ownedGeometries: Set<THREE.BufferGeometry>,
+  padding?: readonly [number, number, number],
 ) => {
   const geometry = new THREE.BoxGeometry(1, 1, 1);
   ownedGeometries.add(geometry);
@@ -454,8 +473,65 @@ const createBoxHitTarget = (
   hitTarget.raycast = THREE.Mesh.prototype.raycast;
   hitTarget.renderOrder = 40;
   root.add(hitTarget);
-  syncBoxHitTarget(root, source, hitTarget);
+  syncBoxHitTarget(root, source, hitTarget, padding);
   return hitTarget;
+};
+
+const collectPowerMaterialStates = (
+  sources: readonly THREE.Object3D[],
+  offColor: string,
+): PowerMaterialState[] => {
+  const states: PowerMaterialState[] = [];
+  const visited = new Set<THREE.Material>();
+  sources.forEach((source) => source.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+    materials.forEach((material) => {
+      if (visited.has(material)) return;
+      visited.add(material);
+      const color = 'color' in material && material.color instanceof THREE.Color
+        ? material.color.clone()
+        : null;
+      const emissive = 'emissive' in material && material.emissive instanceof THREE.Color
+        ? material.emissive.clone()
+        : null;
+      const emissiveIntensity = 'emissiveIntensity' in material
+        && typeof material.emissiveIntensity === 'number'
+        ? material.emissiveIntensity
+        : null;
+      states.push({
+        material,
+        color,
+        offColor: color ? new THREE.Color(offColor) : null,
+        emissive,
+        emissiveIntensity,
+      });
+    });
+  }));
+  return states;
+};
+
+const applyPowerMaterialState = (
+  states: readonly PowerMaterialState[],
+  powerOn: boolean,
+) => {
+  states.forEach(({ material, color, offColor, emissive, emissiveIntensity }) => {
+    if (color && 'color' in material && material.color instanceof THREE.Color) {
+      material.color.copy(powerOn ? color : offColor ?? color);
+    }
+    if (emissive && 'emissive' in material && material.emissive instanceof THREE.Color) {
+      material.emissive.copy(powerOn ? emissive : new THREE.Color('#000000'));
+    }
+    if (
+      emissiveIntensity !== null
+      && 'emissiveIntensity' in material
+      && typeof material.emissiveIntensity === 'number'
+    ) {
+      material.emissiveIntensity = powerOn ? emissiveIntensity : 0;
+    }
+    material.needsUpdate = true;
+  });
 };
 
 const createFocusShellMaterial = (
@@ -772,6 +848,22 @@ const createInteractiveModelInstance = (
   }
   const pistonAssembly = getRequiredPistonOscillationObject(root, 'PistonAssembly_MOV');
   const massPlatform = getRequiredPistonOscillationObject(root, 'MassPlatform');
+  const powerButton = getRequiredPistonOscillationObject(
+    root,
+    'UniversalInterface_PowerButton',
+  );
+  const powerRing = getRequiredPistonOscillationObject(
+    root,
+    'UniversalInterface_PowerRing',
+  );
+  const powerSymbol = getRequiredPistonOscillationObject(
+    root,
+    'UniversalInterface_PowerButton_UnifiedSymbol',
+  );
+  const statusLed = getRequiredPistonOscillationObject(
+    root,
+    'UniversalInterface_StatusLED',
+  );
   const glassCylinder = getRequiredPistonOscillationObject(root, 'Cylinder_Pyrex');
   const protectiveFrame = getRequiredPistonOscillationObject(root, 'ProtectiveFrame');
   const lockingScrewMovingPart = getRequiredPistonOscillationObject(
@@ -819,6 +911,13 @@ const createInteractiveModelInstance = (
   const detachedToConnectedLocalOffset = root
     .worldToLocal(connectedConnectorWorldPosition.clone())
     .sub(root.worldToLocal(detachedConnectorWorldPosition.clone()));
+  const powerButtonInitialPosition = powerButton.position.clone();
+  const powerSymbolInitialPosition = powerSymbol.position.clone();
+  const powerMaterialStates = [
+    ...collectPowerMaterialStates([powerButton], '#0b1f36'),
+    ...collectPowerMaterialStates([powerSymbol], '#071019'),
+    ...collectPowerMaterialStates([statusLed], '#101714'),
+  ];
 
   const ghostMaterial = new THREE.MeshStandardMaterial({
     color: '#69b7df',
@@ -879,6 +978,14 @@ const createInteractiveModelInstance = (
   root.add(ghostAssembly);
 
   const hitTargets: InteractiveHitTargets = {
+    powerButton: createBoxHitTarget(
+      root,
+      powerRing,
+      PISTON_MODEL_HIT_TARGETS.universalInterfacePowerButton.objectName,
+      hitMaterial,
+      ownedGeometries,
+      [0.006, 0.006, 0.004],
+    ),
     connectedConnector: createConnectorHitTarget(
       root,
       connectedMovableConnector,
@@ -971,6 +1078,14 @@ const createInteractiveModelInstance = (
   root.updateWorldMatrix(true, true);
 
   const focusShells = {
+    power: createFocusShellInstance(
+      root,
+      'power',
+      [powerButton, powerSymbol],
+      powerButton,
+      focusShellBreathMaterial,
+      focusShellPulseMaterial,
+    ),
     platform: createFocusShellInstance(
       root,
       'platform',
@@ -1013,6 +1128,12 @@ const createInteractiveModelInstance = (
     ownedGeometries,
     pistonAssembly,
     massPlatform,
+    powerButton,
+    powerSymbol,
+    statusLed,
+    powerButtonInitialPosition,
+    powerSymbolInitialPosition,
+    powerMaterialStates,
     pistonAssemblyWorldYAtScaleCalibration:
       pistonAssembly.getWorldPosition(new THREE.Vector3()).y,
     lockingScrewMovingPart,
@@ -1068,6 +1189,9 @@ const isObjectOrDescendantOf = (
 
 export interface PistonOscillationInteractiveModelProps {
   sourceScene: THREE.Object3D;
+  powerOn: boolean;
+  powerPressProgress: number;
+  powerInteractionEnabled: boolean;
   pistonEquilibriumHeightMm: number;
   pistonOscillationOffsetMm: number;
   lockingScrewProgress: number;
@@ -1087,6 +1211,7 @@ export interface PistonOscillationInteractiveModelProps {
   onBoundsReady: (bounds: PistonOscillationInteractiveBounds) => void;
   onHoseFocusPointReady?: (point: THREE.Vector3 | null) => void;
   onPistonFocusRequest: () => void;
+  onPowerPress: () => void;
   onHoseHoverChange?: (hovered: boolean) => void;
   onHoseDragStart: () => boolean | void;
   onHoseDragChange: (offset: THREE.Vector3, withinMagneticRange: boolean) => void;
@@ -1095,6 +1220,9 @@ export interface PistonOscillationInteractiveModelProps {
 
 export const PistonOscillationInteractiveModel = ({
   sourceScene,
+  powerOn,
+  powerPressProgress,
+  powerInteractionEnabled,
   pistonEquilibriumHeightMm,
   pistonOscillationOffsetMm,
   lockingScrewProgress,
@@ -1114,6 +1242,7 @@ export const PistonOscillationInteractiveModel = ({
   onBoundsReady,
   onHoseFocusPointReady = () => undefined,
   onPistonFocusRequest,
+  onPowerPress,
   onHoseHoverChange = () => undefined,
   onHoseDragStart,
   onHoseDragChange,
@@ -1143,6 +1272,26 @@ export const PistonOscillationInteractiveModel = ({
   useLayoutEffect(() => {
     onHoseFocusPointReady(model.connectedConnectorWorldPosition.clone());
   }, [model.connectedConnectorWorldPosition, onHoseFocusPointReady]);
+
+  useLayoutEffect(() => {
+    const normalizedProgress = THREE.MathUtils.clamp(powerPressProgress, 0, 1);
+    model.powerButton.position.copy(model.powerButtonInitialPosition);
+    model.powerButton.position.z -= 0.0011 * normalizedProgress;
+    model.powerSymbol.position.copy(model.powerSymbolInitialPosition);
+    model.powerSymbol.position.z -= 0.0011 * normalizedProgress;
+    model.powerSymbol.visible = powerOn;
+    model.statusLed.visible = powerOn;
+    applyPowerMaterialState(model.powerMaterialStates, powerOn);
+    model.powerButton.updateWorldMatrix(true, true);
+    model.powerSymbol.updateWorldMatrix(true, true);
+    syncBoxHitTarget(
+      model.root,
+      getRequiredPistonOscillationObject(model.root, 'UniversalInterface_PowerRing'),
+      model.hitTargets.powerButton,
+      [0.006, 0.006, 0.004],
+    );
+    invalidate();
+  }, [invalidate, model, powerOn, powerPressProgress]);
 
   useLayoutEffect(() => {
     const targetWorldY = getPistonAssemblyTargetWorldY(
@@ -1236,6 +1385,7 @@ export const PistonOscillationInteractiveModel = ({
   }, [demoFocusTheme, model]);
 
   useLayoutEffect(() => {
+    model.focusShells.power.anchorGroup.visible = demoFocusTarget === 'power';
     model.focusShells.platform.anchorGroup.visible = demoFocusTarget === 'platform';
     model.focusShells.screw.anchorGroup.visible = demoFocusTarget === 'screw';
     model.focusShells.connectedHoseHandle.anchorGroup.visible =
@@ -1256,6 +1406,8 @@ export const PistonOscillationInteractiveModel = ({
     const palette = PISTON_FOCUS_SHELL_PALETTES[demoFocusTheme];
     const activeShell = demoFocusTarget === 'platform'
       ? model.focusShells.platform
+      : demoFocusTarget === 'power'
+        ? model.focusShells.power
       : demoFocusTarget === 'screw'
         ? model.focusShells.screw
         : demoFocusTarget === 'hose'
@@ -1365,7 +1517,25 @@ export const PistonOscillationInteractiveModel = ({
     || object === model.hitTargets.pistonLockingScrew
   ), [model]);
 
+  const isPowerHitTarget = useCallback((object: THREE.Object3D) => (
+    object === model.hitTargets.powerButton
+    || isObjectOrDescendantOf(object, model.powerButton)
+    || isObjectOrDescendantOf(object, model.powerSymbol)
+  ), [model]);
+
   const handlePointerDown = useCallback((event: ThreeEvent<PointerEvent>) => {
+    if (
+      interactionEnabled
+      && powerInteractionEnabled
+      && event.button === 0
+      && event.intersections.some(({ object }) => isPowerHitTarget(object))
+    ) {
+      event.stopPropagation();
+      event.nativeEvent.stopImmediatePropagation();
+      gl.domElement.style.cursor = 'pointer';
+      onPowerPress();
+      return;
+    }
     if (
       !interactionEnabled
       || !hoseInteractionEnabled
@@ -1454,11 +1624,14 @@ export const PistonOscillationInteractiveModel = ({
     hoseInteractionEnabled,
     hoseState,
     interactionEnabled,
+    isPowerHitTarget,
     isHoseHitTarget,
     model,
     onHoseDragChange,
     onHoseDragEnd,
     onHoseDragStart,
+    onPowerPress,
+    powerInteractionEnabled,
   ]);
 
   useEffect(() => {
@@ -1488,6 +1661,15 @@ export const PistonOscillationInteractiveModel = ({
       onPointerDown={handlePointerDown}
       onPointerOver={(event: ThreeEvent<PointerEvent>) => {
         if (
+          interactionEnabled
+          && powerInteractionEnabled
+          && isPowerHitTarget(event.object)
+        ) {
+          event.stopPropagation();
+          gl.domElement.style.cursor = 'pointer';
+          return;
+        }
+        if (
           !interactionEnabled
           || !hoseInteractionEnabled
           || !isHoseHitTarget(event.object)
@@ -1497,6 +1679,15 @@ export const PistonOscillationInteractiveModel = ({
         onHoseHoverChange(true);
       }}
       onPointerOut={(event: ThreeEvent<PointerEvent>) => {
+        if (
+          interactionEnabled
+          && powerInteractionEnabled
+          && isPowerHitTarget(event.object)
+        ) {
+          event.stopPropagation();
+          gl.domElement.style.cursor = '';
+          return;
+        }
         if (
           !interactionEnabled
           || !hoseInteractionEnabled

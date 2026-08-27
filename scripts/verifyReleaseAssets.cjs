@@ -301,24 +301,25 @@ const verifyBlockmapSchema = (bytes, installerSize) => {
   return { chunkCount: file.sizes.length, decompressedSize: decompressed.length };
 };
 
-const resolveAppBuilderPath = () => {
-  const executableName = process.platform === 'win32' ? 'app-builder.exe' : 'app-builder';
-  const platformFolder = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux';
-  return path.join(__dirname, '..', 'node_modules', 'app-builder-bin', platformFolder, process.arch, executableName);
-};
+const resolveBlockmapBuilderScriptPath = () => path.join(__dirname, 'regenerateBlockmap.cjs');
 
-const verifyRegeneratedBlockmap = ({ installerPath, blockmapPath, blockmapBytes, appBuilderPath }) => {
-  const executablePath = appBuilderPath || resolveAppBuilderPath();
-  const executable = fs.statSync(executablePath);
-  assert.equal(executable.isFile(), true, `app-builder executable is missing: ${executablePath}`);
+const verifyRegeneratedBlockmap = ({
+  installerPath,
+  blockmapPath,
+  blockmapBytes,
+  blockmapBuilderScriptPath,
+}) => {
+  const builderScriptPath = blockmapBuilderScriptPath || resolveBlockmapBuilderScriptPath();
+  const builderScript = fs.statSync(builderScriptPath);
+  assert.equal(builderScript.isFile(), true, `blockmap builder script is missing: ${builderScriptPath}`);
   const releaseDir = path.dirname(blockmapPath);
   const temporaryDir = fs.mkdtempSync(path.join(releaseDir, '.verify-blockmap-'));
   const regeneratedPath = path.join(temporaryDir, path.basename(blockmapPath));
   try {
-    const result = spawnSync(executablePath, [
-      'blockmap',
-      '--input', installerPath,
-      '--output', regeneratedPath,
+    const result = spawnSync(process.execPath, [
+      builderScriptPath,
+      installerPath,
+      regeneratedPath,
     ], {
       encoding: 'utf8',
       maxBuffer: 1024 * 1024,
@@ -329,7 +330,7 @@ const verifyRegeneratedBlockmap = ({ installerPath, blockmapPath, blockmapBytes,
     assert.equal(
       result.status,
       0,
-      `app-builder could not regenerate the blockmap: ${(result.stderr || result.stdout || '').trim()}`,
+      `electron-builder could not regenerate the blockmap: ${(result.stderr || result.stdout || '').trim()}`,
     );
     const regeneratedBytes = fs.readFileSync(regeneratedPath);
     assert.equal(regeneratedBytes.length, blockmapBytes.length, 'Blockmap bytes differ from app-builder regeneration');
@@ -345,7 +346,7 @@ const verifyRegeneratedBlockmap = ({ installerPath, blockmapPath, blockmapBytes,
 const verifyReleaseAssets = ({
   rootDir = path.resolve(__dirname, '..'),
   version: requestedVersion,
-  appBuilderPath,
+  blockmapBuilderScriptPath,
 } = {}) => {
   const packageJson = readJson(path.join(rootDir, 'package.json'));
   const packageLock = readJson(path.join(rootDir, 'package-lock.json'));
@@ -394,7 +395,7 @@ const verifyReleaseAssets = ({
     installerPath: assetFiles[0].path,
     blockmapPath: assetFiles[1].path,
     blockmapBytes,
-    appBuilderPath,
+    blockmapBuilderScriptPath,
   });
 
   const latestPath = assetFiles[2].path;

@@ -682,10 +682,19 @@ assert.match(
   /showPistonOscillationGuideCompletionToast[\s\S]*HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS[\s\S]*className="studio-heat-demo-complete-toast"[\s\S]*data-piston-oscillation-guide-complete-toast="true"[\s\S]*role="status"/,
   'the final piston Guide notice should reuse the heat-capacity completion toast timing, styling, and accessibility semantics',
 );
+const mandatoryProcessingBlock = workbenchSource.match(
+  /const pistonOscillationMandatoryDataProcessing = Boolean\(([\s\S]*?)\n  \);/,
+)?.[1];
+assert.ok(mandatoryProcessingBlock, 'the mandatory processing workspace gate should exist');
 assert.match(
-  workbenchSource,
-  /activePistonOscillationDataProcessing[\s\S]*step === 'periodProcessing'[\s\S]*step === 'calculationReady'[\s\S]*step === 'completionReview'/,
-  'the enlarged processing workspace should remain in place while the completion explanation is being read',
+  mandatoryProcessingBlock,
+  /step === 'periodProcessing'[\s\S]*step === 'completionReview'/,
+  'period selection and the completion explanation should keep the enlarged processing workspace',
+);
+assert.doesNotMatch(
+  mandatoryProcessingBlock,
+  /step === 'powerOff'|step === 'calculationReady'/,
+  'shutdown and offline calculation should restore the split instrument/realtime layout',
 );
 assert.match(
   workbenchSource,

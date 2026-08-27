@@ -21,13 +21,14 @@ import type {
   PistonOscillationOperationCue,
 } from './pistonOscillationOperationVisualizationModel.ts';
 
-export type PistonOscillationDemoFocusMode = 'overview' | 'pistonFocus';
+export type PistonOscillationDemoFocusMode = 'overview' | 'pistonFocus' | 'powerFocus';
 export type PistonOscillationDemoAcquisitionPhase = 'idle' | 'armed' | 'recording' | 'stopped';
 export type PistonOscillationDemoStage = 'reset' | 'orient' | 'highlight' | 'action' | 'observe';
 export type PistonOscillationDemoOperationMirrorView =
   | 'scaleReadingView'
   | 'screwOperationView';
 export type PistonOscillationDemoControl =
+  | 'power'
   | 'settings'
   | 'platform'
   | 'mirrorOutline'
@@ -51,6 +52,7 @@ export const getPistonOscillationDemoPressDisplacementMm = (measurementIndex: nu
 export type PistonOscillationDemoPlatformAction = 'adjustHeight' | 'press' | null;
 export type PistonOscillationDemoKeyboardField = 'sampleRate' | 'trigger' | null;
 export type PistonOscillationDemoStepKind =
+  | 'powerOn'
   | 'settings'
   | 'settle'
   | 'disconnect'
@@ -61,10 +63,13 @@ export type PistonOscillationDemoStepKind =
   | 'startAcquisition'
   | 'recordOscillation'
   | 'stopAcquisition'
-  | 'saveRun';
+  | 'saveRun'
+  | 'powerOff';
 
 export interface PistonOscillationDemoFrame {
   elapsedMs: number;
+  powerOn: boolean;
+  powerButtonPressProgress: number;
   focusMode: PistonOscillationDemoFocusMode;
   activeControl: PistonOscillationDemoControl;
   highlightControl: PistonOscillationDemoControl;
@@ -174,6 +179,14 @@ interface StepCopy {
 }
 
 interface DemoMetaCopy {
+  powerOnDescription: string;
+  powerOnTarget: string;
+  powerOnCriterion: string;
+  powerOnNote: string;
+  powerOffDescription: string;
+  powerOffTarget: string;
+  powerOffCriterion: string;
+  powerOffNote: string;
   settingsDescription: string;
   settingsTarget: string;
   settingsCriterion: string;
@@ -231,6 +244,14 @@ interface DemoMetaCopy {
 
 const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
   'zh-CN': {
+    powerOnDescription: '按下主机左侧蓝色电源键；待按键回弹、指示灯亮起后继续。',
+    powerOnTarget: '打开数据采集系统电源',
+    powerOnCriterion: '按键按下并回弹，电源符号、状态灯和实时数据区亮起',
+    powerOnNote: '未开机时不能设置参数、显示曲线或记录数据。',
+    powerOffDescription: '三条曲线保存后，按下蓝色电源键，待按键回弹且指示灯熄灭。',
+    powerOffTarget: '关闭数据采集系统电源',
+    powerOffCriterion: '按键按下并回弹，电源符号、状态灯和实时数据区熄灭',
+    powerOffNote: '三条正式曲线已经保存，关机不会删除已记录数据。',
     settingsDescription: '用屏幕键盘输入 1000 Hz 和 120 kPa。',
     settingsTarget: '设置采样率与触发值',
     settingsCriterion: '输入框显示 1000、120',
@@ -276,16 +297,24 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     saveDescription: '检查曲线后点击保存。',
     saveTarget: (run) => `保存第 ${run} 条正式曲线`,
     saveCriterion: '显示保存确认',
-    saveNote: (run) => run < 3 ? '保存后进入下一次高度调节。' : '第三条曲线保存后，本次演示结束。',
+    saveNote: (run) => run < 3 ? '保存后进入下一次高度调节。' : '第三条曲线保存后，完成仪器关机。',
     completedTitle: '活塞振动法演示完成',
-    completedDescription: '80、70、60 mm 三次仪器操作与压力曲线采集均已演示完成。',
+    completedDescription: '80、70、60 mm 三次仪器操作与压力曲线采集均已演示完成，数据采集系统已自动关机。',
     completedTarget: '完成三组实验实操演示',
-    completedCriterion: '三条正式曲线均已依次保存',
-    completedNote: '演示模式到此结束；周期框选、拟合与计算由引导模式继续完成。',
+    completedCriterion: '三条正式曲线均已依次保存，数据采集系统已经关闭',
+    completedNote: '演示模式以自动关机结束；周期框选、拟合与计算由引导模式继续完成。',
     resetDescription: '演示准备中，仪器与采集界面正在复位。',
     observe: (note) => `观察：${note}`,
   },
   'zh-TW': {
+    powerOnDescription: '按下主機左側藍色電源鍵；待按鍵回彈、指示燈亮起後繼續。',
+    powerOnTarget: '開啟資料採集系統電源',
+    powerOnCriterion: '按鍵按下並回彈，電源符號、狀態燈與即時資料區亮起',
+    powerOnNote: '未開機時不能設定參數、顯示曲線或記錄資料。',
+    powerOffDescription: '三條曲線儲存後，按下藍色電源鍵，待按鍵回彈且指示燈熄滅。',
+    powerOffTarget: '關閉資料採集系統電源',
+    powerOffCriterion: '按鍵按下並回彈，電源符號、狀態燈與即時資料區熄滅',
+    powerOffNote: '三條正式曲線已經儲存，關機不會刪除已記錄資料。',
     settingsDescription: '用螢幕鍵盤輸入 1000 Hz 與 120 kPa。',
     settingsTarget: '設定採樣率與觸發值',
     settingsCriterion: '輸入框顯示 1000、120',
@@ -331,16 +360,24 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     saveDescription: '檢查曲線後點擊儲存。',
     saveTarget: (run) => `儲存第 ${run} 條正式曲線`,
     saveCriterion: '顯示儲存確認',
-    saveNote: (run) => run < 3 ? '儲存後進入下一次高度調節。' : '第三條曲線儲存後，本次演示結束。',
+    saveNote: (run) => run < 3 ? '儲存後進入下一次高度調節。' : '第三條曲線儲存後，完成儀器關機。',
     completedTitle: '活塞振動法演示完成',
-    completedDescription: '80、70、60 mm 三次儀器操作與壓力曲線採集均已演示完成。',
+    completedDescription: '80、70、60 mm 三次儀器操作與壓力曲線採集均已演示完成，資料採集系統已自動關機。',
     completedTarget: '完成三組實驗實操演示',
-    completedCriterion: '三條正式曲線均已依序儲存',
-    completedNote: '演示模式到此結束；週期框選、擬合與計算由引導模式繼續完成。',
+    completedCriterion: '三條正式曲線均已依序儲存，資料採集系統已經關閉',
+    completedNote: '演示模式以自動關機結束；週期框選、擬合與計算由引導模式繼續完成。',
     resetDescription: '演示準備中，儀器與採集介面正在復位。',
     observe: (note) => `觀察：${note}`,
   },
   en: {
+    powerOnDescription: 'Press the blue power button and wait for it to spring back and illuminate the status LED.',
+    powerOnTarget: 'Turn on the data-acquisition system',
+    powerOnCriterion: 'The button springs back; the power symbol, LED, and real-time display turn on',
+    powerOnNote: 'Parameters, curves, and recording are unavailable while the power is off.',
+    powerOffDescription: 'After saving all three curves, press the blue power button and wait for the LED to turn off.',
+    powerOffTarget: 'Turn off the data-acquisition system',
+    powerOffCriterion: 'The button springs back; the power symbol, LED, and real-time display turn off',
+    powerOffNote: 'All three formal curves are saved; shutting down does not delete recorded data.',
     settingsDescription: 'Enter 1000 Hz and 120 kPa with the on-screen keypad.',
     settingsTarget: 'Set the sample rate and trigger',
     settingsCriterion: 'The fields show 1000 and 120',
@@ -386,12 +423,12 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     saveDescription: 'Inspect the curve, then select Save.',
     saveTarget: (run) => `Save formal curve ${run}`,
     saveCriterion: 'A save confirmation appears',
-    saveNote: (run) => run < 3 ? 'The next height adjustment begins after saving.' : 'The demonstration ends after the third curve is saved.',
+    saveNote: (run) => run < 3 ? 'The next height adjustment begins after saving.' : 'Shut down the instrument after saving the third curve.',
     completedTitle: 'Piston-oscillation demonstration complete',
-    completedDescription: 'All three instrument-operation and pressure-acquisition runs at 80, 70, and 60 mm are complete.',
+    completedDescription: 'All three instrument-operation and pressure-acquisition runs at 80, 70, and 60 mm are complete, and the data-acquisition system has shut down automatically.',
     completedTarget: 'Complete all three practical demonstration runs',
-    completedCriterion: 'All three formal curves were saved in sequence',
-    completedNote: 'Demo mode ends here; Guide mode continues with period selection, fitting, and calculation.',
+    completedCriterion: 'All three formal curves were saved in sequence and the data-acquisition system is off',
+    completedNote: 'Demo mode ends with automatic shutdown; Guide mode continues with period selection, fitting, and calculation.',
     resetDescription: 'Preparing the demonstration and resetting the instrument and acquisition panels.',
     observe: (note) => `Observe: ${note}`,
   },
@@ -461,6 +498,9 @@ const createRunSteps = (measurementIndex: number): StepDefinition[] => [
 ];
 
 const STEP_DEFINITIONS: StepDefinition[] = [
+  { kind: 'powerOn', measurementIndex: 0, focusMode: 'powerFocus', segments: [
+    orient('powerFocus'), highlight('power', 'powerFocus'), action('power', 900, 'powerFocus'),
+  ] },
   { kind: 'settings', measurementIndex: 0, focusMode: 'overview', segments: [
     orient('overview'), highlight('settings'), action('settings', 4_500),
   ] },
@@ -473,6 +513,9 @@ const STEP_DEFINITIONS: StepDefinition[] = [
     ] as StepDefinition[]),
     ...createRunSteps(measurementIndex),
   ]),
+  { kind: 'powerOff', measurementIndex: 2, focusMode: 'powerFocus', segments: [
+    orient('powerFocus'), highlight('power', 'powerFocus'), action('power', 900, 'powerFocus'),
+  ] },
 ];
 
 export const PISTON_OSCILLATION_DEMO_STEP_WINDOWS: PistonOscillationDemoStepWindow[] = (() => {
@@ -525,6 +568,25 @@ const getActionWindow = (measurementIndex: number, kind: PistonOscillationDemoSt
   getStepWindow(measurementIndex, kind).actionWindows.find((window) => window.control === control)!
 );
 
+const getPowerPresentation = (elapsedMs: number) => {
+  const powerOnWindow = getActionWindow(0, 'powerOn', 'power');
+  const powerOffWindow = getActionWindow(2, 'powerOff', 'power');
+  const toggleOffsetMs = 165;
+  const powerOn = elapsedMs >= powerOnWindow.startsAtMs + toggleOffsetMs
+    && elapsedMs < powerOffWindow.startsAtMs + toggleOffsetMs;
+  const activeWindow = [powerOnWindow, powerOffWindow].find((window) => (
+    elapsedMs >= window.startsAtMs && elapsedMs < window.endsAtMs
+  ));
+  if (!activeWindow) return { powerOn, powerButtonPressProgress: 0 };
+  const localElapsedMs = elapsedMs - activeWindow.startsAtMs;
+  const powerButtonPressProgress = localElapsedMs <= 105
+    ? localElapsedMs / 105
+    : localElapsedMs <= 165
+      ? 1
+      : Math.max(0, 1 - ((localElapsedMs - 165) / 145));
+  return { powerOn, powerButtonPressProgress };
+};
+
 const trajectoryCache = new Map<number, PistonOscillationTrajectory>();
 const triggerTimeCache = new Map<number, number>();
 export const getPistonOscillationDemoTrajectory = (measurementIndex: number) => {
@@ -562,6 +624,7 @@ const getStepCopy = (language: PistonOscillationLanguage, window: PistonOscillat
   const run = window.measurementIndex + 1;
   const height = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[window.measurementIndex];
   switch (window.kind) {
+    case 'powerOn': return { title: guide.powerOnTitle, description: meta.powerOnDescription, target: meta.powerOnTarget, criterion: meta.powerOnCriterion, note: meta.powerOnNote };
     case 'settings': return { title: guide.parameterSetupTitle, description: meta.settingsDescription, target: meta.settingsTarget, criterion: meta.settingsCriterion, note: meta.settingsNote };
     case 'settle': return { title: guide.crossRunStabilizingTitle, description: meta.settleDescription, target: meta.settleTarget, criterion: meta.settleCriterion, note: meta.settleNote };
     case 'disconnect': return { title: guide.crossRunDisconnectTitle, description: meta.disconnectDescription, target: meta.disconnectTarget, criterion: meta.disconnectCriterion, note: meta.adjustNote };
@@ -573,6 +636,7 @@ const getStepCopy = (language: PistonOscillationLanguage, window: PistonOscillat
     case 'recordOscillation': return { title: meta.recordTitle(run), description: meta.recordDescription, target: meta.recordTarget, criterion: meta.recordCriterion, note: meta.recordNote };
     case 'stopAcquisition': return { title: guide.pauseRecordingTitle, description: meta.stopDescription, target: meta.stopTarget, criterion: meta.stopCriterion, note: meta.stopNote };
     case 'saveRun': return { title: guide.saveCurveTitle(run), description: meta.saveDescription, target: meta.saveTarget(run), criterion: meta.saveCriterion, note: meta.saveNote(run) };
+    case 'powerOff': return { title: guide.powerOffTitle, description: meta.powerOffDescription, target: meta.powerOffTarget, criterion: meta.powerOffCriterion, note: meta.powerOffNote };
   }
 };
 
@@ -706,6 +770,9 @@ const getDemoMouseAction = (
 ): PistonOscillationOperationCue['mouseAction'] | null => {
   if (stage !== 'action') return null;
   switch (window.kind) {
+    case 'powerOn':
+    case 'powerOff':
+      return 'click';
     case 'adjustHeight':
       return window.measurementIndex === 0 ? 'moveUp' : 'moveDown';
     case 'secureHeight':
@@ -762,6 +829,7 @@ export const getPistonOscillationDemoFrame = (
   const measurementIndex = currentWindow.measurementIndex;
   const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
   const keyboard = getKeyboardPresentation(elapsedMs);
+  const power = getPowerPresentation(elapsedMs);
   const hose = getHosePresentation(elapsedMs);
   const lockingScrewProgress = getScrewProgress(elapsedMs);
   const runTiming = getRunTiming(measurementIndex);
@@ -816,7 +884,7 @@ export const getPistonOscillationDemoFrame = (
     : stage === 'observe' ? meta.observe(step.note) : step.description;
   const savedMeasurementCount = [0, 1, 2].reduce((count, index) => count + (elapsedMs >= getRunTiming(index).retainAtMs ? 1 : 0), 0);
   return {
-    elapsedMs, focusMode, activeControl, highlightControl, highlightControls,
+    elapsedMs, ...power, focusMode, activeControl, highlightControl, highlightControls,
     highlightElapsedSeconds: stage === 'highlight' && currentSegment ? (elapsedMs - currentSegment.startsAtMs) / 1000 : 0,
     stage, stepIndex: presentationStepIndex, stepCount: PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length,
     stepTitle: step.title, stepDescription, stepTarget: step.target,

@@ -3,6 +3,132 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.1.1",
+      "date": "2026-08-27",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.1.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.1.1/heat-capacity-lab-setup-6.1.1.exe"
+      },
+      "summary": {
+        "zh-CN": "6.1.1 正式加入活塞振动法空气比热容比实验，并完成混合精修仪器模型、电源门控、严格引导顺序、三轮采集与计算流程的整体验收。",
+        "zh-TW": "6.1.1 正式加入活塞振動法空氣比熱容比實驗，並完成混合精修儀器模型、電源門控、嚴格引導順序、三輪採集與計算流程的整體驗收。",
+        "en": "Version 6.1.1 introduces the complete piston-oscillation heat-capacity-ratio experiment with a reviewed hybrid instrument model, power-gated acquisition, strict Guide sequencing, and validated three-run processing and calculation."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "活塞振动法完整实验",
+            "zh-TW": "活塞振動法完整實驗",
+            "en": "Complete piston-oscillation experiment"
+          },
+          "items": [
+            {
+              "scope": "piston-oscillation-workflow",
+              "importance": "high",
+              "title": {
+                "zh-CN": "建立演示、引导与常规操作闭环",
+                "zh-TW": "建立演示、引導與常規操作閉環",
+                "en": "Completed Demo, Guide, and normal-operation workflows"
+              },
+              "body": {
+                "zh-CN": "新增活塞振动法实验工作区。引导完整覆盖三轮 80/70/60 mm 实验的参数设置、平台与刻度、螺钉、软管、采集、下压释放、保存、周期框选、拟合和结果计算；演示模式可自动播放全部步骤并正常结束。",
+                "zh-TW": "新增活塞振動法實驗工作區。引導完整涵蓋三輪 80/70/60 mm 實驗的參數設定、平臺與刻度、螺釘、軟管、採集、下壓釋放、儲存、週期框選、擬合和結果計算；演示模式可自動播放全部步驟並正常結束。",
+                "en": "The new piston-oscillation workspace covers three 80/70/60 mm runs, acquisition settings, platform and scale adjustment, screw and hose operation, displacement and release, saving, period selection, fitting, and final calculation. Demo plays the complete sequence automatically."
+              }
+            },
+            {
+              "scope": "piston-oscillation-power-gate",
+              "importance": "high",
+              "title": {
+                "zh-CN": "加入按压式电源与实时数据门控",
+                "zh-TW": "加入按壓式電源與即時資料門控",
+                "en": "Added a pressable power control and realtime-data gate"
+              },
+              "body": {
+                "zh-CN": "仪器电源统一表达传感器和电脑采集软件的开关状态，并具有按下、回弹、发光、呼吸高亮和引导框选反馈。关机时实时数据区只显示“电源关闭”，参数输入、曲线和数据记录均不可用；引导第一步开机、框选后关机，演示结束自动关机。",
+                "zh-TW": "儀器電源統一表達感測器和電腦採集軟體的開關狀態，並具有按下、回彈、發光、呼吸高亮和引導框選回饋。關機時即時資料區只顯示「電源關閉」，參數輸入、曲線和資料記錄均不可用；引導第一步開機、框選後關機，演示結束自動關機。",
+                "en": "One instrument control now represents both sensor and computer-acquisition power, with press, rebound, illumination, breathing emphasis, and guided selection feedback. Power-off blanks the realtime body and blocks parameters, plots, and recording; Guide and Demo include complete power cycles."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "仪器模型与交互校准",
+            "zh-TW": "儀器模型與互動校準",
+            "en": "Instrument model and interaction calibration"
+          },
+          "items": [
+            {
+              "scope": "piston-oscillation-model-contract",
+              "importance": "high",
+              "title": {
+                "zh-CN": "采用通过完整门禁的混合精修模型",
+                "zh-TW": "採用通過完整門禁的混合精修模型",
+                "en": "Adopted the fully gated refined hybrid model"
+              },
+              "body": {
+                "zh-CN": "正式 GLB 保留既有功能节点、层级、原点、运动轴和缩放，同时移植并精修 v1.3 主机界面与数据线视觉子树。活塞、平台、玻璃筒、保护架、螺钉、软管、接头、刻度、命中区域、磁吸位置和相机焦点均完成静态审计及真实浏览器复核。",
+                "zh-TW": "正式 GLB 保留既有功能節點、層級、原點、運動軸和縮放，同時移植並精修 v1.3 主機介面與資料線視覺子樹。活塞、平臺、玻璃筒、保護架、螺釘、軟管、接頭、刻度、命中區域、磁吸位置和相機焦點均完成靜態審計及真實瀏覽器複核。",
+                "en": "The formal GLB preserves the established functional nodes, hierarchy, origins, axes, and scale while refining the v1.3 interface and data-cable subtree. Piston, platform, cylinder, frame, screw, hose, connector, scale, hit regions, snap points, and camera targets passed static and real-browser verification."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "严格引导与状态一致性",
+            "zh-TW": "嚴格引導與狀態一致性",
+            "en": "Strict Guide sequencing and state consistency"
+          },
+          "items": [
+            {
+              "scope": "piston-oscillation-guide-gating",
+              "importance": "high",
+              "title": {
+                "zh-CN": "阻止越步操作改变实验物理状态",
+                "zh-TW": "阻止越步操作改變實驗物理狀態",
+                "en": "Prevented out-of-step controls from changing physical state"
+              },
+              "body": {
+                "zh-CN": "引导模式现在只接受当前步骤要求的操作。用户点击其他控件时仍能看到真实的按压或旋转反馈，但电源、螺钉、软管、平台和采集状态不会改变，并显示“请先完成当前引导步骤。”",
+                "zh-TW": "引導模式現在只接受目前步驟要求的操作。使用者點擊其他控制項時仍能看到真實的按壓或旋轉回饋，但電源、螺釘、軟管、平臺和採集狀態不會改變，並顯示「請先完成目前引導步驟。」",
+                "en": "Guide now accepts only the action required by the current step. Other controls still acknowledge the press or gesture visually, but power, screw, hose, platform, and acquisition state do not change, and the learner is prompted to finish the current guided step."
+              }
+            }
+          ]
+        },
+        {
+          "type": "security",
+          "title": {
+            "zh-CN": "许可与发行完整性",
+            "zh-TW": "授權與發佈完整性",
+            "en": "License and release integrity"
+          },
+          "items": [
+            {
+              "scope": "third-party-and-asset-notices",
+              "importance": "high",
+              "title": {
+                "zh-CN": "校正第三方清单并纳入模型来源",
+                "zh-TW": "校正第三方清單並納入模型來源",
+                "en": "Corrected third-party inventory and added model provenance"
+              },
+              "body": {
+                "zh-CN": "移除已不再使用的依赖记录，补齐当前直接运行与构建依赖，并让发行许可生成器同时校验活塞模型和共享实验台来源。`js-yaml`、Electron、electron-builder、PostCSS、安装器工具及相关传递依赖已更新到兼容安全版本，完整 npm 审计为 0 漏洞；安装包继续携带精确锁定版本和全部许可材料。",
+                "zh-TW": "移除已不再使用的依賴記錄，補齊目前直接執行與建置依賴，並讓發佈授權產生器同時驗證活塞模型和共用實驗臺來源。`js-yaml`、Electron、electron-builder、PostCSS、安裝程式工具及相關傳遞依賴已更新到相容安全版本，完整 npm 稽核為 0 漏洞；安裝包繼續攜帶精確鎖定版本和全部授權材料。",
+                "en": "Removed stale dependency records, added current direct runtime and build dependencies, and made legal generation fingerprint the piston-model and shared-bench provenance. `js-yaml`, Electron, electron-builder, PostCSS, installer tooling, and affected transitive packages were updated to compatible secure versions; the complete npm audit reports zero vulnerabilities, and the installer retains the exact locked inventory and license materials."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "5.3.1",
       "date": "2026-08-01",
       "channel": "stable",

@@ -4,9 +4,11 @@ This project includes third-party open source software and fonts. The project
 source, UI text, simulation logic, and product-specific assets remain separate
 from the licenses listed here.
 
-This notice is a project-maintained inventory. For final commercial
-distribution, ship this file together with the application and retain the full
-license texts from the referenced packages where required.
+This notice is the source-level inventory. Every desktop build also generates
+the exact locked npm package list, installed license texts, Electron and
+Chromium notices, font notices, exporter notices, audio attribution, and the
+packaged 3D-asset provenance under `public/legal`; those generated files are
+included in the installer and available from the in-app legal materials view.
 
 ## NPM Dependencies
 
@@ -17,29 +19,29 @@ Direct runtime dependencies:
 
 | Package | License |
 | --- | --- |
-| `@capacitor/app` | MIT |
-| `@capacitor/core` | MIT |
-| `@capacitor/filesystem` | MIT |
-| `@capacitor/share` | MIT |
 | `@react-three/drei` | MIT |
 | `@react-three/fiber` | MIT |
+| `electron-updater` | MIT |
 | `lucide-react` | ISC |
-| `pdfjs-dist` | Apache-2.0 |
 | `react` | MIT |
 | `react-dom` | MIT |
 | `three` | MIT |
+| `three-stdlib` | MIT |
 
 Direct development and build dependencies:
 
 | Package | License |
 | --- | --- |
+| `@types/node` | MIT |
 | `@types/react` | MIT |
 | `@types/react-dom` | MIT |
+| `@types/three` | MIT |
 | `@vitejs/plugin-react` | MIT |
 | `autoprefixer` | MIT |
 | `electron` | MIT |
 | `electron-builder` | MIT |
-| `playwright` | Apache-2.0 |
+| `electron-winstaller` | MIT |
+| `js-yaml` | MIT |
 | `postcss` | MIT |
 | `tailwindcss` | MIT |
 | `typescript` | Apache-2.0 |
@@ -50,7 +52,9 @@ ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, BlueOak-1.0.0, Python-2.0,
 Unlicense, CC-BY-4.0, 0BSD, WTFPL, and dual-license variants such as
 `WTFPL OR ISC` and `WTFPL OR MIT`.
 
-The following transitive packages should be called out in distribution notices:
+The generated distribution notices enumerate every unique locked package,
+version, license, source URL, and install path and fail the release build if a
+license remains unclassified. Notable transitive packages include:
 
 | Package | License | Path / Introduced By |
 | --- | --- | --- |
@@ -58,7 +62,19 @@ The following transitive packages should be called out in distribution notices:
 | `sanitize-filename` | WTFPL OR ISC | `electron-builder` |
 | `truncate-utf8-bytes` | WTFPL | `sanitize-filename` |
 | `utf8-byte-length` | WTFPL OR MIT | `truncate-utf8-bytes` |
-| `webgl-constants` | MIT | `@react-three/drei` / `detect-gpu`; package lock metadata may show UNKNOWN, but the installed package contains an MIT license file. |
+| `webgl-constants` | MIT | `@react-three/drei` / `detect-gpu`; lock metadata omits the license, so generation verifies an exact-version installed MIT license file by SHA-256. |
+
+## CI-Only GitHub Actions
+
+The clean-machine desktop upgrade workflow uses the following GitHub-maintained
+actions. They run only in GitHub Actions, are pinned to the listed commits, and
+are not bundled into the application or installer.
+
+| Action | Pinned commit | License |
+| --- | --- | --- |
+| `actions/checkout@v4` | `11d5960a326750d5838078e36cf38b85af677262` | MIT |
+| `actions/setup-node@v4` | `49933ea5288caeca8642d1e84afbd3f7d6820020` | MIT |
+| `actions/upload-artifact@v4` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | MIT |
 
 ## Electron and Chromium
 
@@ -113,6 +129,14 @@ The application ships local web font files under `public/fonts`.
 
 Font-specific license notes are also provided in `public/fonts/LICENSES.txt`.
 
+## Audio Materials
+
+The heat-capacity experiment includes edited recordings whose source records
+declare CC0 1.0, plus first-party procedural audio. Exact audio IDs, original
+titles, authors, source URLs, license URLs, and ownership boundaries are stored
+in `public/audio/experiments/heat-capacity/manifest.json` and generated into
+`public/legal/audio-materials.html` for desktop distribution.
+
 ## Project Reference Materials
 
 The local instrument-modelling reference directory contains project-progress
@@ -126,18 +150,26 @@ Do not add reference-only folders to `public`, `dist`, `resources`, or Electron
 ## Project-Provided Piston-Oscillation Model
 
 The application includes
-`public/models/piston-oscillation/EX5531_TD8572A_ratio_specific_heats_final.glb`,
-provided through the project team's public model repository at tag `v1.2.1`
-(commit `79a26a2a7b13e082ac32507d02df20cbb2bd02e3`). Its source repository records
-Blender and Blender's bundled Python as generation tools and three.js as a
-dependency of the source repository's standalone preview page. Those tools and
-that preview page are not copied into this application. The application renders
-the GLB through its existing local `three`, `@react-three/fiber`, and
-`@react-three/drei` dependencies, so the model integration adds no new runtime
-package or CDN dependency.
+`public/models/piston-oscillation/piston-oscillation.glb`, a project-authorized
+hybrid asset. It retains the previous project-current model's functional node,
+coordinate, scale, screw, hose, hit-target, and camera contracts while
+transplanting and refining the universal-interface and data-cable visual subtree
+from the project team's model repository at tag `v1.3.0` (commit
+`15bc8502441f451b2d810204275265f8b5494ef7`).
 
-The asset's exact source path, digest, format, and runtime-use decisions are
-recorded in `public/models/piston-oscillation/model-provenance.json`.
+The source model repository does not declare a separate open-source license for
+its project-specific model content. Public repository access must not be read as
+a general redistribution grant; distribution of the integrated GLB relies on
+the project team's authorization. Blender, Blender's bundled Python, and the
+source repository's three.js preview are authoring or preview tools and are not
+embedded in the GLB. The application renders the model through its already
+listed local `three`, `@react-three/fiber`, and `@react-three/drei` packages, so
+the asset adds no new runtime package or CDN dependency.
+
+The hybrid asset's base-model digest, v1.3.0 source digest, final digest,
+refinement scope, rights note, format, and runtime contract are recorded in
+`public/models/piston-oscillation/model-provenance.json`. That record and the
+shared-bench provenance are included in the generated packaged legal inventory.
 
 The piston-oscillation scene hides the source model's white `Tabletop` node and
 uses `public/models/shared/unified-light-lab-bench.glb` for its visible bench.

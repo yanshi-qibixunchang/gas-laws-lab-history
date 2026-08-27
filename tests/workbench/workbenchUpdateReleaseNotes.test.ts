@@ -32,6 +32,7 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
 const releaseMetadataScript = readFileSync(new URL('../../scripts/writeReleaseMetadata.cjs', import.meta.url), 'utf8');
 const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
 const readmeZhCn = readFileSync(new URL('../../README.zh-CN.md', import.meta.url), 'utf8');
+const readmeZhTw = readFileSync(new URL('../../README.zh-TW.md', import.meta.url), 'utf8');
 const buildNoticeZhCn = readFileSync(new URL('../../docs/build-notice-zh-CN.md', import.meta.url), 'utf8');
 
 const {
@@ -74,10 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '5.3.1', 'next desktop update release should bump package version to 5.3.1');
-assert.match(readme, /latest published desktop release is `v5\.3\.1`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v5\.3\.1`/, 'Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：5\.3\.1。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.1.1', 'next desktop update release should bump package version to 6.1.1');
+assert.match(readme, /latest published desktop release is `v6\.1\.1`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.1\.1`/, 'Simplified Chinese README should name the current public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.1\.1`/, 'Traditional Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.1\.1。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -97,16 +99,20 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'heat-capacity-free-groups' && item.importance === 'high'),
-  '5.3.1 should include the high-importance multi-group experiment workflow',
+  currentItems.some((item) => item.scope === 'piston-oscillation-workflow' && item.importance === 'high'),
+  '6.1.1 should include the high-importance piston-oscillation workflow',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'heat-capacity-report-export' && item.importance === 'high'),
-  '5.3.1 should include the high-importance report export workflow',
+  currentItems.some((item) => item.scope === 'piston-oscillation-power-gate' && item.importance === 'high'),
+  '6.1.1 should include the high-importance power-gated acquisition workflow',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'heat-capacity-reset-flow' && item.importance === 'high'),
-  '5.3.1 should include the high-importance scoped restart controls',
+  currentItems.some((item) => item.scope === 'piston-oscillation-guide-gating' && item.importance === 'high'),
+  '6.1.1 should include the high-importance strict Guide sequencing fix',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'third-party-and-asset-notices' && item.importance === 'high'),
+  '6.1.1 should include the high-importance license and asset-provenance update',
 );
 
 const startupHotfixRelease = findRelease('5.2.2');

@@ -1,10 +1,10 @@
 # Gas Laws Lab
 
-[简体中文](./README.zh-CN.md)
+[简体中文](./README.zh-CN.md) · [繁體中文](./README.zh-TW.md)
 
-Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and the adiabatic-expansion experiment for measuring the heat-capacity ratio of air.
+Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v5.3.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v6.1.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -14,14 +14,16 @@ The latest published desktop release is `v5.3.1`. The `main` branch may contain 
 
 - Standard hard-sphere simulation with a live 3D preview, realtime charts, and result tabs.
 - Ideal-gas `P-T`, `P-V`, and `P-N` studies with sampling, verification, and history views.
-- Air heat-capacity-ratio experiment with Demo, Guide, and Free modes.
+- Adiabatic-expansion heat-capacity-ratio experiment with Demo, Guide, and Free modes.
+- Piston-oscillation heat-capacity-ratio experiment with complete Demo and Guide workflows, normal 3D operation, live acquisition, period processing, and offline calculation handoff.
 - Local desktop export for PDF reports, PDF/PNG figures, CSV data, and metadata.
 - Simplified Chinese, Traditional Chinese, and English interface text.
 
 ## Current Source Highlights
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
-- Heat-capacity runtime state is modeled separately from standard and ideal-gas files.
+- Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
+- `v6.1.1` introduces the complete piston-oscillation experiment: a reviewed hybrid instrument model, calibrated scale and interaction contracts, three-run acquisition and processing, power-gated realtime data, and strict Guide sequencing. The physical/computer power control must be turned on before parameters or recording become available and is turned off at the end of Guide and Demo.
 - `v5.3.1` completes multi-group adiabatic-expansion experiments, automatic experiment progression, scoped experiment/group restarts, group-level review charts and scoring, and polished report/figure/package exports.
 - `v5.2.2` fixes the startup screen remaining at 100% after workspace restoration has completed.
 - `v5.2.1` adds a complete trilingual first-run experience, a re-recordable animated product introduction, unified engineering prompts, tutorial-session recovery, and a startup animation driven by real workspace restoration progress.
@@ -32,11 +34,11 @@ The latest published desktop release is `v5.3.1`. The `main` branch may contain 
 
 - `src/app/`: React application entrypoint.
 - `src/components/`: shared visual components.
-- `src/features/`: workbench, ideal-gas, and heat-capacity UI and orchestration.
+- `src/features/`: workbench, ideal-gas, adiabatic-expansion, and piston-oscillation UI and orchestration.
 - `src/domain/`: simulation and experiment calculation models.
 - `src/shared/`: shared types and utilities.
 - `src/i18n/`: application translation tables.
-- `tests/`: hard-sphere, ideal-gas, heat-capacity, workbench, and exporter regression tests.
+- `tests/`: hard-sphere, ideal-gas, both heat-capacity methods, workbench, updater, legal-notice, and exporter regression tests.
 - `electron/`: Electron main process, preload bridge, and update integration.
 - `tools/exporter/`: Python exporter source.
 - `scripts/` and `build/`: build, validation, packaging, and installer helpers.
@@ -110,7 +112,9 @@ The public update repository may also contain user-facing README, changelog, sec
 
 ## Instrument Model Contract
 
-The air heat-capacity-ratio apparatus model is a state-machine-driven visualization and interaction carrier. It is not the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`. Its structure and workflow draw on several teaching instruments, with FD-NCD-C serving as one of the principal references; this project is not an official simulation or digital replica of that model.
+The adiabatic-expansion apparatus is a state-machine-driven visualization and interaction carrier. It is not the source of truth for `P0`, `P1`, `P2`, `U_p`, `U_T`, or `gamma`. Its structure and workflow draw on several teaching instruments, with FD-NCD-C serving as one of the principal references; this project is not an official simulation or digital replica of that model.
+
+The piston-oscillation apparatus follows the same software-owned-state rule. Runtime behavior binds to reviewed node names, hierarchy, origins, axes, scales, hit regions, magnetic snap points, and camera targets. The formal hybrid GLB retains the established functional contract while refining the v1.3 universal-interface visual subtree. Exact source revisions, hashes, rights status, and the final asset digest are recorded in `public/models/piston-oscillation/model-provenance.json`.
 
 The Blender integration contract is documented at:
 
@@ -120,4 +124,4 @@ docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md
 
 ## Licensing
 
-No open-source license is declared for the project source. Access to the repository does not grant redistribution rights. Third-party components and reference materials retain their own terms; see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
+No open-source license is declared for the project source. Access to the repository does not grant redistribution rights. Third-party components, audio, fonts, exporter components, and project-provided model assets retain their recorded terms or rights status; see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). Desktop builds include a generated, exact-version legal inventory accessible from the application.

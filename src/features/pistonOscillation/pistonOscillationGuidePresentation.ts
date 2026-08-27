@@ -8,12 +8,13 @@ import {
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import type { PistonOscillationHeightAdjustmentStage } from './pistonOscillationOperationMirror.ts';
 
-export type PistonOscillationGuideFocusMode = 'overview' | 'pistonFocus';
+export type PistonOscillationGuideFocusMode = 'overview' | 'pistonFocus' | 'powerFocus';
 
 export interface PistonOscillationGuideInstrumentRestoreState {
   hoseState: 'connected' | 'disconnected';
   equilibriumHeightMm: number;
   lockingScrewProgress: number;
+  powerOn: boolean;
 }
 
 export const PISTON_OSCILLATION_GUIDE_HEIGHT_SNAP_CAPTURE_MM = 2;
@@ -54,6 +55,7 @@ export const getPistonOscillationGuideInstrumentRestoreState = (
         ? session.heightReset.startedHeightMm
         : 0,
       lockingScrewProgress: 0,
+      powerOn: session.powerOn,
     };
   }
 
@@ -65,6 +67,7 @@ export const getPistonOscillationGuideInstrumentRestoreState = (
   ];
 
   switch (session.step) {
+    case 'powerOn':
     case 'parameterSetup':
     case 'firstHeightAdjustment':
     case 'nextHeightAdjustment':
@@ -72,24 +75,28 @@ export const getPistonOscillationGuideInstrumentRestoreState = (
         hoseState: 'disconnected',
         equilibriumHeightMm: 0,
         lockingScrewProgress: 0,
+        powerOn: session.powerOn,
       };
     case 'screwLock':
       return {
         hoseState: 'disconnected',
         equilibriumHeightMm: targetHeightMm,
         lockingScrewProgress: 0,
+        powerOn: session.powerOn,
       };
     case 'hoseReconnect':
       return {
         hoseState: 'disconnected',
         equilibriumHeightMm: targetHeightMm,
         lockingScrewProgress: 1,
+        powerOn: session.powerOn,
       };
     case 'screwLoosen':
       return {
         hoseState: 'connected',
         equilibriumHeightMm: targetHeightMm,
         lockingScrewProgress: 1,
+        powerOn: session.powerOn,
       };
     case 'crossRunStabilizing':
     case 'crossRunDisconnect':
@@ -97,17 +104,20 @@ export const getPistonOscillationGuideInstrumentRestoreState = (
         hoseState: 'connected',
         equilibriumHeightMm: previousTargetHeightMm,
         lockingScrewProgress: 0,
+        powerOn: session.powerOn,
       };
     default:
       return {
         hoseState: 'connected',
         equilibriumHeightMm: targetHeightMm,
         lockingScrewProgress: 0,
+        powerOn: session.powerOn,
       };
   }
 };
 
 export type PistonOscillationGuideStrongTargetId =
+  | 'powerButton'
   | 'settings'
   | 'platform'
   | 'heightStageAction'
@@ -127,6 +137,9 @@ export const getPistonOscillationGuideRequestedFocusMode = (
   step: PistonOscillationGuideStep,
 ): PistonOscillationGuideFocusMode => {
   switch (step) {
+    case 'powerOn':
+    case 'powerOff':
+      return 'powerFocus';
     case 'parameterSetup':
     case 'hoseReconnect':
     case 'crossRunStabilizing':
@@ -149,6 +162,9 @@ export const getPistonOscillationGuideStrongTargetId = (
   periodSelectionToolActive = false,
 ): PistonOscillationGuideStrongTargetId | null => {
   switch (step) {
+    case 'powerOn':
+    case 'powerOff':
+      return 'powerButton';
     case 'parameterSetup':
       return 'settings';
     case 'firstHeightAdjustment':

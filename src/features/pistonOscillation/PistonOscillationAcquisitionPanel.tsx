@@ -272,6 +272,7 @@ const buildPressureSampleMarkerPath = (
 
 export const PistonOscillationAcquisitionPanel = ({
   language,
+  powerOn,
   releaseEvent,
   livePressureChannel,
   demoFrame: providedDemoFrame,
@@ -288,6 +289,7 @@ export const PistonOscillationAcquisitionPanel = ({
   onRunRetained,
 }: {
   language: PistonOscillationLanguage;
+  powerOn: boolean;
   releaseEvent: PistonOscillationReleaseEvent | null;
   livePressureChannel?: PistonOscillationLivePressureChannel;
   demoFrame?: PistonOscillationDemoFrame;
@@ -333,6 +335,7 @@ export const PistonOscillationAcquisitionPanel = ({
     ) return undefined;
     return getPistonOscillationDemoFrame(demoPlaybackSnapshot.elapsedMs, language);
   }, [demoPlaybackFileId, demoPlaybackSnapshot, language, providedDemoFrame]);
+  const effectivePowerOn = demoFrame?.powerOn ?? powerOn;
   const [guideRejectedControl, setGuideRejectedControl] = useState<
     'settings' | 'primary' | 'save' | null
   >(null);
@@ -409,6 +412,7 @@ export const PistonOscillationAcquisitionPanel = ({
   const guidePauseStartedAtMsRef = useRef<number | null>(null);
   const guideAccumulatedPauseMsRef = useRef(0);
   const previousGuideMeasurementIndexRef = useRef(guideMeasurementIndex);
+  const previousPowerOnRef = useRef(effectivePowerOn);
 
   useLayoutEffect(() => {
     const chartWrap = chartWrapRef.current;
@@ -455,6 +459,13 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [updatePhase]);
 
   useEffect(() => {
+    const wasPowerOn = previousPowerOnRef.current;
+    previousPowerOnRef.current = effectivePowerOn;
+    if (!wasPowerOn || effectivePowerOn) return;
+    resetRun();
+  }, [effectivePowerOn, resetRun]);
+
+  useEffect(() => {
     if (
       !livePressureObservation
       || phaseRef.current !== 'armed'
@@ -483,7 +494,7 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [guideMeasurementIndex, resetRun]);
 
   useEffect(() => {
-    if (!guideActive) return;
+    if (!guideActive || !effectivePowerOn) return;
     const guideStep = guideSession.step;
     if (guideStep === 'waitingTrigger' && phaseRef.current === 'idle') {
       resetRun();
@@ -503,6 +514,7 @@ export const PistonOscillationAcquisitionPanel = ({
     }
   }, [
     guideActive,
+    effectivePowerOn,
     guideMeasurementIndex,
     guideSession?.acquisitionCandidate,
     guideSession?.step,
@@ -527,7 +539,7 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [guidePaused]);
 
   useEffect(() => {
-    if (!releaseEvent || phaseRef.current !== 'armed') return;
+    if (!effectivePowerOn || !releaseEvent || phaseRef.current !== 'armed') return;
     if (handledReleaseEventIdRef.current === releaseEvent.id) return;
     handledReleaseEventIdRef.current = releaseEvent.id;
     const nextTrajectory = releaseEvent.trajectory ?? null;
@@ -596,6 +608,7 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [
     configuredSampleRateHz,
     configuredTriggerKpa,
+    effectivePowerOn,
     guideActive,
     onGuideAcquisitionEvent,
     releaseEvent,
@@ -604,7 +617,8 @@ export const PistonOscillationAcquisitionPanel = ({
 
   useEffect(() => {
     if (
-      cycleStartMs === null
+      !effectivePowerOn
+      || cycleStartMs === null
       || guidePaused
       || (phase !== 'armed' && phase !== 'recording')
     ) return;
@@ -639,6 +653,7 @@ export const PistonOscillationAcquisitionPanel = ({
     return () => window.cancelAnimationFrame(frame);
   }, [
     cycleStartMs,
+    effectivePowerOn,
     guideActive,
     guidePaused,
     onGuideAcquisitionEvent,
@@ -680,7 +695,11 @@ export const PistonOscillationAcquisitionPanel = ({
     : null;
   const restoredGuideSavedMeasurement = !demoFrame
     && activeTrajectory === null
-    && guideSession?.status === 'completed'
+    && (
+      guideSession?.status === 'completed'
+      || guideSession?.step === 'powerOff'
+      || guideSession?.step === 'calculationReady'
+    )
     ? guideSession.savedMeasurements.find(
         (measurement) => measurement.measurementIndex === guideSession.measurementIndex,
       ) ?? null
@@ -1045,6 +1064,7 @@ export const PistonOscillationAcquisitionPanel = ({
   ]);
 
   const handleStart = () => {
+    if (!effectivePowerOn) return;
     // The scene may still retain the preceding run's release event. Arming
     // establishes a new observation boundary, so only a later release may trigger it.
     handledReleaseEventIdRef.current = releaseEvent?.id ?? null;
@@ -1087,6 +1107,7 @@ export const PistonOscillationAcquisitionPanel = ({
   };
 
   const handleStop = () => {
+    if (!effectivePowerOn) return;
     if (phaseRef.current === 'armed') {
       resetRun();
       return;
@@ -1139,6 +1160,20 @@ export const PistonOscillationAcquisitionPanel = ({
     if (!guideInputsLocked) onGuideParameterCommit?.(field);
   };
 
+  if (!effectivePowerOn) {
+    return (
+      <aside
+        className="piston-acquisition-panel is-powered-off"
+        data-piston-acquisition-preview="true"
+        data-piston-power="off"
+      >
+        <div className="piston-acquisition-power-off-state" role="status">
+          <strong>{copy.powerOff}</strong>
+        </div>
+      </aside>
+    );
+  }
+
   return (
     <aside
       className="piston-acquisition-panel"
@@ -1151,13 +1186,16 @@ export const PistonOscillationAcquisitionPanel = ({
       data-piston-demo-stage={demoFrame?.stage ?? 'none'}
       data-piston-guide-status={guideSession?.status ?? 'idle'}
       data-piston-guide-cue={guideCue ?? 'none'}
+      data-piston-power="on"
     >
       <div className="piston-acquisition-panel-heading">
         <strong className="piston-acquisition-title">{copy.title}</strong>
         <div className="piston-acquisition-run-summary">
           <span>{copy.measurement(measurementNumber, totalMeasurements)}</span>
           <span className={`piston-acquisition-phase is-${effectivePhase}`}>
-            {copy.phases[effectivePhase]}
+            {guideSession?.step === 'powerOff'
+              ? copy.acquisitionComplete
+              : copy.phases[effectivePhase]}
           </span>
         </div>
       </div>

@@ -1,0 +1,112 @@
+name: Desktop upgrade compatibility
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_version:
+        description: Installed version used as the upgrade source
+        required: true
+        default: 5.3.1
+        type: string
+      new_version:
+        description: Release version installed over the old version
+        required: true
+        default: 6.1.1
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows-upgrade:
+    name: Windows ${{ inputs.old_version }} to ${{ inputs.new_version }}
+    runs-on: windows-2025
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out the release source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Use Node.js 24 for Chromium DevTools Protocol checks
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Download the two public installers
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $downloadRoot = Join-Path $env:RUNNER_TEMP 'gas-laws-lab-upgrade-downloads'
+          $evidenceRoot = Join-Path $env:RUNNER_TEMP 'gas-laws-lab-upgrade-evidence'
+          New-Item -ItemType Directory -Force -Path $downloadRoot, $evidenceRoot | Out-Null
+          $oldName = "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
+          $newName = "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
+          $baseUrl = 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download'
+          Invoke-WebRequest -Uri "$baseUrl/v${{ inputs.old_version }}/$oldName" -OutFile (Join-Path $downloadRoot $oldName)
+          Invoke-WebRequest -Uri "$baseUrl/v${{ inputs.new_version }}/$newName" -OutFile (Join-Path $downloadRoot $newName)
+          "HSL_UPGRADE_DOWNLOAD_ROOT=$downloadRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "HSL_UPGRADE_EVIDENCE_ROOT=$evidenceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Install and seed the old packaged version
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installRoot = Join-Path $env:RUNNER_TEMP 'Gas Laws Lab Upgrade Target'
+          $installer = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
+          & $installer /S "/D=$installRoot"
+          if ($LASTEXITCODE -ne 0) { throw "Old installer exited with $LASTEXITCODE." }
+          $executable = Join-Path $installRoot 'Gas Laws Lab.exe'
+          if (-not (Test-Path -LiteralPath $executable)) { throw "Old executable was not installed at $executable" }
+          $version = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
+          if ($version -notlike "${{ inputs.old_version }}*") { throw "Expected ${{ inputs.old_version }}, found $version." }
+          "HSL_UPGRADE_INSTALL_ROOT=$installRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          node scripts/verifyPackagedDesktopState.cjs `
+            --executable $executable `
+            --phase seed `
+            --port 9331 `
+            --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT
+
+      - name: Upgrade in place and verify the new packaged version
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
+          & $installer /S "/D=$env:HSL_UPGRADE_INSTALL_ROOT"
+          if ($LASTEXITCODE -ne 0) { throw "New installer exited with $LASTEXITCODE." }
+          $executable = Join-Path $env:HSL_UPGRADE_INSTALL_ROOT 'Gas Laws Lab.exe'
+          if (-not (Test-Path -LiteralPath $executable)) { throw "New executable is missing at $executable" }
+          $version = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
+          if ($version -notlike "${{ inputs.new_version }}*") { throw "Expected ${{ inputs.new_version }}, found $version." }
+          node scripts/verifyPackagedDesktopState.cjs `
+            --executable $executable `
+            --phase verify `
+            --port 9332 `
+            --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT `
+            --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'seed-packaged-app.json')
+
+      - name: Record the compatibility result
+        if: always()
+        shell: powershell
+        run: |
+          $oldHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe")).Hash
+          $newHash = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe")).Hash
+          @"
+          ## Desktop upgrade compatibility
+
+          - Upgrade: ${{ inputs.old_version }} → ${{ inputs.new_version }}
+          - Runner: `windows-2025` (clean ephemeral VM)
+          - Installation: silent NSIS in-place replacement at one absolute path
+          - Old installer SHA256: `$oldHash`
+          - New installer SHA256: `$newHash`
+          - Renderer validation: startup, shared profile marker, experience profile, IndexedDB schema/counts/keys, console errors, resource errors, clean exit
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
+
+      - name: Upload screenshots and structured evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: desktop-upgrade-${{ inputs.old_version }}-to-${{ inputs.new_version }}
+          path: ${{ runner.temp }}/gas-laws-lab-upgrade-evidence
+          if-no-files-found: warn
+          retention-days: 30

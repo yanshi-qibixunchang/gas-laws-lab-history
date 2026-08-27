@@ -32,7 +32,7 @@ const { verifyBlockmapSchema, verifyReleaseAssets } = require('../../scripts/ver
   verifyReleaseAssets: (options: {
     rootDir: string;
     version?: string;
-    appBuilderPath?: string;
+    blockmapBuilderScriptPath?: string;
   }) => ReleaseVerificationResult;
 };
 
@@ -188,15 +188,7 @@ const createPeInstallerFixture = (
 
 const testDirectory = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(testDirectory, '..', '..');
-const platformFolder = process.platform === 'darwin' ? 'mac' : process.platform === 'win32' ? 'win' : 'linux';
-const appBuilderPath = join(
-  projectRoot,
-  'node_modules',
-  'app-builder-bin',
-  platformFolder,
-  process.arch,
-  process.platform === 'win32' ? 'app-builder.exe' : 'app-builder',
-);
+const blockmapBuilderScriptPath = join(projectRoot, 'scripts', 'regenerateBlockmap.cjs');
 const rootDir = mkdtempSync(join(tmpdir(), 'hsl-release-verification-'));
 try {
   const version = '5.1.2';
@@ -232,10 +224,10 @@ try {
   const latestPath = join(rootDir, 'release', 'latest.yml');
   const installerBytes = createPeInstallerFixture(version, productName);
   writeFileSync(installerPath, installerBytes);
-  const blockmapResult = spawnSync(appBuilderPath, [
-    'blockmap',
-    '--input', installerPath,
-    '--output', blockmapPath,
+  const blockmapResult = spawnSync(process.execPath, [
+    blockmapBuilderScriptPath,
+    installerPath,
+    blockmapPath,
   ], { encoding: 'utf8', windowsHide: true });
   assert.ifError(blockmapResult.error);
   assert.equal(blockmapResult.status, 0, blockmapResult.stderr || blockmapResult.stdout);
@@ -258,7 +250,7 @@ try {
   };
   writeLatest();
 
-  const result = verifyReleaseAssets({ rootDir, appBuilderPath });
+  const result = verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath });
   assert.deepEqual(result.expectedNames, [installerName, blockmapName, 'latest.yml']);
   assert.equal(result.assets.length, 3);
   assert.equal(result.installerMetadata.productName, productName);
@@ -272,7 +264,7 @@ try {
     files: [{ ...validLatest.files[0], size: installerBytes.length + 1 }],
   });
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /installer size does not match local bytes/,
     'the release gate must reject stale latest.yml sizes',
   );
@@ -280,7 +272,7 @@ try {
 
   writeFileSync(installerPath, Buffer.from('installer-fixture'));
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /DOS MZ signature|too small/,
     'plain text must never pass as a Windows installer',
   );
@@ -288,7 +280,7 @@ try {
 
   writeFileSync(installerPath, createPeInstallerFixture(version, 'Wrong Product'));
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /ProductName does not match/,
     'the installer VERSIONINFO ProductName must match package.json exactly',
   );
@@ -299,7 +291,7 @@ try {
     createPeInstallerFixture(version, productName, { productNameOutsideRoot: true }),
   );
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /ProductName does not match/,
     'VERSIONINFO strings outside the declared root block must not satisfy installer metadata checks',
   );
@@ -313,7 +305,7 @@ try {
     symlinkSync(outsideInstallerPath, installerPath, 'file');
     symlinkCreated = true;
     assert.throws(
-      () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+      () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
       /symbolic link|resolves outside/,
       'release assets must be regular files physically located in the release directory',
     );
@@ -326,7 +318,7 @@ try {
 
   writeFileSync(blockmapPath, Buffer.concat([validBlockmap, Buffer.from([0])]));
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /Blockmap bytes differ from app-builder regeneration/,
     'trailing or otherwise non-canonical blockmap bytes must fail closed',
   );
@@ -343,7 +335,7 @@ try {
 
   writeLatest({ ...validLatest, releaseNotes: 'stale notes' });
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /plain release notes are stale/,
     'latest.yml plain notes must exactly match the shared release-note renderer',
   );
@@ -351,7 +343,7 @@ try {
 
   writeFileSync(join(rootDir, 'release', `${installerName}.unexpected`), Buffer.from('unexpected'));
   assert.throws(
-    () => verifyReleaseAssets({ rootDir, appBuilderPath }),
+    () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /unexpected current-version installer asset/,
     'the upload gate must expose exactly the installer and its matching blockmap for the current version',
   );

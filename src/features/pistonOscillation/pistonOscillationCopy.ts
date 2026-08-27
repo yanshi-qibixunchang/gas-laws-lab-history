@@ -133,6 +133,8 @@ export interface PistonOscillationShellCopy {
   };
   acquisition: {
     title: string;
+    powerOff: string;
+    acquisitionComplete: string;
     measurement: (current: number, total: number) => string;
     phases: Record<'idle' | 'armed' | 'recording' | 'stopped', string>;
     sampleRate: string;
@@ -165,6 +167,12 @@ export interface PistonOscillationShellCopy {
   guide: {
     checklist: string;
     stepLabel: string;
+    powerOnTitle: string;
+    powerOnDetail: string;
+    powerOffTitle: string;
+    powerOffDetail: string;
+    powerOffSuccess: string;
+    powerRequiredReminder: string;
     parameterSetupTitle: string;
     parameterSetupDetail: string;
     adjustHeightTitle: (heightMm: number) => string;
@@ -448,6 +456,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     },
     acquisition: {
       title: '压力数据采集',
+      powerOff: '电源关闭',
+      acquisitionComplete: '采集完成',
       measurement: (current, total) => `第 ${current} 次测量 · 共 ${total} 次`,
       phases: {
         idle: '未开始',
@@ -485,6 +495,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     guide: {
       checklist: '引导步骤',
       stepLabel: '步骤',
+      powerOnTitle: '打开数据采集系统电源',
+      powerOnDetail: '点击主机左侧的蓝色电源按键。按键完成一次按下—回弹后，蓝色电源符号和绿色状态灯亮起，右侧实时数据界面启动。',
+      powerOffTitle: '关闭数据采集系统电源',
+      powerOffDetail: '三幅曲线的周期结果已经保存。点击主机左侧的蓝色电源按键；按键完成一次按下—回弹，蓝色电源符号和绿色状态灯熄灭后，完成本次仪器操作。',
+      powerOffSuccess: '数据采集系统已关闭。已保存的数据不会丢失，可以继续进行离线拟合与计算。',
+      powerRequiredReminder: '请先点击蓝色电源按键打开数据采集系统。关机时不能设置参数、显示曲线或记录数据。',
       parameterSetupTitle: '设置采集参数',
       parameterSetupDetail: '输入 1000 Hz 和 120 kPa；两项正确后自动进入下一步。',
       adjustHeightTitle: (heightMm) => `进入聚焦并调至 ${heightMm} mm`,
@@ -582,7 +598,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       calculationReady: '三组周期数据已记录，可以进入下一阶段。',
       navigationUnlocked: '本幅周期结果已记录，可以继续。',
       navigationLocked: '周期结果正确录入后才能继续。',
-      calculationReadyDetail: '三幅曲线的周期结果已保存。点击“下一步”打开拟合与计算窗口。',
+      calculationReadyDetail: '三幅曲线的周期结果已保存。点击“下一步”返回仪器界面，并完成数据采集系统关机。',
       reviewTitle: '周期数据处理回顾',
       reviewInstruction: '点击上方任一幅曲线查看已保存的选区、端点、周期计算与校验结果。回顾中可调整视图，不会改写实验数据。',
       reviewRunSummary: (number, total) => `正在回顾第 ${number} 幅，共 ${total} 幅`,
@@ -773,6 +789,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     },
     acquisition: {
       title: '壓力資料採集',
+      powerOff: '電源關閉',
+      acquisitionComplete: '採集完成',
       measurement: (current, total) => `第 ${current} 次測量 · 共 ${total} 次`,
       phases: {
         idle: '尚未開始',
@@ -810,6 +828,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     guide: {
       checklist: '引導步驟',
       stepLabel: '步驟',
+      powerOnTitle: '開啟資料採集系統電源',
+      powerOnDetail: '點擊主機左側的藍色電源按鍵。按鍵完成一次按下—回彈後，藍色電源符號與綠色狀態燈亮起，右側即時資料介面啟動。',
+      powerOffTitle: '關閉資料採集系統電源',
+      powerOffDetail: '三幅曲線的週期結果已經儲存。點擊主機左側的藍色電源按鍵；按鍵完成一次按下—回彈，藍色電源符號與綠色狀態燈熄滅後，完成本次儀器操作。',
+      powerOffSuccess: '資料採集系統已關閉。已儲存的資料不會遺失，可以繼續進行離線擬合與計算。',
+      powerRequiredReminder: '請先點擊藍色電源按鍵開啟資料採集系統。關機時不能設定參數、顯示曲線或記錄資料。',
       parameterSetupTitle: '設定採集參數',
       parameterSetupDetail: '輸入 1000 Hz 與 120 kPa；兩項正確後自動進入下一步。',
       adjustHeightTitle: (heightMm) => `進入聚焦並調至 ${heightMm} mm`,
@@ -907,7 +931,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       calculationReady: '三組週期資料已記錄，可以進入下一階段。',
       navigationUnlocked: '本幅週期結果已記錄，可以繼續。',
       navigationLocked: '週期結果正確錄入後才能繼續。',
-      calculationReadyDetail: '三幅曲線的週期結果已儲存。點擊「下一步」開啟擬合與計算視窗。',
+      calculationReadyDetail: '三幅曲線的週期結果已儲存。點擊「下一步」返回儀器介面，並完成資料採集系統關機。',
       reviewTitle: '週期資料處理回顧',
       reviewInstruction: '點擊上方任一幅曲線查看已儲存的選區、端點、週期計算與校驗結果。回顧中可調整視圖，不會改寫實驗資料。',
       reviewRunSummary: (number, total) => `正在回顧第 ${number} 幅，共 ${total} 幅`,
@@ -1098,6 +1122,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     },
     acquisition: {
       title: 'Pressure data acquisition',
+      powerOff: 'Power off',
+      acquisitionComplete: 'Acquisition complete',
       measurement: (current, total) => `Measurement ${current} of ${total}`,
       phases: {
         idle: 'Not started',
@@ -1135,6 +1161,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
     guide: {
       checklist: 'Guide steps',
       stepLabel: 'Step',
+      powerOnTitle: 'Turn on the data-acquisition system',
+      powerOnDetail: 'Press the blue power button on the left side of the interface. After the button depresses and springs back, the blue power symbol and green status LED illuminate, and the real-time data display starts.',
+      powerOffTitle: 'Turn off the data-acquisition system',
+      powerOffDetail: 'All three period results have been saved. Press the blue power button on the left side of the interface. When the button springs back and the blue power symbol and green status LED turn off, the instrument procedure is complete.',
+      powerOffSuccess: 'The data-acquisition system is off. Saved data remains available for offline fitting and calculations.',
+      powerRequiredReminder: 'Turn on the data-acquisition system with the blue power button first. Parameters, curves, and recording are unavailable while the power is off.',
       parameterSetupTitle: 'Set acquisition parameters',
       parameterSetupDetail: 'Enter 1000 Hz and 120 kPa. The next step starts when both values are correct.',
       adjustHeightTitle: (heightMm) => `Focus the piston and set ${heightMm} mm`,
@@ -1232,7 +1264,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       calculationReady: 'All three period results are recorded. You can continue to the next stage.',
       navigationUnlocked: 'This curve\'s period result is recorded. You can continue.',
       navigationLocked: 'Record the correct period result before continuing.',
-      calculationReadyDetail: 'All three period results are saved. Select Next step to open the fitting and calculation window.',
+      calculationReadyDetail: 'All three period results are saved. Select Next step to return to the instrument and turn off the data-acquisition system.',
       reviewTitle: 'Review period data processing',
       reviewInstruction: 'Select any curve above to inspect its saved range, endpoints, period calculation, and validation result. You can adjust the view without changing the saved experiment data.',
       reviewRunSummary: (number, total) => `Reviewing curve ${number} of ${total}`,

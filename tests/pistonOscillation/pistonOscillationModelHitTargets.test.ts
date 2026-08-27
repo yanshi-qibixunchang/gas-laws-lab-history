@@ -5,6 +5,7 @@ import {
 } from '../../src/features/pistonOscillation/pistonOscillationModelHitTargets.ts';
 
 assert.deepEqual(Object.keys(PISTON_MODEL_HIT_TARGETS), [
+  'universalInterfacePowerButton',
   'pistonPlatform',
   'pistonCylinderFocusEntry',
   'pistonFrameFocusEntry',
@@ -17,6 +18,14 @@ assert.deepEqual(Object.keys(PISTON_MODEL_HIT_TARGETS), [
   'detachedHoseHandle',
   'detachedHoseBody',
 ]);
+
+assert.deepEqual(PISTON_MODEL_HIT_TARGETS.universalInterfacePowerButton, {
+  id: 'universal_interface_power_button',
+  objectName: 'HIT_UniversalInterface_PowerButton',
+  sourceObjectName: 'UniversalInterface_PowerRing',
+  semanticRole: 'toggle_power',
+  focusPolicy: 'direct_interaction',
+});
 
 const objectNames = Object.values(PISTON_MODEL_HIT_TARGETS).map(({ objectName }) => objectName);
 assert.equal(new Set(objectNames).size, objectNames.length, 'hit target object names must be unique');

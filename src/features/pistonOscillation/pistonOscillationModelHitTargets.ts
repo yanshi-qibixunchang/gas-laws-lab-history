@@ -1,4 +1,11 @@
 export const PISTON_MODEL_HIT_TARGETS = {
+  universalInterfacePowerButton: {
+    id: 'universal_interface_power_button',
+    objectName: 'HIT_UniversalInterface_PowerButton',
+    sourceObjectName: 'UniversalInterface_PowerRing',
+    semanticRole: 'toggle_power',
+    focusPolicy: 'direct_interaction',
+  },
   pistonPlatform: {
     id: 'piston_platform',
     objectName: 'HIT_PistonPlatform',

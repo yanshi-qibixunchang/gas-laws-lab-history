@@ -12,6 +12,20 @@ const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
 const audioManifestPath = path.join(rootDir, 'public', 'audio', 'experiments', 'heat-capacity', 'manifest.json');
+const pistonModelProvenancePath = path.join(
+  rootDir,
+  'public',
+  'models',
+  'piston-oscillation',
+  'model-provenance.json',
+);
+const sharedBenchProvenancePath = path.join(
+  rootDir,
+  'public',
+  'models',
+  'shared',
+  'unified-light-lab-bench.provenance.json',
+);
 const exporterLegalInventoryPath = path.join(
   rootDir,
   'resources',
@@ -193,6 +207,8 @@ const getLegalNoticeInputFingerprint = (records) => {
   appendFile(path.join(nodeModulesDir, 'electron', 'dist', 'LICENSE'));
   appendFile(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'));
   appendFile(audioManifestPath);
+  appendFile(pistonModelProvenancePath);
+  appendFile(sharedBenchProvenancePath);
   appendFile(exporterLegalInventoryPath);
 
   for (const record of records) {
@@ -278,7 +294,7 @@ ${body}
 </html>
 `;
 
-const writeDependenciesHtml = (records) => {
+const writeDependenciesHtml = (records, pistonModelProvenance, sharedBenchProvenance) => {
   const rows = records.map((record) => {
     const installLocation = record.paths.length === 1
       ? normalizePathForHtml(record.paths[0])
@@ -293,6 +309,9 @@ const writeDependenciesHtml = (records) => {
     </tr>`;
   }).join('\n');
 
+  const modelSource = pistonModelProvenance.interfaceRefinementSource || {};
+  const modelRights = pistonModelProvenance.rights || {};
+  const sharedBenchSource = sharedBenchProvenance.derivedFrom || {};
   const html = createHtmlDocument({
     title: 'Third-Party Dependency List',
     body: `
@@ -310,6 +329,32 @@ const writeDependenciesHtml = (records) => {
           </tr>
         </thead>
         <tbody>${rows}</tbody>
+      </table>
+      <h2>Packaged 3D model assets</h2>
+      <p>The following project-provided assets are distributed with the application. They do not add a runtime package or CDN dependency. Their source and digest records are included here so the packaged legal inventory covers non-code assets as well as npm packages.</p>
+      <table>
+        <thead>
+          <tr>
+            <th>Asset</th>
+            <th>SHA-256</th>
+            <th>Source / derivation</th>
+            <th>Rights status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>public/models/piston-oscillation/${escapeHtml(pistonModelProvenance.asset)}</code></td>
+            <td><code>${escapeHtml(pistonModelProvenance.sha256)}</code></td>
+            <td>${renderExternalLink(modelSource.repository || '', `${modelSource.tag || 'source'} @ ${modelSource.commit || 'unrecorded commit'}`)}; hybrid composition and refinement are recorded in <code>model-provenance.json</code>.</td>
+            <td>${escapeHtml(modelRights.status || 'Project-provided asset; consult provenance record')}</td>
+          </tr>
+          <tr>
+            <td><code>public/models/shared/${escapeHtml(sharedBenchProvenance.asset)}</code></td>
+            <td><code>${escapeHtml(sharedBenchProvenance.sha256)}</code></td>
+            <td>Derived from <code>${escapeHtml(sharedBenchSource.asset)}</code> nodes ${escapeHtml((sharedBenchSource.nodes || []).join(', '))}.</td>
+            <td>Project-provided derived asset; no additional third-party runtime dependency.</td>
+          </tr>
+        </tbody>
       </table>
     `,
   });
@@ -548,7 +593,11 @@ if (
 ) {
   generatedAt = existingSummary.generatedAt;
 }
-writeDependenciesHtml(records);
+writeDependenciesHtml(
+  records,
+  readJson(pistonModelProvenancePath),
+  readJson(sharedBenchProvenancePath),
+);
 writeLicenseTextsHtml(records);
 const exporterLegalInventory = assertExporterLegalInventory(
   readJson(exporterLegalInventoryPath),

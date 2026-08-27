@@ -2,21 +2,23 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-01T13:40:21.351Z",
-  "finishedAt": "2026-08-01T13:41:22.058Z",
+  "generatedAt": "2026-08-27T00:13:17.255Z",
+  "finishedAt": "2026-08-27T00:13:37.848Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
-    "packageVersion": "5.3.1",
-    "gitCommit": "3ac675c828db21b01d7d456381f561b82af090ad",
+    "packageVersion": "6.1.1",
+    "gitCommit": "7d28145719162f9ddad735c815aececb9d1b729a",
     "dirtyAtStart": true,
     "statusAtStart": [
       "M README.md",
       " M README.zh-CN.md",
+      " M THIRD_PARTY_NOTICES.md",
       " M docs/build-notice-zh-CN.md",
       " M docs/releases/release-notes.json",
       " M docs/research-report/evidence/generated/evidence-metadata.json",
+      " M docs/research-report/evidence/generated/evidence-summary.json",
       " M package-lock.json",
       " M package.json",
       " M public/legal/audio-materials.html",
@@ -24,25 +26,43 @@
       " M public/legal/third-party-dependencies.html",
       " M public/legal/third-party-license-texts.html",
       " M public/legal/third-party-summary.json",
-      " M resources/exporter/hsl-exporter.legal.json",
+      " M public/models/piston-oscillation/model-provenance.json",
+      " M public/models/piston-oscillation/piston-oscillation.glb",
       " M resources/exporter/hsl-exporter.manifest.json",
-      " M src/features/heatCapacity/HeatCapacityBatchProgress.css",
-      " M src/features/heatCapacity/HeatCapacityBatchProgress.tsx",
-      " M src/features/heatCapacity/heatCapacityModeControlModel.ts",
+      " M scripts/generateLegalNotices.cjs",
+      " M scripts/verifyReleaseAssets.cjs",
+      " M src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts",
+      " M src/features/pistonOscillation/PistonOscillationAcquisitionPanel.css",
+      " M src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx",
+      " M src/features/pistonOscillation/PistonOscillationFocusInteractionPreviewPage.tsx",
+      " M src/features/pistonOscillation/PistonOscillationInstrumentModel.tsx",
+      " M src/features/pistonOscillation/PistonOscillationInstrumentScene.tsx",
+      " M src/features/pistonOscillation/PistonOscillationInteractiveModel.tsx",
+      " M src/features/pistonOscillation/pistonOscillationCalculationCopy.ts",
+      " M src/features/pistonOscillation/pistonOscillationCopy.ts",
+      " M src/features/pistonOscillation/pistonOscillationDemoTimeline.ts",
+      " M src/features/pistonOscillation/pistonOscillationFocusViews.ts",
+      " M src/features/pistonOscillation/pistonOscillationGuidePresentation.ts",
+      " M src/features/pistonOscillation/pistonOscillationModelHitTargets.ts",
       " M src/features/workbench/WorkbenchStudioPrototype.tsx",
-      " M src/features/workbench/workbenchPromptCopies.ts",
-      " M src/features/workbench/workbenchState.ts",
-      " M tests/exporter/heatCapacityExporter.test.ts",
-      " M tests/heatCapacity/heatCapacityBatchProgress.test.ts",
-      " M tests/heatCapacity/heatCapacityModeControlModel.test.ts",
-      " M tests/heatCapacity/workbenchHeatCapacityFreeParameters.test.ts",
-      " M tests/heatCapacity/workbenchHeatCapacityInstrument.test.ts",
-      " M tests/heatCapacity/workbenchHeatCapacityInstrumentUi.test.ts",
-      " M tests/workbench/workbenchPersistenceReachability.test.ts",
-      " M tests/workbench/workbenchPromptConfirmation.test.ts",
+      " M tests/pistonOscillation/pistonOscillationDemoTimeline.test.ts",
+      " M tests/pistonOscillation/pistonOscillationFocusInteractionPreview.test.ts",
+      " M tests/pistonOscillation/pistonOscillationGuidePresentation.test.ts",
+      " M tests/pistonOscillation/pistonOscillationGuideWorkflowModel.test.ts",
+      " M tests/pistonOscillation/pistonOscillationModelHitTargets.test.ts",
+      " M tests/pistonOscillation/pistonOscillationModelIntegration.test.ts",
+      " M tests/pistonOscillation/pistonOscillationPresetAcquisition.test.ts",
+      " M tests/pistonOscillation/workbenchPistonOscillationShell.test.ts",
+      " M tests/workbench/workbenchLegalNoticeGeneration.test.ts",
+      " M tests/workbench/workbenchReleaseAssetVerification.test.ts",
       " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
-      " M tools/exporter/hsl_exporter.py",
-      "?? docs/releases/v5.3.1.md"
+      "?? .github/",
+      "?? README.zh-TW.md",
+      "?? docs/releases/v6.1.1.md",
+      "?? heat-model-diagnosis.png",
+      "?? scripts/regenerateBlockmap.cjs",
+      "?? scripts/verifyDifferentialUpgrade.cjs",
+      "?? scripts/verifyPackagedDesktopState.cjs"
     ]
   },
   "runtime": {
@@ -328,8 +348,8 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "4a6f64e33bfc4f556df3537227d473a34312f958bc76c1a93003c0333fef16fb",
-      "bytes": 4495
+      "sha256": "38f1a0a8e4bf61a3906a39f4414e164b7f946eaf42069c442cecaeec45948c8f",
+      "bytes": 4497
     },
     {
       "path": "scripts/research-report/generate-evidence.ts",
@@ -423,8 +443,8 @@
     },
     {
       "path": "src/features/workbench/workbenchState.ts",
-      "sha256": "929b494c84397d3625313754e955baf52042dd4adaf451593beb6423f02c1eca",
-      "bytes": 280107
+      "sha256": "310240fa5e5e57f96dcd0e149260c06c2e31289092a15648425bfaf8c4af276f",
+      "bytes": 280622
     }
   ],
   "generatedFiles": [
@@ -436,7 +456,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "0d0e40dcd04bff0c0d5bb927cf8e8bade7049c7620932a59e0f61b8f656a28dd"
+      "sha256": "c0d636867d21602f32bb5c80afa6559447ba3b8ce678af7a17438c3c8b4f9524"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",

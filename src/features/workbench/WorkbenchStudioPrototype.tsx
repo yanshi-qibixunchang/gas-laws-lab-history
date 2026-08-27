@@ -1463,6 +1463,16 @@ const getPistonOscillationGuideStrongMaskLayout = (
       18,
     );
   }
+  if (!cutout && stage && targetId === 'powerButton') {
+    cutout = projectedBoundsCutout(
+      stage.dataset.pistonPowerButtonLeft,
+      stage.dataset.pistonPowerButtonTop,
+      stage.dataset.pistonPowerButtonRight,
+      stage.dataset.pistonPowerButtonBottom,
+      6,
+      8,
+    );
+  }
   if (!cutout && stage && (
     targetId === 'hoseDisconnect' || targetId === 'hoseReconnect'
   )) {
@@ -1531,7 +1541,8 @@ const getPistonOscillationGuideStrongMaskLayout = (
   const dividerX = resizer
     ? toLocalX(resizer.getBoundingClientRect().left)
     : width / 2;
-  const preferRightPane = targetId === 'platform'
+  const preferRightPane = targetId === 'powerButton'
+    || targetId === 'platform'
     || targetId === 'heightStageAction'
     || targetId === 'operationMirror'
     || targetId === 'hoseDisconnect'
@@ -1649,7 +1660,11 @@ const getPistonOscillationGuideReminderText = (
 ): string => {
   const measurementNumber = measurementIndex + 1;
   const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
+  if (targetId === 'powerButton' && step !== 'powerOn' && step !== 'powerOff') {
+    return copy.guide.powerRequiredReminder;
+  }
   switch (step) {
+    case 'powerOn': return copy.guide.powerOnDetail;
     case 'parameterSetup': return copy.guide.parameterSetupDetail;
     case 'firstHeightAdjustment':
     case 'nextHeightAdjustment': return copy.guide.adjustHeightDetail(targetHeightMm);
@@ -1671,6 +1686,7 @@ const getPistonOscillationGuideReminderText = (
       if (targetId === 'periodAnswer') return copy.processing.periodReminder;
       if (targetId === 'periodNext') return copy.processing.nextReminder;
       return copy.processing.selectionReminder;
+    case 'powerOff': return copy.guide.powerOffDetail;
     case 'calculationReady': return copy.processing.calculationReady;
     case 'completionReview': return copy.guide.completedDetail;
     case 'completed': return copy.guide.completedDetail;
@@ -1684,6 +1700,7 @@ const getPistonOscillationGuideGuardFeedbackText = (
   guard: PistonOscillationGuideGuardResult,
   targetHeightMm: number,
 ) => {
+  if (guard.reason === 'powerRequired') return copy.guide.powerRequiredReminder;
   if (guard.reason === 'wrongTargetHeight') {
     return copy.feedback.targetHeightRequired(targetHeightMm);
   }
@@ -5297,6 +5314,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     useState<Record<string, PistonOscillationReleaseEvent>>({});
   const [pistonOscillationMeasurementCyclesByFileId, setPistonOscillationMeasurementCyclesByFileId] =
     useState<Record<string, number>>({});
+  const [pistonOscillationPowerOnByFileId, setPistonOscillationPowerOnByFileId] =
+    useState<Record<string, boolean>>({});
   const [pistonOscillationGuidePulseElapsedMs, setPistonOscillationGuidePulseElapsedMs] =
     useState(0);
   const [pistonOscillationPeriodSelectionToolActive, setPistonOscillationPeriodSelectionToolActive] =
@@ -6258,7 +6277,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activePistonOscillationGuideSession?.status === 'active'
     && (
       activePistonOscillationGuideSession.step === 'periodProcessing'
-      || activePistonOscillationGuideSession.step === 'calculationReady'
       || activePistonOscillationGuideSession.step === 'completionReview'
     )
   );
@@ -6295,6 +6313,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       activePistonOscillationGuideSession?.status === 'completed'
       && !activePistonOscillationGuideSession.completionExited
     );
+  const activePistonOscillationPowerOn = activeFile.kind === 'heatCapacityPistonOscillation'
+    ? activePistonOscillationDemoPlaybackPhase !== 'idle'
+      ? false
+      : activePistonOscillationGuideSelected
+        ? activeFile.pistonOscillationGuideSession.powerOn
+        : pistonOscillationPowerOnByFileId[activeFile.id] ?? false
+    : false;
   const activePistonOscillationGuideTimeFrozen =
     activePistonOscillationGuideSession?.heightReset !== null;
   const activePistonOscillationGuideInstrumentRestoreState =
@@ -6682,8 +6707,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       )
     ),
   );
+  const pistonGuidePowerTargetActive = Boolean(
+    activePistonOscillationGuideSession?.status === 'active'
+    && (
+      !activePistonOscillationGuideSession.powerOn
+      || pistonGuideStep === 'powerOn'
+      || pistonGuideStep === 'powerOff'
+    )
+  );
   const pistonGuideVisualCue: PistonOscillationGuideVisualCue = !pistonGuidePulseActive
     ? null
+    : pistonGuidePowerTargetActive
+      ? 'power'
     : pistonGuideStep === 'firstHeightAdjustment'
       || pistonGuideStep === 'nextHeightAdjustment'
         ? pistonGuideHeightConfirmationReady ? 'heightStageAction' : 'platform'
@@ -6715,7 +6750,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const pistonGuideRequestedFocusMode =
     activePistonOscillationGuideSession?.status === 'active'
     || activePistonOscillationGuideSession?.status === 'completed'
-      ? getPistonOscillationGuideHeightResetPresentation(
+      ? activePistonOscillationGuideSession.status === 'active'
+        && !activePistonOscillationGuideSession.powerOn
+        ? 'powerFocus'
+        : getPistonOscillationGuideHeightResetPresentation(
         activePistonOscillationGuideSession.heightReset,
       )?.focusMode ?? getPistonOscillationGuideRequestedFocusMode(
         activePistonOscillationGuideSession.step,
@@ -6723,7 +6761,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : undefined;
   const pistonGuideExpectedStrongTargetId =
     activePistonOscillationGuideSession?.status === 'active'
-      ? pistonOscillationGuidePressureIssue === 'overpressure'
+      ? !activePistonOscillationGuideSession.powerOn
+        ? 'powerButton'
+        : pistonOscillationGuidePressureIssue === 'overpressure'
         ? 'redo'
         : getPistonOscillationGuideStrongTargetId(
           activePistonOscillationGuideSession.step,
@@ -8243,6 +8283,31 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : current,
     file,
   );
+
+  const handlePistonOscillationPowerToggle = (powerOn: boolean) => {
+    const fileId = activeFileIdRef.current;
+    const liveFile = filesRef.current.find((file) => file.id === fileId);
+    if (
+      !liveFile
+      || liveFile.kind !== 'heatCapacityPistonOscillation'
+      || (
+        pistonOscillationDemoPlayback.fileId === fileId
+        && pistonOscillationDemoPlayback.phase !== 'idle'
+      )
+    ) return;
+    if (liveFile.pistonOscillationGuideSession.status === 'active') {
+      updateFileById(fileId, (file) => applyPistonOscillationGuideEvents(file, [{
+        type: 'setPower',
+        powerOn,
+        nowMs: Date.now(),
+      }]));
+      return;
+    }
+    setPistonOscillationPowerOnByFileId((current) => ({
+      ...current,
+      [fileId]: powerOn,
+    }));
+  };
 
   const handlePistonOscillationGuideActionAttempt = (
     action: PistonOscillationGuideAction,
@@ -21726,6 +21791,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         };
       });
       publishDemoSession(demoSession);
+      setPistonOscillationPowerOnByFileId((current) => ({
+        ...current,
+        [activeFile.id]: false,
+      }));
       setLeftCollapsed(true);
       setParametersCollapsed(true);
     };
@@ -21775,6 +21844,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ? { ...file, pistonOscillationDemoSession: demoSession, updatedAt: nowMs }
         : file);
       publishDemoSession(demoSession);
+      setPistonOscillationPowerOnByFileId((current) => ({
+        ...current,
+        [activeFile.id]: false,
+      }));
       setLeftCollapsed(false);
     };
     const exitDemo = () => {
@@ -21785,6 +21858,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ? { ...file, pistonOscillationDemoSession: demoSession, updatedAt: nowMs }
         : file);
       publishDemoSession(demoSession);
+      setPistonOscillationPowerOnByFileId((current) => ({
+        ...current,
+        [activeFile.id]: false,
+      }));
       setLeftCollapsed(false);
     };
     const activateGuide = () => {
@@ -21807,6 +21884,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         };
       });
       publishDemoSession(demoSession);
+      setPistonOscillationPowerOnByFileId((current) => ({
+        ...current,
+        [activeFile.id]: false,
+      }));
       setLeftCollapsed(true);
       setParametersCollapsed(true);
     };
@@ -21826,6 +21907,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           nowMs: Date.now(),
         })
         : file);
+      setPistonOscillationPowerOnByFileId((current) => ({
+        ...current,
+        [activeFile.id]: false,
+      }));
       setLeftCollapsed(false);
     };
     const resetGuide = () => {
@@ -21844,6 +21929,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           nowMs: Date.now(),
         })
         : file);
+      setPistonOscillationPowerOnByFileId((current) => ({
+        ...current,
+        [activeFile.id]: false,
+      }));
     };
     const pistonModeExpanded = demoSelected || guideSelected;
     const pistonModeName = demoSelected ? 'demo' : guideSelected ? 'guide' : 'explore';
@@ -22043,12 +22132,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     };
     const guidePages: readonly (readonly GuidePanelStep[])[] = [
       [
+        { id: 'powerOn-1', steps: ['powerOn'], title: pistonOscillationCopy.guide.powerOnTitle, detail: pistonOscillationCopy.guide.powerOnDetail },
         { id: 'parameterSetup-1', steps: ['parameterSetup'], title: pistonOscillationCopy.guide.parameterSetupTitle, detail: pistonOscillationCopy.guide.parameterSetupDetail },
         { id: 'firstHeightAdjustment-1', steps: ['firstHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]), detail: pistonOscillationCopy.guide.adjustHeightDetail(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]) },
         ...createAcquisitionSteps(1),
       ],
       createFollowingMeasurementPage(1),
-      createFollowingMeasurementPage(2),
+      [
+        ...createFollowingMeasurementPage(2),
+        { id: 'powerOff-3', steps: ['powerOff'], title: pistonOscillationCopy.guide.powerOffTitle, detail: pistonOscillationCopy.guide.powerOffDetail },
+      ],
     ];
     const currentPageIndex = guideSession.status === 'completed'
       ? 2
@@ -23252,6 +23345,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             <PistonOscillationInstrumentScene
               key={activeFile.id}
               language={settingsLanguagePreference}
+              powerOn={activePistonOscillationPowerOn}
+              onPowerToggle={handlePistonOscillationPowerToggle}
               sceneTheme={resolvedWorkbenchTheme}
               cameraPreset={activeFile.previewCameraPreset}
               operationVisualizationEnabled={
@@ -23701,6 +23796,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             activePistonOscillationGuideSession?.startedAtMs ?? 'standalone'
           }:${activePistonOscillationGuideSession?.measurementIndex ?? 'free'}`}
           language={settingsLanguagePreference}
+          powerOn={activePistonOscillationPowerOn}
           releaseEvent={pistonOscillationReleaseEventsByFileId[activeFile.id] ?? null}
           livePressureChannel={pistonOscillationLivePressureChannel}
           demoPlaybackChannel={

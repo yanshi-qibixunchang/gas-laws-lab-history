@@ -54,6 +54,11 @@ for (const step of [
   );
 }
 
+for (const step of ['powerOn', 'powerOff'] satisfies PistonOscillationGuideStep[]) {
+  assert.equal(getPistonOscillationGuideRequestedFocusMode(step), 'powerFocus');
+  assert.equal(getPistonOscillationGuideStrongTargetId(step, 'readingHeight'), 'powerButton');
+}
+
 for (const step of [
   'firstHeightAdjustment',
   'screwLock',
@@ -155,6 +160,7 @@ assert.deepEqual(
     hoseState: 'connected',
     equilibriumHeightMm: 80,
     lockingScrewProgress: 0,
+    powerOn: false,
   },
   'refreshing Run 2 disconnect should restore the connected hose and saved 80 mm checkpoint',
 );
@@ -168,6 +174,7 @@ assert.deepEqual(
     hoseState: 'disconnected',
     equilibriumHeightMm: 0,
     lockingScrewProgress: 0,
+    powerOn: false,
   },
   'refreshing a cross-Run height adjustment should restore a safe zero-height retry without inventing another support-loss event',
 );
@@ -181,6 +188,7 @@ assert.deepEqual(
     hoseState: 'disconnected',
     equilibriumHeightMm: 70,
     lockingScrewProgress: 1,
+    powerOn: false,
   },
   'refreshing after screw lock should preserve the functionally locked checkpoint',
 );
@@ -200,6 +208,7 @@ assert.deepEqual(
     hoseState: 'disconnected',
     equilibriumHeightMm: 0,
     lockingScrewProgress: 0,
+    powerOn: false,
   },
   'refreshing a frozen recovery explanation should keep the platform at its completed reset position',
 );

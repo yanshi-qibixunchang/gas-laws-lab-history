@@ -1,6 +1,7 @@
 export type PistonOscillationFocusViewId =
   | 'pistonFocus'
   | 'hoseFocus'
+  | 'powerFocus'
   | 'screwOperationView';
 
 export type PistonOscillationFocusVector = [number, number, number];
@@ -59,6 +60,15 @@ export const PISTON_OSCILLATION_CONFIRMED_FOCUS_CAMERAS: Record<
     position: [0.4445, 0.437, 0.6353],
     target: [0.2192, 0.126, 0.099],
     fov: 38,
+    zoom: 1,
+    near: 0.001,
+    far: 20,
+  },
+  powerFocus: {
+    viewport: { width: 796, height: 500 },
+    position: [-0.322, 0.205, 0.31],
+    target: [-0.44125, 0.123, -0.0085],
+    fov: 32,
     zoom: 1,
     near: 0.001,
     far: 20,

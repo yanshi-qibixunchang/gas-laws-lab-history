@@ -94,7 +94,8 @@ assert.equal(PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS, 3);
 
 const idle = createDefaultPistonOscillationGuideSession();
 assert.equal(idle.status, 'idle');
-assert.equal(idle.step, 'parameterSetup');
+assert.equal(idle.step, 'powerOn');
+assert.equal(idle.powerOn, false);
 assert.deepEqual(idle.parameterDrafts, {
   sampleRateHz: '',
   triggerThresholdKpa: '',
@@ -103,6 +104,50 @@ assert.deepEqual(idle.parameterDrafts, {
 let session = transition(idle, { type: 'start', nowMs: 100 });
 assert.equal(session.status, 'active');
 assert.equal(session.startedAtMs, 100);
+assert.deepEqual(
+  getPistonOscillationGuideActionGuard(session, 'togglePower'),
+  { allowed: true, reason: 'allowed' },
+);
+assert.deepEqual(
+  getPistonOscillationGuideEventGuard(session, {
+    type: 'setPower',
+    powerOn: false,
+    nowMs: 100,
+  }),
+  { allowed: false, reason: 'wrongStep' },
+  'the initial power step must only allow switching the instrument on',
+);
+assert.deepEqual(
+  getPistonOscillationGuideActionGuard(session, 'editParameters'),
+  { allowed: false, reason: 'powerRequired' },
+);
+assert.deepEqual(
+  getPistonOscillationGuideEventGuard(session, {
+    type: 'editParameter',
+    field: 'sampleRateHz',
+    value: '1000',
+    nowMs: 101,
+  }),
+  { allowed: false, reason: 'wrongStep' },
+);
+session = transition(session, { type: 'setPower', powerOn: true, nowMs: 105 });
+assert.equal(session.powerOn, true);
+assert.equal(session.step, 'parameterSetup');
+assert.deepEqual(
+  getPistonOscillationGuideActionGuard(session, 'togglePower'),
+  { allowed: false, reason: 'wrongStep' },
+  'power must not be reversible outside the two dedicated Guide steps',
+);
+const prematurePowerOffEvent = { type: 'setPower', powerOn: false, nowMs: 106 } as const;
+assert.deepEqual(
+  getPistonOscillationGuideEventGuard(session, prematurePowerOffEvent),
+  { allowed: false, reason: 'wrongStep' },
+);
+assert.equal(
+  transition(session, prematurePowerOffEvent),
+  session,
+  'a rejected power press must preserve the complete Guide session by identity',
+);
 
 const wrongRateDraft = transition(session, {
   type: 'editParameter',
@@ -648,7 +693,34 @@ let calculationGuide = session;
 for (let runIndex = 0; runIndex < 3; runIndex += 1) {
   calculationGuide = completeGuidePeriodRun(calculationGuide, runIndex, 905 + runIndex * 10);
 }
+assert.equal(calculationGuide.step, 'powerOff');
+assert.equal(calculationGuide.powerOn, true);
+assert.deepEqual(
+  getPistonOscillationGuideActionGuard(calculationGuide, 'togglePower'),
+  { allowed: true, reason: 'allowed' },
+);
+assert.deepEqual(
+  getPistonOscillationGuideEventGuard(calculationGuide, {
+    type: 'setPower',
+    powerOn: true,
+    nowMs: 943,
+  }),
+  { allowed: false, reason: 'wrongStep' },
+  'the final power step must only allow switching the instrument off',
+);
+const fitBeforeShutdown = transition(calculationGuide, {
+  type: 'toggleFitRun',
+  runIndex: 0,
+  nowMs: 944,
+});
+assert.equal(fitBeforeShutdown, calculationGuide);
+calculationGuide = transition(calculationGuide, {
+  type: 'setPower',
+  powerOn: false,
+  nowMs: 945,
+});
 assert.equal(calculationGuide.step, 'calculationReady');
+assert.equal(calculationGuide.powerOn, false);
 for (let runIndex = 0; runIndex < 3; runIndex += 1) {
   calculationGuide = transition(calculationGuide, {
     type: 'toggleFitRun',
@@ -718,7 +790,8 @@ assert.equal(resetCompleted.dataProcessing, null);
 
 const reset = transition(session, { type: 'resetSession', nowMs: 1_000 });
 assert.equal(reset.status, 'active');
-assert.equal(reset.step, 'parameterSetup');
+assert.equal(reset.step, 'powerOn');
+assert.equal(reset.powerOn, false);
 assert.equal(reset.startedAtMs, 1_000);
 assert.deepEqual(reset.parameterDrafts, { sampleRateHz: '', triggerThresholdKpa: '' });
 assert.equal(reset.acquisitionCandidate, null);

@@ -60,7 +60,11 @@ assert.equal(summary.licenseCounts?.UNKNOWN ?? 0, 0, 'published dependency notic
 assert.doesNotMatch(before['third-party-dependencies.html'], />UNKNOWN</, 'the dependency table must not publish UNKNOWN licenses');
 assert.match(generatorSource, /const dependencyManifest = Object\.fromEntries/);
 assert.match(generatorSource, /appendFile\(audioManifestPath\)/);
+assert.match(generatorSource, /appendFile\(pistonModelProvenancePath\)/, 'piston model provenance should invalidate stale legal output');
+assert.match(generatorSource, /appendFile\(sharedBenchProvenancePath\)/, 'shared bench provenance should invalidate stale legal output');
 assert.match(generatorSource, /appendFile\(exporterLegalInventoryPath\)/, 'actual exporter inventory should invalidate stale legal output');
+assert.match(before['third-party-dependencies.html'], /Packaged 3D model assets/, 'packaged legal materials should cover project-provided 3D assets');
+assert.match(before['third-party-dependencies.html'], /A72C2609713B2CD7B2624A5343CA8073A547153C2ECD14CC18E83D2AD007CDBC/, 'packaged legal materials should pin the approved piston model digest');
 assert.match(generatorSource, /assertExporterLegalInventory/, 'legal generation should reject incomplete exporter inventory');
 assert.match(
   generatorSource,

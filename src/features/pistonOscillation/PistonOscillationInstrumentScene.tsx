@@ -57,6 +57,8 @@ class PistonOscillationInteractionSceneBoundary extends React.Component<{
 
 export interface PistonOscillationInstrumentSceneProps {
   language: PistonOscillationLanguage;
+  powerOn: boolean;
+  onPowerToggle?: (powerOn: boolean) => void;
   sceneTheme: 'light' | 'dark';
   cameraPreset: WorkbenchPistonOscillationCameraPreset;
   className?: string;
@@ -98,6 +100,8 @@ export interface PistonOscillationInstrumentSceneProps {
 
 export const PistonOscillationInstrumentScene = ({
   language,
+  powerOn,
+  onPowerToggle,
   sceneTheme,
   cameraPreset,
   className = '',
@@ -164,6 +168,8 @@ export const PistonOscillationInstrumentScene = ({
       >
         <PistonOscillationInteractionWorkspace
           language={language}
+          powerOn={powerOn}
+          onPowerToggle={onPowerToggle}
           embedded
           initialMode="overview"
           cameraPreset={cameraPreset}

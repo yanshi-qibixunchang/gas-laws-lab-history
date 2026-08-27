@@ -26,7 +26,7 @@ import {
   type PistonOscillationRawSample,
 } from './pistonOscillationDataProcessingModel.ts';
 
-export const PISTON_OSCILLATION_GUIDE_SESSION_SCHEMA_VERSION = 8 as const;
+export const PISTON_OSCILLATION_GUIDE_SESSION_SCHEMA_VERSION = 9 as const;
 
 export const PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM = [80, 70, 60] as const;
 export const PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS = 3 as const;
@@ -39,6 +39,7 @@ export const PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM = 0.25 as
 export type PistonOscillationGuideMeasurementIndex = 0 | 1 | 2;
 
 export type PistonOscillationGuideStep =
+  | 'powerOn'
   | 'parameterSetup'
   | 'firstHeightAdjustment'
   | 'screwLock'
@@ -55,6 +56,7 @@ export type PistonOscillationGuideStep =
   | 'crossRunDisconnect'
   | 'nextHeightAdjustment'
   | 'periodProcessing'
+  | 'powerOff'
   | 'calculationReady'
   | 'completionReview'
   | 'completed';
@@ -97,6 +99,7 @@ export interface PistonOscillationGuideSession {
   updatedAtMs: number | null;
   measurementIndex: PistonOscillationGuideMeasurementIndex;
   step: PistonOscillationGuideStep;
+  powerOn: boolean;
   parameterDrafts: Record<PistonOscillationGuideParameterField, string>;
   parameterStatus: Record<
     PistonOscillationGuideParameterField,
@@ -119,6 +122,7 @@ export type PistonOscillationGuideEvent =
   | ({ type: 'reopenCompletedSession' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'exitSession' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'resetSession' } & PistonOscillationGuideTimedEvent)
+  | ({ type: 'setPower'; powerOn: boolean } & PistonOscillationGuideTimedEvent)
   | ({
       type: 'editParameter';
       field: PistonOscillationGuideParameterField;
@@ -207,6 +211,7 @@ export type PistonOscillationGuideEvent =
   | ({ type: 'acknowledgeCompletion' } & PistonOscillationGuideTimedEvent);
 
 export type PistonOscillationGuideAction =
+  | 'togglePower'
   | 'editParameters'
   | 'platformGrab'
   | 'platformMove'
@@ -233,6 +238,7 @@ export type PistonOscillationGuideGuardReason =
   | 'sessionNotActive'
   | 'sessionNotPaused'
   | 'wrongStep'
+  | 'powerRequired'
   | 'parametersLocked'
   | 'wrongTargetHeight'
   | 'leftHandRequired'
@@ -280,7 +286,8 @@ PistonOscillationGuideSession => ({
   startedAtMs: null,
   updatedAtMs: null,
   measurementIndex: 0,
-  step: 'parameterSetup',
+  step: 'powerOn',
+  powerOn: false,
   parameterDrafts: createEmptyParameterDrafts(),
   parameterStatus: createEmptyParameterStatus(),
   parametersLocked: false,
@@ -384,6 +391,16 @@ const eventMatchesStep = (
   event: PistonOscillationGuideEvent,
 ) => {
   switch (event.type) {
+    case 'setPower':
+      return (
+        session.step === 'powerOn'
+        && !session.powerOn
+        && event.powerOn
+      ) || (
+        session.step === 'powerOff'
+        && session.powerOn
+        && !event.powerOn
+      );
     case 'editParameter':
     case 'commitParameter':
       return session.step === 'parameterSetup';
@@ -458,6 +475,17 @@ export const getPistonOscillationGuideActionGuard = (
   if (session.status !== 'active') return rejectGuard('sessionNotActive');
 
   if (session.heightReset !== null) return rejectGuard('heightResetInProgress');
+
+  if (action === 'togglePower') {
+    return (
+      (session.step === 'powerOn' && !session.powerOn)
+      || (session.step === 'powerOff' && session.powerOn)
+    )
+      ? ALLOWED_GUARD
+      : rejectGuard('wrongStep');
+  }
+
+  if (!session.powerOn) return rejectGuard('powerRequired');
 
   if (action === 'confirmHeight') {
     if (!isHeightAdjustmentStep(session.step)) return rejectGuard('wrongStep');
@@ -544,6 +572,11 @@ export const getPistonOscillationGuideEventGuard = (
     case 'resetSession':
     case 'exitSession':
       return ALLOWED_GUARD;
+    case 'setPower':
+      if (session.status !== 'active') return rejectGuard('sessionNotActive');
+      return eventMatchesStep(session, event)
+        ? ALLOWED_GUARD
+        : rejectGuard('wrongStep');
     case 'heightResetComplete':
       return session.status === 'active'
         && session.heightReset?.phase === 'resetting'
@@ -564,6 +597,18 @@ export const getPistonOscillationGuideEventGuard = (
 
   if (session.status !== 'active') return rejectGuard('sessionNotActive');
   if (!eventMatchesStep(session, event)) return rejectGuard('wrongStep');
+
+  if (
+    !session.powerOn
+    && event.type !== 'toggleFitRun'
+    && event.type !== 'submitLinearFit'
+    && event.type !== 'editCalculationAnswer'
+    && event.type !== 'submitCalculationField'
+    && event.type !== 'continueCalculationAnswer'
+    && event.type !== 'revealCalculationAnswer'
+    && event.type !== 'completeCalculation'
+    && event.type !== 'acknowledgeCompletion'
+  ) return rejectGuard('powerRequired');
 
   if (
     (event.type === 'editParameter' || event.type === 'commitParameter')
@@ -734,6 +779,22 @@ export const transitionPistonOscillationGuideSession = (
       };
     }
     return createDefaultPistonOscillationGuideSession();
+  }
+  if (event.type === 'setPower') {
+    if (event.powerOn) {
+      return {
+        ...session,
+        powerOn: true,
+        step: session.step === 'powerOn' ? 'parameterSetup' : session.step,
+        updatedAtMs: event.nowMs,
+      };
+    }
+    return {
+      ...session,
+      powerOn: false,
+      step: session.step === 'powerOff' ? 'calculationReady' : session.step,
+      updatedAtMs: event.nowMs,
+    };
   }
   if (event.type === 'editParameter') {
     return {
@@ -951,7 +1012,7 @@ export const transitionPistonOscillationGuideSession = (
       return {
         ...session,
         step: dataProcessing.status === 'calculation-ready'
-          ? 'calculationReady'
+          ? 'powerOff'
           : 'periodProcessing',
         updatedAtMs: event.nowMs,
         dataProcessing,
@@ -1085,6 +1146,7 @@ const isParameterStatus = (value: unknown): value is PistonOscillationGuideParam
 );
 
 const GUIDE_STEPS: readonly PistonOscillationGuideStep[] = [
+  'powerOn',
   'parameterSetup',
   'firstHeightAdjustment',
   'screwLock',
@@ -1101,6 +1163,7 @@ const GUIDE_STEPS: readonly PistonOscillationGuideStep[] = [
   'crossRunDisconnect',
   'nextHeightAdjustment',
   'periodProcessing',
+  'powerOff',
   'calculationReady',
   'completionReview',
   'completed',
@@ -1220,12 +1283,15 @@ export const normalizePistonOscillationGuideSession = (
       : persistedStatus === 'completed'
         ? 'active' as const
         : persistedStatus;
+  const normalizedPowerOn = value.powerOn === true;
   const processingStep = dataProcessing?.status === 'completed'
     ? guideCompletionAcknowledged
       ? 'completed' as const
       : 'completionReview' as const
     : dataProcessing?.status === 'calculation-ready'
-      ? 'calculationReady' as const
+      ? normalizedStep === 'powerOff' || value.schemaVersion !== PISTON_OSCILLATION_GUIDE_SESSION_SCHEMA_VERSION
+        ? 'powerOff' as const
+        : 'calculationReady' as const
       : dataProcessing
         ? 'periodProcessing' as const
         : null;
@@ -1247,6 +1313,7 @@ export const normalizePistonOscillationGuideSession = (
         ? 'firstHeightAdjustment'
         : normalizedStep
     ),
+    powerOn: normalizedPowerOn,
     parameterDrafts: {
       sampleRateHz: typeof drafts?.sampleRateHz === 'string' ? drafts.sampleRateHz : '',
       triggerThresholdKpa: typeof drafts?.triggerThresholdKpa === 'string'

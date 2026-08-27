@@ -40,7 +40,7 @@ export interface PistonOscillationCalculationCopy {
 export const PISTON_OSCILLATION_CALCULATION_COPY = {
   'zh-CN': {
     title: '活塞振动法数据计算',
-    subtitle: '引导模式 · 拟合与计算',
+    subtitle: '引导模式 · 离线拟合与计算',
     reviewSubtitle: '数据处理 · 已保存过程回顾',
     close: '关闭活塞振动法计算窗口',
     tolerance: '判定说明：答案同时检查数值与规定精度；数值落在允许容差内即可判定正确，因此你的答案可能与参考答案略有差异。',
@@ -83,7 +83,7 @@ export const PISTON_OSCILLATION_CALCULATION_COPY = {
   },
   'zh-TW': {
     title: '活塞振動法資料計算',
-    subtitle: '引導模式 · 擬合與計算',
+    subtitle: '引導模式 · 離線擬合與計算',
     reviewSubtitle: '資料處理 · 已儲存過程回顧',
     close: '關閉活塞振動法計算視窗',
     tolerance: '判定說明：答案同時檢查數值與規定精度；數值落在允許容差內即可判定正確，因此你的答案可能與參考答案略有差異。',
@@ -126,7 +126,7 @@ export const PISTON_OSCILLATION_CALCULATION_COPY = {
   },
   en: {
     title: 'Piston-oscillation calculations',
-    subtitle: 'Guided mode · Fit and calculation',
+    subtitle: 'Guided mode · Offline fit and calculation',
     reviewSubtitle: 'Data processing · Saved-work review',
     close: 'Close piston-oscillation calculation window',
     tolerance: 'Answer check: both the numerical value and required precision are checked. Values within the stated tolerance are accepted, so your entry may differ slightly from the reference.',

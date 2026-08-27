@@ -1,24 +1,50 @@
 {
   "asset": "piston-oscillation.glb",
   "purpose": "Piston-oscillation method instrument, sensor, interface, hoses, and laboratory bench",
-  "sha256": "9CBC8E5331631F663B49F766D4352A758C52B97A313F75EA4041B6229694D370",
-  "bytes": 7507832,
+  "sha256": "A72C2609713B2CD7B2624A5343CA8073A547153C2ECD14CC18E83D2AD007CDBC",
+  "bytes": 8218884,
   "format": "glTF 2.0 binary",
-  "generator": "Three.js GLTFExporter r182",
-  "source": {
+  "generator": "Khronos glTF Blender I/O v5.1.19",
+  "composition": "Project-current functional model with the v1.3.0 universal-interface and data-cable visual subtree transplanted and refined while preserving the approved runtime node contract",
+  "baseAsset": {
+    "asset": "previous project-current piston-oscillation.glb",
+    "sha256": "9CBC8E5331631F663B49F766D4352A758C52B97A313F75EA4041B6229694D370",
+    "bytes": 7507832,
+    "generator": "Three.js GLTFExporter r182",
+    "source": {
+      "repository": "https://github.com/zyl57863-cmd/ex5531-ratio-specific-heats-blender-model",
+      "tag": "v1.2.1",
+      "commit": "79a26a2a7b13e082ac32507d02df20cbb2bd02e3",
+      "path": "deliverables_ex5531_final/EX5531_TD8572A_ratio_specific_heats_final.glb",
+      "sha256": "BE1681B872ED89196107856E1D37C6F57AF2D812272F34A41036F5F594C947C1"
+    }
+  },
+  "interfaceRefinementSource": {
     "repository": "https://github.com/zyl57863-cmd/ex5531-ratio-specific-heats-blender-model",
-    "tag": "v1.2.1",
-    "commit": "79a26a2a7b13e082ac32507d02df20cbb2bd02e3",
+    "tag": "v1.3.0",
+    "commit": "15bc8502441f451b2d810204275265f8b5494ef7",
     "path": "deliverables_ex5531_final/EX5531_TD8572A_ratio_specific_heats_final.glb",
-    "sha256": "BE1681B872ED89196107856E1D37C6F57AF2D812272F34A41036F5F594C947C1"
+    "sha256": "93AA9424D24B0853B4195662D4444F39B23DCD529CE6EFFC73B08879139C6130",
+    "bytes": 8006520
+  },
+  "refinement": {
+    "scope": "Universal-interface front panel, connectors, power control, and sensor-to-interface data cable",
+    "method": "Transplanted the v1.3.0 visual subtree into the project-current model, aligned it to the existing coordinate contract, refined opaque materials, welded split vertices, and recalculated outward normals",
+    "functionalContract": "All approved piston, platform, scale, screw, hose, connector, hit-target, magnetic-snap, and camera bindings remain software-owned and compatible",
+    "runtimeMetadataUse": false
+  },
+  "rights": {
+    "status": "Project-provided model asset; no separate open-source license is declared by the model source repository",
+    "distributionNote": "Public repository access does not by itself grant third-party redistribution rights. Distribution of this integrated asset relies on the project team's authorization; Blender and three.js are authoring/preview tools and are not embedded in the GLB."
   },
   "modelContract": {
     "pistonDiameterMm": 32.5,
     "scaleTickRangeMm": [0, 85],
     "scaleLabelRangeMm": [10, 80],
     "experimentHeightRangeMm": [20, 80],
-    "lockingScrewTurns": 3,
-    "lockingScrewTravelMm": 2,
+    "lockingScrewVisualTurns": 6,
+    "lockingScrewGestureTurns": 3,
+    "lockingScrewTravelMm": 4,
     "hoseStates": ["connected", "disconnected"],
     "materialPalette": "deep-blue-gray-low-gloss"
   }
