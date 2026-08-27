@@ -2,14 +2,14 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-27T00:18:14.670Z",
-  "finishedAt": "2026-08-27T00:18:35.561Z",
+  "generatedAt": "2026-08-27T00:58:32.535Z",
+  "finishedAt": "2026-08-27T00:58:53.378Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
     "packageVersion": "6.1.1",
-    "gitCommit": "a1a727b4dcd4d240dffbf3676ba54fe3db85589c",
+    "gitCommit": "61af041d90be3cf969fe163e0ba9118c22ee9c96",
     "dirtyAtStart": true,
     "statusAtStart": [
       "?? heat-model-diagnosis.png"
@@ -406,7 +406,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "7e09fc41c0e9d5b199a9afdf5a27450180c3fdcff0c5a23efb1949dfcae44ffd"
+      "sha256": "e2abbb4b03f39a3eee1d073693977e69aa5983607d1a0e0ce556158e8a2c03cd"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",
