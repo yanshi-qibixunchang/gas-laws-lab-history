@@ -72,9 +72,9 @@ are not bundled into the application or installer.
 
 | Action | Pinned commit | License |
 | --- | --- | --- |
-| `actions/checkout@v4` | `11d5960a326750d5838078e36cf38b85af677262` | MIT |
-| `actions/setup-node@v4` | `49933ea5288caeca8642d1e84afbd3f7d6820020` | MIT |
-| `actions/upload-artifact@v4` | `ea165f8d65b6e75b540449e92b4886f43607fa02` | MIT |
+| `actions/checkout@v7.0.1` | `3d3c42e5aac5ba805825da76410c181273ba90b1` | MIT |
+| `actions/setup-node@v7.0.0` | `820762786026740c76f36085b0efc47a31fe5020` | MIT |
+| `actions/upload-artifact@v7.0.1` | `043fb46d1a93c77aae656e7c1c64a875d1fc6a0a` | MIT |
 
 ## Electron and Chromium
 

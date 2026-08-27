@@ -25,10 +25,10 @@ jobs:
 
     steps:
       - name: Check out the release source
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
 
       - name: Use Node.js 24 for Chromium DevTools Protocol checks
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: 24
           cache: npm
@@ -43,8 +43,10 @@ jobs:
           $oldName = "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
           $newName = "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
           $baseUrl = 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download'
-          Invoke-WebRequest -Uri "$baseUrl/v${{ inputs.old_version }}/$oldName" -OutFile (Join-Path $downloadRoot $oldName)
-          Invoke-WebRequest -Uri "$baseUrl/v${{ inputs.new_version }}/$newName" -OutFile (Join-Path $downloadRoot $newName)
+          & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $oldName) "$baseUrl/v${{ inputs.old_version }}/$oldName"
+          if ($LASTEXITCODE -ne 0) { throw "Old installer download failed with curl exit code $LASTEXITCODE." }
+          & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $newName) "$baseUrl/v${{ inputs.new_version }}/$newName"
+          if ($LASTEXITCODE -ne 0) { throw "New installer download failed with curl exit code $LASTEXITCODE." }
           "HSL_UPGRADE_DOWNLOAD_ROOT=$downloadRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "HSL_UPGRADE_EVIDENCE_ROOT=$evidenceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
@@ -54,8 +56,9 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $installRoot = Join-Path $env:RUNNER_TEMP 'Gas Laws Lab Upgrade Target'
           $installer = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
-          & $installer /S "/D=$installRoot"
-          if ($LASTEXITCODE -ne 0) { throw "Old installer exited with $LASTEXITCODE." }
+          $installArgument = '"/D={0}"' -f $installRoot
+          $process = Start-Process -FilePath $installer -ArgumentList '/S', $installArgument -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Old installer exited with $($process.ExitCode)." }
           $executable = Join-Path $installRoot 'Gas Laws Lab.exe'
           if (-not (Test-Path -LiteralPath $executable)) { throw "Old executable was not installed at $executable" }
           $version = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
@@ -72,8 +75,9 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           $installer = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
-          & $installer /S "/D=$env:HSL_UPGRADE_INSTALL_ROOT"
-          if ($LASTEXITCODE -ne 0) { throw "New installer exited with $LASTEXITCODE." }
+          $installArgument = '"/D={0}"' -f $env:HSL_UPGRADE_INSTALL_ROOT
+          $process = Start-Process -FilePath $installer -ArgumentList '/S', $installArgument -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "New installer exited with $($process.ExitCode)." }
           $executable = Join-Path $env:HSL_UPGRADE_INSTALL_ROOT 'Gas Laws Lab.exe'
           if (-not (Test-Path -LiteralPath $executable)) { throw "New executable is missing at $executable" }
           $version = (Get-Item -LiteralPath $executable).VersionInfo.ProductVersion
@@ -104,7 +108,7 @@ jobs:
 
       - name: Upload screenshots and structured evidence
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: desktop-upgrade-${{ inputs.old_version }}-to-${{ inputs.new_version }}
           path: ${{ runner.temp }}/gas-laws-lab-upgrade-evidence
