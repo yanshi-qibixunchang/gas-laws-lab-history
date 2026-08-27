@@ -321,11 +321,11 @@ const run = async () => {
         return true;
       })()`);
       if (!created) throw new Error('Unable to create the packaged 5.3.1 piston-oscillation workspace file.');
+      await waitForEvaluation(
+        client,
+        `document.body.innerText.includes(${JSON.stringify(workspaceFileName)})`,
+      );
     }
-    await waitForEvaluation(
-      client,
-      `document.body.innerText.includes(${JSON.stringify(workspaceFileName)})`,
-    );
     await sleep(5_000);
 
     const rendererState = await evaluate(client, `(() => ({
