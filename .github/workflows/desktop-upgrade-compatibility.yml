@@ -33,6 +33,10 @@ jobs:
           node-version: 24
           cache: npm
 
+      - name: Install locked dependencies for differential validation
+        shell: powershell
+        run: npm.cmd ci --ignore-scripts --no-audit --no-fund
+
       - name: Download the two public installers
         shell: powershell
         run: |
