@@ -407,6 +407,14 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
       ) {
         migratedAuthority.lessonIntroAutoShown = false;
       }
+      if (
+        migratedAuthority.demoSession === undefined &&
+        canonicalAuthority.demoSession !== undefined
+      ) {
+        migratedAuthority.demoSession = canonicalClone(
+          canonicalAuthority.demoSession,
+        );
+      }
       migratedAuthority.guideSession = canonicalClone(
         canonicalAuthority.guideSession,
       );

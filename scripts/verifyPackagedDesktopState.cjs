@@ -23,10 +23,12 @@ const port = Number(options.port);
 const comparePath = options.compare ? path.resolve(options.compare) : null;
 
 if (!fs.existsSync(executablePath)) throw new Error(`Packaged executable is missing: ${executablePath}`);
-if (!['seed', 'verify'].includes(phase)) throw new Error('Phase must be seed or verify.');
+if (!['seed', 'confirm', 'verify'].includes(phase)) {
+  throw new Error('Phase must be seed, confirm, or verify.');
+}
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Port is invalid.');
-if (phase === 'verify' && (!comparePath || !fs.existsSync(comparePath))) {
-  throw new Error('Verify phase requires an existing --compare report.');
+if (phase !== 'seed' && (!comparePath || !fs.existsSync(comparePath))) {
+  throw new Error(`${phase} phase requires an existing --compare report.`);
 }
 
 const markerKey = 'hsl_upgrade_smoke_from_5_3_1';
@@ -162,6 +164,74 @@ const waitForEvaluation = async (client, expression, timeoutMilliseconds = 90_00
 
 const indexedDbSnapshotExpression = `
   (async () => {
+    const requestValue = (request) => new Promise((resolve, reject) => {
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+    const summarizeGeneration = (value) => {
+      const content = value && typeof value === 'object' ? value.content : null;
+      const workspace = content && typeof content === 'object'
+        ? content.workspace
+        : null;
+      const manifest = workspace && typeof workspace === 'object'
+        ? workspace.manifest
+        : null;
+      const records = Array.isArray(workspace?.records)
+        ? workspace.records
+        : [];
+      return {
+        key: value?.key ?? null,
+        namespace: value?.namespace ?? null,
+        generationId: value?.generationId ?? null,
+        contentFingerprint: value?.contentFingerprint ?? null,
+        capturedAtMs: value?.capturedAtMs ?? null,
+        contentSchemaFamily: content?.schemaFamily ?? null,
+        contentSchemaVersion: content?.schemaVersion ?? null,
+        openFileIds: Array.isArray(content?.openFileIds)
+          ? content.openFileIds
+          : [],
+        closedFileIds: Array.isArray(content?.closedFileIds)
+          ? content.closedFileIds
+          : [],
+        manifest: {
+          activeFileId: manifest?.activeFileId ?? null,
+          selectedPanel: manifest?.selectedPanel ?? null,
+          fileOrder: Array.isArray(manifest?.fileOrder)
+            ? manifest.fileOrder
+            : [],
+        },
+        files: records.map((record) => ({
+          fileId: record?.fileId ?? null,
+          fileKind: record?.fileKind ?? null,
+          aggregateKind: record?.aggregateKind ?? null,
+          name: record?.projection?.fields?.authoritative?.metadata?.name
+            ?? null,
+          pistonOscillationSchemaVersion:
+            record?.projection?.fields?.authoritative
+              ?.pistonOscillationSchemaVersion ?? null,
+          pistonGuideSessionProjectionVersion:
+            record?.projection?.fields?.authoritative
+              ?.pistonGuideSessionProjectionVersion ?? null,
+          hasDemoSession: Object.prototype.hasOwnProperty.call(
+            record?.projection?.fields?.authoritative ?? {},
+            'demoSession',
+          ),
+          hasGuideSession: Object.prototype.hasOwnProperty.call(
+            record?.projection?.fields?.authoritative ?? {},
+            'guideSession',
+          ),
+        })),
+        opaqueFiles: Array.isArray(content?.opaqueFiles)
+          ? content.opaqueFiles.map((entry) => ({
+              fileId: entry?.fileId ?? null,
+              location: entry?.location ?? null,
+            }))
+          : [],
+        legacyRawRecordCount: Array.isArray(content?.legacyRawRecords)
+          ? content.legacyRawRecords.length
+          : 0,
+      };
+    };
     const databaseInfos = await indexedDB.databases();
     const snapshots = [];
     for (const info of databaseInfos) {
@@ -175,19 +245,24 @@ const indexedDbSnapshotExpression = `
       for (const storeName of Array.from(database.objectStoreNames)) {
         const transaction = database.transaction(storeName, 'readonly');
         const store = transaction.objectStore(storeName);
-        const [count, keys] = await Promise.all([
-          new Promise((resolve, reject) => {
-            const request = store.count();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          }),
-          new Promise((resolve, reject) => {
-            const request = store.getAllKeys();
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-          }),
+        const includeValues = storeName === 'persistenceV3GenerationHeads'
+          || storeName === 'persistenceV3Generations';
+        const [count, keys, values] = await Promise.all([
+          requestValue(store.count()),
+          requestValue(store.getAllKeys()),
+          includeValues ? requestValue(store.getAll()) : Promise.resolve(null),
         ]);
-        stores.push({ storeName, count, keys });
+        stores.push({
+          storeName,
+          count,
+          keys,
+          ...(storeName === 'persistenceV3GenerationHeads'
+            ? { heads: values }
+            : {}),
+          ...(storeName === 'persistenceV3Generations'
+            ? { generations: values.map(summarizeGeneration) }
+            : {}),
+        });
       }
       database.close();
       snapshots.push({ name: info.name, version: info.version, stores });
@@ -213,6 +288,29 @@ const includesEveryKey = (currentKeys, previousKeys) => (
   previousKeys.every((key) => currentKeys.some((candidate) => (
     JSON.stringify(candidate) === JSON.stringify(key)
   )))
+);
+
+const getActiveGeneration = (snapshot, databaseName) => {
+  const headStore = getStoreSnapshot(
+    snapshot,
+    databaseName,
+    'persistenceV3GenerationHeads',
+  );
+  const generationStore = getStoreSnapshot(
+    snapshot,
+    databaseName,
+    'persistenceV3Generations',
+  );
+  const head = headStore?.heads?.find((candidate) => (
+    candidate?.namespace === 'persistent:main'
+  ));
+  return generationStore?.generations?.find((candidate) => (
+    candidate.generationId === head?.currentGenerationId
+  )) ?? null;
+};
+
+const generationContainsWorkspaceFile = (generation, fileName) => (
+  generation?.files?.some((file) => file.name === fileName) === true
 );
 
 const run = async () => {
@@ -376,11 +474,17 @@ const run = async () => {
       'hard-sphere-lab-workbench',
       'persistenceV3Generations',
     );
+    const activeGeneration = getActiveGeneration(
+      indexedDb,
+      'hard-sphere-lab-workbench',
+    );
     const checks = {
       workbenchLoaded: rendererState.hasWorkbench,
       startupHealthy: !rendererState.hasStartupFailure && !rendererState.hasPersistenceSafeMode,
       markerPresent: rendererState.marker === markerValue,
       workspaceFileRestored: rendererState.workspaceFileRestored,
+      activeGenerationContainsWorkspaceFile:
+        generationContainsWorkspaceFile(activeGeneration, workspaceFileName),
       rendererHasNoCriticalErrors: criticalErrors.length === 0,
       ...(previous ? {
         experienceProfilePreserved:
@@ -407,6 +511,7 @@ const run = async () => {
       passed: Object.values(checks).every(Boolean),
       rendererState,
       indexedDb,
+      activeGeneration,
       events,
       mainProcess: {
         stdout: stdout.join(''),

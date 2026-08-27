@@ -86,8 +86,8 @@
             "en": "Strict Guide sequencing and state consistency"
           },
           "items": [
-            {
-              "scope": "piston-oscillation-guide-gating",
+        {
+          "scope": "piston-oscillation-guide-gating",
               "importance": "high",
               "title": {
                 "zh-CN": "阻止越步操作改变实验物理状态",
@@ -97,10 +97,24 @@
               "body": {
                 "zh-CN": "引导模式现在只接受当前步骤要求的操作。用户点击其他控件时仍能看到真实的按压或旋转反馈，但电源、螺钉、软管、平台和采集状态不会改变，并显示“请先完成当前引导步骤。”",
                 "zh-TW": "引導模式現在只接受目前步驟要求的操作。使用者點擊其他控制項時仍能看到真實的按壓或旋轉回饋，但電源、螺釘、軟管、平臺和採集狀態不會改變，並顯示「請先完成目前引導步驟。」",
-                "en": "Guide now accepts only the action required by the current step. Other controls still acknowledge the press or gesture visually, but power, screw, hose, platform, and acquisition state do not change, and the learner is prompted to finish the current guided step."
-              }
-            }
-          ]
+            "en": "Guide now accepts only the action required by the current step. Other controls still acknowledge the press or gesture visually, but power, screw, hose, platform, and acquisition state do not change, and the learner is prompted to finish the current guided step."
+          }
+        },
+        {
+          "scope": "desktop-upgrade-piston-workspace",
+          "importance": "high",
+          "title": {
+            "zh-CN": "保留 5.3.1 活塞振动工作区文件",
+            "zh-TW": "保留 5.3.1 活塞振動工作區檔案",
+            "en": "Preserved piston workspaces created by 5.3.1"
+          },
+          "body": {
+            "zh-CN": "修复 5.3.1 活塞振动文件因缺少后续新增的演示会话字段而在升级时被安全隔离的问题。6.1.1 会补入默认演示与引导会话，同时保留原文件身份、名称和工作区位置。",
+            "zh-TW": "修復 5.3.1 活塞振動檔案因缺少後續新增的演示會話欄位而在升級時被安全隔離的問題。6.1.1 會補入預設演示與引導會話，同時保留原檔案身分、名稱和工作區位置。",
+            "en": "Fixed upgrade-time isolation of piston-oscillation files whose 5.3.1 records predated the Demo-session field. Version 6.1.1 supplies default Demo and Guide sessions while preserving the original identity, name, and workspace placement."
+          }
+        }
+      ]
         },
         {
           "type": "security",

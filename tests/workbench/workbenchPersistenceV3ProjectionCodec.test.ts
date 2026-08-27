@@ -2362,6 +2362,49 @@ assert.equal(
   PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION,
 );
 
+const version531PistonRecord = structuredClone(pistonGuideEncoded.value);
+const version531Authority = version531PistonRecord.projection.fields
+  .authoritative;
+version531PistonRecord.projection.fields.authoritative = {
+  metadata: structuredClone(version531Authority.metadata),
+  pistonOscillationSchemaVersion:
+    version531Authority.pistonOscillationSchemaVersion,
+};
+version531PistonRecord.projection.fields.derived = {};
+delete version531PistonRecord.projection.fields.uiCheckpoint
+  .pistonOscillationOperationVisualizationEnabled;
+delete version531PistonRecord.projection.fields.uiCheckpoint
+  .pistonOscillationMaterialsExpanded;
+const migratedVersion531Piston = decodeWorkbenchPersistenceV3FileRecord(
+  version531PistonRecord,
+  451,
+);
+if (!migratedVersion531Piston.ok) {
+  throw new Error(migratedVersion531Piston.diagnostics[0].message);
+}
+assert.equal(
+  migratedVersion531Piston.status,
+  'migrated',
+  'the exact pre-guide v5.3.1 piston authority must migrate without file loss',
+);
+const migratedVersion531File = reprojectWorkbenchPersistenceV3File(
+  migratedVersion531Piston.value,
+  451,
+);
+if (!migratedVersion531File.ok) {
+  throw new Error(migratedVersion531File.diagnostics[0].message);
+}
+assert.equal(
+  migratedVersion531File.value.kind,
+  'heatCapacityPistonOscillation',
+);
+if (migratedVersion531File.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected the v5.3.1 Piston file to survive migration.');
+}
+assert.equal(migratedVersion531File.value.name, pistonGuideFile.name);
+assert.equal(migratedVersion531File.value.pistonOscillationDemoSession.status, 'idle');
+assert.equal(migratedVersion531File.value.pistonOscillationGuideSession.status, 'idle');
+
 const versionTwoPistonGuideRecord = structuredClone(pistonGuideEncoded.value);
 versionTwoPistonGuideRecord.projection.fields.authoritative
   .pistonGuideSessionProjectionVersion = 2;

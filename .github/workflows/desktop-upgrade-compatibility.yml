@@ -70,6 +70,18 @@ jobs:
             --port 9331 `
             --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT
 
+      - name: Relaunch the old version and confirm its saved workspace
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $executable = Join-Path $env:HSL_UPGRADE_INSTALL_ROOT 'Gas Laws Lab.exe'
+          node scripts/verifyPackagedDesktopState.cjs `
+            --executable $executable `
+            --phase confirm `
+            --port 9332 `
+            --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT `
+            --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'seed-packaged-app.json')
+
       - name: Upgrade in place and verify the new packaged version
         shell: powershell
         run: |
@@ -85,9 +97,9 @@ jobs:
           node scripts/verifyPackagedDesktopState.cjs `
             --executable $executable `
             --phase verify `
-            --port 9332 `
+            --port 9333 `
             --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT `
-            --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'seed-packaged-app.json')
+            --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'confirm-packaged-app.json')
 
       - name: Record the compatibility result
         if: always()
@@ -103,7 +115,7 @@ jobs:
           - Installation: silent NSIS in-place replacement at one absolute path
           - Old installer SHA256: `$oldHash`
           - New installer SHA256: `$newHash`
-          - Renderer validation: startup, shared profile marker, experience profile, IndexedDB schema/counts/keys, console errors, resource errors, clean exit
+          - Renderer validation: old-version self-restore, upgraded workspace restore, shared profile marker, experience profile, IndexedDB schema and semantic generation summaries, console errors, resource errors, clean exit
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload screenshots and structured evidence
