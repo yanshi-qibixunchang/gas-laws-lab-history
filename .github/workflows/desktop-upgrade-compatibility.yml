@@ -33,10 +33,6 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Install locked dependencies for differential validation
-        shell: powershell
-        run: npm.cmd ci --ignore-scripts --no-audit --no-fund
-
       - name: Download the two public installers
         shell: powershell
         run: |
@@ -59,21 +55,6 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "New blockmap download failed with curl exit code $LASTEXITCODE." }
           "HSL_UPGRADE_DOWNLOAD_ROOT=$downloadRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "HSL_UPGRADE_EVIDENCE_ROOT=$evidenceRoot" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Reconstruct the new installer from the differential update plan
-        shell: powershell
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $oldInstaller = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
-          $newInstaller = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
-          $oldBlockmap = "$($oldInstaller).blockmap"
-          $newBlockmap = "$($newInstaller).blockmap"
-          node scripts/verifyDifferentialUpgrade.cjs `
-            $oldInstaller `
-            $oldBlockmap `
-            $newInstaller `
-            $newBlockmap |
-            Tee-Object -FilePath (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'differential-upgrade.json')
 
       - name: Install and seed the old packaged version
         shell: powershell
@@ -106,6 +87,25 @@ jobs:
             --port 9332 `
             --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT `
             --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'seed-packaged-app.json')
+
+      - name: Install locked dependencies for differential validation
+        shell: powershell
+        run: npm.cmd ci --ignore-scripts --no-audit --no-fund
+
+      - name: Reconstruct the new installer from the differential update plan
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $oldInstaller = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
+          $newInstaller = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
+          $oldBlockmap = "$($oldInstaller).blockmap"
+          $newBlockmap = "$($newInstaller).blockmap"
+          node scripts/verifyDifferentialUpgrade.cjs `
+            $oldInstaller `
+            $oldBlockmap `
+            $newInstaller `
+            $newBlockmap |
+            Tee-Object -FilePath (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'differential-upgrade.json')
 
       - name: Upgrade in place and verify the new packaged version
         shell: powershell
