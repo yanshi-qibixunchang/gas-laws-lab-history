@@ -24,6 +24,7 @@ The latest published desktop release is `v6.1.1`. The `main` branch may contain 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
 - `v6.1.1` introduces the complete piston-oscillation experiment: a reviewed hybrid instrument model, calibrated scale and interaction contracts, three-run acquisition and processing, power-gated realtime data, and strict Guide sequencing. The physical/computer power control must be turned on before parameters or recording become available and is turned off at the end of Guide and Demo.
+- The `v6.1.1` release gate passed 259/259 automated test files, a zero-vulnerability npm audit, 468 classified dependency-license records, and a clean Windows 5.3.1 → 6.1.1 same-path upgrade that preserved and migrated the original piston workspace.
 - `v5.3.1` completes multi-group adiabatic-expansion experiments, automatic experiment progression, scoped experiment/group restarts, group-level review charts and scoring, and polished report/figure/package exports.
 - `v5.2.2` fixes the startup screen remaining at 100% after workspace restoration has completed.
 - `v5.2.1` adds a complete trilingual first-run experience, a re-recordable animated product introduction, unified engineering prompts, tutorial-session recovery, and a startup animation driven by real workspace restoration progress.
