@@ -1314,7 +1314,8 @@ export const PistonOscillationInteractiveModel = ({
       equilibriumHeightMm: pistonEquilibriumHeightMm,
       oscillationOffsetMm: pistonOscillationOffsetMm,
     };
-  }, [model, pistonEquilibriumHeightMm, pistonOscillationOffsetMm]);
+    invalidate();
+  }, [invalidate, model, pistonEquilibriumHeightMm, pistonOscillationOffsetMm]);
 
   useLayoutEffect(() => {
     model.lockingScrewMovingPart.position.x =
@@ -1327,7 +1328,8 @@ export const PistonOscillationInteractiveModel = ({
       model.lockingScrewMovingPart,
       model.hitTargets.pistonLockingScrew,
     );
-  }, [lockingScrewProgress, model]);
+    invalidate();
+  }, [invalidate, lockingScrewProgress, model]);
 
   useLayoutEffect(() => {
     const connected = hoseState === 'connected';
@@ -1364,6 +1366,7 @@ export const PistonOscillationInteractiveModel = ({
       effectiveWithinMagneticRange ? '#3f9dcc' : '#cf704f',
     );
     model.root.updateWorldMatrix(true, true);
+    invalidate();
   }, [
     demoHoseDragProgress,
     demoSnapGuideActive,
@@ -1371,6 +1374,7 @@ export const PistonOscillationInteractiveModel = ({
     hoseGhostOffset,
     hoseState,
     hoseWithinMagneticRange,
+    invalidate,
     model,
   ]);
 
@@ -1382,7 +1386,8 @@ export const PistonOscillationInteractiveModel = ({
     model.focusShellPulseMaterial.color.set(palette.rimColor);
     model.focusShellPulseMaterial.blending = palette.blending;
     model.focusShellPulseMaterial.needsUpdate = true;
-  }, [demoFocusTheme, model]);
+    invalidate();
+  }, [demoFocusTheme, invalidate, model]);
 
   useLayoutEffect(() => {
     model.focusShells.power.anchorGroup.visible = demoFocusTarget === 'power';
@@ -1392,7 +1397,8 @@ export const PistonOscillationInteractiveModel = ({
       demoFocusTarget === 'hose' && hoseState === 'connected';
     model.focusShells.detachedHoseHandle.anchorGroup.visible =
       demoFocusTarget === 'hose' && hoseState === 'disconnected';
-  }, [demoFocusTarget, hoseState, model]);
+    invalidate();
+  }, [demoFocusTarget, hoseState, invalidate, model]);
 
   useEffect(() => {
     demoFocusStartedAtRef.current = null;

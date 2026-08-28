@@ -15,6 +15,7 @@ import {
   createPistonOscillationAdiabaticStateFromReference,
   createPistonOscillationAtmosphericLockedState,
   createPistonOscillationEquilibriumState,
+  createPistonOscillationLoadedGasState,
   createPistonOscillationLoadedEquilibriumState,
   findPistonOscillationFallingTriggerTimeS,
   getPistonCylinderAreaM2,
@@ -496,11 +497,67 @@ assert.throws(
   }),
   /initialDisplacementMm/,
 );
-assert.throws(
-  () => simulatePistonOscillationRelease({
-    equilibriumHeightMm: 80,
-    initialDisplacementMm: -8,
-    initialVelocityMmPerS: 2_001,
-  }),
-  /initialVelocityMmPerS/,
+const highVelocityEquilibrium = createPistonOscillationEquilibriumState(60);
+const positiveHighVelocityState = createPistonOscillationLoadedGasState(
+  highVelocityEquilibrium,
+  0,
+  2_380,
 );
+assert.equal(positiveHighVelocityState.velocityMPerS, 2.38);
+const negativeHighVelocityState = createPistonOscillationAdiabaticStateFromReference(
+  positiveHighVelocityState,
+  60,
+  -2_380,
+);
+assert.equal(negativeHighVelocityState.velocityMPerS, -2.38);
+const highInitialVelocityTrajectory = simulatePistonOscillationRelease({
+  equilibriumHeightMm: 80,
+  initialDisplacementMm: -8,
+  initialVelocityMmPerS: 2_380,
+});
+assert.equal(highInitialVelocityTrajectory.initialVelocityMPerS, 2.38);
+const firstFreeRecordingTrajectory = simulatePistonOscillationRelease({
+  lockedHeightMm: 80,
+  initialDisplacementMm: -12,
+});
+const firstFreeRecordingPeak = firstFreeRecordingTrajectory.samples.reduce(
+  (peak, sample) => sample.displacementM > peak.displacementM ? sample : peak,
+  firstFreeRecordingTrajectory.samples[0]!,
+);
+const firstFreeRecordingPeakState = createPistonOscillationLoadedGasState(
+  firstFreeRecordingTrajectory.equilibrium,
+  firstFreeRecordingPeak.displacementM * 1_000,
+  firstFreeRecordingPeak.velocityMPerS * 1_000,
+);
+assert.ok(
+  firstFreeRecordingPeakState.pistonHeightM > 0.08,
+  'the first free recording must allow its normal rebound to pass above the 80 mm setup mark',
+);
+assert.ok(Number.isFinite(firstFreeRecordingPeakState.pressurePa));
+assert.ok(Number.isFinite(firstFreeRecordingPeakState.temperatureK));
+for (const invalidVelocity of [Number.NaN, Number.POSITIVE_INFINITY]) {
+  assert.throws(
+    () => createPistonOscillationLoadedGasState(
+      highVelocityEquilibrium,
+      0,
+      invalidVelocity,
+    ),
+    /velocityMmPerS must be a finite number/,
+  );
+  assert.throws(
+    () => createPistonOscillationAdiabaticStateFromReference(
+      positiveHighVelocityState,
+      60,
+      invalidVelocity,
+    ),
+    /velocityMmPerS must be a finite number/,
+  );
+  assert.throws(
+    () => simulatePistonOscillationRelease({
+      equilibriumHeightMm: 80,
+      initialDisplacementMm: -8,
+      initialVelocityMmPerS: invalidVelocity,
+    }),
+    /initialVelocityMmPerS must be a finite number/,
+  );
+}

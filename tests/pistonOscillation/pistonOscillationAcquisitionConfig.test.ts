@@ -106,6 +106,11 @@ assert.match(
 );
 assert.match(
   panelSource,
+  /const pressureGraphTriggerKpa = parsePistonOscillationFreeTriggerThreshold\([\s\S]*?String\(effectiveTriggerKpa\),[\s\S]*?\) \?\? PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;[\s\S]*?getPistonOscillationAdaptivePressureGraphDomain\([\s\S]*?pressureGraphTriggerKpa,/,
+  'an incomplete demo trigger draft should retain a valid graph domain until the full value is entered',
+);
+assert.match(
+  panelSource,
   /triggerValueVisible[\s\S]*freeSelected && freeAcquisitionParametersValid[\s\S]*pressureIndicatorVisible[\s\S]*!freeSelected \|\| freeAcquisitionParametersValid/,
   'the monitor line and point should remain hidden until both Free acquisition settings are committed',
 );

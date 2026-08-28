@@ -16,6 +16,8 @@ import {
 import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
   PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+  createPistonOscillationAdiabaticStateFromReference,
+  createPistonOscillationAtmosphericLockedState,
   createPistonOscillationEquilibriumState,
   getPistonOscillationSettlingStateAtProgress,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
@@ -425,5 +427,89 @@ assert.equal(
   'calculation-ready',
   'resolving the final saved run should enter calculation without another Next action',
 );
+
+const stableLoadedState = getPistonOscillationSettlingStateAtProgress(80, 1);
+const transientLoadedState = createPistonOscillationAdiabaticStateFromReference(
+  stableLoadedState,
+  stableLoadedState.pistonHeightM * 1_000 - 12,
+  2_380,
+);
+for (const pistonPhase of [
+  'ready',
+  'pressing',
+  'adjustingHeight',
+  'holding',
+  'falling',
+  'rebounding',
+] as const) {
+  const restoredAfterTransientMotion = normalizePistonOscillationFreeSession({
+    ...automaticCalculation,
+    instrumentState: {
+      ...automaticCalculation.instrumentState,
+      hoseState: 'connected',
+      nominalHeightMm: 80,
+      equilibriumHeightMm: stableLoadedState.pistonHeightM * 1_000,
+      pistonOffsetMm: -12,
+      lockingScrewProgress: 0,
+      pistonPhase,
+      thermodynamicState: transientLoadedState,
+    },
+  });
+  assert.equal(restoredAfterTransientMotion.instrumentState.pistonPhase, 'idle');
+  assert.equal(restoredAfterTransientMotion.instrumentState.pistonOffsetMm, 0);
+  assert.equal(restoredAfterTransientMotion.instrumentState.thermodynamicState.velocityMPerS, 0);
+  assert.ok(Math.abs(
+    restoredAfterTransientMotion.instrumentState.equilibriumHeightMm
+      - stableLoadedState.pistonHeightM * 1_000,
+  ) < 1e-9);
+  assert.deepEqual(
+    restoredAfterTransientMotion.experimentPlan,
+    automaticCalculation.experimentPlan,
+  );
+  assert.deepEqual(
+    restoredAfterTransientMotion.savedMeasurements,
+    automaticCalculation.savedMeasurements,
+  );
+  assert.deepEqual(
+    restoredAfterTransientMotion.dataProcessing,
+    automaticCalculation.dataProcessing,
+  );
+  assert.deepEqual(restoredAfterTransientMotion.audit, automaticCalculation.audit);
+}
+
+const restorePhysicalCondition = (
+  hoseState: 'connected' | 'disconnected',
+  lockingScrewProgress: number,
+) => normalizePistonOscillationFreeSession({
+  ...automaticCalculation,
+  instrumentState: {
+    ...automaticCalculation.instrumentState,
+    hoseState,
+    nominalHeightMm: 55,
+    equilibriumHeightMm: 55,
+    pistonOffsetMm: -8,
+    lockingScrewProgress,
+    pistonPhase: 'holding',
+    thermodynamicState: createPistonOscillationAtmosphericLockedState(
+      47,
+      {},
+      hoseState === 'connected' ? 'sealed-locked-atmospheric' : 'vented',
+    ),
+  },
+}).instrumentState;
+
+const disconnectedLooseRestore = restorePhysicalCondition('disconnected', 0);
+assert.equal(disconnectedLooseRestore.equilibriumHeightMm, 0);
+assert.equal(disconnectedLooseRestore.thermodynamicState.phase, 'vented');
+const disconnectedLockedRestore = restorePhysicalCondition('disconnected', 0.75);
+assert.equal(disconnectedLockedRestore.equilibriumHeightMm, 47);
+assert.equal(disconnectedLockedRestore.thermodynamicState.phase, 'vented');
+const connectedLockedRestore = restorePhysicalCondition('connected', 0.75);
+assert.equal(connectedLockedRestore.equilibriumHeightMm, 47);
+assert.equal(connectedLockedRestore.thermodynamicState.velocityMPerS, 0);
+const connectedLooseRestore = restorePhysicalCondition('connected', 0);
+assert.ok(connectedLooseRestore.equilibriumHeightMm < 47);
+assert.equal(connectedLooseRestore.thermodynamicState.phase, 'sealed-loaded');
+assert.equal(connectedLooseRestore.thermodynamicState.velocityMPerS, 0);
 
 console.log('pistonOscillationFreeWorkflowModel tests passed');

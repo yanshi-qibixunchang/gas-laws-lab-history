@@ -10,6 +10,7 @@ import {
   normalizePistonOscillationRawMeasurementRecord,
   revealPistonOscillationCalculationAnswer,
   revealPistonOscillationPeriodAnswer,
+  reopenPreviousPistonOscillationPeriodRun,
   selectPistonOscillationFreePeriodRange,
   submitPistonOscillationPeriod,
   submitPistonOscillationPeriodEndpoints,
@@ -28,6 +29,7 @@ import {
   createPistonOscillationEquilibriumState,
   createPistonOscillationLoadedGasState,
   normalizePistonOscillationThermodynamicState,
+  resolvePistonOscillationStablePhysicalState,
   type PistonOscillationThermodynamicState,
 } from './pistonOscillationPhysicsEngine.ts';
 
@@ -225,6 +227,7 @@ export type PistonOscillationFreeEvent =
     } & PistonOscillationFreeTimedEvent)
   | ({ type: 'submitPeriod'; runIndex: number } & PistonOscillationFreeTimedEvent)
   | ({ type: 'advancePeriodRun' } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'reopenPreviousPeriodRun' } & PistonOscillationFreeTimedEvent)
   | ({ type: 'toggleFitRun'; runIndex: number } & PistonOscillationFreeTimedEvent)
   | ({ type: 'submitLinearFit' } & PistonOscillationFreeTimedEvent)
   | ({
@@ -950,6 +953,18 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
+  if (event.type === 'reopenPreviousPeriodRun') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: reopenPreviousPistonOscillationPeriodRun(
+        session.dataProcessing,
+        event.nowMs,
+      ),
+    };
+  }
+
   if (event.type === 'toggleFitRun') {
     if (!session.dataProcessing) return session;
     return {
@@ -1118,6 +1133,7 @@ const FREE_INSTRUMENT_PISTON_PHASES: readonly PistonOscillationFreeInstrumentSta
 
 const normalizeInstrumentState = (
   value: unknown,
+  recoverTransientState = false,
 ): PistonOscillationFreeInstrumentState => {
   const fallback = createDefaultPistonOscillationFreeInstrumentState();
   if (!isPlainRecord(value)) return fallback;
@@ -1146,7 +1162,7 @@ const normalizeInstrumentState = (
         'vented',
       );
     }
-    if (lockingScrewProgress >= 0.5) {
+    if (lockingScrewProgress >= 0.6) {
       return createPistonOscillationAtmosphericLockedState(
         pistonHeightMm,
         {},
@@ -1165,7 +1181,22 @@ const normalizeInstrumentState = (
     ?? inferredThermodynamicState;
   const nominalHeightMm = isFiniteNumber(value.nominalHeightMm)
     ? Math.min(80, Math.max(0, value.nominalHeightMm))
-    : thermodynamicState.nominalLockedHeightM * 1_000;
+    : Math.min(80, Math.max(
+      0,
+      thermodynamicState.nominalLockedHeightM * 1_000,
+    ));
+  const stablePhysicalState = recoverTransientState
+    ? resolvePistonOscillationStablePhysicalState({
+        hoseConnected: hoseState === 'connected',
+        lockingScrewLocked: lockingScrewProgress >= 0.6,
+        nominalHeightMm,
+        visibleHeightMm: Math.min(80, Math.max(
+          0,
+          thermodynamicState.pistonHeightM * 1_000,
+        )),
+        referenceThermodynamicState: thermodynamicState,
+      })
+    : null;
   return {
     schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
     focusMode: FREE_INSTRUMENT_FOCUS_MODES.includes(
@@ -1174,9 +1205,10 @@ const normalizeInstrumentState = (
       ? value.focusMode as PistonOscillationFreeInstrumentState['focusMode']
       : fallback.focusMode,
     hoseState,
-    nominalHeightMm,
-    equilibriumHeightMm,
-    pistonOffsetMm,
+    nominalHeightMm: stablePhysicalState?.nominalHeightMm ?? nominalHeightMm,
+    equilibriumHeightMm:
+      stablePhysicalState?.equilibriumHeightMm ?? equilibriumHeightMm,
+    pistonOffsetMm: stablePhysicalState?.pistonOffsetMm ?? pistonOffsetMm,
     lockingScrewProgress,
     heightAdjustmentStage: FREE_INSTRUMENT_HEIGHT_STAGES.includes(
       value.heightAdjustmentStage as PistonOscillationFreeInstrumentState[
@@ -1187,12 +1219,14 @@ const normalizeInstrumentState = (
           'heightAdjustmentStage'
         ]
       : fallback.heightAdjustmentStage,
-    pistonPhase: FREE_INSTRUMENT_PISTON_PHASES.includes(
+    pistonPhase: recoverTransientState
+      ? 'idle'
+      : FREE_INSTRUMENT_PISTON_PHASES.includes(
       value.pistonPhase as PistonOscillationFreeInstrumentState['pistonPhase'],
     )
       ? value.pistonPhase as PistonOscillationFreeInstrumentState['pistonPhase']
       : fallback.pistonPhase,
-    thermodynamicState,
+    thermodynamicState: stablePhysicalState?.thermodynamicState ?? thermodynamicState,
   };
 };
 
@@ -1377,7 +1411,7 @@ export const normalizePistonOscillationFreeSession = (
     savedMeasurements,
     savedMeasurementTargetIds,
     excludedAttempts,
-    instrumentState: normalizeInstrumentState(value.instrumentState),
+    instrumentState: normalizeInstrumentState(value.instrumentState, true),
     dataProcessing,
     audit,
   };

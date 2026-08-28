@@ -24,6 +24,7 @@ import {
   findPistonOscillationExtrema,
   formatPistonOscillationEndpointTime,
   formatPistonOscillationPeriod,
+  formatPistonOscillationPeriodCount,
   type PistonOscillationPeriodAnswerField,
   type PistonOscillationPeriodAnswerState,
   type PistonOscillationPeriodFeedbackOutcome,
@@ -191,10 +192,6 @@ const isEditableKeyboardTarget = (target: EventTarget | null) => {
   return target.isContentEditable
     || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(target.tagName);
 };
-
-const formatPeriodCount = (periodCount: number) => (
-  Number.isInteger(periodCount) ? periodCount.toFixed(0) : periodCount.toFixed(1)
-);
 
 const getFeedbackOutcome = (
   answer: PistonOscillationPeriodAnswerState,
@@ -1092,7 +1089,10 @@ export const PistonOscillationDataProcessingPanel = ({
       rangeEndTimeS,
     });
     setKeyboardAnnouncement(preview.issue === null
-      ? copy.selectionAccepted(preview.extrema.length, formatPeriodCount(preview.periodCount))
+      ? copy.selectionAccepted(
+        preview.extrema.length,
+        formatPistonOscillationPeriodCount(preview.periodCount),
+      )
       : preview.issue === 'below-guided-minimum'
         ? copy.guidedMinimumWarning(minimumPeriodCount)
         : copy.selectionTooShort);
@@ -1386,7 +1386,7 @@ export const PistonOscillationDataProcessingPanel = ({
                     </span>
                     <span>
                       <em>{copy.periodCount}</em>
-                      <strong>{formatPeriodCount(selection.periodCount)}</strong>
+                      <strong>{formatPistonOscillationPeriodCount(selection.periodCount)}</strong>
                     </span>
                   </div>
                 </foreignObject>
@@ -1513,7 +1513,10 @@ export const PistonOscillationDataProcessingPanel = ({
         ) : (
           <div className="piston-period-selection-helper" aria-live="polite">
             {selectionAccepted
-              ? copy.selectionAccepted(selection.extrema.length, formatPeriodCount(selection.periodCount))
+              ? copy.selectionAccepted(
+                selection.extrema.length,
+                formatPistonOscillationPeriodCount(selection.periodCount),
+              )
               : copy.dragHint}
           </div>
         )}
@@ -1619,7 +1622,7 @@ export const PistonOscillationDataProcessingPanel = ({
                   <div className="piston-period-formula">
                     <strong>T = (t₂ − t₁) / N</strong>
                     <span>
-                      = ({formatPistonOscillationEndpointTime(run.answers.t2.expectedValue!)} − {formatPistonOscillationEndpointTime(run.answers.t1.expectedValue!)}) / {formatPeriodCount(selection.periodCount)}
+                      = ({formatPistonOscillationEndpointTime(run.answers.t2.expectedValue!)} − {formatPistonOscillationEndpointTime(run.answers.t1.expectedValue!)}) / {formatPistonOscillationPeriodCount(selection.periodCount)}
                     </span>
                   </div>
                   <PistonOscillationPeriodAnswerField
@@ -1664,7 +1667,7 @@ export const PistonOscillationDataProcessingPanel = ({
           <>
             <div className="piston-period-result-strip" aria-live="polite">
               <span><em>Δt</em><strong>{run.result.deltaTimeS.toFixed(3)} s</strong></span>
-              <span><em>N</em><strong>{formatPeriodCount(run.result.periodCount)}</strong></span>
+              <span><em>N</em><strong>{formatPistonOscillationPeriodCount(run.result.periodCount)}</strong></span>
               <span><em>T</em><strong>{formatPistonOscillationPeriod(run.result.periodS)} s</strong></span>
               <span><em>T²</em><strong>{formatSignificantFiguresHalfEven(run.result.periodSquaredS2, 5)} s²</strong></span>
             </div>
@@ -1677,9 +1680,18 @@ export const PistonOscillationDataProcessingPanel = ({
         ) : null}
       </section>
 
-      {!reviewMode && !(freeProcessingActive && isLastRun) ? (
+      {!reviewMode ? (
         <footer className="piston-processing-navigation">
-          <button type="button" className="is-secondary" disabled aria-disabled="true">
+          <button
+            type="button"
+            className="is-secondary"
+            disabled={!freeProcessingActive || runIndex === 0}
+            aria-disabled={!freeProcessingActive || runIndex === 0}
+            onClick={() => {
+              onInteractionStart?.();
+              dispatch({ type: 'reopenPreviousPeriodRun' });
+            }}
+          >
             <ChevronLeft size={15} aria-hidden="true" />
             {copy.previousRun}
           </button>
@@ -1690,7 +1702,8 @@ export const PistonOscillationDataProcessingPanel = ({
                 ? <span>{copy.navigationUnlocked}</span>
                 : <span>{copy.navigationLocked}</span>}
           </div>
-          <button
+          {freeProcessingActive && isLastRun ? null : (
+            <button
             ref={nextRunButtonRef}
             type="button"
             className={`is-primary ${nextPulse ? 'is-guide-pulsing' : ''}`}
@@ -1704,7 +1717,8 @@ export const PistonOscillationDataProcessingPanel = ({
           >
             {isLastRun ? copy.nextStep : copy.nextRun}
             <ChevronRight size={15} aria-hidden="true" />
-          </button>
+            </button>
+          )}
         </footer>
       ) : null}
       {calculationReady && !freeProcessingActive ? (

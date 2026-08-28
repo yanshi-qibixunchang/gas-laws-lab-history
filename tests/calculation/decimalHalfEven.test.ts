@@ -43,6 +43,7 @@ assert.equal(formatSignificantFiguresHalfEven('1.25e-7', 2), '1.2e-7');
 assert.equal(formatSignificantFiguresHalfEven('1.35e-7', 2), '1.4e-7');
 assert.equal(formatSignificantFiguresHalfEven('0', 4), '0.000');
 assert.equal(roundSignificantFiguresHalfEven('0.030505', 4), 0.0305);
+assert.equal(formatDecimalPlacesHalfEven('1e-12', 12), '0.000000000001');
 assert.equal(formatRatioSignificantFiguresHalfEven(183n, 6000n, 4), '0.03050');
 assert.equal(formatRatioSignificantFiguresHalfEven(1n, 3n, 4), '0.3333');
 assert.equal(formatRatioSignificantFiguresHalfEven(12345n, 10000n, 4), '1.234');

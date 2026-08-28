@@ -227,6 +227,7 @@ export type PistonOscillationDataProcessingAuditEventType =
   | 'answer-revealed'
   | 'run-completed'
   | 'run-advanced'
+  | 'run-reopened'
   | 'calculation-ready'
   | 'fit-selection-toggled'
   | 'fit-submitted'
@@ -359,6 +360,18 @@ const isFiniteNumber = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value)
 );
 
+const normalizePersistedSafeInteger = (value: unknown): number | null => {
+  if (typeof value === 'number') {
+    return Number.isSafeInteger(value) ? value : null;
+  }
+  if (typeof value !== 'bigint') return null;
+  if (
+    value < BigInt(Number.MIN_SAFE_INTEGER)
+    || value > BigInt(Number.MAX_SAFE_INTEGER)
+  ) return null;
+  return Number(value);
+};
+
 const isCompatiblePersistedVersion = (
   value: unknown,
   currentVersion: string,
@@ -371,6 +384,20 @@ export const formatPistonOscillationEndpointTime = (value: number) => (
 export const formatPistonOscillationPeriod = (value: number) => (
   formatNumericAnswerReference(value, PISTON_OSCILLATION_PERIOD_ANSWER_SPEC)
 );
+
+export const formatPistonOscillationPeriodCount = (
+  periodCount: number | bigint,
+) => {
+  const normalizedPeriodCount = typeof periodCount === 'bigint'
+    ? normalizePersistedSafeInteger(periodCount)
+    : periodCount;
+  if (normalizedPeriodCount === null || !Number.isFinite(normalizedPeriodCount)) {
+    throw new RangeError('periodCount must be a finite safe number.');
+  }
+  return Number.isInteger(normalizedPeriodCount)
+    ? normalizedPeriodCount.toFixed(0)
+    : normalizedPeriodCount.toFixed(1);
+};
 
 export const formatPistonOscillationCalculationAnswer = (
   fieldId: PistonOscillationCalculationFieldId,
@@ -1618,6 +1645,8 @@ export const submitPistonOscillationPeriodEndpoints = (
     ...next,
     updatedAtMs: nowMs,
     audit: appendAudit(session, 'endpoint-submitted', runIndex, nowMs, {
+      t1DraftRaw: run.answers.t1.draftRaw,
+      t2DraftRaw: run.answers.t2.draftRaw,
       t1Outcome: t1Submission.outcome,
       t2Outcome: t2Submission.outcome,
       endpointsResolved: areEndpointsResolved(nextRun),
@@ -1747,7 +1776,10 @@ export const revealPistonOscillationPeriodAnswer = (
     };
   }
   const next = replaceRun(session, runIndex, () => nextRun);
-  const audit = appendAudit(session, 'answer-revealed', runIndex, nowMs, { field });
+  const audit = appendAudit(session, 'answer-revealed', runIndex, nowMs, {
+    field,
+    revealedDraftRaw: nextRun.answers[field].draftRaw,
+  });
   return {
     ...next,
     updatedAtMs: nowMs,
@@ -1804,6 +1836,7 @@ export const submitPistonOscillationPeriod = (
   }
   const next = replaceRun(session, runIndex, () => nextRun);
   const audit = appendAudit(session, 'period-submitted', runIndex, nowMs, {
+    draftRaw: run.answers.period.draftRaw,
     outcome: submission.outcome,
   });
   return {
@@ -1855,6 +1888,48 @@ export const advancePistonOscillationPeriodRun = (
       : session.calculationSession,
     updatedAtMs: nowMs,
     audit,
+  };
+};
+
+export const reopenPreviousPistonOscillationPeriodRun = (
+  session: PistonOscillationDataProcessingSession,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  if (
+    session.status !== 'period-processing'
+    || session.activeRunIndex <= 0
+  ) return session;
+  const previousRunIndex = session.activeRunIndex - 1;
+  const archivedRunsJson = JSON.stringify(
+    session.runs.slice(previousRunIndex).map((run, offset) => ({
+      runIndex: previousRunIndex + offset,
+      selection: run.selection,
+      answers: run.answers,
+      result: run.result,
+    })),
+  );
+  return {
+    ...session,
+    activeRunIndex: previousRunIndex,
+    runs: session.runs.map((run, runIndex) => runIndex < previousRunIndex
+      ? run
+      : {
+          ...run,
+          selection: null,
+          answers: {
+            t1: createAnswer(),
+            t2: createAnswer(),
+            period: createAnswer(),
+          },
+          result: null,
+        }),
+    linearFitResult: null,
+    calculationSession: null,
+    audit: appendAudit(session, 'run-reopened', previousRunIndex, nowMs, {
+      previousActiveRunIndex: session.activeRunIndex,
+      archivedRunsJson,
+    }),
+    updatedAtMs: nowMs,
   };
 };
 
@@ -2068,6 +2143,7 @@ export const updatePistonOscillationCalculationDraft = (
     },
     audit: appendAudit(session, 'calculation-answer-edited', -1, nowMs, {
       fieldId,
+      draftRaw,
       draftLength: draftRaw.length,
     }),
     updatedAtMs: nowMs,
@@ -2135,6 +2211,7 @@ export const submitPistonOscillationCalculationField = (
     calculationSession: nextCalculationSession,
     audit: appendAudit(session, 'calculation-step-submitted', -1, nowMs, {
       fieldId,
+      draftRaw: answer.draftRaw,
       outcome,
       numericCorrect: validation.numericCorrect,
       precisionCorrect: validation.precisionCorrect,
@@ -2205,7 +2282,10 @@ export const revealPistonOscillationCalculationAnswer = (
   return {
     ...session,
     calculationSession: advanceCalculationField(withAnswer, fieldId),
-    audit: appendAudit(session, 'calculation-answer-revealed', -1, nowMs, { fieldId }),
+    audit: appendAudit(session, 'calculation-answer-revealed', -1, nowMs, {
+      fieldId,
+      revealedDraftRaw: nextAnswer.draftRaw,
+    }),
     updatedAtMs: nowMs,
   };
 };
@@ -2410,12 +2490,15 @@ const restoreSelection = (
     isFiniteNumber(value.selectedAtMs) ? value.selectedAtMs : nowMs,
     processingPolicy.freeMinimumPeriodCount,
   );
-  const resolveEndpoint = (candidate: unknown) => isPlainRecord(candidate)
-    && Number.isSafeInteger(candidate.sampleIndex)
-    ? regenerated.extrema.find((extremum) => (
-        extremum.sampleIndex === candidate.sampleIndex
-      )) ?? null
-    : null;
+  const resolveEndpoint = (candidate: unknown) => {
+    if (!isPlainRecord(candidate)) return null;
+    const sampleIndex = normalizePersistedSafeInteger(candidate.sampleIndex);
+    return sampleIndex === null
+      ? null
+      : regenerated.extrema.find((extremum) => (
+          extremum.sampleIndex === sampleIndex
+        )) ?? null;
+  };
   const leftEndpoint = resolveEndpoint(value.leftEndpoint);
   const rightEndpoint = resolveEndpoint(value.rightEndpoint);
   if (!leftEndpoint || !rightEndpoint || rightEndpoint.ordinal <= leftEndpoint.ordinal) {
@@ -2444,12 +2527,18 @@ const normalizeResult = (
   value: unknown,
   run: PistonOscillationPeriodRunState,
 ): PistonOscillationPeriodResult | null => {
+  const leftSampleIndex = isPlainRecord(value)
+    ? normalizePersistedSafeInteger(value.leftSampleIndex)
+    : null;
+  const rightSampleIndex = isPlainRecord(value)
+    ? normalizePersistedSafeInteger(value.rightSampleIndex)
+    : null;
   if (
     !isPlainRecord(value)
     || !run.selection?.leftEndpoint
     || !run.selection.rightEndpoint
-    || value.leftSampleIndex !== run.selection.leftEndpoint.sampleIndex
-    || value.rightSampleIndex !== run.selection.rightEndpoint.sampleIndex
+    || leftSampleIndex !== run.selection.leftEndpoint.sampleIndex
+    || rightSampleIndex !== run.selection.rightEndpoint.sampleIndex
     || run.answers.t1.status === 'unresolved'
     || run.answers.t2.status === 'unresolved'
     || run.answers.period.status === 'unresolved'

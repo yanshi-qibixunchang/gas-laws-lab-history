@@ -965,6 +965,9 @@ PistonOscillationAcquisitionPanelProps
   const effectiveTriggerKpa = demoFrame
     ? Number(demoFrame.triggerInput) || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
     : restoredMeasurement?.acquisitionSettings.triggerThresholdKpa ?? configuredTriggerKpa;
+  const pressureGraphTriggerKpa = parsePistonOscillationFreeTriggerThreshold(
+    String(effectiveTriggerKpa),
+  ) ?? PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;
   const effectiveTriggerSeconds = demoFrame
     ? demoTriggerSample?.timeS ?? null
     : restoredMeasurement ? 0 : triggerSeconds;
@@ -1183,14 +1186,14 @@ PistonOscillationAcquisitionPanelProps
   );
   const adaptiveFreePressureGraphDomain = useMemo(
     () => getPistonOscillationAdaptivePressureGraphDomain(
-      effectiveTriggerKpa,
+      pressureGraphTriggerKpa,
       [
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA,
         currentPressureKpa,
         ...displayedObservationSamples.map((sample) => sample.absolutePressureKpa),
       ],
     ),
-    [currentPressureKpa, displayedObservationSamples, effectiveTriggerKpa],
+    [currentPressureKpa, displayedObservationSamples, pressureGraphTriggerKpa],
   );
   useEffect(() => {
     if (
@@ -1211,14 +1214,14 @@ PistonOscillationAcquisitionPanelProps
           - adaptiveFreePressureGraphDomain.ticksKpa[0]!
         : 1;
       const epsilon = Math.min(currentStep, nextStep) * 1e-6;
-      return getPistonOscillationAdaptivePressureGraphDomain(effectiveTriggerKpa, [
+      return getPistonOscillationAdaptivePressureGraphDomain(pressureGraphTriggerKpa, [
         current.minimumKpa + epsilon,
         current.maximumKpa - epsilon,
         adaptiveFreePressureGraphDomain.minimumKpa + epsilon,
         adaptiveFreePressureGraphDomain.maximumKpa - epsilon,
       ]);
     });
-  }, [adaptiveFreePressureGraphDomain, effectiveTriggerKpa, freeSelected]);
+  }, [adaptiveFreePressureGraphDomain, freeSelected, pressureGraphTriggerKpa]);
   const pressureGraphDomain = freeSelected
     ? freeRunPressureGraphDomain ?? adaptiveFreePressureGraphDomain
     : observedPressureGraphDomain;

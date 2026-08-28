@@ -186,6 +186,31 @@ assert.match(interactiveModelSource, /onPointerDown=\{handlePointerDown\}/);
 assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 3/);
 assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M = 0\.004/);
 assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS = 3/);
+assert.match(
+  interactiveModelSource,
+  /moveObjectWorldY\(model\.root, model\.pistonAssembly, targetWorldY\);[\s\S]*?equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*?oscillationOffsetMm: pistonOscillationOffsetMm,[\s\S]*?invalidate\(\);[\s\S]*?\[invalidate, model, pistonEquilibriumHeightMm, pistonOscillationOffsetMm\]/,
+  'imperative piston motion must invalidate the demand-rendered canvas for every settling frame',
+);
+assert.match(
+  interactiveModelSource,
+  /model\.lockingScrewMovingPart\.position\.x =[\s\S]*?syncBoxHitTarget\([\s\S]*?model\.hitTargets\.pistonLockingScrew,[\s\S]*?invalidate\(\);[\s\S]*?\[invalidate, lockingScrewProgress, model\]/,
+  'imperative screw motion must invalidate the demand-rendered canvas',
+);
+assert.match(
+  interactiveModelSource,
+  /const connected = hoseState === 'connected';[\s\S]*?model\.root\.updateWorldMatrix\(true, true\);[\s\S]*?invalidate\(\);[\s\S]*?demoHoseDragProgress,[\s\S]*?invalidate,[\s\S]*?model,/,
+  'hose connection, drag, and snap visuals must invalidate the demand-rendered canvas',
+);
+assert.match(
+  interactiveModelSource,
+  /const palette = PISTON_FOCUS_SHELL_PALETTES\[demoFocusTheme\];[\s\S]*?model\.focusShellPulseMaterial\.needsUpdate = true;[\s\S]*?invalidate\(\);[\s\S]*?\[demoFocusTheme, invalidate, model\]/,
+  'focus-shell palette changes must invalidate the demand-rendered canvas',
+);
+assert.match(
+  interactiveModelSource,
+  /model\.focusShells\.power\.anchorGroup\.visible[\s\S]*?model\.focusShells\.detachedHoseHandle\.anchorGroup\.visible[\s\S]*?invalidate\(\);[\s\S]*?\[demoFocusTarget, hoseState, invalidate, model\]/,
+  'focus-shell visibility changes must invalidate the demand-rendered canvas',
+);
 
 const resetButton = interactionWorkspaceSource.match(
   /<button\b[\s\S]*?data-piston-oscillation-view-reset="true"[\s\S]*?<\/button>/,

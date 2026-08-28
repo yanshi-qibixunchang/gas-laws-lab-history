@@ -239,6 +239,105 @@
   background: rgba(148, 163, 184, 0.22);
 }
 
+.studio-shell-render-error {
+  grid-template-rows: 36px minmax(0, 1fr);
+}
+
+.studio-render-error-outer-body {
+  display: grid;
+  min-height: 0;
+  place-items: center;
+  padding: 28px;
+}
+
+.studio-render-error {
+  display: flex;
+  width: min(620px, calc(100% - 32px));
+  min-height: 220px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 12px;
+  margin: auto;
+  border: 1px solid var(--studio-border);
+  border-radius: 8px;
+  background: var(--studio-surface);
+  color: var(--studio-text);
+  padding: 28px;
+  box-shadow: 0 16px 42px rgba(15, 23, 42, 0.12);
+}
+
+.studio-render-error > span {
+  color: var(--studio-accent-strong);
+  font-size: var(--studio-type-caption);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.studio-render-error h2,
+.studio-render-error p {
+  margin: 0;
+}
+
+.studio-render-error p {
+  color: var(--studio-muted);
+  line-height: 1.6;
+}
+
+.studio-render-error details {
+  max-width: 100%;
+  color: var(--studio-subtle);
+  font-size: var(--studio-type-caption);
+}
+
+.studio-render-error details code {
+  display: block;
+  max-width: 100%;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.studio-render-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.studio-render-error-actions button {
+  min-height: 32px;
+  border: 1px solid var(--studio-accent-border);
+  border-radius: 5px;
+  background: var(--studio-action-primary-bg);
+  color: var(--studio-action-primary-text);
+  padding: 0 14px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.studio-render-error-actions button + button {
+  border-color: var(--studio-border);
+  background: var(--studio-action-neutral-bg);
+  color: var(--studio-action-neutral-text);
+}
+
+.studio-render-error-data-processing {
+  height: calc(100% - 24px);
+  min-height: 0;
+}
+
+.studio-render-error-calculation {
+  position: absolute;
+  z-index: 12;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border-radius: 0;
+}
+
 .studio-window-control-glyph {
   position: relative;
   display: block;
@@ -7293,6 +7392,10 @@
   height: calc(100% - 36px);
   min-height: 360px;
   grid-template-rows: 78px minmax(0, 1fr);
+}
+
+.studio-realtime-panel-piston-oscillation {
+  position: relative;
 }
 
 .studio-realtime-panel-ideal {

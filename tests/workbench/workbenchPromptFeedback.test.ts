@@ -19,6 +19,7 @@ const tooltipSource = readSource('src/components/prompts/PromptTooltipProvider.t
 const tooltipStyles = readSource('src/components/prompts/PromptTooltipProvider.css');
 const appSource = readSource('src/app/App.tsx');
 const workbenchSource = readSource('src/features/workbench/WorkbenchStudioPrototype.tsx');
+const windowControlsSource = readSource('src/features/workbench/WorkbenchWindowControls.tsx');
 const workbenchStyles = readSource('src/features/workbench/WorkbenchStudioPrototype.css');
 const simulationCanvasSource = readSource('src/components/SimulationCanvas.tsx');
 const buildNoticeSource = readSource('src/features/workbench/WorkbenchBuildNoticeWindow.tsx');
@@ -188,7 +189,7 @@ assert.match(simulationCanvasSource, /data-prompt-tooltip=\{isPanMode \? t\.tool
 assert.match(simulationCanvasSource, /data-prompt-tooltip=\{t\.tooltips\.resetCamera\}/, 'camera reset help should use the internal tooltip');
 assert.match(buildNoticeSource, /<iframe[\s\S]*title=\{activeMaterial\.title\}/, 'embedded legal material should retain its semantic iframe title');
 assert.match(calculationWindowSource, /data-prompt-tooltip=\{disabled \? copy\.futureGroup : undefined\}/, 'disabled calculation actions should use the internal tooltip');
-assert.match(workbenchSource, /data-prompt-tooltip=\{windowControlCopy\.minimize\}/, 'desktop window controls should use the internal tooltip');
+assert.match(windowControlsSource, /data-prompt-tooltip=\{copy\.minimize\}/, 'desktop window controls should use the internal tooltip');
 assert.match(workbenchSource, /data-prompt-tooltip=\{file\.name\}/, 'file tabs should use the internal tooltip');
 
 assert.match(

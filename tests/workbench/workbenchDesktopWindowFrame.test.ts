@@ -5,6 +5,7 @@ const electronMainSource = readFileSync(new URL('../../electron/main.cjs', impor
 const electronPreloadSource = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 const electronTypesSource = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const windowControlsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchWindowControls.tsx', import.meta.url), 'utf8');
 const workbenchCssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
@@ -301,63 +302,69 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  windowControlsSource,
   /className="studio-window-controls"/,
   'workbench header should render custom minimize, maximize, and close controls',
 );
 
 assert.match(
-  workbenchSource,
-  /const hasDesktopWindowControlBridge = \(\) => \(/,
+  windowControlsSource,
+  /export const hasDesktopWindowControlBridge = \(\) => \(/,
   'workbench should explicitly detect whether desktop-only window controls are available',
 );
 
 assert.match(
-  workbenchSource,
-  /const desktopWindowControlsAvailable = hasDesktopWindowControlBridge\(\);/,
+  windowControlsSource,
+  /const available = hasDesktopWindowControlBridge\(\);/,
   'renderer should derive a desktop-only flag before rendering native window controls',
 );
 
 assert.match(
-  workbenchSource,
-  /\{desktopWindowControlsAvailable \? \(\s*<div className="studio-window-controls"/,
+  windowControlsSource,
+  /if \(!available\) return null;[\s\S]*<div className="studio-window-controls"/,
   'web/browser preview should not render desktop-only minimize, maximize, and close controls',
 );
 
 assert.match(
-  workbenchSource,
+  windowControlsSource,
   /window\.hardSphereLabWindow\?\.minimize\?\.\(\)/,
   'custom minimize button should call the desktop bridge',
 );
 
 assert.match(
-  workbenchSource,
+  windowControlsSource,
   /window\.hardSphereLabWindow\?\.toggleMaximize\?\.\(\)/,
   'custom maximize button should call the desktop bridge',
 );
 
 assert.match(
-  workbenchSource,
+  windowControlsSource,
   /window\.hardSphereLabWindow\?\.close\?\.\(\)/,
   'custom close button should call the desktop bridge',
 );
 
 assert.doesNotMatch(
-  workbenchSource,
+  windowControlsSource,
   /<Maximize2|<Minimize2|<Minus/,
   'custom window controls should not use diagonal expand or generic icon glyphs for Windows maximize and restore states',
 );
 
 assert.match(
-  workbenchSource,
+  windowControlsSource,
   /studio-window-control-glyph-minimize/,
   'minimize should use a CSS-drawn Windows-style horizontal line glyph',
 );
 
 assert.match(
-  workbenchSource,
-  /desktopWindowMaximized \? 'studio-window-control-glyph-restore' : 'studio-window-control-glyph-maximize'/,
+  windowControlsSource,
+  /maximized[\s\S]*\? 'studio-window-control-glyph-restore'[\s\S]*: 'studio-window-control-glyph-maximize'/,
   'maximize toggle should switch between CSS-drawn Windows-style restore and maximize glyphs',
+);
+
+assert.match(
+  workbenchSource,
+  /<WorkbenchWindowControls[\s\S]*language=\{settingsLanguagePreference\}[\s\S]*onClose=\{closeDesktopWindow\}/,
+  'the normal workbench should use the shared real window-control component',
 );
 
 assert.match(

@@ -10,10 +10,12 @@ import {
   findPistonOscillationExtrema,
   formatPistonOscillationCalculationAnswer,
   formatPistonOscillationPeriod,
+  formatPistonOscillationPeriodCount,
   normalizePistonOscillationDataProcessingSession,
   normalizePistonOscillationRawMeasurementRecord,
   revealPistonOscillationCalculationAnswer,
   revealPistonOscillationPeriodAnswer,
+  reopenPreviousPistonOscillationPeriodRun,
   selectPistonOscillationPeriodRange,
   submitPistonOscillationCalculationField,
   submitPistonOscillationLinearFit,
@@ -288,6 +290,12 @@ assert.deepEqual(
 assert.equal(processing.runs[0].answers.t1.resolution, 'retry-correct');
 assert.equal(processing.runs[0].answers.period.expectedValue, 0.04);
 assert.equal(formatPistonOscillationPeriod(0.04), '0.04000');
+assert.equal(formatPistonOscillationPeriodCount(3n), '3');
+assert.equal(formatPistonOscillationPeriodCount(2.5), '2.5');
+assert.throws(
+  () => formatPistonOscillationPeriodCount(BigInt(Number.MAX_SAFE_INTEGER) + 1n),
+  /finite safe number/,
+);
 
 processing = updatePistonOscillationPeriodAnswerDraft(processing, 0, 'period', '0.04', 3_060);
 processing = submitPistonOscillationPeriod(processing, 0, 3_070);
@@ -341,6 +349,43 @@ assert.equal(processing.runs[1].result?.periodS, 0.036);
 assert.equal(processing.runs[1].answers.period.draftRaw, '0.03600');
 processing = advancePistonOscillationPeriodRun(processing, 3_220, records);
 assert.equal(processing.activeRunIndex, 2);
+const laterDraftBeforeReturn = updatePistonOscillationPeriodAnswerDraft(
+  processing,
+  2,
+  't1',
+  '0.123',
+  3_221,
+);
+const returnedToPreviousRun = reopenPreviousPistonOscillationPeriodRun(
+  laterDraftBeforeReturn,
+  3_222,
+);
+assert.equal(returnedToPreviousRun.activeRunIndex, 1);
+assert.equal(returnedToPreviousRun.runs[0].result !== null, true);
+assert.equal(returnedToPreviousRun.runs[1].result, null);
+assert.equal(returnedToPreviousRun.runs[2].answers.t1.draftRaw, '');
+const reopenedAudit = returnedToPreviousRun.audit.at(-1);
+assert.equal(reopenedAudit?.type, 'run-reopened');
+const archivedRuns = JSON.parse(
+  String(reopenedAudit?.payload.archivedRunsJson),
+) as Array<{
+  runIndex: number;
+  answers: { t1: { draftRaw: string } };
+  result: unknown;
+}>;
+assert.ok(archivedRuns[0]?.result);
+assert.equal(archivedRuns[1]?.answers.t1.draftRaw, '0.123');
+const restoredReturnedRun = normalizePistonOscillationDataProcessingSession(
+  structuredClone(returnedToPreviousRun),
+  records,
+  3_223,
+);
+assert.equal(restoredReturnedRun?.activeRunIndex, 1);
+assert.equal(
+  restoredReturnedRun?.audit.at(-1)?.payload.archivedRunsJson,
+  reopenedAudit?.payload.archivedRunsJson,
+  'returning to modify a prior run must preserve superseded answers across restart',
+);
 processing = completeRunByReveal(processing, 2, 3_300);
 assert.equal(processing.runs[2].result?.periodS, 0.032);
 processing = advancePistonOscillationPeriodRun(processing, 3_320, records);
@@ -526,6 +571,41 @@ assert.equal(
     'relativeError',
     restoredCalculation.calculationSession!.answers.relativeError.expectedValue!,
   ),
+);
+
+const bigintSelectionPersistence = structuredClone(
+  processing,
+) as unknown as Record<string, unknown>;
+const bigintSelectionRuns = bigintSelectionPersistence.runs as Array<
+  Record<string, unknown>
+>;
+for (const persistedRun of bigintSelectionRuns) {
+  const persistedSelection = persistedRun.selection as Record<string, unknown>;
+  const persistedLeftEndpoint = persistedSelection.leftEndpoint as Record<string, unknown>;
+  const persistedRightEndpoint = persistedSelection.rightEndpoint as Record<string, unknown>;
+  persistedSelection.periodCount = BigInt(persistedSelection.periodCount as number);
+  persistedLeftEndpoint.sampleIndex = BigInt(persistedLeftEndpoint.sampleIndex as number);
+  persistedRightEndpoint.sampleIndex = BigInt(persistedRightEndpoint.sampleIndex as number);
+  const persistedResult = persistedRun.result as Record<string, unknown>;
+  persistedResult.periodCount = BigInt(persistedResult.periodCount as number);
+  persistedResult.leftSampleIndex = BigInt(persistedResult.leftSampleIndex as number);
+  persistedResult.rightSampleIndex = BigInt(persistedResult.rightSampleIndex as number);
+}
+const restoredBigintSelections = normalizePistonOscillationDataProcessingSession(
+  bigintSelectionPersistence,
+  records,
+  3_402,
+);
+assert.ok(restoredBigintSelections);
+assert.equal(restoredBigintSelections.status, 'calculation-ready');
+assert.equal(restoredBigintSelections.runs.every((run) => (
+  typeof run.selection?.periodCount === 'number'
+  && typeof run.result?.periodCount === 'number'
+)), true);
+assert.deepEqual(
+  restoredBigintSelections.runs.map((run) => run.result),
+  processing.runs.map((run) => run.result),
+  'legacy bigint endpoints must be restored as the authoritative numeric result',
 );
 
 const unsupportedSelectionVersion = structuredClone(

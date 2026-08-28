@@ -79,7 +79,18 @@ const powerOfTen = (power: number) => {
   if (power > MAX_ABSOLUTE_EXPONENT + MAX_FORMAT_DIGITS) {
     throw new RangeError('Decimal input is too large to format safely.');
   }
-  return BIGINT_TEN ** BigInt(power);
+
+  // The production target is ES2015. A bigint exponent expression is lowered
+  // to Math.pow there, but Math.pow cannot accept bigint operands.
+  let result = BIGINT_ONE;
+  let factor = BIGINT_TEN;
+  let remainingPower = power;
+  while (remainingPower > 0) {
+    if (remainingPower % 2 === 1) result *= factor;
+    remainingPower = Math.floor(remainingPower / 2);
+    if (remainingPower > 0) factor *= factor;
+  }
+  return result;
 };
 
 const roundMagnitudeHalfEven = (

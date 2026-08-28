@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.2.0', 'next desktop update release should bump package version to 6.2.0');
-assert.match(readme, /latest published desktop release is `v6\.2\.0`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.2\.0`/, 'Simplified Chinese README should name the current public release');
-assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.2\.0`/, 'Traditional Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.2\.0。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.2.1', 'next desktop update release should bump package version to 6.2.1');
+assert.match(readme, /latest published desktop release is `v6\.2\.1`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.2\.1`/, 'Simplified Chinese README should name the current public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.2\.1`/, 'Traditional Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.2\.1。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -99,24 +99,44 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-free-plan-lifecycle' && item.importance === 'high'),
-  '6.2.0 should include the high-importance piston Free plan lifecycle',
+  currentItems.some((item) => item.scope === 'piston-free-first-record-render' && item.importance === 'high'),
+  '6.2.1 should include the high-importance first-record render fix',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-free-acquisition-processing' && item.importance === 'high'),
-  '6.2.0 should include the high-importance piston Free acquisition workflow',
+  currentItems.some((item) => item.scope === 'piston-period-selection-render' && item.importance === 'high'),
+  '6.2.1 should include the high-importance period-selection render fix',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'shared-heat-capacity-controls' && item.importance === 'high'),
-  '6.2.0 should include the high-importance shared experiment controls',
+  currentItems.some((item) => item.scope === 'piston-rebound-velocity-validation' && item.importance === 'high'),
+  '6.2.1 should include finite-only rebound velocity validation',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-loaded-equilibrium' && item.importance === 'high'),
-  '6.2.0 should include the high-importance loaded-gas equilibrium update',
+  currentItems.some((item) => item.scope === 'piston-transient-motion-recovery' && item.importance === 'high'),
+  '6.2.1 should include transient motion recovery',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-free-session-migration' && item.importance === 'high'),
-  '6.2.0 should include the high-importance Free-session migration',
+  currentItems.some((item) => item.scope === 'piston-local-render-recovery' && item.importance === 'high'),
+  '6.2.1 should include local render recovery',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'workbench-window-render-recovery' && item.importance === 'high'),
+  '6.2.1 should include outer workbench render recovery',
+);
+
+const freeModeRelease = findRelease('6.2.0');
+assert.ok(freeModeRelease, 'release notes should retain the 6.2.0 Free Mode release');
+const freeModeItems = freeModeRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+assert.ok(
+  freeModeItems.some((item) => item.scope === 'piston-free-plan-lifecycle' && item.importance === 'high'),
+  '6.2.0 should retain the high-importance piston Free plan lifecycle',
+);
+assert.ok(
+  freeModeItems.some((item) => item.scope === 'piston-free-acquisition-processing' && item.importance === 'high'),
+  '6.2.0 should retain the high-importance piston Free acquisition workflow',
+);
+assert.ok(
+  freeModeItems.some((item) => item.scope === 'piston-loaded-equilibrium' && item.importance === 'high'),
+  '6.2.0 should retain the high-importance loaded-gas equilibrium update',
 );
 
 const startupHotfixRelease = findRelease('5.2.2');

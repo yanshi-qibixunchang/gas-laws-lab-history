@@ -32,6 +32,7 @@ import {
   createPistonOscillationLoadedGasState,
   getPistonOscillationTrajectorySampleAt,
   getPistonOscillationSettlingStateAtProgress,
+  resolvePistonOscillationStablePhysicalState,
   simulatePistonOscillationRelease,
   type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
@@ -2172,6 +2173,103 @@ export const PistonOscillationInteractionWorkspace = ({
     guideHeightResetAnimationFrameRef.current = null;
   }, []);
 
+  const recoverPistonMotionFailure = useCallback((
+    cause: unknown,
+    stage: 'release-calculation' | 'rebound-animation',
+  ) => {
+    cancelPistonRebound();
+    cancelSettlingAnimation();
+    cancelUnsupportedDrop();
+    cancelGuideHeightReset();
+    abortHeldInputs();
+    setHoseDragging(false);
+    setScrewDragging(false);
+    setMouseVisualizationAction(null);
+    unsupportedDropVelocityMmPerSRef.current = 0;
+    const currentThermodynamicHeightMm =
+      thermodynamicStateRef.current?.pistonHeightM * 1_000;
+    const fallbackVisibleHeightMm =
+      pistonEquilibriumHeightMmRef.current + pistonOffsetMmRef.current;
+    const visibleHeightMm = clampPistonEquilibriumHeightMm(
+      Number.isFinite(currentThermodynamicHeightMm)
+        ? currentThermodynamicHeightMm
+        : Number.isFinite(fallbackVisibleHeightMm)
+          ? fallbackVisibleHeightMm
+          : PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
+    );
+    const nominalHeightMm = clampPistonEquilibriumHeightMm(
+      Number.isFinite(pistonNominalHeightMmRef.current)
+        ? pistonNominalHeightMmRef.current
+        : visibleHeightMm,
+    );
+    const lockingScrewLocked = getPistonLockingScrewClampState(
+      lockingScrewProgressRef.current,
+    ) === 'locked';
+    let stablePhysicalState: ReturnType<
+      typeof resolvePistonOscillationStablePhysicalState
+    >;
+    try {
+      stablePhysicalState = resolvePistonOscillationStablePhysicalState({
+        hoseConnected: hoseState === 'connected',
+        lockingScrewLocked,
+        nominalHeightMm,
+        visibleHeightMm,
+        referenceThermodynamicState: thermodynamicStateRef.current,
+      });
+    } catch (recoveryCause) {
+      console.error(
+        '[piston-oscillation] Failed to use the current gas state during motion recovery.',
+        recoveryCause,
+      );
+      try {
+        stablePhysicalState = resolvePistonOscillationStablePhysicalState({
+          hoseConnected: hoseState === 'connected',
+          lockingScrewLocked,
+          nominalHeightMm,
+          visibleHeightMm,
+        });
+      } catch (fallbackCause) {
+        console.error(
+          '[piston-oscillation] Stable-state calculation failed during motion recovery.',
+          fallbackCause,
+        );
+        const fallbackHeightMm = hoseState === 'disconnected' && !lockingScrewLocked
+          ? 0
+          : visibleHeightMm;
+        stablePhysicalState = {
+          nominalHeightMm: fallbackHeightMm,
+          equilibriumHeightMm: fallbackHeightMm,
+          pistonOffsetMm: 0,
+          thermodynamicState: createPistonOscillationAtmosphericLockedState(
+            fallbackHeightMm,
+            {},
+            hoseState === 'disconnected'
+              ? 'vented'
+              : 'sealed-locked-atmospheric',
+          ),
+        };
+      }
+    }
+    pistonNominalHeightMmRef.current = stablePhysicalState.nominalHeightMm;
+    pistonEquilibriumHeightMmRef.current = stablePhysicalState.equilibriumHeightMm;
+    pistonOffsetMmRef.current = 0;
+    setPistonNominalHeightMm(stablePhysicalState.nominalHeightMm);
+    setPistonEquilibriumHeightMm(stablePhysicalState.equilibriumHeightMm);
+    setPistonOffsetMm(0);
+    commitThermodynamicState(stablePhysicalState.thermodynamicState);
+    setPistonPhase('idle');
+    setReleaseGapMs(null);
+    console.error(`[piston-oscillation] Recovered silently after ${stage}.`, cause);
+  }, [
+    abortHeldInputs,
+    cancelGuideHeightReset,
+    cancelPistonRebound,
+    cancelSettlingAnimation,
+    cancelUnsupportedDrop,
+    commitThermodynamicState,
+    hoseState,
+  ]);
+
   useEffect(() => {
     const previousHoseState = previousHoseStateRef.current;
     previousHoseStateRef.current = hoseState;
@@ -2420,40 +2518,45 @@ export const PistonOscillationInteractionWorkspace = ({
     setPistonPhase('rebounding');
     const accumulatedPauseMsAtStart = guideAccumulatedPauseMsRef.current;
     const animate = (nowMs: number) => {
-      const activePauseMs = guidePausedRef.current
-        && guidePauseStartedAtMsRef.current !== null
-        ? nowMs - guidePauseStartedAtMsRef.current
-        : 0;
-      const elapsedMs = Math.max(
-        0,
-        nowMs
-          - startedAtMs
-          - (guideAccumulatedPauseMsRef.current - accumulatedPauseMsAtStart)
-          - activePauseMs,
-      );
-      const elapsedSeconds = elapsedMs / 1000;
-      const trajectorySample = getPistonOscillationTrajectorySampleAt(
-        trajectory,
-        elapsedSeconds,
-      );
-      const nextOffsetMm = trajectorySample.displacementM * 1_000;
-      pistonOffsetMmRef.current = nextOffsetMm;
-      setPistonOffsetMm(nextOffsetMm);
-      updateThermodynamicStateForVisiblePosition(
-        nextOffsetMm,
-        trajectorySample.velocityMPerS * 1_000,
-      );
-      if (elapsedMs >= PISTON_REBOUND_VISIBLE_DURATION_MS) {
-        setPistonOffset(0);
-        setPistonPhase('idle');
-        reboundAnimationFrameRef.current = null;
-        return;
+      try {
+        const activePauseMs = guidePausedRef.current
+          && guidePauseStartedAtMsRef.current !== null
+          ? nowMs - guidePauseStartedAtMsRef.current
+          : 0;
+        const elapsedMs = Math.max(
+          0,
+          nowMs
+            - startedAtMs
+            - (guideAccumulatedPauseMsRef.current - accumulatedPauseMsAtStart)
+            - activePauseMs,
+        );
+        const elapsedSeconds = elapsedMs / 1000;
+        const trajectorySample = getPistonOscillationTrajectorySampleAt(
+          trajectory,
+          elapsedSeconds,
+        );
+        const nextOffsetMm = trajectorySample.displacementM * 1_000;
+        pistonOffsetMmRef.current = nextOffsetMm;
+        setPistonOffsetMm(nextOffsetMm);
+        updateThermodynamicStateForVisiblePosition(
+          nextOffsetMm,
+          trajectorySample.velocityMPerS * 1_000,
+        );
+        if (elapsedMs >= PISTON_REBOUND_VISIBLE_DURATION_MS) {
+          setPistonOffset(0);
+          setPistonPhase('idle');
+          reboundAnimationFrameRef.current = null;
+          return;
+        }
+        reboundAnimationFrameRef.current = window.requestAnimationFrame(animate);
+      } catch (cause) {
+        recoverPistonMotionFailure(cause, 'rebound-animation');
       }
-      reboundAnimationFrameRef.current = window.requestAnimationFrame(animate);
     };
     reboundAnimationFrameRef.current = window.requestAnimationFrame(animate);
   }, [
     cancelPistonRebound,
+    recoverPistonMotionFailure,
     setPistonOffset,
     updateThermodynamicStateForVisiblePosition,
   ]);
@@ -2466,48 +2569,58 @@ export const PistonOscillationInteractionWorkspace = ({
         ? Math.abs(spaceReleasedAt - mouseReleasedAt)
         : null,
     );
-    if (pistonNominalHeightMmRef.current <= 0) {
-      setPistonOffset(0);
-      setPistonPhase('idle');
-      return;
+    try {
+      if (pistonNominalHeightMmRef.current <= 0) {
+        setPistonOffset(0);
+        setPistonPhase('idle');
+        return;
+      }
+      const equilibrium = createPistonOscillationLoadedEquilibriumState(
+        pistonNominalHeightMmRef.current,
+      );
+      const equilibriumHeightMm = equilibrium.equilibriumHeightM * 1_000;
+      const visibleHeightMm = pistonEquilibriumHeightMmRef.current
+        + pistonOffsetMmRef.current;
+      const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm;
+      if (visibleHeightMm < 0) {
+        setPistonOffset(0);
+        setPistonPhase('idle');
+        return;
+      }
+      pistonEquilibriumHeightMmRef.current = equilibriumHeightMm;
+      pistonOffsetMmRef.current = initialDisplacementMm;
+      setPistonEquilibriumHeightMm(equilibriumHeightMm);
+      setPistonOffsetMm(initialDisplacementMm);
+      if (initialDisplacementMm >= -0.02) {
+        setPistonOffset(0);
+        setPistonPhase('idle');
+        return;
+      }
+      const trajectory = simulatePistonOscillationRelease({
+        lockedHeightMm: pistonNominalHeightMmRef.current,
+        initialDisplacementMm,
+      }, { sensorSampleRateHz });
+      const releaseStartedAtMs = performance.now();
+      if (onReleaseEvent && initialDisplacementMm < -0.02) {
+        releaseEventIdRef.current += 1;
+        const releaseEvent: PistonOscillationReleaseEvent = {
+          id: releaseEventIdRef.current,
+          startedAtMs: releaseStartedAtMs,
+          trajectory,
+        };
+        onReleaseEvent(releaseEvent);
+      }
+      startPistonRebound(trajectory, releaseStartedAtMs);
+    } catch (cause) {
+      recoverPistonMotionFailure(cause, 'release-calculation');
     }
-    const equilibrium = createPistonOscillationLoadedEquilibriumState(
-      pistonNominalHeightMmRef.current,
-    );
-    const equilibriumHeightMm = equilibrium.equilibriumHeightM * 1_000;
-    const visibleHeightMm = pistonEquilibriumHeightMmRef.current
-      + pistonOffsetMmRef.current;
-    const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm;
-    if (visibleHeightMm < 0) {
-      setPistonOffset(0);
-      setPistonPhase('idle');
-      return;
-    }
-    pistonEquilibriumHeightMmRef.current = equilibriumHeightMm;
-    pistonOffsetMmRef.current = initialDisplacementMm;
-    setPistonEquilibriumHeightMm(equilibriumHeightMm);
-    setPistonOffsetMm(initialDisplacementMm);
-    if (initialDisplacementMm >= -0.02) {
-      setPistonOffset(0);
-      setPistonPhase('idle');
-      return;
-    }
-    const trajectory = simulatePistonOscillationRelease({
-      lockedHeightMm: pistonNominalHeightMmRef.current,
-      initialDisplacementMm,
-    }, { sensorSampleRateHz });
-    const releaseStartedAtMs = performance.now();
-    if (onReleaseEvent && initialDisplacementMm < -0.02) {
-      releaseEventIdRef.current += 1;
-      const releaseEvent: PistonOscillationReleaseEvent = {
-        id: releaseEventIdRef.current,
-        startedAtMs: releaseStartedAtMs,
-        trajectory,
-      };
-      onReleaseEvent(releaseEvent);
-    }
-    startPistonRebound(trajectory, releaseStartedAtMs);
-  }, [onReleaseEvent, sensorSampleRateHz, setPistonOffset, startPistonRebound]);
+  }, [
+    onReleaseEvent,
+    recoverPistonMotionFailure,
+    sensorSampleRateHz,
+    setPistonOffset,
+    startPistonRebound,
+  ]);
   const handleMouseHeldChange = useCallback((held: boolean, releasedAtMs?: number) => {
     mouseHeldRef.current = held;
     setMouseHeld(held);

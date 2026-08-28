@@ -698,6 +698,26 @@ assert.match(
 );
 assert.match(
   workspaceSource,
+  /const recoverPistonMotionFailure = useCallback[\s\S]*cancelPistonRebound\(\);[\s\S]*cancelSettlingAnimation\(\);[\s\S]*cancelUnsupportedDrop\(\);[\s\S]*cancelGuideHeightReset\(\);[\s\S]*resolvePistonOscillationStablePhysicalState[\s\S]*setPistonPhase\('idle'\)/,
+  'a software failure must stop every piston timeline and silently restore a stable physical state',
+);
+assert.match(
+  workspaceSource,
+  /try \{[\s\S]*getPistonOscillationTrajectorySampleAt[\s\S]*\} catch \(cause\) \{[\s\S]*recoverPistonMotionFailure\(cause, 'rebound-animation'\)/,
+  'rebound rendering failures must never leave the instrument stuck in rebounding',
+);
+assert.match(
+  workspaceSource,
+  /try \{[\s\S]*simulatePistonOscillationRelease[\s\S]*startPistonRebound\(trajectory, releaseStartedAtMs\);[\s\S]*\} catch \(cause\) \{[\s\S]*recoverPistonMotionFailure\(cause, 'release-calculation'\)/,
+  'release calculation failures must use the same silent stable-state recovery',
+);
+assert.doesNotMatch(
+  workspaceSource,
+  /recoverPistonMotionFailure[\s\S]{0,800}(?:PromptViewportFeedback|createPromptViewportFeedbackMessage)/,
+  'automatic piston recovery must not surface a user-facing prompt',
+);
+assert.match(
+  workspaceSource,
   /data-piston-focus-release-gap="true"/,
   'the shell should expose the final two-hand release gap for later quality modeling',
 );

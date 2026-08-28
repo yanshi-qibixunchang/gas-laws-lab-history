@@ -621,6 +621,17 @@ import { LearningNeedsPage } from '../onboarding/LearningNeedsPage.tsx';
 import { firstRunCopies } from '../onboarding/firstRunCopy.ts';
 import { useReducedMotionPreference } from '../onboarding/useReducedMotionPreference.ts';
 import type { HeatCapacityFamiliarityAnswer } from '../onboarding/firstRunExperienceModel.ts';
+import { RecoverableRenderErrorBoundary } from '../../components/errors/RecoverableRenderErrorBoundary.tsx';
+import {
+  WORKBENCH_WINDOW_CONTROL_COPY,
+  WorkbenchWindowControls,
+} from './WorkbenchWindowControls.tsx';
+import { WorkbenchContentRenderErrorFallback } from './WorkbenchRenderErrorFallback.tsx';
+import {
+  DevelopmentRenderFault,
+  isDevelopmentRenderFaultRequested,
+  recoverDevelopmentRenderFault,
+} from '../../development/DevelopmentRenderFault.tsx';
 import {
   createHeatCapacityModeDeferredTimer,
   createHeatCapacityModeUiCheckpoint,
@@ -1083,35 +1094,6 @@ const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
   'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
   'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
   en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
-};
-const WORKBENCH_WINDOW_CONTROL_COPY: Record<WorkbenchLanguagePreference, {
-  controls: string;
-  minimize: string;
-  maximize: string;
-  restore: string;
-  close: string;
-}> = {
-  ['zh-CN']: {
-    controls: '窗口控制',
-    minimize: '最小化',
-    maximize: '最大化',
-    restore: '还原窗口',
-    close: '关闭',
-  },
-  ['zh-TW']: {
-    controls: '視窗控制',
-    minimize: '最小化',
-    maximize: '最大化',
-    restore: '還原視窗',
-    close: '關閉',
-  },
-  ['en']: {
-    controls: 'Window controls',
-    minimize: 'Minimize',
-    maximize: 'Maximize',
-    restore: 'Restore',
-    close: 'Close',
-  },
 };
 type WorkbenchParameterSymbolPart = string | { sub: string };
 
@@ -4206,15 +4188,6 @@ const hasDesktopUpdaterBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabUpdater)
 );
 
-const hasDesktopWindowControlBridge = () => (
-  typeof window !== 'undefined' &&
-  Boolean(
-    window.hardSphereLabWindow?.minimize &&
-    window.hardSphereLabWindow?.toggleMaximize &&
-    window.hardSphereLabWindow?.close,
-  )
-);
-
 const hasDesktopLegalBridge = () => (
   typeof window !== 'undefined' && Boolean(window.hardSphereLabLegal?.openLegalFile)
 );
@@ -5197,7 +5170,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   ));
   const aboutUpdateChecking = updaterState.status === 'checking';
   const updateDialogState = updateDialogOpen ? updaterState : null;
-  const [desktopWindowMaximized, setDesktopWindowMaximized] = useState(false);
   const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
   const [systemWorkbenchTheme, setSystemWorkbenchTheme] = useState<WorkbenchResolvedTheme>(() => getSystemWorkbenchTheme());
   const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
@@ -5243,7 +5215,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
   const workbenchPromptCopy = workbenchPromptCopies[settingsLanguagePreference];
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
-  const desktopWindowControlsAvailable = hasDesktopWindowControlBridge();
   const heatCapacityQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[settingsPerformanceMode];
   useEffect(() => {
     document.documentElement.lang = settingsLanguagePreference;
@@ -5662,6 +5633,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     useState(false);
   const [pistonOscillationDataProcessingReviewOpen, setPistonOscillationDataProcessingReviewOpen] =
     useState(false);
+  const [pistonOscillationProcessingSuppressedFileId,
+    setPistonOscillationProcessingSuppressedFileId] = useState<string | null>(null);
+  const [pistonOscillationCalculationSuppressedFileId,
+    setPistonOscillationCalculationSuppressedFileId] = useState<string | null>(null);
   const [heatCapacityReportExportOpen, setHeatCapacityReportExportOpen] = useState(false);
   const [heatCapacityReportSelectedGroupIds, setHeatCapacityReportSelectedGroupIds] = useState<string[]>([]);
   const [hoveredHeatCapacityParamHelpId, setHoveredHeatCapacityParamHelpId] = useState<string | null>(null);
@@ -6359,6 +6334,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const pistonOscillationAcquisitionPanelRef = useRef<
     PistonOscillationAcquisitionPanelHandle | null
   >(null);
+  const pistonOscillationContentRenderRecoveryHostRef = useRef<HTMLDivElement | null>(null);
   const activePistonOscillationDemoPlaybackPhase =
     activeFile.kind === 'heatCapacityPistonOscillation'
     && pistonOscillationDemoPlayback.fileId === activeFile.id
@@ -6404,7 +6380,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       )
     )
   );
+  const pistonOscillationProcessingDisplaySuppressed =
+    pistonOscillationProcessingSuppressedFileId === activeFile.id;
   const activePistonOscillationDataProcessing = Boolean(
+    !pistonOscillationProcessingDisplaySuppressed
+    && (
     (
       activePistonOscillationGuideSession?.dataProcessing
       && (
@@ -6419,6 +6399,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         activePistonOscillationFreeSession.dataProcessing.status !== 'completed'
         || pistonOscillationCompletedDataProcessingReview
       )
+    )
     )
   );
   const activePistonOscillationCalculationSession =
@@ -6441,6 +6422,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   );
   const pistonOscillationCalculationWindowOpen = Boolean(
     activePistonOscillationCalculationSession
+    && pistonOscillationCalculationSuppressedFileId !== activeFile.id
     && (
       pistonOscillationCalculationAutoOpen
       || pistonOscillationCalculationReviewOpen
@@ -6531,7 +6513,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   useEffect(() => {
     setPistonOscillationCalculationReviewOpen(false);
     setPistonOscillationDataProcessingReviewOpen(false);
-  }, [activeFile.id, activePistonOscillationGuideSession?.startedAtMs]);
+    setPistonOscillationProcessingSuppressedFileId(null);
+    setPistonOscillationCalculationSuppressedFileId(null);
+  }, [
+    activeFile.id,
+    activePistonOscillationGuideSession?.startedAtMs,
+    activePistonOscillationFreeSession?.startedAtMs,
+  ]);
   useEffect(() => {
     if (
       activeFile.kind !== 'heatCapacityPistonOscillation'
@@ -7663,27 +7651,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
     mediaQuery.addListener(updateSystemTheme);
     return () => mediaQuery.removeListener(updateSystemTheme);
-  }, []);
-
-  useEffect(() => {
-    if (!hasDesktopWindowControlBridge()) return undefined;
-    const desktopWindowBridge = window.hardSphereLabWindow;
-    let mounted = true;
-
-    void desktopWindowBridge?.getState?.()
-      .then((state) => {
-        if (mounted) setDesktopWindowMaximized(Boolean(state?.maximized));
-      })
-      .catch(() => undefined);
-
-    const unsubscribe = desktopWindowBridge?.onState?.((state) => {
-      setDesktopWindowMaximized(Boolean(state.maximized));
-    });
-
-    return () => {
-      mounted = false;
-      if (unsubscribe) unsubscribe();
-    };
   }, []);
 
   useEffect(() => {
@@ -9502,29 +9469,39 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const openPistonOscillationDataProcessingReview = () => {
     if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
-    const guideProcessingCompleted =
-      activeFile.pistonOscillationGuideSession.status === 'completed'
-      && activeFile.pistonOscillationGuideSession.dataProcessing?.status === 'completed';
-    const freeProcessingCompleted =
-      activeFile.pistonOscillationFreeSession.status === 'active'
-      && activeFile.pistonOscillationFreeSession.dataProcessing?.status === 'completed';
-    if (!guideProcessingCompleted && !freeProcessingCompleted) return;
+    const dataProcessing = activeFile.pistonOscillationFreeSession.status === 'active'
+      ? activeFile.pistonOscillationFreeSession.dataProcessing
+      : activeFile.pistonOscillationGuideSession.dataProcessing;
+    if (!dataProcessing) return;
     setSelectedPanel('heatCapacityGuide');
     setPistonOscillationCalculationReviewOpen(false);
+    setPistonOscillationCalculationSuppressedFileId(activeFile.id);
+    setPistonOscillationProcessingSuppressedFileId(null);
     setPistonOscillationDataProcessingReviewOpen(true);
   };
 
   const openPistonOscillationCalculationReview = () => {
     if (
       activeFile.kind !== 'heatCapacityPistonOscillation'
-      || activePistonOscillationCalculationSession?.status !== 'completed'
+      || !activePistonOscillationCalculationSession
     ) return;
     setSelectedPanel('heatCapacityGuide');
     setPistonOscillationDataProcessingReviewOpen(true);
+    setPistonOscillationProcessingSuppressedFileId(null);
+    setPistonOscillationCalculationSuppressedFileId(null);
     setPistonOscillationCalculationReviewOpen(true);
   };
 
   const closePistonOscillationDataProcessingReview = () => {
+    setPistonOscillationCalculationReviewOpen(false);
+    setPistonOscillationDataProcessingReviewOpen(false);
+    setSelectedPanel('preview');
+    setLeftCollapsed(false);
+  };
+
+  const returnToPistonOscillationInstrumentAfterDisplayError = () => {
+    setPistonOscillationProcessingSuppressedFileId(activeFile.id);
+    setPistonOscillationCalculationSuppressedFileId(activeFile.id);
     setPistonOscillationCalculationReviewOpen(false);
     setPistonOscillationDataProcessingReviewOpen(false);
     setSelectedPanel('preview');
@@ -19521,22 +19498,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     window.open(getFreshWorkbenchWindowUrl(), '_blank', 'noopener,noreferrer');
   };
 
-  const minimizeDesktopWindow = () => {
-    void window.hardSphereLabWindow?.minimize?.()
-      .then((state) => {
-        if (state) setDesktopWindowMaximized(Boolean(state.maximized));
-      })
-      .catch(() => undefined);
-  };
-
-  const toggleDesktopWindowMaximize = () => {
-    void window.hardSphereLabWindow?.toggleMaximize?.()
-      .then((state) => {
-        if (state) setDesktopWindowMaximized(Boolean(state.maximized));
-      })
-      .catch(() => undefined);
-  };
-
   const closeDesktopWindow = () => {
     const performClose = () => {
       const desktopClose = window.hardSphereLabWindow?.close?.();
@@ -24376,31 +24337,45 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const renderRealtimePanel = () => (
+  const renderRealtimePanelContent = () => (
     activeFile.kind === 'heatCapacityPistonOscillation' ? (
       <div
+        ref={pistonOscillationContentRenderRecoveryHostRef}
         className="studio-realtime-panel studio-realtime-panel-piston-oscillation"
         data-piston-oscillation-realtime={
           activePistonOscillationDataProcessing ? 'data-processing' : 'acquisition'
         }
       >
         {activePistonOscillationDataProcessing ? (
-          <PistonOscillationDataProcessingPanel
-            language={settingsLanguagePreference}
-            guideSession={activeFile.pistonOscillationGuideSession}
-            freeSession={activePistonOscillationFreeSelected
-              ? activeFile.pistonOscillationFreeSession
-              : undefined}
-            pulseActive={pistonGuidePulseActive}
-            pulseTarget={pistonGuideExpectedStrongTargetId}
-            onGuideEvent={handlePistonOscillationGuideProcessingEvent}
-            onInteractionStart={handlePistonOscillationGuideProcessingInteractionStart}
-            onSelectionModeChange={setPistonOscillationPeriodSelectionToolActive}
-            onInvalidSelection={handlePistonOscillationGuideInvalidPeriodSelection}
-            reviewMode={pistonOscillationCompletedDataProcessingReview}
-            onOpenCalculationReview={openPistonOscillationCalculationReview}
-            onCloseReview={closePistonOscillationDataProcessingReview}
-          />
+          <RecoverableRenderErrorBoundary
+            resetKeys={[activeFile.id]}
+            fallback={({ error, retry }) => (
+              <WorkbenchContentRenderErrorFallback
+                area="data-processing"
+                language={settingsLanguagePreference}
+                error={error}
+                onRetry={retry}
+                onReturnToInstrument={returnToPistonOscillationInstrumentAfterDisplayError}
+              />
+            )}
+          >
+            <PistonOscillationDataProcessingPanel
+              language={settingsLanguagePreference}
+              guideSession={activeFile.pistonOscillationGuideSession}
+              freeSession={activePistonOscillationFreeSelected
+                ? activeFile.pistonOscillationFreeSession
+                : undefined}
+              pulseActive={pistonGuidePulseActive}
+              pulseTarget={pistonGuideExpectedStrongTargetId}
+              onGuideEvent={handlePistonOscillationGuideProcessingEvent}
+              onInteractionStart={handlePistonOscillationGuideProcessingInteractionStart}
+              onSelectionModeChange={setPistonOscillationPeriodSelectionToolActive}
+              onInvalidSelection={handlePistonOscillationGuideInvalidPeriodSelection}
+              reviewMode={pistonOscillationCompletedDataProcessingReview}
+              onOpenCalculationReview={openPistonOscillationCalculationReview}
+              onCloseReview={closePistonOscillationDataProcessingReview}
+            />
+          </RecoverableRenderErrorBoundary>
         ) : (
           <PistonOscillationAcquisitionPanel
           ref={pistonOscillationAcquisitionPanelRef}
@@ -24538,6 +24513,33 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       </div>
     </div>
     )
+  );
+
+  const renderRealtimePanel = () => (
+    isDevelopmentRenderFaultRequested('data-processing') ? (
+      <RecoverableRenderErrorBoundary
+        resetKeys={[activeFile.id]}
+        fallback={({ error, retry }) => (
+          <WorkbenchContentRenderErrorFallback
+            area="data-processing"
+            language={settingsLanguagePreference}
+            error={error}
+            onRetry={() => {
+              recoverDevelopmentRenderFault('data-processing');
+              retry();
+            }}
+            onReturnToInstrument={() => {
+              recoverDevelopmentRenderFault('data-processing');
+              returnToPistonOscillationInstrumentAfterDisplayError();
+              retry();
+            }}
+          />
+        )}
+      >
+        <DevelopmentRenderFault target="data-processing" />
+        {renderRealtimePanelContent()}
+      </RecoverableRenderErrorBoundary>
+    ) : renderRealtimePanelContent()
   );
 
   const renderExperimentPointsPanel = () => {
@@ -26790,17 +26792,36 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         onCompleteAndExit={completeAndExitHeatCapacityCalculation}
         onClose={closeHeatCapacityCalculationReview}
       />
-      <PistonOscillationCalculationWindow
-        open={pistonOscillationCalculationWindowOpen}
-        language={settingsLanguagePreference}
-        guideSession={activePistonOscillationGuideSession}
-        freeSession={activePistonOscillationFreeSelected
-          ? activePistonOscillationFreeSession
-          : undefined}
-        onGuideEvent={handlePistonOscillationGuideProcessingEvent}
-        onCompleteAndExit={completeAndExitPistonOscillationCalculation}
-        onClose={closePistonOscillationCalculationReview}
-      />
+      <RecoverableRenderErrorBoundary
+        resetKeys={[activeFile.id]}
+        fallback={({ error, retry }) => createPortal(
+          <WorkbenchContentRenderErrorFallback
+            area="calculation"
+            language={settingsLanguagePreference}
+            error={error}
+            onRetry={retry}
+            onReturnToInstrument={() => {
+              returnToPistonOscillationInstrumentAfterDisplayError();
+              retry();
+            }}
+          />,
+          pistonOscillationContentRenderRecoveryHostRef.current
+            ?? centerWorkspaceRef.current
+            ?? document.body,
+        )}
+      >
+        <PistonOscillationCalculationWindow
+          open={pistonOscillationCalculationWindowOpen}
+          language={settingsLanguagePreference}
+          guideSession={activePistonOscillationGuideSession}
+          freeSession={activePistonOscillationFreeSelected
+            ? activePistonOscillationFreeSession
+            : undefined}
+          onGuideEvent={handlePistonOscillationGuideProcessingEvent}
+          onCompleteAndExit={completeAndExitPistonOscillationCalculation}
+          onClose={closePistonOscillationCalculationReview}
+        />
+      </RecoverableRenderErrorBoundary>
       {renderHeatCapacityAdvancedParameterDialog()}
       <div
         className={`studio-shell ${consoleCollapsed ? 'studio-shell-console-collapsed' : ''}`}
@@ -26862,40 +26883,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             onOpenAbout={openAboutWindow}
           />
           <div className="studio-titlebar-drag-fill" aria-hidden="true" />
-          {desktopWindowControlsAvailable ? (
-            <div className="studio-window-controls" aria-label={windowControlCopy.controls}>
-              <button
-                type="button"
-                className="studio-window-control-button"
-                aria-label={windowControlCopy.minimize}
-                data-prompt-tooltip={windowControlCopy.minimize}
-                onClick={minimizeDesktopWindow}
-              >
-                <span className="studio-window-control-glyph studio-window-control-glyph-minimize" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="studio-window-control-button"
-                aria-label={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
-                data-prompt-tooltip={desktopWindowMaximized ? windowControlCopy.restore : windowControlCopy.maximize}
-                onClick={toggleDesktopWindowMaximize}
-              >
-                <span
-                  className={`studio-window-control-glyph ${desktopWindowMaximized ? 'studio-window-control-glyph-restore' : 'studio-window-control-glyph-maximize'}`}
-                  aria-hidden="true"
-                />
-              </button>
-              <button
-                type="button"
-                className="studio-window-control-button studio-window-control-close"
-                aria-label={windowControlCopy.close}
-                data-prompt-tooltip={windowControlCopy.close}
-                onClick={closeDesktopWindow}
-              >
-                <X size={15} strokeWidth={2.2} />
-              </button>
-            </div>
-          ) : null}
+          <WorkbenchWindowControls
+            language={settingsLanguagePreference}
+            onClose={closeDesktopWindow}
+          />
         </header>
         <WorkbenchAboutWindow
           open={aboutWindowOpen}

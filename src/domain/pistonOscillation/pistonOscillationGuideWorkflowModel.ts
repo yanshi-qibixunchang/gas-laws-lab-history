@@ -11,6 +11,7 @@ import {
   normalizePistonOscillationRawMeasurementRecord,
   revealPistonOscillationCalculationAnswer,
   revealPistonOscillationPeriodAnswer,
+  reopenPreviousPistonOscillationPeriodRun,
   selectPistonOscillationPeriodRange,
   submitPistonOscillationPeriod,
   submitPistonOscillationPeriodEndpoints,
@@ -188,6 +189,7 @@ export type PistonOscillationGuideEvent =
     } & PistonOscillationGuideTimedEvent)
   | ({ type: 'submitPeriod'; runIndex: number } & PistonOscillationGuideTimedEvent)
   | ({ type: 'advancePeriodRun' } & PistonOscillationGuideTimedEvent)
+  | ({ type: 'reopenPreviousPeriodRun' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'toggleFitRun'; runIndex: number } & PistonOscillationGuideTimedEvent)
   | ({ type: 'submitLinearFit' } & PistonOscillationGuideTimedEvent)
   | ({
@@ -447,6 +449,7 @@ const eventMatchesStep = (
     case 'revealPeriodAnswer':
     case 'submitPeriod':
     case 'advancePeriodRun':
+    case 'reopenPreviousPeriodRun':
       return session.step === 'periodProcessing';
     case 'toggleFitRun':
     case 'submitLinearFit':
@@ -1018,6 +1021,16 @@ export const transitionPistonOscillationGuideSession = (
         dataProcessing,
       };
     }
+    case 'reopenPreviousPeriodRun':
+      return {
+        ...session,
+        step: 'periodProcessing',
+        updatedAtMs: event.nowMs,
+        dataProcessing: reopenPreviousPistonOscillationPeriodRun(
+          session.dataProcessing!,
+          event.nowMs,
+        ),
+      };
     case 'toggleFitRun':
       return {
         ...session,

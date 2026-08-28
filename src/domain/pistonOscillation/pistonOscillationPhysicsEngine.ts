@@ -125,6 +125,21 @@ export interface PistonOscillationInstantaneousThermodynamicState {
   gasState: PistonOscillationThermodynamicState;
 }
 
+export interface PistonOscillationStablePhysicalStateInput {
+  hoseConnected: boolean;
+  lockingScrewLocked: boolean;
+  nominalHeightMm: number;
+  visibleHeightMm: number;
+  referenceThermodynamicState?: PistonOscillationThermodynamicState | null;
+}
+
+export interface PistonOscillationStablePhysicalState {
+  nominalHeightMm: number;
+  equilibriumHeightMm: number;
+  pistonOffsetMm: 0;
+  thermodynamicState: PistonOscillationThermodynamicState;
+}
+
 export const PISTON_OSCILLATION_CYLINDER_DIAMETER_M = 0.0325;
 export const PISTON_OSCILLATION_CYLINDER_DIAMETER_TOLERANCE_M = 0.0001;
 export const PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG = 0.0485;
@@ -165,6 +180,13 @@ const assertFiniteRange = (
 ) => {
   if (!Number.isFinite(value) || value < minimum || value > maximum) {
     throw new RangeError(`${name} must be between ${minimum} and ${maximum}.`);
+  }
+  return value;
+};
+
+const assertFiniteNumber = (name: string, value: number) => {
+  if (!Number.isFinite(value)) {
+    throw new RangeError(`${name} must be a finite number.`);
   }
   return value;
 };
@@ -261,33 +283,69 @@ const createThermodynamicState = (input: {
   settlingProgress: number;
   config: PistonOscillationPhysicsConfig;
 }): PistonOscillationThermodynamicState => {
+  const nominalLockedHeightM = assertFiniteNumber(
+    'nominalLockedHeightM',
+    input.nominalLockedHeightM,
+  );
+  if (nominalLockedHeightM < 0) {
+    throw new RangeError('nominalLockedHeightM must not be negative.');
+  }
+  const pistonHeightM = assertFiniteNumber('pistonHeightM', input.pistonHeightM);
+  if (pistonHeightM < 0) {
+    throw new RangeError('pistonHeightM must not pass below the 0 mm stop.');
+  }
+  const velocityMPerS = assertFiniteNumber('velocityMPerS', input.velocityMPerS);
+  const gasAmountMol = assertFiniteNumber('gasAmountMol', input.gasAmountMol);
+  const pressurePa = assertFiniteNumber('pressurePa', input.pressurePa);
+  const temperatureK = assertFiniteNumber('temperatureK', input.temperatureK);
+  const settlingProgress = assertFiniteRange(
+    'settlingProgress',
+    input.settlingProgress,
+    0,
+    1,
+  );
+  if (gasAmountMol <= 0) {
+    throw new RangeError('gasAmountMol must be greater than zero.');
+  }
+  if (pressurePa <= 0) {
+    throw new RangeError('pressurePa must be greater than zero.');
+  }
+  if (temperatureK <= 0) {
+    throw new RangeError('temperatureK must be greater than zero.');
+  }
   const cylinderAreaM2 = getPistonCylinderAreaM2(
     PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
   );
-  const graduatedCylinderVolumeM3 = cylinderAreaM2 * input.pistonHeightM;
+  const graduatedCylinderVolumeM3 = cylinderAreaM2 * pistonHeightM;
   const sealedDeadVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3;
   const totalVolumeM3 = graduatedCylinderVolumeM3 + sealedDeadVolumeM3;
+  if (!Number.isFinite(totalVolumeM3) || totalVolumeM3 <= 0) {
+    throw new RangeError('The gas volume must be finite and greater than zero.');
+  }
   const molarHeatCapacityAtConstantVolumeJPerMolK =
     getMolarHeatCapacityAtConstantVolume(input.config.gamma);
+  const internalEnergyJ = gasAmountMol
+    * molarHeatCapacityAtConstantVolumeJPerMolK
+    * temperatureK;
+  if (!Number.isFinite(internalEnergyJ) || internalEnergyJ <= 0) {
+    throw new RangeError('The gas internal energy must be finite and greater than zero.');
+  }
   return {
     schemaVersion: PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION,
     modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
     phase: input.phase,
-    nominalLockedHeightM: input.nominalLockedHeightM,
-    pistonHeightM: input.pistonHeightM,
-    velocityMPerS: input.velocityMPerS,
+    nominalLockedHeightM,
+    pistonHeightM,
+    velocityMPerS,
     graduatedCylinderVolumeM3,
     sealedDeadVolumeM3,
     totalVolumeM3,
-    gasAmountMol: input.gasAmountMol,
+    gasAmountMol,
     molarHeatCapacityAtConstantVolumeJPerMolK,
-    internalEnergyJ:
-      input.gasAmountMol
-      * molarHeatCapacityAtConstantVolumeJPerMolK
-      * input.temperatureK,
-    pressurePa: input.pressurePa,
-    temperatureK: input.temperatureK,
-    settlingProgress: input.settlingProgress,
+    internalEnergyJ,
+    pressurePa,
+    temperatureK,
+    settlingProgress,
     thermal: createThermalExtensionState(input.config.ambientTemperatureK),
   };
 };
@@ -581,20 +639,31 @@ const getThermodynamicState = (
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
 ) => {
+  assertFiniteNumber('displacementM', displacementM);
   const effectiveGasHeightM = equilibrium.effectiveGasHeightM + displacementM;
   const mechanicalHeightM = equilibrium.equilibriumHeightM + displacementM;
-  if (mechanicalHeightM < 0) {
+  if (!Number.isFinite(mechanicalHeightM) || mechanicalHeightM < 0) {
     throw new RangeError('The piston motion cannot pass below the 0 mm stop.');
   }
-  if (effectiveGasHeightM <= 0) {
+  if (!Number.isFinite(effectiveGasHeightM) || effectiveGasHeightM <= 0) {
     throw new RangeError('The compressed gas volume must remain greater than zero.');
   }
   const compressionRatio = equilibrium.effectiveGasHeightM / effectiveGasHeightM;
-  return {
-    pressurePa: equilibrium.equilibriumPressurePa * compressionRatio ** config.gamma,
-    temperatureK: config.ambientTemperatureK
-      * compressionRatio ** (config.gamma - 1),
-  };
+  const pressurePa = equilibrium.equilibriumPressurePa
+    * compressionRatio ** config.gamma;
+  const temperatureK = config.ambientTemperatureK
+    * compressionRatio ** (config.gamma - 1);
+  if (
+    !Number.isFinite(compressionRatio)
+    || compressionRatio <= 0
+    || !Number.isFinite(pressurePa)
+    || pressurePa <= 0
+    || !Number.isFinite(temperatureK)
+    || temperatureK <= 0
+  ) {
+    throw new RangeError('The thermodynamic solver produced an invalid physical state.');
+  }
+  return { pressurePa, temperatureK };
 };
 
 export const createPistonOscillationLoadedGasState = (
@@ -610,12 +679,7 @@ export const createPistonOscillationLoadedGasState = (
     -80,
     80,
   ) / 1_000;
-  const velocityMPerS = assertFiniteRange(
-    'velocityMmPerS',
-    velocityMmPerS,
-    -2_000,
-    2_000,
-  ) / 1_000;
+  const velocityMPerS = assertFiniteNumber('velocityMmPerS', velocityMmPerS) / 1_000;
   const pistonHeightM = equilibrium.equilibriumHeightM + displacementM;
   if (pistonHeightM < 0) {
     throw new RangeError('The piston motion cannot pass below the 0 mm stop.');
@@ -647,12 +711,7 @@ export const createPistonOscillationAdiabaticStateFromReference = (
     0,
     80,
   ) / 1_000;
-  const velocityMPerS = assertFiniteRange(
-    'velocityMmPerS',
-    velocityMmPerS,
-    -2_000,
-    2_000,
-  ) / 1_000;
+  const velocityMPerS = assertFiniteNumber('velocityMmPerS', velocityMmPerS) / 1_000;
   const cylinderAreaM2 = getPistonCylinderAreaM2(
     PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
   );
@@ -673,6 +732,111 @@ export const createPistonOscillationAdiabaticStateFromReference = (
     settlingProgress: 1,
     config,
   });
+};
+
+export const resolvePistonOscillationStablePhysicalState = (
+  input: PistonOscillationStablePhysicalStateInput,
+  configInput: Partial<PistonOscillationPhysicsConfig> = {},
+): PistonOscillationStablePhysicalState => {
+  const config = normalizePistonOscillationPhysicsConfig(configInput);
+  const nominalHeightMm = assertFiniteRange(
+    'nominalHeightMm',
+    input.nominalHeightMm,
+    0,
+    80,
+  );
+  const visibleHeightMm = assertFiniteRange(
+    'visibleHeightMm',
+    input.visibleHeightMm,
+    0,
+    80,
+  );
+  const normalizedReference = normalizePistonOscillationThermodynamicState(
+    input.referenceThermodynamicState,
+    config,
+  );
+
+  if (!input.hoseConnected) {
+    const stableHeightMm = input.lockingScrewLocked ? visibleHeightMm : 0;
+    return {
+      nominalHeightMm: stableHeightMm,
+      equilibriumHeightMm: stableHeightMm,
+      pistonOffsetMm: 0,
+      thermodynamicState: createPistonOscillationAtmosphericLockedState(
+        stableHeightMm,
+        config,
+        'vented',
+      ),
+    };
+  }
+
+  if (input.lockingScrewLocked) {
+    const thermodynamicState = normalizedReference
+      && normalizedReference.phase !== 'vented'
+      ? createPistonOscillationAdiabaticStateFromReference(
+          normalizedReference,
+          visibleHeightMm,
+          0,
+          config,
+        )
+      : createPistonOscillationAtmosphericLockedState(
+          visibleHeightMm,
+          config,
+          'sealed-locked-atmospheric',
+        );
+    return {
+      nominalHeightMm,
+      equilibriumHeightMm: visibleHeightMm,
+      pistonOffsetMm: 0,
+      thermodynamicState,
+    };
+  }
+
+  const reference = normalizedReference
+    ?? createPistonOscillationAtmosphericLockedState(
+      nominalHeightMm,
+      config,
+      'sealed-locked-atmospheric',
+    );
+  const cylinderAreaM2 = getPistonCylinderAreaM2(
+    PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
+  );
+  const loadedPressurePa = config.ambientPressurePa
+    + config.movingMassKg * STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
+  const equilibriumVolumeM3 = reference.gasAmountMol
+    * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    * config.ambientTemperatureK
+    / loadedPressurePa;
+  const unconstrainedHeightM = (
+    equilibriumVolumeM3 - PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
+  ) / cylinderAreaM2;
+  if (!Number.isFinite(unconstrainedHeightM)) {
+    throw new RangeError('The stable piston position must be finite.');
+  }
+  const stableHeightM = Math.min(0.08, Math.max(0, unconstrainedHeightM));
+  const stableVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
+    + cylinderAreaM2 * stableHeightM;
+  const stablePressurePa = reference.gasAmountMol
+    * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    * config.ambientTemperatureK
+    / stableVolumeM3;
+  const thermodynamicState = createThermodynamicState({
+    phase: 'sealed-loaded',
+    nominalLockedHeightM: nominalHeightMm / 1_000,
+    pistonHeightM: stableHeightM,
+    velocityMPerS: 0,
+    gasAmountMol: reference.gasAmountMol,
+    pressurePa: stablePressurePa,
+    temperatureK: config.ambientTemperatureK,
+    settlingProgress: 1,
+    config,
+  });
+  return {
+    nominalHeightMm,
+    equilibriumHeightMm: stableHeightM * 1_000,
+    pistonOffsetMm: 0,
+    thermodynamicState,
+  };
 };
 
 export const getPistonOscillationInstantaneousThermodynamicState = (
@@ -716,6 +880,8 @@ const getMotionDerivative = (
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
 ): MotionDerivative => {
+  assertFiniteNumber('motion displacement', state.displacementM);
+  assertFiniteNumber('motion velocity', state.velocityMPerS);
   const { pressurePa } = getThermodynamicState(
     state.displacementM,
     equilibrium,
@@ -725,12 +891,15 @@ const getMotionDerivative = (
     * (pressurePa - config.ambientPressurePa);
   const gravityForceN = config.movingMassKg * STANDARD_GRAVITY_M_PER_S2;
   const dampingForceN = config.linearDampingNsPerM * state.velocityMPerS;
-  return {
+  const derivative = {
     displacementRateMPerS: state.velocityMPerS,
     velocityRateMPerS2: (
       pressureForceN - gravityForceN - dampingForceN
     ) / config.movingMassKg,
   };
+  assertFiniteNumber('motion displacement rate', derivative.displacementRateMPerS);
+  assertFiniteNumber('motion velocity rate', derivative.velocityRateMPerS2);
+  return derivative;
 };
 
 const addDerivative = (
@@ -764,7 +933,7 @@ const stepMotionRungeKutta = (
     equilibrium,
     config,
   );
-  return {
+  const nextState = {
     displacementM: state.displacementM + dtS / 6 * (
       k1.displacementRateMPerS
       + 2 * k2.displacementRateMPerS
@@ -778,6 +947,9 @@ const stepMotionRungeKutta = (
       + k4.velocityRateMPerS2
     ),
   };
+  assertFiniteNumber('integrated displacement', nextState.displacementM);
+  assertFiniteNumber('integrated velocity', nextState.velocityMPerS);
+  return nextState;
 };
 
 const createTrajectorySample = (
@@ -785,12 +957,17 @@ const createTrajectorySample = (
   state: MotionState,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
-): PistonOscillationTrajectorySample => ({
-  timeS,
-  displacementM: state.displacementM,
-  velocityMPerS: state.velocityMPerS,
-  ...getThermodynamicState(state.displacementM, equilibrium, config),
-});
+): PistonOscillationTrajectorySample => {
+  assertFiniteNumber('trajectory time', timeS);
+  assertFiniteNumber('trajectory displacement', state.displacementM);
+  assertFiniteNumber('trajectory velocity', state.velocityMPerS);
+  return {
+    timeS,
+    displacementM: state.displacementM,
+    velocityMPerS: state.velocityMPerS,
+    ...getThermodynamicState(state.displacementM, equilibrium, config),
+  };
+};
 
 const getIntegrationSubstepsPerSample = (
   initialDisplacementM: number,
@@ -822,6 +999,9 @@ const getIntegrationSubstepsPerSample = (
     periodLimitedStepS,
     dampingLimitedStepS,
   );
+  if (!Number.isFinite(maximumStepS) || maximumStepS <= 0) {
+    throw new RangeError('The motion solver produced an invalid integration step.');
+  }
   return Math.max(1, Math.ceil((1 / config.sensorSampleRateHz) / maximumStepS));
 };
 
@@ -850,11 +1030,9 @@ export const simulatePistonOscillationRelease = (
     throw new RangeError('The pressed piston position cannot move below 0 mm.');
   }
   const initialDisplacementM = initialDisplacementMm / 1_000;
-  const initialVelocityMmPerS = assertFiniteRange(
+  const initialVelocityMmPerS = assertFiniteNumber(
     'initialVelocityMmPerS',
     input.initialVelocityMmPerS ?? 0,
-    -2_000,
-    2_000,
   );
   const initialVelocityMPerS = initialVelocityMmPerS / 1_000;
   const sampleIntervalS = 1 / config.sensorSampleRateHz;

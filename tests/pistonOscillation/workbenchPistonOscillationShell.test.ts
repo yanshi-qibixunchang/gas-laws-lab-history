@@ -473,8 +473,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /guideProcessingCompleted[\s\S]*freeProcessingCompleted[\s\S]*if \(!guideProcessingCompleted && !freeProcessingCompleted\) return/,
-  'the Data processing double-click entry should reopen completed Free or Guide results',
+  /const dataProcessing = activeFile\.pistonOscillationFreeSession\.status === 'active'[\s\S]*if \(!dataProcessing\) return;[\s\S]*setPistonOscillationProcessingSuppressedFileId\(null\)/,
+  'the Data processing double-click entry should reopen saved Free or Guide processing after recovery',
 );
 assert.match(
   dataProcessingSource,

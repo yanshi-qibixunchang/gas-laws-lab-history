@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import WorkbenchStudioPrototype from '../features/workbench/WorkbenchStudioPrototype';
 import {
+  getSystemWorkbenchTheme,
   loadWorkbenchGeneralSettingsWithStatus,
   persistWorkbenchGeneralSettings,
   type WorkbenchGeneralSettings,
@@ -34,6 +35,12 @@ import {
 import { AppStartupExperience } from './AppStartupExperience.tsx';
 import { resolveAppStartupPreviewScenario } from './appStartupModel.ts';
 import { WorkbenchAspectFrame } from './WorkbenchAspectFrame.tsx';
+import { RecoverableRenderErrorBoundary } from '../components/errors/RecoverableRenderErrorBoundary.tsx';
+import { WorkbenchOuterRenderErrorFallback } from '../features/workbench/WorkbenchRenderErrorFallback.tsx';
+import {
+  DevelopmentRenderFault,
+  recoverDevelopmentRenderFault,
+} from '../development/DevelopmentRenderFault.tsx';
 
 function App() {
   const [persistenceBootstrap, setPersistenceBootstrap] = useState<WorkbenchPersistenceBootstrapResult | null>(null);
@@ -211,6 +218,9 @@ function App() {
       : generalSettings.language === 'zh-TW'
         ? '重試儲存'
         : '重试存储';
+  const resolvedWorkbenchTheme = generalSettings.theme === 'system'
+    ? getSystemWorkbenchTheme()
+    : generalSettings.theme;
 
   return (
     <PromptTooltipProvider>
@@ -219,10 +229,26 @@ function App() {
           <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
             {persistenceBootstrap ? (
               entryMode === 'workbench' ? (
-                <WorkbenchStudioPrototype
-                  initialGeneralSettings={generalSettings}
-                  initialTutorialEntryKind={tutorialEntryKind}
-                />
+                <RecoverableRenderErrorBoundary
+                  resetKeys={[entryMode]}
+                  fallback={({ error, retry }) => (
+                    <WorkbenchOuterRenderErrorFallback
+                      language={generalSettings.language}
+                      theme={resolvedWorkbenchTheme}
+                      error={error}
+                      onRetry={() => {
+                        recoverDevelopmentRenderFault('workbench');
+                        retry();
+                      }}
+                    />
+                  )}
+                >
+                  <DevelopmentRenderFault target="workbench" />
+                  <WorkbenchStudioPrototype
+                    initialGeneralSettings={generalSettings}
+                    initialTutorialEntryKind={tutorialEntryKind}
+                  />
+                </RecoverableRenderErrorBoundary>
               ) : (
                 <FirstRunExperience
                   key={entryMode}

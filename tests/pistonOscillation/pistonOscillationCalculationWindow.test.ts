@@ -148,9 +148,9 @@ for (const language of ["'zh-CN'", "'zh-TW'", 'en:']) {
 }
 assert.match(copySource, /继续作答/);
 assert.match(copySource, /查看并继续/);
-assert.match(copySource, /Select all three data groups first/);
+assert.match(copySource, /Select every data group first/);
 assert.match(copySource, /实验已知量/);
-assert.match(copySource, /以下三组数据均已参与本次拟合；拟合函数与 R² 显示在下方图中。/);
+assert.match(copySource, /以下全部数据均已参与本次拟合；拟合函数与 R² 显示在下方图中。/);
 
 assert.match(workbenchSource, /pistonOscillationCalculationAutoOpen/);
 assert.match(workbenchSource, /pistonOscillationCalculationReviewOpen/);
