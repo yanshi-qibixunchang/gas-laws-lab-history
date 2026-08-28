@@ -137,7 +137,8 @@ assert.match(componentSource, /referenceGamma=\{calculationSession\.knowns\.refe
 assert.match(componentSource, /continueCalculationAnswer/);
 assert.match(componentSource, /revealCalculationAnswer/);
 assert.match(componentSource, /formatPistonOscillationCalculationAnswer/);
-assert.match(modelSource, /PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 3/);
+assert.match(modelSource, /PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 4/);
+assert.match(modelSource, /attemptedAtMs:\s*number \| null;[\s\S]*draftRaw:\s*string \| null;[\s\S]*resolution:\s*PistonOscillationAnswerResolution/);
 assert.match(modelSource, /ordinary-least-squares-v1/);
 assert.match(modelSource, /pressurePa:\s*PISTON_OSCILLATION_REFERENCE_PRESSURE_PA/);
 assert.match(modelSource, /status:\s*'selecting-points' \| 'calculating' \| 'ready-to-exit' \| 'completed'/);
@@ -155,5 +156,15 @@ assert.match(workbenchSource, /pistonOscillationCalculationAutoOpen/);
 assert.match(workbenchSource, /pistonOscillationCalculationReviewOpen/);
 assert.match(workbenchSource, /openPistonOscillationCalculationReview/);
 assert.match(workbenchSource, /<PistonOscillationCalculationWindow[\s\S]*onCompleteAndExit=\{completeAndExitPistonOscillationCalculation\}/);
+assert.match(
+  workbenchSource,
+  /const completeAndExitPistonOscillationCalculation[\s\S]*completingFreeSession[\s\S]*setPistonOscillationDataProcessingReviewOpen\(false\)[\s\S]*setSelectedPanel\('preview'\)[\s\S]*setLeftCollapsed\(false\)/,
+  'finishing the Free calculation should close processing review, restore the instrument workspace, and expand the left sidebar',
+);
+assert.match(
+  workbenchSource,
+  /const closePistonOscillationDataProcessingReview[\s\S]*setSelectedPanel\('preview'\)[\s\S]*setLeftCollapsed\(false\)/,
+  'closing a completed processing review should return to the instrument workspace',
+);
 
 console.log('pistonOscillationCalculationWindow tests passed');

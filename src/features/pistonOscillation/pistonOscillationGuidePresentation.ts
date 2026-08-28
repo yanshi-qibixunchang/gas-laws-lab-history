@@ -11,10 +11,14 @@ import type { PistonOscillationHeightAdjustmentStage } from './pistonOscillation
 export type PistonOscillationGuideFocusMode = 'overview' | 'pistonFocus' | 'powerFocus';
 
 export interface PistonOscillationGuideInstrumentRestoreState {
+  focusMode?: 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
   hoseState: 'connected' | 'disconnected';
   equilibriumHeightMm: number;
+  pistonOffsetMm?: number;
   lockingScrewProgress: number;
   powerOn: boolean;
+  heightAdjustmentStage?: PistonOscillationHeightAdjustmentStage;
+  pistonPhase?: 'idle' | 'ready' | 'pressing' | 'adjustingHeight' | 'holding' | 'falling' | 'rebounding';
 }
 
 export const PISTON_OSCILLATION_GUIDE_HEIGHT_SNAP_CAPTURE_MM = 2;

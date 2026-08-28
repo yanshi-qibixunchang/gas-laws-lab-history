@@ -8,6 +8,11 @@ import {
   PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS,
   getPistonAcquisitionFormalSampleCount,
 } from '../../src/features/pistonOscillation/pistonOscillationAcquisitionConfig.ts';
+import {
+  getPistonOscillationAdaptivePressureGraphDomain,
+  parsePistonOscillationFreeSampleRate,
+  parsePistonOscillationFreeTriggerThreshold,
+} from '../../src/features/pistonOscillation/pistonOscillationFreeAcquisitionModel.ts';
 
 assert.equal(PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ, 1000);
 assert.equal(PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA, 105);
@@ -16,6 +21,51 @@ assert.equal(PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS, 6);
 assert.equal(getPistonAcquisitionFormalSampleCount(0, 1000), 0);
 assert.equal(getPistonAcquisitionFormalSampleCount(0.8, 1000), 801);
 assert.equal(getPistonAcquisitionFormalSampleCount(0.5, 1000), 501);
+assert.equal(parsePistonOscillationFreeSampleRate('1000'), 1000);
+assert.equal(parsePistonOscillationFreeSampleRate('1'), 1);
+assert.equal(parsePistonOscillationFreeSampleRate('0'), null);
+assert.equal(parsePistonOscillationFreeSampleRate('1001'), null);
+assert.equal(parsePistonOscillationFreeSampleRate('10.5'), null);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('96'), 96);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('120.0'), 120);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('130'), 130);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('95.9'), null);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('130.1'), null);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('120.25'), null);
+
+const standardTriggerDomain = getPistonOscillationAdaptivePressureGraphDomain(
+  120,
+  [101.32],
+);
+assert.deepEqual(standardTriggerDomain, {
+  minimumKpa: 96,
+  maximumKpa: 132,
+  ticksKpa: [96, 102, 108, 114, 120, 126, 132],
+});
+for (const triggerThresholdKpa of [96, 100, 120, 130]) {
+  const domain = getPistonOscillationAdaptivePressureGraphDomain(
+    triggerThresholdKpa,
+    [101.32],
+  );
+  const step = domain.ticksKpa[1]! - domain.ticksKpa[0]!;
+  const triggerRatio = (
+    triggerThresholdKpa - domain.minimumKpa
+  ) / (domain.maximumKpa - domain.minimumKpa);
+  assert.ok(triggerRatio >= 0.25 - 1e-9 && triggerRatio <= 0.75 + 1e-9);
+  assert.ok(triggerThresholdKpa - domain.minimumKpa >= step - 1e-9);
+  assert.ok(domain.maximumKpa - triggerThresholdKpa >= step - 1e-9);
+  assert.equal(domain.ticksKpa.every(Number.isInteger), true);
+}
+const expandedPressureDomain = getPistonOscillationAdaptivePressureGraphDomain(
+  120,
+  [92, 101.32, 145],
+);
+assert.ok(expandedPressureDomain.minimumKpa < 92);
+assert.ok(expandedPressureDomain.maximumKpa > 145);
+assert.throws(
+  () => getPistonOscillationAdaptivePressureGraphDomain(130.1, [101.32]),
+  /trigger threshold/,
+);
 
 const panelSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'pistonOscillation', 'PistonOscillationAcquisitionPanel.tsx'),
@@ -36,12 +86,37 @@ assert.match(
 );
 assert.match(
   panelSource,
+  /freeSession\?\.sampleRateHz == null \? '' : String\(freeSession\.sampleRateHz\)[\s\S]*freeSession\?\.triggerThresholdKpa == null \? '' : String\(freeSession\.triggerThresholdKpa\)/,
+  'new and reset Free sessions should show empty acquisition inputs instead of hidden defaults',
+);
+assert.match(
+  panelSource,
+  /commitFreeParameter\('sampleRateHz'\)[\s\S]*if \(accepted\) triggerInputRef\.current\?\.focus\(\)[\s\S]*commitFreeParameter\('triggerThresholdKpa'\)/,
+  'Enter should move only from a valid sample-rate field to the trigger field while trigger Enter keeps the current blur behavior',
+);
+assert.match(
+  panelSource,
+  /if \(freeCommitRejectedRef\.current\)[\s\S]*return;[\s\S]*if \(!freeAcquisitionParametersValid\)[\s\S]*acquisitionParametersRequired[\s\S]*input\?\.focus\(\)[\s\S]*return;/,
+  'Start should remain clickable but block an invalid or missing setup and focus the first required field',
+);
+assert.match(
+  panelSource,
+  /freeRunPressureGraphDomain[\s\S]*phaseRef\.current !== 'armed' && phaseRef\.current !== 'recording'[\s\S]*adaptiveFreePressureGraphDomain\.minimumKpa >= current\.minimumKpa[\s\S]*adaptiveFreePressureGraphDomain\.maximumKpa <= current\.maximumKpa[\s\S]*return current/,
+  'a live Free run should expand its pressure axis when needed without shrinking it mid-run',
+);
+assert.match(
+  panelSource,
+  /triggerValueVisible[\s\S]*freeSelected && freeAcquisitionParametersValid[\s\S]*pressureIndicatorVisible[\s\S]*!freeSelected \|\| freeAcquisitionParametersValid/,
+  'the monitor line and point should remain hidden until both Free acquisition settings are committed',
+);
+assert.match(
+  panelSource,
   /previousPowerOnRef[\s\S]*if \(!wasPowerOn \|\| effectivePowerOn\) return;[\s\S]*resetRun\(\);/,
   'switching the instrument off must clear any armed or recording acquisition state',
 );
 assert.match(
   panelSource,
-  /if \(!effectivePowerOn \|\| !releaseEvent \|\| phaseRef\.current !== 'armed'\) return;[\s\S]*!effectivePowerOn[\s\S]*cycleStartMs === null/,
+  /const immediateRecordingActive =[\s\S]*!effectivePowerOn[\s\S]*!releaseEvent[\s\S]*phaseRef\.current !== 'armed'[\s\S]*!effectivePowerOn[\s\S]*cycleStartMs === null/,
   'neither a piston release nor the sampling clock may record while power is off',
 );
 assert.match(
@@ -55,6 +130,16 @@ assert.match(
   'the powered-off status should occupy and center itself within the complete realtime content area',
 );
 assert.match(panelSource, /copy\.preTriggerNote/);
+assert.match(
+  panelSource,
+  /const startsImmediately = freeSelected[\s\S]*currentObservation\.absolutePressureKpa > configuredTriggerKpa[\s\S]*setCycleStartMs\(startsImmediately \? recordingStartedAtMs : null\)[\s\S]*updatePhase\(startsImmediately \? 'recording' : 'armed'\)/,
+  'a Free run whose monitor threshold is already met must record from the Start click',
+);
+assert.match(
+  panelSource,
+  /createImmediateRecordingSamples[\s\S]*releaseOffsetS[\s\S]*liveObservations[\s\S]*releaseObservationSeries[\s\S]*recordingPath: 'immediate'/,
+  'immediate Free recording must combine the pre-release press and hold with the released oscillation',
+);
 assert.doesNotMatch(panelSource, />Run 1\/7</);
 assert.match(panelSource, /phaseRef\.current === 'armed'[\s\S]*updatePhase\('recording'\)/);
 assert.match(
@@ -82,7 +167,10 @@ assert.match(
   /handledReleaseEventIdRef = useRef<number \| null>\(releaseEvent\?\.id \?\? null\)[\s\S]*handledReleaseEventIdRef\.current === releaseEvent\.id[\s\S]*handledReleaseEventIdRef\.current = releaseEvent\.id[\s\S]*const handleStart = \(\) => \{[\s\S]*handledReleaseEventIdRef\.current = releaseEvent\?\.id \?\? null/,
   'arming a new run must ignore the retained release event and wait for a later two-hand release',
 );
-assert.match(panelSource, /handleStop[\s\S]*setStopElapsedSeconds\(formalElapsedSeconds\)/);
+assert.match(
+  panelSource,
+  /handleStop[\s\S]*getCurrentRecordingElapsedSeconds\(\)[\s\S]*setStopElapsedSeconds\([\s\S]*effectiveCandidate\?\.acquisitionSettings\.recordedDurationS[\s\S]*pauseElapsedSeconds/,
+);
 assert.match(
   panelSource,
   /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*createPistonOscillationSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
@@ -165,7 +253,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const handleStop = \(\) => \{[\s\S]*buildGuideCandidate\(formalElapsedSeconds\)[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'curvePaused', candidate \}\)[\s\S]*updatePhase\('stopped'\)/,
+  /const handleStop = \(\) => \{[\s\S]*const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds\(\)[\s\S]*buildGuideCandidate\(pauseElapsedSeconds\)[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'curvePaused', candidate \}\)[\s\S]*updatePhase\('stopped'\)/,
   'pausing acquisition should freeze and publish the physical candidate curve',
 );
 assert.match(

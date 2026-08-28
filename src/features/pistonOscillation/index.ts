@@ -14,6 +14,8 @@ export {
 } from './PistonOscillationInteractionWorkspace.tsx';
 export {
   PistonOscillationAcquisitionPanel,
+  type PistonOscillationAcquisitionPanelHandle,
+  type PistonOscillationAcquisitionPanelProps,
   type PistonOscillationGuideAcquisitionCue,
   type PistonOscillationGuideAcquisitionEvent,
   type PistonOscillationReleaseEvent,

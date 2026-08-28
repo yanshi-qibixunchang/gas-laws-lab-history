@@ -25,8 +25,30 @@ export const normalizeWorkbenchHeatCapacityTabIds = (
 );
 
 export const getHeatCapacityMaterialsTabOrder = (
-  _file: WorkbenchFileState,
-): WorkbenchHeatCapacityTabId[] => [...HEAT_CAPACITY_TAB_IDS];
+  file: WorkbenchFileState,
+): WorkbenchHeatCapacityTabId[] => {
+  if (file.kind !== 'heatCapacity') return [];
+  if (file.heatCapacityMode === 'guide') return ['guide', 'records'];
+  if (file.heatCapacityMode === 'free') return [...HEAT_CAPACITY_TAB_IDS];
+  return [];
+};
+
+export const getPistonOscillationMaterialsPanelOrder = (
+  file: WorkbenchFileState,
+): WorkbenchHeatCapacityPanelKey[] => {
+  if (file.kind !== 'heatCapacityPistonOscillation') return [];
+  const guideSelected = file.pistonOscillationGuideSession.status === 'active'
+    || (
+      file.pistonOscillationGuideSession.status === 'completed'
+      && !file.pistonOscillationGuideSession.completionExited
+    );
+  const activeDataProcessing = file.pistonOscillationFreeSession.status === 'active'
+    ? file.pistonOscillationFreeSession.dataProcessing
+    : guideSelected
+      ? file.pistonOscillationGuideSession.dataProcessing
+      : null;
+  return activeDataProcessing === null ? [] : ['heatCapacityGuide'];
+};
 
 export const isHeatCapacityPanelKey = (
   key: unknown,

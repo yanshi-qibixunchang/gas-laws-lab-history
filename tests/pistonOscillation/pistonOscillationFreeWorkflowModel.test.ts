@@ -1,38 +1,106 @@
 import assert from 'node:assert/strict';
 import {
-  PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM,
-  PISTON_OSCILLATION_FREE_DEFAULT_SAMPLE_RATE_HZ,
-  PISTON_OSCILLATION_FREE_DEFAULT_TRIGGER_THRESHOLD_KPA,
   createDefaultPistonOscillationFreeSession,
   createPistonOscillationFreeExperimentPlan,
   getPistonOscillationFreeCurrentTargetHeightMm,
+  isValidPistonOscillationFreeCustomHeightMm,
   isPistonOscillationFreePlanComplete,
   isValidPistonOscillationFreeExperimentPlan,
   normalizePistonOscillationFreeSession,
   transitionPistonOscillationFreeSession,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import {
+  createPistonOscillationRawMeasurementRecord,
+  type PistonOscillationRawMeasurementRecord,
+} from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
+  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
+  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+  createPistonOscillationEquilibriumState,
+} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  createPistonOscillationAirMaterialSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
+import {
+  createPistonOscillationEquivalentLossSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+
+const createMeasurement = (
+  measurementIndex: number,
+  targetHeightMm: number,
+  capturedAtMs: number,
+): PistonOscillationRawMeasurementRecord => {
+  const sampleRateHz = 1000;
+  const recordedDurationS = 0.5;
+  return createPistonOscillationRawMeasurementRecord({
+    recordId: `free-${measurementIndex}-${capturedAtMs}`,
+    capturedAtMs,
+    measurementIndex,
+    targetHeightMm,
+    confirmedHeightMm: targetHeightMm,
+    sampleRateHz,
+    triggerThresholdKpa: 120,
+    recordedDurationS,
+    samples: Array.from(
+      { length: recordedDurationS * sampleRateHz + 1 },
+      (_, sampleIndex) => ({
+        sampleIndex,
+        timeS: sampleIndex / sampleRateHz,
+        absolutePressureKpa: 101.32
+          + 4 * Math.exp(-2.4 * sampleIndex / sampleRateHz)
+            * Math.cos(2 * Math.PI * sampleIndex / sampleRateHz / 0.04),
+      }),
+    ),
+    physicsSnapshot: {
+      modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+      provenance: 'captured',
+      airMaterial: createPistonOscillationAirMaterialSnapshot(),
+      equivalentLoss: createPistonOscillationEquivalentLossSnapshot(),
+      config: { ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG },
+      equilibrium: createPistonOscillationEquilibriumState(targetHeightMm),
+      initialDisplacementM: 0,
+      initialVelocityMPerS: 0,
+      integrationSubstepsPerSample: 1,
+      triggerTimeS: 0,
+    },
+  });
+};
 
 const baseline = createDefaultPistonOscillationFreeSession();
 assert.equal(baseline.status, 'idle');
-assert.deepEqual(
-  baseline.experimentPlan.targetHeightsMm,
-  PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM,
-);
-assert.equal(baseline.sampleRateHz, PISTON_OSCILLATION_FREE_DEFAULT_SAMPLE_RATE_HZ);
-assert.equal(
-  baseline.triggerThresholdKpa,
-  PISTON_OSCILLATION_FREE_DEFAULT_TRIGGER_THRESHOLD_KPA,
-);
-assert.equal(getPistonOscillationFreeCurrentTargetHeightMm(baseline), 80);
+assert.equal(baseline.experimentPlan, null);
+assert.equal(baseline.sampleRateHz, null);
+assert.equal(baseline.triggerThresholdKpa, null);
+assert.equal(getPistonOscillationFreeCurrentTargetHeightMm(baseline), null);
 assert.equal(isPistonOscillationFreePlanComplete(baseline), false);
 
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 60]), true);
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 60, 30]), true);
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70]), false);
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 60, 50, 40, 30, 20]), false);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([60, 70, 80]), false);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([60, 70, 80]), true);
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 70]), false);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 65, 29]), true);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(0), true);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(80), true);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(80.5), false);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(-1), false);
 assert.throws(() => createPistonOscillationFreeExperimentPlan([80, 70]));
+
+const customPlan = createPistonOscillationFreeExperimentPlan([29, 80, 65], {
+  planId: 'custom-plan',
+  customHeightCandidatesMm: [65, 29, 12],
+});
+assert.deepEqual(customPlan.targetHeightsMm, [80, 65, 29]);
+assert.deepEqual(customPlan.customHeightCandidatesMm, [65, 29, 12]);
+assert.deepEqual(
+  customPlan.targets.map(({ heightMm, source }) => ({ heightMm, source })),
+  [
+    { heightMm: 80, source: 'system' },
+    { heightMm: 65, source: 'custom' },
+    { heightMm: 29, source: 'custom' },
+  ],
+);
 
 const active = transitionPistonOscillationFreeSession(baseline, {
   type: 'start',
@@ -51,7 +119,32 @@ const configured = transitionPistonOscillationFreeSession(active, {
 assert.deepEqual(configured.experimentPlan.targetHeightsMm, [80, 60, 30]);
 assert.equal(configured.audit.at(-1)?.type, 'plan-updated');
 
-const withPower = transitionPistonOscillationFreeSession(configured, {
+const withSampleRate = transitionPistonOscillationFreeSession(configured, {
+  type: 'setAcquisitionSetting',
+  field: 'sampleRateHz',
+  value: 1000,
+  nowMs: 115,
+});
+const withAcquisitionSettings = transitionPistonOscillationFreeSession(withSampleRate, {
+  type: 'setAcquisitionSetting',
+  field: 'triggerThresholdKpa',
+  value: 120.1,
+  nowMs: 116,
+});
+assert.equal(withAcquisitionSettings.sampleRateHz, 1000);
+assert.equal(withAcquisitionSettings.triggerThresholdKpa, 120.1);
+assert.equal(
+  transitionPistonOscillationFreeSession(withAcquisitionSettings, {
+    type: 'setAcquisitionSetting',
+    field: 'triggerThresholdKpa',
+    value: 120.25,
+    nowMs: 117,
+  }),
+  withAcquisitionSettings,
+  'the persisted model should reject trigger values that do not follow the 0.1 kPa step',
+);
+
+const withPower = transitionPistonOscillationFreeSession(withAcquisitionSettings, {
   type: 'setPower',
   powerOn: true,
   nowMs: 120,
@@ -74,12 +167,31 @@ assert.deepEqual(withOperation.audit.at(-1)?.payload, {
   firstReleasedHand: 'left',
 });
 
-const paused = transitionPistonOscillationFreeSession(withOperation, {
+const withInstrumentState = transitionPistonOscillationFreeSession(withOperation, {
+  type: 'setInstrumentState',
+  nowMs: 135,
+  instrumentState: {
+    focusMode: 'pistonFocus',
+    hoseState: 'connected',
+    equilibriumHeightMm: 60,
+    pistonOffsetMm: -8,
+    lockingScrewProgress: 0.75,
+    heightAdjustmentStage: 'lockingHeight',
+    pistonPhase: 'holding',
+  },
+});
+assert.equal(withInstrumentState.instrumentState.focusMode, 'pistonFocus');
+assert.equal(withInstrumentState.instrumentState.equilibriumHeightMm, 60);
+assert.equal(withInstrumentState.instrumentState.pistonOffsetMm, -8);
+
+const paused = transitionPistonOscillationFreeSession(withInstrumentState, {
   type: 'pause',
   nowMs: 140,
 });
 assert.equal(paused.status, 'paused');
 assert.equal(paused.powerOn, false);
+assert.equal(paused.instrumentState.focusMode, 'pistonFocus');
+assert.equal(paused.instrumentState.pistonPhase, 'idle');
 assert.equal(paused.audit.at(-1)?.type, 'session-paused');
 
 const resumed = transitionPistonOscillationFreeSession(paused, {
@@ -111,14 +223,11 @@ const repaired = normalizePistonOscillationFreeSession({
   ],
 });
 assert.deepEqual(
-  repaired.experimentPlan.targetHeightsMm,
-  PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM,
+  repaired.experimentPlan?.targetHeightsMm,
+  [50, 40, 30],
 );
-assert.equal(repaired.sampleRateHz, PISTON_OSCILLATION_FREE_DEFAULT_SAMPLE_RATE_HZ);
-assert.equal(
-  repaired.triggerThresholdKpa,
-  PISTON_OSCILLATION_FREE_DEFAULT_TRIGGER_THRESHOLD_KPA,
-);
+assert.equal(repaired.sampleRateHz, null);
+assert.equal(repaired.triggerThresholdKpa, null);
 assert.equal(repaired.audit.some((event) => event.eventId === 'invalid-event'), false);
 
 const reset = transitionPistonOscillationFreeSession(resumed, {
@@ -127,7 +236,157 @@ const reset = transitionPistonOscillationFreeSession(resumed, {
 });
 assert.equal(reset.status, 'active');
 assert.equal(reset.startedAtMs, 200);
+assert.equal(reset.experimentPlan, null);
+assert.equal(reset.sampleRateHz, null);
+assert.equal(reset.triggerThresholdKpa, null);
 assert.equal(reset.audit.length, 1);
 assert.equal(reset.audit[0]?.type, 'session-reset');
+
+let collection = transitionPistonOscillationFreeSession(baseline, {
+  type: 'start',
+  nowMs: 300,
+});
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'setPlan',
+  targetHeightsMm: [80, 70, 60],
+  nowMs: 301,
+});
+const firstCandidate = createMeasurement(0, 80, 310);
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'freezeAcquisition',
+  measurement: firstCandidate,
+  nowMs: 310,
+});
+assert.equal(collection.acquisitionCandidate?.recordId, firstCandidate.recordId);
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'pause',
+  nowMs: 320,
+});
+assert.equal(collection.acquisitionCandidate?.recordId, firstCandidate.recordId);
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'start',
+  nowMs: 330,
+});
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'clearAcquisition',
+  nowMs: 331,
+});
+assert.equal(collection.acquisitionCandidate, null);
+assert.equal(collection.excludedAttempts.length, 1);
+assert.equal(collection.excludedAttempts[0]?.reason, 'redo');
+const firstRetry = createMeasurement(0, 80, 335);
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'freezeAcquisition',
+  measurement: firstRetry,
+  nowMs: 335,
+});
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'saveMeasurement',
+  measurement: firstRetry,
+  nowMs: 340,
+});
+assert.equal(collection.measurementIndex, 1);
+assert.equal(collection.acquisitionCandidate, null);
+assert.equal(collection.dataProcessing, null);
+
+for (const [measurementIndex, targetHeightMm] of [[1, 70], [2, 60]] as const) {
+  collection = transitionPistonOscillationFreeSession(collection, {
+    type: 'saveMeasurement',
+    measurement: createMeasurement(measurementIndex, targetHeightMm, 350 + measurementIndex),
+    nowMs: 350 + measurementIndex,
+  });
+}
+assert.equal(collection.measurementIndex, 3);
+assert.equal(collection.savedMeasurements.length, 3);
+assert.equal(collection.dataProcessing?.status, 'period-processing');
+assert.equal(collection.dataProcessing?.runs.length, 3);
+
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'deleteMeasurement',
+  measurementIndex: 1,
+  nowMs: 360,
+});
+assert.equal(collection.measurementIndex, 1);
+assert.equal(collection.savedMeasurements.length, 2);
+assert.equal(collection.dataProcessing, null);
+assert.equal(collection.excludedAttempts.at(-1)?.reason, 'deleted');
+assert.equal(collection.audit.at(-1)?.type, 'measurement-deleted');
+
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'saveMeasurement',
+  measurement: createMeasurement(1, 70, 370),
+  nowMs: 370,
+});
+assert.equal(collection.measurementIndex, 3);
+assert.equal(collection.savedMeasurements.length, 3);
+assert.equal(collection.dataProcessing?.status, 'period-processing');
+
+const restoredCollection = normalizePistonOscillationFreeSession(collection);
+assert.equal(restoredCollection.measurementIndex, 3);
+assert.equal(restoredCollection.dataProcessing?.runs.length, 3);
+
+const resolveFreePeriodRunByReveal = (
+  source: typeof collection,
+  runIndex: number,
+  nowMs: number,
+) => {
+  let next = transitionPistonOscillationFreeSession(source, {
+    type: 'selectPeriodRange',
+    runIndex,
+    rangeStartTimeS: 0.015,
+    rangeEndTimeS: 0.185,
+    nowMs,
+  });
+  assert.equal(next.dataProcessing?.runs[runIndex].selection?.issue, null);
+  next = transitionPistonOscillationFreeSession(next, {
+    type: 'submitPeriodEndpoints',
+    runIndex,
+    nowMs: nowMs + 1,
+  });
+  next = transitionPistonOscillationFreeSession(next, {
+    type: 'revealPeriodAnswer',
+    runIndex,
+    field: 't1',
+    nowMs: nowMs + 2,
+  });
+  next = transitionPistonOscillationFreeSession(next, {
+    type: 'revealPeriodAnswer',
+    runIndex,
+    field: 't2',
+    nowMs: nowMs + 3,
+  });
+  next = transitionPistonOscillationFreeSession(next, {
+    type: 'submitPeriod',
+    runIndex,
+    nowMs: nowMs + 4,
+  });
+  next = transitionPistonOscillationFreeSession(next, {
+    type: 'revealPeriodAnswer',
+    runIndex,
+    field: 'period',
+    nowMs: nowMs + 5,
+  });
+  assert.ok(next.dataProcessing?.runs[runIndex].result);
+  return next;
+};
+
+let automaticCalculation = collection;
+automaticCalculation = resolveFreePeriodRunByReveal(automaticCalculation, 0, 400);
+assert.equal(automaticCalculation.dataProcessing?.status, 'period-processing');
+automaticCalculation = transitionPistonOscillationFreeSession(automaticCalculation, {
+  type: 'advancePeriodRun',
+  nowMs: 410,
+});
+automaticCalculation = resolveFreePeriodRunByReveal(automaticCalculation, 1, 420);
+automaticCalculation = transitionPistonOscillationFreeSession(automaticCalculation, {
+  type: 'advancePeriodRun',
+  nowMs: 430,
+});
+automaticCalculation = resolveFreePeriodRunByReveal(automaticCalculation, 2, 440);
+assert.equal(
+  automaticCalculation.dataProcessing?.status,
+  'calculation-ready',
+  'resolving the final saved run should enter calculation without another Next action',
+);
 
 console.log('pistonOscillationFreeWorkflowModel tests passed');

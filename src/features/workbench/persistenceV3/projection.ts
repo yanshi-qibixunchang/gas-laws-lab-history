@@ -280,6 +280,8 @@ const createPistonOscillationPeriodAnswerAuthority = (
   status: answer.status,
   feedback: answer.feedback,
   attemptCount: answer.attemptCount,
+  attempts: answer.attempts,
+  resolution: answer.resolution,
 });
 
 const createPistonOscillationCalculationAnswerAuthority = (
@@ -289,6 +291,7 @@ const createPistonOscillationCalculationAnswerAuthority = (
   status: answer.status,
   feedback: answer.feedback,
   attempts: answer.attempts,
+  resolution: answer.resolution,
 });
 
 const createPistonOscillationDataProcessingAuthority = (

@@ -273,6 +273,19 @@ processing = updatePistonOscillationPeriodAnswerDraft(processing, 0, 't2', '0.14
 processing = submitPistonOscillationPeriodEndpoints(processing, 0, 3_050);
 assert.equal(processing.runs[0].answers.t1.status, 'correct');
 assert.equal(processing.runs[0].answers.t2.status, 'correct');
+assert.deepEqual(
+  processing.runs[0].answers.t1.attempts.map((attempt) => ({
+    attemptIndex: attempt.attemptIndex,
+    attemptedAtMs: attempt.attemptedAtMs,
+    draftRaw: attempt.draftRaw,
+    outcome: attempt.outcome,
+  })),
+  [
+    { attemptIndex: 1, attemptedAtMs: 3_020, draftRaw: '', outcome: 'empty' },
+    { attemptIndex: 2, attemptedAtMs: 3_050, draftRaw: '0.020', outcome: 'correct' },
+  ],
+);
+assert.equal(processing.runs[0].answers.t1.resolution, 'retry-correct');
 assert.equal(processing.runs[0].answers.period.expectedValue, 0.04);
 assert.equal(formatPistonOscillationPeriod(0.04), '0.04000');
 
@@ -283,6 +296,11 @@ processing = continuePistonOscillationPeriodAnswer(processing, 0, 'period', 3_08
 processing = updatePistonOscillationPeriodAnswerDraft(processing, 0, 'period', '0.04000', 3_090);
 processing = submitPistonOscillationPeriod(processing, 0, 3_100);
 assert.equal(processing.runs[0].answers.period.status, 'correct');
+assert.equal(processing.runs[0].answers.period.resolution, 'retry-correct');
+assert.deepEqual(
+  processing.runs[0].answers.period.attempts.map((attempt) => attempt.draftRaw),
+  ['0.04', '0.04000'],
+);
 assert.equal(processing.runs[0].result?.periodS, 0.04);
 assert.equal(processing.runs[0].result?.periodSquaredS2, 0.0016);
 assert.equal(processing.runs[0].result?.deltaTimeS, 0.12);
@@ -313,6 +331,7 @@ const completeRunByReveal = (
   next = submitPistonOscillationPeriod(next, runIndex, nowMs + 7);
   next = revealPistonOscillationPeriodAnswer(next, runIndex, 'period', nowMs + 8);
   assert.equal(next.runs[runIndex].answers.period.status, 'revealed');
+  assert.equal(next.runs[runIndex].answers.period.resolution, 'revealed-after-attempt');
   assert.ok(next.runs[runIndex].result);
   return next;
 };
@@ -327,6 +346,32 @@ assert.equal(processing.runs[2].result?.periodS, 0.032);
 processing = advancePistonOscillationPeriodRun(processing, 3_320, records);
 assert.equal(processing.status, 'calculation-ready');
 assert.equal(processing.runs.every((run) => run.result !== null), true);
+
+const legacyAttemptPersistence = structuredClone(processing) as unknown as Record<string, unknown>;
+const legacyAttemptRuns = legacyAttemptPersistence.runs as Array<Record<string, unknown>>;
+const legacyAttemptAnswers = legacyAttemptRuns[0].answers as Record<string, Record<string, unknown>>;
+delete legacyAttemptAnswers.t1.attempts;
+delete legacyAttemptAnswers.t1.resolution;
+legacyAttemptAnswers.t1.attemptCount = 2;
+const migratedLegacyAttempts = normalizePistonOscillationDataProcessingSession(
+  legacyAttemptPersistence,
+  records,
+  3_325,
+);
+assert.deepEqual(
+  migratedLegacyAttempts?.runs[0].answers.t1.attempts,
+  [1, 2].map((attemptIndex) => ({
+    attemptIndex,
+    attemptedAtMs: null,
+    draftRaw: null,
+    inputKnown: false,
+    parsedValue: null,
+    outcome: 'unknown',
+    numericCorrect: null,
+    precisionCorrect: null,
+  })),
+  'legacy attempt counts should migrate as explicitly unknown instead of inventing raw answers',
+);
 
 let calculationProcessing = structuredClone(processing);
 calculationProcessing = togglePistonOscillationFitRun(calculationProcessing, 0, 3_330);
@@ -361,12 +406,22 @@ calculationProcessing = submitPistonOscillationCalculationField(
   'area',
   3_341,
 );
+assert.equal(calculationProcessing.calculationSession?.answers.area.resolution, 'first-correct');
 calculationProcessing = submitPistonOscillationCalculationField(
   calculationProcessing,
   'gamma',
   3_342,
 );
 assert.equal(calculationProcessing.calculationSession?.answers.gamma.feedback?.outcome, 'empty');
+const calculationRevealWithoutValue = revealPistonOscillationCalculationAnswer(
+  calculationProcessing,
+  'gamma',
+  3_342.5,
+);
+assert.equal(
+  calculationRevealWithoutValue.calculationSession?.answers.gamma.resolution,
+  'revealed-without-valid-attempt',
+);
 calculationProcessing = continuePistonOscillationCalculationAnswer(
   calculationProcessing,
   'gamma',
@@ -399,6 +454,10 @@ calculationProcessing = revealPistonOscillationCalculationAnswer(
   calculationProcessing,
   'relativeError',
   3_348,
+);
+assert.equal(
+  calculationProcessing.calculationSession?.answers.relativeError.resolution,
+  'revealed-after-attempt',
 );
 calculationProcessing = completePistonOscillationCalculation(calculationProcessing, 3_349);
 assert.equal(calculationProcessing.status, 'completed');
@@ -641,7 +700,68 @@ const validCurrentRecord = normalizePistonOscillationRawMeasurementRecord(
   structuredClone(records[0]),
 );
 assert.ok(validCurrentRecord);
-assert.equal(validCurrentRecord.schemaVersion, 2);
+assert.equal(validCurrentRecord.schemaVersion, 3);
+assert.equal(validCurrentRecord.acquisitionSettings.recordingPath, 'falling-trigger');
+assert.equal(validCurrentRecord.acquisitionSettings.releaseOffsetS, null);
+
+const immediateRecord = createPistonOscillationRawMeasurementRecord({
+  recordId: 'immediate-recording',
+  capturedAtMs: 0,
+  measurementIndex: 0,
+  targetHeightMm: 80,
+  confirmedHeightMm: 80,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  triggerThresholdKpa: 100,
+  recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
+  recordingPath: 'immediate',
+  releaseOffsetS: 0.02,
+  samples: records[0].samples,
+  physicsSnapshot: {
+    ...createPhysicsSnapshot(80),
+    triggerTimeS: null,
+  },
+});
+assert.equal(immediateRecord.acquisitionSettings.recordingPath, 'immediate');
+assert.equal(immediateRecord.acquisitionSettings.releaseOffsetS, 0.02);
+assert.equal(immediateRecord.physicsSnapshot.triggerTimeS, null);
+const unfinishedImmediateRecord = createPistonOscillationRawMeasurementRecord({
+  recordId: 'unfinished-immediate-recording',
+  capturedAtMs: 0,
+  measurementIndex: 0,
+  targetHeightMm: 80,
+  confirmedHeightMm: 80,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  triggerThresholdKpa: 100,
+  recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
+  recordingPath: 'immediate',
+  releaseOffsetS: null,
+  samples: records[0].samples,
+  physicsSnapshot: {
+    ...createPhysicsSnapshot(80),
+    triggerTimeS: null,
+  },
+});
+assert.equal(unfinishedImmediateRecord.acquisitionSettings.releaseOffsetS, null);
+assert.throws(
+  () => createPistonOscillationRawMeasurementRecord({
+    recordId: 'invalid-immediate-release',
+    capturedAtMs: 0,
+    measurementIndex: 0,
+    targetHeightMm: 80,
+    confirmedHeightMm: 80,
+    sampleRateHz: SAMPLE_RATE_HZ,
+    triggerThresholdKpa: 100,
+    recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
+    recordingPath: 'immediate',
+    releaseOffsetS: records[0].acquisitionSettings.recordedDurationS + 0.001,
+    samples: records[0].samples,
+    physicsSnapshot: {
+      ...createPhysicsSnapshot(80),
+      triggerTimeS: null,
+    },
+  }),
+  /recording path/,
+);
 
 const materiallessHistoricalRecord = structuredClone(records[0]) as unknown as Record<string, unknown>;
 const materiallessHistoricalPhysics = materiallessHistoricalRecord.physicsSnapshot as Record<
@@ -769,7 +889,9 @@ const legacy = normalizePistonOscillationRawMeasurementRecord({
   ],
 });
 assert.ok(legacy);
-assert.equal(legacy.schemaVersion, 2);
+assert.equal(legacy.schemaVersion, 3);
+assert.equal(legacy.acquisitionSettings.recordingPath, 'falling-trigger');
+assert.equal(legacy.acquisitionSettings.releaseOffsetS, null);
 assert.equal(legacy.confirmedHeightMm, 80);
 assert.equal(legacy.samples[0].timeS, 0);
 assert.equal(legacy.samples[1].timeS, 0.001);

@@ -227,8 +227,18 @@ assert.match(
 );
 assert.match(
   panelStyle,
-  /\.piston-processing-run-list button\.is-active\s*\{[\s\S]*border-color:[\s\S]*background:[\s\S]*0 0 0 1px/,
-  'the active curve should use an even outline and balanced shadow',
+  /\.piston-processing-run-list button\.is-active\s*\{[\s\S]*border-color:\s*var\(--piston-processing-ui-accent-border\);[\s\S]*background:\s*var\(--piston-processing-ui-accent-soft\);[\s\S]*0 0 0 1px/,
+  'the active curve should use the established workbench UI accent with an even outline and balanced shadow',
+);
+assert.match(
+  panelStyle,
+  /\.piston-processing-run-list button > span\s*\{[\s\S]*color:\s*var\(--piston-processing-text\);/,
+  'curve-number labels should remain neutral instead of inheriting a newly introduced state color',
+);
+assert.match(
+  panelStyle,
+  /\.piston-processing-navigation > button\.is-primary\s*\{[\s\S]*background:\s*var\(--piston-processing-ui-action-bg\);[\s\S]*color:\s*var\(--piston-processing-ui-action-text\);[\s\S]*\.piston-processing-navigation > button\.is-primary:hover,[\s\S]*background:\s*var\(--piston-processing-ui-action-bg-hover\);/,
+  'review primary actions should reuse the established workbench primary-button palette',
 );
 assert.doesNotMatch(
   panelStyle,

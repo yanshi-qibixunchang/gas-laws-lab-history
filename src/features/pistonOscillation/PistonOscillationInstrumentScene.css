@@ -81,12 +81,6 @@
   grid-template-rows: minmax(0, 1fr);
 }
 
-.studio-panel-row-development {
-  color: var(--studio-muted);
-  cursor: not-allowed;
-  opacity: 0.78;
-}
-
 .studio-theme-light .piston-oscillation-instrument-scene {
   --piston-scene-border: var(--studio-border-soft, #d8dee4);
   --piston-scene-button-border: rgba(100, 116, 139, 0.34);

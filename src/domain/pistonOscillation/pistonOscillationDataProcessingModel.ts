@@ -39,8 +39,8 @@ import {
   type PistonOscillationObservedSample,
 } from './pistonOscillationSensorObservationModel.ts';
 
-export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 2 as const;
-export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 3 as const;
+export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 3 as const;
+export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 4 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
   'alternating-observed-local-extrema-v2' as const;
 export const PISTON_OSCILLATION_LINEAR_FIT_ALGORITHM_VERSION =
@@ -60,6 +60,8 @@ export interface PistonOscillationAcquisitionSettingsSnapshot {
   sampleRateHz: number;
   triggerThresholdKpa: number;
   recordedDurationS: number;
+  recordingPath: 'falling-trigger' | 'immediate';
+  releaseOffsetS: number | null;
 }
 
 export interface PistonOscillationPhysicsSnapshot {
@@ -144,12 +146,37 @@ export interface PistonOscillationPeriodAnswerFeedback {
   precisionCorrect: boolean;
 }
 
+export type PistonOscillationAnswerAttemptOutcome =
+  | 'correct'
+  | PistonOscillationPeriodFeedbackOutcome
+  | 'unknown';
+
+export type PistonOscillationAnswerResolution =
+  | 'first-correct'
+  | 'retry-correct'
+  | 'revealed-after-attempt'
+  | 'revealed-without-valid-attempt'
+  | null;
+
+export interface PistonOscillationAnswerAttemptSnapshot {
+  attemptIndex: number;
+  attemptedAtMs: number | null;
+  draftRaw: string | null;
+  inputKnown: boolean;
+  parsedValue: number | null;
+  outcome: PistonOscillationAnswerAttemptOutcome;
+  numericCorrect: boolean | null;
+  precisionCorrect: boolean | null;
+}
+
 export interface PistonOscillationPeriodAnswerState {
   draftRaw: string;
   expectedValue: number | null;
   status: PistonOscillationPeriodAnswerStatus;
   feedback: PistonOscillationPeriodAnswerFeedback | null;
   attemptCount: number;
+  attempts: PistonOscillationAnswerAttemptSnapshot[];
+  resolution: PistonOscillationAnswerResolution;
 }
 
 export interface PistonOscillationPeriodResult {
@@ -253,14 +280,8 @@ export type PistonOscillationCalculationFieldId =
   | 'gamma'
   | 'relativeError';
 
-export interface PistonOscillationCalculationAttemptSnapshot {
-  attemptedAtMs: number;
-  draftRaw: string;
-  parsedValue: number | null;
-  outcome: 'correct' | PistonOscillationPeriodFeedbackOutcome;
-  numericCorrect: boolean;
-  precisionCorrect: boolean;
-}
+export type PistonOscillationCalculationAttemptSnapshot =
+  PistonOscillationAnswerAttemptSnapshot;
 
 export interface PistonOscillationCalculationAnswerState {
   draftRaw: string;
@@ -268,6 +289,7 @@ export interface PistonOscillationCalculationAnswerState {
   status: PistonOscillationPeriodAnswerStatus;
   feedback: PistonOscillationPeriodAnswerFeedback | null;
   attempts: PistonOscillationCalculationAttemptSnapshot[];
+  resolution: PistonOscillationAnswerResolution;
 }
 
 export interface PistonOscillationCalculationSessionSnapshot {
@@ -401,7 +423,7 @@ export const createPistonOscillationCalculationKnownsSnapshot = (
 
 export const createPistonOscillationPhysicsSnapshot = (
   trajectory: PistonOscillationTrajectory,
-  triggerTimeS: number,
+  triggerTimeS: number | null,
 ): PistonOscillationPhysicsSnapshot => {
   if (trajectory.config.gamma !== PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) {
     throw new RangeError('Guided measurements must use the versioned dry-air material.');
@@ -531,6 +553,8 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   sampleRateHz: number;
   triggerThresholdKpa: number;
   recordedDurationS: number;
+  recordingPath?: PistonOscillationAcquisitionSettingsSnapshot['recordingPath'];
+  releaseOffsetS?: number | null;
   samples: PistonOscillationRawSample[];
   sensorObservationSnapshot?: PistonOscillationSensorObservationSnapshot;
   physicsSnapshot: PistonOscillationPhysicsSnapshot;
@@ -540,6 +564,23 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   }
   if (!Number.isFinite(options.recordedDurationS) || options.recordedDurationS < 0) {
     throw new RangeError('recordedDurationS must be finite and non-negative.');
+  }
+  const recordingPath = options.recordingPath ?? 'falling-trigger';
+  const releaseOffsetS = options.releaseOffsetS ?? null;
+  if (
+    (recordingPath !== 'falling-trigger' && recordingPath !== 'immediate')
+    || (
+      releaseOffsetS !== null
+      && (!Number.isFinite(releaseOffsetS) || releaseOffsetS < 0)
+    )
+    || (recordingPath === 'falling-trigger' && releaseOffsetS !== null)
+    || (
+      recordingPath === 'immediate'
+      && releaseOffsetS !== null
+      && releaseOffsetS > options.recordedDurationS
+    )
+  ) {
+    throw new RangeError('The acquisition recording path is invalid.');
   }
   const rawIntervalCount = options.recordedDurationS * options.sampleRateHz;
   const intervalCount = Math.round(rawIntervalCount);
@@ -644,6 +685,8 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
       sampleRateHz: options.sampleRateHz,
       triggerThresholdKpa: options.triggerThresholdKpa,
       recordedDurationS,
+      recordingPath,
+      releaseOffsetS,
     },
     samples,
     sensorObservationSnapshot: { ...sensorObservationSnapshot },
@@ -948,6 +991,22 @@ export const normalizePistonOscillationRawMeasurementRecord = (
     && isFiniteNumber(acquisitionSettings.recordedDurationS)
     ? acquisitionSettings.recordedDurationS
     : null;
+  const sourceRecordSchemaVersion = isFiniteNumber(value.schemaVersion)
+    ? value.schemaVersion
+    : null;
+  const migrateLegacy = value.schemaVersion !== PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION;
+  const recordingPath = acquisitionSettings.recordingPath === 'immediate'
+    ? 'immediate'
+    : acquisitionSettings.recordingPath === 'falling-trigger' || migrateLegacy
+      ? 'falling-trigger'
+      : null;
+  const releaseOffsetS = recordingPath === 'immediate'
+    ? acquisitionSettings.releaseOffsetS == null
+      ? null
+      : isFiniteNumber(acquisitionSettings.releaseOffsetS)
+        ? acquisitionSettings.releaseOffsetS
+        : Number.NaN
+    : null;
   if (
     targetHeightMm === null
     || confirmedHeightMm === null
@@ -958,11 +1017,18 @@ export const normalizePistonOscillationRawMeasurementRecord = (
     || triggerThresholdKpa <= 0
     || recordedDurationS === null
     || recordedDurationS <= 0
+    || recordingPath === null
+    || (
+      recordingPath === 'immediate'
+      && releaseOffsetS !== null
+      && (
+        !Number.isFinite(releaseOffsetS)
+        || releaseOffsetS < 0
+        || releaseOffsetS > recordedDurationS
+      )
+    )
+    || (recordingPath === 'falling-trigger' && acquisitionSettings.releaseOffsetS != null)
   ) return null;
-  const sourceRecordSchemaVersion = isFiniteNumber(value.schemaVersion)
-    ? value.schemaVersion
-    : null;
-  const migrateLegacy = value.schemaVersion !== PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION;
   if (!migrateLegacy && !isPlainRecord(value.sensorObservationSnapshot)) return null;
   const samples = normalizeRawSamples(value.samples, sampleRateHz, migrateLegacy);
   if (!samples) return null;
@@ -1006,6 +1072,8 @@ export const normalizePistonOscillationRawMeasurementRecord = (
       sampleRateHz,
       triggerThresholdKpa,
       recordedDurationS: samples.at(-1)?.timeS ?? recordedDurationS,
+      recordingPath,
+      releaseOffsetS,
     },
     samples,
     sensorObservationSnapshot,
@@ -1136,6 +1204,8 @@ const createAnswer = (): PistonOscillationPeriodAnswerState => ({
   status: 'unresolved',
   feedback: null,
   attemptCount: 0,
+  attempts: [],
+  resolution: null,
 });
 
 export const createPistonOscillationProcessingPolicySnapshot = (
@@ -1170,6 +1240,7 @@ const createCalculationAnswer = (
   status: 'unresolved',
   feedback: null,
   attempts: [],
+  resolution: null,
 });
 
 export const createPistonOscillationCalculationSession = (
@@ -1267,13 +1338,13 @@ export const clearPistonOscillationPeriodSelection = (
   };
 };
 
-export const selectPistonOscillationPeriodRange = (
+const selectPistonOscillationPeriodRangeWithMinimum = (
   session: PistonOscillationDataProcessingSession,
   records: readonly PistonOscillationRawMeasurementRecord[],
   runIndex: number,
   rangeStartTimeS: number,
   rangeEndTimeS: number,
-  _minimumPeriodCount: number,
+  minimumPeriodCount: number,
   nowMs: number,
 ): PistonOscillationDataProcessingSession => {
   const run = session.runs[runIndex];
@@ -1293,7 +1364,7 @@ export const selectPistonOscillationPeriodRange = (
     record,
     rangeStartTimeS,
     rangeEndTimeS,
-    session.processingPolicy.guidedMinimumPeriodCount,
+    minimumPeriodCount,
     nowMs,
     session.processingPolicy.freeMinimumPeriodCount,
   );
@@ -1329,6 +1400,41 @@ export const selectPistonOscillationPeriodRange = (
     }),
   };
 };
+
+export const selectPistonOscillationPeriodRange = (
+  session: PistonOscillationDataProcessingSession,
+  records: readonly PistonOscillationRawMeasurementRecord[],
+  runIndex: number,
+  rangeStartTimeS: number,
+  rangeEndTimeS: number,
+  _minimumPeriodCount: number,
+  nowMs: number,
+) => selectPistonOscillationPeriodRangeWithMinimum(
+  session,
+  records,
+  runIndex,
+  rangeStartTimeS,
+  rangeEndTimeS,
+  session.processingPolicy.guidedMinimumPeriodCount,
+  nowMs,
+);
+
+export const selectPistonOscillationFreePeriodRange = (
+  session: PistonOscillationDataProcessingSession,
+  records: readonly PistonOscillationRawMeasurementRecord[],
+  runIndex: number,
+  rangeStartTimeS: number,
+  rangeEndTimeS: number,
+  nowMs: number,
+) => selectPistonOscillationPeriodRangeWithMinimum(
+  session,
+  records,
+  runIndex,
+  rangeStartTimeS,
+  rangeEndTimeS,
+  session.processingPolicy.freeMinimumPeriodCount,
+  nowMs,
+);
 
 export const updatePistonOscillationPeriodAnswerDraft = (
   session: PistonOscillationDataProcessingSession,
@@ -1384,21 +1490,42 @@ const getFeedback = (
 const submitAnswer = (
   answer: PistonOscillationPeriodAnswerState,
   spec: NumericAnswerSpec,
+  nowMs: number,
 ) => {
   if (answer.status !== 'unresolved' || answer.feedback !== null || answer.expectedValue === null) {
     return { answer, outcome: null as string | null };
   }
   const validation = validateNumericAnswer(answer.draftRaw, answer.expectedValue, spec);
+  const feedback = getFeedback(validation);
+  const outcome = validation.correct ? 'correct' as const : feedback?.outcome ?? 'wrong';
+  const attempts = [
+    ...answer.attempts,
+    {
+      attemptIndex: answer.attempts.length + 1,
+      attemptedAtMs: nowMs,
+      draftRaw: answer.draftRaw,
+      inputKnown: true,
+      parsedValue: validation.parseResult.status === 'valid'
+        ? validation.parseResult.parsed.value
+        : null,
+      outcome,
+      numericCorrect: validation.numericCorrect,
+      precisionCorrect: validation.precisionCorrect,
+    } satisfies PistonOscillationAnswerAttemptSnapshot,
+  ];
+  const resolution: PistonOscillationAnswerResolution = validation.correct
+    ? attempts.length === 1 ? 'first-correct' : 'retry-correct'
+    : null;
   return {
     answer: {
       ...answer,
       status: validation.correct ? 'correct' as const : 'unresolved' as const,
-      feedback: getFeedback(validation),
-      attemptCount: answer.attemptCount + 1,
+      feedback,
+      attemptCount: attempts.length,
+      attempts,
+      resolution,
     },
-    outcome: validation.correct
-      ? 'correct'
-      : getFeedback(validation)?.outcome ?? 'wrong',
+    outcome,
   };
 };
 
@@ -1421,8 +1548,16 @@ export const submitPistonOscillationPeriodEndpoints = (
     || !run.selection.rightEndpoint
     || run.result !== null
   ) return session;
-  const t1Submission = submitAnswer(run.answers.t1, PISTON_OSCILLATION_ENDPOINT_TIME_ANSWER_SPEC);
-  const t2Submission = submitAnswer(run.answers.t2, PISTON_OSCILLATION_ENDPOINT_TIME_ANSWER_SPEC);
+  const t1Submission = submitAnswer(
+    run.answers.t1,
+    PISTON_OSCILLATION_ENDPOINT_TIME_ANSWER_SPEC,
+    nowMs,
+  );
+  const t2Submission = submitAnswer(
+    run.answers.t2,
+    PISTON_OSCILLATION_ENDPOINT_TIME_ANSWER_SPEC,
+    nowMs,
+  );
   let nextRun: PistonOscillationPeriodRunState = {
     ...run,
     answers: {
@@ -1552,6 +1687,9 @@ export const revealPistonOscillationPeriodAnswer = (
           : formatPistonOscillationEndpointTime(currentAnswer.expectedValue),
         status: 'revealed',
         feedback: null,
+        resolution: currentAnswer.attempts.some((attempt) => attempt.parsedValue !== null)
+          ? 'revealed-after-attempt'
+          : 'revealed-without-valid-attempt',
       },
     },
   };
@@ -1614,7 +1752,11 @@ export const submitPistonOscillationPeriod = (
     || run.answers.period.expectedValue === null
     || run.result !== null
   ) return session;
-  const submission = submitAnswer(run.answers.period, PISTON_OSCILLATION_PERIOD_ANSWER_SPEC);
+  const submission = submitAnswer(
+    run.answers.period,
+    PISTON_OSCILLATION_PERIOD_ANSWER_SPEC,
+    nowMs,
+  );
   let nextRun: PistonOscillationPeriodRunState = {
     ...run,
     answers: {
@@ -1930,8 +2072,10 @@ export const submitPistonOscillationCalculationField = (
     attempts: [
       ...answer.attempts,
       {
+        attemptIndex: answer.attempts.length + 1,
         attemptedAtMs: nowMs,
         draftRaw: answer.draftRaw,
+        inputKnown: true,
         parsedValue: validation.parseResult.status === 'valid'
           ? validation.parseResult.parsed.value
           : null,
@@ -1940,6 +2084,9 @@ export const submitPistonOscillationCalculationField = (
         precisionCorrect: validation.precisionCorrect,
       },
     ],
+    resolution: validation.correct
+      ? answer.attempts.length === 0 ? 'first-correct' : 'retry-correct'
+      : null,
   };
   const withAnswer: PistonOscillationCalculationSessionSnapshot = {
     ...calculationSession,
@@ -2012,6 +2159,9 @@ export const revealPistonOscillationCalculationAnswer = (
     draftRaw: formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue),
     status: 'revealed',
     feedback: null,
+    resolution: answer.attempts.some((attempt) => attempt.parsedValue !== null)
+      ? 'revealed-after-attempt'
+      : 'revealed-without-valid-attempt',
   };
   const withAnswer: PistonOscillationCalculationSessionSnapshot = {
     ...calculationSession,
@@ -2055,6 +2205,79 @@ export const completePistonOscillationCalculation = (
   };
 };
 
+const isStoredAnswerAttemptOutcome = (
+  value: unknown,
+): value is PistonOscillationAnswerAttemptOutcome => (
+  value === 'correct'
+  || value === 'empty'
+  || value === 'invalid'
+  || value === 'numeric-wrong'
+  || value === 'precision-wrong'
+  || value === 'wrong'
+  || value === 'unknown'
+);
+
+const normalizeStoredAnswerAttempts = (
+  value: unknown,
+  legacyAttemptCount = 0,
+): PistonOscillationAnswerAttemptSnapshot[] => {
+  const attempts = Array.isArray(value)
+    ? value.flatMap((attempt, index) => {
+        if (!isPlainRecord(attempt) || !isStoredAnswerAttemptOutcome(attempt.outcome)) return [];
+        const inputKnown = attempt.inputKnown === false
+          ? false
+          : typeof attempt.draftRaw === 'string';
+        return [{
+          attemptIndex: Number.isSafeInteger(attempt.attemptIndex)
+            && (attempt.attemptIndex as number) > 0
+            ? attempt.attemptIndex as number
+            : index + 1,
+          attemptedAtMs: isFiniteNumber(attempt.attemptedAtMs)
+            ? attempt.attemptedAtMs
+            : null,
+          draftRaw: inputKnown && typeof attempt.draftRaw === 'string'
+            ? attempt.draftRaw
+            : null,
+          inputKnown,
+          parsedValue: attempt.parsedValue === null || isFiniteNumber(attempt.parsedValue)
+            ? attempt.parsedValue as number | null
+            : null,
+          outcome: attempt.outcome,
+          numericCorrect: typeof attempt.numericCorrect === 'boolean'
+            ? attempt.numericCorrect
+            : null,
+          precisionCorrect: typeof attempt.precisionCorrect === 'boolean'
+            ? attempt.precisionCorrect
+            : null,
+        } satisfies PistonOscillationAnswerAttemptSnapshot];
+      })
+    : [];
+  if (attempts.length > 0 || legacyAttemptCount <= 0) return attempts;
+  return Array.from({ length: legacyAttemptCount }, (_, index) => ({
+    attemptIndex: index + 1,
+    attemptedAtMs: null,
+    draftRaw: null,
+    inputKnown: false,
+    parsedValue: null,
+    outcome: 'unknown' as const,
+    numericCorrect: null,
+    precisionCorrect: null,
+  }));
+};
+
+const resolveStoredAnswerResolution = (
+  status: PistonOscillationPeriodAnswerStatus,
+  attempts: readonly PistonOscillationAnswerAttemptSnapshot[],
+): PistonOscillationAnswerResolution => {
+  if (status === 'correct') return attempts.length <= 1 ? 'first-correct' : 'retry-correct';
+  if (status === 'revealed') {
+    return attempts.some((attempt) => attempt.parsedValue !== null)
+      ? 'revealed-after-attempt'
+      : 'revealed-without-valid-attempt';
+  }
+  return null;
+};
+
 const normalizeAnswer = (
   value: unknown,
   fallback: PistonOscillationPeriodAnswerState,
@@ -2087,8 +2310,17 @@ const normalizeAnswer = (
         outcome: value.feedback.outcome,
         numericCorrect: value.feedback.numericCorrect === true,
         precisionCorrect: value.feedback.precisionCorrect === true,
-      }
+    }
     : null;
+  const persistedAttemptCount = Number.isInteger(value.attemptCount)
+    && (value.attemptCount as number) >= 0
+    ? value.attemptCount as number
+    : 0;
+  const legacyAttemptCount = Math.max(
+    persistedAttemptCount,
+    status === 'correct' || status === 'revealed' ? 1 : 0,
+  );
+  const attempts = normalizeStoredAnswerAttempts(value.attempts, legacyAttemptCount);
   return {
     draftRaw: status === 'revealed' && expectedValue !== null
       ? formatExpectedValue(expectedValue)
@@ -2096,9 +2328,9 @@ const normalizeAnswer = (
     expectedValue,
     status,
     feedback: status === 'unresolved' ? feedback : null,
-    attemptCount: Number.isInteger(value.attemptCount) && (value.attemptCount as number) >= 0
-      ? value.attemptCount as number
-      : 0,
+    attemptCount: attempts.length,
+    attempts,
+    resolution: resolveStoredAnswerResolution(status, attempts),
   };
 };
 
@@ -2233,37 +2465,6 @@ const normalizeCalculationKnowns = (
   };
 };
 
-const normalizeCalculationAttempts = (
-  value: unknown,
-): PistonOscillationCalculationAttemptSnapshot[] => {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((attempt) => {
-    if (
-      !isPlainRecord(attempt)
-      || !isFiniteNumber(attempt.attemptedAtMs)
-      || typeof attempt.draftRaw !== 'string'
-      || (
-        attempt.outcome !== 'correct'
-        && attempt.outcome !== 'empty'
-        && attempt.outcome !== 'invalid'
-        && attempt.outcome !== 'numeric-wrong'
-        && attempt.outcome !== 'precision-wrong'
-        && attempt.outcome !== 'wrong'
-      )
-    ) return [];
-    return [{
-      attemptedAtMs: attempt.attemptedAtMs,
-      draftRaw: attempt.draftRaw,
-      parsedValue: attempt.parsedValue === null || isFiniteNumber(attempt.parsedValue)
-        ? attempt.parsedValue as number | null
-        : null,
-      outcome: attempt.outcome,
-      numericCorrect: attempt.numericCorrect === true,
-      precisionCorrect: attempt.precisionCorrect === true,
-    } satisfies PistonOscillationCalculationAttemptSnapshot];
-  });
-};
-
 const normalizeCalculationAnswer = (
   value: unknown,
   expectedValue: number,
@@ -2301,6 +2502,10 @@ const normalizeCalculationAnswer = (
         precisionCorrect: value.feedback.precisionCorrect === true,
       } satisfies PistonOscillationPeriodAnswerFeedback
     : null;
+  const attempts = normalizeStoredAnswerAttempts(
+    value.attempts,
+    status === 'correct' || status === 'revealed' ? 1 : 0,
+  );
   return {
     draftRaw: status === 'revealed'
       ? formatPistonOscillationCalculationAnswer(fieldId, expectedValue)
@@ -2308,7 +2513,8 @@ const normalizeCalculationAnswer = (
     expectedValue,
     status,
     feedback,
-    attempts: normalizeCalculationAttempts(value.attempts),
+    attempts,
+    resolution: resolveStoredAnswerResolution(status, attempts),
   };
 };
 

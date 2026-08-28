@@ -16,6 +16,20 @@ const styleSource = readFileSync(join(
   'heatCapacity',
   'HeatCapacityBatchSetupDialog.css',
 ), 'utf8');
+const selectorSource = readFileSync(join(
+  process.cwd(),
+  'src',
+  'components',
+  'experiments',
+  'ExperimentCountSelector.tsx',
+), 'utf8');
+const selectorStyleSource = readFileSync(join(
+  process.cwd(),
+  'src',
+  'components',
+  'experiments',
+  'ExperimentCountSelector.css',
+), 'utf8');
 const shellSource = readFileSync(join(
   process.cwd(),
   'src',
@@ -31,8 +45,18 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /placeholder:\s*'请选择实验次数'/,
-  'Simplified Chinese should use the approved experiment-count terminology',
+  /inputAria:\s*'输入本组实验次数'/,
+  'Simplified Chinese should use the approved direct-entry experiment-count terminology',
+);
+assert.match(
+  componentSource,
+  /placeholder:\s*'请选择实验次数'[\s\S]*emptyHint:\s*'可选择 3 至 7 次'/,
+  'the empty selector should restore the older Heat Capacity label and helper line',
+);
+assert.match(
+  componentSource,
+  /useState\(''\)[\s\S]*selectedCount === null \? '' : String\(selectedCount\)/,
+  'a newly opened setup should preserve the approved blank, unselected count state',
 );
 assert.match(
   componentSource,
@@ -47,15 +71,16 @@ assert.match(
 assert.match(componentSource, /'zh-CN':[\s\S]*'zh-TW':[\s\S]*en:/, 'all three workbench languages should be provided');
 assert.match(componentSource, /<PromptDialogShell[\s\S]*role="dialog"/, 'setup should use the shared task-dialog shell');
 assert.match(shellSource, /aria-modal="true"/, 'the shared shell should provide modal semantics');
-assert.match(componentSource, /aria-haspopup="listbox"/, 'group selector should expose listbox semantics');
-assert.match(componentSource, /role="option"/, 'group selector should expose option semantics');
-assert.match(componentSource, /case 'ArrowDown':[\s\S]*case 'ArrowUp':/, 'arrow-key selection should be supported');
-assert.match(componentSource, /case 'Enter':[\s\S]*case ' ':/, 'Enter and Space selection should be supported');
-assert.match(componentSource, /case 'Escape':[\s\S]*closeMenu[\s\S]*onCancel\(\)/, 'Escape should close the selector first, then cancel the batch dialog');
-assert.match(componentSource, /document\.addEventListener\('pointerdown'/, 'outside click should close the selector');
+assert.match(componentSource, /<ExperimentCountSelector/, 'Heat Capacity should use the shared count selector');
+assert.match(selectorSource, /aria-haspopup="listbox"/, 'the shared selector should expose listbox semantics');
+assert.match(selectorSource, /role="option"/, 'the shared selector should expose option semantics');
+assert.match(selectorSource, /event\.key === 'ArrowDown' \|\| event\.key === 'ArrowUp'/, 'arrow-key selection should be supported');
+assert.match(selectorSource, /event\.key === 'Enter'/, 'Enter selection should be supported');
+assert.match(selectorSource, /event\.key === 'Escape'[\s\S]*setMenuOpen\(false\)/, 'Escape should close the shared selector first');
+assert.match(selectorSource, /document\.addEventListener\('pointerdown'/, 'outside click should close the selector');
 assert.match(
   componentSource,
-  /data-heat-capacity-batch-setup-confirm="true"[\s\S]*disabled=\{selectedCount === null\}/,
+  /data-heat-capacity-batch-setup-confirm="true"[\s\S]*disabled=\{resolvedCount === null\}/,
   'confirmation should stay disabled until a group count is selected',
 );
 assert.match(
@@ -81,9 +106,19 @@ assert.match(
   'setup should use a compact settings-window width',
 );
 assert.match(
-  styleSource,
-  /\.studio-heat-batch-setup-menu\s*\{[\s\S]*top:\s*calc\(100% \+ 6px\)/,
-  'the language-style menu should open below its trigger',
+  selectorStyleSource,
+  /\.experiment-count-selector-menu\s*\{[\s\S]*top:\s*calc\(100% \+ 6px\)/,
+  'the shared language-style menu should open below its trigger',
+);
+assert.match(
+  selectorStyleSource,
+  /\.experiment-count-selector\s*\{[\s\S]*min-height:\s*64px;[\s\S]*border-radius:\s*4px;/,
+  'the shared selector should use the older Heat Capacity settings-card silhouette',
+);
+assert.match(
+  selectorStyleSource,
+  /\.experiment-count-selector-menu button\s*\{[\s\S]*border-top:\s*1px solid var\(--studio-border-soft\);/,
+  'the count menu should restore the older continuous row list',
 );
 assert.match(
   styleSource,

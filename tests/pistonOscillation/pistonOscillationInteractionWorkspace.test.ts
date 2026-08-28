@@ -393,7 +393,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /handledGuideSessionRevisionRef\.current === guideSessionRevision[\s\S]*setMode\(guideRequestedFocusMode \?\? 'overview'\)[\s\S]*guideRequestedFocusMode/,
+  /handledGuideSessionRevisionRef\.current === guideSessionRevision[\s\S]*setMode\([\s\S]*guideRequestedFocusMode[\s\S]*\?\? guideInitialInstrumentState\?\.focusMode[\s\S]*\?\? 'overview'[\s\S]*guideRequestedFocusMode/,
   'a Guide reset should restore the focus required by the current step instead of overwriting an auto-advanced height step with the overview',
 );
 assert.match(

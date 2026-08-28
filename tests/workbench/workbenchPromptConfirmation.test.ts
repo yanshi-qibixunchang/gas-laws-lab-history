@@ -82,8 +82,8 @@ for (const promptId of [
 ]) {
   assert.ok(workbenchSource.includes(promptId), `workbench must route ${promptId} through the internal confirmation`);
 }
-assert.match(workbenchSource, /onRestartExperiment=\{requestRestartHeatCapacityFreeExperiment\}/, 'the current-experiment restart should request confirmation from the progress menu');
-assert.match(workbenchSource, /onRestartGroup=\{requestRestartHeatCapacityFreeGroup\}/, 'the whole-group restart should request a separate confirmation from the progress menu');
+assert.match(workbenchSource, /id: 'restart-current-experiment'[\s\S]*onSelect: requestRestartHeatCapacityFreeExperiment/, 'the current-experiment restart should request confirmation from the shared progress menu');
+assert.match(workbenchSource, /id: 'restart-experiment-group'[\s\S]*onSelect: requestRestartHeatCapacityFreeGroup/, 'the whole-group restart should request a separate confirmation from the shared progress menu');
 assert.match(workbenchSource, /onReset=\{restartHeatCapacityFreeExperiment\}/, 'the invalid-flow dialog should execute the scoped current-experiment restart directly');
 assert.match(workbenchSource, /<PromptConfirmDialog[\s\S]*request=\{activePromptConfirmation\}/);
 

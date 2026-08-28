@@ -1,17 +1,20 @@
-import { ChevronDown } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import {
   useEffect,
   useId,
   useRef,
   useState,
-  type ChangeEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from 'react';
+import {
+  ExperimentCountSelector,
+  parseExperimentCountDraft,
+} from '../../components/experiments/ExperimentCountSelector.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
-  PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM,
   PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM,
+  isValidPistonOscillationFreeCustomHeightMm,
   isValidPistonOscillationFreeExperimentPlan,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
@@ -26,20 +29,26 @@ export interface PistonOscillationFreeSetupDialogProps {
   open: boolean;
   language: WorkbenchLanguagePreference;
   initialTargetHeightsMm?: readonly number[];
+  initialCustomHeightCandidatesMm?: readonly number[];
   onCancel: () => void;
-  onConfirm: (targetHeightsMm: readonly number[]) => void;
+  onConfirm: (
+    targetHeightsMm: readonly number[],
+    customHeightCandidatesMm: readonly number[],
+  ) => void;
 }
 
 const COPY = {
   'zh-CN': {
     title: '设置自由模式实验计划',
     subtitle: '活塞振动法 · 自由模式',
-    description: '先确定本组实验次数，再从六个正式高度中选择相同数量的测量点。确认后，系统只记录操作和实验结果，不提示步骤对错。',
+    description: '先确定本组实验次数，再从系统高度或自定义候选中选择相同数量的测量点。确认后，系统只记录操作和实验结果，不提示步骤对错。',
     countTitle: '第一步：选择实验次数',
     countHint: '可直接输入，也可展开菜单选择 3 至 6 次。',
     countInputAria: '输入自由模式实验次数',
     countMenuAria: '选择自由模式实验次数',
     countMenuButtonAria: '展开实验次数菜单',
+    countPlaceholder: '请选择实验次数',
+    countEmptyHint: '可选择 3 至 6 次',
     countOption: (count: number) => `${count} 次`,
     countOptionHint: (count: number) => `选择 ${count} 个不同高度`,
     invalidCount: '请输入 3 至 6 的整数。',
@@ -55,18 +64,31 @@ const COPY = {
     removeHeights: (count: number) => `请取消 ${count} 个高度。`,
     selectionReady: '实验次数与测量高度已经匹配。',
     heightAria: (height: number, selected: boolean) => `${height} mm，${selected ? '已选中' : '未选中'}`,
+    customTitle: '自定义高度',
+    customHint: '可添加任意数量的 0 至 80 mm 整数候选；计划仍只能选择 3 至 6 个高度。',
+    customInputAria: '输入自定义高度',
+    customPlaceholder: '例如 65',
+    addCustom: '添加',
+    customEmpty: '还没有添加自定义高度。',
+    customInvalid: '请输入 0 至 80 的整数。',
+    customDuplicate: (height: number) => `${height} mm 已经在候选列表中。`,
+    customAdded: (height: number) => `已添加 ${height} mm。`,
+    nonRecommended: '非推荐',
+    nonRecommendedHint: '低于 30 mm，不属于标准推荐区间，但仍可选择。',
     cancel: '取消',
     confirm: '进入自由模式',
   },
   'zh-TW': {
     title: '設定自由模式實驗計畫',
     subtitle: '活塞振動法 · 自由模式',
-    description: '先確定本組實驗次數，再從六個正式高度中選擇相同數量的測量點。確認後，系統只記錄操作和實驗結果，不提示步驟對錯。',
+    description: '先確定本組實驗次數，再從系統高度或自訂候選中選擇相同數量的測量點。確認後，系統只記錄操作和實驗結果，不提示步驟對錯。',
     countTitle: '第一步：選擇實驗次數',
     countHint: '可直接輸入，也可展開選單選擇 3 至 6 次。',
     countInputAria: '輸入自由模式實驗次數',
     countMenuAria: '選擇自由模式實驗次數',
     countMenuButtonAria: '展開實驗次數選單',
+    countPlaceholder: '請選擇實驗次數',
+    countEmptyHint: '可選擇 3 至 6 次',
     countOption: (count: number) => `${count} 次`,
     countOptionHint: (count: number) => `選擇 ${count} 個不同高度`,
     invalidCount: '請輸入 3 至 6 的整數。',
@@ -82,18 +104,31 @@ const COPY = {
     removeHeights: (count: number) => `請取消 ${count} 個高度。`,
     selectionReady: '實驗次數與測量高度已經匹配。',
     heightAria: (height: number, selected: boolean) => `${height} mm，${selected ? '已選中' : '未選中'}`,
+    customTitle: '自訂高度',
+    customHint: '可加入任意數量的 0 至 80 mm 整數候選；計畫仍只能選擇 3 至 6 個高度。',
+    customInputAria: '輸入自訂高度',
+    customPlaceholder: '例如 65',
+    addCustom: '加入',
+    customEmpty: '尚未加入自訂高度。',
+    customInvalid: '請輸入 0 至 80 的整數。',
+    customDuplicate: (height: number) => `${height} mm 已經在候選清單中。`,
+    customAdded: (height: number) => `已加入 ${height} mm。`,
+    nonRecommended: '非推薦',
+    nonRecommendedHint: '低於 30 mm，不屬於標準推薦區間，但仍可選擇。',
     cancel: '取消',
     confirm: '進入自由模式',
   },
   en: {
     title: 'Set the Free-mode experiment plan',
     subtitle: 'Piston oscillation · Free mode',
-    description: 'Choose the number of experiments, then select the same number of formal measurement heights. After confirmation, the system records operations and outcomes without judging each step.',
+    description: 'Choose the number of experiments, then select the same number of system or custom height candidates. After confirmation, the system records operations and outcomes without judging each step.',
     countTitle: 'Step 1: Choose the experiment count',
     countHint: 'Enter a value directly or choose 3 to 6 from the menu.',
     countInputAria: 'Enter the Free-mode experiment count',
     countMenuAria: 'Choose the Free-mode experiment count',
     countMenuButtonAria: 'Open the experiment-count menu',
+    countPlaceholder: 'Select experiment count',
+    countEmptyHint: 'Choose from 3 to 6 experiments',
     countOption: (count: number) => `${count} experiments`,
     countOptionHint: (count: number) => `Select ${count} different heights`,
     invalidCount: 'Enter a whole number from 3 to 6.',
@@ -109,6 +144,17 @@ const COPY = {
     removeHeights: (count: number) => `Deselect ${count} ${count === 1 ? 'height' : 'heights'}.`,
     selectionReady: 'The experiment count and selected heights match.',
     heightAria: (height: number, selected: boolean) => `${height} mm, ${selected ? 'selected' : 'not selected'}`,
+    customTitle: 'Custom heights',
+    customHint: 'Add any number of whole-number candidates from 0 to 80 mm; the plan still uses only 3 to 6 heights.',
+    customInputAria: 'Enter a custom height',
+    customPlaceholder: 'For example, 65',
+    addCustom: 'Add',
+    customEmpty: 'No custom heights added yet.',
+    customInvalid: 'Enter a whole number from 0 to 80.',
+    customDuplicate: (height: number) => `${height} mm is already available.`,
+    customAdded: (height: number) => `${height} mm added.`,
+    nonRecommended: 'Not recommended',
+    nonRecommendedHint: 'Below 30 mm and outside the standard recommended range, but still selectable.',
     cancel: 'Cancel',
     confirm: 'Enter Free mode',
   },
@@ -116,23 +162,31 @@ const COPY = {
 
 const normalizeInitialTargetHeights = (value: readonly number[] | undefined) => (
   value && isValidPistonOscillationFreeExperimentPlan(value)
-    ? [...value]
-    : [...PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM]
+    ? [...value].sort((first, second) => second - first)
+    : []
+);
+
+const normalizeInitialCustomHeights = (value: readonly number[] | undefined) => (
+  [...new Set((value ?? []).filter((heightMm) => (
+    isValidPistonOscillationFreeCustomHeightMm(heightMm)
+    && !PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM.includes(
+      heightMm as (typeof PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM)[number],
+    )
+  )))].sort((first, second) => second - first)
 );
 
 const parseMeasurementCount = (draft: string): PistonOscillationFreeMeasurementCount | null => {
-  if (!/^[3-6]$/.test(draft.trim())) return null;
-  return Number(draft) as PistonOscillationFreeMeasurementCount;
+  return parseExperimentCountDraft(
+    draft,
+    PISTON_OSCILLATION_FREE_COUNT_OPTIONS,
+  ) as PistonOscillationFreeMeasurementCount | null;
 };
-
-const getOptionIndex = (count: PistonOscillationFreeMeasurementCount | null) => (
-  count === null ? 0 : PISTON_OSCILLATION_FREE_COUNT_OPTIONS.indexOf(count)
-);
 
 export const PistonOscillationFreeSetupDialog = ({
   open,
   language,
   initialTargetHeightsMm,
+  initialCustomHeightCandidatesMm,
   onCancel,
   onConfirm,
 }: PistonOscillationFreeSetupDialogProps) => {
@@ -140,17 +194,23 @@ export const PistonOscillationFreeSetupDialog = ({
   const generatedId = useId();
   const descriptionId = `${generatedId}-description`;
   const countHintId = `${generatedId}-count-hint`;
-  const countListboxId = `${generatedId}-count-listbox`;
   const heightHintId = `${generatedId}-height-hint`;
-  const countControlRef = useRef<HTMLDivElement | null>(null);
+  const customHintId = `${generatedId}-custom-hint`;
   const countInputRef = useRef<HTMLInputElement | null>(null);
-  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
-  const [countDraft, setCountDraft] = useState('3');
+  const customInputRef = useRef<HTMLInputElement | null>(null);
+  const [countDraft, setCountDraft] = useState('');
   const [selectedHeightsMm, setSelectedHeightsMm] = useState<number[]>(
     () => normalizeInitialTargetHeights(initialTargetHeightsMm),
   );
+  const [customHeightCandidatesMm, setCustomHeightCandidatesMm] = useState<number[]>(
+    () => normalizeInitialCustomHeights(initialCustomHeightCandidatesMm),
+  );
+  const [customHeightDraft, setCustomHeightDraft] = useState('');
+  const [customHeightMessage, setCustomHeightMessage] = useState<{
+    kind: 'error' | 'success' | 'note';
+    text: string;
+  } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   useEffect(() => {
     if (!open) {
@@ -158,23 +218,20 @@ export const PistonOscillationFreeSetupDialog = ({
       return;
     }
     const nextHeights = normalizeInitialTargetHeights(initialTargetHeightsMm);
-    const nextCount = nextHeights.length as PistonOscillationFreeMeasurementCount;
-    setCountDraft(String(nextCount));
+    const nextCustomHeights = normalizeInitialCustomHeights([
+      ...(initialCustomHeightCandidatesMm ?? []),
+      ...nextHeights,
+    ]);
+    const nextCount = nextHeights.length >= 3
+      ? nextHeights.length as PistonOscillationFreeMeasurementCount
+      : null;
+    setCountDraft(nextCount === null ? '' : String(nextCount));
     setSelectedHeightsMm(nextHeights);
-    setHighlightedIndex(getOptionIndex(nextCount));
+    setCustomHeightCandidatesMm(nextCustomHeights);
+    setCustomHeightDraft('');
+    setCustomHeightMessage(null);
     setMenuOpen(false);
-  }, [initialTargetHeightsMm, open]);
-
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const handlePointerDown = (event: PointerEvent) => {
-      if (event.target instanceof Node && !countControlRef.current?.contains(event.target)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => document.removeEventListener('pointerdown', handlePointerDown);
-  }, [menuOpen]);
+  }, [initialCustomHeightCandidatesMm, initialTargetHeightsMm, open]);
 
   const selectedCount = parseMeasurementCount(countDraft);
   const selectionDelta = selectedCount === null
@@ -184,50 +241,6 @@ export const PistonOscillationFreeSetupDialog = ({
     && selectionDelta === 0
     && isValidPistonOscillationFreeExperimentPlan(selectedHeightsMm);
 
-  const selectCount = (count: PistonOscillationFreeMeasurementCount) => {
-    setCountDraft(String(count));
-    setHighlightedIndex(getOptionIndex(count));
-    setMenuOpen(false);
-    window.requestAnimationFrame(() => countInputRef.current?.focus());
-  };
-
-  const moveHighlight = (direction: 1 | -1) => {
-    setHighlightedIndex((current) => (
-      (current + direction + PISTON_OSCILLATION_FREE_COUNT_OPTIONS.length)
-      % PISTON_OSCILLATION_FREE_COUNT_OPTIONS.length
-    ));
-  };
-
-  const handleCountInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    setCountDraft(event.target.value.replace(/[^0-9]/g, ''));
-  };
-
-  const handleCountInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-      event.preventDefault();
-      if (!menuOpen) {
-        const currentCount = parseMeasurementCount(countDraft);
-        setHighlightedIndex(event.key === 'ArrowUp' && currentCount === null
-          ? PISTON_OSCILLATION_FREE_COUNT_OPTIONS.length - 1
-          : getOptionIndex(currentCount));
-        setMenuOpen(true);
-      } else {
-        moveHighlight(event.key === 'ArrowDown' ? 1 : -1);
-      }
-      return;
-    }
-    if (event.key === 'Enter' && menuOpen) {
-      event.preventDefault();
-      selectCount(PISTON_OSCILLATION_FREE_COUNT_OPTIONS[highlightedIndex]);
-      return;
-    }
-    if (event.key === 'Escape' && menuOpen) {
-      event.preventDefault();
-      event.stopPropagation();
-      setMenuOpen(false);
-    }
-  };
-
   const toggleHeight = (heightMm: number) => {
     if (selectedCount === null) return;
     setSelectedHeightsMm((current) => {
@@ -235,10 +248,37 @@ export const PistonOscillationFreeSetupDialog = ({
         return current.filter((candidate) => candidate !== heightMm);
       }
       if (current.length >= selectedCount) return current;
-      return PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM.filter((candidate) => (
-        candidate === heightMm || current.includes(candidate)
-      ));
+      return [...current, heightMm].sort((first, second) => second - first);
     });
+  };
+
+  const addCustomHeight = () => {
+    const trimmedDraft = customHeightDraft.trim();
+    if (!/^[0-9]+$/.test(trimmedDraft)) {
+      setCustomHeightMessage({ kind: 'error', text: copy.customInvalid });
+      return;
+    }
+    const heightMm = Number(trimmedDraft);
+    if (!isValidPistonOscillationFreeCustomHeightMm(heightMm)) {
+      setCustomHeightMessage({ kind: 'error', text: copy.customInvalid });
+      return;
+    }
+    if (
+      PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM.includes(
+        heightMm as (typeof PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM)[number],
+      )
+      || customHeightCandidatesMm.includes(heightMm)
+    ) {
+      setCustomHeightMessage({ kind: 'note', text: copy.customDuplicate(heightMm) });
+      setCustomHeightDraft('');
+      return;
+    }
+    setCustomHeightCandidatesMm((current) => (
+      [...current, heightMm].sort((first, second) => second - first)
+    ));
+    setCustomHeightDraft('');
+    setCustomHeightMessage({ kind: 'success', text: copy.customAdded(heightMm) });
+    window.requestAnimationFrame(() => customInputRef.current?.focus());
   };
 
   const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -246,8 +286,7 @@ export const PistonOscillationFreeSetupDialog = ({
     event.preventDefault();
     event.stopPropagation();
     if (menuOpen) {
-      setMenuOpen(false);
-      window.requestAnimationFrame(() => menuButtonRef.current?.focus());
+      return;
     } else {
       onCancel();
     }
@@ -255,7 +294,6 @@ export const PistonOscillationFreeSetupDialog = ({
 
   const handleOverlayMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
     event.stopPropagation();
-    if (menuOpen && event.target === event.currentTarget) setMenuOpen(false);
   };
 
   if (!open) return null;
@@ -297,91 +335,30 @@ export const PistonOscillationFreeSetupDialog = ({
               <span id={countHintId}>{copy.countHint}</span>
             </div>
           </header>
-          <div className="studio-piston-free-count-field">
-            <div
-              ref={countControlRef}
-              className={`studio-piston-free-count-combobox ${menuOpen ? 'studio-piston-free-count-combobox-open' : ''}`}
-            >
-              <input
-                ref={countInputRef}
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={countDraft}
-                role="combobox"
-                aria-label={copy.countInputAria}
-                aria-describedby={countHintId}
-                aria-invalid={selectedCount === null}
-                aria-haspopup="listbox"
-                aria-expanded={menuOpen}
-                aria-controls={menuOpen ? countListboxId : undefined}
-                aria-activedescendant={menuOpen
-                  ? `${countListboxId}-option-${PISTON_OSCILLATION_FREE_COUNT_OPTIONS[highlightedIndex]}`
-                  : undefined}
-                onChange={handleCountInputChange}
-                onKeyDown={handleCountInputKeyDown}
-                onFocus={(event) => event.currentTarget.select()}
-              />
-              <span aria-hidden="true">{language === 'en' ? 'experiments' : '次'}</span>
-              <button
-                ref={menuButtonRef}
-                type="button"
-                aria-label={copy.countMenuButtonAria}
-                aria-haspopup="listbox"
-                aria-expanded={menuOpen}
-                aria-controls={menuOpen ? countListboxId : undefined}
-                onClick={() => {
-                  setHighlightedIndex(getOptionIndex(selectedCount));
-                  setMenuOpen((current) => !current);
-                }}
-              >
-                <ChevronDown
-                  size={16}
-                  aria-hidden="true"
-                  className={menuOpen ? 'studio-piston-free-count-chevron-open' : ''}
-                />
-              </button>
-
-              {menuOpen ? (
-                <div
-                  id={countListboxId}
-                  className="studio-settings-language-menu studio-piston-free-count-menu"
-                  role="listbox"
-                  aria-label={copy.countMenuAria}
-                >
-                  {PISTON_OSCILLATION_FREE_COUNT_OPTIONS.map((count, index) => {
-                    const selected = selectedCount === count;
-                    const highlighted = highlightedIndex === index;
-                    return (
-                      <button
-                        id={`${countListboxId}-option-${count}`}
-                        key={count}
-                        type="button"
-                        role="option"
-                        tabIndex={-1}
-                        aria-selected={selected}
-                        className={`${selected ? 'studio-settings-language-active' : ''} ${
-                          highlighted ? 'studio-piston-free-count-option-highlighted' : ''
-                        }`}
-                        onMouseDown={(event) => event.preventDefault()}
-                        onMouseEnter={() => setHighlightedIndex(index)}
-                        onClick={() => selectCount(count)}
-                      >
-                        <strong>{copy.countOption(count)}</strong>
-                        <span>{copy.countOptionHint(count)}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : null}
-            </div>
-            <small
-              className={selectedCount === null ? 'studio-piston-free-setup-error' : ''}
-              role={selectedCount === null ? 'alert' : undefined}
-            >
-              {selectedCount === null ? copy.invalidCount : copy.selectedCount(selectedCount)}
-            </small>
-          </div>
+          <ExperimentCountSelector
+            ref={countInputRef}
+            options={PISTON_OSCILLATION_FREE_COUNT_OPTIONS}
+            draft={countDraft}
+            onDraftChange={setCountDraft}
+            onValidValueEnter={() => {
+              window.requestAnimationFrame(() => customInputRef.current?.focus());
+            }}
+            onMenuOpenChange={setMenuOpen}
+            dataOwner="piston-oscillation"
+            describedBy={countHintId}
+            copy={{
+              inputAria: copy.countInputAria,
+              menuAria: copy.countMenuAria,
+              menuButtonAria: copy.countMenuButtonAria,
+              placeholder: copy.countPlaceholder,
+              emptyHint: copy.countEmptyHint,
+              unit: language === 'en' ? 'experiments' : '次',
+              invalid: copy.invalidCount,
+              selected: copy.selectedCount,
+              option: copy.countOption,
+              optionHint: copy.countOptionHint,
+            }}
+          />
         </section>
 
         <section className="studio-piston-free-setup-section" aria-labelledby={`${generatedId}-height-title`}>
@@ -402,23 +379,116 @@ export const PistonOscillationFreeSetupDialog = ({
               const selected = selectedHeightsMm.includes(heightMm);
               const selectionLimitReached = selectedCount !== null
                 && selectedHeightsMm.length >= selectedCount;
-              const disabled = selectedCount === null || (!selected && selectionLimitReached);
+              const selectionBlocked = selectedCount === null || (!selected && selectionLimitReached);
               return (
                 <button
                   key={heightMm}
                   type="button"
                   aria-pressed={selected}
+                  aria-disabled={selectionBlocked}
                   aria-label={copy.heightAria(heightMm, selected)}
-                  disabled={disabled}
                   data-piston-free-height-mm={heightMm}
                   data-selected={selected ? 'true' : 'false'}
-                  onClick={() => toggleHeight(heightMm)}
+                  data-selection-blocked={selectionBlocked ? 'true' : 'false'}
+                  data-height-source="system"
+                  onClick={() => {
+                    if (!selectionBlocked) toggleHeight(heightMm);
+                  }}
                 >
                   <strong>{heightMm}</strong>
                   <span>mm</span>
                 </button>
               );
             })}
+          </div>
+
+          <div className="studio-piston-free-custom-height" aria-labelledby={`${generatedId}-custom-title`}>
+            <div className="studio-piston-free-custom-heading">
+              <div>
+                <strong id={`${generatedId}-custom-title`}>{copy.customTitle}</strong>
+                <span id={customHintId}>{copy.customHint}</span>
+              </div>
+              <div className="studio-piston-free-custom-entry">
+                <div>
+                  <input
+                    ref={customInputRef}
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={customHeightDraft}
+                    placeholder={copy.customPlaceholder}
+                    aria-label={copy.customInputAria}
+                    aria-describedby={customHintId}
+                    aria-invalid={customHeightMessage?.kind === 'error'}
+                    onChange={(event) => {
+                      setCustomHeightDraft(event.target.value);
+                      setCustomHeightMessage(null);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        addCustomHeight();
+                      }
+                    }}
+                  />
+                  <span aria-hidden="true">mm</span>
+                </div>
+                <button type="button" onClick={addCustomHeight}>
+                  <Plus size={14} aria-hidden="true" />
+                  {copy.addCustom}
+                </button>
+              </div>
+            </div>
+
+            {customHeightCandidatesMm.length > 0 ? (
+              <div
+                className="studio-piston-free-height-grid studio-piston-free-custom-height-grid"
+                role="group"
+                aria-label={copy.customTitle}
+              >
+                {customHeightCandidatesMm.map((heightMm) => {
+                  const selected = selectedHeightsMm.includes(heightMm);
+                  const selectionLimitReached = selectedCount !== null
+                    && selectedHeightsMm.length >= selectedCount;
+                  const selectionBlocked = selectedCount === null
+                    || (!selected && selectionLimitReached);
+                  const nonRecommended = heightMm < 30;
+                  return (
+                    <button
+                      key={heightMm}
+                      type="button"
+                      aria-pressed={selected}
+                      aria-disabled={selectionBlocked}
+                      aria-label={`${copy.heightAria(heightMm, selected)}${
+                        nonRecommended ? `，${copy.nonRecommendedHint}` : ''
+                      }`}
+                      data-piston-free-height-mm={heightMm}
+                      data-selected={selected ? 'true' : 'false'}
+                      data-selection-blocked={selectionBlocked ? 'true' : 'false'}
+                      data-height-source="custom"
+                      data-non-recommended={nonRecommended ? 'true' : 'false'}
+                      onClick={() => {
+                        if (!selectionBlocked) toggleHeight(heightMm);
+                      }}
+                    >
+                      <strong>{heightMm}</strong>
+                      <span>mm</span>
+                      {nonRecommended ? <em>{copy.nonRecommended}</em> : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="studio-piston-free-custom-empty">{copy.customEmpty}</p>
+            )}
+
+            <p
+              className={`studio-piston-free-custom-message is-${customHeightMessage?.kind ?? 'empty'}`}
+              role={customHeightMessage?.kind === 'error' ? 'alert' : 'status'}
+              aria-live="polite"
+            >
+              {customHeightMessage?.text ?? '\u00a0'}
+            </p>
           </div>
           <p
             className={`studio-piston-free-selection-hint ${
@@ -446,7 +516,12 @@ export const PistonOscillationFreeSetupDialog = ({
           data-piston-free-setup-confirm="true"
           disabled={!selectionComplete}
           onClick={() => {
-            if (selectionComplete) onConfirm(selectedHeightsMm);
+            if (selectionComplete) {
+              onConfirm(
+                [...selectedHeightsMm].sort((first, second) => second - first),
+                customHeightCandidatesMm,
+              );
+            }
           }}
         >
           {copy.confirm}

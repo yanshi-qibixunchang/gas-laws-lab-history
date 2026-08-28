@@ -108,6 +108,7 @@ export interface PistonOscillationGuideInstrumentSnapshot {
   hoseState: PistonOscillationHoseConnectionState;
   hoseDragging: boolean;
   equilibriumHeightMm: number;
+  pistonOffsetMm: number;
   lockingScrewProgress: number;
   lockingScrewState: 'loose' | 'locked';
   heightAdjustmentStage: PistonOscillationHeightAdjustmentStage;
@@ -1208,6 +1209,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
   language?: PistonOscillationLanguage;
   powerOn?: boolean;
   onPowerToggle?: (powerOn: boolean) => void;
+  sensorSampleRateHz?: number;
   initialMode?: PistonOscillationFocusMode;
   cameraPreset?: WorkbenchPistonOscillationCameraPreset;
   sceneTheme?: 'light' | 'dark';
@@ -1230,6 +1232,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
   guideHeightReset?: PistonOscillationGuideHeightResetRequest | null;
   viewportWarningFeedbackId?: string | null;
   overlayTopRight?: ReactNode;
+  overlayBelowDefaultView?: ReactNode;
   overlayCenter?: ReactNode;
   overlayCenterAboveGuideMask?: boolean;
   onGuideInstrumentSnapshotChange?: (
@@ -1252,6 +1255,7 @@ export const PistonOscillationInteractionWorkspace = ({
   language = 'zh-CN',
   powerOn = false,
   onPowerToggle,
+  sensorSampleRateHz,
   initialMode = 'pistonFocus',
   cameraPreset = 'overview',
   sceneTheme = 'light',
@@ -1272,6 +1276,7 @@ export const PistonOscillationInteractionWorkspace = ({
   guideHeightReset = null,
   viewportWarningFeedbackId = null,
   overlayTopRight,
+  overlayBelowDefaultView,
   overlayCenter,
   overlayCenterAboveGuideMask = false,
   onGuideInstrumentSnapshotChange,
@@ -1294,7 +1299,9 @@ export const PistonOscillationInteractionWorkspace = ({
   const handledOverviewRevisionRef = useRef(overviewRevision);
   const handledMeasurementCycleRevisionRef = useRef(measurementCycleRevision);
   const handledGuideSessionRevisionRef = useRef(guideSessionRevision);
-  const [mode, setMode] = useState<PistonOscillationFocusMode>(initialMode);
+  const [mode, setMode] = useState<PistonOscillationFocusMode>(
+    guideInitialInstrumentState?.focusMode ?? initialMode,
+  );
   const [bounds, setBounds] = useState<PistonOscillationSceneBounds | null>(null);
   const [transitionActive, setTransitionActive] = useState(false);
   const initialGuideHeightMm = clampPistonEquilibriumHeightMm(
@@ -1340,13 +1347,19 @@ export const PistonOscillationInteractionWorkspace = ({
     useState<PistonOscillationMouseAction | null>(null);
   const [shiftVisualizationActive, setShiftVisualizationActive] = useState(false);
   const [platformHovered, setPlatformHovered] = useState(false);
-  const [pistonOffsetMm, setPistonOffsetMm] = useState(0);
+  const [pistonOffsetMm, setPistonOffsetMm] = useState(
+    guideInitialInstrumentState?.pistonOffsetMm ?? 0,
+  );
   const [pistonEquilibriumHeightMm, setPistonEquilibriumHeightMm] = useState(
     initialGuideHeightMm,
   );
-  const [pistonPhase, setPistonPhase] = useState<PistonInteractionPhase>('idle');
+  const [pistonPhase, setPistonPhase] = useState<PistonInteractionPhase>(
+    guideInitialInstrumentState?.pistonPhase ?? 'idle',
+  );
   const [heightAdjustmentStage, setHeightAdjustmentStage] =
-    useState<PistonOscillationHeightAdjustmentStage>('readingHeight');
+    useState<PistonOscillationHeightAdjustmentStage>(
+      guideInitialInstrumentState?.heightAdjustmentStage ?? 'readingHeight',
+    );
   const [overviewFramingHeightMm, setOverviewFramingHeightMm] = useState(
     initialGuideHeightMm,
   );
@@ -1356,7 +1369,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const lockingScrewProgressRef = useRef(initialGuideScrewProgress);
   const spaceHeldRef = useRef(false);
   const mouseHeldRef = useRef(false);
-  const pistonOffsetMmRef = useRef(0);
+  const pistonOffsetMmRef = useRef(guideInitialInstrumentState?.pistonOffsetMm ?? 0);
   const pistonEquilibriumHeightMmRef = useRef(initialGuideHeightMm);
   const spaceReleasedAtRef = useRef<number | null>(null);
   const mouseReleasedAtRef = useRef<number | null>(null);
@@ -1692,6 +1705,7 @@ export const PistonOscillationInteractionWorkspace = ({
       hoseState,
       hoseDragging,
       equilibriumHeightMm: pistonEquilibriumHeightMm,
+      pistonOffsetMm,
       lockingScrewProgress,
       lockingScrewState: lockingScrewClampState,
       heightAdjustmentStage,
@@ -1708,6 +1722,7 @@ export const PistonOscillationInteractionWorkspace = ({
     mode,
     mouseHeld,
     pistonEquilibriumHeightMm,
+    pistonOffsetMm,
     pistonPhase,
     spaceHeld,
   ]);
@@ -2053,30 +2068,45 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelPistonRebound();
     cancelUnsupportedDrop();
     abortHeldInputs();
-    setMode(guideRequestedFocusMode ?? 'overview');
+    const restoredHeightMm = clampPistonEquilibriumHeightMm(
+      guideInitialInstrumentState?.equilibriumHeightMm
+        ?? PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
+    );
+    const restoredOffsetMm = guideInitialInstrumentState?.pistonOffsetMm ?? 0;
+    const restoredScrewProgress = Math.min(
+      1,
+      Math.max(0, guideInitialInstrumentState?.lockingScrewProgress ?? 0),
+    );
+    setMode(
+      guideRequestedFocusMode
+        ?? guideInitialInstrumentState?.focusMode
+        ?? 'overview',
+    );
     setTransitionActive(false);
     hoseGuideSupportLostDuringDragRef.current = false;
-    setHoseState('disconnected');
+    setHoseState(guideInitialInstrumentState?.hoseState ?? 'disconnected');
     setHoseDragging(false);
     setHoseHovered(false);
     setCameraGestureActive(false);
     setHoseGhostOffset([0, 0, 0]);
     setHoseWithinMagneticRange(false);
-    lockingScrewProgressRef.current = 0;
-    screwDragStartProgressRef.current = 0;
-    setLockingScrewProgress(0);
+    lockingScrewProgressRef.current = restoredScrewProgress;
+    screwDragStartProgressRef.current = restoredScrewProgress;
+    setLockingScrewProgress(restoredScrewProgress);
     setScrewHovered(false);
     setScrewDragging(false);
     setScrewHitPoint(null);
-    pistonOffsetMmRef.current = 0;
-    pistonEquilibriumHeightMmRef.current = PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM;
+    pistonOffsetMmRef.current = restoredOffsetMm;
+    pistonEquilibriumHeightMmRef.current = restoredHeightMm;
     unsupportedDropVelocityMmPerSRef.current = 0;
-    setPistonOffsetMm(0);
-    setPistonEquilibriumHeightMm(PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM);
-    setPistonPhase('idle');
+    setPistonOffsetMm(restoredOffsetMm);
+    setPistonEquilibriumHeightMm(restoredHeightMm);
+    setPistonPhase(guideInitialInstrumentState?.pistonPhase ?? 'idle');
     setOperationMirrorViewOverride(null);
-    setHeightAdjustmentStage('readingHeight');
-    setOverviewFramingHeightMm(PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM);
+    setHeightAdjustmentStage(
+      guideInitialInstrumentState?.heightAdjustmentStage ?? 'readingHeight',
+    );
+    setOverviewFramingHeightMm(restoredHeightMm);
     setOverviewPoseRevision((current) => current + 1);
     setReleaseGapMs(null);
     guidePauseStartedAtMsRef.current = null;
@@ -2087,6 +2117,7 @@ export const PistonOscillationInteractionWorkspace = ({
     abortHeldInputs,
     cancelPistonRebound,
     cancelUnsupportedDrop,
+    guideInitialInstrumentState,
     guideSessionRevision,
     guideRequestedFocusMode,
   ]);
@@ -2218,7 +2249,7 @@ export const PistonOscillationInteractionWorkspace = ({
     const trajectory = simulatePistonOscillationRelease({
       equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
       initialDisplacementMm,
-    });
+    }, { sensorSampleRateHz });
     const releaseStartedAtMs = performance.now();
     if (onReleaseEvent && initialDisplacementMm < -0.02) {
       releaseEventIdRef.current += 1;
@@ -2230,7 +2261,7 @@ export const PistonOscillationInteractionWorkspace = ({
       onReleaseEvent(releaseEvent);
     }
     startPistonRebound(trajectory, releaseStartedAtMs);
-  }, [onReleaseEvent, setPistonOffset, startPistonRebound]);
+  }, [onReleaseEvent, sensorSampleRateHz, setPistonOffset, startPistonRebound]);
   const handleMouseHeldChange = useCallback((held: boolean, releasedAtMs?: number) => {
     mouseHeldRef.current = held;
     setMouseHeld(held);
@@ -3106,6 +3137,14 @@ export const PistonOscillationInteractionWorkspace = ({
                 {restoreDefaultViewLabel}
               </button>
             ) : null}
+            {overlayBelowDefaultView ? (
+              <div
+                className="piston-oscillation-below-default-view"
+                data-preview-overlay-item="piston-below-default-view"
+              >
+                {overlayBelowDefaultView}
+              </div>
+            ) : null}
           </div>
 
           <div className="studio-preview-overlay-slot studio-preview-overlay-slot-bottom-left">
@@ -3216,6 +3255,7 @@ export const PistonOscillationInteractionWorkspace = ({
                               hoseState,
                               hoseDragging,
                               equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
+                              pistonOffsetMm: pistonOffsetMmRef.current,
                               lockingScrewProgress: lockingScrewProgressRef.current,
                               lockingScrewState: getPistonLockingScrewClampState(
                                 lockingScrewProgressRef.current,

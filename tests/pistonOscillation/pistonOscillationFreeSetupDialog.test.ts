@@ -9,6 +9,14 @@ const dialogStyles = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationFreeSetupDialog.css', import.meta.url),
   'utf8',
 );
+const selectorSource = readFileSync(
+  new URL('../../src/components/experiments/ExperimentCountSelector.tsx', import.meta.url),
+  'utf8',
+);
+const selectorStyles = readFileSync(
+  new URL('../../src/components/experiments/ExperimentCountSelector.css', import.meta.url),
+  'utf8',
+);
 const workbenchSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
@@ -28,14 +36,34 @@ assert.match(
   'Free mode should accept only 3–6 planned measurements',
 );
 assert.match(
-  dialogSource,
+  selectorSource,
   /type="text"[\s\S]*inputMode="numeric"[\s\S]*role="combobox"[\s\S]*aria-haspopup="listbox"/,
   'the count should support direct numeric entry and expose combobox semantics',
 );
 assert.match(
   dialogSource,
-  /studio-piston-free-count-menu"[\s\S]*role="listbox"[\s\S]*PISTON_OSCILLATION_FREE_COUNT_OPTIONS\.map/,
-  'the same count control should offer a dropdown list',
+  /<ExperimentCountSelector[\s\S]*options=\{PISTON_OSCILLATION_FREE_COUNT_OPTIONS\}/,
+  'Piston Oscillation should use the same shared count control as Heat Capacity',
+);
+assert.match(
+  dialogSource,
+  /onValidValueEnter=\{\(\) => \{[\s\S]*customInputRef\.current\?\.focus\(\)/,
+  'pressing Enter after a valid experiment count should move to the custom-height input',
+);
+assert.match(
+  dialogSource,
+  /countPlaceholder:\s*'请选择实验次数'[\s\S]*countEmptyHint:\s*'可选择 3 至 6 次'/,
+  'Piston setup should inherit the older Heat Capacity selector wording and hierarchy',
+);
+assert.match(
+  selectorSource,
+  /className="experiment-count-selector-menu"[\s\S]*role="listbox"[\s\S]*options\.map/,
+  'the shared count control should offer a dropdown list',
+);
+assert.match(
+  dialogSource,
+  /useState\(''\)[\s\S]*nextCount === null \? '' : String\(nextCount\)/,
+  'a first-time setup without saved targets should open with no count selected',
 );
 assert.match(
   dialogSource,
@@ -49,13 +77,23 @@ assert.match(
 );
 assert.match(
   dialogSource,
-  /selectedCount === null \|\| \(!selected && selectionLimitReached\)[\s\S]*disabled=\{disabled\}/,
+  /selectedCount === null \|\| \(!selected && selectionLimitReached\)[\s\S]*aria-disabled=\{selectionBlocked\}/,
   'height choices should wait for a valid count and prevent selections beyond that count',
 );
 assert.match(
   dialogSource,
-  /disabled=\{!selectionComplete\}[\s\S]*onConfirm\(selectedHeightsMm\)/,
+  /disabled=\{!selectionComplete\}[\s\S]*onConfirm\([\s\S]*selectedHeightsMm[\s\S]*customHeightCandidatesMm/,
   'the dialog must not enter Free mode with an incomplete plan',
+);
+assert.match(
+  dialogSource,
+  /customHint:[\s\S]*0 至 80 mm 整数候选[\s\S]*addCustomHeight[\s\S]*isValidPistonOscillationFreeCustomHeightMm/,
+  'custom candidates should accept only whole-number heights from 0 to 80 mm',
+);
+assert.match(
+  dialogSource,
+  /customHeightCandidatesMm\.map[\s\S]*data-height-source="custom"[\s\S]*data-non-recommended=\{nonRecommended \? 'true' : 'false'\}/,
+  'custom candidates should remain independently selectable and mark values below 30 mm',
 );
 
 assert.match(
@@ -64,14 +102,14 @@ assert.match(
   'selected heights should use the outlined fit-row visual language',
 );
 assert.match(
-  dialogStyles,
-  /studio-piston-free-count-combobox-open \.studio-piston-free-count-menu[\s\S]*pointer-events: auto[\s\S]*visibility: visible/,
-  'the dropdown should become interactive only while open',
+  selectorStyles,
+  /\.experiment-count-selector-menu\s*\{[\s\S]*position:\s*absolute;[\s\S]*overflow:\s*hidden;/,
+  'the shared dropdown should render as a bounded overlay below the field',
 );
 assert.match(
-  dialogStyles,
-  /\.studio-piston-free-count-combobox > span \{[\s\S]*padding: 0 12px 0 4px;/,
-  'the count unit should sit left of the dropdown divider with deliberate right-side whitespace',
+  selectorStyles,
+  /\.experiment-count-selector-unit\s*\{[\s\S]*padding-left:\s*10px;[\s\S]*padding-right:\s*14px;/,
+  'the count unit should remain visually separated from the dropdown arrow',
 );
 
 const modeControlSource = sourceSlice(
@@ -96,7 +134,7 @@ assert.match(
 
 assert.match(
   workbenchSource,
-  /<PistonOscillationFreeSetupDialog[\s\S]*initialTargetHeightsMm=[\s\S]*onConfirm=\{\(targetHeightsMm\) => \{[\s\S]*activatePistonOscillationFreeMode\(targetHeightsMm\)/,
+  /<PistonOscillationFreeSetupDialog[\s\S]*initialTargetHeightsMm=[\s\S]*initialCustomHeightCandidatesMm=[\s\S]*onConfirm=\{\(targetHeightsMm, customHeightCandidatesMm\) => \{[\s\S]*activatePistonOscillationFreeMode\([\s\S]*targetHeightsMm,[\s\S]*customHeightCandidatesMm/,
   'the confirmed plan should be passed into the persisted Free session',
 );
 assert.match(

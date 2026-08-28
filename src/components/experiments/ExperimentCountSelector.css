@@ -1,0 +1,196 @@
+.experiment-count-selector-field {
+  display: grid;
+  min-width: 0;
+}
+
+.experiment-count-selector {
+  position: relative;
+  display: grid;
+  width: min(100%, 548px);
+  min-height: 64px;
+  grid-template-columns: minmax(0, 1fr) 52px;
+  overflow: visible;
+  border: 1px solid var(--studio-border);
+  border-radius: 4px;
+  background: var(--studio-bg);
+  box-shadow: none;
+}
+
+.experiment-count-selector:focus-within,
+.experiment-count-selector.is-open {
+  border-color: rgba(79, 127, 184, 0.62);
+  background: rgba(79, 127, 184, 0.1);
+  box-shadow: none;
+}
+
+.experiment-count-selector-content {
+  display: grid;
+  min-width: 0;
+  align-content: center;
+  gap: 4px;
+  padding: 8px 0 8px 12px;
+}
+
+.experiment-count-selector-value {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+}
+
+.experiment-count-selector-value > input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--studio-text);
+  padding: 0;
+  font-family: var(--app-font-ui);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.studio-settings-window .experiment-count-selector-value > input {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.experiment-count-selector-value > input::placeholder {
+  color: var(--studio-text);
+  opacity: 1;
+}
+
+.experiment-count-selector-unit {
+  display: inline-flex;
+  align-items: center;
+  color: var(--studio-text);
+  padding-left: 10px;
+  padding-right: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.experiment-count-selector-content > small {
+  overflow: hidden;
+  min-height: 12px;
+  color: var(--studio-subtle);
+  font-size: 10px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.experiment-count-selector-content > small.is-error {
+  color: var(--studio-danger);
+}
+
+.experiment-count-selector > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 0 3px 3px 0;
+  background: transparent;
+  color: var(--studio-text);
+  padding: 0;
+  cursor: pointer;
+}
+
+.experiment-count-selector > button:hover,
+.experiment-count-selector > button:focus-visible {
+  background: var(--studio-accent-softer);
+  outline: none;
+}
+
+.experiment-count-selector > button svg {
+  transition: transform 150ms ease;
+}
+
+.experiment-count-selector > button svg.is-open {
+  transform: rotate(180deg);
+}
+
+.experiment-count-selector-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 80;
+  display: grid;
+  overflow: hidden;
+  border: 1px solid rgba(79, 127, 184, 0.48);
+  border-radius: 6px;
+  background: var(--studio-surface);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.experiment-count-selector-menu button {
+  display: flex;
+  min-height: 42px;
+  align-items: baseline;
+  gap: 12px;
+  border: 0;
+  border-top: 1px solid var(--studio-border-soft);
+  background: transparent;
+  color: var(--studio-muted);
+  padding: 9px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.experiment-count-selector-menu button:first-child {
+  border-top: 0;
+}
+
+.experiment-count-selector-menu button:hover,
+.experiment-count-selector-menu button:focus-visible,
+.experiment-count-selector-menu button.is-highlighted {
+  background: var(--studio-accent-softer);
+  color: var(--studio-text);
+  outline: none;
+}
+
+.experiment-count-selector-menu button.is-selected {
+  background: var(--studio-accent-soft);
+  color: var(--studio-text);
+}
+
+.experiment-count-selector-menu button strong {
+  min-width: 46px;
+  color: var(--studio-text);
+  font-size: 12px;
+}
+
+.experiment-count-selector-menu button span {
+  overflow: hidden;
+  color: var(--studio-subtle);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-theme-light .experiment-count-selector {
+  background: var(--studio-surface);
+  border-color: var(--studio-border);
+}
+
+.studio-theme-light .experiment-count-selector:focus-within,
+.studio-theme-light .experiment-count-selector.is-open {
+  border-color: var(--studio-accent-border);
+  background: var(--studio-accent-soft);
+}
+
+.studio-theme-light .experiment-count-selector-menu {
+  background: var(--studio-surface);
+  border-color: var(--studio-accent-border);
+  box-shadow: 0 12px 28px rgba(32, 40, 48, 0.18);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .experiment-count-selector > button svg {
+    transition: none;
+  }
+}

@@ -162,7 +162,7 @@ assert.match(modelSource, /let visibilityCursor: THREE\.Object3D \| null = objec
 assert.match(modelSource, /if \(!visibilityCursor\.visible\) return/);
 assert.match(
   sceneSource,
-  /<PistonOscillationInteractionWorkspace[\s\S]*initialMode="overview"[\s\S]*cameraPreset=\{cameraPreset\}[\s\S]*sceneTheme=\{sceneTheme\}/,
+  /<PistonOscillationInteractionWorkspace[\s\S]*initialMode=\{guideInitialInstrumentState\?\.focusMode \?\? 'overview'\}[\s\S]*cameraPreset=\{cameraPreset\}[\s\S]*sceneTheme=\{sceneTheme\}/,
   'the formal scene should mount the accepted interactive model and state controller',
 );
 assert.match(sceneSource, /onReleaseEvent=\{onReleaseEvent\}/);

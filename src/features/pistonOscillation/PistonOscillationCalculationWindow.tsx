@@ -30,6 +30,9 @@ import type {
   PistonOscillationGuideEvent,
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import type {
+  PistonOscillationFreeSession,
+} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
   getPistonOscillationCalculationCopy,
   type PistonOscillationCalculationCopy,
@@ -41,6 +44,7 @@ export interface PistonOscillationCalculationWindowProps {
   open: boolean;
   language: PistonOscillationLanguage;
   guideSession: PistonOscillationGuideSession | null;
+  freeSession?: PistonOscillationFreeSession | null;
   onGuideEvent: (event: PistonOscillationGuideEvent) => void;
   onCompleteAndExit: () => void;
   onClose: () => void;
@@ -506,13 +510,14 @@ export const PistonOscillationCalculationWindow = ({
   open,
   language,
   guideSession,
+  freeSession,
   onGuideEvent,
   onCompleteAndExit,
   onClose,
 }: PistonOscillationCalculationWindowProps) => {
   const generatedId = useId().replace(/:/g, '-');
   const copy = getPistonOscillationCalculationCopy(language);
-  const processing = guideSession?.dataProcessing ?? null;
+  const processing = freeSession?.dataProcessing ?? guideSession?.dataProcessing ?? null;
   const calculationSession = processing?.calculationSession ?? null;
   const fit = processing?.linearFitResult ?? null;
   const dialogRef = useRef<HTMLElement | null>(null);

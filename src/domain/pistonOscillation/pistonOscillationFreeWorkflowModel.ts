@@ -1,25 +1,79 @@
 import {
+  advancePistonOscillationPeriodRun,
+  clearPistonOscillationPeriodSelection,
   clonePistonOscillationRawMeasurementRecord,
+  completePistonOscillationCalculation,
+  continuePistonOscillationCalculationAnswer,
+  continuePistonOscillationPeriodAnswer,
+  createPistonOscillationDataProcessingSession,
+  normalizePistonOscillationDataProcessingSession,
   normalizePistonOscillationRawMeasurementRecord,
+  revealPistonOscillationCalculationAnswer,
+  revealPistonOscillationPeriodAnswer,
+  selectPistonOscillationFreePeriodRange,
+  submitPistonOscillationPeriod,
+  submitPistonOscillationPeriodEndpoints,
+  submitPistonOscillationCalculationField,
+  submitPistonOscillationLinearFit,
+  togglePistonOscillationFitRun,
+  updatePistonOscillationCalculationDraft,
+  updatePistonOscillationPeriodAnswerDraft,
+  type PistonOscillationCalculationFieldId,
   type PistonOscillationDataProcessingSession,
+  type PistonOscillationPeriodAnswerField,
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
 
-export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 1 as const;
-export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 1 as const;
-export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 1 as const;
+export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 4 as const;
+export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 2 as const;
+export const PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION = 1 as const;
+export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 1 as const;
+export const PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION = 1 as const;
+export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT = 3 as const;
 export const PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT = 6 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM = [80, 70, 60, 50, 40, 30] as const;
-export const PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM = [80, 70, 60] as const;
-export const PISTON_OSCILLATION_FREE_DEFAULT_SAMPLE_RATE_HZ = 1000 as const;
-export const PISTON_OSCILLATION_FREE_DEFAULT_TRIGGER_THRESHOLD_KPA = 120 as const;
 
 export type PistonOscillationFreeSessionStatus = 'idle' | 'active' | 'paused';
 
+export type PistonOscillationFreeTargetSource = 'system' | 'custom';
+
+export interface PistonOscillationFreePlanTarget {
+  schemaVersion: typeof PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION;
+  targetId: string;
+  heightMm: number;
+  source: PistonOscillationFreeTargetSource;
+}
+
 export interface PistonOscillationFreeExperimentPlan {
   schemaVersion: typeof PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION;
+  planId: string;
+  targets: PistonOscillationFreePlanTarget[];
   targetHeightsMm: number[];
+  customHeightCandidatesMm: number[];
+}
+
+export type PistonOscillationFreeExcludedAttemptReason = 'redo' | 'deleted';
+
+export interface PistonOscillationFreeExcludedAttempt {
+  schemaVersion: typeof PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION;
+  attemptId: string;
+  targetId: string;
+  measurementIndex: number;
+  reason: PistonOscillationFreeExcludedAttemptReason;
+  excludedAtMs: number;
+  measurement: PistonOscillationRawMeasurementRecord;
+}
+
+export interface PistonOscillationFreeInstrumentState {
+  schemaVersion: typeof PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION;
+  focusMode: 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
+  hoseState: 'connected' | 'disconnected';
+  equilibriumHeightMm: number;
+  pistonOffsetMm: number;
+  lockingScrewProgress: number;
+  heightAdjustmentStage: 'readingHeight' | 'lockingHeight';
+  pistonPhase: 'idle' | 'ready' | 'pressing' | 'adjustingHeight' | 'holding' | 'falling' | 'rebounding';
 }
 
 export type PistonOscillationFreeObservedOperation =
@@ -46,6 +100,7 @@ export type PistonOscillationFreeAuditEventType =
   | 'power-changed'
   | 'acquisition-setting-changed'
   | 'operation-observed'
+  | 'acquisition-excluded'
   | 'measurement-saved'
   | 'measurement-deleted';
 
@@ -68,12 +123,17 @@ export interface PistonOscillationFreeSession {
   status: PistonOscillationFreeSessionStatus;
   startedAtMs: number | null;
   updatedAtMs: number | null;
-  experimentPlan: PistonOscillationFreeExperimentPlan;
+  experimentPlan: PistonOscillationFreeExperimentPlan | null;
   measurementIndex: number;
   powerOn: boolean;
-  sampleRateHz: number;
-  triggerThresholdKpa: number;
+  sampleRateHz: number | null;
+  triggerThresholdKpa: number | null;
+  acquisitionCandidate: PistonOscillationRawMeasurementRecord | null;
+  acquisitionCandidateTargetId: string | null;
   savedMeasurements: PistonOscillationRawMeasurementRecord[];
+  savedMeasurementTargetIds: Record<string, string>;
+  excludedAttempts: PistonOscillationFreeExcludedAttempt[];
+  instrumentState: PistonOscillationFreeInstrumentState;
   dataProcessing: PistonOscillationDataProcessingSession | null;
   audit: PistonOscillationFreeAuditEvent[];
 }
@@ -87,6 +147,7 @@ export type PistonOscillationFreeEvent =
   | ({
       type: 'setPlan';
       targetHeightsMm: readonly number[];
+      customHeightCandidatesMm?: readonly number[];
     } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'setPower';
@@ -109,9 +170,64 @@ export type PistonOscillationFreeEvent =
       measurement: PistonOscillationRawMeasurementRecord;
     } & PistonOscillationFreeTimedEvent)
   | ({
+      type: 'freezeAcquisition';
+      measurement: PistonOscillationRawMeasurementRecord;
+    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'clearAcquisition' } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'setInstrumentState';
+      instrumentState: Omit<PistonOscillationFreeInstrumentState, 'schemaVersion'>;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
       type: 'deleteMeasurement';
       measurementIndex: number;
-    } & PistonOscillationFreeTimedEvent);
+    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'clearPeriodSelection'; runIndex: number } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'selectPeriodRange';
+      runIndex: number;
+      rangeStartTimeS: number;
+      rangeEndTimeS: number;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'editPeriodAnswer';
+      runIndex: number;
+      field: PistonOscillationPeriodAnswerField;
+      value: string;
+    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'submitPeriodEndpoints'; runIndex: number } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'continuePeriodAnswer';
+      runIndex: number;
+      field: PistonOscillationPeriodAnswerField;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'revealPeriodAnswer';
+      runIndex: number;
+      field: PistonOscillationPeriodAnswerField;
+    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'submitPeriod'; runIndex: number } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'advancePeriodRun' } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'toggleFitRun'; runIndex: number } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'submitLinearFit' } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'editCalculationAnswer';
+      field: PistonOscillationCalculationFieldId;
+      value: string;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'submitCalculationField';
+      field: PistonOscillationCalculationFieldId;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'continueCalculationAnswer';
+      field: PistonOscillationCalculationFieldId;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'revealCalculationAnswer';
+      field: PistonOscillationCalculationFieldId;
+    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'completeCalculation' } & PistonOscillationFreeTimedEvent);
 
 const FREE_EVENT_TYPES: readonly PistonOscillationFreeAuditEventType[] = [
   'session-started',
@@ -122,6 +238,7 @@ const FREE_EVENT_TYPES: readonly PistonOscillationFreeAuditEventType[] = [
   'power-changed',
   'acquisition-setting-changed',
   'operation-observed',
+  'acquisition-excluded',
   'measurement-saved',
   'measurement-deleted',
 ];
@@ -143,6 +260,7 @@ const FREE_OPERATIONS: readonly PistonOscillationFreeObservedOperation[] = [
 ];
 
 const MAX_PERSISTED_FREE_AUDIT_EVENTS = 4096;
+const MAX_PERSISTED_FREE_EXCLUDED_ATTEMPTS = 256;
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -180,36 +298,99 @@ export const isValidPistonOscillationFreeExperimentPlan = (
     targetHeightsMm.length < PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT
     || targetHeightsMm.length > PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT
   ) return false;
-  const allowedIndices = targetHeightsMm.map((heightMm) => (
-    PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM.indexOf(
-      heightMm as (typeof PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM)[number],
-    )
-  ));
-  return allowedIndices.every((index) => index >= 0)
-    && new Set(targetHeightsMm).size === targetHeightsMm.length
-    && allowedIndices.every((index, position) => position === 0 || index > allowedIndices[position - 1]!);
+  return targetHeightsMm.every((heightMm) => (
+    Number.isSafeInteger(heightMm) && heightMm >= 0 && heightMm <= 80
+  )) && new Set(targetHeightsMm).size === targetHeightsMm.length;
 };
 
+export const isValidPistonOscillationFreeCustomHeightMm = (heightMm: number) => (
+  Number.isSafeInteger(heightMm) && heightMm >= 0 && heightMm <= 80
+);
+
+const isSystemFreeTargetHeightMm = (heightMm: number) => (
+  PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM.includes(
+    heightMm as (typeof PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM)[number],
+  )
+);
+
+const normalizeCustomHeightCandidates = (
+  value: readonly number[] | undefined,
+  selectedTargetHeightsMm: readonly number[],
+) => [...new Set([
+  ...(value ?? []).filter((heightMm) => (
+    isValidPistonOscillationFreeCustomHeightMm(heightMm)
+    && !isSystemFreeTargetHeightMm(heightMm)
+  )),
+  ...selectedTargetHeightsMm.filter((heightMm) => !isSystemFreeTargetHeightMm(heightMm)),
+])].sort((first, second) => second - first);
+
+const createPlanTargetId = (planId: string, heightMm: number) => (
+  `${planId}:height:${heightMm}`
+);
+
 export const createPistonOscillationFreeExperimentPlan = (
-  targetHeightsMm: readonly number[] = PISTON_OSCILLATION_FREE_BASELINE_TARGET_HEIGHTS_MM,
+  targetHeightsMm: readonly number[],
+  options: {
+    planId?: string;
+    customHeightCandidatesMm?: readonly number[];
+  } = {},
 ): PistonOscillationFreeExperimentPlan => {
   if (!isValidPistonOscillationFreeExperimentPlan(targetHeightsMm)) {
-    throw new RangeError('Free-mode target heights must contain 3–6 unique formal heights in descending order.');
+    throw new RangeError('Free-mode target heights must contain 3–6 unique integer heights from 0 to 80 mm.');
   }
+  const sortedTargetHeightsMm = [...targetHeightsMm].sort((first, second) => second - first);
+  const planId = typeof options.planId === 'string' && options.planId.trim().length > 0
+    ? options.planId.trim()
+    : `piston-free-plan:${sortedTargetHeightsMm.join('-')}`;
+  const customHeightCandidatesMm = normalizeCustomHeightCandidates(
+    options.customHeightCandidatesMm,
+    sortedTargetHeightsMm,
+  );
+  const targets = sortedTargetHeightsMm.map<PistonOscillationFreePlanTarget>((heightMm) => ({
+    schemaVersion: PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION,
+    targetId: createPlanTargetId(planId, heightMm),
+    heightMm,
+    source: isSystemFreeTargetHeightMm(heightMm) ? 'system' : 'custom',
+  }));
   return {
     schemaVersion: PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION,
-    targetHeightsMm: [...targetHeightsMm],
+    planId,
+    targets,
+    targetHeightsMm: sortedTargetHeightsMm,
+    customHeightCandidatesMm,
   };
 };
 
-const normalizeExperimentPlan = (value: unknown): PistonOscillationFreeExperimentPlan => {
+const normalizeExperimentPlan = (value: unknown): PistonOscillationFreeExperimentPlan | null => {
   if (
     !isPlainRecord(value)
     || !Array.isArray(value.targetHeightsMm)
     || !isValidPistonOscillationFreeExperimentPlan(value.targetHeightsMm as number[])
-  ) return createPistonOscillationFreeExperimentPlan();
-  return createPistonOscillationFreeExperimentPlan(value.targetHeightsMm as number[]);
+  ) return null;
+  const targetHeightsMm = value.targetHeightsMm as number[];
+  return createPistonOscillationFreeExperimentPlan(targetHeightsMm, {
+    planId: typeof value.planId === 'string' && value.planId.trim().length > 0
+      ? value.planId
+      : `legacy-piston-free-plan:${[...targetHeightsMm]
+          .sort((first, second) => second - first)
+          .join('-')}`,
+    customHeightCandidatesMm: Array.isArray(value.customHeightCandidatesMm)
+      ? value.customHeightCandidatesMm.filter(isFiniteNumber)
+      : undefined,
+  });
 };
+
+export const createDefaultPistonOscillationFreeInstrumentState = (
+): PistonOscillationFreeInstrumentState => ({
+  schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
+  focusMode: 'overview',
+  hoseState: 'disconnected',
+  equilibriumHeightMm: 0,
+  pistonOffsetMm: 0,
+  lockingScrewProgress: 0,
+  heightAdjustmentStage: 'readingHeight',
+  pistonPhase: 'idle',
+});
 
 export const createDefaultPistonOscillationFreeSession = ():
 PistonOscillationFreeSession => ({
@@ -217,12 +398,17 @@ PistonOscillationFreeSession => ({
   status: 'idle',
   startedAtMs: null,
   updatedAtMs: null,
-  experimentPlan: createPistonOscillationFreeExperimentPlan(),
+  experimentPlan: null,
   measurementIndex: 0,
   powerOn: false,
-  sampleRateHz: PISTON_OSCILLATION_FREE_DEFAULT_SAMPLE_RATE_HZ,
-  triggerThresholdKpa: PISTON_OSCILLATION_FREE_DEFAULT_TRIGGER_THRESHOLD_KPA,
+  sampleRateHz: null,
+  triggerThresholdKpa: null,
+  acquisitionCandidate: null,
+  acquisitionCandidateTargetId: null,
   savedMeasurements: [],
+  savedMeasurementTargetIds: {},
+  excludedAttempts: [],
+  instrumentState: createDefaultPistonOscillationFreeInstrumentState(),
   dataProcessing: null,
   audit: [],
 });
@@ -279,13 +465,53 @@ const getFirstMissingMeasurementIndex = (
   return missingIndex < 0 ? plan.targetHeightsMm.length : missingIndex;
 };
 
+export const getPistonOscillationFreeTarget = (
+  session: PistonOscillationFreeSession,
+  measurementIndex = session.measurementIndex,
+) => session.experimentPlan?.targets[measurementIndex] ?? null;
+
+const appendExcludedAttempt = (
+  session: PistonOscillationFreeSession,
+  measurement: PistonOscillationRawMeasurementRecord,
+  targetId: string,
+  reason: PistonOscillationFreeExcludedAttemptReason,
+  nowMs: number,
+) => [
+  ...session.excludedAttempts,
+  {
+    schemaVersion: PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION,
+    attemptId: `${measurement.recordId}:excluded:${nowMs}:${reason}`,
+    targetId,
+    measurementIndex: measurement.measurementIndex,
+    reason,
+    excludedAtMs: nowMs,
+    measurement: clonePistonOscillationRawMeasurementRecord(measurement),
+  } satisfies PistonOscillationFreeExcludedAttempt,
+].slice(-MAX_PERSISTED_FREE_EXCLUDED_ATTEMPTS);
+
 export const isPistonOscillationFreePlanComplete = (
   session: PistonOscillationFreeSession,
-) => session.measurementIndex >= session.experimentPlan.targetHeightsMm.length;
+) => session.experimentPlan !== null
+  && session.measurementIndex >= session.experimentPlan.targetHeightsMm.length;
 
 export const getPistonOscillationFreeCurrentTargetHeightMm = (
   session: PistonOscillationFreeSession,
-) => session.experimentPlan.targetHeightsMm[session.measurementIndex] ?? null;
+) => session.experimentPlan?.targetHeightsMm[session.measurementIndex] ?? null;
+
+const advanceCompletedFinalFreePeriodRun = (
+  dataProcessing: PistonOscillationDataProcessingSession,
+  savedMeasurements: readonly PistonOscillationRawMeasurementRecord[],
+  nowMs: number,
+) => {
+  const activeRun = dataProcessing.runs[dataProcessing.activeRunIndex];
+  const finalRunResolved = Boolean(
+    activeRun?.result
+    && dataProcessing.activeRunIndex === dataProcessing.runs.length - 1,
+  );
+  return finalRunResolved
+    ? advancePistonOscillationPeriodRun(dataProcessing, nowMs, savedMeasurements)
+    : dataProcessing;
+};
 
 export const transitionPistonOscillationFreeSession = (
   session: PistonOscillationFreeSession,
@@ -306,13 +532,19 @@ export const transitionPistonOscillationFreeSession = (
       audit: appendAudit(next, 'session-resumed', event.nowMs),
     };
   }
-  if (event.type === 'reset') return createFreshActiveSession(event.nowMs, 'session-reset');
+  if (event.type === 'reset') {
+    return createFreshActiveSession(event.nowMs, 'session-reset');
+  }
   if (event.type === 'pause') {
     if (session.status !== 'active') return session;
     const next = {
       ...session,
       status: 'paused' as const,
       powerOn: false,
+      instrumentState: {
+        ...session.instrumentState,
+        pistonPhase: 'idle' as const,
+      },
       updatedAtMs: event.nowMs,
     };
     return {
@@ -325,13 +557,25 @@ export const transitionPistonOscillationFreeSession = (
   if (event.type === 'setPlan') {
     if (
       session.savedMeasurements.length > 0
+      || session.acquisitionCandidate !== null
+      || session.experimentPlan !== null
+      || session.audit.some((auditEvent) => auditEvent.type === 'plan-updated')
       || !isValidPistonOscillationFreeExperimentPlan(event.targetHeightsMm)
     ) return session;
-    const experimentPlan = createPistonOscillationFreeExperimentPlan(event.targetHeightsMm);
+    const experimentPlan = createPistonOscillationFreeExperimentPlan(event.targetHeightsMm, {
+      planId: `piston-free-plan:${session.startedAtMs ?? event.nowMs}:${event.nowMs}`,
+      customHeightCandidatesMm: event.customHeightCandidatesMm,
+    });
     const next = {
       ...session,
       experimentPlan,
       measurementIndex: 0,
+      acquisitionCandidate: null,
+      acquisitionCandidateTargetId: null,
+      savedMeasurements: [],
+      savedMeasurementTargetIds: {},
+      excludedAttempts: [],
+      dataProcessing: null,
       updatedAtMs: event.nowMs,
     };
     return {
@@ -364,7 +608,11 @@ export const transitionPistonOscillationFreeSession = (
   if (event.type === 'setAcquisitionSetting') {
     const valueValid = event.field === 'sampleRateHz'
       ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
-      : Number.isFinite(event.value) && event.value > 0;
+      : Number.isFinite(event.value)
+        && event.value >= 96
+        && event.value <= 130
+        && Number.isSafeInteger(Math.round(event.value * 10))
+        && Math.abs(event.value * 10 - Math.round(event.value * 10)) < 1e-8;
     if (!valueValid || session[event.field] === event.value) return session;
     const next = {
       ...session,
@@ -381,13 +629,34 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
+  if (event.type === 'setInstrumentState') {
+    const normalizedInstrumentState = normalizeInstrumentState(event.instrumentState);
+    if (
+      normalizedInstrumentState.focusMode === session.instrumentState.focusMode
+      && normalizedInstrumentState.hoseState === session.instrumentState.hoseState
+      && normalizedInstrumentState.equilibriumHeightMm
+        === session.instrumentState.equilibriumHeightMm
+      && normalizedInstrumentState.pistonOffsetMm === session.instrumentState.pistonOffsetMm
+      && normalizedInstrumentState.lockingScrewProgress
+        === session.instrumentState.lockingScrewProgress
+      && normalizedInstrumentState.heightAdjustmentStage
+        === session.instrumentState.heightAdjustmentStage
+      && normalizedInstrumentState.pistonPhase === session.instrumentState.pistonPhase
+    ) return session;
+    return {
+      ...session,
+      instrumentState: normalizedInstrumentState,
+      updatedAtMs: event.nowMs,
+    };
+  }
+
   if (event.type === 'observeOperation') {
     const measurementIndex = isNonNegativeInteger(event.measurementIndex)
       ? event.measurementIndex
       : session.measurementIndex;
     const targetHeightMm = isFiniteNumber(event.targetHeightMm)
       ? event.targetHeightMm
-      : session.experimentPlan.targetHeightsMm[measurementIndex] ?? null;
+      : session.experimentPlan?.targetHeightsMm[measurementIndex] ?? null;
     return {
       ...session,
       updatedAtMs: event.nowMs,
@@ -400,63 +669,389 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
+  if (event.type === 'freezeAcquisition') {
+    const measurementIndex = session.measurementIndex;
+    const target = session.experimentPlan?.targets[measurementIndex];
+    if (!target) return session;
+    const normalized = normalizePistonOscillationRawMeasurementRecord(
+      event.measurement,
+      measurementIndex,
+    );
+    if (
+      !normalized
+      || normalized.measurementIndex !== measurementIndex
+      || normalized.targetHeightMm !== target.heightMm
+    ) return session;
+    return {
+      ...session,
+      acquisitionCandidate: clonePistonOscillationRawMeasurementRecord(normalized),
+      acquisitionCandidateTargetId: target.targetId,
+      updatedAtMs: event.nowMs,
+    };
+  }
+
+  if (event.type === 'clearAcquisition') {
+    if (session.acquisitionCandidate === null) return session;
+    const target = session.experimentPlan?.targets[session.measurementIndex];
+    const targetId = session.acquisitionCandidateTargetId ?? target?.targetId ?? null;
+    const excludedAttempts = targetId === null
+      ? session.excludedAttempts
+      : appendExcludedAttempt(
+          session,
+          session.acquisitionCandidate,
+          targetId,
+          'redo',
+          event.nowMs,
+        );
+    const next = {
+      ...session,
+      acquisitionCandidate: null,
+      acquisitionCandidateTargetId: null,
+      excludedAttempts,
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'acquisition-excluded', event.nowMs, {
+        measurementIndex: session.acquisitionCandidate.measurementIndex,
+        targetHeightMm: session.acquisitionCandidate.targetHeightMm,
+        operation: 'redoAcquisition',
+        payload: {
+          recordId: session.acquisitionCandidate.recordId,
+          reason: 'redo',
+        },
+      }),
+    };
+  }
+
   if (event.type === 'saveMeasurement') {
     const measurementIndex = event.measurement.measurementIndex;
-    const targetHeightMm = session.experimentPlan.targetHeightsMm[measurementIndex];
-    if (targetHeightMm === undefined || event.measurement.targetHeightMm !== targetHeightMm) {
+    const target = session.experimentPlan?.targets[measurementIndex];
+    if (!target || event.measurement.targetHeightMm !== target.heightMm) {
       return session;
     }
     const normalized = normalizePistonOscillationRawMeasurementRecord(
       event.measurement,
       measurementIndex,
     );
-    if (!normalized || normalized.targetHeightMm !== targetHeightMm) return session;
+    if (!normalized || normalized.targetHeightMm !== target.heightMm) return session;
     const savedMeasurements = [
       ...session.savedMeasurements.filter((measurement) => (
         measurement.measurementIndex !== measurementIndex
       )),
       clonePistonOscillationRawMeasurementRecord(normalized),
     ].sort((first, second) => first.measurementIndex - second.measurementIndex);
+    const experimentPlan = session.experimentPlan;
+    if (!experimentPlan) return session;
+    const measurementIndexAfterSave = getFirstMissingMeasurementIndex(
+      experimentPlan,
+      savedMeasurements,
+    );
+    const planComplete = measurementIndexAfterSave >= experimentPlan.targetHeightsMm.length;
+    const replacedMeasurement = session.savedMeasurements.find((measurement) => (
+      measurement.measurementIndex === measurementIndex
+    )) ?? null;
+    const replacedTargetId = replacedMeasurement
+      ? session.savedMeasurementTargetIds[replacedMeasurement.recordId] ?? target.targetId
+      : null;
+    const excludedAttempts = replacedMeasurement && replacedTargetId
+      ? appendExcludedAttempt(
+          session,
+          replacedMeasurement,
+          replacedTargetId,
+          'deleted',
+          event.nowMs,
+        )
+      : session.excludedAttempts;
+    const savedMeasurementTargetIds = Object.fromEntries(
+      Object.entries(session.savedMeasurementTargetIds).filter(([recordId]) => (
+        recordId !== replacedMeasurement?.recordId
+      )),
+    );
+    savedMeasurementTargetIds[normalized.recordId] = target.targetId;
     const next = {
       ...session,
       savedMeasurements,
-      measurementIndex: getFirstMissingMeasurementIndex(session.experimentPlan, savedMeasurements),
-      dataProcessing: null,
+      savedMeasurementTargetIds,
+      excludedAttempts,
+      measurementIndex: measurementIndexAfterSave,
+      acquisitionCandidate: null,
+      acquisitionCandidateTargetId: null,
+      dataProcessing: planComplete
+        ? createPistonOscillationDataProcessingSession(savedMeasurements, event.nowMs)
+        : null,
       updatedAtMs: event.nowMs,
     };
     return {
       ...next,
       audit: appendAudit(next, 'measurement-saved', event.nowMs, {
         measurementIndex,
-        targetHeightMm,
+        targetHeightMm: target.heightMm,
         operation: 'saveMeasurement',
         payload: {
           recordId: normalized.recordId,
+          targetId: target.targetId,
           confirmedHeightMm: normalized.confirmedHeightMm,
           sampleRateHz: normalized.acquisitionSettings.sampleRateHz,
           triggerThresholdKpa: normalized.acquisitionSettings.triggerThresholdKpa,
           recordedDurationS: normalized.acquisitionSettings.recordedDurationS,
+          recordingPath: normalized.acquisitionSettings.recordingPath,
+          releaseOffsetS: normalized.acquisitionSettings.releaseOffsetS,
         },
       }),
     };
   }
 
+  if (event.type === 'clearPeriodSelection') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: clearPistonOscillationPeriodSelection(
+        session.dataProcessing,
+        event.runIndex,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'selectPeriodRange') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: selectPistonOscillationFreePeriodRange(
+        session.dataProcessing,
+        session.savedMeasurements,
+        event.runIndex,
+        event.rangeStartTimeS,
+        event.rangeEndTimeS,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'editPeriodAnswer') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: updatePistonOscillationPeriodAnswerDraft(
+        session.dataProcessing,
+        event.runIndex,
+        event.field,
+        event.value,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'submitPeriodEndpoints') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: submitPistonOscillationPeriodEndpoints(
+        session.dataProcessing,
+        event.runIndex,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'continuePeriodAnswer') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: continuePistonOscillationPeriodAnswer(
+        session.dataProcessing,
+        event.runIndex,
+        event.field,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'revealPeriodAnswer') {
+    if (!session.dataProcessing) return session;
+    const dataProcessing = revealPistonOscillationPeriodAnswer(
+      session.dataProcessing,
+      event.runIndex,
+      event.field,
+      event.nowMs,
+    );
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: advanceCompletedFinalFreePeriodRun(
+        dataProcessing,
+        session.savedMeasurements,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'submitPeriod') {
+    if (!session.dataProcessing) return session;
+    const dataProcessing = submitPistonOscillationPeriod(
+      session.dataProcessing,
+      event.runIndex,
+      event.nowMs,
+    );
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: advanceCompletedFinalFreePeriodRun(
+        dataProcessing,
+        session.savedMeasurements,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'advancePeriodRun') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: advancePistonOscillationPeriodRun(
+        session.dataProcessing,
+        event.nowMs,
+        session.savedMeasurements,
+      ),
+    };
+  }
+
+  if (event.type === 'toggleFitRun') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: togglePistonOscillationFitRun(
+        session.dataProcessing,
+        event.runIndex,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'submitLinearFit') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: submitPistonOscillationLinearFit(
+        session.dataProcessing,
+        event.nowMs,
+        { requireAllRuns: true },
+      ),
+    };
+  }
+
+  if (event.type === 'editCalculationAnswer') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: updatePistonOscillationCalculationDraft(
+        session.dataProcessing,
+        event.field,
+        event.value,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'submitCalculationField') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: submitPistonOscillationCalculationField(
+        session.dataProcessing,
+        event.field,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'continueCalculationAnswer') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: continuePistonOscillationCalculationAnswer(
+        session.dataProcessing,
+        event.field,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'revealCalculationAnswer') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: revealPistonOscillationCalculationAnswer(
+        session.dataProcessing,
+        event.field,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'completeCalculation') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: completePistonOscillationCalculation(
+        session.dataProcessing,
+        event.nowMs,
+      ),
+    };
+  }
+
   if (event.type !== 'deleteMeasurement') return session;
   const measurementIndex = event.measurementIndex;
+  const experimentPlan = session.experimentPlan;
   if (
-    !isNonNegativeInteger(measurementIndex)
-    || measurementIndex >= session.experimentPlan.targetHeightsMm.length
+    !experimentPlan
+    || !isNonNegativeInteger(measurementIndex)
+    || measurementIndex >= experimentPlan.targetHeightsMm.length
     || !session.savedMeasurements.some((measurement) => (
       measurement.measurementIndex === measurementIndex
     ))
   ) return session;
+  const deletedMeasurement = session.savedMeasurements.find((measurement) => (
+    measurement.measurementIndex === measurementIndex
+  ))!;
+  const target = experimentPlan.targets[measurementIndex];
+  if (!target) return session;
   const savedMeasurements = session.savedMeasurements.filter((measurement) => (
     measurement.measurementIndex !== measurementIndex
   ));
+  const savedMeasurementTargetIds = Object.fromEntries(
+    Object.entries(session.savedMeasurementTargetIds).filter(([recordId]) => (
+      recordId !== deletedMeasurement.recordId
+    )),
+  );
   const next = {
     ...session,
     savedMeasurements,
-    measurementIndex: getFirstMissingMeasurementIndex(session.experimentPlan, savedMeasurements),
+    savedMeasurementTargetIds,
+    excludedAttempts: appendExcludedAttempt(
+      session,
+      deletedMeasurement,
+      session.savedMeasurementTargetIds[deletedMeasurement.recordId] ?? target.targetId,
+      'deleted',
+      event.nowMs,
+    ),
+    measurementIndex: getFirstMissingMeasurementIndex(experimentPlan, savedMeasurements),
+    acquisitionCandidate: null,
+    acquisitionCandidateTargetId: null,
     dataProcessing: null,
     updatedAtMs: event.nowMs,
   };
@@ -464,9 +1059,102 @@ export const transitionPistonOscillationFreeSession = (
     ...next,
     audit: appendAudit(next, 'measurement-deleted', event.nowMs, {
       measurementIndex,
-      targetHeightMm: session.experimentPlan.targetHeightsMm[measurementIndex] ?? null,
-      payload: {},
+      targetHeightMm: target.heightMm,
+      payload: {
+        recordId: deletedMeasurement.recordId,
+        targetId: target.targetId,
+      },
     }),
+  };
+};
+
+const FREE_INSTRUMENT_FOCUS_MODES: readonly PistonOscillationFreeInstrumentState['focusMode'][] = [
+  'overview',
+  'pistonFocus',
+  'hoseFocus',
+  'powerFocus',
+];
+const FREE_INSTRUMENT_HEIGHT_STAGES: readonly PistonOscillationFreeInstrumentState[
+  'heightAdjustmentStage'
+][] = ['readingHeight', 'lockingHeight'];
+const FREE_INSTRUMENT_PISTON_PHASES: readonly PistonOscillationFreeInstrumentState[
+  'pistonPhase'
+][] = [
+  'idle',
+  'ready',
+  'pressing',
+  'adjustingHeight',
+  'holding',
+  'falling',
+  'rebounding',
+];
+
+const normalizeInstrumentState = (
+  value: unknown,
+): PistonOscillationFreeInstrumentState => {
+  const fallback = createDefaultPistonOscillationFreeInstrumentState();
+  if (!isPlainRecord(value)) return fallback;
+  return {
+    schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
+    focusMode: FREE_INSTRUMENT_FOCUS_MODES.includes(
+      value.focusMode as PistonOscillationFreeInstrumentState['focusMode'],
+    )
+      ? value.focusMode as PistonOscillationFreeInstrumentState['focusMode']
+      : fallback.focusMode,
+    hoseState: value.hoseState === 'connected' ? 'connected' : 'disconnected',
+    equilibriumHeightMm: isFiniteNumber(value.equilibriumHeightMm)
+      ? Math.min(80, Math.max(0, value.equilibriumHeightMm))
+      : fallback.equilibriumHeightMm,
+    pistonOffsetMm: isFiniteNumber(value.pistonOffsetMm)
+      ? Math.min(80, Math.max(-80, value.pistonOffsetMm))
+      : fallback.pistonOffsetMm,
+    lockingScrewProgress: isFiniteNumber(value.lockingScrewProgress)
+      ? Math.min(1, Math.max(0, value.lockingScrewProgress))
+      : fallback.lockingScrewProgress,
+    heightAdjustmentStage: FREE_INSTRUMENT_HEIGHT_STAGES.includes(
+      value.heightAdjustmentStage as PistonOscillationFreeInstrumentState[
+        'heightAdjustmentStage'
+      ],
+    )
+      ? value.heightAdjustmentStage as PistonOscillationFreeInstrumentState[
+          'heightAdjustmentStage'
+        ]
+      : fallback.heightAdjustmentStage,
+    pistonPhase: FREE_INSTRUMENT_PISTON_PHASES.includes(
+      value.pistonPhase as PistonOscillationFreeInstrumentState['pistonPhase'],
+    )
+      ? value.pistonPhase as PistonOscillationFreeInstrumentState['pistonPhase']
+      : fallback.pistonPhase,
+  };
+};
+
+const normalizeExcludedAttempt = (
+  value: unknown,
+  experimentPlan: PistonOscillationFreeExperimentPlan,
+): PistonOscillationFreeExcludedAttempt | null => {
+  if (
+    !isPlainRecord(value)
+    || !isNonNegativeInteger(value.measurementIndex)
+    || (value.reason !== 'redo' && value.reason !== 'deleted')
+    || !isFiniteNumber(value.excludedAtMs)
+  ) return null;
+  const target = experimentPlan.targets[value.measurementIndex];
+  if (!target) return null;
+  const measurement = normalizePistonOscillationRawMeasurementRecord(
+    value.measurement,
+    value.measurementIndex,
+  );
+  if (!measurement || measurement.targetHeightMm !== target.heightMm) return null;
+  return {
+    schemaVersion: PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION,
+    attemptId: typeof value.attemptId === 'string' && value.attemptId.length > 0
+      ? value.attemptId
+      : `${measurement.recordId}:excluded:${value.excludedAtMs}:${value.reason}`,
+    targetId: value.targetId === target.targetId ? value.targetId : target.targetId,
+    measurementIndex: value.measurementIndex,
+    reason: value.reason,
+    excludedAtMs: value.excludedAtMs,
+    measurement,
   };
 };
 
@@ -515,7 +1203,7 @@ export const normalizePistonOscillationFreeSession = (
   const fallback = createDefaultPistonOscillationFreeSession();
   if (!isPlainRecord(value)) return fallback;
   const experimentPlan = normalizeExperimentPlan(value.experimentPlan);
-  const savedMeasurements = Array.isArray(value.savedMeasurements)
+  const savedMeasurements = experimentPlan && Array.isArray(value.savedMeasurements)
     ? value.savedMeasurements
       .map((measurement) => {
         if (!isPlainRecord(measurement) || !isNonNegativeInteger(measurement.measurementIndex)) {
@@ -539,6 +1227,15 @@ export const normalizePistonOscillationFreeSession = (
       ))
       .sort((first, second) => first.measurementIndex - second.measurementIndex)
     : [];
+  const savedMeasurementTargetIds = savedMeasurements.reduce<Record<string, string>>(
+    (targetIds, measurement) => {
+      const target = experimentPlan?.targets[measurement.measurementIndex];
+      if (!target) return targetIds;
+      targetIds[measurement.recordId] = target.targetId;
+      return targetIds;
+    },
+    {},
+  );
   const startedAtMs = isFiniteNumber(value.startedAtMs) ? value.startedAtMs : null;
   const persistedStatus = value.status === 'active' || value.status === 'paused'
     ? value.status
@@ -554,25 +1251,66 @@ export const normalizePistonOscillationFreeSession = (
       ))
       .slice(-MAX_PERSISTED_FREE_AUDIT_EVENTS)
     : [];
+  const measurementIndex = experimentPlan
+    ? getFirstMissingMeasurementIndex(experimentPlan, savedMeasurements)
+    : 0;
+  const candidateTargetHeightMm = experimentPlan?.targetHeightsMm[measurementIndex];
+  const acquisitionCandidate = candidateTargetHeightMm !== undefined
+    ? normalizePistonOscillationRawMeasurementRecord(value.acquisitionCandidate, measurementIndex)
+    : null;
+  const normalizedAcquisitionCandidate = acquisitionCandidate?.targetHeightMm
+    === candidateTargetHeightMm
+    ? acquisitionCandidate
+    : null;
+  const candidateTarget = experimentPlan?.targets[measurementIndex] ?? null;
+  const acquisitionCandidateTargetId = normalizedAcquisitionCandidate && candidateTarget
+    ? candidateTarget.targetId
+    : null;
+  const excludedAttempts = experimentPlan && Array.isArray(value.excludedAttempts)
+    ? value.excludedAttempts
+      .map((attempt) => normalizeExcludedAttempt(attempt, experimentPlan))
+      .filter((attempt): attempt is PistonOscillationFreeExcludedAttempt => attempt !== null)
+      .filter((attempt, index, attempts) => (
+        attempts.findIndex((candidate) => candidate.attemptId === attempt.attemptId) === index
+      ))
+      .slice(-MAX_PERSISTED_FREE_EXCLUDED_ATTEMPTS)
+    : [];
+  const dataProcessing = experimentPlan
+    && measurementIndex >= experimentPlan.targetHeightsMm.length
+    ? normalizePistonOscillationDataProcessingSession(
+        value.dataProcessing,
+        savedMeasurements,
+        isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
+      )
+    : null;
   return {
     ...fallback,
     status,
     startedAtMs,
     updatedAtMs: isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : startedAtMs,
     experimentPlan,
-    measurementIndex: getFirstMissingMeasurementIndex(experimentPlan, savedMeasurements),
+    measurementIndex,
     powerOn: status === 'active' && value.powerOn === true,
     sampleRateHz: Number.isSafeInteger(value.sampleRateHz)
       && (value.sampleRateHz as number) > 0
       && (value.sampleRateHz as number) <= 1000
       ? value.sampleRateHz as number
-      : fallback.sampleRateHz,
+      : null,
     triggerThresholdKpa: isFiniteNumber(value.triggerThresholdKpa)
-      && value.triggerThresholdKpa > 0
+      && value.triggerThresholdKpa >= 96
+      && value.triggerThresholdKpa <= 130
+      && Number.isSafeInteger(Math.round(value.triggerThresholdKpa * 10))
+      && Math.abs(value.triggerThresholdKpa * 10
+        - Math.round(value.triggerThresholdKpa * 10)) < 1e-8
       ? value.triggerThresholdKpa
-      : fallback.triggerThresholdKpa,
+      : null,
+    acquisitionCandidate: normalizedAcquisitionCandidate,
+    acquisitionCandidateTargetId,
     savedMeasurements,
-    dataProcessing: null,
+    savedMeasurementTargetIds,
+    excludedAttempts,
+    instrumentState: normalizeInstrumentState(value.instrumentState),
+    dataProcessing,
     audit,
   };
 };

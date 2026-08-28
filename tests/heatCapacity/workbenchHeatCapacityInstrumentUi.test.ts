@@ -778,7 +778,7 @@ assert.match(workbenchSource, /data-heat-capacity-free-record-controls="true"/, 
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-mode-action="reset-free"/, 'Free Mode should not expose an ambiguous icon-only reset action in the mode control');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-guide"/, 'Guide Mode should expose its own reset action in the mode control');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-free"[\s\S]*exitHeatCapacityFormalModeToExplore\('free'\)/, 'Free Mode should expose an explicit exit action that returns to Explore');
-assert.match(workbenchSource, /<HeatCapacityBatchProgress[\s\S]*onRestartExperiment=\{requestRestartHeatCapacityFreeExperiment\}[\s\S]*onRestartGroup=\{requestRestartHeatCapacityFreeGroup\}[\s\S]*onStartNextGroup=\{openNextHeatCapacityFreeExperimentGroupSetup\}/, 'the progress control should own both scoped restart actions and the approved next-group action');
+assert.match(workbenchSource, /<FreeExperimentProgress[\s\S]*onSelect: requestRestartHeatCapacityFreeExperiment[\s\S]*onSelect: requestRestartHeatCapacityFreeGroup[\s\S]*onSelect: openNextHeatCapacityFreeExperimentGroupSetup/, 'the shared progress control should own both scoped restart actions and the approved next-group action');
 assert.match(
   workbenchSource,
   /heatCapacityRealtimeCopy\.trialBadge\([\s\S]*activeHeatCapacityFreeBatchProgress\?\.currentGroupNumber[\s\S]*Math\.max\(1, getActiveHeatCapacityFreeTrialIndex\(activeFile\) \+ 1\)/,
@@ -817,8 +817,8 @@ assert.match(leftPanelSource, /data-heat-capacity-record-source=\{file\.heatCapa
 assert.match(leftPanelSource, /automaticU0/, 'Free record table should show automatic U0 status');
 assert.match(workbenchSource, /dataResultsTitle:\s*'数据与结果'/, 'Free Mode materials should expose a localized merged Data & Results title');
 assert.match(heatCapacityTabRegistrySource, /HEAT_CAPACITY_TAB_IDS = \[[\s\S]*?'guide'[\s\S]*?'records'[\s\S]*?'review'/, 'Heat Capacity materials should expose the fixed guide / records / review tab order');
-assert.match(heatCapacityTabRegistrySource, /getHeatCapacityMaterialsTabOrder[\s\S]*?\[\.\.\.HEAT_CAPACITY_TAB_IDS\]/, 'Heat Capacity material order should ignore legacy per-mode processing tabs');
-assert.match(workbenchSource, /getHeatCapacityMaterialsTabOrder\(activeFile\)/, 'Heat Capacity material tree/window should use the shared fixed tab order');
+assert.match(heatCapacityTabRegistrySource, /getHeatCapacityMaterialsTabOrder[\s\S]*?heatCapacityMode === 'guide'[\s\S]*?\['guide', 'records'\][\s\S]*?heatCapacityMode === 'free'[\s\S]*?\[\.\.\.HEAT_CAPACITY_TAB_IDS\]/, 'Heat Capacity materials should follow the Guide / Free mode matrix');
+assert.match(workbenchSource, /getHeatCapacityMaterialsTabOrder\(activeFile\)/, 'Heat Capacity material tree/window should use the shared mode-aware tab order');
 assert.match(workbenchSource, /getHeatCapacityPanelDisplayDefinition\(tabId,\s*panel\)/, 'Heat Capacity material labels should be overridable per mode');
 assert.doesNotMatch(workbenchSource, /heatCapacityProcessing|activeHeatCapacityTabId:\s*'processing'/, 'Heat Capacity should delete the legacy processing tab instead of redirecting it');
 assert.match(leftPanelSource, /freeRecording:\s*\{/, 'Free record table copy should be localized through copyByLanguage');
@@ -1880,7 +1880,8 @@ assert.doesNotMatch(workbenchSource, /bezierCurveTo|quadraticCurveTo|studio-heat
 assert.equal(existsSync(join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityTraceChart.tsx')), false, 'this stable-version optimization should not add the later standalone trace chart component');
 assert.match(workbenchSource, /renderHeatCapacityMaterialsWindow/, 'Heat Capacity should have a browser-style materials/results window');
 assert.match(workbenchSource, /openAllHeatCapacityMaterialsTabs/, 'double-clicking the Heat Capacity materials group should open all child tabs');
-assert.match(workbenchSource, /const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder\(activeFile\);/, 'opening the Heat Capacity materials group should include guide, data/results, and process review even before the current group has data');
+assert.match(workbenchSource, /const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder\(activeFile\);[\s\S]*if \(!firstTabId\) return;/, 'an unavailable mode-specific materials group must not open a fallback tab');
+assert.match(workbenchSource, /materialPanels\.length > 0[\s\S]*studio-heat-materials-group/, 'the Heat Capacity materials group should only render when the active mode has available children');
 assert.doesNotMatch(workbenchSource, /filter\(\(tabId\) => tabId !== 'records'/, 'the data/results tab should stay reachable independently from the mandatory calculation window');
 assert.doesNotMatch(workbenchSource, /tabId === 'review'[\s\S]{0,180}activeHeatCapacityCalculationSession\?\.status !== 'completed'/, 'process review should open for a new group and render its empty current-group state');
 assert.doesNotMatch(workbenchSource, /recordHeatCapacityU1|recordHeatCapacityU2|calculateHeatCapacityMeanResult|createHeatCapacityTrialFromAutoDemoSamples/, 'Heat Capacity should not keep the legacy multi-trial processing helpers');

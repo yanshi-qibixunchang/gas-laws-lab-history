@@ -76,7 +76,12 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const isPistonOscillationDevelopmentPanelKey = \([\s\S]*file\.kind === 'heatCapacityPistonOscillation'[\s\S]*isHeatCapacityPanelKey\(panel\)/,
+  /const isPistonOscillationUnavailableMaterialsPanelKey = \([\s\S]*file\.kind !== 'heatCapacityPistonOscillation'[\s\S]*isHeatCapacityPanelKey\(panel\)/,
+);
+assert.match(
+  workbenchSource,
+  /getPistonOscillationMaterialsPanelOrder\(file\)\.includes\(panel\)/,
+  'Data processing availability should follow the currently active Free or Guide session without leaking stale data from the other mode',
 );
 
 const openPanelSource = sourceSlice(
@@ -84,14 +89,14 @@ const openPanelSource = sourceSlice(
   'const closePanel = (panel: WorkbenchPanelKey',
 );
 assert.ok(
-  openPanelSource.indexOf('isPistonOscillationDevelopmentPanelKey(activeFile, panel)') <
+  openPanelSource.indexOf('isPistonOscillationUnavailableMaterialsPanelKey(activeFile, panel)') <
     openPanelSource.indexOf('setSelectedPanel(panel)'),
-  'piston development panels must be intercepted before selection or persistence changes',
+  'unavailable piston materials panels must be intercepted before selection or persistence changes',
 );
-assert.ok(
-  openPanelSource.indexOf("showPistonOscillationDevelopmentNotice('navigationItem')") <
-    openPanelSource.indexOf('captureUndoSnapshot('),
-  'piston development panels must return before an undo entry is captured',
+assert.match(
+  openPanelSource,
+  /if \(isPistonOscillationUnavailableMaterialsPanelKey\(activeFile, panel\)\) \{\s*return;\s*\}/,
+  'hidden piston materials must return silently before creating undo or warning noise',
 );
 
 const sidebarRailSource = sourceSlice(
@@ -132,7 +137,17 @@ const windowMenuSource = sourceSlice(
 );
 assert.match(
   windowMenuSource,
-  /!isPistonOscillationDevelopmentPanelKey\(activeFile, panel\.key\)/,
+  /!isHeatCapacityPanelKey\(panel\.key\)[\s\S]*activeExperimentMaterialsPanelKeys\.includes\(panel\.key\)/,
+);
+assert.match(
+  workbenchSource,
+  /getPistonOscillationMaterialsPanelOrder\(activeFile\)[\s\S]*materialsPanels\.length > 0[\s\S]*studio-heat-materials-group/,
+  'the Piston materials group should only render when the current mode has a real, usable child panel',
+);
+assert.doesNotMatch(
+  sourceSlice('const renderPistonOscillationPanelTree = () => {', 'const topMenuResultChildren'),
+  /developmentBadge|data-development-unavailable|studio-panel-row-development/,
+  'the Piston sidebar should not keep misleading development placeholders',
 );
 
 assert.match(
@@ -425,6 +440,11 @@ assert.match(
 );
 assert.match(
   workbenchSource,
+  /activePistonOscillationFreeSession\.dataProcessing\.status !== 'completed'[\s\S]*pistonOscillationCompletedDataProcessingReview/,
+  'completed Free processing should leave the instrument workspace unless the user explicitly opens review',
+);
+assert.match(
+  workbenchSource,
   /studio-live-workspace-piston-processing[\s\S]*disabled=\{activePistonOscillationDataProcessing\}/,
   'processing should collapse the instrument pane and lock the live split resizer',
 );
@@ -450,6 +470,11 @@ assert.match(
   workbenchSource,
   /openPistonOscillationDataProcessingReview[\s\S]*setPistonOscillationDataProcessingReviewOpen\(true\)[\s\S]*panel\.key === 'heatCapacityGuide'[\s\S]*openPistonOscillationDataProcessingReview\(\)/,
   'double-clicking Data processing after completion must reopen the B-stage review before C/D calculations',
+);
+assert.match(
+  workbenchSource,
+  /guideProcessingCompleted[\s\S]*freeProcessingCompleted[\s\S]*if \(!guideProcessingCompleted && !freeProcessingCompleted\) return/,
+  'the Data processing double-click entry should reopen completed Free or Guide results',
 );
 assert.match(
   dataProcessingSource,

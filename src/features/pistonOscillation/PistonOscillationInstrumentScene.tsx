@@ -59,6 +59,7 @@ export interface PistonOscillationInstrumentSceneProps {
   language: PistonOscillationLanguage;
   powerOn: boolean;
   onPowerToggle?: (powerOn: boolean) => void;
+  sensorSampleRateHz?: number;
   sceneTheme: 'light' | 'dark';
   cameraPreset: WorkbenchPistonOscillationCameraPreset;
   className?: string;
@@ -82,6 +83,7 @@ export interface PistonOscillationInstrumentSceneProps {
   guideHeightReset?: PistonOscillationGuideHeightResetRequest | null;
   viewportWarningFeedbackId?: string | null;
   overlayTopRight?: React.ReactNode;
+  overlayBelowDefaultView?: React.ReactNode;
   overlayCenter?: React.ReactNode;
   overlayCenterAboveGuideMask?: boolean;
   onGuideInstrumentSnapshotChange?: (
@@ -102,6 +104,7 @@ export const PistonOscillationInstrumentScene = ({
   language,
   powerOn,
   onPowerToggle,
+  sensorSampleRateHz,
   sceneTheme,
   cameraPreset,
   className = '',
@@ -123,6 +126,7 @@ export const PistonOscillationInstrumentScene = ({
   guideHeightReset,
   viewportWarningFeedbackId,
   overlayTopRight,
+  overlayBelowDefaultView,
   overlayCenter,
   overlayCenterAboveGuideMask,
   onGuideInstrumentSnapshotChange,
@@ -170,7 +174,8 @@ export const PistonOscillationInstrumentScene = ({
           language={language}
           powerOn={powerOn}
           onPowerToggle={onPowerToggle}
-          initialMode="overview"
+          sensorSampleRateHz={sensorSampleRateHz}
+          initialMode={guideInitialInstrumentState?.focusMode ?? 'overview'}
           cameraPreset={cameraPreset}
           sceneTheme={sceneTheme}
           overviewRevision={overviewRevision}
@@ -190,6 +195,7 @@ export const PistonOscillationInstrumentScene = ({
           guideHeightReset={guideHeightReset}
           viewportWarningFeedbackId={viewportWarningFeedbackId}
           overlayTopRight={overlayTopRight}
+          overlayBelowDefaultView={overlayBelowDefaultView}
           overlayCenter={overlayCenter}
           overlayCenterAboveGuideMask={overlayCenterAboveGuideMask}
           onGuideInstrumentSnapshotChange={onGuideInstrumentSnapshotChange}

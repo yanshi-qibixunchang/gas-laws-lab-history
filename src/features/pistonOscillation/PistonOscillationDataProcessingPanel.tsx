@@ -40,6 +40,9 @@ import type {
   PistonOscillationGuideEvent,
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import type {
+  PistonOscillationFreeSession,
+} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import type { PistonOscillationGuideStrongTargetId } from './pistonOscillationGuidePresentation.ts';
 import {
   getPistonOscillationShellCopy,
@@ -105,6 +108,7 @@ interface SelectionInfoPlacement {
 export interface PistonOscillationDataProcessingPanelProps {
   language: PistonOscillationLanguage;
   guideSession: PistonOscillationGuideSession;
+  freeSession?: PistonOscillationFreeSession;
   pulseActive?: boolean;
   pulseTarget?: PistonOscillationGuideStrongTargetId | null;
   onGuideEvent: (event: PistonOscillationGuideEvent) => void;
@@ -368,6 +372,7 @@ const PistonOscillationPeriodAnswerField = ({
 export const PistonOscillationDataProcessingPanel = ({
   language,
   guideSession,
+  freeSession,
   pulseActive = false,
   pulseTarget = null,
   onGuideEvent,
@@ -379,7 +384,15 @@ export const PistonOscillationDataProcessingPanel = ({
   onCloseReview,
 }: PistonOscillationDataProcessingPanelProps) => {
   const copy = getPistonOscillationShellCopy(language).processing;
-  const processing = guideSession.dataProcessing;
+  const freeProcessingActive = Boolean(freeSession?.dataProcessing);
+  const processing = freeSession?.dataProcessing ?? guideSession.dataProcessing;
+  const savedMeasurements = freeProcessingActive
+    ? freeSession!.savedMeasurements
+    : guideSession.savedMeasurements;
+  const minimumPeriodCount = freeProcessingActive
+    ? processing?.processingPolicy.freeMinimumPeriodCount
+      ?? PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT
+    : PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT;
   const chartId = useId().replace(/:/g, '-');
   const processingPanelRef = useRef<HTMLElement | null>(null);
   const chartViewportRef = useRef<HTMLDivElement | null>(null);
@@ -412,7 +425,7 @@ export const PistonOscillationDataProcessingPanel = ({
     : 0;
   const run = processing?.runs[runIndex] ?? null;
   const record = run
-    ? guideSession.savedMeasurements.find((candidate) => (
+    ? savedMeasurements.find((candidate) => (
         candidate.recordId === run.rawMeasurementRecordId
       )) ?? null
     : null;
@@ -926,7 +939,7 @@ export const PistonOscillationDataProcessingPanel = ({
       record,
       rangeStartTimeS,
       rangeEndTimeS,
-      PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
+      minimumPeriodCount,
       Date.now(),
     );
     dispatch({
@@ -1069,7 +1082,7 @@ export const PistonOscillationDataProcessingPanel = ({
       record,
       rangeStartTimeS,
       rangeEndTimeS,
-      PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
+      minimumPeriodCount,
       Date.now(),
     );
     dispatch({
@@ -1081,7 +1094,7 @@ export const PistonOscillationDataProcessingPanel = ({
     setKeyboardAnnouncement(preview.issue === null
       ? copy.selectionAccepted(preview.extrema.length, formatPeriodCount(preview.periodCount))
       : preview.issue === 'below-guided-minimum'
-        ? copy.guidedMinimumWarning(PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT)
+        ? copy.guidedMinimumWarning(minimumPeriodCount)
         : copy.selectionTooShort);
     setChartMode('pan');
     resetKeyboardSelection();
@@ -1145,7 +1158,7 @@ export const PistonOscillationDataProcessingPanel = ({
             <span>
               {reviewMode
                 ? copy.reviewInstruction
-                : copy.selectionInstruction(PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT)}
+                : copy.selectionInstruction(minimumPeriodCount)}
             </span>
           </div>
           <div className="piston-processing-view-tools">
@@ -1494,7 +1507,7 @@ export const PistonOscillationDataProcessingPanel = ({
             <strong>
               {selection.issue === 'insufficient-extrema'
                 ? copy.selectionTooShort
-                : copy.guidedMinimumWarning(PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT)}
+                : copy.guidedMinimumWarning(minimumPeriodCount)}
             </strong>
           </div>
         ) : (
@@ -1664,7 +1677,7 @@ export const PistonOscillationDataProcessingPanel = ({
         ) : null}
       </section>
 
-      {!reviewMode ? (
+      {!reviewMode && !(freeProcessingActive && isLastRun) ? (
         <footer className="piston-processing-navigation">
           <button type="button" className="is-secondary" disabled aria-disabled="true">
             <ChevronLeft size={15} aria-hidden="true" />
@@ -1694,7 +1707,7 @@ export const PistonOscillationDataProcessingPanel = ({
           </button>
         </footer>
       ) : null}
-      {calculationReady ? (
+      {calculationReady && !freeProcessingActive ? (
         <div className="piston-processing-ready-banner" role="status">
           <Check size={18} aria-hidden="true" />
           <div>

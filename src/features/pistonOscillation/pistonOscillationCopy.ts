@@ -5,26 +5,15 @@ export type PistonOscillationLanguage = typeof PISTON_OSCILLATION_LANGUAGES[numb
 export interface PistonOscillationShellCopy {
   experimentName: string;
   methodName: string;
-  developmentBadge: string;
   preview: {
     ariaLabel: string;
-    eyebrow: string;
-    title: string;
-    body: string;
     loadingTitle: string;
     loadingBody: string;
     loadErrorTitle: string;
     loadErrorBody: string;
     restoreDefaultView: string;
   };
-  realtime: {
-    ariaLabel: string;
-    eyebrow: string;
-    title: string;
-    body: string;
-  };
   unavailable: {
-    navigationItem: string;
     rightSidebar: string;
   };
   modes: {
@@ -157,6 +146,10 @@ export interface PistonOscillationShellCopy {
     actionsAria: string;
     curveAria: string;
     preTriggerNote: string;
+    immediateRecordingNote: string;
+    sampleRateRangeWarning: string;
+    triggerThresholdRangeWarning: string;
+    acquisitionParametersRequired: string;
     demoSaved: string;
     saved: string;
     virtualKeyboard: string;
@@ -296,26 +289,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
   'zh-CN': {
     experimentName: '空气热容比（活塞振动法）',
     methodName: '活塞振动法',
-    developmentBadge: '开发中',
     preview: {
       ariaLabel: '活塞振动法仪器模型 3D 预览',
-      eyebrow: '实时预览',
-      title: '仪器模型待接入',
-      body: '已为活塞振动法预留独立的模型展示区域。',
       loadingTitle: '正在加载仪器模型',
       loadingBody: '正在从本地实验资源中载入活塞振动装置。',
       loadErrorTitle: '3D 模型加载失败',
       loadErrorBody: '当前实验仍可安全关闭；请检查本地模型文件后重新打开。',
       restoreDefaultView: '默认视角',
     },
-    realtime: {
-      ariaLabel: '活塞振动法实时数据暂不可用',
-      eyebrow: '实时数据',
-      title: '当前功能仍在开发阶段',
-      body: '实时数据暂不可用，敬请期待。',
-    },
     unavailable: {
-      navigationItem: '该实验内容仍在开发中，暂时无法打开。',
       rightSidebar: '当前参数区域仍在开发阶段，暂时无法展开，敬请期待。',
     },
     modes: {
@@ -485,6 +467,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       actionsAria: '本次压力采集操作',
       curveAria: '当前测量的绝对压力时间曲线',
       preTriggerNote: '触发前高压段仅用于监视，不写入本次测量。',
+      immediateRecordingNote: '开始记录时已达到监测条件，本次会保留按压、停留和松手后的完整曲线。',
+      sampleRateRangeWarning: '请输入 1 至 1000 Hz 的整数采样频率。',
+      triggerThresholdRangeWarning: '请输入 96.0 至 130.0 kPa 的有效监测值。',
+      acquisitionParametersRequired: '请先输入有效的采样频率和监测值，再开始采集。',
       demoSaved: '保存操作已完成',
       saved: '本次曲线已保存',
       virtualKeyboard: '屏幕数字键盘',
@@ -629,26 +615,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
   'zh-TW': {
     experimentName: '空氣熱容比（活塞振動法）',
     methodName: '活塞振動法',
-    developmentBadge: '開發中',
     preview: {
       ariaLabel: '活塞振動法儀器模型 3D 預覽',
-      eyebrow: '即時預覽',
-      title: '儀器模型待接入',
-      body: '已為活塞振動法預留獨立的模型展示區域。',
       loadingTitle: '正在載入儀器模型',
       loadingBody: '正在從本機實驗資源中載入活塞振動裝置。',
       loadErrorTitle: '3D 模型載入失敗',
       loadErrorBody: '目前實驗仍可安全關閉；請檢查本機模型檔案後重新開啟。',
       restoreDefaultView: '預設視角',
     },
-    realtime: {
-      ariaLabel: '活塞振動法即時資料暫不可用',
-      eyebrow: '即時資料',
-      title: '目前功能仍在開發階段',
-      body: '即時資料暫不可用，敬請期待。',
-    },
     unavailable: {
-      navigationItem: '此實驗內容仍在開發中，暫時無法開啟。',
       rightSidebar: '目前參數區域仍在開發階段，暫時無法展開，敬請期待。',
     },
     modes: {
@@ -818,6 +793,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       actionsAria: '本次壓力採集操作',
       curveAria: '目前測量的絕對壓力時間曲線',
       preTriggerNote: '觸發前高壓段僅用於監視，不寫入本次測量。',
+      immediateRecordingNote: '開始記錄時已達到監測條件，本次會保留按壓、停留和鬆手後的完整曲線。',
+      sampleRateRangeWarning: '請輸入 1 至 1000 Hz 的整數採樣頻率。',
+      triggerThresholdRangeWarning: '請輸入 96.0 至 130.0 kPa 的有效監測值。',
+      acquisitionParametersRequired: '請先輸入有效的採樣頻率和監測值，再開始採集。',
       demoSaved: '儲存操作已完成',
       saved: '本次曲線已儲存',
       virtualKeyboard: '螢幕數字鍵盤',
@@ -962,26 +941,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
   en: {
     experimentName: 'Air Heat-Capacity Ratio (Piston Oscillation)',
     methodName: 'Piston Oscillation',
-    developmentBadge: 'In development',
     preview: {
       ariaLabel: 'Piston-oscillation instrument 3D preview',
-      eyebrow: 'Live Preview',
-      title: 'Instrument model pending integration',
-      body: 'A dedicated model viewport is reserved for the piston-oscillation method.',
       loadingTitle: 'Loading instrument model',
       loadingBody: 'Loading the piston-oscillation apparatus from local experiment resources.',
       loadErrorTitle: '3D model failed to load',
       loadErrorBody: 'The experiment can be closed safely. Check the local model file, then reopen it.',
       restoreDefaultView: 'Default view',
     },
-    realtime: {
-      ariaLabel: 'Piston-oscillation live data is unavailable',
-      eyebrow: 'Live Data',
-      title: 'This feature is still in development',
-      body: 'Live data is temporarily unavailable. Please check back later.',
-    },
     unavailable: {
-      navigationItem: 'This experiment content is still in development and cannot be opened yet.',
       rightSidebar: 'The current-parameters area is still in development and cannot be expanded yet.',
     },
     modes: {
@@ -1151,6 +1119,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       actionsAria: 'Current pressure acquisition controls',
       curveAria: 'Absolute pressure curve for the current measurement',
       preTriggerNote: 'The high-pressure segment before triggering is monitored but not recorded.',
+      immediateRecordingNote: 'The monitoring condition was already met at start, so pressing, holding, and the curve after release are all retained.',
+      sampleRateRangeWarning: 'Enter an integer sample rate from 1 to 1000 Hz.',
+      triggerThresholdRangeWarning: 'Enter a valid monitoring value from 96.0 to 130.0 kPa.',
+      acquisitionParametersRequired: 'Enter a valid sample rate and monitoring value before starting acquisition.',
       demoSaved: 'Save action complete',
       saved: 'Measurement curve saved',
       virtualKeyboard: 'On-screen numeric keypad',

@@ -1,6 +1,8 @@
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -9,12 +11,14 @@ import {
 } from 'react';
 import { Check, Play, RotateCcw, Square } from 'lucide-react';
 import {
+  simulatePistonOscillationRelease,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
   createPistonOscillationSensorObservationSnapshot,
+  type PistonOscillationRawMeasurementRecord,
 } from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
   createPistonOscillationRecordedObservationSamples,
@@ -49,6 +53,9 @@ import type {
   PistonOscillationGuideSavedMeasurement,
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import type {
+  PistonOscillationFreeSession,
+} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
   PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
@@ -63,10 +70,24 @@ import {
 import './PistonOscillationAcquisitionPanel.css';
 import './PistonOscillationChartControls.css';
 import type {
+  PistonOscillationLivePressureObservation,
   PistonOscillationLivePressureChannel,
 } from './pistonOscillationLivePressureChannel.ts';
+import {
+  PISTON_OSCILLATION_FREE_SAMPLE_RATE_MAX_HZ,
+  PISTON_OSCILLATION_FREE_SAMPLE_RATE_MIN_HZ,
+  PISTON_OSCILLATION_FREE_TRIGGER_MAX_KPA,
+  PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA,
+  PISTON_OSCILLATION_MONITOR_GRAPH_MAX_KPA,
+  PISTON_OSCILLATION_MONITOR_GRAPH_MIN_KPA,
+  getPistonOscillationAdaptivePressureGraphDomain,
+  parsePistonOscillationFreeSampleRate,
+  parsePistonOscillationFreeTriggerThreshold,
+  type PressureGraphDomain,
+} from './pistonOscillationFreeAcquisitionModel.ts';
 
 type AcquisitionPhase = 'idle' | 'armed' | 'recording' | 'stopped';
+type FreeRecordingPath = 'falling-trigger' | 'immediate';
 
 export type PistonOscillationGuideAcquisitionCue =
   | 'settings'
@@ -103,6 +124,42 @@ export interface PistonOscillationReleaseEvent {
   trajectory: PistonOscillationTrajectory;
 }
 
+export interface PistonOscillationAcquisitionPanelHandle {
+  pauseAndCaptureFreeRun: () => PistonOscillationRawMeasurementRecord | null;
+}
+
+export interface PistonOscillationAcquisitionPanelProps {
+  language: PistonOscillationLanguage;
+  powerOn: boolean;
+  releaseEvent: PistonOscillationReleaseEvent | null;
+  livePressureChannel?: PistonOscillationLivePressureChannel;
+  demoFrame?: PistonOscillationDemoFrame;
+  demoPlaybackChannel?: PistonOscillationDemoPlaybackChannel;
+  demoPlaybackFileId?: string;
+  guideSession?: PistonOscillationGuideSession;
+  freeSession?: PistonOscillationFreeSession;
+  guidePauseReady?: boolean;
+  onGuideParameterEdit?: (
+    field: PistonOscillationGuideParameterField,
+    value: string,
+  ) => void;
+  onGuideParameterCommit?: (field: PistonOscillationGuideParameterField) => void;
+  onFreeAcquisitionSettingCommit?: (
+    field: 'sampleRateHz' | 'triggerThresholdKpa',
+    value: number,
+  ) => void;
+  onFreeCandidateChange?: (candidate: PistonOscillationRawMeasurementRecord | null) => void;
+  onFreeMeasurementSave?: (measurement: PistonOscillationRawMeasurementRecord) => void;
+  guidePaused?: boolean;
+  guideCue?: PistonOscillationGuideAcquisitionCue;
+  onGuideAcquisitionEvent?: (event: PistonOscillationGuideAcquisitionEvent) => void;
+  onGuideActionAttempt?: (
+    action: PistonOscillationGuideAction,
+    context: PistonOscillationGuideActionContext,
+  ) => PistonOscillationGuideGuardResult;
+  onRunRetained?: () => void;
+}
+
 const GRAPH_DEFAULT_WIDTH = 860;
 const GRAPH_HEIGHT = 380;
 const GRAPH_LEFT = 64;
@@ -112,14 +169,6 @@ const GRAPH_BOTTOM = 334;
 const ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1000 / 30;
 const GRAPH_MIN_PRESSURE_KPA = 96;
 const GRAPH_MAX_PRESSURE_KPA = 121;
-const GUIDE_MONITORING_GRAPH_MIN_PRESSURE_KPA = 96;
-const GUIDE_MONITORING_GRAPH_MAX_PRESSURE_KPA = 132;
-
-interface PressureGraphDomain {
-  minimumKpa: number;
-  maximumKpa: number;
-  ticksKpa: readonly number[];
-}
 
 const DEFAULT_PRESSURE_GRAPH_DOMAIN: PressureGraphDomain = {
   minimumKpa: GRAPH_MIN_PRESSURE_KPA,
@@ -132,11 +181,11 @@ const getGuidedPressureGraphDomain = (
 ): PressureGraphDomain => {
   const minimumKpa = Math.min(
     domain.minimumKpa,
-    GUIDE_MONITORING_GRAPH_MIN_PRESSURE_KPA,
+    PISTON_OSCILLATION_MONITOR_GRAPH_MIN_KPA,
   );
   const maximumKpa = Math.max(
     domain.maximumKpa,
-    GUIDE_MONITORING_GRAPH_MAX_PRESSURE_KPA,
+    PISTON_OSCILLATION_MONITOR_GRAPH_MAX_KPA,
   );
   const tickStepKpa = (maximumKpa - minimumKpa) / 4;
   return {
@@ -208,6 +257,81 @@ const getObservedPressureKpa = (
   return samples[sampleIndex]?.absolutePressureKpa ?? first.absolutePressureKpa;
 };
 
+const getImmediateLivePressureKpa = (
+  observations: readonly PistonOscillationLivePressureObservation[],
+  sampledAtMs: number,
+) => {
+  const first = observations[0];
+  const last = observations.at(-1);
+  if (!first || !last) {
+    return quantizePistonOscillationObservedPressureKpa(
+      PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+    );
+  }
+  if (sampledAtMs <= first.sampledAtMs) return first.absolutePressureKpa;
+  if (sampledAtMs >= last.sampledAtMs) return last.absolutePressureKpa;
+  let lowerBound = 1;
+  let upperBound = observations.length - 1;
+  while (lowerBound < upperBound) {
+    const middle = Math.floor((lowerBound + upperBound) / 2);
+    if (observations[middle]!.sampledAtMs < sampledAtMs) {
+      lowerBound = middle + 1;
+    } else {
+      upperBound = middle;
+    }
+  }
+  const upperIndex = lowerBound;
+  const lower = observations[Math.max(0, upperIndex - 1)] ?? first;
+  const upper = observations[Math.min(observations.length - 1, upperIndex)] ?? last;
+  const spanMs = upper.sampledAtMs - lower.sampledAtMs;
+  if (spanMs <= 0) return upper.absolutePressureKpa;
+  const ratio = Math.min(1, Math.max(0, (sampledAtMs - lower.sampledAtMs) / spanMs));
+  const interpolatedKpa = lower.absolutePressureKpa
+    + (upper.absolutePressureKpa - lower.absolutePressureKpa) * ratio;
+  return quantizePistonOscillationObservedPressureKpa(interpolatedKpa * 1_000);
+};
+
+const createImmediateRecordingSamples = (options: {
+  durationS: number;
+  sampleRateHz: number;
+  recordingStartedAtMs: number;
+  releaseOffsetS: number | null;
+  liveObservations: readonly PistonOscillationLivePressureObservation[];
+  releaseObservationSeries: PistonOscillationSensorObservationSeries | null;
+}) => {
+  const requestedIntervalCount = Math.max(
+    0,
+    Math.floor(options.durationS * options.sampleRateHz + 1e-9),
+  );
+  const maximumIntervalCount = options.releaseOffsetS !== null
+    && options.releaseObservationSeries
+    ? Math.max(0, Math.floor((
+        options.releaseOffsetS
+        + (
+          options.releaseObservationSeries.samples.length - 1
+        ) / options.releaseObservationSeries.sampleRateHz
+      ) * options.sampleRateHz + 1e-9))
+    : requestedIntervalCount;
+  const intervalCount = Math.min(requestedIntervalCount, maximumIntervalCount);
+  return Array.from({ length: intervalCount + 1 }, (_, sampleIndex) => {
+    const timeS = getPistonOscillationObservedTimeS(sampleIndex, options.sampleRateHz);
+    const afterRelease = options.releaseOffsetS !== null
+      && options.releaseObservationSeries
+      && timeS >= options.releaseOffsetS;
+    const absolutePressureKpa = afterRelease
+      ? getObservedPressureKpa(
+          options.releaseObservationSeries!.samples,
+          Math.max(0, timeS - options.releaseOffsetS!),
+          options.releaseObservationSeries!.sampleRateHz,
+        )
+      : getImmediateLivePressureKpa(
+          options.liveObservations,
+          options.recordingStartedAtMs + timeS * 1_000,
+        );
+    return { sampleIndex, timeS, absolutePressureKpa };
+  });
+};
+
 const pressureToY = (pressureKpa: number, domain: PressureGraphDomain) => {
   const normalized = (pressureKpa - domain.minimumKpa)
     / (domain.maximumKpa - domain.minimumKpa);
@@ -267,7 +391,10 @@ const buildPressureSampleMarkerPath = (
   return markers.join(' ');
 };
 
-export const PistonOscillationAcquisitionPanel = ({
+export const PistonOscillationAcquisitionPanel = forwardRef<
+PistonOscillationAcquisitionPanelHandle,
+PistonOscillationAcquisitionPanelProps
+>(({
   language,
   powerOn,
   releaseEvent,
@@ -276,38 +403,19 @@ export const PistonOscillationAcquisitionPanel = ({
   demoPlaybackChannel,
   demoPlaybackFileId,
   guideSession,
+  freeSession,
   guidePauseReady = true,
   onGuideParameterEdit,
   onGuideParameterCommit,
+  onFreeAcquisitionSettingCommit,
+  onFreeCandidateChange,
+  onFreeMeasurementSave,
   guidePaused = false,
   guideCue = null,
   onGuideAcquisitionEvent,
   onGuideActionAttempt,
   onRunRetained,
-}: {
-  language: PistonOscillationLanguage;
-  powerOn: boolean;
-  releaseEvent: PistonOscillationReleaseEvent | null;
-  livePressureChannel?: PistonOscillationLivePressureChannel;
-  demoFrame?: PistonOscillationDemoFrame;
-  demoPlaybackChannel?: PistonOscillationDemoPlaybackChannel;
-  demoPlaybackFileId?: string;
-  guideSession?: PistonOscillationGuideSession;
-  guidePauseReady?: boolean;
-  onGuideParameterEdit?: (
-    field: PistonOscillationGuideParameterField,
-    value: string,
-  ) => void;
-  onGuideParameterCommit?: (field: PistonOscillationGuideParameterField) => void;
-  guidePaused?: boolean;
-  guideCue?: PistonOscillationGuideAcquisitionCue;
-  onGuideAcquisitionEvent?: (event: PistonOscillationGuideAcquisitionEvent) => void;
-  onGuideActionAttempt?: (
-    action: PistonOscillationGuideAction,
-    context: PistonOscillationGuideActionContext,
-  ) => PistonOscillationGuideGuardResult;
-  onRunRetained?: () => void;
-}) => {
+}, ref) => {
   const copy = getPistonOscillationShellCopy(language).acquisition;
   const livePressureObservation = useSyncExternalStore(
     livePressureChannel?.subscribe ?? subscribeToNoLivePressure,
@@ -363,32 +471,59 @@ export const PistonOscillationAcquisitionPanel = ({
   const [guidePressureIssue, setGuidePressureIssue] = useState<
     'underpressure' | 'overpressure' | null
   >(null);
-  const [sampleRateHz, setSampleRateHz] = useState(
-    PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
-  );
-  const [triggerKpa, setTriggerKpa] = useState(
-    PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
-  );
+  const [sampleRateDraft, setSampleRateDraft] = useState(() => (
+    freeSession?.sampleRateHz == null ? '' : String(freeSession.sampleRateHz)
+  ));
+  const [triggerDraft, setTriggerDraft] = useState(() => (
+    freeSession?.triggerThresholdKpa == null ? '' : String(freeSession.triggerThresholdKpa)
+  ));
+  const sampleRateInputRef = useRef<HTMLInputElement | null>(null);
+  const triggerInputRef = useRef<HTMLInputElement | null>(null);
+  const [freeParameterFeedback, setFreeParameterFeedback] = useState<string | null>(null);
+  const freeParameterFeedbackTimerRef = useRef<number | null>(null);
+  const freeCommitRejectedRef = useRef(false);
   const [cycleStartMs, setCycleStartMs] = useState<number | null>(null);
   const [triggerSeconds, setTriggerSeconds] = useState<number | null>(null);
   const [triggerSourceSampleIndex, setTriggerSourceSampleIndex] = useState<number | null>(null);
+  const [freeRecordingPath, setFreeRecordingPath] = useState<FreeRecordingPath>(
+    'falling-trigger',
+  );
+  const [immediateReleaseOffsetS, setImmediateReleaseOffsetS] = useState<number | null>(null);
   const [activeTrajectory, setActiveTrajectory] =
     useState<PistonOscillationTrajectory | null>(null);
   const [displayNowMs, setDisplayNowMs] = useState(() => performance.now());
   const [stopElapsedSeconds, setStopElapsedSeconds] = useState<number | null>(null);
   const [retained, setRetained] = useState(false);
+  const frozenFreeCandidateRef = useRef<PistonOscillationRawMeasurementRecord | null>(
+    freeSession?.acquisitionCandidate ?? null,
+  );
   const chartWrapRef = useRef<HTMLDivElement | null>(null);
   const [graphWidth, setGraphWidth] = useState(GRAPH_DEFAULT_WIDTH);
+  const [freeRunPressureGraphDomain, setFreeRunPressureGraphDomain] =
+    useState<PressureGraphDomain | null>(null);
   const guideSelected = guideSession?.status === 'active'
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
+  const freeSelected = freeSession?.status === 'active';
   const configuredTriggerKpa = guideSelected
     ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
       || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
-    : triggerKpa;
+    : freeSelected
+      ? freeSession.triggerThresholdKpa ?? PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA
+      : Number(triggerDraft) || PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA;
+  const freeSampleRateValid = freeSelected
+    && freeSession.sampleRateHz !== null
+    && parsePistonOscillationFreeSampleRate(String(freeSession.sampleRateHz)) !== null;
+  const freeTriggerThresholdValid = freeSelected
+    && freeSession.triggerThresholdKpa !== null
+    && parsePistonOscillationFreeTriggerThreshold(
+      String(freeSession.triggerThresholdKpa),
+    ) !== null;
+  const freeAcquisitionParametersValid = freeSampleRateValid && freeTriggerThresholdValid;
   const guideSessionStartedAtMs = guideSession === undefined
     ? undefined
     : guideSession.startedAtMs;
+  const freeSessionStartedAtMs = freeSession?.startedAtMs;
   const guideMeasurementIndex = guideSession?.measurementIndex;
   const guideParameterSetupActive = guideActive
     && guideSession.step === 'parameterSetup'
@@ -397,6 +532,8 @@ export const PistonOscillationAcquisitionPanel = ({
   const guideRecordingReadyNotifiedRef = useRef(false);
   const guidePendingOverpressurePeakKpaRef = useRef<number | null>(null);
   const handledReleaseEventIdRef = useRef<number | null>(releaseEvent?.id ?? null);
+  const immediateLiveObservationsRef = useRef<PistonOscillationLivePressureObservation[]>([]);
+  const freeAttemptIdRef = useRef<string | null>(null);
   const preTriggerPeakPressureKpaRef = useRef(
     quantizePistonOscillationObservedPressureKpa(
       PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
@@ -405,7 +542,40 @@ export const PistonOscillationAcquisitionPanel = ({
   const guidePauseStartedAtMsRef = useRef<number | null>(null);
   const guideAccumulatedPauseMsRef = useRef(0);
   const previousGuideMeasurementIndexRef = useRef(guideMeasurementIndex);
+  const previousFreeMeasurementIndexRef = useRef(freeSession?.measurementIndex);
   const previousPowerOnRef = useRef(effectivePowerOn);
+
+  useEffect(() => {
+    if (!freeSession) return;
+    setSampleRateDraft(freeSession.sampleRateHz === null ? '' : String(freeSession.sampleRateHz));
+    setTriggerDraft(
+      freeSession.triggerThresholdKpa === null ? '' : String(freeSession.triggerThresholdKpa),
+    );
+    frozenFreeCandidateRef.current = freeSession.acquisitionCandidate;
+  }, [
+    freeSession?.acquisitionCandidate,
+    freeSession?.measurementIndex,
+    freeSession?.sampleRateHz,
+    freeSession?.startedAtMs,
+    freeSession?.triggerThresholdKpa,
+  ]);
+
+  useEffect(() => () => {
+    if (freeParameterFeedbackTimerRef.current !== null) {
+      window.clearTimeout(freeParameterFeedbackTimerRef.current);
+    }
+  }, []);
+
+  const showFreeParameterFeedback = useCallback((message: string) => {
+    if (freeParameterFeedbackTimerRef.current !== null) {
+      window.clearTimeout(freeParameterFeedbackTimerRef.current);
+    }
+    setFreeParameterFeedback(message);
+    freeParameterFeedbackTimerRef.current = window.setTimeout(() => {
+      freeParameterFeedbackTimerRef.current = null;
+      setFreeParameterFeedback(null);
+    }, 2500);
+  }, []);
 
   useLayoutEffect(() => {
     const chartWrap = chartWrapRef.current;
@@ -436,9 +606,15 @@ export const PistonOscillationAcquisitionPanel = ({
     setCycleStartMs(null);
     setTriggerSeconds(null);
     setTriggerSourceSampleIndex(null);
+    setFreeRecordingPath('falling-trigger');
+    setImmediateReleaseOffsetS(null);
     setActiveTrajectory(null);
     setStopElapsedSeconds(null);
     setRetained(false);
+    setFreeRunPressureGraphDomain(null);
+    frozenFreeCandidateRef.current = null;
+    immediateLiveObservationsRef.current = [];
+    freeAttemptIdRef.current = null;
     setGuidePressureIssue(null);
     setDisplayNowMs(performance.now());
     guideTriggeredNotifiedRef.current = false;
@@ -471,9 +647,37 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [cycleStartMs, livePressureObservation]);
 
   useEffect(() => {
+    if (
+      freeRecordingPath !== 'immediate'
+      || phaseRef.current !== 'recording'
+      || cycleStartMs === null
+      || immediateReleaseOffsetS !== null
+      || !livePressureObservation
+      || livePressureObservation.sampledAtMs < cycleStartMs
+    ) return;
+    const observations = immediateLiveObservationsRef.current;
+    const last = observations.at(-1);
+    if (last?.sampledAtMs === livePressureObservation.sampledAtMs) {
+      observations[observations.length - 1] = livePressureObservation;
+      return;
+    }
+    observations.push(livePressureObservation);
+  }, [
+    cycleStartMs,
+    freeRecordingPath,
+    immediateReleaseOffsetS,
+    livePressureObservation,
+  ]);
+
+  useEffect(() => {
     if (guideSessionStartedAtMs === undefined) return;
     resetRun();
   }, [guideSessionStartedAtMs, resetRun]);
+
+  useEffect(() => {
+    if (freeSessionStartedAtMs === undefined || freeSessionStartedAtMs === null) return;
+    resetRun();
+  }, [freeSessionStartedAtMs, resetRun]);
 
   useEffect(() => {
     const previousMeasurementIndex = previousGuideMeasurementIndexRef.current;
@@ -485,6 +689,18 @@ export const PistonOscillationAcquisitionPanel = ({
     ) return;
     resetRun();
   }, [guideMeasurementIndex, resetRun]);
+
+  useEffect(() => {
+    const freeMeasurementIndex = freeSession?.measurementIndex;
+    const previousMeasurementIndex = previousFreeMeasurementIndexRef.current;
+    previousFreeMeasurementIndexRef.current = freeMeasurementIndex;
+    if (
+      freeMeasurementIndex === undefined
+      || previousMeasurementIndex === undefined
+      || freeMeasurementIndex === previousMeasurementIndex
+    ) return;
+    resetRun();
+  }, [freeSession?.measurementIndex, resetRun]);
 
   useEffect(() => {
     if (!guideActive || !effectivePowerOn) return;
@@ -532,7 +748,15 @@ export const PistonOscillationAcquisitionPanel = ({
   }, [guidePaused]);
 
   useEffect(() => {
-    if (!effectivePowerOn || !releaseEvent || phaseRef.current !== 'armed') return;
+    const immediateRecordingActive = freeSelected
+      && freeRecordingPath === 'immediate'
+      && phaseRef.current === 'recording'
+      && cycleStartMs !== null;
+    if (
+      !effectivePowerOn
+      || !releaseEvent
+      || (phaseRef.current !== 'armed' && !immediateRecordingActive)
+    ) return;
     if (handledReleaseEventIdRef.current === releaseEvent.id) return;
     handledReleaseEventIdRef.current = releaseEvent.id;
     const nextTrajectory = releaseEvent.trajectory;
@@ -540,6 +764,15 @@ export const PistonOscillationAcquisitionPanel = ({
       nextTrajectory.samples,
       nextTrajectory.sampleRateHz,
     );
+    if (immediateRecordingActive) {
+      setActiveTrajectory(nextTrajectory);
+      setImmediateReleaseOffsetS(Math.max(
+        0,
+        (releaseEvent.startedAtMs - cycleStartMs) / 1_000,
+      ));
+      setDisplayNowMs(performance.now());
+      return;
+    }
     const nextTriggerSample = findPistonOscillationObservedFallingTriggerSample(
       nextObservationSeries,
       configuredTriggerKpa,
@@ -591,7 +824,10 @@ export const PistonOscillationAcquisitionPanel = ({
     guideAccumulatedPauseMsRef.current = 0;
   }, [
     configuredTriggerKpa,
+    cycleStartMs,
     effectivePowerOn,
+    freeRecordingPath,
+    freeSelected,
     guideActive,
     onGuideAcquisitionEvent,
     releaseEvent,
@@ -687,9 +923,15 @@ export const PistonOscillationAcquisitionPanel = ({
         (measurement) => measurement.measurementIndex === guideSession.measurementIndex,
       ) ?? null
     : null;
+  const restoredFreeCandidate = !demoFrame
+    && activeTrajectory === null
+    && freeSelected
+    ? freeSession.acquisitionCandidate
+    : null;
   const restoredGuideMeasurement = restoredGuidePauseCandidate
     ?? restoredGuideCandidate
     ?? restoredGuideSavedMeasurement;
+  const restoredMeasurement = restoredGuideMeasurement ?? restoredFreeCandidate;
   const demoActive = demoFrame !== undefined;
   const demoTrajectory = useMemo(
     () => demoFrame
@@ -718,35 +960,74 @@ export const PistonOscillationAcquisitionPanel = ({
   const effectivePhase = demoFrame?.acquisitionPhase
     ?? (restoredGuidePauseCandidate
       ? 'recording'
-      : restoredGuideMeasurement ? 'stopped' : phase);
+      : restoredMeasurement ? 'stopped' : phase);
   const effectiveTriggerKpa = demoFrame
     ? Number(demoFrame.triggerInput) || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
-    : restoredGuideMeasurement?.acquisitionSettings.triggerThresholdKpa ?? configuredTriggerKpa;
+    : restoredMeasurement?.acquisitionSettings.triggerThresholdKpa ?? configuredTriggerKpa;
   const effectiveTriggerSeconds = demoFrame
     ? demoTriggerSample?.timeS ?? null
-    : restoredGuideMeasurement ? 0 : triggerSeconds;
-  const elapsedSinceReleaseSeconds = restoredGuideMeasurement
+    : restoredMeasurement ? 0 : triggerSeconds;
+  const elapsedSinceReleaseSeconds = restoredMeasurement
     ?.acquisitionSettings.recordedDurationS
     ?? demoFrame?.releaseElapsedSeconds
     ?? localElapsedSinceReleaseSeconds;
-  const formalElapsedSeconds = restoredGuideMeasurement
+  const formalElapsedSeconds = restoredMeasurement
     ?.acquisitionSettings.recordedDurationS
     ?? demoFrame?.formalElapsedSeconds
     ?? localFormalElapsedSeconds;
+  const getCurrentRecordingElapsedSeconds = () => {
+    if (
+      cycleStartMs === null
+      || triggerSeconds === null
+      || stopElapsedSeconds !== null
+      || restoredMeasurement
+      || demoFrame
+    ) return formalElapsedSeconds;
+    const nowMs = performance.now();
+    const activePauseMs = guidePaused && guidePauseStartedAtMsRef.current !== null
+      ? Math.max(0, nowMs - guidePauseStartedAtMsRef.current)
+      : 0;
+    return Math.max(
+      0,
+      (
+        nowMs
+        - cycleStartMs
+        - guideAccumulatedPauseMsRef.current
+        - activePauseMs
+      ) / 1_000 - triggerSeconds,
+    );
+  };
   const graphMinimumDomainSeconds = guideSelected || demoFrame
     ? PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
     : 0.8;
   const activeObservationSeries = useMemo<PistonOscillationSensorObservationSeries | null>(
     () => !demoFrame && activeTrajectory
       ? createPistonOscillationSensorObservationSeries(
-        activeTrajectory.samples,
-        activeTrajectory.sampleRateHz,
-      )
+          activeTrajectory.samples,
+          activeTrajectory.sampleRateHz,
+        )
       : null,
     [activeTrajectory, demoFrame],
   );
   const displayedObservationSamples = useMemo<PistonOscillationObservedSample[]>(() => {
     if (restoredGuideMeasurement) return restoredGuideMeasurement.samples;
+    if (restoredFreeCandidate) return restoredFreeCandidate.samples;
+    if (
+      freeSelected
+      && freeRecordingPath === 'immediate'
+      && cycleStartMs !== null
+      && (phase === 'recording' || phase === 'stopped')
+    ) {
+      return createImmediateRecordingSamples({
+        durationS: formalElapsedSeconds,
+        sampleRateHz: freeSession?.sampleRateHz
+          ?? PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
+        recordingStartedAtMs: cycleStartMs,
+        releaseOffsetS: immediateReleaseOffsetS,
+        liveObservations: immediateLiveObservationsRef.current,
+        releaseObservationSeries: activeObservationSeries,
+      });
+    }
     if (formalElapsedSeconds <= 0 || effectiveTriggerSeconds === null) return [];
     if (demoObservationSeries && demoTriggerSample) {
       const maximumIntervalCount = Math.max(
@@ -785,19 +1066,28 @@ export const PistonOscillationAcquisitionPanel = ({
     return [];
   }, [
     activeObservationSeries,
+    cycleStartMs,
     demoObservationSeries,
     demoTriggerSample,
     effectiveTriggerSeconds,
     formalElapsedSeconds,
+    freeRecordingPath,
+    freeSelected,
+    freeSession?.sampleRateHz,
+    immediateReleaseOffsetS,
+    livePressureObservation,
+    phase,
+    restoredFreeCandidate,
     restoredGuideMeasurement,
+    restoredMeasurement,
     triggerSourceSampleIndex,
   ]);
   const getEffectivePressureKpa = useCallback((secondsSinceRelease: number) => {
-    if (restoredGuideMeasurement) {
+    if (restoredMeasurement) {
       return getObservedPressureKpa(
-        restoredGuideMeasurement.samples,
+        restoredMeasurement.samples,
         secondsSinceRelease,
-        restoredGuideMeasurement.acquisitionSettings.sampleRateHz,
+        restoredMeasurement.acquisitionSettings.sampleRateHz,
       );
     }
     if (activeObservationSeries) {
@@ -817,23 +1107,27 @@ export const PistonOscillationAcquisitionPanel = ({
     return quantizePistonOscillationObservedPressureKpa(
       PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
     );
-  }, [activeObservationSeries, demoObservationSeries, restoredGuideMeasurement]);
+  }, [activeObservationSeries, demoObservationSeries, restoredMeasurement]);
   const currentPressureKpa = elapsedSinceReleaseSeconds === null
     ? effectivePhase === 'armed' && livePressureObservation
       ? livePressureObservation.absolutePressureKpa
       : quantizePistonOscillationObservedPressureKpa(
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       )
-    : getEffectivePressureKpa(elapsedSinceReleaseSeconds);
+    : freeRecordingPath === 'immediate' && displayedObservationSamples.length > 0
+      ? displayedObservationSamples.at(-1)!.absolutePressureKpa
+      : getEffectivePressureKpa(elapsedSinceReleaseSeconds);
   const sampleCount = effectivePhase === 'idle' || effectivePhase === 'armed'
     ? 0
     : displayedObservationSamples.length;
   const graphRight = graphWidth - GRAPH_RIGHT_MARGIN;
   const graphCenterX = (GRAPH_LEFT + graphRight) / 2;
-  const pressureGraphDomain = useMemo(
+  const observedPressureGraphDomain = useMemo(
     () => {
-      const domain = restoredGuideMeasurement
-      ? getRecordedPressureGraphDomain(restoredGuideMeasurement)
+      const domain = restoredMeasurement
+      ? getRecordedPressureGraphDomain(restoredMeasurement)
+      : freeRecordingPath === 'immediate' && displayedObservationSamples.length > 0
+        ? getObservedPressureGraphDomain(displayedObservationSamples)
       : demoObservationSeries && demoTriggerSample
         ? getObservedPressureGraphDomain(demoObservationSeries.samples.slice(
           demoTriggerSample.sampleIndex,
@@ -878,12 +1172,55 @@ export const PistonOscillationAcquisitionPanel = ({
       demoObservationSeries,
       demoTriggerSample,
       demoFrame,
+      displayedObservationSamples,
+      freeRecordingPath,
       graphMinimumDomainSeconds,
       guideSelected,
-      restoredGuideMeasurement,
+      restoredMeasurement,
       triggerSourceSampleIndex,
     ],
   );
+  const adaptiveFreePressureGraphDomain = useMemo(
+    () => getPistonOscillationAdaptivePressureGraphDomain(
+      effectiveTriggerKpa,
+      [
+        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA,
+        currentPressureKpa,
+        ...displayedObservationSamples.map((sample) => sample.absolutePressureKpa),
+      ],
+    ),
+    [currentPressureKpa, displayedObservationSamples, effectiveTriggerKpa],
+  );
+  useEffect(() => {
+    if (
+      !freeSelected
+      || (phaseRef.current !== 'armed' && phaseRef.current !== 'recording')
+    ) return;
+    setFreeRunPressureGraphDomain((current) => {
+      if (!current) return adaptiveFreePressureGraphDomain;
+      if (
+        adaptiveFreePressureGraphDomain.minimumKpa >= current.minimumKpa
+        && adaptiveFreePressureGraphDomain.maximumKpa <= current.maximumKpa
+      ) return current;
+      const currentStep = current.ticksKpa.length > 1
+        ? current.ticksKpa[1]! - current.ticksKpa[0]!
+        : 1;
+      const nextStep = adaptiveFreePressureGraphDomain.ticksKpa.length > 1
+        ? adaptiveFreePressureGraphDomain.ticksKpa[1]!
+          - adaptiveFreePressureGraphDomain.ticksKpa[0]!
+        : 1;
+      const epsilon = Math.min(currentStep, nextStep) * 1e-6;
+      return getPistonOscillationAdaptivePressureGraphDomain(effectiveTriggerKpa, [
+        current.minimumKpa + epsilon,
+        current.maximumKpa - epsilon,
+        adaptiveFreePressureGraphDomain.minimumKpa + epsilon,
+        adaptiveFreePressureGraphDomain.maximumKpa - epsilon,
+      ]);
+    });
+  }, [adaptiveFreePressureGraphDomain, effectiveTriggerKpa, freeSelected]);
+  const pressureGraphDomain = freeSelected
+    ? freeRunPressureGraphDomain ?? adaptiveFreePressureGraphDomain
+    : observedPressureGraphDomain;
   const pressurePath = useMemo(
     () => displayedObservationSamples.length === 0 || formalElapsedSeconds <= 0
       ? ''
@@ -926,14 +1263,17 @@ export const PistonOscillationAcquisitionPanel = ({
     PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
     pressureGraphDomain,
   );
-  const triggerValueVisible = !demoFrame || demoFrame.triggerInput.length > 0;
+  const triggerValueVisible = demoFrame
+    ? demoFrame.triggerInput.length > 0
+    : guideSelected || (freeSelected && freeAcquisitionParametersValid);
   const pressureIndicatorVisible = Boolean(
-    (guideSelected || demoActive)
+    (guideSelected || freeSelected || demoActive)
+    && (!freeSelected || freeAcquisitionParametersValid)
     && effectivePhase === 'armed'
-    && !restoredGuideMeasurement,
+    && !restoredMeasurement,
   );
   const pressureIndicatorState = currentPressureKpa
-    < PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
+    < effectiveTriggerKpa
       ? 'below'
       : currentPressureKpa <= PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA
         ? 'valid'
@@ -994,6 +1334,134 @@ export const PistonOscillationAcquisitionPanel = ({
     triggerSourceSampleIndex,
   ]);
 
+  const buildFreeCandidate = useCallback((durationS: number) => {
+    if (
+      !freeSelected
+      || !freeSession.experimentPlan
+      || freeSession.sampleRateHz === null
+      || freeSession.triggerThresholdKpa === null
+    ) return null;
+    const target = freeSession.experimentPlan.targets[freeSession.measurementIndex];
+    const targetHeightMm = target?.heightMm
+      ?? freeSession.experimentPlan.targetHeightsMm[freeSession.measurementIndex];
+    if (targetHeightMm === undefined) return null;
+    const attemptId = freeAttemptIdRef.current
+      ?? `${Date.now()}-${Math.floor(performance.now() * 1_000)}`;
+    freeAttemptIdRef.current = attemptId;
+    if (freeRecordingPath === 'immediate') {
+      if (cycleStartMs === null) return null;
+      const latestLiveObservation = immediateLiveObservationsRef.current.at(-1)
+        ?? livePressureObservation;
+      const snapshotTrajectory = activeTrajectory ?? simulatePistonOscillationRelease({
+        equilibriumHeightMm: latestLiveObservation?.equilibriumHeightMm
+          ?? freeSession.instrumentState.equilibriumHeightMm,
+        initialDisplacementMm: latestLiveObservation?.displacementMm
+          ?? freeSession.instrumentState.pistonOffsetMm,
+      }, {
+        sensorSampleRateHz: freeSession.sampleRateHz,
+      });
+      const snapshotObservationSeries = activeObservationSeries
+        ?? createPistonOscillationSensorObservationSeries(
+          snapshotTrajectory.samples,
+          snapshotTrajectory.sampleRateHz,
+        );
+      const samples = createImmediateRecordingSamples({
+        durationS,
+        sampleRateHz: snapshotObservationSeries.sampleRateHz,
+        recordingStartedAtMs: cycleStartMs,
+        releaseOffsetS: immediateReleaseOffsetS,
+        liveObservations: immediateLiveObservationsRef.current,
+        releaseObservationSeries: immediateReleaseOffsetS === null
+          ? null
+          : snapshotObservationSeries,
+      });
+      const boundedDurationS = samples.at(-1)?.timeS ?? 0;
+      if (
+        samples.length < 2
+        || (
+          immediateReleaseOffsetS !== null
+          && immediateReleaseOffsetS > boundedDurationS
+        )
+      ) return null;
+      return createPistonOscillationRawMeasurementRecord({
+        recordId: `piston-free-${freeSession.startedAtMs ?? 0}-${target?.targetId ?? freeSession.measurementIndex}-${attemptId}`,
+        capturedAtMs: Date.now(),
+        measurementIndex: freeSession.measurementIndex,
+        targetHeightMm,
+        confirmedHeightMm: snapshotTrajectory.equilibrium.equilibriumHeightM * 1_000,
+        sampleRateHz: snapshotObservationSeries.sampleRateHz,
+        triggerThresholdKpa: effectiveTriggerKpa,
+        recordedDurationS: boundedDurationS,
+        recordingPath: 'immediate',
+        releaseOffsetS: immediateReleaseOffsetS,
+        samples,
+        sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
+          sampleRateHz: snapshotObservationSeries.sampleRateHz,
+          triggerSourceSampleIndex: 0,
+        }),
+        physicsSnapshot: createPistonOscillationPhysicsSnapshot(
+          snapshotTrajectory,
+          null,
+        ),
+      });
+    }
+    if (
+      !activeTrajectory
+      || !activeObservationSeries
+      || triggerSeconds === null
+      || triggerSourceSampleIndex === null
+    ) return null;
+    const maximumIntervalCount = Math.max(
+      0,
+      activeObservationSeries.samples.length - triggerSourceSampleIndex - 1,
+    );
+    const requestedIntervalCount = Math.max(
+      0,
+      Math.floor(durationS * activeObservationSeries.sampleRateHz + 1e-9),
+    );
+    const intervalCount = Math.min(maximumIntervalCount, requestedIntervalCount);
+    const boundedDurationS = intervalCount / activeObservationSeries.sampleRateHz;
+    const samples = createPistonOscillationRecordedObservationSamples(
+      activeObservationSeries,
+      triggerSourceSampleIndex,
+      boundedDurationS,
+    );
+    if (samples.length < 2) return null;
+    return createPistonOscillationRawMeasurementRecord({
+      recordId: `piston-free-${freeSession.startedAtMs ?? 0}-${target?.targetId ?? freeSession.measurementIndex}-${attemptId}`,
+      capturedAtMs: Date.now(),
+      measurementIndex: freeSession.measurementIndex,
+      targetHeightMm,
+      confirmedHeightMm: activeTrajectory.equilibrium.equilibriumHeightM * 1_000,
+      sampleRateHz: activeObservationSeries.sampleRateHz,
+      triggerThresholdKpa: effectiveTriggerKpa,
+      recordedDurationS: boundedDurationS,
+      recordingPath: 'falling-trigger',
+      releaseOffsetS: null,
+      samples,
+      sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
+        sampleRateHz: activeObservationSeries.sampleRateHz,
+        triggerSourceSampleIndex,
+      }),
+      physicsSnapshot: createPistonOscillationPhysicsSnapshot(
+        activeTrajectory,
+        triggerSeconds,
+      ),
+    });
+  }, [
+    activeObservationSeries,
+    activeTrajectory,
+    cycleStartMs,
+    effectiveTriggerKpa,
+    freeRecordingPath,
+    freeSelected,
+    freeSession,
+    immediateReleaseOffsetS,
+    livePressureObservation,
+    triggerSeconds,
+    triggerSourceSampleIndex,
+  ]);
+
   useEffect(() => {
     if (
       !guideActive
@@ -1031,22 +1499,66 @@ export const PistonOscillationAcquisitionPanel = ({
 
   const handleStart = () => {
     if (!effectivePowerOn) return;
+    if (freeSelected) {
+      if (freeCommitRejectedRef.current) {
+        freeCommitRejectedRef.current = false;
+        return;
+      }
+      if (!freeAcquisitionParametersValid) {
+        showFreeParameterFeedback(copy.acquisitionParametersRequired);
+        const sampleRateValid = parsePistonOscillationFreeSampleRate(
+          sampleRateInputRef.current?.value ?? sampleRateDraft,
+        ) !== null && freeSession.sampleRateHz !== null;
+        window.requestAnimationFrame(() => {
+          const input = sampleRateValid ? triggerInputRef.current : sampleRateInputRef.current;
+          input?.focus();
+          input?.select();
+        });
+        return;
+      }
+      if (!freeSession.experimentPlan) return;
+    }
+    const recordingStartedAtMs = performance.now();
+    const currentObservation = livePressureObservation ?? {
+      sampleClockIndex: Math.floor(recordingStartedAtMs),
+      sampledAtMs: recordingStartedAtMs,
+      physicalPressurePa: PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+      absolutePressureKpa: quantizePistonOscillationObservedPressureKpa(
+        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+      ),
+      equilibriumHeightMm: freeSession?.instrumentState.equilibriumHeightMm ?? 0,
+      displacementMm: freeSession?.instrumentState.pistonOffsetMm ?? 0,
+    };
+    const startsImmediately = freeSelected
+      && currentObservation.absolutePressureKpa > configuredTriggerKpa;
+    if (freeSelected) {
+      setFreeRunPressureGraphDomain(adaptiveFreePressureGraphDomain);
+    }
     // The scene may still retain the preceding run's release event. Arming
     // establishes a new observation boundary, so only a later release may trigger it.
     handledReleaseEventIdRef.current = releaseEvent?.id ?? null;
-    setCycleStartMs(null);
-    setTriggerSeconds(null);
-    setTriggerSourceSampleIndex(null);
+    setCycleStartMs(startsImmediately ? recordingStartedAtMs : null);
+    setTriggerSeconds(startsImmediately ? 0 : null);
+    setTriggerSourceSampleIndex(startsImmediately ? 0 : null);
+    setFreeRecordingPath(startsImmediately ? 'immediate' : 'falling-trigger');
+    setImmediateReleaseOffsetS(null);
     setActiveTrajectory(null);
     setStopElapsedSeconds(null);
     setRetained(false);
     setGuidePressureIssue(null);
+    frozenFreeCandidateRef.current = null;
+    immediateLiveObservationsRef.current = startsImmediately
+      ? [{ ...currentObservation, sampledAtMs: recordingStartedAtMs }]
+      : [];
+    freeAttemptIdRef.current = `${Date.now()}-${Math.floor(recordingStartedAtMs * 1_000)}`;
+    if (freeSelected) onFreeCandidateChange?.(null);
     guidePendingOverpressurePeakKpaRef.current = null;
     preTriggerPeakPressureKpaRef.current = livePressureObservation?.absolutePressureKpa
       ?? quantizePistonOscillationObservedPressureKpa(
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       );
-    updatePhase('armed');
+    setDisplayNowMs(recordingStartedAtMs);
+    updatePhase(startsImmediately ? 'recording' : 'armed');
     if (guideActive) onGuideAcquisitionEvent?.({ type: 'startAcquisition' });
   };
 
@@ -1054,11 +1566,15 @@ export const PistonOscillationAcquisitionPanel = ({
     setCycleStartMs(null);
     setTriggerSeconds(null);
     setTriggerSourceSampleIndex(null);
+    setFreeRecordingPath('falling-trigger');
+    setImmediateReleaseOffsetS(null);
     setActiveTrajectory(null);
     setStopElapsedSeconds(null);
     setRetained(false);
     setGuidePressureIssue(null);
     guidePendingOverpressurePeakKpaRef.current = null;
+    immediateLiveObservationsRef.current = [];
+    freeAttemptIdRef.current = null;
     preTriggerPeakPressureKpaRef.current = livePressureObservation?.absolutePressureKpa
       ?? quantizePistonOscillationObservedPressureKpa(
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
@@ -1078,25 +1594,73 @@ export const PistonOscillationAcquisitionPanel = ({
       resetRun();
       return;
     }
-    if (phaseRef.current !== 'recording' && restoredGuidePauseCandidate === null) return;
-    const candidate = restoredGuidePauseCandidate ?? buildGuideCandidate(formalElapsedSeconds);
+    if (
+      phaseRef.current !== 'recording'
+      && restoredGuidePauseCandidate === null
+      && restoredFreeCandidate === null
+    ) return;
+    const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds();
+    const candidate = restoredGuidePauseCandidate ?? buildGuideCandidate(pauseElapsedSeconds);
+    const effectiveCandidate = guideSelected
+      ? candidate
+      : restoredFreeCandidate ?? buildFreeCandidate(pauseElapsedSeconds);
     if (guideActive && candidate) {
       onGuideAcquisitionEvent?.({ type: 'curvePaused', candidate });
     }
-    setStopElapsedSeconds(formalElapsedSeconds);
+    if (freeSelected && effectiveCandidate) {
+      frozenFreeCandidateRef.current = effectiveCandidate;
+      onFreeCandidateChange?.(effectiveCandidate);
+    }
+    setStopElapsedSeconds(
+      effectiveCandidate?.acquisitionSettings.recordedDurationS
+        ?? pauseElapsedSeconds,
+    );
     updatePhase('stopped');
   };
 
+  useImperativeHandle(ref, () => ({
+    pauseAndCaptureFreeRun: () => {
+      if (!freeSelected) return null;
+      const existingCandidate = restoredFreeCandidate ?? frozenFreeCandidateRef.current;
+      if (existingCandidate) return existingCandidate;
+      if (phaseRef.current !== 'recording') return null;
+      const candidate = buildFreeCandidate(getCurrentRecordingElapsedSeconds());
+      if (!candidate) return null;
+      frozenFreeCandidateRef.current = candidate;
+      setStopElapsedSeconds(candidate.acquisitionSettings.recordedDurationS);
+      updatePhase('stopped');
+      return candidate;
+    },
+  }), [
+    buildFreeCandidate,
+    formalElapsedSeconds,
+    freeSelected,
+    restoredFreeCandidate,
+    updatePhase,
+  ]);
+
   const acquisitionActive = effectivePhase === 'armed' || effectivePhase === 'recording';
   const effectiveRetained = retained || restoredGuideSavedMeasurement !== null;
+  const freeSaveCandidateAvailable = Boolean(
+    restoredFreeCandidate ?? frozenFreeCandidateRef.current,
+  );
   const measurementNumber = demoFrame
     ? demoFrame.measurementIndex + 1
-    : (guideSession?.measurementIndex ?? 0) + 1;
+    : guideSelected
+      ? (guideSession?.measurementIndex ?? 0) + 1
+      : freeSelected
+        ? Math.min(
+            freeSession.experimentPlan?.targetHeightsMm.length ?? 0,
+            freeSession.measurementIndex + 1,
+          )
+        : 1;
   const totalMeasurements = demoFrame
     ? demoFrame.measurementCount
     : guideSelected
     ? PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS
-    : PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS;
+    : freeSelected
+      ? freeSession.experimentPlan?.targetHeightsMm.length ?? 0
+      : PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS;
   const guideFeedback = guideSession?.feedbackCode === 'sampleRateInvalid'
     ? getPistonOscillationShellCopy(language).guide.sampleRateInvalid
     : guideSession?.feedbackCode === 'triggerThresholdInvalid'
@@ -1125,6 +1689,52 @@ export const PistonOscillationAcquisitionPanel = ({
   const commitGuideParameter = (field: PistonOscillationGuideParameterField) => {
     if (!guideInputsLocked) onGuideParameterCommit?.(field);
   };
+  const commitFreeParameter = (
+    field: 'sampleRateHz' | 'triggerThresholdKpa',
+  ): boolean => {
+    if (!freeSelected) return false;
+    const draft = field === 'sampleRateHz' ? sampleRateDraft : triggerDraft;
+    const value = field === 'sampleRateHz'
+      ? parsePistonOscillationFreeSampleRate(draft)
+      : parsePistonOscillationFreeTriggerThreshold(draft);
+    if (value === null) {
+      freeCommitRejectedRef.current = true;
+      if (field === 'sampleRateHz') {
+        setSampleRateDraft(
+          freeSession.sampleRateHz === null ? '' : String(freeSession.sampleRateHz),
+        );
+        showFreeParameterFeedback(copy.sampleRateRangeWarning);
+      } else {
+        setTriggerDraft(
+          freeSession.triggerThresholdKpa === null
+            ? ''
+            : String(freeSession.triggerThresholdKpa),
+        );
+        showFreeParameterFeedback(copy.triggerThresholdRangeWarning);
+      }
+      return false;
+    }
+    freeCommitRejectedRef.current = false;
+    if (field === 'sampleRateHz') {
+      setSampleRateDraft(String(value));
+    } else {
+      setTriggerDraft(String(value));
+    }
+    onFreeAcquisitionSettingCommit?.(field, value);
+    return true;
+  };
+  const restoreFreeParameterDraft = (field: 'sampleRateHz' | 'triggerThresholdKpa') => {
+    if (!freeSelected) return;
+    if (field === 'sampleRateHz') {
+      setSampleRateDraft(
+        freeSession.sampleRateHz === null ? '' : String(freeSession.sampleRateHz),
+      );
+    } else {
+      setTriggerDraft(
+        freeSession.triggerThresholdKpa === null ? '' : String(freeSession.triggerThresholdKpa),
+      );
+    }
+  };
 
   if (!effectivePowerOn) {
     return (
@@ -1145,6 +1755,10 @@ export const PistonOscillationAcquisitionPanel = ({
       className="piston-acquisition-panel"
       data-piston-acquisition-preview="true"
       data-acquisition-phase={effectivePhase}
+      data-free-recording-path={
+        restoredFreeCandidate?.acquisitionSettings.recordingPath
+          ?? freeRecordingPath
+      }
       data-acquisition-sample-count={sampleCount}
       data-piston-demo-active={demoActive ? 'true' : 'false'}
       data-piston-demo-control={demoFrame?.activeControl ?? 'none'}
@@ -1183,15 +1797,19 @@ export const PistonOscillationAcquisitionPanel = ({
           <span>{copy.sampleRate}</span>
           <div>
             <input
+              ref={sampleRateInputRef}
               type="number"
-              min={1}
-              max={1000}
+              min={PISTON_OSCILLATION_FREE_SAMPLE_RATE_MIN_HZ}
+              max={PISTON_OSCILLATION_FREE_SAMPLE_RATE_MAX_HZ}
               step={1}
               value={demoFrame?.sampleRateInput
-                ?? (guideSelected ? guideSession.parameterDrafts.sampleRateHz : sampleRateHz)}
+                ?? (guideSelected ? guideSession.parameterDrafts.sampleRateHz : sampleRateDraft)}
               readOnly={demoActive || guideInputsLocked}
               disabled={!demoActive && !guideActive && (phase === 'armed' || phase === 'recording')}
-              aria-invalid={guideSession?.parameterStatus.sampleRateHz === 'invalid'}
+              aria-invalid={guideSession?.parameterStatus.sampleRateHz === 'invalid'
+                || (freeSelected
+                  && sampleRateDraft.trim().length > 0
+                  && parsePistonOscillationFreeSampleRate(sampleRateDraft) === null)}
               onPointerDown={() => {
                 if (guideSelected && guideInputsLocked && !guidePaused) {
                   attemptGuideAction('editParameters', 'settings');
@@ -1201,14 +1819,30 @@ export const PistonOscillationAcquisitionPanel = ({
                 if (guideSelected && !guidePaused) {
                   onGuideParameterEdit?.('sampleRateHz', event.target.value);
                 } else if (!demoActive) {
-                  setSampleRateHz(Math.max(1, Math.min(1000, Number(event.target.value))));
+                  setSampleRateDraft(event.target.value);
                 }
               }}
               onBlur={() => {
-                if (guideSelected && !guidePaused) commitGuideParameter('sampleRateHz');
+                if (guideSelected && !guidePaused) {
+                  commitGuideParameter('sampleRateHz');
+                } else if (freeSelected) {
+                  commitFreeParameter('sampleRateHz');
+                }
               }}
               onKeyDown={(event) => {
-                if (guideSelected && !guidePaused && event.key === 'Enter') event.currentTarget.blur();
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  if (freeSelected) {
+                    const accepted = commitFreeParameter('sampleRateHz');
+                    if (accepted) triggerInputRef.current?.focus();
+                  } else {
+                    event.currentTarget.blur();
+                  }
+                } else if (event.key === 'Escape' && freeSelected) {
+                  event.preventDefault();
+                  restoreFreeParameterDraft('sampleRateHz');
+                }
               }}
             />
             <small>Hz</small>
@@ -1222,15 +1856,21 @@ export const PistonOscillationAcquisitionPanel = ({
           <span>{copy.triggerThreshold}</span>
           <div>
             <input
+              ref={triggerInputRef}
               type="number"
-              min={96}
-              max={guideSelected || demoActive ? 140 : 108}
+              min={PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA}
+              max={guideSelected || demoActive
+                ? 140
+                : PISTON_OSCILLATION_FREE_TRIGGER_MAX_KPA}
               step={0.1}
               value={demoFrame?.triggerInput
-                ?? (guideSelected ? guideSession.parameterDrafts.triggerThresholdKpa : triggerKpa)}
+                ?? (guideSelected ? guideSession.parameterDrafts.triggerThresholdKpa : triggerDraft)}
               readOnly={demoActive || guideInputsLocked}
               disabled={!demoActive && !guideActive && (phase === 'armed' || phase === 'recording')}
-              aria-invalid={guideSession?.parameterStatus.triggerThresholdKpa === 'invalid'}
+              aria-invalid={guideSession?.parameterStatus.triggerThresholdKpa === 'invalid'
+                || (freeSelected
+                  && triggerDraft.trim().length > 0
+                  && parsePistonOscillationFreeTriggerThreshold(triggerDraft) === null)}
               onPointerDown={() => {
                 if (guideSelected && guideInputsLocked && !guidePaused) {
                   attemptGuideAction('editParameters', 'settings');
@@ -1240,14 +1880,25 @@ export const PistonOscillationAcquisitionPanel = ({
                 if (guideSelected && !guidePaused) {
                   onGuideParameterEdit?.('triggerThresholdKpa', event.target.value);
                 } else if (!demoActive) {
-                  setTriggerKpa(Math.max(96, Math.min(108, Number(event.target.value))));
+                  setTriggerDraft(event.target.value);
                 }
               }}
               onBlur={() => {
-                if (guideSelected && !guidePaused) commitGuideParameter('triggerThresholdKpa');
+                if (guideSelected && !guidePaused) {
+                  commitGuideParameter('triggerThresholdKpa');
+                } else if (freeSelected) {
+                  commitFreeParameter('triggerThresholdKpa');
+                }
               }}
               onKeyDown={(event) => {
-                if (guideSelected && !guidePaused && event.key === 'Enter') event.currentTarget.blur();
+                event.stopPropagation();
+                if (event.key === 'Enter') {
+                  event.preventDefault();
+                  event.currentTarget.blur();
+                } else if (event.key === 'Escape' && freeSelected) {
+                  event.preventDefault();
+                  restoreFreeParameterDraft('triggerThresholdKpa');
+                }
               }}
             />
             <small>kPa</small>
@@ -1308,16 +1959,18 @@ export const PistonOscillationAcquisitionPanel = ({
         </div>
       ) : null}
 
-      {guideFeedback ? (
+      {guideFeedback || freeParameterFeedback ? (
         <div
-          key={`${guideSession?.feedbackCode}:${guideSession?.updatedAtMs}`}
+          key={guideFeedback
+            ? `${guideSession?.feedbackCode}:${guideSession?.updatedAtMs}`
+            : freeParameterFeedback}
           className="piston-guide-parameter-feedback"
           data-prompt-feedback-kind="warning"
           role="status"
           aria-live="polite"
           aria-atomic="true"
         >
-          <strong>{guideFeedback}</strong>
+          <strong>{guideFeedback ?? freeParameterFeedback}</strong>
         </div>
       ) : null}
       <div className="piston-acquisition-live-readout">
@@ -1503,7 +2156,10 @@ export const PistonOscillationAcquisitionPanel = ({
                 handleGuideOverpressureRedo();
                 return;
               }
-              if (!guideSelected) resetRun();
+              if (!guideSelected) {
+                if (freeSelected) onFreeCandidateChange?.(null);
+                resetRun();
+              }
             }}
             disabled={demoActive || guidePaused || (
               guideSelected
@@ -1541,13 +2197,27 @@ export const PistonOscillationAcquisitionPanel = ({
                 if (guideActive) {
                   onGuideAcquisitionEvent?.({ type: 'saveMeasurement' });
                 }
+                if (freeSelected) {
+                  const candidate = restoredFreeCandidate
+                    ?? frozenFreeCandidateRef.current;
+                  if (!candidate) return;
+                  onFreeMeasurementSave?.(candidate);
+                }
                 onRunRetained?.();
               }
             }}
             disabled={demoActive || guidePaused || (!guideSelected && (
-              effectivePhase !== 'stopped' || effectiveRetained
+              effectivePhase !== 'stopped'
+              || effectiveRetained
+              || !freeSaveCandidateAvailable
             ))}
-            aria-disabled={demoActive || guidePaused || (guideSelected && !guideSaveAllowed)}
+            aria-disabled={demoActive || guidePaused || (
+              guideSelected
+                ? !guideSaveAllowed
+                : effectivePhase !== 'stopped'
+                  || effectiveRetained
+                  || !freeSaveCandidateAvailable
+            )}
           >
             <span className="piston-acquisition-action-feedback" aria-hidden="true">
               <Check size={15} strokeWidth={2.5} aria-hidden="true" />
@@ -1559,7 +2229,12 @@ export const PistonOscillationAcquisitionPanel = ({
       </div>
 
       <div className="piston-acquisition-note">
-        <span>{copy.preTriggerNote}</span>
+        <span>{(
+          restoredFreeCandidate?.acquisitionSettings.recordingPath
+            ?? freeRecordingPath
+        ) === 'immediate'
+          ? copy.immediateRecordingNote
+          : copy.preTriggerNote}</span>
         {demoFrame?.retainFeedbackVisible ? (
           <strong>{copy.demoSaved}</strong>
         ) : effectiveRetained ? <strong>{copy.saved}</strong> : null}
@@ -1567,6 +2242,8 @@ export const PistonOscillationAcquisitionPanel = ({
 
     </aside>
   );
-};
+});
+
+PistonOscillationAcquisitionPanel.displayName = 'PistonOscillationAcquisitionPanel';
 
 export default PistonOscillationAcquisitionPanel;
