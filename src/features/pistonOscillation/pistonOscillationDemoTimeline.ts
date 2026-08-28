@@ -1,6 +1,12 @@
 import {
+  PISTON_OSCILLATION_SETTLING_DURATION_S,
+  createPistonOscillationAtmosphericLockedState,
+  createPistonOscillationLoadedEquilibriumState,
+  createPistonOscillationLoadedGasState,
   getPistonOscillationTrajectorySampleAt,
+  getPistonOscillationSettlingStateAtProgress,
   simulatePistonOscillationRelease,
+  type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
@@ -98,6 +104,7 @@ export interface PistonOscillationDemoFrame {
   hoseWithinMagneticRange: boolean;
   lockingScrewProgress: number;
   operationMirrorView: PistonOscillationDemoOperationMirrorView | null;
+  nominalHeightMm: number;
   equilibriumHeightMm: number;
   platformAction: PistonOscillationDemoPlatformAction;
   leftHandSupporting: boolean;
@@ -107,6 +114,7 @@ export interface PistonOscillationDemoFrame {
   formalElapsedSeconds: number;
   retainFeedbackVisible: boolean;
   operationCue: PistonOscillationOperationCue | null;
+  thermodynamicState: PistonOscillationThermodynamicState;
   completed: boolean;
 }
 
@@ -594,7 +602,7 @@ export const getPistonOscillationDemoTrajectory = (measurementIndex: number) => 
   const cached = trajectoryCache.get(index);
   if (cached) return cached;
   const trajectory = simulatePistonOscillationRelease({
-    equilibriumHeightMm: PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index],
+    lockedHeightMm: PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index],
     initialDisplacementMm: -getPistonOscillationDemoPressDisplacementMm(index),
   });
   trajectoryCache.set(index, trajectory);
@@ -670,7 +678,7 @@ const getKeyboardPresentation = (elapsedMs: number) => {
   };
 };
 
-const getEquilibriumHeight = (elapsedMs: number) => {
+const getNominalHeight = (elapsedMs: number) => {
   let height = 0;
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM.forEach((target, index) => {
     const window = getActionWindow(index, 'adjustHeight', 'platform');
@@ -679,6 +687,86 @@ const getEquilibriumHeight = (elapsedMs: number) => {
     height = start + (target - start) * easeInOut(progressBetween(elapsedMs, window.startsAtMs, window.endsAtMs));
   });
   return height;
+};
+
+const getPhysicalEquilibriumHeight = (elapsedMs: number) => {
+  let height = 0;
+  PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM.forEach((target, index) => {
+    const adjustment = getActionWindow(index, 'adjustHeight', 'platform');
+    const loosen = getActionWindow(index, 'restoreFreeMotion', 'screw');
+    if (elapsedMs < adjustment.startsAtMs) return;
+    const previousTarget = index === 0
+      ? 0
+      : PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index - 1];
+    const previousLoadedHeight = index === 0
+      ? 0
+      : createPistonOscillationLoadedEquilibriumState(previousTarget)
+          .equilibriumHeightM * 1_000;
+    height = previousLoadedHeight + (target - previousLoadedHeight) * easeInOut(
+      progressBetween(elapsedMs, adjustment.startsAtMs, adjustment.endsAtMs),
+    );
+    if (elapsedMs < loosen.endsAtMs) return;
+    const settlingProgress = progressBetween(
+      elapsedMs,
+      loosen.endsAtMs,
+      loosen.endsAtMs + PISTON_OSCILLATION_SETTLING_DURATION_S * 1_000,
+    );
+    height = getPistonOscillationSettlingStateAtProgress(
+      target,
+      settlingProgress,
+    ).pistonHeightM * 1_000;
+  });
+  return height;
+};
+
+const getConfiguredMeasurementIndex = (elapsedMs: number) => {
+  let configuredIndex = -1;
+  PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM.forEach((_target, index) => {
+    if (elapsedMs >= getActionWindow(index, 'adjustHeight', 'platform').startsAtMs) {
+      configuredIndex = index;
+    }
+  });
+  return configuredIndex;
+};
+
+const getDemoThermodynamicState = (
+  elapsedMs: number,
+  hoseState: PistonOscillationDemoFrame['hoseState'],
+  pistonOffsetMm: number,
+) => {
+  const configuredIndex = getConfiguredMeasurementIndex(elapsedMs);
+  const physicalBaseHeightMm = getPhysicalEquilibriumHeight(elapsedMs);
+  if (configuredIndex < 0 || hoseState === 'disconnected') {
+    return createPistonOscillationAtmosphericLockedState(
+      Math.min(80, Math.max(0, physicalBaseHeightMm + pistonOffsetMm)),
+      {},
+      'vented',
+    );
+  }
+  const nominalHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[configuredIndex];
+  const loosen = getActionWindow(configuredIndex, 'restoreFreeMotion', 'screw');
+  if (elapsedMs < loosen.endsAtMs) {
+    return createPistonOscillationAtmosphericLockedState(
+      nominalHeightMm,
+      {},
+      'sealed-locked-atmospheric',
+    );
+  }
+  const settlingProgress = progressBetween(
+    elapsedMs,
+    loosen.endsAtMs,
+    loosen.endsAtMs + PISTON_OSCILLATION_SETTLING_DURATION_S * 1_000,
+  );
+  if (settlingProgress < 1) {
+    return getPistonOscillationSettlingStateAtProgress(
+      nominalHeightMm,
+      settlingProgress,
+    );
+  }
+  return createPistonOscillationLoadedGasState(
+    createPistonOscillationLoadedEquilibriumState(nominalHeightMm),
+    pistonOffsetMm,
+  );
 };
 
 const getHosePresentation = (elapsedMs: number) => {
@@ -883,6 +971,13 @@ export const getPistonOscillationDemoFrame = (
   const stepDescription = stage === 'reset' ? meta.resetDescription
     : stage === 'observe' ? meta.observe(step.note) : step.description;
   const savedMeasurementCount = [0, 1, 2].reduce((count, index) => count + (elapsedMs >= getRunTiming(index).retainAtMs ? 1 : 0), 0);
+  const nominalHeightMm = getNominalHeight(elapsedMs);
+  const equilibriumHeightMm = getPhysicalEquilibriumHeight(elapsedMs);
+  const thermodynamicState = getDemoThermodynamicState(
+    elapsedMs,
+    hose.hoseState,
+    pistonOffsetMm,
+  );
   return {
     elapsedMs, ...power, focusMode, activeControl, highlightControl, highlightControls,
     highlightElapsedSeconds: stage === 'highlight' && currentSegment ? (elapsedMs - currentSegment.startsAtMs) / 1000 : 0,
@@ -892,11 +987,13 @@ export const getPistonOscillationDemoFrame = (
     measurementIndex, measurementCount: PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
     targetHeightMm, savedMeasurementCount, ...keyboard, ...hose,
     lockingScrewProgress, operationMirrorView,
-    equilibriumHeightMm: getEquilibriumHeight(elapsedMs),
+    nominalHeightMm,
+    equilibriumHeightMm,
     platformAction, leftHandSupporting, pistonOffsetMm,
     acquisitionPhase, releaseElapsedSeconds, formalElapsedSeconds,
     retainFeedbackVisible: elapsedMs >= runTiming.retainAtMs,
     operationCue: getDemoOperationCue(elapsedMs, currentWindow, stage),
+    thermodynamicState,
     completed,
   };
 };

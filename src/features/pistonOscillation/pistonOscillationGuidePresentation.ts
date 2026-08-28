@@ -6,6 +6,9 @@ import type {
 import {
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import type {
+  PistonOscillationThermodynamicState,
+} from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import type { PistonOscillationHeightAdjustmentStage } from './pistonOscillationOperationMirror.ts';
 
 export type PistonOscillationGuideFocusMode = 'overview' | 'pistonFocus' | 'powerFocus';
@@ -13,12 +16,14 @@ export type PistonOscillationGuideFocusMode = 'overview' | 'pistonFocus' | 'powe
 export interface PistonOscillationGuideInstrumentRestoreState {
   focusMode?: 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
   hoseState: 'connected' | 'disconnected';
+  nominalHeightMm?: number;
   equilibriumHeightMm: number;
   pistonOffsetMm?: number;
   lockingScrewProgress: number;
   powerOn: boolean;
   heightAdjustmentStage?: PistonOscillationHeightAdjustmentStage;
   pistonPhase?: 'idle' | 'ready' | 'pressing' | 'adjustingHeight' | 'holding' | 'falling' | 'rebounding';
+  thermodynamicState?: PistonOscillationThermodynamicState;
 }
 
 export const PISTON_OSCILLATION_GUIDE_HEIGHT_SNAP_CAPTURE_MM = 2;

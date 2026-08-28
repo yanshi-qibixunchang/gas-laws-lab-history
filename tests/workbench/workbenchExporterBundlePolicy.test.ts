@@ -91,6 +91,8 @@ assert.doesNotMatch(exporterSource, /Hard Sphere Lab/, 'the exporter should not 
 assert.doesNotMatch(exporterGraphStyleSource, /Hard Sphere Lab/, 'exporter helper modules should not expose the retired English brand');
 assert.match(inspectorSource, /CArchiveReader/, 'the legal inventory should be derived from the actual PyInstaller archive');
 assert.match(inspectorSource, /archive\.open_embedded_archive\(pyz_name/, 'the legal inventory should inspect embedded PYZ modules');
+assert.ok(inspectorSource.includes('^api-ms-win-(?:core|crt)-.*\\.dll$'), 'Windows API-set runtime libraries should be attributed to the Microsoft runtime');
+assert.ok(inspectorSource.includes('^ucrtbase\\.dll$'), 'the Universal CRT runtime should be attributed to the Microsoft runtime');
 
 assert.equal(manifest.schemaVersion, 3, 'exporter bundle manifest should use the executable-integrity schema');
 assert.equal(legalInventory.schemaVersion, 2, 'exporter legal inventory should use the hashed runtime-evidence schema');

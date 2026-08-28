@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import {
+  getPistonOscillationSettlingStateAtProgress,
+} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
   createPistonOscillationLivePressureChannel,
 } from '../../src/features/pistonOscillation/pistonOscillationLivePressureChannel.ts';
 
@@ -36,9 +39,22 @@ const pressed = channel.publishPhysicalState({
 assert.ok((pressed?.absolutePressureKpa ?? 0) >= 120);
 assert.equal(notifications, 2);
 
+const settlingMidpoint = getPistonOscillationSettlingStateAtProgress(80, 0.5);
+const settlingObservation = channel.publishPhysicalState({
+  observedAtMs: 1_002.01,
+  equilibriumHeightMm: settlingMidpoint.pistonHeightM * 1_000,
+  displacementMm: 0,
+  thermodynamicState: settlingMidpoint,
+});
+assert.equal(settlingObservation?.thermodynamicPhase, 'settling');
+assert.equal(settlingObservation?.truePistonHeightMm, settlingMidpoint.pistonHeightM * 1_000);
+assert.equal(settlingObservation?.temperatureK, 293.15);
+assert.equal(settlingObservation?.absolutePressureKpa, 101.61);
+assert.equal(notifications, 3);
+
 channel.clear();
 assert.equal(channel.getSnapshot(), null);
-assert.equal(notifications, 3);
+assert.equal(notifications, 4);
 unsubscribe();
 
 assert.throws(

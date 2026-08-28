@@ -500,6 +500,9 @@ import {
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
+  createPistonOscillationLoadedEquilibriumState,
+} from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
   completePistonOscillationDemoSession,
   createDefaultPistonOscillationDemoSession,
   pausePistonOscillationDemoSession,
@@ -8668,11 +8671,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         instrumentState: {
           focusMode: snapshot.focusMode,
           hoseState: snapshot.hoseState,
+          nominalHeightMm: snapshot.nominalHeightMm,
           equilibriumHeightMm: snapshot.equilibriumHeightMm,
           pistonOffsetMm: snapshot.pistonOffsetMm,
           lockingScrewProgress: snapshot.lockingScrewProgress,
           heightAdjustmentStage: snapshot.heightAdjustmentStage,
           pistonPhase: snapshot.pistonPhase,
+          thermodynamicState: snapshot.thermodynamicState,
         },
         nowMs: Date.now(),
       });
@@ -9552,6 +9557,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const expectedBaselineHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
       baselineHeightIndex as 0 | 1 | 2
     ];
+    const expectedTrueBaselineHeightMm = createPistonOscillationLoadedEquilibriumState(
+      expectedBaselineHeightMm,
+    ).equilibriumHeightM * 1_000;
     if (
       guideSession?.status !== 'active'
       || !baselineStep
@@ -9561,7 +9569,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       || snapshot.spaceHeld
       || snapshot.mouseHeld
       || snapshot.pistonPhase !== 'idle'
-      || Math.abs(snapshot.equilibriumHeightMm - expectedBaselineHeightMm) > 0.25
+      || snapshot.thermodynamicState.phase !== 'sealed-loaded'
+      || Math.abs(snapshot.equilibriumHeightMm - expectedTrueBaselineHeightMm) > 0.025
     ) return;
     updateFileById(activeFile.id, (file) => applyPistonOscillationGuideEvents(file, [
       { type: 'baselineStabilized', nowMs: Date.now() },

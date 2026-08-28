@@ -2,17 +2,49 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-27T00:58:32.535Z",
-  "finishedAt": "2026-08-27T00:58:53.378Z",
+  "generatedAt": "2026-08-28T08:29:10.138Z",
+  "finishedAt": "2026-08-28T08:29:33.167Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
-    "packageVersion": "6.1.1",
-    "gitCommit": "61af041d90be3cf969fe163e0ba9118c22ee9c96",
+    "packageVersion": "6.2.0",
+    "gitCommit": "aee897cb117a6251ce2362deb4485b2fa38c7846",
     "dirtyAtStart": true,
     "statusAtStart": [
-      "?? heat-model-diagnosis.png"
+      "M README.md",
+      " M README.zh-CN.md",
+      " M README.zh-TW.md",
+      " M docs/build-notice-zh-CN.md",
+      " D docs/instrument-modeling/piston-oscillation-checkpoint-2-physics-baseline-analysis-2026-08-25.md",
+      " D docs/instrument-modeling/piston-oscillation-correct-operation-baseline.md",
+      " M docs/instrument-modeling/piston-oscillation-experiment-spec.md",
+      " M docs/instrument-modeling/piston-oscillation-integration-plan.md",
+      " M docs/instrument-modeling/piston-oscillation-modeling-references-gb.md",
+      " M docs/releases/release-notes.json",
+      " M package-lock.json",
+      " M package.json",
+      " M src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts",
+      " M src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts",
+      " M src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts",
+      " M src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx",
+      " M src/features/pistonOscillation/PistonOscillationFreeSetupDialog.tsx",
+      " M src/features/pistonOscillation/PistonOscillationInteractionWorkspace.tsx",
+      " M src/features/pistonOscillation/pistonOscillationDemoTimeline.ts",
+      " M src/features/pistonOscillation/pistonOscillationGuidePresentation.ts",
+      " M src/features/pistonOscillation/pistonOscillationLivePressureChannel.ts",
+      " M src/features/workbench/WorkbenchStudioPrototype.tsx",
+      " M tests/pistonOscillation/pistonOscillationAcquisitionConfig.test.ts",
+      " M tests/pistonOscillation/pistonOscillationDemoTimeline.test.ts",
+      " M tests/pistonOscillation/pistonOscillationFreeSetupDialog.test.ts",
+      " M tests/pistonOscillation/pistonOscillationFreeWorkflowModel.test.ts",
+      " M tests/pistonOscillation/pistonOscillationInteractionWorkspace.test.ts",
+      " M tests/pistonOscillation/pistonOscillationLivePressureChannel.test.ts",
+      " M tests/pistonOscillation/pistonOscillationNumericalRegression.test.ts",
+      " M tests/pistonOscillation/pistonOscillationPhysicsEngine.test.ts",
+      " M tests/pistonOscillation/workbenchPistonOscillationShell.test.ts",
+      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
+      "?? docs/releases/v6.2.0.md"
     ]
   },
   "runtime": {
@@ -298,7 +330,7 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "38f1a0a8e4bf61a3906a39f4414e164b7f946eaf42069c442cecaeec45948c8f",
+      "sha256": "b13f654777728fd7cc61caf988f76d255336f56843ecaf441fa31c02c2338c5b",
       "bytes": 4497
     },
     {
@@ -393,8 +425,8 @@
     },
     {
       "path": "src/features/workbench/workbenchState.ts",
-      "sha256": "310240fa5e5e57f96dcd0e149260c06c2e31289092a15648425bfaf8c4af276f",
-      "bytes": 280622
+      "sha256": "c27ac91190df81767fe3b2eaad62a6874246c360d001dd1cf209efd3cf5fd342",
+      "bytes": 282022
     }
   ],
   "generatedFiles": [
@@ -406,7 +438,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "e2abbb4b03f39a3eee1d073693977e69aa5983607d1a0e0ce556158e8a2c03cd"
+      "sha256": "0710483e43fb44240f95bc2a907abf7cf810f22869286d8eb696a913f50b9db9"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",

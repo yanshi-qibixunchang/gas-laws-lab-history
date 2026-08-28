@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
 import {
+  PISTON_OSCILLATION_SETTLING_DURATION_S,
+  createPistonOscillationLoadedEquilibriumState,
+} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
   PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS,
   PISTON_OSCILLATION_DEMO_DURATION_MS,
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS,
@@ -127,6 +131,8 @@ for (const measurementIndex of [0, 1, 2]) {
   assert.equal(adjusted.measurementIndex, measurementIndex);
   assert.equal(adjusted.targetHeightMm, targetHeightMm);
   assert.equal(adjusted.equilibriumHeightMm, targetHeightMm);
+  assert.equal(adjusted.nominalHeightMm, targetHeightMm);
+  assert.equal(adjusted.thermodynamicState.phase, 'vented');
   assert.equal(adjusted.hoseState, 'disconnected');
 
   const heightHandoff = frameInside(heightAction.startsAtMs, heightAction.endsAtMs, 0.9);
@@ -185,6 +191,7 @@ for (const measurementIndex of [0, 1, 2]) {
   const connected = getPistonOscillationDemoFrame(connectAction.endsAtMs);
   assert.equal(connected.hoseState, 'connected');
   assert.equal(connected.hoseDragging, false);
+  assert.equal(connected.thermodynamicState.phase, 'sealed-locked-atmospheric');
 
   const recordAction = action(measurementIndex, 'recordOscillation', 'platform');
   const restoreStep = step(measurementIndex, 'restoreFreeMotion');
@@ -197,6 +204,22 @@ for (const measurementIndex of [0, 1, 2]) {
     keys: ['space', 'mouseLeft'],
     mouseAction: 'rotateCounterclockwise',
   });
+  const settlingStart = getPistonOscillationDemoFrame(restoreAction.endsAtMs);
+  const settlingMiddle = getPistonOscillationDemoFrame(
+    restoreAction.endsAtMs + PISTON_OSCILLATION_SETTLING_DURATION_S * 500,
+  );
+  const settlingEnd = getPistonOscillationDemoFrame(
+    restoreAction.endsAtMs + PISTON_OSCILLATION_SETTLING_DURATION_S * 1_000,
+  );
+  assert.equal(settlingStart.nominalHeightMm, targetHeightMm);
+  assert.equal(settlingStart.thermodynamicState.phase, 'settling');
+  assert.equal(settlingMiddle.thermodynamicState.phase, 'settling');
+  assert.equal(settlingEnd.thermodynamicState.phase, 'sealed-loaded');
+  assert.ok(settlingStart.equilibriumHeightMm > settlingMiddle.equilibriumHeightMm);
+  assert.ok(settlingMiddle.equilibriumHeightMm > settlingEnd.equilibriumHeightMm);
+  assert.equal(settlingStart.pistonOffsetMm, 0);
+  assert.equal(settlingMiddle.pistonOffsetMm, 0);
+  assert.equal(settlingEnd.pistonOffsetMm, 0);
   const startAction = action(measurementIndex, 'startAcquisition', 'start');
   assert.deepEqual(frameInside(startAction.startsAtMs, startAction.endsAtMs).operationCue, {
     keys: ['space', 'mouseLeft'],
@@ -264,7 +287,12 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
 }
 
 const trajectories = [0, 1, 2].map(getPistonOscillationDemoTrajectory);
-assert.deepEqual(trajectories.map((trajectory) => trajectory.equilibrium.equilibriumHeightM * 1_000), [80, 70, 60]);
+assert.deepEqual(
+  trajectories.map((trajectory) => trajectory.equilibrium.equilibriumHeightM * 1_000),
+  [80, 70, 60].map((heightMm) => (
+    createPistonOscillationLoadedEquilibriumState(heightMm).equilibriumHeightM * 1_000
+  )),
+);
 assert.deepEqual(
   trajectories.map((trajectory) => trajectory.initialDisplacementM * 1_000),
   [-10.5, -9.8, -9],

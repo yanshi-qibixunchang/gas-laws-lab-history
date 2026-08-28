@@ -17,6 +17,7 @@ import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
   PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
   createPistonOscillationEquilibriumState,
+  getPistonOscillationSettlingStateAtProgress,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   createPistonOscillationAirMaterialSnapshot,
@@ -81,7 +82,9 @@ assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 60, 50, 40, 30,
 assert.equal(isValidPistonOscillationFreeExperimentPlan([60, 70, 80]), true);
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 70]), false);
 assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 65, 29]), true);
-assert.equal(isValidPistonOscillationFreeCustomHeightMm(0), true);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(0), false);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(9), false);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(10), true);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(80), true);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(80.5), false);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(-1), false);
@@ -183,6 +186,40 @@ const withInstrumentState = transitionPistonOscillationFreeSession(withOperation
 assert.equal(withInstrumentState.instrumentState.focusMode, 'pistonFocus');
 assert.equal(withInstrumentState.instrumentState.equilibriumHeightMm, 60);
 assert.equal(withInstrumentState.instrumentState.pistonOffsetMm, -8);
+assert.equal(withInstrumentState.instrumentState.nominalHeightMm, 52);
+assert.equal(
+  withInstrumentState.instrumentState.thermodynamicState.phase,
+  'sealed-locked-atmospheric',
+);
+
+const settledState80 = getPistonOscillationSettlingStateAtProgress(80, 1);
+const withSettledPhysicalState = transitionPistonOscillationFreeSession(withOperation, {
+  type: 'setInstrumentState',
+  nowMs: 136,
+  instrumentState: {
+    focusMode: 'pistonFocus',
+    hoseState: 'connected',
+    nominalHeightMm: 80,
+    equilibriumHeightMm: settledState80.pistonHeightM * 1_000,
+    pistonOffsetMm: 0,
+    lockingScrewProgress: 0,
+    heightAdjustmentStage: 'lockingHeight',
+    pistonPhase: 'idle',
+    thermodynamicState: settledState80,
+  },
+});
+const restoredSettledPhysicalState = normalizePistonOscillationFreeSession(
+  JSON.parse(JSON.stringify(withSettledPhysicalState)),
+);
+assert.equal(restoredSettledPhysicalState.instrumentState.nominalHeightMm, 80);
+assert.equal(
+  restoredSettledPhysicalState.instrumentState.thermodynamicState.phase,
+  'sealed-loaded',
+);
+assert.ok(Math.abs(
+  restoredSettledPhysicalState.instrumentState.equilibriumHeightMm
+    - settledState80.pistonHeightM * 1_000,
+) < 1e-10);
 
 const paused = transitionPistonOscillationFreeSession(withInstrumentState, {
   type: 'pause',

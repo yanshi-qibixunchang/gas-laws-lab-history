@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Check, Play, RotateCcw, Square } from 'lucide-react';
 import {
+  createPistonOscillationLoadedEquilibriumState,
   simulatePistonOscillationRelease,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
@@ -1352,11 +1353,28 @@ PistonOscillationAcquisitionPanelProps
       if (cycleStartMs === null) return null;
       const latestLiveObservation = immediateLiveObservationsRef.current.at(-1)
         ?? livePressureObservation;
+      const snapshotLockedHeightMm = freeSession.instrumentState.nominalHeightMm;
+      let snapshotEquilibrium: ReturnType<
+        typeof createPistonOscillationLoadedEquilibriumState
+      >;
+      try {
+        snapshotEquilibrium = createPistonOscillationLoadedEquilibriumState(
+          snapshotLockedHeightMm,
+        );
+      } catch {
+        // At the rigid lower stop, the piston cannot create a usable loaded
+        // equilibrium or an oscillation record. Keep the stopped acquisition
+        // visible, but do not manufacture a savable candidate.
+        return null;
+      }
+      const snapshotVisibleHeightMm = latestLiveObservation?.truePistonHeightMm
+        ?? freeSession.instrumentState.thermodynamicState.pistonHeightM * 1_000;
       const snapshotTrajectory = activeTrajectory ?? simulatePistonOscillationRelease({
-        equilibriumHeightMm: latestLiveObservation?.equilibriumHeightMm
-          ?? freeSession.instrumentState.equilibriumHeightMm,
-        initialDisplacementMm: latestLiveObservation?.displacementMm
-          ?? freeSession.instrumentState.pistonOffsetMm,
+        lockedHeightMm: snapshotLockedHeightMm,
+        initialDisplacementMm: Math.min(
+          0,
+          snapshotVisibleHeightMm - snapshotEquilibrium.equilibriumHeightM * 1_000,
+        ),
       }, {
         sensorSampleRateHz: freeSession.sampleRateHz,
       });
@@ -1528,6 +1546,12 @@ PistonOscillationAcquisitionPanelProps
       ),
       equilibriumHeightMm: freeSession?.instrumentState.equilibriumHeightMm ?? 0,
       displacementMm: freeSession?.instrumentState.pistonOffsetMm ?? 0,
+      truePistonHeightMm:
+        (freeSession?.instrumentState.thermodynamicState.pistonHeightM ?? 0) * 1_000,
+      temperatureK:
+        freeSession?.instrumentState.thermodynamicState.temperatureK ?? 293.15,
+      thermodynamicPhase:
+        freeSession?.instrumentState.thermodynamicState.phase ?? 'vented',
     };
     const startsImmediately = freeSelected
       && currentObservation.absolutePressureKpa > configuredTriggerKpa;

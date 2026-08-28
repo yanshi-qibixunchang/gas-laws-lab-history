@@ -140,6 +140,11 @@ assert.match(
   /createImmediateRecordingSamples[\s\S]*releaseOffsetS[\s\S]*liveObservations[\s\S]*releaseObservationSeries[\s\S]*recordingPath: 'immediate'/,
   'immediate Free recording must combine the pre-release press and hold with the released oscillation',
 );
+assert.match(
+  panelSource,
+  /snapshotLockedHeightMm[\s\S]*try \{[\s\S]*createPistonOscillationLoadedEquilibriumState[\s\S]*\} catch \{[\s\S]*return null;/,
+  'an acquisition at the rigid lower stop must remain visible but must not become a fabricated savable oscillation record',
+);
 assert.doesNotMatch(panelSource, />Run 1\/7</);
 assert.match(panelSource, /phaseRef\.current === 'armed'[\s\S]*updatePhase\('recording'\)/);
 assert.match(

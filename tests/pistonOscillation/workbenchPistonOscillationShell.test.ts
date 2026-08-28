@@ -584,8 +584,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const baselineStep = guideStep === 'baselineStabilizing'[\s\S]*guideStep === 'crossRunStabilizing'[\s\S]*expectedBaselineHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[\s\S]*snapshot\?\.hoseState !== 'connected'[\s\S]*snapshot\.lockingScrewState !== 'loose'[\s\S]*snapshot\.spaceHeld[\s\S]*snapshot\.mouseHeld[\s\S]*snapshot\.pistonPhase !== 'idle'[\s\S]*Math\.abs\(snapshot\.equilibriumHeightMm - expectedBaselineHeightMm\) > 0\.25[\s\S]*type: 'baselineStabilized'/,
-  'baseline stabilization should use the current or preceding Run height rather than a hard-coded first target',
+  /const baselineStep = guideStep === 'baselineStabilizing'[\s\S]*guideStep === 'crossRunStabilizing'[\s\S]*expectedBaselineHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[\s\S]*expectedTrueBaselineHeightMm = createPistonOscillationLoadedEquilibriumState[\s\S]*snapshot\?\.hoseState !== 'connected'[\s\S]*snapshot\.lockingScrewState !== 'loose'[\s\S]*snapshot\.spaceHeld[\s\S]*snapshot\.mouseHeld[\s\S]*snapshot\.pistonPhase !== 'idle'[\s\S]*snapshot\.thermodynamicState\.phase !== 'sealed-loaded'[\s\S]*Math\.abs\(snapshot\.equilibriumHeightMm - expectedTrueBaselineHeightMm\) > 0\.025[\s\S]*type: 'baselineStabilized'/,
+  'baseline stabilization should wait for the current or preceding Run to reach its true loaded equilibrium',
 );
 assert.doesNotMatch(workbenchSource, /PistonOscillationRealtimeUnavailable/);
 assert.match(

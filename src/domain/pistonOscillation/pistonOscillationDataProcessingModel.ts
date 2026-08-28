@@ -757,6 +757,7 @@ const normalizePhysicsConfig = (
 
 const normalizeEquilibrium = (
   value: unknown,
+  config: PistonOscillationPhysicsConfig,
 ): PistonOscillationEquilibriumState | null => {
   if (!isPlainRecord(value)) return null;
   const keys = [
@@ -783,10 +784,39 @@ const normalizeEquilibrium = (
     ? value.sealedDeadVolumeM3
     : normalized.equilibriumVolumeM3 - graduatedCylinderVolumeM3;
   if (graduatedCylinderVolumeM3 < 0 || sealedDeadVolumeM3 < 0) return null;
+  let derived: PistonOscillationEquilibriumState;
+  try {
+    derived = createPistonOscillationEquilibriumState(
+      normalized.equilibriumHeightM * 1_000,
+      config,
+    );
+  } catch {
+    return null;
+  }
   return {
     ...normalized,
     graduatedCylinderVolumeM3,
     sealedDeadVolumeM3,
+    lockedHeightM: isFiniteNumber(value.lockedHeightM)
+      ? value.lockedHeightM
+      : derived.lockedHeightM,
+    lockedGraduatedCylinderVolumeM3: isFiniteNumber(
+      value.lockedGraduatedCylinderVolumeM3,
+    )
+      ? value.lockedGraduatedCylinderVolumeM3
+      : derived.lockedGraduatedCylinderVolumeM3,
+    lockedVolumeM3: isFiniteNumber(value.lockedVolumeM3)
+      ? value.lockedVolumeM3
+      : derived.lockedVolumeM3,
+    lockedPressurePa: isFiniteNumber(value.lockedPressurePa)
+      ? value.lockedPressurePa
+      : derived.lockedPressurePa,
+    lockedTemperatureK: isFiniteNumber(value.lockedTemperatureK)
+      ? value.lockedTemperatureK
+      : derived.lockedTemperatureK,
+    settlingDisplacementM: isFiniteNumber(value.settlingDisplacementM)
+      ? value.settlingDisplacementM
+      : derived.settlingDisplacementM,
   };
 };
 
@@ -800,7 +830,9 @@ const normalizePhysicsSnapshot = (
     : null;
   if (!isPlainRecord(value)) return fallback();
   const config = normalizePhysicsConfig(value.config);
-  const equilibrium = normalizeEquilibrium(value.equilibrium);
+  const equilibrium = config
+    ? normalizeEquilibrium(value.equilibrium, config)
+    : null;
   if (
     !config
     || !equilibrium

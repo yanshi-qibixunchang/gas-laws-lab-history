@@ -10,13 +10,21 @@ import {
   PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3,
   PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
   PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
+  PISTON_OSCILLATION_SETTLING_DURATION_S,
+  PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
+  createPistonOscillationAdiabaticStateFromReference,
+  createPistonOscillationAtmosphericLockedState,
   createPistonOscillationEquilibriumState,
+  createPistonOscillationLoadedEquilibriumState,
   findPistonOscillationFallingTriggerTimeS,
   getPistonCylinderAreaM2,
   getPistonOscillationInstantaneousThermodynamicState,
+  getPistonOscillationSettlingStateAtProgress,
   getPistonOscillationSmallSignalFrequencyHz,
+  getPistonOscillationSmallSignalFrequencyFromLockedHeightHz,
   getPistonOscillationTrajectorySampleAt,
   normalizePistonOscillationPhysicsConfig,
+  normalizePistonOscillationThermodynamicState,
   simulatePistonOscillationRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
@@ -40,6 +48,7 @@ assert.equal(
   'piston-oscillation-temporary-equivalent-linear-loss-v1',
 );
 assert.equal(PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M, 0.434);
+assert.equal(PISTON_OSCILLATION_SETTLING_DURATION_S, 0.2);
 
 assert.equal(
   PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
@@ -86,6 +95,79 @@ assert.ok(
   ) < 1e-15,
 );
 assert.ok(equilibrium80.gasAmountMol > 0);
+
+const loadedFromLocked80 = createPistonOscillationLoadedEquilibriumState(80);
+assert.ok(Math.abs(loadedFromLocked80.lockedHeightM * 1_000 - 80) < 1e-10);
+assert.ok(
+  Math.abs(loadedFromLocked80.equilibriumHeightM * 1_000 - 79.5028476117188) < 1e-10,
+  'an 80 mm atmospheric locked state must settle to its distinct true loaded height',
+);
+assert.ok(loadedFromLocked80.settlingDisplacementM < 0);
+assert.equal(loadedFromLocked80.lockedPressurePa, 101_325);
+assert.equal(loadedFromLocked80.lockedTemperatureK, 293.15);
+
+const lockedAtmospheric80 = createPistonOscillationAtmosphericLockedState(80);
+assert.equal(lockedAtmospheric80.phase, 'sealed-locked-atmospheric');
+assert.equal(lockedAtmospheric80.pressurePa, 101_325);
+assert.equal(lockedAtmospheric80.temperatureK, 293.15);
+assert.equal(lockedAtmospheric80.pistonHeightM, 0.08);
+assert.equal(lockedAtmospheric80.thermal.enabled, false);
+assert.equal(
+  lockedAtmospheric80.thermal.modelVersion,
+  PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
+);
+assert.equal(lockedAtmospheric80.thermal.cumulativeHeatTransferJ, 0);
+const normalizedLockedAtmospheric80 = normalizePistonOscillationThermodynamicState(
+  lockedAtmospheric80,
+);
+assert.ok(normalizedLockedAtmospheric80);
+assert.equal(normalizedLockedAtmospheric80?.phase, lockedAtmospheric80.phase);
+assert.ok(Math.abs(
+  (normalizedLockedAtmospheric80?.pressurePa ?? 0) - lockedAtmospheric80.pressurePa,
+) < 1e-9);
+
+const settlingStates80 = [0, 0.25, 0.5, 0.75, 1].map((progress) => (
+  getPistonOscillationSettlingStateAtProgress(80, progress)
+));
+assert.deepEqual(
+  settlingStates80.map(({ settlingProgress }) => settlingProgress),
+  [0, 0.25, 0.5, 0.75, 1],
+);
+assert.equal(settlingStates80[0]?.velocityMPerS, 0);
+assert.equal(settlingStates80.at(-1)?.velocityMPerS, 0);
+assert.ok(settlingStates80.slice(1, -1).every(({ velocityMPerS }) => velocityMPerS < 0));
+assert.ok(settlingStates80.slice(1).every((state, index) => (
+  state.pistonHeightM < settlingStates80[index]!.pistonHeightM
+  && state.pressurePa > settlingStates80[index]!.pressurePa
+)));
+assert.equal(settlingStates80.at(-1)?.phase, 'sealed-loaded');
+assert.ok(Math.abs(
+  (settlingStates80.at(-1)?.pistonHeightM ?? 0)
+    - loadedFromLocked80.equilibriumHeightM,
+) < 1e-12);
+assert.deepEqual(
+  getPistonOscillationSettlingStateAtProgress(80, 1),
+  getPistonOscillationSettlingStateAtProgress(80, 1),
+  'repeating a lock/loosen calculation from the same sealed state must not accumulate sinking',
+);
+
+const compressedFromLoaded80 = createPistonOscillationAdiabaticStateFromReference(
+  settlingStates80.at(-1)!,
+  70,
+);
+assert.equal(compressedFromLoaded80.phase, 'sealed-loaded');
+assert.ok(compressedFromLoaded80.pressurePa > loadedFromLocked80.equilibriumPressurePa);
+assert.ok(compressedFromLoaded80.temperatureK > 293.15);
+
+const compressedBeforeSettling80 = createPistonOscillationAdiabaticStateFromReference(
+  lockedAtmospheric80,
+  75,
+);
+assert.ok(
+  compressedBeforeSettling80.pressurePa > lockedAtmospheric80.pressurePa,
+  'pressing immediately after loosening must change the sealed gas state even before settling ends',
+);
+assert.ok(compressedBeforeSettling80.temperatureK > lockedAtmospheric80.temperatureK);
 
 const instantaneousPressedState = getPistonOscillationInstantaneousThermodynamicState(
   80,
@@ -271,6 +353,44 @@ const recoveredIdealGamma = 4 * Math.PI ** 2
 assert.ok(
   Math.abs(recoveredIdealGamma - PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) < 1e-12,
   'the zero-loss analytic invariant must recover the versioned 1.40 air property',
+);
+
+const lockedHeightInvariantPoints = [60, 70, 80].map((lockedHeightMm) => {
+  const equilibrium = createPistonOscillationLoadedEquilibriumState(lockedHeightMm, {
+    linearDampingNsPerM: 0,
+  });
+  const frequencyHz = getPistonOscillationSmallSignalFrequencyFromLockedHeightHz(
+    lockedHeightMm,
+    { linearDampingNsPerM: 0 },
+  );
+  return {
+    x: 1 / frequencyHz ** 2,
+    y: equilibrium.equilibriumHeightM,
+  };
+});
+const lockedInvariantMeanX = lockedHeightInvariantPoints.reduce(
+  (sum, point) => sum + point.x,
+  0,
+) / lockedHeightInvariantPoints.length;
+const lockedInvariantMeanY = lockedHeightInvariantPoints.reduce(
+  (sum, point) => sum + point.y,
+  0,
+) / lockedHeightInvariantPoints.length;
+const lockedInvariantSlopeMPerS2 = lockedHeightInvariantPoints.reduce(
+  (sum, point) => sum
+    + (point.x - lockedInvariantMeanX) * (point.y - lockedInvariantMeanY),
+  0,
+) / lockedHeightInvariantPoints.reduce(
+  (sum, point) => sum + (point.x - lockedInvariantMeanX) ** 2,
+  0,
+);
+const recoveredGammaAfterSettling = 4 * Math.PI ** 2
+  * DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.movingMassKg
+  * lockedInvariantSlopeMPerS2
+  / (areaM2 * loadedFromLocked80.equilibriumPressurePa);
+assert.ok(
+  Math.abs(recoveredGammaAfterSettling - PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) < 1e-12,
+  'the ideal self-check must use the true post-settling heights and still recover 1.40',
 );
 
 const heavier = createPistonOscillationEquilibriumState(80, { movingMassKg: 0.07 });

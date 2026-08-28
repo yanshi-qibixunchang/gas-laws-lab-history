@@ -1,5 +1,7 @@
 import {
   getPistonOscillationInstantaneousThermodynamicState,
+  type PistonOscillationThermodynamicPhase,
+  type PistonOscillationThermodynamicState,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
@@ -10,6 +12,7 @@ export interface PistonOscillationLivePhysicalState {
   observedAtMs: number;
   equilibriumHeightMm: number;
   displacementMm: number;
+  thermodynamicState?: PistonOscillationThermodynamicState;
 }
 
 export interface PistonOscillationLivePressureObservation {
@@ -19,6 +22,9 @@ export interface PistonOscillationLivePressureObservation {
   absolutePressureKpa: number;
   equilibriumHeightMm: number;
   displacementMm: number;
+  truePistonHeightMm: number;
+  temperatureK: number;
+  thermodynamicPhase: PistonOscillationThermodynamicPhase;
 }
 
 export interface PistonOscillationLivePressureChannel {
@@ -53,10 +59,11 @@ export const createPistonOscillationLivePressureChannel = (
         state.observedAtMs * PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ / 1_000,
       );
       if (snapshot?.sampleClockIndex === sampleClockIndex) return snapshot;
-      const thermodynamicState = getPistonOscillationInstantaneousThermodynamicState(
-        state.equilibriumHeightMm,
-        state.displacementMm,
-      );
+      const thermodynamicState = state.thermodynamicState
+        ?? getPistonOscillationInstantaneousThermodynamicState(
+          state.equilibriumHeightMm,
+          state.displacementMm,
+        ).gasState;
       snapshot = {
         sampleClockIndex,
         sampledAtMs: sampleClockIndex
@@ -67,6 +74,9 @@ export const createPistonOscillationLivePressureChannel = (
         ),
         equilibriumHeightMm: state.equilibriumHeightMm,
         displacementMm: state.displacementMm,
+        truePistonHeightMm: thermodynamicState.pistonHeightM * 1_000,
+        temperatureK: thermodynamicState.temperatureK,
+        thermodynamicPhase: thermodynamicState.phase,
       };
       notify();
       return snapshot;

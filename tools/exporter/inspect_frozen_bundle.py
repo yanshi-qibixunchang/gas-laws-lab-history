@@ -29,6 +29,8 @@ CANONICAL_NAME_PATTERN = re.compile(r"[-_.]+")
 RUNTIME_LIBRARY_RULES = (
     (re.compile(r"^(python\d*|python3)\.dll$", re.IGNORECASE), "python-runtime"),
     (re.compile(r"^vcruntime\d*(?:_\d+)?\.dll$", re.IGNORECASE), "microsoft-runtime"),
+    (re.compile(r"^api-ms-win-(?:core|crt)-.*\.dll$", re.IGNORECASE), "microsoft-runtime"),
+    (re.compile(r"^ucrtbase\.dll$", re.IGNORECASE), "microsoft-runtime"),
     (re.compile(r"^lib(?:crypto|ssl)-.*\.dll$", re.IGNORECASE), "openssl"),
     (re.compile(r"^libffi-.*\.dll$", re.IGNORECASE), "libffi"),
 )

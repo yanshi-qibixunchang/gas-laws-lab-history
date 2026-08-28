@@ -23,12 +23,19 @@ import {
   type PistonOscillationPeriodAnswerField,
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
+import {
+  createPistonOscillationAtmosphericLockedState,
+  createPistonOscillationEquilibriumState,
+  createPistonOscillationLoadedGasState,
+  normalizePistonOscillationThermodynamicState,
+  type PistonOscillationThermodynamicState,
+} from './pistonOscillationPhysicsEngine.ts';
 
-export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 4 as const;
-export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 2 as const;
+export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 5 as const;
+export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 1 as const;
-export const PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION = 1 as const;
+export const PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT = 3 as const;
 export const PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT = 6 as const;
@@ -69,12 +76,22 @@ export interface PistonOscillationFreeInstrumentState {
   schemaVersion: typeof PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION;
   focusMode: 'overview' | 'pistonFocus' | 'hoseFocus' | 'powerFocus';
   hoseState: 'connected' | 'disconnected';
+  nominalHeightMm: number;
   equilibriumHeightMm: number;
   pistonOffsetMm: number;
   lockingScrewProgress: number;
   heightAdjustmentStage: 'readingHeight' | 'lockingHeight';
   pistonPhase: 'idle' | 'ready' | 'pressing' | 'adjustingHeight' | 'holding' | 'falling' | 'rebounding';
+  thermodynamicState: PistonOscillationThermodynamicState;
 }
+
+export type PistonOscillationFreeInstrumentStateInput = Omit<
+  PistonOscillationFreeInstrumentState,
+  'schemaVersion' | 'nominalHeightMm' | 'thermodynamicState'
+> & Partial<Pick<
+  PistonOscillationFreeInstrumentState,
+  'nominalHeightMm' | 'thermodynamicState'
+>>;
 
 export type PistonOscillationFreeObservedOperation =
   | 'togglePower'
@@ -176,7 +193,7 @@ export type PistonOscillationFreeEvent =
   | ({ type: 'clearAcquisition' } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'setInstrumentState';
-      instrumentState: Omit<PistonOscillationFreeInstrumentState, 'schemaVersion'>;
+      instrumentState: PistonOscillationFreeInstrumentStateInput;
     } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'deleteMeasurement';
@@ -299,12 +316,12 @@ export const isValidPistonOscillationFreeExperimentPlan = (
     || targetHeightsMm.length > PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT
   ) return false;
   return targetHeightsMm.every((heightMm) => (
-    Number.isSafeInteger(heightMm) && heightMm >= 0 && heightMm <= 80
+    Number.isSafeInteger(heightMm) && heightMm >= 10 && heightMm <= 80
   )) && new Set(targetHeightsMm).size === targetHeightsMm.length;
 };
 
 export const isValidPistonOscillationFreeCustomHeightMm = (heightMm: number) => (
-  Number.isSafeInteger(heightMm) && heightMm >= 0 && heightMm <= 80
+  Number.isSafeInteger(heightMm) && heightMm >= 10 && heightMm <= 80
 );
 
 const isSystemFreeTargetHeightMm = (heightMm: number) => (
@@ -336,7 +353,7 @@ export const createPistonOscillationFreeExperimentPlan = (
   } = {},
 ): PistonOscillationFreeExperimentPlan => {
   if (!isValidPistonOscillationFreeExperimentPlan(targetHeightsMm)) {
-    throw new RangeError('Free-mode target heights must contain 3–6 unique integer heights from 0 to 80 mm.');
+    throw new RangeError('Free-mode target heights must contain 3–6 unique integer heights from 10 to 80 mm.');
   }
   const sortedTargetHeightsMm = [...targetHeightsMm].sort((first, second) => second - first);
   const planId = typeof options.planId === 'string' && options.planId.trim().length > 0
@@ -385,11 +402,17 @@ export const createDefaultPistonOscillationFreeInstrumentState = (
   schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
   focusMode: 'overview',
   hoseState: 'disconnected',
+  nominalHeightMm: 0,
   equilibriumHeightMm: 0,
   pistonOffsetMm: 0,
   lockingScrewProgress: 0,
   heightAdjustmentStage: 'readingHeight',
   pistonPhase: 'idle',
+  thermodynamicState: createPistonOscillationAtmosphericLockedState(
+    0,
+    {},
+    'vented',
+  ),
 });
 
 export const createDefaultPistonOscillationFreeSession = ():
@@ -634,6 +657,8 @@ export const transitionPistonOscillationFreeSession = (
     if (
       normalizedInstrumentState.focusMode === session.instrumentState.focusMode
       && normalizedInstrumentState.hoseState === session.instrumentState.hoseState
+      && normalizedInstrumentState.nominalHeightMm
+        === session.instrumentState.nominalHeightMm
       && normalizedInstrumentState.equilibriumHeightMm
         === session.instrumentState.equilibriumHeightMm
       && normalizedInstrumentState.pistonOffsetMm === session.instrumentState.pistonOffsetMm
@@ -642,6 +667,8 @@ export const transitionPistonOscillationFreeSession = (
       && normalizedInstrumentState.heightAdjustmentStage
         === session.instrumentState.heightAdjustmentStage
       && normalizedInstrumentState.pistonPhase === session.instrumentState.pistonPhase
+      && JSON.stringify(normalizedInstrumentState.thermodynamicState)
+        === JSON.stringify(session.instrumentState.thermodynamicState)
     ) return session;
     return {
       ...session,
@@ -1094,6 +1121,51 @@ const normalizeInstrumentState = (
 ): PistonOscillationFreeInstrumentState => {
   const fallback = createDefaultPistonOscillationFreeInstrumentState();
   if (!isPlainRecord(value)) return fallback;
+  const equilibriumHeightMm = isFiniteNumber(value.equilibriumHeightMm)
+    ? Math.min(80, Math.max(0, value.equilibriumHeightMm))
+    : fallback.equilibriumHeightMm;
+  const pistonOffsetMm = isFiniteNumber(value.pistonOffsetMm)
+    ? Math.min(80, Math.max(-80, value.pistonOffsetMm))
+    : fallback.pistonOffsetMm;
+  const lockingScrewProgress = isFiniteNumber(value.lockingScrewProgress)
+    ? Math.min(1, Math.max(0, value.lockingScrewProgress))
+    : fallback.lockingScrewProgress;
+  const hoseState = value.hoseState === 'connected' ? 'connected' : 'disconnected';
+  const persistedThermodynamicState = normalizePistonOscillationThermodynamicState(
+    value.thermodynamicState,
+  );
+  const inferredThermodynamicState = (() => {
+    const pistonHeightMm = Math.min(80, Math.max(
+      0,
+      equilibriumHeightMm + pistonOffsetMm,
+    ));
+    if (hoseState === 'disconnected') {
+      return createPistonOscillationAtmosphericLockedState(
+        pistonHeightMm,
+        {},
+        'vented',
+      );
+    }
+    if (lockingScrewProgress >= 0.5) {
+      return createPistonOscillationAtmosphericLockedState(
+        pistonHeightMm,
+        {},
+        'sealed-locked-atmospheric',
+      );
+    }
+    const legacyEquilibrium = createPistonOscillationEquilibriumState(
+      equilibriumHeightMm,
+    );
+    return createPistonOscillationLoadedGasState(
+      legacyEquilibrium,
+      pistonOffsetMm,
+    );
+  })();
+  const thermodynamicState = persistedThermodynamicState
+    ?? inferredThermodynamicState;
+  const nominalHeightMm = isFiniteNumber(value.nominalHeightMm)
+    ? Math.min(80, Math.max(0, value.nominalHeightMm))
+    : thermodynamicState.nominalLockedHeightM * 1_000;
   return {
     schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
     focusMode: FREE_INSTRUMENT_FOCUS_MODES.includes(
@@ -1101,16 +1173,11 @@ const normalizeInstrumentState = (
     )
       ? value.focusMode as PistonOscillationFreeInstrumentState['focusMode']
       : fallback.focusMode,
-    hoseState: value.hoseState === 'connected' ? 'connected' : 'disconnected',
-    equilibriumHeightMm: isFiniteNumber(value.equilibriumHeightMm)
-      ? Math.min(80, Math.max(0, value.equilibriumHeightMm))
-      : fallback.equilibriumHeightMm,
-    pistonOffsetMm: isFiniteNumber(value.pistonOffsetMm)
-      ? Math.min(80, Math.max(-80, value.pistonOffsetMm))
-      : fallback.pistonOffsetMm,
-    lockingScrewProgress: isFiniteNumber(value.lockingScrewProgress)
-      ? Math.min(1, Math.max(0, value.lockingScrewProgress))
-      : fallback.lockingScrewProgress,
+    hoseState,
+    nominalHeightMm,
+    equilibriumHeightMm,
+    pistonOffsetMm,
+    lockingScrewProgress,
     heightAdjustmentStage: FREE_INSTRUMENT_HEIGHT_STAGES.includes(
       value.heightAdjustmentStage as PistonOscillationFreeInstrumentState[
         'heightAdjustmentStage'
@@ -1125,6 +1192,7 @@ const normalizeInstrumentState = (
     )
       ? value.pistonPhase as PistonOscillationFreeInstrumentState['pistonPhase']
       : fallback.pistonPhase,
+    thermodynamicState,
   };
 };
 

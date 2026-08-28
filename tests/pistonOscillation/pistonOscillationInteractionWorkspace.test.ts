@@ -643,8 +643,8 @@ assert.doesNotMatch(
 );
 assert.match(
   workspaceSource,
-  /guideInitialInstrumentState\?: PistonOscillationGuideInstrumentRestoreState \| null;[\s\S]*initialGuideHeightMm = clampPistonEquilibriumHeightMm[\s\S]*guideInitialInstrumentState\?\.hoseState \?\? 'disconnected'[\s\S]*useState\([\s\S]*initialGuideScrewProgress[\s\S]*useRef\(initialGuideHeightMm\)/,
-  'a remounted formal scene should initialize all physical controls from the persisted Guide checkpoint',
+  /guideInitialInstrumentState\?: PistonOscillationGuideInstrumentRestoreState \| null;[\s\S]*initialGuideHeightMm = clampPistonEquilibriumHeightMm[\s\S]*initialNominalHeightMm = clampPistonEquilibriumHeightMm[\s\S]*initialThermodynamicState = createInitialPistonThermodynamicState[\s\S]*initialPhysicalBaseHeightMm[\s\S]*useRef\(initialPhysicalBaseHeightMm\)[\s\S]*useRef\(initialThermodynamicState\)/,
+  'a remounted formal scene should restore both visible controls and the persisted physical gas state',
 );
 assert.match(
   workspaceSource,
@@ -673,12 +673,12 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /const initialDisplacementMm = pistonOffsetMmRef\.current;[\s\S]*simulatePistonOscillationRelease\(\{[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMmRef\.current,[\s\S]*initialDisplacementMm,[\s\S]*\}\)/,
-  'formal release must create one nonlinear trajectory from the live height and press depth',
+  /const visibleHeightMm = pistonEquilibriumHeightMmRef\.current[\s\S]*const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm[\s\S]*simulatePistonOscillationRelease\(\{[\s\S]*lockedHeightMm: pistonNominalHeightMmRef\.current,[\s\S]*initialDisplacementMm/,
+  'formal release must create one nonlinear trajectory from the nominal lock height and true live position',
 );
 assert.match(
   workspaceSource,
-  /const initialDisplacementMm = pistonOffsetMmRef\.current;[\s\S]*if \(initialDisplacementMm >= -0\.02\) \{[\s\S]*setPistonOffset\(0\);[\s\S]*setPistonPhase\('idle'\);[\s\S]*return;[\s\S]*\}[\s\S]*simulatePistonOscillationRelease/,
+  /const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm;[\s\S]*if \(initialDisplacementMm >= -0\.02\) \{[\s\S]*setPistonOffset\(0\);[\s\S]*setPistonPhase\('idle'\);[\s\S]*return;[\s\S]*\}[\s\S]*simulatePistonOscillationRelease/,
   'releasing without a real downward press should stay idle instead of integrating across the 0 mm stop',
 );
 assert.match(
@@ -688,12 +688,12 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /onLivePhysicalStateChange\?\.\(\{[\s\S]*observedAtMs: performance\.now\(\),[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*displacementMm: pistonOffsetMm,[\s\S]*\}\)/,
-  'the formal scene must publish the same live piston height and displacement used by its interaction model',
+  /onLivePhysicalStateChange\?\.\(\{[\s\S]*observedAtMs: performance\.now\(\),[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*displacementMm: pistonOffsetMm,[\s\S]*thermodynamicState,[\s\S]*\}\)/,
+  'the formal scene must publish the same live piston position and physical gas state used by its interaction model',
 );
 assert.match(
   workspaceSource,
-  /getPistonOscillationTrajectorySampleAt\([\s\S]*trajectory,[\s\S]*elapsedSeconds[\s\S]*\.displacementM \* 1_000/,
+  /trajectorySample = getPistonOscillationTrajectorySampleAt\([\s\S]*trajectory,[\s\S]*elapsedSeconds[\s\S]*trajectorySample\.displacementM \* 1_000/,
   'formal rebound motion must be driven by the shared nonlinear trajectory',
 );
 assert.match(

@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.1.1', 'next desktop update release should bump package version to 6.1.1');
-assert.match(readme, /latest published desktop release is `v6\.1\.1`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.1\.1`/, 'Simplified Chinese README should name the current public release');
-assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.1\.1`/, 'Traditional Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.1\.1。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.2.0', 'next desktop update release should bump package version to 6.2.0');
+assert.match(readme, /latest published desktop release is `v6\.2\.0`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.2\.0`/, 'Simplified Chinese README should name the current public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.2\.0`/, 'Traditional Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.2\.0。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -99,20 +99,24 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-oscillation-workflow' && item.importance === 'high'),
-  '6.1.1 should include the high-importance piston-oscillation workflow',
+  currentItems.some((item) => item.scope === 'piston-free-plan-lifecycle' && item.importance === 'high'),
+  '6.2.0 should include the high-importance piston Free plan lifecycle',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-oscillation-power-gate' && item.importance === 'high'),
-  '6.1.1 should include the high-importance power-gated acquisition workflow',
+  currentItems.some((item) => item.scope === 'piston-free-acquisition-processing' && item.importance === 'high'),
+  '6.2.0 should include the high-importance piston Free acquisition workflow',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-oscillation-guide-gating' && item.importance === 'high'),
-  '6.1.1 should include the high-importance strict Guide sequencing fix',
+  currentItems.some((item) => item.scope === 'shared-heat-capacity-controls' && item.importance === 'high'),
+  '6.2.0 should include the high-importance shared experiment controls',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'third-party-and-asset-notices' && item.importance === 'high'),
-  '6.1.1 should include the high-importance license and asset-provenance update',
+  currentItems.some((item) => item.scope === 'piston-loaded-equilibrium' && item.importance === 'high'),
+  '6.2.0 should include the high-importance loaded-gas equilibrium update',
+);
+assert.ok(
+  currentItems.some((item) => item.scope === 'piston-free-session-migration' && item.importance === 'high'),
+  '6.2.0 should include the high-importance Free-session migration',
 );
 
 const startupHotfixRelease = findRelease('5.2.2');

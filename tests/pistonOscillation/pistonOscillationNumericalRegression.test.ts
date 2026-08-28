@@ -58,7 +58,7 @@ const CURRENT_MODEL_MINIMUM_PERIOD_COUNT = 3;
 
 assert.equal(
   PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-  'piston-oscillation-rk4-pasco-td8572a-v2',
+  'piston-oscillation-rk4-pasco-td8572a-v3',
 );
 assert.equal(
   PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,

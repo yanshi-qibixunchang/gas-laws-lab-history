@@ -3,6 +3,164 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.2.0",
+      "date": "2026-08-28",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.2.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.2.0/heat-capacity-lab-setup-6.2.0.exe"
+      },
+      "summary": {
+        "zh-CN": "6.2.0 完成活塞振动法自由模式，统一两种热容比实验的计划与进度交互，修复演示和引导流程，并让三种模式共用可恢复的真实加载平衡模型。",
+        "zh-TW": "6.2.0 完成活塞振動法自由模式，統一兩種比熱容比實驗的計畫與進度互動，修正演示和引導流程，並讓三種模式共用可還原的真實載入平衡模型。",
+        "en": "Version 6.2.0 completes piston-oscillation Free Mode, unifies planning and progress controls across both heat-capacity methods, repairs Demo and Guide flows, and applies one recoverable loaded-gas equilibrium model to all three modes."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "活塞振动法自由模式",
+            "zh-TW": "活塞振動法自由模式",
+            "en": "Piston-oscillation Free Mode"
+          },
+          "items": [
+            {
+              "scope": "piston-free-plan-lifecycle",
+              "importance": "high",
+              "title": {
+                "zh-CN": "完成可恢复的 3–6 次实验计划",
+                "zh-TW": "完成可還原的 3–6 次實驗計畫",
+                "en": "Completed resumable 3–6-run plans"
+              },
+              "body": {
+                "zh-CN": "自由模式支持系统高度和任意数量的 10–80 mm 整数自定义候选，按目标高度从高到低推进，并提供进度、重做、删除、整轮重置与撤销。退出、刷新或重新打开文件都会恢复同一计划和进度。",
+                "zh-TW": "自由模式支援系統高度和任意數量的 10–80 mm 整數自訂候選，按目標高度由高到低推進，並提供進度、重做、刪除、整輪重設與復原。離開、重新整理或重新開啟檔案都會還原同一計畫和進度。",
+                "en": "Free Mode supports system heights and unlimited integer custom candidates from 10 to 80 mm, progresses from higher to lower targets, and provides progress, retry, deletion, whole-session reset, and undo. Exit, reload, and file restore resume the same plan."
+              }
+            },
+            {
+              "scope": "piston-free-acquisition-processing",
+              "importance": "high",
+              "title": {
+                "zh-CN": "接通采集、周期核验、拟合和计算",
+                "zh-TW": "接通採集、週期核驗、擬合和計算",
+                "en": "Connected acquisition, period verification, fitting, and calculation"
+              },
+              "body": {
+                "zh-CN": "每个 Run 保存 1–1000 Hz 采样率、96.0–130.0 kPa 阈值、原始样本、物理快照和作答历史。监测图动态适配阈值；已达到阈值时立即记录完整操作过程，否则等待下降穿越。最后一条周期核验后自动进入计算。",
+                "zh-TW": "每個 Run 儲存 1–1000 Hz 取樣率、96.0–130.0 kPa 閾值、原始樣本、物理快照和作答歷史。監測圖動態適配閾值；已達閾值時立即記錄完整操作過程，否則等待下降穿越。最後一條週期核驗後自動進入計算。",
+                "en": "Each run stores its 1–1000 Hz sample rate, 96.0–130.0 kPa threshold, raw samples, physical snapshot, and answer history. The chart adapts to the threshold; acquisition starts immediately when already reached or waits for a falling crossing. Final period verification opens calculation automatically."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "统一界面与物理状态",
+            "zh-TW": "統一介面與物理狀態",
+            "en": "Unified interface and physical state"
+          },
+          "items": [
+            {
+              "scope": "shared-heat-capacity-controls",
+              "importance": "high",
+              "title": {
+                "zh-CN": "两种实验共用次数和进度组件",
+                "zh-TW": "兩種實驗共用次數和進度元件",
+                "en": "Shared count and progress controls across both methods"
+              },
+              "body": {
+                "zh-CN": "活塞振动法与绝热膨胀法现在共用次数选择、自由进度、三点菜单和重置交互，统一键盘、外部点击、窗口边界、配色和危险操作样式，删除了两套容易分叉的旧实现。",
+                "zh-TW": "活塞振動法與絕熱膨脹法現在共用次數選擇、自由進度、三點選單和重設互動，統一鍵盤、外部點擊、視窗邊界、配色和危險操作樣式，刪除了兩套容易分歧的舊實作。",
+                "en": "Piston oscillation and adiabatic expansion now share count selection, Free progress, overflow menus, and reset behavior, with consistent keyboard, outside-click, viewport, color, and destructive-action treatment replacing divergent implementations."
+              }
+            },
+            {
+              "scope": "mode-specific-materials-navigation",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "左侧资料入口按模式动态显示",
+                "zh-TW": "左側資料入口按模式動態顯示",
+                "en": "Made materials navigation mode-specific"
+              },
+              "body": {
+                "zh-CN": "未选择模式和演示模式隐藏不可用资料，引导模式只显示已开放内容，自由模式显示当前完整数据入口。关闭计算后恢复三维仪器与实时数据，历史处理从左侧栏双击重新打开。",
+                "zh-TW": "未選擇模式和演示模式隱藏不可用資料，引導模式只顯示已開放內容，自由模式顯示目前完整資料入口。關閉計算後還原三維儀器與即時資料，歷史處理由左側欄雙擊重新開啟。",
+                "en": "No-mode and Demo views hide unavailable materials, Guide shows only implemented teaching content, and Free exposes its current data tools. Closing calculation restores the instrument and realtime layout; historical processing reopens from the sidebar."
+              }
+            },
+            {
+              "scope": "piston-loaded-equilibrium",
+              "importance": "high",
+              "title": {
+                "zh-CN": "三种模式共用真实加载平衡",
+                "zh-TW": "三種模式共用真實載入平衡",
+                "en": "Applied one loaded-gas equilibrium to all modes"
+              },
+              "body": {
+                "zh-CN": "名义高度继续用于教学显示，真实加载高度、体积、压强和气体状态在后台统一计算和保存。松开螺钉后活塞在 0.2 s 内单向下沉且可被正在运行的采集记录；重复松开不累积下沉，连接软管后的按压会改变真实状态。",
+                "zh-TW": "名義高度繼續用於教學顯示，真實載入高度、體積、壓強和氣體狀態在後臺統一計算和儲存。鬆開螺釘後活塞在 0.2 s 內單向下沉且可被正在執行的採集記錄；重複鬆開不累積下沉，連接軟管後的按壓會改變真實狀態。",
+                "en": "Nominal height remains learner-facing while exact loaded height, volume, pressure, and gas state are calculated and persisted internally. Screw release produces a recordable one-way 0.2 s settling segment, repeated release cannot accumulate sinking, and connected-hose pressing changes the real state."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "模式交互、恢复与兼容性",
+            "zh-TW": "模式互動、還原與相容性",
+            "en": "Mode interaction, recovery, and compatibility"
+          },
+          "items": [
+            {
+              "scope": "piston-mode-interaction-repairs",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复演示、引导和自由模式衔接",
+                "zh-TW": "修正演示、引導和自由模式銜接",
+                "en": "Repaired Demo, Guide, and Free transitions"
+              },
+              "body": {
+                "zh-CN": "统一正式三维工作区，修复自由退出图标、螺钉视觉行程与鼠标灵敏度、引导和演示步骤衔接、周期处理返回及左侧栏展开。移除不再使用的占位、相机校准和旧预览实现。",
+                "zh-TW": "統一正式三維工作區，修正自由離開圖示、螺釘視覺行程與滑鼠靈敏度、引導和演示步驟銜接、週期處理返回及左側欄展開。移除不再使用的占位、相機校準和舊預覽實作。",
+                "en": "Unified the formal 3D workspace and fixed Free exit semantics, screw visual travel and pointer sensitivity, Demo and Guide sequencing, processing return, and sidebar restoration. Removed obsolete placeholder, camera-calibration, and preview implementations."
+              }
+            },
+            {
+              "scope": "piston-free-session-migration",
+              "importance": "high",
+              "title": {
+                "zh-CN": "迁移并精确恢复自由模式状态",
+                "zh-TW": "遷移並精確還原自由模式狀態",
+                "en": "Migrated and precisely restored Free state"
+              },
+              "body": {
+                "zh-CN": "旧活塞文件会迁移到新的计划、Run、采集、答题和热力学状态结构；缺失的历史细节明确标记为未知，不伪造答案、时间或操作。0 mm 刚性下限不能生成可保存的虚假 Run。",
+                "zh-TW": "舊活塞檔案會遷移到新的計畫、Run、採集、作答和熱力學狀態結構；缺少的歷史細節明確標記為未知，不偽造答案、時間或操作。0 mm 剛性下限不能產生可儲存的假 Run。",
+                "en": "Existing piston files migrate into the new plan, run, acquisition, answer, and thermodynamic structures. Missing historical detail remains explicitly unknown instead of being fabricated, and the rigid 0 mm lower stop cannot create a savable fake run."
+              }
+            },
+            {
+              "scope": "persistence-safe-mode",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "工作区恢复异常不再阻断整个软件",
+                "zh-TW": "工作區還原異常不再阻斷整個軟體",
+                "en": "Made persistence recovery failures non-blocking"
+              },
+              "body": {
+                "zh-CN": "启动恢复遇到异常时，工作台保持可用并显示安全模式提示，不再切换到独立错误页面阻止用户进入软件。",
+                "zh-TW": "啟動還原遇到異常時，工作臺保持可用並顯示安全模式提示，不再切換到獨立錯誤頁面阻止使用者進入軟體。",
+                "en": "When startup restoration encounters an error, the workbench remains usable with a safe-mode notice instead of being replaced by a blocking standalone failure page."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.1.1",
       "date": "2026-08-27",
       "channel": "stable",

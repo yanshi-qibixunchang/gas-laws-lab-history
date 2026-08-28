@@ -1,6 +1,6 @@
 {
   "name": "hard-sphere-lab",
-  "version": "6.1.1",
+  "version": "6.2.0",
   "description": "Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments.",
   "author": {
     "name": "yanshi-qibixunchang",

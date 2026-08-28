@@ -4,7 +4,7 @@
 
 Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v6.1.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v6.2.0`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -15,7 +15,7 @@ The latest published desktop release is `v6.1.1`. The `main` branch may contain 
 - Standard hard-sphere simulation with a live 3D preview, realtime charts, and result tabs.
 - Ideal-gas `P-T`, `P-V`, and `P-N` studies with sampling, verification, and history views.
 - Adiabatic-expansion heat-capacity-ratio experiment with Demo, Guide, and Free modes.
-- Piston-oscillation heat-capacity-ratio experiment with complete Demo and Guide workflows, normal 3D operation, live acquisition, period processing, and offline calculation handoff.
+- Piston-oscillation heat-capacity-ratio experiment with complete Demo, Guide, and Free workflows, live acquisition, period processing, fitting, and calculation.
 - Local desktop export for PDF reports, PDF/PNG figures, CSV data, and metadata.
 - Simplified Chinese, Traditional Chinese, and English interface text.
 
@@ -23,8 +23,9 @@ The latest published desktop release is `v6.1.1`. The `main` branch may contain 
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
-- `v6.1.1` introduces the complete piston-oscillation experiment: a reviewed hybrid instrument model, calibrated scale and interaction contracts, three-run acquisition and processing, power-gated realtime data, and strict Guide sequencing. The physical/computer power control must be turned on before parameters or recording become available and is turned off at the end of Guide and Demo.
-- The `v6.1.1` release gate passed 259/259 automated test files, a zero-vulnerability npm audit, 468 classified dependency-license records, and a clean Windows 5.3.1 → 6.1.1 same-path upgrade that preserved and migrated the original piston workspace.
+- `v6.2.0` completes piston-oscillation Free Mode with 3–6-run plans, system and custom 10–80 mm heights, ordered progress, resumable sessions, per-run acquisition settings, dynamic monitoring, manual retry and reset, period verification, fitting, and automatic calculation handoff.
+- `v6.2.0` also unifies the two heat-capacity experiments around shared count and progress controls, aligns mode-specific navigation and visual styling, improves Demo and Guide interactions, and applies one persistent loaded-gas equilibrium model across all three piston modes. Releasing the locking screw now produces a recorded 0.2 s one-way physical settling process while the exact height remains an internal model quantity.
+- `v6.1.1` introduced the reviewed piston instrument, power-gated realtime data, complete Demo and Guide workflows, and strict Guide sequencing.
 - `v5.3.1` completes multi-group adiabatic-expansion experiments, automatic experiment progression, scoped experiment/group restarts, group-level review charts and scoring, and polished report/figure/package exports.
 - `v5.2.2` fixes the startup screen remaining at 100% after workspace restoration has completed.
 - `v5.2.1` adds a complete trilingual first-run experience, a re-recordable animated product introduction, unified engineering prompts, tutorial-session recovery, and a startup animation driven by real workspace restoration progress.
