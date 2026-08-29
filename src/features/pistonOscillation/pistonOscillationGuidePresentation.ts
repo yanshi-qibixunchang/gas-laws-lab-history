@@ -107,7 +107,6 @@ export const getPistonOscillationGuideInstrumentRestoreState = (
         lockingScrewProgress: 1,
         powerOn: session.powerOn,
       };
-    case 'crossRunStabilizing':
     case 'crossRunDisconnect':
       return {
         hoseState: 'connected',
@@ -151,7 +150,6 @@ export const getPistonOscillationGuideRequestedFocusMode = (
       return 'powerFocus';
     case 'parameterSetup':
     case 'hoseReconnect':
-    case 'crossRunStabilizing':
     case 'crossRunDisconnect':
     case 'periodProcessing':
     case 'calculationReady':

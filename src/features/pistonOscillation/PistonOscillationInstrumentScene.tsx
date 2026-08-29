@@ -5,9 +5,13 @@ import {
   type PistonOscillationGuideActionAttempt,
   type PistonOscillationGuideHeightResetRequest,
   type PistonOscillationGuideInstrumentSnapshot,
+  type PistonOscillationGuideScrewDirectionFeedback,
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideVisualCue,
 } from './PistonOscillationInteractionWorkspace.tsx';
+import type {
+  PistonOscillationGuideScrewInteractionMode,
+} from './pistonOscillationGuideScrewInteraction.ts';
 import type {
   PistonOscillationPressStartEvent,
   PistonOscillationReleaseEvent,
@@ -80,6 +84,7 @@ export interface PistonOscillationInstrumentSceneProps {
   guidePaused?: boolean;
   guideTimeFrozen?: boolean;
   guideVisualCue?: PistonOscillationGuideVisualCue;
+  guideScrewInteractionMode?: PistonOscillationGuideScrewInteractionMode | null;
   guidePulseElapsedSeconds?: number;
   guideRequestedFocusMode?: PistonOscillationGuideFocusMode;
   guideSnapTargetHeightMm?: number | null;
@@ -94,6 +99,9 @@ export interface PistonOscillationInstrumentSceneProps {
     snapshot: PistonOscillationGuideInstrumentSnapshot,
   ) => void;
   onGuideActionAttempt?: PistonOscillationGuideActionAttempt;
+  onGuideScrewDirectionFeedback?: (
+    feedback: PistonOscillationGuideScrewDirectionFeedback,
+  ) => void;
   onGuideHeightConfirmed?: (snapshot: PistonOscillationGuideInstrumentSnapshot) => void;
   onGuideSupportLoss?: (
     event: PistonOscillationGuideSupportLossEvent,
@@ -124,6 +132,7 @@ export const PistonOscillationInstrumentScene = ({
   guidePaused,
   guideTimeFrozen,
   guideVisualCue,
+  guideScrewInteractionMode,
   guidePulseElapsedSeconds,
   guideRequestedFocusMode,
   guideSnapTargetHeightMm,
@@ -136,6 +145,7 @@ export const PistonOscillationInstrumentScene = ({
   overlayCenterAboveGuideMask,
   onGuideInstrumentSnapshotChange,
   onGuideActionAttempt,
+  onGuideScrewDirectionFeedback,
   onGuideHeightConfirmed,
   onGuideSupportLoss,
   onGuideHeightResetComplete,
@@ -194,6 +204,7 @@ export const PistonOscillationInstrumentScene = ({
           guidePaused={guidePaused}
           guideTimeFrozen={guideTimeFrozen}
           guideVisualCue={guideVisualCue}
+          guideScrewInteractionMode={guideScrewInteractionMode}
           guidePulseElapsedSeconds={guidePulseElapsedSeconds}
           guideRequestedFocusMode={guideRequestedFocusMode}
           guideSnapTargetHeightMm={guideSnapTargetHeightMm}
@@ -206,6 +217,7 @@ export const PistonOscillationInstrumentScene = ({
           overlayCenterAboveGuideMask={overlayCenterAboveGuideMask}
           onGuideInstrumentSnapshotChange={onGuideInstrumentSnapshotChange}
           onGuideActionAttempt={onGuideActionAttempt}
+          onGuideScrewDirectionFeedback={onGuideScrewDirectionFeedback}
           onGuideHeightConfirmed={onGuideHeightConfirmed}
           onGuideSupportLoss={onGuideSupportLoss}
           onGuideHeightResetComplete={onGuideHeightResetComplete}

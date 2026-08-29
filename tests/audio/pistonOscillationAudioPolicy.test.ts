@@ -32,14 +32,13 @@ assert.equal(fastVibration.playbackRate, 1.015);
 
 assert.equal(getPistonOscillationBottomImpactGain(Number.NaN), 0);
 assert.equal(getPistonOscillationBottomImpactGain(0), 0);
-assert.equal(
-  getPistonOscillationBottomImpactGain(PISTON_OSCILLATION_BOTTOM_IMPACT_MIN_DROP_MM),
-  0,
-  'a drop of exactly 5 mm should remain silent',
+assert.ok(
+  getPistonOscillationBottomImpactGain(PISTON_OSCILLATION_BOTTOM_IMPACT_MIN_DROP_MM) > 0,
+  'a drop of exactly 5 mm should produce the minimum audible impact',
 );
 assert.ok(
   getPistonOscillationBottomImpactGain(PISTON_OSCILLATION_BOTTOM_IMPACT_MIN_DROP_MM + 0.01) > 0,
-  'the impact gate should be strictly greater than 5 mm',
+  'every drop above 5 mm should remain audible',
 );
 const heightAnchors = [6, 10, 20, 40, 60, 80];
 const gains = heightAnchors.map(getPistonOscillationBottomImpactGain);

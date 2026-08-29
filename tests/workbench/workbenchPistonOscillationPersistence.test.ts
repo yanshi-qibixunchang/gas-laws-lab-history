@@ -20,6 +20,9 @@ import {
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   createDefaultHeatCapacityPistonOscillationFile,
   createDefaultStandardFile,
+  startPistonOscillationFreeWorkbenchState,
+  startPistonOscillationGuideWorkbenchState,
+  transitionPistonOscillationFreeWorkbenchState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
   WORKBENCH_SESSION_VERSION,
@@ -35,6 +38,97 @@ const baseFile = {
   updatedAt: 20,
   lastOpenedAt: 30,
 };
+
+let activeFreeFile = startPistonOscillationFreeWorkbenchState(baseFile, 1_000);
+activeFreeFile = transitionPistonOscillationFreeWorkbenchState(activeFreeFile, {
+  type: 'setPlan',
+  targetHeightsMm: [80, 70, 60],
+  nowMs: 1_010,
+});
+activeFreeFile = transitionPistonOscillationFreeWorkbenchState(activeFreeFile, {
+  type: 'setPower',
+  powerOn: true,
+  nowMs: 1_020,
+});
+const retainedFreePlan = activeFreeFile.pistonOscillationFreeSession.experimentPlan;
+const guideStartedOverFree = startPistonOscillationGuideWorkbenchState(activeFreeFile, 1_030);
+assert.equal(guideStartedOverFree.pistonOscillationGuideSession.status, 'active');
+assert.equal(guideStartedOverFree.pistonOscillationFreeSession.status, 'paused');
+assert.equal(guideStartedOverFree.pistonOscillationFreeSession.powerOn, false);
+assert.deepEqual(
+  guideStartedOverFree.pistonOscillationFreeSession.experimentPlan,
+  retainedFreePlan,
+  'starting Guide must pause Free without discarding its experiment plan',
+);
+assert.equal(
+  guideStartedOverFree.pistonOscillationFreeSession.audit.at(-1)?.type,
+  'session-paused',
+);
+
+const activeGuideFile = startPistonOscillationGuideWorkbenchState(baseFile, 2_000);
+const freeStartedOverGuide = startPistonOscillationFreeWorkbenchState(activeGuideFile, 2_010);
+assert.equal(freeStartedOverGuide.pistonOscillationGuideSession.status, 'idle');
+assert.equal(freeStartedOverGuide.pistonOscillationGuideSession.startedAtMs, null);
+assert.equal(freeStartedOverGuide.pistonOscillationFreeSession.status, 'active');
+
+const selectedCompletedGuideFile = {
+  ...baseFile,
+  pistonOscillationGuideSession: {
+    ...baseFile.pistonOscillationGuideSession,
+    status: 'completed' as const,
+    step: 'completed' as const,
+    completionExited: false,
+    dataProcessing: {
+      status: 'completed',
+    } as NonNullable<
+      typeof baseFile.pistonOscillationGuideSession.dataProcessing
+    >,
+  },
+};
+const freeStartedOverSelectedCompletion = startPistonOscillationFreeWorkbenchState(
+  selectedCompletedGuideFile,
+  2_020,
+);
+assert.equal(freeStartedOverSelectedCompletion.pistonOscillationGuideSession.status, 'completed');
+assert.equal(freeStartedOverSelectedCompletion.pistonOscillationGuideSession.completionExited, true);
+assert.equal(freeStartedOverSelectedCompletion.pistonOscillationFreeSession.status, 'active');
+
+const exitedCompletedGuideFile = {
+  ...selectedCompletedGuideFile,
+  pistonOscillationGuideSession: {
+    ...selectedCompletedGuideFile.pistonOscillationGuideSession,
+    completionExited: true,
+  },
+};
+const freeStartedAlongsideExitedCompletion = startPistonOscillationFreeWorkbenchState(
+  exitedCompletedGuideFile,
+  2_030,
+);
+assert.strictEqual(
+  freeStartedAlongsideExitedCompletion.pistonOscillationGuideSession,
+  exitedCompletedGuideFile.pistonOscillationGuideSession,
+  'an already-exited completed Guide session must remain intact when Free starts',
+);
+
+const independentlyActiveGuide = startPistonOscillationGuideWorkbenchState(baseFile, 3_000)
+  .pistonOscillationGuideSession;
+const independentlyActiveFree = startPistonOscillationFreeWorkbenchState(baseFile, 3_010)
+  .pistonOscillationFreeSession;
+const normalizedModeConflict = normalizePistonOscillationRuntimeState({
+  ...baseFile,
+  pistonOscillationGuideSession: independentlyActiveGuide,
+  pistonOscillationFreeSession: independentlyActiveFree,
+});
+assert.ok(normalizedModeConflict);
+assert.equal(normalizedModeConflict.pistonOscillationGuideSession.status, 'active');
+assert.equal(normalizedModeConflict.pistonOscillationFreeSession.status, 'paused');
+assert.equal(normalizedModeConflict.pistonOscillationFreeSession.startedAtMs, 3_010);
+assert.equal(normalizedModeConflict.pistonOscillationFreeSession.powerOn, false);
+assert.equal(
+  normalizedModeConflict.pistonOscillationFreeSession.audit.at(-1)?.type,
+  'session-paused',
+  'normalization must repair persisted Guide/Free double-active state',
+);
 
 for (const cameraPreset of WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS) {
   const file = { ...baseFile, previewCameraPreset: cameraPreset };
@@ -118,6 +212,37 @@ assert.deepEqual(
 assert.deepEqual(
   restored.pistonOscillationGuideSession,
   baseFile.pistonOscillationGuideSession,
+);
+const restoredLegacyBaseline = restorePistonOscillationFileFromPersistencePayload(
+  fileEnvelope,
+  {
+    ...validPayload,
+    guideSession: {
+      ...activeGuideFile.pistonOscillationGuideSession,
+      step: 'baselineStabilizing',
+    },
+  } as unknown as typeof validPayload,
+);
+assert.equal(
+  restoredLegacyBaseline.pistonOscillationGuideSession.step,
+  'acquisitionReady',
+  'a persisted legacy baseline checkpoint must resume at the visible Start step',
+);
+const restoredLegacyCrossRun = restorePistonOscillationFileFromPersistencePayload(
+  fileEnvelope,
+  {
+    ...validPayload,
+    guideSession: {
+      ...activeGuideFile.pistonOscillationGuideSession,
+      measurementIndex: 1,
+      step: 'crossRunStabilizing',
+    },
+  } as unknown as typeof validPayload,
+);
+assert.equal(
+  restoredLegacyCrossRun.pistonOscillationGuideSession.step,
+  'crossRunDisconnect',
+  'a persisted legacy between-run checkpoint must resume at the next visible operation',
 );
 assert.deepEqual(
   restored.pistonOscillationFreeSession,

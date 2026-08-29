@@ -48,7 +48,7 @@ export const getPistonOscillationVibrationVariation = (
 export const getPistonOscillationBottomImpactGain = (dropDistanceMm: number) => {
   if (
     !Number.isFinite(dropDistanceMm)
-    || dropDistanceMm <= PISTON_OSCILLATION_BOTTOM_IMPACT_MIN_DROP_MM
+    || dropDistanceMm < PISTON_OSCILLATION_BOTTOM_IMPACT_MIN_DROP_MM
   ) return 0;
   const normalizedDrop = clampUnit(
     (dropDistanceMm - PISTON_OSCILLATION_BOTTOM_IMPACT_MIN_DROP_MM)

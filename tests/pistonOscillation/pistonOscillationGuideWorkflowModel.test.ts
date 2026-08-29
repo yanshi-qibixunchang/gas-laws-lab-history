@@ -21,19 +21,44 @@ import {
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
+  createPistonOscillationLoadedEquilibriumState,
+} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
+import {
+  transitionPistonOscillationGuideAcquisitionSession,
+  type PistonOscillationGuideWorkflowAcquisitionEvent,
+} from '../../src/features/pistonOscillation/pistonOscillationGuideAcquisitionBridge.ts';
+import {
+  getPistonOscillationGuidePrimaryControlState,
+} from '../../src/features/pistonOscillation/pistonOscillationGuidePrimaryControl.ts';
 
 const transition = (
   session: PistonOscillationGuideSession,
   event: PistonOscillationGuideEvent,
 ) => transitionPistonOscillationGuideSession(session, event);
 
+const acceptAcquisitionTransition = (
+  session: PistonOscillationGuideSession,
+  event: PistonOscillationGuideWorkflowAcquisitionEvent,
+  nowMs: number,
+) => {
+  const nextSession = transitionPistonOscillationGuideAcquisitionSession(
+    session,
+    event,
+    nowMs,
+  );
+  assert.notEqual(nextSession, null, `${event.type} should be accepted at ${session.step}`);
+  return nextSession!;
+};
+
 const createCandidate = (
   measurementIndex: 0 | 1 | 2,
   recordedDurationS: number,
   samples: PistonOscillationRawSample[],
   capturedAtMs: number,
+  lockedHeightMm: number = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex],
 ): PistonOscillationRawMeasurementRecord => {
   const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
   const sampleRateHz = 1000;
@@ -58,7 +83,7 @@ const createCandidate = (
     },
   );
   const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
-    lockedHeightMm: targetHeightMm,
+    lockedHeightMm,
     sampleRateHz,
     samples: formalSamples,
   });
@@ -344,15 +369,26 @@ assert.equal(legacyPausedSession.step, 'screwLock');
 assert.deepEqual(legacyPausedSession.parameterDrafts, session.parameterDrafts);
 assert.deepEqual(legacyPausedSession.savedMeasurements, session.savedMeasurements);
 
+const legacyBaselineSession = normalizePistonOscillationGuideSession({
+  ...structuredClone(session),
+  step: 'baselineStabilizing',
+});
+assert.equal(
+  legacyBaselineSession.step,
+  'acquisitionReady',
+  'a persisted legacy baseline checkpoint must resume at the visible Start step',
+);
+assert.equal(legacyBaselineSession.measurementIndex, session.measurementIndex);
+assert.deepEqual(legacyBaselineSession.parameterDrafts, session.parameterDrafts);
+assert.deepEqual(legacyBaselineSession.savedMeasurements, session.savedMeasurements);
+
 session = transition(session, { type: 'lockScrew', nowMs: 250 });
 assert.equal(session.step, 'hoseReconnect');
 session = transition(session, { type: 'reconnectHose', nowMs: 260 });
 assert.equal(session.step, 'screwLoosen');
 session = transition(session, { type: 'loosenScrew', nowMs: 270 });
-assert.equal(session.step, 'baselineStabilizing');
-session = transition(session, { type: 'baselineStabilized', nowMs: 280 });
 assert.equal(session.step, 'acquisitionReady');
-session = transition(session, { type: 'startAcquisition', nowMs: 290 });
+session = acceptAcquisitionTransition(session, { type: 'startAcquisition' }, 290);
 assert.equal(session.step, 'waitingTrigger');
 
 const oneHandRelease = { type: 'releasePiston', bothHandsReleased: false, nowMs: 300 } as const;
@@ -362,18 +398,69 @@ assert.deepEqual(getPistonOscillationGuideEventGuard(session, oneHandRelease), {
 });
 assert.equal(transition(session, oneHandRelease), session);
 
-session = transition(session, {
-  type: 'releasePiston',
-  bothHandsReleased: true,
-  nowMs: 310,
-});
+session = acceptAcquisitionTransition(session, { type: 'triggered' }, 310);
 assert.equal(session.step, 'recording');
 assert.equal(session.acquisitionCandidate, null);
 
-const discardedOverpressureAttempt = transition(session, {
-  type: 'discardAcquisitionAttempt',
-  nowMs: 315,
-});
+for (const [measurementIndex, targetHeightMm] of PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM.entries()) {
+  const runIndex = measurementIndex as 0 | 1 | 2;
+  const modeledEquilibriumHeightMm = createPistonOscillationLoadedEquilibriumState(
+    targetHeightMm,
+  ).equilibriumHeightM * 1_000;
+  const recordingSession: PistonOscillationGuideSession = {
+    ...session,
+    measurementIndex: runIndex,
+  };
+  const relaxedHeightCandidate = createCandidate(
+    runIndex,
+    PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
+    [],
+    311 + measurementIndex * 10,
+    modeledEquilibriumHeightMm,
+  );
+  assert.deepEqual(
+    getPistonOscillationGuideEventGuard(recordingSession, {
+      type: 'updateRecording',
+      recordedDurationS: relaxedHeightCandidate.acquisitionSettings.recordedDurationS,
+      samples: relaxedHeightCandidate.samples,
+      candidate: relaxedHeightCandidate,
+      nowMs: 311 + measurementIndex * 10,
+    }),
+    { allowed: true, reason: 'allowed' },
+    `${targetHeightMm} mm must accept its own modeled loaded-equilibrium height`,
+  );
+  const relaxedHeightCheckpoint = acceptAcquisitionTransition(
+    recordingSession,
+    { type: 'recordingReady', candidate: relaxedHeightCandidate },
+    312 + measurementIndex * 10,
+  );
+  assert.equal(relaxedHeightCheckpoint.step, 'pauseAvailable');
+
+  const excessiveHeightDriftCandidate = createCandidate(
+    runIndex,
+    PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
+    [],
+    313 + measurementIndex * 10,
+    modeledEquilibriumHeightMm - 0.011,
+  );
+  assert.deepEqual(
+    getPistonOscillationGuideEventGuard(recordingSession, {
+      type: 'updateRecording',
+      recordedDurationS: excessiveHeightDriftCandidate.acquisitionSettings.recordedDurationS,
+      samples: excessiveHeightDriftCandidate.samples,
+      candidate: excessiveHeightDriftCandidate,
+      nowMs: 313 + measurementIndex * 10,
+    }),
+    { allowed: false, reason: 'candidateMismatch' },
+    `${targetHeightMm} mm must still reject drift below its modeled relaxation interval`,
+  );
+}
+
+const discardedOverpressureAttempt = acceptAcquisitionTransition(
+  session,
+  { type: 'redoOverpressureAttempt' },
+  315,
+);
 assert.equal(discardedOverpressureAttempt.step, 'waitingTrigger');
 assert.equal(discardedOverpressureAttempt.acquisitionCandidate, null);
 assert.equal(discardedOverpressureAttempt.savedMeasurements.length, 0);
@@ -421,6 +508,115 @@ assert.equal(session.acquisitionCandidate?.acquisitionSettings.recordedDurationS
 const candidateCheckpoint = normalizePistonOscillationGuideSession(structuredClone(session));
 assert.equal(candidateCheckpoint.step, 'pauseAvailable');
 assert.deepEqual(candidateCheckpoint.acquisitionCandidate, session.acquisitionCandidate);
+assert.deepEqual(
+  getPistonOscillationGuidePrimaryControlState({
+    status: candidateCheckpoint.status,
+    step: candidateCheckpoint.step,
+    pauseReady: true,
+    candidateAvailable: candidateCheckpoint.acquisitionCandidate !== null,
+  }),
+  { action: 'pauseAcquisition', showsPause: true, allowed: true },
+  'the canonical third-slot action must become an enabled Pause only with a stable valid candidate',
+);
+const atomicallyPausedCheckpoint = acceptAcquisitionTransition(
+  candidateCheckpoint,
+  { type: 'curvePaused', candidate: candidateCheckpoint.acquisitionCandidate! },
+  349,
+);
+assert.equal(atomicallyPausedCheckpoint.step, 'awaitingSaveOrRedo');
+assert.equal(
+  transitionPistonOscillationGuideAcquisitionSession(
+    atomicallyPausedCheckpoint,
+    { type: 'curvePaused', candidate: candidateCheckpoint.acquisitionCandidate! },
+    350,
+  ),
+  null,
+  'a duplicate Pause cannot partially replay after the atomic transition has completed',
+);
+
+const candidateRequiredStepRestoreExpectations = [
+  ['pauseAvailable', 'pauseAvailable'],
+  ['curveFrozen', 'awaitingSaveOrRedo'],
+  ['awaitingSaveOrRedo', 'awaitingSaveOrRedo'],
+] as const;
+for (const [step, restoredStep] of candidateRequiredStepRestoreExpectations) {
+  const restoredWithCandidate = normalizePistonOscillationGuideSession({
+    ...structuredClone(candidateCheckpoint),
+    step,
+  });
+  assert.equal(restoredWithCandidate.step, restoredStep);
+  assert.deepEqual(
+    restoredWithCandidate.acquisitionCandidate,
+    candidateCheckpoint.acquisitionCandidate,
+  );
+
+  const restoredWithoutCandidate = normalizePistonOscillationGuideSession({
+    ...structuredClone(candidateCheckpoint),
+    step,
+    acquisitionCandidate: null,
+  });
+  assert.equal(
+    restoredWithoutCandidate.step,
+    'waitingTrigger',
+    `${step} must restart the interrupted attempt when its candidate is missing`,
+  );
+  assert.equal(restoredWithoutCandidate.acquisitionCandidate, null);
+  assert.deepEqual(
+    getPistonOscillationGuideEventGuard(restoredWithoutCandidate, {
+      type: 'releasePiston',
+      bothHandsReleased: true,
+      nowMs: 345,
+    }),
+    { allowed: true, reason: 'allowed' },
+    'the normalized checkpoint must remain immediately resumable',
+  );
+}
+
+for (const step of ['acquisitionReady', 'waitingTrigger', 'recording', 'crossRunDisconnect'] as const) {
+  const restoredWithoutStaleCandidate = normalizePistonOscillationGuideSession({
+    ...structuredClone(candidateCheckpoint),
+    step,
+  });
+  assert.equal(restoredWithoutStaleCandidate.step, step);
+  assert.equal(
+    restoredWithoutStaleCandidate.acquisitionCandidate,
+    null,
+    `${step} must not retain a stale acquisition candidate`,
+  );
+}
+const restoredInterruptedRecording = normalizePistonOscillationGuideSession({
+  ...structuredClone(candidateCheckpoint),
+  step: 'recording',
+});
+const restartedInterruptedRecording = acceptAcquisitionTransition(
+  restoredInterruptedRecording,
+  { type: 'restoreInterruptedAcquisition' },
+  346,
+);
+assert.equal(restartedInterruptedRecording.step, 'waitingTrigger');
+assert.equal(restartedInterruptedRecording.acquisitionCandidate, null);
+
+const wrongRunCandidate = createCandidate(1, 0.6, recordedSamples, 341);
+const wrongSettingsCandidate = structuredClone(recordedCandidate);
+wrongSettingsCandidate.acquisitionSettings.triggerThresholdKpa = 121;
+const invalidCandidateCheckpoints = [
+  ['pauseAvailable', shortCandidate, 'too-short candidate'],
+  ['curveFrozen', wrongRunCandidate, 'candidate from another measurement'],
+  ['awaitingSaveOrRedo', wrongSettingsCandidate, 'candidate with non-guide settings'],
+] as const;
+for (const [step, acquisitionCandidate, description] of invalidCandidateCheckpoints) {
+  const restoredInvalidCandidate = normalizePistonOscillationGuideSession({
+    ...structuredClone(candidateCheckpoint),
+    step,
+    acquisitionCandidate,
+  });
+  assert.equal(
+    restoredInvalidCandidate.step,
+    'waitingTrigger',
+    `${description} must not keep ${step} blocked after restore`,
+  );
+  assert.equal(restoredInvalidCandidate.acquisitionCandidate, null);
+}
 
 session = transition(session, { type: 'pauseRecording', nowMs: 350 });
 assert.equal(session.step, 'curveFrozen');
@@ -447,7 +643,7 @@ assert.equal(
   mismatchedCandidateSession,
 );
 
-session = transition(session, { type: 'saveMeasurement', nowMs: 370 });
+session = acceptAcquisitionTransition(session, { type: 'saveMeasurement' }, 370);
 assert.equal(session.status, 'active');
 assert.equal(session.step, 'crossRunDisconnect');
 assert.equal(session.measurementIndex, 1);
@@ -463,6 +659,19 @@ assert.equal(restored.status, 'active');
 assert.equal(restored.step, 'crossRunDisconnect');
 assert.deepEqual(restored.parameterDrafts, session.parameterDrafts);
 assert.deepEqual(restored.savedMeasurements, session.savedMeasurements);
+
+const legacyCrossRunSession = normalizePistonOscillationGuideSession({
+  ...structuredClone(session),
+  step: 'crossRunStabilizing',
+});
+assert.equal(
+  legacyCrossRunSession.step,
+  'crossRunDisconnect',
+  'a persisted legacy cross-Run stabilization checkpoint must resume at hose disconnect',
+);
+assert.equal(legacyCrossRunSession.measurementIndex, session.measurementIndex);
+assert.deepEqual(legacyCrossRunSession.parameterDrafts, session.parameterDrafts);
+assert.deepEqual(legacyCrossRunSession.savedMeasurements, session.savedMeasurements);
 
 const completeCrossRunPreparation = (
   source: PistonOscillationGuideSession,
@@ -535,8 +744,6 @@ const completeCrossRunPreparation = (
   next = transition(next, { type: 'reconnectHose', nowMs: nowMs + 9 });
   assert.equal(next.step, 'screwLoosen');
   next = transition(next, { type: 'loosenScrew', nowMs: nowMs + 10 });
-  assert.equal(next.step, 'baselineStabilizing');
-  next = transition(next, { type: 'baselineStabilized', nowMs: nowMs + 11 });
   assert.equal(next.step, 'acquisitionReady');
   return next;
 };
@@ -545,13 +752,23 @@ const completeAcquisition = (
   source: PistonOscillationGuideSession,
   nowMs: number,
 ) => {
-  let next = transition(source, { type: 'startAcquisition', nowMs });
+  assert.equal(
+    transitionPistonOscillationGuideAcquisitionSession(source, { type: 'triggered' }, nowMs),
+    null,
+    'a stale trigger cannot advance before the accepted Start transition',
+  );
+  let next = acceptAcquisitionTransition(source, { type: 'startAcquisition' }, nowMs);
   assert.equal(next.step, 'waitingTrigger');
-  next = transition(next, {
-    type: 'releasePiston',
-    bothHandsReleased: true,
-    nowMs: nowMs + 1,
-  });
+  assert.equal(
+    transitionPistonOscillationGuideAcquisitionSession(
+      next,
+      { type: 'startAcquisition' },
+      nowMs + 0.5,
+    ),
+    null,
+    'a duplicate Start cannot desynchronize the armed panel from the canonical step',
+  );
+  next = acceptAcquisitionTransition(next, { type: 'triggered' }, nowMs + 1);
   assert.equal(next.step, 'recording');
   const measurementIndex = next.measurementIndex;
   const samples: PistonOscillationRawSample[] = [
@@ -565,23 +782,47 @@ const completeAcquisition = (
     samples,
     nowMs + 2,
   );
-  next = transition(next, {
-    type: 'updateRecording',
-    recordedDurationS: PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
-    samples: candidate.samples,
-    candidate,
-    nowMs: nowMs + 2,
-  });
+  assert.deepEqual(
+    getPistonOscillationGuidePrimaryControlState({
+      status: next.status,
+      step: next.step,
+      pauseReady: false,
+      candidateAvailable: false,
+    }),
+    { action: null, showsPause: true, allowed: false },
+    'recording may show the Pause-shaped control but must not dispatch it before readiness',
+  );
+  for (const attemptOffset of [1.2, 1.4]) {
+    assert.equal(
+      transitionPistonOscillationGuideAcquisitionSession(
+        next,
+        { type: 'curvePaused', candidate },
+        nowMs + attemptOffset,
+      ),
+      null,
+      'early Pause attempts must leave the recording step retryable',
+    );
+  }
+  next = acceptAcquisitionTransition(next, { type: 'recordingReady', candidate }, nowMs + 2);
   assert.equal(next.step, 'pauseAvailable');
   assert.equal(next.acquisitionCandidate?.measurementIndex, measurementIndex);
   assert.equal(
     next.acquisitionCandidate?.targetHeightMm,
     PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex],
   );
-  next = transition(next, { type: 'pauseRecording', nowMs: nowMs + 3 });
-  next = transition(next, { type: 'curveFreezeComplete', nowMs: nowMs + 4 });
+  assert.deepEqual(
+    getPistonOscillationGuidePrimaryControlState({
+      status: next.status,
+      step: next.step,
+      pauseReady: true,
+      candidateAvailable: next.acquisitionCandidate !== null,
+    }),
+    { action: 'pauseAcquisition', showsPause: true, allowed: true },
+    'once the checklist points to Pause, the same canonical state must make it clickable',
+  );
+  next = acceptAcquisitionTransition(next, { type: 'curvePaused', candidate }, nowMs + 3);
   assert.equal(next.step, 'awaitingSaveOrRedo');
-  return transition(next, { type: 'saveMeasurement', nowMs: nowMs + 5 });
+  return acceptAcquisitionTransition(next, { type: 'saveMeasurement' }, nowMs + 5);
 };
 
 session = completeCrossRunPreparation(session, 70, 500);

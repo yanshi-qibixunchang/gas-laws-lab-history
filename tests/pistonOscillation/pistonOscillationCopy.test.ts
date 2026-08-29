@@ -16,7 +16,8 @@ const expectedHandCopy = {
 const expectedGuideCopy = {
   'zh-CN': {
     adjustHeightDetail: '双击顶部平台进入聚焦；用右手（鼠标左键）拖至 70 mm。松开右手前，用左手（Space）托住平台，再确认高度。',
-    loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
+    lockScrewDetail: '持续用左手（Space）托住顶部平台，并用右手（鼠标左键）在左上操作镜中顺时针旋紧侧面锁紧螺钉；达到功能锁紧后再松开左手（Space）。',
+    loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中逆时针旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
     releasePistonDetail: '双击顶部平台进入聚焦；让左手（Space）与右手（鼠标左键）全部就位，双手下压顶部平台，再同时松开双手。',
     completedTitle: '数据处理与计算已完成',
     completedDetail: '80、70、60 mm 三次测量、周期预处理、线性拟合与结果计算均已完成，全部过程和结果已保存。引导模式使用三组不同高度的数据，帮助你以最简流程体验一次完整拟合；在正式实验或自由模式中，建议采集更多不同高度的数据点，以减小随机波动和个别异常数据对拟合的影响，提高斜率、截距及最终计算结果的稳定性和可信度。',
@@ -25,7 +26,8 @@ const expectedGuideCopy = {
   },
   'zh-TW': {
     adjustHeightDetail: '雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）拖至 70 mm。鬆開右手前，用左手（Space）托住平台，再確認高度。',
-    loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
+    lockScrewDetail: '持續用左手（Space）托住頂部平台，並用右手（滑鼠左鍵）在左上操作鏡中順時針旋緊側面鎖緊螺釘；達到功能鎖緊後再鬆開左手（Space）。',
+    loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中逆時針旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
     releasePistonDetail: '雙擊頂部平台進入聚焦；讓左手（Space）與右手（滑鼠左鍵）全部就位，雙手下壓頂部平台，再同時鬆開雙手。',
     completedTitle: '資料處理與計算已完成',
     completedDetail: '80、70、60 mm 三次測量、週期預處理、線性擬合與結果計算均已完成，全部過程與結果已儲存。引導模式使用三組不同高度的資料，協助你以最簡流程體驗一次完整擬合；在正式實驗或自由模式中，建議採集更多不同高度的資料點，以減小隨機波動和個別異常資料對擬合的影響，提高斜率、截距及最終計算結果的穩定性和可信度。',
@@ -34,13 +36,20 @@ const expectedGuideCopy = {
   },
   en: {
     adjustHeightDetail: 'Double-click the platform. Drag it to 70 mm with the right hand (left mouse button). Hold it with the left hand (Space) before releasing the mouse, then confirm the height.',
-    loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then loosen the side locking screw in the upper-left operation mirror so the piston can move freely in the sealed system.',
+    lockScrewDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to turn the side locking screw clockwise in the upper-left operation mirror. Release the left hand (Space) only after the screw is functionally locked.',
+    loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then turn the side locking screw counterclockwise in the upper-left operation mirror so the piston can move freely in the sealed system.',
     releasePistonDetail: 'Double-click the top platform to enter focus mode. Put the left hand (Space) and right hand (left mouse button) in place, press the top platform with both hands, then release both hands at the same time.',
     completedTitle: 'Data processing and calculations complete',
     completedDetail: 'The measurements at 80, 70, and 60 mm, period preprocessing, linear fit, and result calculations are complete, and the full process and results have been saved. Guided mode uses three different heights to demonstrate a complete fit with the simplest workflow. In a formal experiment or Free mode, collect more data points at different heights to reduce the influence of random variation and isolated outliers, and to improve the stability and credibility of the fitted slope, intercept, and final result.',
     completionToastKicker: 'SYSTEM',
     completionToast: 'Guided mode has ended',
   },
+} as const;
+
+const expectedScrewDirectionCopy = {
+  'zh-CN': { tighten: /顺时针/, loosen: /逆时针/ },
+  'zh-TW': { tighten: /順時針/, loosen: /逆時針/ },
+  en: { tighten: /clockwise/i, loosen: /counterclockwise/i },
 } as const;
 
 for (const language of PISTON_OSCILLATION_LANGUAGES) {
@@ -73,6 +82,8 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     copy.interaction.hoseLabel,
     copy.interaction.scaleReadingMirrorAria,
     copy.interaction.lockingScrewMirrorAria,
+    copy.interaction.screwTightenDirectionAria,
+    copy.interaction.screwLoosenDirectionAria,
   ]) {
     assert.ok(localizedInteractionLabel.length > 0);
   }
@@ -97,6 +108,7 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
   assert.deepEqual(
     {
       adjustHeightDetail: copy.guide.adjustHeightDetail(70),
+      lockScrewDetail: copy.guide.lockScrewDetail,
       loosenScrewDetail: copy.guide.loosenScrewDetail,
       releasePistonDetail: copy.guide.releasePistonDetail,
       completedTitle: copy.guide.completedTitle,
@@ -107,6 +119,35 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     expectedGuideCopy[language],
     `${language} should preserve the approved focus and completion wording`,
   );
+  const directionCopy = expectedScrewDirectionCopy[language];
+  for (const tightenCopy of [
+    copy.interaction.screwTightenDirectionAria,
+    copy.interaction.screwTightenDirectionLabel,
+    copy.guide.lockScrewDetail,
+    copy.guide.screwWrongDirectionTighten,
+    copy.guide.screwBoundaryBlockedTighten,
+  ]) {
+    assert.match(
+      tightenCopy,
+      directionCopy.tighten,
+      `${language} should identify clockwise tightening in every Guide cue level`,
+    );
+  }
+  for (const loosenCopy of [
+    copy.interaction.screwLoosenDirectionAria,
+    copy.interaction.screwLoosenDirectionLabel,
+    copy.guide.loosenScrewDetail,
+    copy.guide.screwWrongDirectionLoosen,
+    copy.guide.screwBoundaryBlockedLoosen,
+  ]) {
+    assert.match(
+      loosenCopy,
+      directionCopy.loosen,
+      `${language} should identify counterclockwise loosening in every Guide cue level`,
+    );
+  }
+  assert.notEqual(copy.guide.screwWrongDirectionTighten, copy.guide.screwBoundaryBlockedTighten);
+  assert.notEqual(copy.guide.screwWrongDirectionLoosen, copy.guide.screwBoundaryBlockedLoosen);
   for (const key of [
     'lockScrewTitle',
     'reconnectHoseTitle',
@@ -135,6 +176,10 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     copy.guide.pressureRangeLessonBody,
     copy.guide.lockingScrewLessonTitle,
     copy.guide.lockingScrewLessonBody,
+    copy.guide.screwWrongDirectionTighten,
+    copy.guide.screwWrongDirectionLoosen,
+    copy.guide.screwBoundaryBlockedTighten,
+    copy.guide.screwBoundaryBlockedLoosen,
     copy.guide.multiPeriodLessonTitle,
     copy.guide.multiPeriodLessonBody,
   ]) {

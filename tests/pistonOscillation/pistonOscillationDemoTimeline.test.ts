@@ -8,11 +8,14 @@ import {
 } from '../../src/domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
 import {
   PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS,
+  PISTON_OSCILLATION_DEMO_DISCONNECT_HOSE_ACTION_MS,
   PISTON_OSCILLATION_DEMO_DURATION_MS,
+  PISTON_OSCILLATION_DEMO_HEIGHT_ACTION_MS,
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS,
   PISTON_OSCILLATION_DEMO_OBSERVE_MS,
   PISTON_OSCILLATION_DEMO_ORIENT_MS,
   PISTON_OSCILLATION_DEMO_PRE_HIGHLIGHT_MS,
+  PISTON_OSCILLATION_DEMO_RECONNECT_HOSE_ACTION_MS,
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS,
   getPistonOscillationDemoFrame,
   getPistonOscillationDemoTrajectory,
@@ -87,7 +90,10 @@ assert.equal(configured.triggerInput, '120');
 assert.equal(configured.virtualKeyboardVisible, false);
 
 assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 31);
-assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 276_550);
+assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 265_050);
+assert.equal(PISTON_OSCILLATION_DEMO_HEIGHT_ACTION_MS, 4_200 * 0.5);
+assert.equal(PISTON_OSCILLATION_DEMO_RECONNECT_HOSE_ACTION_MS, 2_100 * 0.5);
+assert.equal(PISTON_OSCILLATION_DEMO_DISCONNECT_HOSE_ACTION_MS, 2_050 * 0.5);
 assert.deepEqual(
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS.map(({ kind }) => kind),
   [
@@ -130,6 +136,10 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
 for (const measurementIndex of [0, 1, 2]) {
   const targetHeightMm = [80, 70, 60][measurementIndex];
   const heightAction = action(measurementIndex, 'adjustHeight', 'platform');
+  assert.equal(
+    heightAction.endsAtMs - heightAction.startsAtMs,
+    PISTON_OSCILLATION_DEMO_HEIGHT_ACTION_MS,
+  );
   const adjusted = getPistonOscillationDemoFrame(heightAction.endsAtMs);
   assert.equal(adjusted.measurementIndex, measurementIndex);
   assert.equal(adjusted.targetHeightMm, targetHeightMm);
@@ -184,6 +194,10 @@ for (const measurementIndex of [0, 1, 2]) {
   assert.ok(reconnect.segments.every(({ focusMode }) => focusMode === 'overview'));
   assert.deepEqual(reconnect.segments[1]!.highlightControls, ['hose', 'hoseSnap']);
   const connectAction = action(measurementIndex, 'reconnectHose', 'hose');
+  assert.equal(
+    connectAction.endsAtMs - connectAction.startsAtMs,
+    PISTON_OSCILLATION_DEMO_RECONNECT_HOSE_ACTION_MS,
+  );
   const connecting = frameInside(connectAction.startsAtMs, connectAction.endsAtMs, 0.5);
   assert.equal(connecting.hoseDragging, true);
   assert.equal(connecting.hoseState, 'disconnected');
@@ -257,6 +271,10 @@ for (const nextMeasurementIndex of [1, 2]) {
   assert.ok(disconnectStep.segments.every(({ focusMode }) => focusMode === 'overview'));
   assert.equal(disconnectStep.segments[1]!.control, 'hose');
   const disconnectAction = action(nextMeasurementIndex, 'disconnect', 'hose');
+  assert.equal(
+    disconnectAction.endsAtMs - disconnectAction.startsAtMs,
+    PISTON_OSCILLATION_DEMO_DISCONNECT_HOSE_ACTION_MS,
+  );
   const disconnecting = frameInside(disconnectAction.startsAtMs, disconnectAction.endsAtMs, 0.5);
   assert.equal(disconnecting.measurementIndex, nextMeasurementIndex);
   assert.equal(disconnecting.leftHandSupporting, true);

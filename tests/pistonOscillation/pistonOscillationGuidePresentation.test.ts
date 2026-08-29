@@ -43,7 +43,6 @@ assert.deepEqual(
 for (const step of [
   'parameterSetup',
   'hoseReconnect',
-  'crossRunStabilizing',
   'crossRunDisconnect',
   'completed',
 ] satisfies PistonOscillationGuideStep[]) {
@@ -63,7 +62,6 @@ for (const step of [
   'firstHeightAdjustment',
   'screwLock',
   'screwLoosen',
-  'baselineStabilizing',
   'acquisitionReady',
   'waitingTrigger',
   'recording',
@@ -103,7 +101,6 @@ assert.equal(getPistonOscillationGuideStrongTargetId('acquisitionReady', 'readin
 assert.equal(getPistonOscillationGuideStrongTargetId('pauseAvailable', 'readingHeight'), 'primary');
 assert.equal(getPistonOscillationGuideStrongTargetId('awaitingSaveOrRedo', 'readingHeight'), 'save');
 assert.equal(getPistonOscillationGuideStrongTargetId('recording', 'readingHeight'), null);
-assert.equal(getPistonOscillationGuideStrongTargetId('crossRunStabilizing', 'readingHeight'), null);
 assert.equal(getPistonOscillationGuideStrongContextKind('platform'), 'scaleMirror');
 assert.equal(getPistonOscillationGuideStrongContextKind('heightStageAction'), 'scaleMirror');
 assert.equal(getPistonOscillationGuideStrongContextKind('operationMirror'), 'mainScrew');
@@ -250,7 +247,11 @@ assert.match(workbenchSource, /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS
 assert.match(workbenchSource, /data-piston-guide-strong-mask-blocking="true"/);
 assert.match(workbenchSource, /guideRequestedFocusMode=\{pistonGuideRequestedFocusMode\}/);
 assert.match(sceneSource, /guideRequestedFocusMode=\{guideRequestedFocusMode\}/);
-assert.match(workspaceSource, /if \(!guideRequestedFocusMode \|\| demoActive\) return/);
+assert.match(
+  workspaceSource,
+  /if \(!guideRequestedFocusMode \|\| demoActive \|\| screwDragging\) return/,
+  'the Guide camera should follow the current step without interrupting an active screw gesture',
+);
 assert.doesNotMatch(
   workspaceSource,
   /if \(!guideRequestedFocusMode[^\n]*guideInteractionPaused/,

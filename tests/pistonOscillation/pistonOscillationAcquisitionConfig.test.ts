@@ -100,6 +100,11 @@ assert.match(
 );
 assert.match(
   panelSource,
+  /const commitGuideParameter = \(field: PistonOscillationGuideParameterField\): boolean => \{[\s\S]*PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ[\s\S]*PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA[\s\S]*Number\(draft\) === expectedValue[\s\S]*commitGuideParameter\('sampleRateHz'\)[\s\S]*if \(accepted\) triggerInputRef\.current\?\.focus\(\)[\s\S]*commitGuideParameter\('triggerThresholdKpa'\)[\s\S]*event\.currentTarget\.blur\(\)/,
+  'Guide Enter should mirror Free mode: valid sample rate advances focus and trigger Enter commits before blur',
+);
+assert.match(
+  panelSource,
   /if \(freeCommitRejectedRef\.current\)[\s\S]*return;[\s\S]*if \(!freeAcquisitionParametersValid\)[\s\S]*acquisitionParametersRequired[\s\S]*input\?\.focus\(\)[\s\S]*return;/,
   'Start should remain clickable but block an invalid or missing setup and focus the first required field',
 );
@@ -183,12 +188,12 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /guideStep === 'recording'[\s\S]*guideSession\.acquisitionCandidate === null[\s\S]*phaseRef\.current === 'idle'[\s\S]*updatePhase\('armed'\)[\s\S]*restoreInterruptedAcquisition/,
+  /guideStep === 'recording'[\s\S]*guideSession\.acquisitionCandidate === null[\s\S]*phaseRef\.current === 'idle'[\s\S]*const recoveryAccepted = onGuideAcquisitionEvent\?\.\(\{[\s\S]*type: 'restoreInterruptedAcquisition'[\s\S]*\}\) === true;[\s\S]*if \(!recoveryAccepted\) return;[\s\S]*updatePhase\('armed'\)/,
   'an interrupted partial recording must return to a clean armed attempt instead of deadlocking',
 );
 assert.match(
   panelSource,
-  /restoredGuidePauseCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*effectivePhase = demoFrame\?\.acquisitionPhase[\s\S]*restoredGuidePauseCandidate[\s\S]*\? 'recording'[\s\S]*const candidate = restoredGuidePauseCandidate \?\? buildGuideCandidate/,
+  /restoredGuidePauseCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*effectivePhase = demoFrame\?\.acquisitionPhase[\s\S]*restoredGuidePauseCandidate[\s\S]*\? 'recording'[\s\S]*const candidate = restoredGuidePauseCandidate[\s\S]*\?\? buildGuideCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*guideSession\.acquisitionCandidate/,
   'a complete persisted candidate must restore its curve and remain pausable after remount',
 );
 assert.match(
@@ -198,7 +203,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /handleStop[\s\S]*getCurrentRecordingElapsedSeconds\(\)[\s\S]*setStopElapsedSeconds\([\s\S]*effectiveCandidate\?\.acquisitionSettings\.recordedDurationS[\s\S]*pauseElapsedSeconds/,
+  /handleStop[\s\S]*getCurrentRecordingElapsedSeconds\(\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*setStopElapsedSeconds\([\s\S]*effectiveCandidate\.acquisitionSettings\.recordedDurationS/,
 );
 assert.match(
   panelSource,
@@ -227,8 +232,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /setStopElapsedSeconds\(candidate\.acquisitionSettings\.recordedDurationS\)[\s\S]*const overpressurePeakKpa = guidePendingOverpressurePeakKpaRef\.current;[\s\S]*setGuidePressureIssue\('overpressure'\)[\s\S]*updatePhase\('stopped'\)[\s\S]*reason: 'overpressure'[\s\S]*return;[\s\S]*type: 'recordingReady', candidate/,
-  'an overpressure attempt must finish and freeze its observed curve before it is rejected rather than discarding the trace at release',
+  /setStopElapsedSeconds\(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S\)[\s\S]*const overpressurePeakKpa = guidePendingOverpressurePeakKpaRef\.current;[\s\S]*reason: 'overpressure'[\s\S]*\}\) === true;[\s\S]*if \(!rejectionAccepted\) return;[\s\S]*setGuidePressureIssue\('overpressure'\)[\s\S]*updatePhase\('stopped'\)/,
+  'an overpressure attempt must freeze at the fixed frontier and receive parent acceptance before it unlocks Redo',
 );
 assert.match(
   panelSource,
@@ -250,7 +255,7 @@ assert.match(panelStyles, /piston-acquisition-pressure-indicator\.is-valid/);
 assert.match(panelStyles, /piston-acquisition-pressure-indicator\.is-over/);
 assert.match(
   panelSource,
-  /const handleGuideOverpressureRedo = \(\) => \{[\s\S]*updatePhase\('armed'\)[\s\S]*type: 'redoOverpressureAttempt'[\s\S]*data-piston-guide-target="redo"[\s\S]*guideCue === 'redo'[\s\S]*guidePressureIssue === 'overpressure'[\s\S]*handleGuideOverpressureRedo\(\)/,
+  /const handleGuideOverpressureRedo = \(\) => \{[\s\S]*type: 'redoOverpressureAttempt'[\s\S]*\) !== true[\s\S]*updatePhase\('armed'\)[\s\S]*data-piston-guide-target="redo"[\s\S]*guideCue === 'redo'[\s\S]*guidePressureIssue === 'overpressure'[\s\S]*handleGuideOverpressureRedo\(\)/,
   'an overpressure attempt must unlock and pulse the dedicated Redo control before re-arming acquisition',
 );
 assert.match(
@@ -280,8 +285,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /phase !== 'recording'[\s\S]*formalElapsedSeconds < PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S[\s\S]*buildGuideCandidate\(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S\)[\s\S]*setStopElapsedSeconds\(candidate\.acquisitionSettings\.recordedDurationS\)[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'recordingReady', candidate \}\)/,
-  'Guide recording should lock its displayed observation curve at the configured duration threshold',
+  /phase !== 'recording'[\s\S]*formalElapsedSeconds < PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S[\s\S]*setStopElapsedSeconds\(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S\)[\s\S]*guideSession\?\.step !== 'recording'[\s\S]*guidePendingRecordingCandidateRef\.current[\s\S]*buildGuideCandidate\(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S\)[\s\S]*type: 'recordingReady'[\s\S]*candidate/,
+  'Guide recording must freeze at the fixed sample frontier before the canonical commit can be accepted',
 );
 const recordingReadyEffectStart = panelSource.indexOf(
   "  useEffect(() => {\n    if (\n      !guideActive",
@@ -292,18 +297,43 @@ assert.ok(recordingReadyEffectStart >= 0 && handleStartIndex > recordingReadyEff
 const recordingReadyEffectSource = panelSource.slice(recordingReadyEffectStart, handleStartIndex);
 assert.match(
   recordingReadyEffectSource,
-  /if \(overpressurePeakKpa !== null\)[\s\S]*updatePhase\('stopped'\)[\s\S]*return;[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'recordingReady', candidate \}\)/,
-  'only the invalid overpressure branch should stop automatically; a valid recording must still require Pause',
+  /setStopElapsedSeconds\(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S\)[\s\S]*guidePendingRecordingCandidateRef\.current = candidate[\s\S]*displayNowMs - lastAttemptedAtMs < 120[\s\S]*if \(overpressurePeakKpa !== null\)[\s\S]*updatePhase\('stopped'\)[\s\S]*return;[\s\S]*type: 'recordingReady'[\s\S]*if \(!recordingAccepted\) return/,
+  'a valid recording must freeze on time and retry the same pending candidate after a transient parent rejection',
+);
+assert.doesNotMatch(
+  recordingReadyEffectSource,
+  /guideRecordingReadyNotifiedRef/,
+  'recording completion must not depend on a stale one-shot notification latch',
+);
+assert.doesNotMatch(
+  recordingReadyEffectSource,
+  /if \(!guidePauseReady\) return/,
+  'physical settling must not block recording-ready or leave the Guide controls grey forever',
 );
 assert.match(
   panelSource,
-  /const handleStop = \(\) => \{[\s\S]*const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds\(\)[\s\S]*buildGuideCandidate\(pauseElapsedSeconds\)[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'curvePaused', candidate \}\)[\s\S]*updatePhase\('stopped'\)/,
-  'pausing acquisition should freeze and publish the physical candidate curve',
+  /const handleStart = \(\) => \{[\s\S]*guideActive[\s\S]*type: 'startAcquisition'[\s\S]*\) !== true[\s\S]*const recordingStartedAtMs = performance\.now\(\)[\s\S]*updatePhase\(startsImmediately \? 'recording' : 'armed'\)/,
+  'Guide Start must receive parent acceptance before the panel arms locally',
 );
 assert.match(
   panelSource,
-  /guideSession\.step === 'awaitingSaveOrRedo'[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'saveMeasurement' \}\)[\s\S]*onRunRetained\?\.\(\)/,
-  'the reviewed Save action should persist the Guide measurement before notifying the workbench cycle',
+  /phaseRef\.current === 'armed'[\s\S]*if \(guideActive\) \{[\s\S]*type: 'triggered'[\s\S]*\) === true[\s\S]*guideTriggeredNotifiedRef\.current = true;[\s\S]*updatePhase\('recording'\)/,
+  'the trigger must receive parent acceptance before the panel records or latches its notification',
+);
+assert.match(
+  panelSource,
+  /const handleStop = \(\) => \{[\s\S]*const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds\(\)[\s\S]*buildGuideCandidate\(pauseElapsedSeconds\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*const pauseAccepted = onGuideAcquisitionEvent\?\.\(\{[\s\S]*type: 'curvePaused',[\s\S]*candidate,[\s\S]*\}\) === true;[\s\S]*if \(!pauseAccepted\) return;[\s\S]*updatePhase\('stopped'\)/,
+  'Guide Pause should freeze locally only after publishing a valid candidate and receiving parent acceptance',
+);
+assert.match(
+  panelSource,
+  /onGuideAcquisitionEvent\?: \(event: PistonOscillationGuideAcquisitionEvent\) => boolean;/,
+  'the Guide acquisition adapter must synchronously confirm whether it accepted an event',
+);
+assert.match(
+  panelSource,
+  /guideSession\.step === 'awaitingSaveOrRedo'[\s\S]*const saveDisabled = Boolean\([\s\S]*\? !guideSaveAllowed[\s\S]*onGuideAcquisitionEvent\?\.\(\{ type: 'saveMeasurement' \}\) !== true[\s\S]*setRetained\(true\)[\s\S]*onRunRetained\?\.\(\)[\s\S]*disabled=\{saveDisabled\}[\s\S]*aria-disabled=\{saveDisabled\}/,
+  'Save must use one native/accessibility gate and persist the Guide measurement before advancing locally',
 );
 assert.match(
   panelSource,
@@ -425,7 +455,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /aria-label=\{acquisitionActive \? copy\.pause : copy\.start\}[\s\S]*aria-label=\{copy\.redo\}[\s\S]*aria-label=\{copy\.save\}/,
+  /aria-label=\{primaryLabel\}[\s\S]*aria-label=\{copy\.redo\}[\s\S]*aria-label=\{copy\.save\}/,
   'start and pause should share the first slot before redo and save',
 );
 assert.match(panelStyles, /\.piston-acquisition-settings label\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;/);
@@ -484,8 +514,18 @@ assert.equal(
 );
 assert.match(
   panelSource,
-  /const guidePrimaryAllowed = !guideSelected \|\| \([\s\S]*guideActive[\s\S]*guideSession\.step === 'acquisitionReady'[\s\S]*guideSession\.step === 'pauseAvailable'[\s\S]*guidePauseReady[\s\S]*const guideSaveAllowed = Boolean\([\s\S]*guideActive[\s\S]*guideSession\.step === 'awaitingSaveOrRedo'/,
+  /const guidePrimaryControl = guideSelected[\s\S]*getPistonOscillationGuidePrimaryControlState\(\{[\s\S]*status: guideSession\.status,[\s\S]*step: guideSession\.step,[\s\S]*pauseReady: guidePauseReady,[\s\S]*candidateAvailable: guideSession\.acquisitionCandidate !== null,[\s\S]*const guidePrimaryAction = guidePrimaryControl\?\.action \?\? null;[\s\S]*const primaryShowsPause = guideSelected[\s\S]*guidePrimaryControl\?\.showsPause === true[\s\S]*const primaryLabel = primaryShowsPause \? copy\.pause : copy\.start/,
+  'Guide primary presentation and action must derive from the canonical Guide step',
+);
+assert.match(
+  panelSource,
+  /const guidePrimaryAllowed = !guideSelected \|\| guidePrimaryControl\?\.allowed === true;[\s\S]*const primaryDisabled = Boolean\([\s\S]*!guidePrimaryAllowed[\s\S]*const guideSaveAllowed = Boolean\([\s\S]*guideSession\.step === 'awaitingSaveOrRedo'/,
   'completion must lock both the primary acquisition action and Save',
+);
+assert.match(
+  panelSource,
+  /aria-label=\{primaryLabel\}[\s\S]*title=\{primaryLabel\}[\s\S]*if \(primaryDisabled\) return;[\s\S]*attemptGuideAction\(guidePrimaryAction, 'primary'\)[\s\S]*guidePrimaryAction === 'pauseAcquisition' \? handleStop : handleStart[\s\S]*disabled=\{primaryDisabled\}[\s\S]*aria-disabled=\{primaryDisabled\}[\s\S]*primaryShowsPause \? \(/,
+  'the Guide primary label, action, native disabled state, accessibility state, and icon must stay aligned',
 );
 assert.match(
   panelSource,

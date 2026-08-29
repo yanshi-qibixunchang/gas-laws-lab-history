@@ -113,6 +113,13 @@ import {
   type PistonOscillationGuideInstrumentRestoreState,
 } from './pistonOscillationGuidePresentation.ts';
 import {
+  resolvePistonOscillationGuideScrewFeedback,
+  resolvePistonOscillationGuideScrewDelta,
+  type PistonOscillationGuideScrewDirection,
+  type PistonOscillationGuideScrewFeedbackKind,
+  type PistonOscillationGuideScrewInteractionMode,
+} from './pistonOscillationGuideScrewInteraction.ts';
+import {
   getPistonOscillationShellCopy,
   type PistonOscillationLanguage,
 } from './pistonOscillationCopy.ts';
@@ -150,6 +157,7 @@ export interface PistonOscillationGuideInstrumentSnapshot {
   pistonOffsetMm: number;
   lockingScrewProgress: number;
   lockingScrewState: 'loose' | 'locked';
+  lockingScrewDragging: boolean;
   heightAdjustmentStage: PistonOscillationHeightAdjustmentStage;
   spaceHeld: boolean;
   mouseHeld: boolean;
@@ -172,6 +180,11 @@ export type PistonOscillationGuideActionAttempt = (
   action: PistonOscillationGuideAction,
   context: PistonOscillationGuideActionContext,
 ) => PistonOscillationGuideGuardResult;
+
+export interface PistonOscillationGuideScrewDirectionFeedback {
+  kind: Exclude<PistonOscillationGuideScrewFeedbackKind, 'none'>;
+  expectedDirection: PistonOscillationGuideScrewDirection;
+}
 
 export type PistonOscillationGuideVisualCue =
   | 'power'
@@ -908,12 +921,14 @@ const OperationMirrorScrewControl = ({
   onHoverChange,
   onDraggingChange,
   onHitPointReady,
+  interactionEnabled = true,
 }: {
   progress: number;
   onProgressDelta: (progressDelta: number) => void;
   onHoverChange: (hovered: boolean) => void;
   onDraggingChange: (dragging: boolean) => void;
   onHitPointReady: (point: readonly [number, number]) => void;
+  interactionEnabled?: boolean;
 }) => {
   const camera = useThree((state) => state.camera);
   const scene = useThree((state) => state.scene);
@@ -983,6 +998,7 @@ const OperationMirrorScrewControl = ({
     <mesh
       ref={hitTargetRef}
       name="HIT_PistonLockingScrew_OperationMirror"
+      raycast={interactionEnabled ? undefined : () => undefined}
       userData={{
         hitTargetId: 'piston_locking_screw_operation_mirror',
         semanticRole: 'tighten_or_loosen',
@@ -1302,6 +1318,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
   guidePaused?: boolean;
   guideTimeFrozen?: boolean;
   guideVisualCue?: PistonOscillationGuideVisualCue;
+  guideScrewInteractionMode?: PistonOscillationGuideScrewInteractionMode | null;
   guidePulseElapsedSeconds?: number;
   guideRequestedFocusMode?: PistonOscillationGuideFocusMode;
   guideSnapTargetHeightMm?: number | null;
@@ -1316,6 +1333,9 @@ export interface PistonOscillationInteractionWorkspaceProps {
     snapshot: PistonOscillationGuideInstrumentSnapshot,
   ) => void;
   onGuideActionAttempt?: PistonOscillationGuideActionAttempt;
+  onGuideScrewDirectionFeedback?: (
+    feedback: PistonOscillationGuideScrewDirectionFeedback,
+  ) => void;
   onGuideHeightConfirmed?: (snapshot: PistonOscillationGuideInstrumentSnapshot) => void;
   onGuideSupportLoss?: (
     event: PistonOscillationGuideSupportLossEvent,
@@ -1347,6 +1367,7 @@ export const PistonOscillationInteractionWorkspace = ({
   guidePaused = false,
   guideTimeFrozen = false,
   guideVisualCue = null,
+  guideScrewInteractionMode = null,
   guidePulseElapsedSeconds,
   guideRequestedFocusMode,
   guideSnapTargetHeightMm = null,
@@ -1359,6 +1380,7 @@ export const PistonOscillationInteractionWorkspace = ({
   overlayCenterAboveGuideMask = false,
   onGuideInstrumentSnapshotChange,
   onGuideActionAttempt,
+  onGuideScrewDirectionFeedback,
   onGuideHeightConfirmed,
   onGuideSupportLoss,
   onGuideHeightResetComplete,
@@ -1371,6 +1393,12 @@ export const PistonOscillationInteractionWorkspace = ({
   const copy = getPistonOscillationShellCopy(language);
   const interactionCopy = copy.interaction;
   const demoPresentationCopy = copy.demoPresentation;
+  const guideScrewCueDirection: PistonOscillationGuideScrewDirection | null =
+    guideScrewInteractionMode === 'tighten'
+      ? 'clockwise'
+      : guideScrewInteractionMode === 'loosen'
+        ? 'counterclockwise'
+        : null;
   const guideInteractionPaused = guidePaused || guideTimeFrozen;
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const mirrorControlsRef = useRef<OrbitControlsImpl | null>(null);
@@ -1513,7 +1541,14 @@ export const PistonOscillationInteractionWorkspace = ({
   const screwGuideGesturePendingDeltaRef = useRef(0);
   const screwGuideGestureAuthorizedActionRef =
     useRef<'tightenScrew' | 'loosenScrew' | null>(null);
+  const screwGuideGestureDirectionRef =
+    useRef<PistonOscillationGuideScrewDirection | null>(null);
+  const screwGuideGestureProtectedModeRef = useRef<
+    Extract<PistonOscillationGuideScrewInteractionMode, 'protectLocked' | 'protectLoose'> | null
+  >(null);
   const screwGuideGestureRejectedRef = useRef(false);
+  const screwGuideSoftFeedbackShownRef = useRef(false);
+  const screwGuideBoundaryFeedbackShownRef = useRef(false);
   const demoActive = demoFrame !== undefined;
   const effectiveDemoPlaybackPhase = demoPlaybackPhase ?? (
     demoFrame?.completed ? 'completed' : demoFrame ? 'running' : 'idle'
@@ -1587,6 +1622,15 @@ export const PistonOscillationInteractionWorkspace = ({
     }, 520);
     return false;
   }, [onGuideActionAttempt]);
+  useEffect(() => {
+    if (
+      guideScrewInteractionMode === 'protectLocked'
+      || guideScrewInteractionMode === 'protectLoose'
+      || guideScrewInteractionMode === null
+    ) {
+      screwGuideGestureProtectedModeRef.current = null;
+    }
+  }, [guideScrewInteractionMode]);
   const requestPowerPress = useCallback(() => {
     if (powerPressAnimationFrameRef.current !== null) return;
     const powerToggleAllowed = attemptGuideAction('togglePower');
@@ -1702,6 +1746,18 @@ export const PistonOscillationInteractionWorkspace = ({
     : interactionCopy.looseStatus;
   const demoHighlightControls = demoFrame?.highlightControls
     ?? (demoFrame?.highlightControl ? [demoFrame.highlightControl] : []);
+  const demoScrewCueDirection: PistonOscillationGuideScrewDirection | null =
+    demoFrame?.activeControl === 'screw'
+      ? demoFrame.operationCue?.mouseAction === 'rotateCounterclockwise'
+        ? 'counterclockwise'
+        : 'clockwise'
+      : demoHighlightControls.includes('screw')
+        ? lockingScrewLocked
+          ? 'counterclockwise'
+          : 'clockwise'
+        : null;
+  const displayedScrewCueDirection = demoScrewCueDirection
+    ?? (guideVisualCue === 'screw' ? guideScrewCueDirection : null);
   const effectivePowerOn = demoFrame?.powerOn ?? powerOn;
   const effectivePowerPressProgress = demoFrame?.powerButtonPressProgress
     ?? manualPowerPressProgress;
@@ -1710,8 +1766,7 @@ export const PistonOscillationInteractionWorkspace = ({
     : null;
   usePistonOscillationAudioController({
     resetKey: `${guideSessionRevision}:${measurementCycleRevision}:${demoActive ? 'demo' : 'live'}`,
-    restoreMuted: guideInteractionPaused
-      || guideHeightReset?.phase === 'resetting'
+    restoreMuted: (guideInteractionPaused && guideHeightReset === null)
       || (demoActive && effectiveDemoPlaybackPhase === 'paused'),
     powerPressProgress: effectivePowerPressProgress,
     lockingScrewAngleDeg: lockingScrewProgress
@@ -1858,6 +1913,7 @@ export const PistonOscillationInteractionWorkspace = ({
       pistonOffsetMm,
       lockingScrewProgress,
       lockingScrewState: lockingScrewClampState,
+      lockingScrewDragging: screwDragging,
       heightAdjustmentStage,
       spaceHeld,
       mouseHeld,
@@ -1870,6 +1926,7 @@ export const PistonOscillationInteractionWorkspace = ({
     hoseDragging,
     lockingScrewClampState,
     lockingScrewProgress,
+    screwDragging,
     mode,
     mouseHeld,
     pistonNominalHeightMm,
@@ -1907,7 +1964,7 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [demoActive, onLivePhysicalStateChange]);
 
   useEffect(() => {
-    if (!guideRequestedFocusMode || demoActive) return;
+    if (!guideRequestedFocusMode || demoActive || screwDragging) return;
     if (guideRequestedFocusMode === 'overview') {
       enterOverview();
       return;
@@ -1917,6 +1974,7 @@ export const PistonOscillationInteractionWorkspace = ({
     demoActive,
     enterOverview,
     guideRequestedFocusMode,
+    screwDragging,
   ]);
   useEffect(() => {
     if (!demoFrame) return;
@@ -2344,31 +2402,111 @@ export const PistonOscillationInteractionWorkspace = ({
     if (screwGuideGestureRejectedRef.current) return;
     let committedDelta = progressDelta;
     if (onGuideActionAttempt) {
-      const authorizedAction = screwGuideGestureAuthorizedActionRef.current;
-      if (authorizedAction) {
-        if (authorizedAction === 'tightenScrew' && !spaceHeldRef.current) return;
-        const matchesAuthorizedDirection = authorizedAction === 'tightenScrew'
-          ? progressDelta > 0
-          : progressDelta < 0;
-        if (!matchesAuthorizedDirection) return;
-      } else {
+      const incomingDirection: PistonOscillationGuideScrewDirection = progressDelta > 0
+        ? 'clockwise'
+        : 'counterclockwise';
+      if (
+        screwGuideGestureDirectionRef.current !== null
+        && screwGuideGestureDirectionRef.current !== incomingDirection
+      ) {
         screwGuideGesturePendingDeltaRef.current += progressDelta;
         if (
           Math.abs(screwGuideGesturePendingDeltaRef.current)
             < PISTON_GUIDE_SCREW_DIRECTION_THRESHOLD
         ) return;
-        const action = screwGuideGesturePendingDeltaRef.current > 0
-          ? 'tightenScrew'
-          : 'loosenScrew';
+        committedDelta = screwGuideGesturePendingDeltaRef.current;
+        screwGuideGesturePendingDeltaRef.current = 0;
+        screwGuideGestureDirectionRef.current = committedDelta > 0
+          ? 'clockwise'
+          : 'counterclockwise';
+        screwGuideGestureAuthorizedActionRef.current = null;
+      } else if (screwGuideGestureDirectionRef.current !== null) {
+        screwGuideGesturePendingDeltaRef.current = 0;
+      }
+      if (screwGuideGestureDirectionRef.current === null) {
+        screwGuideGesturePendingDeltaRef.current += progressDelta;
+        if (
+          Math.abs(screwGuideGesturePendingDeltaRef.current)
+            < PISTON_GUIDE_SCREW_DIRECTION_THRESHOLD
+        ) return;
+        committedDelta = screwGuideGesturePendingDeltaRef.current;
+        screwGuideGesturePendingDeltaRef.current = 0;
+        screwGuideGestureDirectionRef.current = committedDelta > 0
+          ? 'clockwise'
+          : 'counterclockwise';
+      }
+
+      const effectiveGuideScrewInteractionMode =
+        screwGuideGestureProtectedModeRef.current ?? guideScrewInteractionMode;
+      if (effectiveGuideScrewInteractionMode !== null) {
+        const progressBeforeResolution = lockingScrewProgressRef.current;
+        const resolution = resolvePistonOscillationGuideScrewDelta(
+          progressBeforeResolution,
+          committedDelta,
+          effectiveGuideScrewInteractionMode,
+        );
+        if (
+          resolution.authorizationAction !== null
+          && screwGuideGestureAuthorizedActionRef.current
+            !== resolution.authorizationAction
+        ) {
+          if (!attemptGuideAction(resolution.authorizationAction)) {
+            screwGuideGestureRejectedRef.current = true;
+            return;
+          }
+          screwGuideGestureAuthorizedActionRef.current = resolution.authorizationAction;
+        }
+        if (
+          effectiveGuideScrewInteractionMode === 'tighten'
+          && progressBeforeResolution < PISTON_LOCKING_SCREW_LOCK_THRESHOLD
+          && resolution.nextProgress >= PISTON_LOCKING_SCREW_LOCK_THRESHOLD
+        ) {
+          screwGuideGestureProtectedModeRef.current = 'protectLocked';
+        } else if (
+          effectiveGuideScrewInteractionMode === 'loosen'
+          && progressBeforeResolution >= PISTON_LOCKING_SCREW_LOCK_THRESHOLD
+          && resolution.nextProgress < PISTON_LOCKING_SCREW_LOCK_THRESHOLD
+        ) {
+          screwGuideGestureProtectedModeRef.current = 'protectLoose';
+        }
+        const feedbackDecision = resolvePistonOscillationGuideScrewFeedback(
+          resolution.feedback,
+          {
+            softFeedbackShown: screwGuideSoftFeedbackShownRef.current,
+            boundaryFeedbackShown: screwGuideBoundaryFeedbackShownRef.current,
+          },
+        );
+        screwGuideSoftFeedbackShownRef.current =
+          feedbackDecision.nextState.softFeedbackShown;
+        screwGuideBoundaryFeedbackShownRef.current =
+          feedbackDecision.nextState.boundaryFeedbackShown;
+        if (feedbackDecision.feedback !== 'none') {
+          onGuideScrewDirectionFeedback?.({
+            kind: feedbackDecision.feedback,
+            expectedDirection: resolution.expectedDirection,
+          });
+        }
+        setMouseVisualizationAction(
+          resolution.attemptedDirection === 'clockwise'
+            ? 'rotateClockwise'
+            : 'rotateCounterclockwise',
+        );
+        lockingScrewProgressRef.current = resolution.nextProgress;
+        setLockingScrewProgress(resolution.nextProgress);
+        return;
+      }
+
+      const action = screwGuideGestureDirectionRef.current === 'clockwise'
+        ? 'tightenScrew'
+        : 'loosenScrew';
+      if (screwGuideGestureAuthorizedActionRef.current !== action) {
         if (!attemptGuideAction(action)) {
           screwGuideGestureRejectedRef.current = true;
-          screwGuideGesturePendingDeltaRef.current = 0;
           return;
         }
         screwGuideGestureAuthorizedActionRef.current = action;
-        committedDelta = screwGuideGesturePendingDeltaRef.current;
-        screwGuideGesturePendingDeltaRef.current = 0;
       }
+      if (action === 'tightenScrew' && !spaceHeldRef.current) return;
     }
     setMouseVisualizationAction(
       committedDelta > 0 ? 'rotateClockwise' : 'rotateCounterclockwise',
@@ -2378,13 +2516,22 @@ export const PistonOscillationInteractionWorkspace = ({
       lockingScrewProgressRef.current = clampedProgress;
       return clampedProgress;
     });
-  }, [attemptGuideAction, guideInteractionPaused, onGuideActionAttempt]);
+  }, [
+    attemptGuideAction,
+    guideInteractionPaused,
+    guideScrewInteractionMode,
+    onGuideActionAttempt,
+    onGuideScrewDirectionFeedback,
+  ]);
   const handleScrewDraggingChange = useCallback((dragging: boolean) => {
     setScrewDragging(dragging);
     if (!dragging) setMouseVisualizationAction(null);
     screwGuideGestureAuthorizedActionRef.current = null;
+    screwGuideGestureDirectionRef.current = null;
     screwGuideGesturePendingDeltaRef.current = 0;
     screwGuideGestureRejectedRef.current = false;
+    screwGuideSoftFeedbackShownRef.current = false;
+    screwGuideBoundaryFeedbackShownRef.current = false;
     if (dragging) {
       screwDragStartProgressRef.current = lockingScrewProgressRef.current;
       return;
@@ -2421,6 +2568,13 @@ export const PistonOscillationInteractionWorkspace = ({
     if (guideHeightResetAnimationFrameRef.current === null) return;
     window.cancelAnimationFrame(guideHeightResetAnimationFrameRef.current);
     guideHeightResetAnimationFrameRef.current = null;
+  }, []);
+  const emitBottomImpactAudio = useCallback((dropDistanceMm: number) => {
+    bottomImpactAudioEventIdRef.current += 1;
+    setBottomImpactAudioEvent({
+      id: bottomImpactAudioEventIdRef.current,
+      dropDistanceMm: Math.max(0, dropDistanceMm),
+    });
   }, []);
 
   const recoverPistonMotionFailure = useCallback((
@@ -3326,6 +3480,9 @@ export const PistonOscillationInteractionWorkspace = ({
       pistonNominalHeightMmRef.current = PISTON_EQUILIBRIUM_HEIGHT_MIN_MM;
       setPistonEquilibriumHeightMm(PISTON_EQUILIBRIUM_HEIGHT_MIN_MM);
       setPistonNominalHeightMm(PISTON_EQUILIBRIUM_HEIGHT_MIN_MM);
+      emitBottomImpactAudio(
+        startedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
+      );
       setPistonPhase('idle');
       guideSupportLossReportedRef.current = false;
       onGuideHeightResetCompleteRef.current?.();
@@ -3339,6 +3496,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelSettlingAnimation,
     cancelUnsupportedDrop,
     commitThermodynamicState,
+    emitBottomImpactAudio,
     guideHeightReset?.phase,
     guideHeightReset?.revision,
     setReleaseControlLock,
@@ -3410,14 +3568,9 @@ export const PistonOscillationInteractionWorkspace = ({
       if (nextHeightMm <= PISTON_EQUILIBRIUM_HEIGHT_MIN_MM + 0.001) {
         unsupportedDropAnimationFrameRef.current = null;
         unsupportedDropVelocityMmPerSRef.current = 0;
-        bottomImpactAudioEventIdRef.current += 1;
-        setBottomImpactAudioEvent({
-          id: bottomImpactAudioEventIdRef.current,
-          dropDistanceMm: Math.max(
-            0,
-            continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
-          ),
-        });
+        emitBottomImpactAudio(
+          continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
+        );
         setPistonPhase('idle');
         return;
       }
@@ -3434,6 +3587,7 @@ export const PistonOscillationInteractionWorkspace = ({
     mouseHeld,
     spaceHeld,
     demoActive,
+    emitBottomImpactAudio,
     guideInteractionPaused,
     onGuideActionAttempt,
   ]);
@@ -3664,6 +3818,7 @@ export const PistonOscillationInteractionWorkspace = ({
           } ${
             demoHighlightControls.includes('mirrorOutline')
             || guideVisualCue === 'mirrorOutline'
+            || guideVisualCue === 'screw'
               ? 'is-demo-outline-highlighted'
               : ''
           } ${
@@ -3789,16 +3944,56 @@ export const PistonOscillationInteractionWorkspace = ({
                 controlsRef={mirrorControlsRef}
               />
             )}
-            {!demoActive && !guideInteractionPaused && screwOperationMirrorActive ? (
+            {screwOperationMirrorActive ? (
               <OperationMirrorScrewControl
                 progress={lockingScrewProgress}
                 onProgressDelta={handleLockingScrewProgressDelta}
                 onHoverChange={setScrewHovered}
                 onDraggingChange={handleScrewDraggingChange}
                 onHitPointReady={setScrewHitPoint}
+                interactionEnabled={!demoActive && !guideInteractionPaused}
               />
             ) : null}
           </Canvas>
+          {displayedScrewCueDirection !== null ? (
+            <div
+              className={`piston-guide-screw-direction-cue is-${displayedScrewCueDirection}`}
+              data-piston-guide-screw-direction={
+                demoScrewCueDirection === null ? displayedScrewCueDirection : undefined
+              }
+              data-piston-demo-screw-direction={demoScrewCueDirection ?? undefined}
+              role="img"
+              style={{
+                left: screwHitPoint === null ? '50%' : `${(screwHitPoint[0] + 1) * 50}%`,
+                top: screwHitPoint === null ? '50%' : `${(1 - screwHitPoint[1]) * 50}%`,
+              }}
+              aria-label={
+                displayedScrewCueDirection === 'clockwise'
+                  ? interactionCopy.screwTightenDirectionAria
+                  : interactionCopy.screwLoosenDirectionAria
+              }
+            >
+              <svg viewBox="0 0 100 100" aria-hidden="true">
+                <path
+                  className="piston-guide-screw-direction-outline"
+                  d="M 23 72 C 8 49 16 24 38 14 C 60 4 83 19 85 43"
+                />
+                <path
+                  className="piston-guide-screw-direction-arc"
+                  d="M 23 72 C 8 49 16 24 38 14 C 60 4 83 19 85 43"
+                />
+                <path
+                  className="piston-guide-screw-direction-head"
+                  d="M 85 57 L 73 38 L 97 38 Z"
+                />
+              </svg>
+              <span className="piston-guide-screw-direction-label" aria-hidden="true">
+                {displayedScrewCueDirection === 'clockwise'
+                  ? interactionCopy.screwTightenDirectionLabel
+                  : interactionCopy.screwLoosenDirectionLabel}
+              </span>
+            </div>
+          ) : null}
         </div>
 
         <div
@@ -4019,6 +4214,7 @@ export const PistonOscillationInteractionWorkspace = ({
                               lockingScrewState: getPistonLockingScrewClampState(
                                 lockingScrewProgressRef.current,
                               ),
+                              lockingScrewDragging: screwDragging,
                               heightAdjustmentStage: nextStage,
                               spaceHeld: spaceHeldRef.current,
                               mouseHeld: mouseHeldRef.current,

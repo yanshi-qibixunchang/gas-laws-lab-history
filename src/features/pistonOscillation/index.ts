@@ -8,10 +8,22 @@ export {
   type PistonOscillationGuideInstrumentSnapshot,
   type PistonOscillationGuideActionAttempt,
   type PistonOscillationGuideHeightResetRequest,
+  type PistonOscillationGuideScrewDirectionFeedback,
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideVisualCue,
   type PistonOscillationInteractionWorkspaceProps,
 } from './PistonOscillationInteractionWorkspace.tsx';
+export {
+  getPistonOscillationGuideScrewInteractionMode,
+  resolvePistonOscillationGuideScrewFeedback,
+  resolvePistonOscillationGuideScrewDelta,
+  type PistonOscillationGuideScrewDirection,
+  type PistonOscillationGuideScrewFeedbackDecision,
+  type PistonOscillationGuideScrewFeedbackKind,
+  type PistonOscillationGuideScrewFeedbackState,
+  type PistonOscillationGuideScrewInteractionMode,
+  type PistonOscillationGuideScrewResolution,
+} from './pistonOscillationGuideScrewInteraction.ts';
 export {
   PistonOscillationAcquisitionPanel,
   type PistonOscillationAcquisitionPanelHandle,
@@ -21,6 +33,10 @@ export {
   type PistonOscillationPressStartEvent,
   type PistonOscillationReleaseEvent,
 } from './PistonOscillationAcquisitionPanel.tsx';
+export {
+  transitionPistonOscillationGuideAcquisitionSession,
+  type PistonOscillationGuideWorkflowAcquisitionEvent,
+} from './pistonOscillationGuideAcquisitionBridge.ts';
 export {
   PistonOscillationDataProcessingPanel,
   type PistonOscillationDataProcessingPanelProps,

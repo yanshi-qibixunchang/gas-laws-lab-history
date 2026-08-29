@@ -26,6 +26,9 @@ import {
   type PistonOscillationRawMeasurementRecord,
   type PistonOscillationRawSample,
 } from './pistonOscillationDataProcessingModel.ts';
+import {
+  createPistonOscillationLoadedEquilibriumState,
+} from './pistonOscillationPhysicsEngine.ts';
 
 export const PISTON_OSCILLATION_GUIDE_SESSION_SCHEMA_VERSION = 9 as const;
 
@@ -37,6 +40,9 @@ export const PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA = 130 as const;
 export const PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S = 0.5 as const;
 export const PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM = 0.25 as const;
 
+const PISTON_OSCILLATION_GUIDE_HEIGHT_COMPARISON_EPSILON_MM = 1e-9;
+const PISTON_OSCILLATION_GUIDE_RECORDING_HEIGHT_ENVELOPE_EPSILON_MM = 0.01;
+
 export type PistonOscillationGuideMeasurementIndex = 0 | 1 | 2;
 
 export type PistonOscillationGuideStep =
@@ -46,14 +52,12 @@ export type PistonOscillationGuideStep =
   | 'screwLock'
   | 'hoseReconnect'
   | 'screwLoosen'
-  | 'baselineStabilizing'
   | 'acquisitionReady'
   | 'waitingTrigger'
   | 'recording'
   | 'pauseAvailable'
   | 'curveFrozen'
   | 'awaitingSaveOrRedo'
-  | 'crossRunStabilizing'
   | 'crossRunDisconnect'
   | 'nextHeightAdjustment'
   | 'periodProcessing'
@@ -143,7 +147,6 @@ export type PistonOscillationGuideEvent =
   | ({ type: 'disconnectHose' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'reconnectHose' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'loosenScrew' } & PistonOscillationGuideTimedEvent)
-  | ({ type: 'baselineStabilized' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'startAcquisition' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'releasePiston'; bothHandsReleased: boolean } & PistonOscillationGuideTimedEvent)
   | ({
@@ -353,41 +356,79 @@ const isRecordingSnapshotValid = (
   ))
 );
 
+const isHeightWithinTolerance = (
+  heightMm: number,
+  targetHeightMm: number,
+  toleranceMm: number,
+) => (
+  Number.isFinite(heightMm)
+  && Math.abs(heightMm - targetHeightMm)
+    <= toleranceMm + PISTON_OSCILLATION_GUIDE_HEIGHT_COMPARISON_EPSILON_MM
+);
+
 const isConfirmedHeightForTarget = (confirmedHeightMm: number, targetHeightMm: number) => (
   Number.isFinite(confirmedHeightMm)
-  && Math.abs(confirmedHeightMm - targetHeightMm)
-    <= PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM
+  && isHeightWithinTolerance(
+    confirmedHeightMm,
+    targetHeightMm,
+    PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM,
+  )
 );
+
+const isRecordingHeightForTarget = (heightMm: number, targetHeightMm: number) => {
+  if (!Number.isFinite(heightMm)) return false;
+  const loadedEquilibriumHeightMm = createPistonOscillationLoadedEquilibriumState(
+    targetHeightMm,
+  ).equilibriumHeightM * 1_000;
+  const minimumExpectedHeightMm = Math.min(targetHeightMm, loadedEquilibriumHeightMm)
+    - PISTON_OSCILLATION_GUIDE_RECORDING_HEIGHT_ENVELOPE_EPSILON_MM;
+  const maximumExpectedHeightMm = Math.max(targetHeightMm, loadedEquilibriumHeightMm)
+    + PISTON_OSCILLATION_GUIDE_RECORDING_HEIGHT_ENVELOPE_EPSILON_MM;
+  return heightMm >= minimumExpectedHeightMm
+    && heightMm <= maximumExpectedHeightMm;
+};
 
 const measurementSetupHeightMatchesTarget = (
   measurement: PistonOscillationGuideSavedMeasurement,
   targetHeightMm: number,
 ) => {
+  // The target is confirmed while the hose is vented. Reconnecting and then
+  // loosening the screw moves each Run through its own target-to-loaded-
+  // equilibrium interval, so validate that modeled interval instead of using
+  // one fixed tolerance for all three heights.
   if (measurement.physicsSnapshot.captureKind === 'legacy-imported') {
-    return isConfirmedHeightForTarget(measurement.confirmedHeightMm, targetHeightMm);
+    return isRecordingHeightForTarget(
+      measurement.confirmedHeightMm,
+      targetHeightMm,
+    );
   }
-  return isConfirmedHeightForTarget(
+  return isRecordingHeightForTarget(
     measurement.physicsSnapshot.equilibrium.lockedHeightM * 1_000,
     targetHeightMm,
   );
 };
 
-const measurementMatchesCurrentRun = (
-  session: PistonOscillationGuideSession,
+const measurementMatchesRun = (
+  measurementIndex: PistonOscillationGuideMeasurementIndex,
   measurement: PistonOscillationGuideSavedMeasurement,
 ) => (
-  measurement.measurementIndex === session.measurementIndex
+  measurement.measurementIndex === measurementIndex
   && measurement.targetHeightMm
-    === PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex]
+    === PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex]
   && measurementSetupHeightMatchesTarget(
     measurement,
-    PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex],
+    PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex],
   )
   && measurement.acquisitionSettings.sampleRateHz
     === PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
   && measurement.acquisitionSettings.triggerThresholdKpa
     === PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
 );
+
+const measurementMatchesCurrentRun = (
+  session: PistonOscillationGuideSession,
+  measurement: PistonOscillationGuideSavedMeasurement,
+) => measurementMatchesRun(session.measurementIndex, measurement);
 
 export const getPistonOscillationGuideHeightAdjustmentStep = (
   measurementIndex: PistonOscillationGuideMeasurementIndex,
@@ -429,9 +470,6 @@ const eventMatchesStep = (
       return session.step === 'hoseReconnect';
     case 'loosenScrew':
       return session.step === 'screwLoosen';
-    case 'baselineStabilized':
-      return session.step === 'baselineStabilizing'
-        || session.step === 'crossRunStabilizing';
     case 'startAcquisition':
       return session.step === 'acquisitionReady';
     case 'releasePiston':
@@ -870,13 +908,7 @@ export const transitionPistonOscillationGuideSession = (
     case 'reconnectHose':
       return advance('screwLoosen');
     case 'loosenScrew':
-      return advance('baselineStabilizing');
-    case 'baselineStabilized':
-      return advance(
-        session.step === 'crossRunStabilizing'
-          ? 'crossRunDisconnect'
-          : 'acquisitionReady',
-      );
+      return advance('acquisitionReady');
     case 'startAcquisition':
       return advance('waitingTrigger');
     case 'releasePiston':
@@ -1178,14 +1210,12 @@ const GUIDE_STEPS: readonly PistonOscillationGuideStep[] = [
   'screwLock',
   'hoseReconnect',
   'screwLoosen',
-  'baselineStabilizing',
   'acquisitionReady',
   'waitingTrigger',
   'recording',
   'pauseAvailable',
   'curveFrozen',
   'awaitingSaveOrRedo',
-  'crossRunStabilizing',
   'crossRunDisconnect',
   'nextHeightAdjustment',
   'periodProcessing',
@@ -1194,6 +1224,25 @@ const GUIDE_STEPS: readonly PistonOscillationGuideStep[] = [
   'completionReview',
   'completed',
 ];
+
+const guideStepRequiresAcquisitionCandidate = (
+  step: PistonOscillationGuideStep,
+) => step === 'pauseAvailable'
+  || step === 'curveFrozen'
+  || step === 'awaitingSaveOrRedo';
+
+const acquisitionCandidateCanResume = (
+  measurementIndex: PistonOscillationGuideMeasurementIndex,
+  candidate: PistonOscillationGuideSavedMeasurement | null,
+) => candidate !== null
+  && measurementMatchesRun(measurementIndex, candidate)
+  && candidate.acquisitionSettings.recordedDurationS
+    >= PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
+  && candidate.samples.length >= 2
+  && isRecordingSnapshotValid(
+    candidate.acquisitionSettings.recordedDurationS,
+    candidate.samples,
+  );
 
 const normalizeMeasurement = (
   value: unknown,
@@ -1254,12 +1303,16 @@ export const normalizePistonOscillationGuideSession = (
   const normalizedMeasurementIndex = isMeasurementIndex(value.measurementIndex)
     ? value.measurementIndex
     : 0;
-  const normalizedStep = GUIDE_STEPS.includes(value.step as PistonOscillationGuideStep)
-    ? value.step as PistonOscillationGuideStep
-    : persistedStatus === 'active'
-        && normalizedMeasurementIndex > 0
-      ? 'crossRunDisconnect'
-      : fallback.step;
+  const normalizedStep = value.step === 'baselineStabilizing'
+    ? 'acquisitionReady' as const
+    : value.step === 'crossRunStabilizing'
+      ? 'crossRunDisconnect' as const
+      : GUIDE_STEPS.includes(value.step as PistonOscillationGuideStep)
+        ? value.step as PistonOscillationGuideStep
+        : persistedStatus === 'active'
+            && normalizedMeasurementIndex > 0
+          ? 'crossRunDisconnect' as const
+          : fallback.step;
   const sampleRateStatus = isParameterStatus(parameterStatus?.sampleRateHz)
     ? parameterStatus.sampleRateHz
     : fallback.parameterStatus.sampleRateHz;
@@ -1269,7 +1322,22 @@ export const normalizePistonOscillationGuideSession = (
   const parametersLocked = value.parametersLocked === true
     && sampleRateStatus === 'valid'
     && triggerThresholdStatus === 'valid';
-  const acquisitionCandidate = normalizeMeasurement(value.acquisitionCandidate);
+  const persistedAcquisitionCandidate = normalizeMeasurement(value.acquisitionCandidate);
+  const resumableAcquisitionCandidate = guideStepRequiresAcquisitionCandidate(normalizedStep)
+    && acquisitionCandidateCanResume(
+      normalizedMeasurementIndex,
+      persistedAcquisitionCandidate,
+    )
+    ? persistedAcquisitionCandidate
+    : null;
+  const acquisitionCandidateRecoveryRequired = guideStepRequiresAcquisitionCandidate(
+    normalizedStep,
+  ) && resumableAcquisitionCandidate === null;
+  const resumableStep = acquisitionCandidateRecoveryRequired
+    ? 'waitingTrigger' as const
+    : normalizedStep === 'curveFrozen'
+      ? 'awaitingSaveOrRedo' as const
+      : normalizedStep;
   const heightReset = normalizeHeightReset(
     value.heightReset,
     normalizedMeasurementIndex,
@@ -1321,6 +1389,11 @@ export const normalizePistonOscillationGuideSession = (
       : dataProcessing
         ? 'periodProcessing' as const
         : null;
+  const resolvedStep = processingStep ?? (
+    parametersLocked && resumableStep === 'parameterSetup'
+      ? 'firstHeightAdjustment' as const
+      : resumableStep
+  );
   return {
     ...fallback,
     status: normalizedStatus,
@@ -1334,11 +1407,7 @@ export const normalizePistonOscillationGuideSession = (
       ? value.updatedAtMs
       : null,
     measurementIndex: normalizedMeasurementIndex,
-    step: processingStep ?? (
-      parametersLocked && normalizedStep === 'parameterSetup'
-        ? 'firstHeightAdjustment'
-        : normalizedStep
-    ),
+    step: resolvedStep,
     powerOn: normalizedPowerOn,
     parameterDrafts: {
       sampleRateHz: typeof drafts?.sampleRateHz === 'string' ? drafts.sampleRateHz : '',
@@ -1356,7 +1425,9 @@ export const normalizePistonOscillationGuideSession = (
       ? value.feedbackCode
       : null,
     heightReset,
-    acquisitionCandidate,
+    acquisitionCandidate: guideStepRequiresAcquisitionCandidate(resolvedStep)
+      ? resumableAcquisitionCandidate
+      : null,
     savedMeasurements,
     dataProcessing,
   };

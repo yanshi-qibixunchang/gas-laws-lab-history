@@ -90,6 +90,10 @@ export interface PistonOscillationShellCopy {
     hoseLabel: string;
     scaleReadingMirrorAria: string;
     lockingScrewMirrorAria: string;
+    screwTightenDirectionAria: string;
+    screwLoosenDirectionAria: string;
+    screwTightenDirectionLabel: string;
+    screwLoosenDirectionLabel: string;
     waitingHeightDrag: string;
     waitingBothHands: string;
     rightHandReady: string;
@@ -176,6 +180,10 @@ export interface PistonOscillationShellCopy {
     reconnectHoseDetail: string;
     loosenScrewTitle: string;
     loosenScrewDetail: string;
+    screwWrongDirectionTighten: string;
+    screwWrongDirectionLoosen: string;
+    screwBoundaryBlockedTighten: string;
+    screwBoundaryBlockedLoosen: string;
     startAcquisitionTitle: string;
     startAcquisitionDetail: string;
     releasePistonTitle: string;
@@ -406,6 +414,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       hoseLabel: '软管',
       scaleReadingMirrorAria: '刻度读取操作镜',
       lockingScrewMirrorAria: '锁紧螺钉操作镜',
+      screwTightenDirectionAria: '顺时针旋紧方向指引',
+      screwLoosenDirectionAria: '逆时针旋松方向指引',
+      screwTightenDirectionLabel: '顺时针旋紧',
+      screwLoosenDirectionLabel: '逆时针旋松',
       waitingHeightDrag: '等待右手（鼠标左键）拖动',
       waitingBothHands: '等待左手（Space）与右手（鼠标左键）',
       rightHandReady: '右手（鼠标左键）已抓住',
@@ -492,11 +504,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       adjustHeightTitle: (heightMm) => `进入聚焦并调至 ${heightMm} mm`,
       adjustHeightDetail: (heightMm) => `双击顶部平台进入聚焦；用右手（鼠标左键）拖至 ${heightMm} mm。松开右手前，用左手（Space）托住平台，再确认高度。`,
       lockScrewTitle: '旋紧侧面锁紧螺钉',
-      lockScrewDetail: '持续用左手（Space）托住顶部平台，并用右手（鼠标左键）在左上操作镜中旋紧侧面锁紧螺钉；达到功能锁紧后再松开左手（Space）。',
+      lockScrewDetail: '持续用左手（Space）托住顶部平台，并用右手（鼠标左键）在左上操作镜中顺时针旋紧侧面锁紧螺钉；达到功能锁紧后再松开左手（Space）。',
       reconnectHoseTitle: '接回压力传感器软管',
       reconnectHoseDetail: '将白色接头拖入平台接口的磁吸范围，恢复密封。',
       loosenScrewTitle: '旋松锁紧螺钉',
-      loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
+      loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中逆时针旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
+      screwWrongDirectionTighten: '旋转方向可能反了；正确方向是顺时针旋紧。当前功能状态尚未改变，可以反向继续操作。',
+      screwWrongDirectionLoosen: '旋转方向可能反了；正确方向是逆时针旋松。当前功能状态尚未改变，可以反向继续操作。',
+      screwBoundaryBlockedTighten: '已阻止螺钉越过锁紧临界位置。请顺时针旋紧，以保持当前锁紧状态。',
+      screwBoundaryBlockedLoosen: '已阻止螺钉重新进入锁紧状态。请逆时针旋松，以保持当前松开状态。',
       startAcquisitionTitle: '开始压力采集',
       startAcquisitionDetail: '点击图表左下角的开始按钮，进入等待下降触发状态。',
       releasePistonTitle: '双手下压并同时释放',
@@ -732,6 +748,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       hoseLabel: '軟管',
       scaleReadingMirrorAria: '刻度讀取操作鏡',
       lockingScrewMirrorAria: '鎖緊螺釘操作鏡',
+      screwTightenDirectionAria: '順時針旋緊方向指引',
+      screwLoosenDirectionAria: '逆時針旋鬆方向指引',
+      screwTightenDirectionLabel: '順時針旋緊',
+      screwLoosenDirectionLabel: '逆時針旋鬆',
       waitingHeightDrag: '等待右手（滑鼠左鍵）拖動',
       waitingBothHands: '等待左手（Space）與右手（滑鼠左鍵）',
       rightHandReady: '右手（滑鼠左鍵）已抓住',
@@ -818,11 +838,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       adjustHeightTitle: (heightMm) => `進入聚焦並調至 ${heightMm} mm`,
       adjustHeightDetail: (heightMm) => `雙擊頂部平台進入聚焦；用右手（滑鼠左鍵）拖至 ${heightMm} mm。鬆開右手前，用左手（Space）托住平台，再確認高度。`,
       lockScrewTitle: '旋緊側面鎖緊螺釘',
-      lockScrewDetail: '持續用左手（Space）托住頂部平台，並用右手（滑鼠左鍵）在左上操作鏡中旋緊側面鎖緊螺釘；達到功能鎖緊後再鬆開左手（Space）。',
+      lockScrewDetail: '持續用左手（Space）托住頂部平台，並用右手（滑鼠左鍵）在左上操作鏡中順時針旋緊側面鎖緊螺釘；達到功能鎖緊後再鬆開左手（Space）。',
       reconnectHoseTitle: '接回壓力感測器軟管',
       reconnectHoseDetail: '將白色接頭拖入平台接口的磁吸範圍，恢復密封。',
       loosenScrewTitle: '旋鬆鎖緊螺釘',
-      loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
+      loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中逆時針旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
+      screwWrongDirectionTighten: '旋轉方向可能反了；正確方向是順時針旋緊。目前功能狀態尚未改變，可以反向繼續操作。',
+      screwWrongDirectionLoosen: '旋轉方向可能反了；正確方向是逆時針旋鬆。目前功能狀態尚未改變，可以反向繼續操作。',
+      screwBoundaryBlockedTighten: '已阻止螺釘越過鎖緊臨界位置。請順時針旋緊，以保持目前鎖緊狀態。',
+      screwBoundaryBlockedLoosen: '已阻止螺釘重新進入鎖緊狀態。請逆時針旋鬆，以保持目前鬆開狀態。',
       startAcquisitionTitle: '開始壓力採集',
       startAcquisitionDetail: '點擊圖表左下角的開始按鈕，進入等待下降觸發狀態。',
       releasePistonTitle: '雙手下壓並同時釋放',
@@ -1058,6 +1082,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       hoseLabel: 'Hose',
       scaleReadingMirrorAria: 'Scale-reading operation mirror',
       lockingScrewMirrorAria: 'Locking-screw operation mirror',
+      screwTightenDirectionAria: 'Clockwise tightening direction cue',
+      screwLoosenDirectionAria: 'Counterclockwise loosening direction cue',
+      screwTightenDirectionLabel: 'Clockwise to tighten',
+      screwLoosenDirectionLabel: 'Counterclockwise to loosen',
       waitingHeightDrag: 'Waiting for the right hand (left mouse button) to drag',
       waitingBothHands: 'Waiting for left hand (Space) and right hand (left mouse button)',
       rightHandReady: 'right hand (left mouse button) is holding',
@@ -1144,11 +1172,15 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       adjustHeightTitle: (heightMm) => `Focus the piston and set ${heightMm} mm`,
       adjustHeightDetail: (heightMm) => `Double-click the platform. Drag it to ${heightMm} mm with the right hand (left mouse button). Hold it with the left hand (Space) before releasing the mouse, then confirm the height.`,
       lockScrewTitle: 'Tighten the side locking screw',
-      lockScrewDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to tighten the side locking screw in the upper-left operation mirror. Release the left hand (Space) only after the screw is functionally locked.',
+      lockScrewDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to turn the side locking screw clockwise in the upper-left operation mirror. Release the left hand (Space) only after the screw is functionally locked.',
       reconnectHoseTitle: 'Reconnect the pressure-sensor hose',
       reconnectHoseDetail: 'Drag the white connector into the magnetic area at the platform port to reseal the system.',
       loosenScrewTitle: 'Loosen the locking screw',
-      loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then loosen the side locking screw in the upper-left operation mirror so the piston can move freely in the sealed system.',
+      loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then turn the side locking screw counterclockwise in the upper-left operation mirror so the piston can move freely in the sealed system.',
+      screwWrongDirectionTighten: 'The rotation direction may be reversed. Turn clockwise to tighten. The functional state has not changed, so you can reverse direction and continue.',
+      screwWrongDirectionLoosen: 'The rotation direction may be reversed. Turn counterclockwise to loosen. The functional state has not changed, so you can reverse direction and continue.',
+      screwBoundaryBlockedTighten: 'The screw was stopped at the locking boundary. Turn clockwise to keep it locked.',
+      screwBoundaryBlockedLoosen: 'The screw was stopped before it could lock again. Turn counterclockwise to keep it loose.',
       startAcquisitionTitle: 'Start pressure acquisition',
       startAcquisitionDetail: 'Select Start at the lower-left of the chart to arm the falling-edge trigger.',
       releasePistonTitle: 'Press with both hands and release together',

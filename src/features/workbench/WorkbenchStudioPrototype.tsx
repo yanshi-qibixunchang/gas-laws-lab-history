@@ -474,13 +474,16 @@ import {
   getPistonOscillationGuideHeightResetPresentation,
   getPistonOscillationGuideInstrumentRestoreState,
   getPistonOscillationGuideRequestedFocusMode,
+  getPistonOscillationGuideScrewInteractionMode,
   getPistonOscillationGuideStrongContextKind,
   getPistonOscillationGuideStrongTargetId,
   getPistonOscillationShellCopy,
+  transitionPistonOscillationGuideAcquisitionSession,
   type PistonOscillationGuideAcquisitionEvent,
   type PistonOscillationAcquisitionPanelHandle,
   type PistonOscillationGuideAcquisitionCue,
   type PistonOscillationGuideInstrumentSnapshot,
+  type PistonOscillationGuideScrewDirectionFeedback,
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideStrongTargetId,
   type PistonOscillationGuideVisualCue,
@@ -493,16 +496,16 @@ import type {
   PistonOscillationGuideActionContext,
   PistonOscillationGuideEvent,
   PistonOscillationGuideGuardResult,
+  PistonOscillationGuideSession,
   PistonOscillationGuideStep,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
   getPistonOscillationGuideActionGuard,
+  PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ,
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
+  PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
-import {
-  createPistonOscillationLoadedEquilibriumState,
-} from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   completePistonOscillationDemoSession,
   createDefaultPistonOscillationDemoSession,
@@ -1742,14 +1745,12 @@ const getPistonOscillationGuideReminderText = (
     case 'screwLock': return copy.guide.lockScrewDetail;
     case 'hoseReconnect': return copy.guide.reconnectHoseDetail;
     case 'screwLoosen': return copy.guide.loosenScrewDetail;
-    case 'baselineStabilizing': return copy.guide.startAcquisitionDetail;
     case 'acquisitionReady': return copy.guide.startAcquisitionDetail;
     case 'waitingTrigger': return copy.guide.releasePistonDetail;
     case 'recording': return copy.guide.recordingDetail;
     case 'pauseAvailable':
     case 'curveFrozen': return copy.guide.pauseRecordingDetail;
     case 'awaitingSaveOrRedo': return copy.guide.saveCurveDetail(measurementNumber);
-    case 'crossRunStabilizing': return copy.guide.crossRunStabilizingDetail;
     case 'crossRunDisconnect': return copy.guide.crossRunDisconnectDetail;
     case 'periodProcessing':
       if (targetId === 'periodTool') return copy.processing.selectionToolReminder;
@@ -6854,7 +6855,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     0,
     pistonOscillationGuidePulseElapsedMs - pistonGuidePulseDelayMs,
   );
-  const pistonGuidePulseIndex = Math.floor(pistonGuidePulseCycleElapsedMs / 4_000);
   const pistonGuidePulseWithinCycleMs = pistonGuidePulseCycleElapsedMs % 4_000;
   const pistonGuidePulseActive = Boolean(
     activePistonOscillationGuideSession?.status === 'active'
@@ -6884,14 +6884,20 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         : pistonGuideStep === 'waitingTrigger'
           ? pistonOscillationGuidePressureIssue === 'overpressure' ? null : 'platform'
         : pistonGuideStep === 'screwLock'
-          ? pistonGuidePulseIndex === 0 ? 'mirrorOutline' : 'screw'
+          ? 'screw'
           : pistonGuideStep === 'screwLoosen'
-            ? pistonGuidePulseIndex === 0 ? 'mirrorOutline' : 'screw'
+            ? 'screw'
           : pistonGuideStep === 'hoseReconnect'
             ? 'hoseReconnect'
             : pistonGuideStep === 'crossRunDisconnect'
               ? 'hoseDisconnect'
             : null;
+  const pistonGuideScrewInteractionMode =
+    activePistonOscillationGuideSession?.status === 'active'
+      ? getPistonOscillationGuideScrewInteractionMode(
+          activePistonOscillationGuideSession.step,
+        )
+      : null;
   const pistonGuideAcquisitionCue: PistonOscillationGuideAcquisitionCue =
     !pistonGuidePulseActive
       ? null
@@ -8674,7 +8680,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const guard = getPistonOscillationGuideActionGuard(session, action, context);
     const releaseOnly = action === 'platformRelease' || action === 'leftHandRelease';
     if (guard.allowed) {
-      if (!isPistonOscillationGuideStrongReminderActive()) {
+      if (
+        !releaseOnly
+        && !isPistonOscillationGuideStrongReminderActive()
+      ) {
         setPistonOscillationGuidePulseElapsedMs(0);
       }
       if (!releaseOnly) {
@@ -8762,12 +8771,31 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     return guard;
   };
 
+  const handlePistonOscillationGuideScrewDirectionFeedback = (
+    feedback: PistonOscillationGuideScrewDirectionFeedback,
+  ) => {
+    const expectsTightening = feedback.expectedDirection === 'clockwise';
+    const text = feedback.kind === 'boundaryBlocked'
+      ? expectsTightening
+        ? pistonOscillationCopy.guide.screwBoundaryBlockedTighten
+        : pistonOscillationCopy.guide.screwBoundaryBlockedLoosen
+      : expectsTightening
+        ? pistonOscillationCopy.guide.screwWrongDirectionTighten
+        : pistonOscillationCopy.guide.screwWrongDirectionLoosen;
+    showPistonOscillationGuideFeedback(
+      text,
+      feedback.kind === 'boundaryBlocked' ? 'warning' : 'info',
+      'guide',
+      { durationMs: PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS },
+    );
+  };
+
   const handlePistonOscillationGuideHeightConfirmed = (
     snapshot: PistonOscillationGuideInstrumentSnapshot,
   ) => {
     updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
       type: 'confirmHeight',
-      heightMm: Math.round(snapshot.equilibriumHeightMm),
+      heightMm: snapshot.equilibriumHeightMm,
       leftHandSupporting: snapshot.spaceHeld,
       rightHandReleased: !snapshot.mouseHeld,
       nowMs: Date.now(),
@@ -9148,11 +9176,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (previousSnapshot?.hoseState !== snapshot.hoseState) {
       setPistonOscillationGuideHoseState(snapshot.hoseState);
     }
+    const currentFile = filesRef.current.find(
+      (file) => file.id === activeFileIdRef.current,
+    );
     if (
-      activeFile.kind !== 'heatCapacityPistonOscillation'
-      || activeFile.pistonOscillationGuideSession.status !== 'active'
+      !currentFile
+      || currentFile.kind !== 'heatCapacityPistonOscillation'
+      || currentFile.pistonOscillationGuideSession.status !== 'active'
     ) return;
-    const currentSession = activeFile.pistonOscillationGuideSession;
+    const currentSession = currentFile.pistonOscillationGuideSession;
     const currentStep = currentSession.step;
     const isAtHeight = (heightMm: number) => (
       Math.abs(snapshot.equilibriumHeightMm - heightMm) <= 0.25
@@ -9188,10 +9220,25 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         && snapshot.spaceHeld
         && snapshot.hoseState === 'disconnected')
     );
-    if (!snapshotCanAdvance) return;
-    const shouldOpenLockingScrewLesson = currentStep === 'screwLoosen'
+    const shouldOpenLockingScrewLesson = (
+      currentStep === 'screwLoosen'
       && previousSnapshot?.lockingScrewState !== 'loose'
-      && snapshot.lockingScrewState === 'loose';
+      && snapshot.lockingScrewState === 'loose'
+      && !snapshot.lockingScrewDragging
+    ) || (
+      currentStep === 'acquisitionReady'
+      && previousSnapshot?.lockingScrewDragging === true
+      && !snapshot.lockingScrewDragging
+      && snapshot.lockingScrewState === 'loose'
+    );
+    if (!snapshotCanAdvance) {
+      if (shouldOpenLockingScrewLesson) {
+        window.setTimeout(() => {
+          openPistonOscillationGuideOneTimeLesson('lockingScrew');
+        }, 0);
+      }
+      return;
+    }
     setPistonOscillationGuideStrongReminderActive(false);
     setPistonOscillationGuidePulseElapsedMs(0);
     pistonOscillationGuideMissCountRef.current = 0;
@@ -9234,9 +9281,32 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
   };
 
+  const commitPistonOscillationGuideAcquisitionSession = (
+    liveFile: Extract<WorkbenchFileState, { kind: 'heatCapacityPistonOscillation' }>,
+    nextSession: PistonOscillationGuideSession,
+    nowMs: number,
+  ): boolean => {
+    if (desktopExitQuiescedRef.current) return false;
+    const currentFiles = filesRef.current;
+    const fileIndex = currentFiles.findIndex((file) => file.id === liveFile.id);
+    if (fileIndex < 0 || currentFiles[fileIndex] !== liveFile) return false;
+    const nextFile = {
+      ...liveFile,
+      updatedAt: nowMs,
+      pistonOscillationGuideSession: nextSession,
+    };
+    const nextFiles = [...currentFiles];
+    nextFiles[fileIndex] = nextFile;
+    scheduleHeatCapacitySemanticSceneCheckpointRef.current();
+    scheduleWorkspacePersistenceRef.current('semantic');
+    filesRef.current = nextFiles;
+    setFiles(nextFiles);
+    return true;
+  };
+
   const handlePistonOscillationGuideAcquisitionEvent = (
     event: PistonOscillationGuideAcquisitionEvent,
-  ) => {
+  ): boolean => {
     const nowMs = Date.now();
     if (event.type === 'pressureAttemptRejected') {
       const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
@@ -9251,7 +9321,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         || liveFile.kind !== 'heatCapacityPistonOscillation'
         || liveFile.pistonOscillationGuideSession.status !== 'active'
         || !rejectionMatchesStep
-      ) return;
+      ) return false;
       setPistonOscillationGuideStrongReminderActive(false);
       setPistonOscillationGuideStrongReminderClockContext(null);
       setPistonOscillationGuidePressureIssue(event.reason);
@@ -9318,9 +9388,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           }
         }, PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS);
       }
-      return;
+      return true;
     }
     if (event.type === 'pressureAttemptAccepted') {
+      const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+      if (
+        !liveFile
+        || liveFile.kind !== 'heatCapacityPistonOscillation'
+        || liveFile.pistonOscillationGuideSession.status !== 'active'
+        || liveFile.pistonOscillationGuideSession.step !== 'waitingTrigger'
+      ) return false;
       setPistonOscillationGuidePressureIssue(null);
       pistonOscillationGuidePressureMissCountRef.current = {
         underpressure: 0,
@@ -9337,13 +9414,24 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         window.clearTimeout(pistonOscillationGuidePressureRangeLessonTimerRef.current);
         pistonOscillationGuidePressureRangeLessonTimerRef.current = null;
       }
-      return;
+      return true;
     }
-    if (event.type === 'redoOverpressureAttempt') {
-      updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
-        type: 'discardAcquisitionAttempt',
-        nowMs,
-      }]));
+    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return false;
+    const nextSession = transitionPistonOscillationGuideAcquisitionSession(
+      liveFile.pistonOscillationGuideSession,
+      event,
+      nowMs,
+    );
+    if (
+      nextSession === null
+      || !commitPistonOscillationGuideAcquisitionSession(liveFile, nextSession, nowMs)
+    ) return false;
+
+    if (
+      event.type === 'redoOverpressureAttempt'
+      || event.type === 'restoreInterruptedAcquisition'
+    ) {
       setPistonOscillationGuidePressureIssue(null);
       clearPistonOscillationGuideFeedback();
       setPistonOscillationGuideStrongReminderActive(false);
@@ -9352,66 +9440,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
         pistonOscillationGuideStrongReminderTimerRef.current = null;
       }
+    }
+    if (event.type === 'redoOverpressureAttempt') {
       window.setTimeout(() => {
         openPistonOscillationGuideOneTimeLesson('pressureRange');
       }, 0);
-      return;
     }
-    if (event.type === 'restoreInterruptedAcquisition') {
-      updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
-        type: 'discardAcquisitionAttempt',
-        nowMs,
-      }]));
-      setPistonOscillationGuidePressureIssue(null);
-      clearPistonOscillationGuideFeedback();
-      setPistonOscillationGuideStrongReminderActive(false);
-      setPistonOscillationGuidePulseElapsedMs(0);
-      if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-        pistonOscillationGuideStrongReminderTimerRef.current = null;
-      }
-      return;
-    }
-    updateActiveFile((file) => {
-      switch (event.type) {
-        case 'startAcquisition':
-          return applyPistonOscillationGuideEvents(file, [
-            { type: 'startAcquisition', nowMs },
-          ]);
-        case 'triggered':
-          return applyPistonOscillationGuideEvents(file, [
-            { type: 'releasePiston', bothHandsReleased: true, nowMs },
-          ]);
-        case 'recordingReady':
-          return applyPistonOscillationGuideEvents(file, [
-            {
-              type: 'updateRecording',
-              recordedDurationS: event.candidate.acquisitionSettings.recordedDurationS,
-              samples: event.candidate.samples,
-              candidate: event.candidate,
-              nowMs,
-            },
-          ]);
-        case 'curvePaused':
-          return applyPistonOscillationGuideEvents(file, [
-            {
-              type: 'updateRecording',
-              recordedDurationS: event.candidate.acquisitionSettings.recordedDurationS,
-              samples: event.candidate.samples,
-              candidate: event.candidate,
-              nowMs,
-            },
-            { type: 'pauseRecording', nowMs },
-            { type: 'curveFreezeComplete', nowMs },
-          ]);
-        case 'saveMeasurement':
-          return applyPistonOscillationGuideEvents(file, [
-            { type: 'saveMeasurement', nowMs },
-          ]);
-        default:
-          return file;
-      }
-    });
+    return true;
   };
 
   const handlePistonOscillationGuideProcessingEvent = (
@@ -9529,53 +9564,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (!targetContext) return;
     setPistonOscillationGuideStrongReminderActive(true, targetContext);
   };
-
-  useEffect(() => {
-    const snapshot = pistonOscillationGuideInstrumentSnapshotRef.current;
-    const guideSession = activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession
-      : null;
-    const guideStep = guideSession?.step;
-    const baselineStep = guideStep === 'baselineStabilizing'
-      || guideStep === 'crossRunStabilizing';
-    const baselineHeightIndex = guideStep === 'crossRunStabilizing'
-      ? Math.max(0, (guideSession?.measurementIndex ?? 0) - 1)
-      : guideSession?.measurementIndex ?? 0;
-    const expectedBaselineHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
-      baselineHeightIndex as 0 | 1 | 2
-    ];
-    const expectedTrueBaselineHeightMm = createPistonOscillationLoadedEquilibriumState(
-      expectedBaselineHeightMm,
-    ).equilibriumHeightM * 1_000;
-    if (
-      guideSession?.status !== 'active'
-      || !baselineStep
-      || pistonOscillationGuidePulseElapsedMs < 1_200
-      || snapshot?.hoseState !== 'connected'
-      || snapshot.lockingScrewState !== 'loose'
-      || snapshot.spaceHeld
-      || snapshot.mouseHeld
-      || snapshot.pistonPhase !== 'idle'
-      || snapshot.thermodynamicState.phase !== 'sealed-loaded'
-      || Math.abs(snapshot.equilibriumHeightMm - expectedTrueBaselineHeightMm) > 0.025
-    ) return;
-    updateFileById(activeFile.id, (file) => applyPistonOscillationGuideEvents(file, [
-      { type: 'baselineStabilized', nowMs: Date.now() },
-    ]));
-  }, [
-    activeFile.id,
-    activeFile.kind,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession.status
-      : null,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession.step
-      : null,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession.measurementIndex
-      : null,
-    pistonOscillationGuidePulseElapsedMs,
-  ]);
 
   const updateHeatCapacityFreeEquilibriumSpeedMultiplier = (multiplier: number) => {
     if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return;
@@ -22533,7 +22521,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       { id: `screwLock-${measurementNumber}`, steps: ['screwLock'], title: pistonOscillationCopy.guide.lockScrewTitle, detail: pistonOscillationCopy.guide.lockScrewDetail },
       { id: `hoseReconnect-${measurementNumber}`, steps: ['hoseReconnect'], title: pistonOscillationCopy.guide.reconnectHoseTitle, detail: pistonOscillationCopy.guide.reconnectHoseDetail },
       { id: `screwLoosen-${measurementNumber}`, steps: ['screwLoosen'], title: pistonOscillationCopy.guide.loosenScrewTitle, detail: pistonOscillationCopy.guide.loosenScrewDetail },
-      { id: `acquisitionReady-${measurementNumber}`, steps: ['baselineStabilizing', 'acquisitionReady'], title: pistonOscillationCopy.guide.startAcquisitionTitle, detail: pistonOscillationCopy.guide.startAcquisitionDetail },
+      { id: `acquisitionReady-${measurementNumber}`, steps: ['acquisitionReady'], title: pistonOscillationCopy.guide.startAcquisitionTitle, detail: pistonOscillationCopy.guide.startAcquisitionDetail },
       { id: `waitingTrigger-${measurementNumber}`, steps: ['waitingTrigger'], title: pistonOscillationCopy.guide.releasePistonTitle, detail: pistonOscillationCopy.guide.releasePistonDetail },
       { id: `recording-${measurementNumber}`, steps: ['recording'], title: pistonOscillationCopy.guide.recordingTitle, detail: pistonOscillationCopy.guide.recordingDetail },
       { id: `pauseRecording-${measurementNumber}`, steps: ['pauseAvailable', 'curveFrozen'], title: pistonOscillationCopy.guide.pauseRecordingTitle, detail: pistonOscillationCopy.guide.pauseRecordingDetail },
@@ -23868,6 +23856,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 || pistonOscillationFreeSetupOpen
               }
               guideVisualCue={pistonGuideVisualCue}
+              guideScrewInteractionMode={pistonGuideScrewInteractionMode}
               guideRequestedFocusMode={pistonGuideRequestedFocusMode}
               guideSnapTargetHeightMm={activePistonOscillationGuideSnapTargetHeightMm}
               guideInitialInstrumentState={
@@ -24011,6 +24000,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 activePistonOscillationGuideSelected
                 && activePistonOscillationDemoPlaybackPhase === 'idle'
                   ? handlePistonOscillationGuideActionAttempt
+                  : undefined
+              }
+              onGuideScrewDirectionFeedback={
+                activePistonOscillationGuideSelected
+                && activePistonOscillationDemoPlaybackPhase === 'idle'
+                  ? handlePistonOscillationGuideScrewDirectionFeedback
                   : undefined
               }
               onGuideHeightConfirmed={
@@ -24439,9 +24434,26 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               : undefined
           }
           onGuideParameterEdit={(field, value) => {
-            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-              ? editPistonOscillationGuideParameterWorkbenchState(file, field, value)
-              : file);
+            const nowMs = Date.now();
+            updateActiveFile((file) => {
+              if (file.kind !== 'heatCapacityPistonOscillation') return file;
+              const editedFile = editPistonOscillationGuideParameterWorkbenchState(
+                file,
+                field,
+                value,
+                nowMs,
+              );
+              const expectedValue = field === 'sampleRateHz'
+                ? PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
+                : PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;
+              return value.trim().length > 0 && Number(value) === expectedValue
+                ? commitPistonOscillationGuideParameterWorkbenchState(
+                    editedFile,
+                    field,
+                    nowMs,
+                  )
+                : editedFile;
+            });
           }}
           onGuideParameterCommit={(field) => {
             updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'

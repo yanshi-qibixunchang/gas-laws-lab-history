@@ -6,6 +6,12 @@ import {
   PISTON_OSCILLATION_CONFIRMED_OVERVIEW_CAMERA,
 } from '../../src/features/pistonOscillation/pistonOscillationFocusViews.ts';
 import { getPistonOscillationShellCopy } from '../../src/features/pistonOscillation/pistonOscillationCopy.ts';
+import {
+  getPistonOscillationGuideScrewInteractionMode,
+  resolvePistonOscillationGuideScrewDelta,
+  resolvePistonOscillationGuideScrewFeedback,
+} from '../../src/features/pistonOscillation/pistonOscillationGuideScrewInteraction.ts';
+import { PISTON_LOCKING_SCREW_LOCK_THRESHOLD } from '../../src/features/pistonOscillation/pistonOscillationModelMotion.ts';
 
 const workspaceSource = readFileSync(
   join(
@@ -41,6 +47,38 @@ const interactiveModelSource = readFileSync(
   ),
   'utf8',
 );
+const instrumentSceneSource = readFileSync(
+  join(
+    process.cwd(),
+    'src',
+    'features',
+    'pistonOscillation',
+    'PistonOscillationInstrumentScene.tsx',
+  ),
+  'utf8',
+);
+const workbenchSource = readFileSync(
+  join(
+    process.cwd(),
+    'src',
+    'features',
+    'workbench',
+    'WorkbenchStudioPrototype.tsx',
+  ),
+  'utf8',
+);
+
+const getSourceSection = (
+  source: string,
+  startMarker: string,
+  endMarker: string,
+) => {
+  const startIndex = source.indexOf(startMarker);
+  const endIndex = source.indexOf(endMarker, startIndex + startMarker.length);
+  assert.notEqual(startIndex, -1, `missing source marker: ${startMarker}`);
+  assert.notEqual(endIndex, -1, `missing source marker: ${endMarker}`);
+  return source.slice(startIndex, endIndex);
+};
 
 assert.deepEqual(PISTON_OSCILLATION_CONFIRMED_OVERVIEW_CAMERA, {
   viewport: { width: 796, height: 500 },
@@ -251,20 +289,240 @@ assert.match(
   /onProgressDelta=\{handleLockingScrewProgressDelta\}[\s\S]*data-piston-focus-screw-status="true"/,
   'the inset interaction and both visible model instances should share one screw progress state',
 );
+
+const expectedGuideScrewModes = [
+  ['screwLock', 'tighten'],
+  ['hoseReconnect', 'protectLocked'],
+  ['screwLoosen', 'loosen'],
+  ['acquisitionReady', 'protectLoose'],
+  ['waitingTrigger', 'protectLoose'],
+  ['recording', 'protectLoose'],
+  ['pauseAvailable', 'protectLoose'],
+  ['curveFrozen', 'protectLoose'],
+  ['awaitingSaveOrRedo', 'protectLoose'],
+  ['firstHeightAdjustment', null],
+  ['crossRunDisconnect', null],
+] as const;
+for (const [step, expectedMode] of expectedGuideScrewModes) {
+  assert.equal(
+    getPistonOscillationGuideScrewInteractionMode(step),
+    expectedMode,
+    `${step} should use the reviewed screw interaction mode`,
+  );
+}
+
+const tighteningResolution = resolvePistonOscillationGuideScrewDelta(0.55, 0.1, 'tighten');
+assert.equal(tighteningResolution.attemptedDirection, 'clockwise');
+assert.equal(tighteningResolution.expectedDirection, 'clockwise');
+assert.equal(tighteningResolution.feedback, 'none');
+assert.equal(tighteningResolution.authorizationAction, 'tightenScrew');
+assert.ok(Math.abs(tighteningResolution.nextProgress - 0.65) < 1e-12);
+
+const wrongTighteningResolution = resolvePistonOscillationGuideScrewDelta(
+  0.5,
+  -0.1,
+  'tighten',
+);
+assert.equal(wrongTighteningResolution.attemptedDirection, 'counterclockwise');
+assert.equal(wrongTighteningResolution.expectedDirection, 'clockwise');
+assert.equal(wrongTighteningResolution.feedback, 'wrongDirection');
+assert.equal(wrongTighteningResolution.authorizationAction, null);
+assert.ok(Math.abs(wrongTighteningResolution.nextProgress - 0.4) < 1e-12);
+
+const looseningResolution = resolvePistonOscillationGuideScrewDelta(0.65, -0.1, 'loosen');
+assert.equal(looseningResolution.attemptedDirection, 'counterclockwise');
+assert.equal(looseningResolution.expectedDirection, 'counterclockwise');
+assert.equal(looseningResolution.feedback, 'none');
+assert.equal(looseningResolution.authorizationAction, 'loosenScrew');
+assert.ok(Math.abs(looseningResolution.nextProgress - 0.55) < 1e-12);
+
+const harmlessLockedContinuation = resolvePistonOscillationGuideScrewDelta(
+  PISTON_LOCKING_SCREW_LOCK_THRESHOLD,
+  0.8,
+  'protectLocked',
+);
+assert.equal(harmlessLockedContinuation.nextProgress, 1);
+assert.equal(harmlessLockedContinuation.feedback, 'none');
+assert.equal(harmlessLockedContinuation.authorizationAction, null);
+
+const lockedBandReverse = resolvePistonOscillationGuideScrewDelta(
+  0.8,
+  -0.1,
+  'protectLocked',
+);
+assert.equal(lockedBandReverse.feedback, 'wrongDirection');
+assert.ok(Math.abs(lockedBandReverse.nextProgress - 0.7) < 1e-12);
+
+const lockedBoundaryReverse = resolvePistonOscillationGuideScrewDelta(
+  0.61,
+  -0.02,
+  'protectLocked',
+);
+assert.equal(lockedBoundaryReverse.feedback, 'boundaryBlocked');
+assert.equal(lockedBoundaryReverse.nextProgress, PISTON_LOCKING_SCREW_LOCK_THRESHOLD);
+
+const harmlessLooseContinuation = resolvePistonOscillationGuideScrewDelta(
+  PISTON_LOCKING_SCREW_LOCK_THRESHOLD - 0.01,
+  -0.8,
+  'protectLoose',
+);
+assert.equal(harmlessLooseContinuation.nextProgress, 0);
+assert.equal(harmlessLooseContinuation.feedback, 'none');
+assert.equal(harmlessLooseContinuation.authorizationAction, null);
+
+const looseBandReverse = resolvePistonOscillationGuideScrewDelta(0.2, 0.1, 'protectLoose');
+assert.equal(looseBandReverse.feedback, 'wrongDirection');
+assert.ok(Math.abs(looseBandReverse.nextProgress - 0.3) < 1e-12);
+
+const looseBoundaryReverse = resolvePistonOscillationGuideScrewDelta(0.59, 0.02, 'protectLoose');
+assert.equal(looseBoundaryReverse.feedback, 'boundaryBlocked');
+assert.ok(looseBoundaryReverse.nextProgress < PISTON_LOCKING_SCREW_LOCK_THRESHOLD);
+assert.ok(
+  looseBoundaryReverse.nextProgress
+    > PISTON_LOCKING_SCREW_LOCK_THRESHOLD - 0.00001,
+);
+
 assert.match(
   workspaceSource,
-  /screwGuideGesturePendingDeltaRef\.current \+= progressDelta[\s\S]*PISTON_GUIDE_SCREW_DIRECTION_THRESHOLD[\s\S]*attemptGuideAction\(action\)[\s\S]*screwGuideGestureRejectedRef\.current = true[\s\S]*screwGuideGestureAuthorizedActionRef\.current = action/,
-  'the screw guard should wait for a meaningful direction, then authorize or reject the whole gesture once',
+  /const progressDelta = -delta \/[\s\S]*PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS[\s\S]*progressDelta > 0[\s\S]*\? 'clockwise'[\s\S]*: 'counterclockwise'/,
+  'screen-clockwise dragging must increase progress and mean tightening, while counterclockwise dragging must decrease progress and mean loosening',
 );
 assert.match(
   workspaceSource,
-  /authorizedAction === 'tightenScrew' && !spaceHeldRef\.current[\s\S]*const matchesAuthorizedDirection = authorizedAction === 'tightenScrew'[\s\S]*if \(!matchesAuthorizedDirection\) return;/,
-  'an authorized tightening gesture must stop if left-hand support is released, and reverse jitter must not mutate the instrument',
+  /screwGuideGesturePendingDeltaRef\.current \+= progressDelta[\s\S]*PISTON_GUIDE_SCREW_DIRECTION_THRESHOLD[\s\S]*screwGuideGestureDirectionRef\.current = committedDelta > 0[\s\S]*\? 'clockwise'[\s\S]*: 'counterclockwise'/,
+  'Guide screw direction should be committed only after meaningful accumulated motion',
 );
 assert.match(
   workspaceSource,
-  /const handleScrewDraggingChange = useCallback[\s\S]*screwGuideGestureAuthorizedActionRef\.current = null;[\s\S]*screwGuideGesturePendingDeltaRef\.current = 0;[\s\S]*screwGuideGestureRejectedRef\.current = false;/,
-  'a new screw gesture should begin with a fresh transaction-level guard state',
+  /screwGuideGestureProtectedModeRef\.current \?\? guideScrewInteractionMode[\s\S]*effectiveGuideScrewInteractionMode === 'tighten'[\s\S]*resolution\.nextProgress >= PISTON_LOCKING_SCREW_LOCK_THRESHOLD[\s\S]*screwGuideGestureProtectedModeRef\.current = 'protectLocked'[\s\S]*effectiveGuideScrewInteractionMode === 'loosen'[\s\S]*resolution\.nextProgress < PISTON_LOCKING_SCREW_LOCK_THRESHOLD[\s\S]*screwGuideGestureProtectedModeRef\.current = 'protectLoose'/,
+  'crossing the functional threshold must latch protection locally before the parent Guide step rerenders',
+);
+assert.match(
+  workspaceSource,
+  /resolution\.authorizationAction !== null[\s\S]*attemptGuideAction\(resolution\.authorizationAction\)[\s\S]*screwGuideGestureRejectedRef\.current = true[\s\S]*screwGuideGestureAuthorizedActionRef\.current = resolution\.authorizationAction/,
+  'only the expected completion direction should enter the ordinary Guide action guard',
+);
+const firstBoundaryFeedback = resolvePistonOscillationGuideScrewFeedback(
+  'boundaryBlocked',
+  { softFeedbackShown: false, boundaryFeedbackShown: false },
+);
+assert.deepEqual(firstBoundaryFeedback, {
+  feedback: 'wrongDirection',
+  nextState: { softFeedbackShown: true, boundaryFeedbackShown: false },
+});
+const continuedBoundaryFeedback = resolvePistonOscillationGuideScrewFeedback(
+  'boundaryBlocked',
+  firstBoundaryFeedback.nextState,
+);
+assert.deepEqual(continuedBoundaryFeedback, {
+  feedback: 'boundaryBlocked',
+  nextState: { softFeedbackShown: true, boundaryFeedbackShown: true },
+});
+assert.deepEqual(
+  resolvePistonOscillationGuideScrewFeedback(
+    'boundaryBlocked',
+    continuedBoundaryFeedback.nextState,
+  ),
+  {
+    feedback: 'none',
+    nextState: { softFeedbackShown: true, boundaryFeedbackShown: true },
+  },
+  'continued pressure at the same boundary should not spam warning feedback',
+);
+const ordinaryWrongDirectionFeedback = resolvePistonOscillationGuideScrewFeedback(
+  'wrongDirection',
+  { softFeedbackShown: false, boundaryFeedbackShown: false },
+);
+assert.equal(ordinaryWrongDirectionFeedback.feedback, 'wrongDirection');
+assert.equal(
+  resolvePistonOscillationGuideScrewFeedback(
+    'wrongDirection',
+    ordinaryWrongDirectionFeedback.nextState,
+  ).feedback,
+  'none',
+);
+assert.match(
+  workspaceSource,
+  /const feedbackDecision = resolvePistonOscillationGuideScrewFeedback\([\s\S]*resolution\.feedback,[\s\S]*softFeedbackShown: screwGuideSoftFeedbackShownRef\.current,[\s\S]*boundaryFeedbackShown: screwGuideBoundaryFeedbackShownRef\.current[\s\S]*feedbackDecision\.nextState\.softFeedbackShown[\s\S]*feedbackDecision\.nextState\.boundaryFeedbackShown[\s\S]*feedbackDecision\.feedback !== 'none'[\s\S]*kind: feedbackDecision\.feedback/,
+  'the workspace must apply the stateful two-level decision after clamping: first wrong input is soft even at the boundary, continued wrong input warns once',
+);
+assert.match(
+  workspaceSource,
+  /const handleScrewDraggingChange = useCallback[\s\S]*screwGuideGestureAuthorizedActionRef\.current = null;[\s\S]*screwGuideGestureDirectionRef\.current = null;[\s\S]*screwGuideGesturePendingDeltaRef\.current = 0;[\s\S]*screwGuideGestureRejectedRef\.current = false;[\s\S]*screwGuideSoftFeedbackShownRef\.current = false;[\s\S]*screwGuideBoundaryFeedbackShownRef\.current = false;/,
+  'a new screw gesture should begin with fresh authorization, direction hysteresis, and feedback dedupe state',
+);
+assert.match(
+  workspaceSource,
+  /if \(!guideRequestedFocusMode \|\| demoActive \|\| screwDragging\) return;[\s\S]*guideRequestedFocusMode,[\s\S]*screwDragging,/,
+  'the Guide-requested camera change must wait until the current screw drag ends',
+);
+assert.match(
+  workbenchSource,
+  /currentStep === 'screwLoosen'[\s\S]*snapshot\.lockingScrewState === 'loose'[\s\S]*!snapshot\.lockingScrewDragging[\s\S]*currentStep === 'acquisitionReady'[\s\S]*previousSnapshot\?\.lockingScrewDragging === true[\s\S]*!snapshot\.lockingScrewDragging[\s\S]*openPistonOscillationGuideOneTimeLesson\('lockingScrew'\)/,
+  'the one-time locking-screw lesson must also wait for pointer release after the loosen threshold advances the Guide step',
+);
+
+assert.match(
+  instrumentSceneSource,
+  /guideScrewInteractionMode\?: PistonOscillationGuideScrewInteractionMode \| null;[\s\S]*onGuideScrewDirectionFeedback\?:[\s\S]*guideScrewInteractionMode=\{guideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{onGuideScrewDirectionFeedback\}/,
+  'the instrument scene must forward the Guide screw policy and dedicated feedback channel to the workspace',
+);
+assert.match(
+  workbenchSource,
+  /const pistonGuideScrewInteractionMode =[\s\S]*getPistonOscillationGuideScrewInteractionMode\([\s\S]*activePistonOscillationGuideSession\.step[\s\S]*guideScrewInteractionMode=\{pistonGuideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{[\s\S]*handlePistonOscillationGuideScrewDirectionFeedback/,
+  'the Workbench must derive the policy from the live Guide step and wire the dedicated feedback callback',
+);
+const screwFeedbackHandlerSource = getSourceSection(
+  workbenchSource,
+  'const handlePistonOscillationGuideScrewDirectionFeedback =',
+  'const handlePistonOscillationGuideHeightConfirmed =',
+);
+assert.match(
+  screwFeedbackHandlerSource,
+  /feedback\.kind === 'boundaryBlocked' \? 'warning' : 'info'/,
+  'wrong direction should be info-level, while continued pressure at the protected boundary should be warning-level',
+);
+assert.doesNotMatch(
+  screwFeedbackHandlerSource,
+  /GuideActionAttempt|MissCount|StrongReminder|PulseElapsed/,
+  'dedicated screw feedback must not enter the ordinary miss counter, strong-reminder scheduler, or reset the next Guide pulse',
+);
+assert.match(
+  workbenchSource,
+  /viewportWarningFeedbackId=\{[\s\S]*pistonOscillationGuideFeedback\?\.kind === 'warning'[\s\S]*pistonOscillationGuideFeedback\?\.kind === 'danger'[\s\S]*\? pistonOscillationGuideFeedback\.id[\s\S]*: null/,
+  'info-level direction hints must not produce the viewport shake ID, while boundary warnings must retain it',
+);
+
+assert.match(
+  workspaceSource,
+  /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-guide-screw-direction=\{[\s\S]*displayedScrewCueDirection[\s\S]*interactionCopy\.screwTightenDirectionAria[\s\S]*interactionCopy\.screwLoosenDirectionAria[\s\S]*interactionCopy\.screwTightenDirectionLabel[\s\S]*interactionCopy\.screwLoosenDirectionLabel/,
+  'the breathing screw cue must add a localized clockwise or counterclockwise arc arrow for the active Guide step',
+);
+
+assert.match(
+  workspaceSource,
+  /demoFrame\?\.activeControl === 'screw'[\s\S]*rotateCounterclockwise[\s\S]*\? 'counterclockwise'[\s\S]*: 'clockwise'[\s\S]*demoHighlightControls\.includes\('screw'\)[\s\S]*lockingScrewLocked[\s\S]*data-piston-demo-screw-direction=\{demoScrewCueDirection \?\? undefined\}/,
+  'Demo screw highlight and action stages should expose the same explicit direction arrow as Guide mode',
+);
+assert.match(
+  workspaceSource,
+  /left: screwHitPoint === null \? '50%' : `\$\{\(screwHitPoint\[0\] \+ 1\) \* 50\}%`[\s\S]*top: screwHitPoint === null \? '50%' : `\$\{\(1 - screwHitPoint\[1\]\) \* 50\}%`/,
+  'the direction cue should follow the projected screw center instead of the operation-mirror center',
+);
+assert.match(
+  workspaceSource,
+  /piston-guide-screw-direction-outline[\s\S]*piston-guide-screw-direction-arc[\s\S]*piston-guide-screw-direction-head[\s\S]*M 85 57 L 73 38 L 97 38 Z/,
+  'the shortened arc must use a separate high-contrast outline and an unmistakable solid arrowhead',
+);
+assert.match(
+  workspaceCss,
+  /\.piston-guide-screw-direction-cue\s*\{[\s\S]*width:\s*clamp\(110px, 48%, 160px\);[\s\S]*filter:\s*none;[\s\S]*opacity:\s*1;[\s\S]*pointer-events:\s*none;[\s\S]*animation:\s*none;[\s\S]*\.piston-guide-screw-direction-cue\.is-counterclockwise svg\s*\{[\s\S]*transform:\s*scaleX\(-1\);/,
+  'the crisp direction arrow must not breathe or intercept dragging and must mirror deterministically for counterclockwise operation',
+);
+assert.match(
+  workspaceCss,
+  /\.piston-guide-screw-direction-outline\s*\{[\s\S]*stroke:\s*rgba\(255, 255, 255, 0\.96\);[\s\S]*stroke-width:\s*10;[\s\S]*\.piston-guide-screw-direction-head\s*\{[\s\S]*stroke:\s*rgba\(255, 255, 255, 0\.98\);[\s\S]*stroke-width:\s*4;[\s\S]*paint-order:\s*stroke fill;/,
+  'the arc and its enlarged solid head must retain a crisp white edge over both light and dark instrument surfaces',
 );
 assert.match(
   workspaceSource,
@@ -703,6 +961,16 @@ assert.match(
 );
 assert.match(
   workspaceSource,
+  /const emitBottomImpactAudio = useCallback\([\s\S]*setBottomImpactAudioEvent\([\s\S]*dropDistanceMm: Math\.max\(0, dropDistanceMm\)[\s\S]*const animateReset = \(nowMs: number\) => \{[\s\S]*emitBottomImpactAudio\([\s\S]*startedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM[\s\S]*continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM/,
+  'Guide height reset and Free unsupported drop should share the same distance-scaled bottom-impact audio event',
+);
+assert.match(
+  workspaceSource,
+  /restoreMuted: \(guideInteractionPaused && guideHeightReset === null\)/,
+  'Guide time freeze should remain muted except while a height-reset impact is still being delivered',
+);
+assert.match(
+  workspaceSource,
   /if \(!guideInteractionPaused\) return;[\s\S]*screwGuideGestureAuthorizedActionRef\.current = null;[\s\S]*const handleLockingScrewProgressDelta[\s\S]*if \(guideInteractionPaused\) return;/,
   'time freeze should revoke an authorized screw gesture so pointer capture cannot mutate the screw behind a lesson card',
 );
@@ -823,13 +1091,13 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /export interface PistonOscillationGuideInstrumentSnapshot \{[\s\S]*hoseDragging: boolean;[\s\S]*lockingScrewState: 'loose' \| 'locked';[\s\S]*heightAdjustmentStage: PistonOscillationHeightAdjustmentStage;[\s\S]*pistonPhase: PistonInteractionPhase;/,
-  'Guide snapshots must make the height-reading versus locking stage explicit',
+  /export interface PistonOscillationGuideInstrumentSnapshot \{[\s\S]*hoseDragging: boolean;[\s\S]*lockingScrewState: 'loose' \| 'locked';[\s\S]*lockingScrewDragging: boolean;[\s\S]*heightAdjustmentStage: PistonOscillationHeightAdjustmentStage;[\s\S]*pistonPhase: PistonInteractionPhase;/,
+  'Guide snapshots must expose screw-drag ownership as well as the height-reading versus locking stage',
 );
 assert.match(
   workspaceSource,
-  /onGuideInstrumentSnapshotChangeRef\.current\?\.\(\{[\s\S]*hoseState,[\s\S]*hoseDragging,[\s\S]*lockingScrewState: lockingScrewClampState,[\s\S]*heightAdjustmentStage,[\s\S]*spaceHeld,[\s\S]*mouseHeld,[\s\S]*pistonPhase/,
-  'every live instrument snapshot must publish the current height-adjustment stage',
+  /onGuideInstrumentSnapshotChangeRef\.current\?\.\(\{[\s\S]*hoseState,[\s\S]*hoseDragging,[\s\S]*lockingScrewState: lockingScrewClampState,[\s\S]*lockingScrewDragging: screwDragging,[\s\S]*heightAdjustmentStage,[\s\S]*spaceHeld,[\s\S]*mouseHeld,[\s\S]*pistonPhase/,
+  'every live instrument snapshot must publish screw dragging so step advancement cannot interrupt the gesture',
 );
 assert.match(
   workspaceSource,

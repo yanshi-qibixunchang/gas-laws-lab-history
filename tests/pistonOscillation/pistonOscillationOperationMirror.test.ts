@@ -167,8 +167,13 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /!demoActive && !guideInteractionPaused && screwOperationMirrorActive[\s\S]*<OperationMirrorScrewControl/,
-  'the screw interaction target must exist only in the active formal screw-operation mirror and freeze during Guide pause or recovery explanation',
+  /screwOperationMirrorActive \? \([\s\S]*<OperationMirrorScrewControl[\s\S]*interactionEnabled=\{!demoActive && !guideInteractionPaused\}/,
+  'the screw center tracker should remain mounted in Demo while its interaction target stays disabled during Demo, Guide pause, or recovery explanation',
+);
+assert.match(
+  workspaceSource,
+  /interactionEnabled\?: boolean;[\s\S]*onHitPointReady\(\[projectedCenter\.x, projectedCenter\.y\]\)[\s\S]*raycast=\{interactionEnabled \? undefined : \(\) => undefined\}/,
+  'a disabled Demo screw target should still report the projected knob center without intercepting pointer input',
 );
 assert.match(
   workspaceSource,

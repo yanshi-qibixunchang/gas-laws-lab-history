@@ -73,6 +73,7 @@ import {
 import {
   PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
+  PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ,
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
   PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
@@ -104,6 +105,14 @@ import {
   parsePistonOscillationFreeTriggerThreshold,
   type PressureGraphDomain,
 } from './pistonOscillationFreeAcquisitionModel.ts';
+import { getPistonOscillationGuidePrimaryControlState } from './pistonOscillationGuidePrimaryControl.ts';
+import type {
+  PistonOscillationGuideAcquisitionEvent,
+} from './pistonOscillationGuideAcquisitionBridge.ts';
+
+export type {
+  PistonOscillationGuideAcquisitionEvent,
+} from './pistonOscillationGuideAcquisitionBridge.ts';
 
 type AcquisitionPhase = 'idle' | 'armed' | 'recording' | 'stopped';
 type FreeRecordingPath = 'falling-trigger' | 'immediate';
@@ -115,27 +124,6 @@ export type PistonOscillationGuideAcquisitionCue =
   | 'redo'
   | 'save'
   | null;
-
-export type PistonOscillationGuideAcquisitionEvent =
-  | { type: 'startAcquisition' }
-  | { type: 'restoreInterruptedAcquisition' }
-  | {
-      type: 'pressureAttemptRejected';
-      reason: 'underpressure' | 'overpressure';
-      peakPressureKpa: number;
-    }
-  | { type: 'pressureAttemptAccepted'; peakPressureKpa: number }
-  | { type: 'redoOverpressureAttempt' }
-  | { type: 'triggered' }
-  | {
-      type: 'recordingReady';
-      candidate: PistonOscillationGuideSavedMeasurement;
-    }
-  | {
-      type: 'curvePaused';
-      candidate: PistonOscillationGuideSavedMeasurement;
-    }
-  | { type: 'saveMeasurement' };
 
 export interface PistonOscillationReleaseEvent {
   id: number;
@@ -178,7 +166,7 @@ export interface PistonOscillationAcquisitionPanelProps {
   onFreeMeasurementSave?: (measurement: PistonOscillationRawMeasurementRecord) => void;
   guidePaused?: boolean;
   guideCue?: PistonOscillationGuideAcquisitionCue;
-  onGuideAcquisitionEvent?: (event: PistonOscillationGuideAcquisitionEvent) => void;
+  onGuideAcquisitionEvent?: (event: PistonOscillationGuideAcquisitionEvent) => boolean;
   onGuideActionAttempt?: (
     action: PistonOscillationGuideAction,
     context: PistonOscillationGuideActionContext,
@@ -491,7 +479,9 @@ PistonOscillationAcquisitionPanelProps
     && guideSession.step === 'parameterSetup'
     && guideCue === 'settings';
   const guideTriggeredNotifiedRef = useRef(false);
-  const guideRecordingReadyNotifiedRef = useRef(false);
+  const guidePendingRecordingCandidateRef =
+    useRef<PistonOscillationGuideSavedMeasurement | null>(null);
+  const guideRecordingCommitAttemptedAtMsRef = useRef<number | null>(null);
   const guidePendingOverpressurePeakKpaRef = useRef<number | null>(null);
   const handledReleaseEventIdRef = useRef<number | null>(releaseEvent?.id ?? null);
   const handledPressStartEventIdRef = useRef<number | null>(pressStartEvent?.id ?? null);
@@ -618,7 +608,8 @@ PistonOscillationAcquisitionPanelProps
     setGuidePressureIssue(null);
     resetDisplayClock(performance.now());
     guideTriggeredNotifiedRef.current = false;
-    guideRecordingReadyNotifiedRef.current = false;
+    guidePendingRecordingCandidateRef.current = null;
+    guideRecordingCommitAttemptedAtMsRef.current = null;
     guidePendingOverpressurePeakKpaRef.current = null;
     preTriggerPeakPressureKpaRef.current = quantizePistonOscillationObservedPressureKpa(
       PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
@@ -762,10 +753,13 @@ PistonOscillationAcquisitionPanelProps
       && guideSession.acquisitionCandidate === null
       && phaseRef.current === 'idle'
     ) {
+      const recoveryAccepted = onGuideAcquisitionEvent?.({
+        type: 'restoreInterruptedAcquisition',
+      }) === true;
+      if (!recoveryAccepted) return;
       resetRun();
       handledReleaseEventIdRef.current = releaseEvent?.id ?? null;
       updatePhase('armed');
-      onGuideAcquisitionEvent?.({ type: 'restoreInterruptedAcquisition' });
     }
   }, [
     guideActive,
@@ -863,6 +857,12 @@ PistonOscillationAcquisitionPanelProps
         releasePressureKpa,
       );
       if (peakPressureKpa < PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA) {
+        const rejectionAccepted = onGuideAcquisitionEvent?.({
+          type: 'pressureAttemptRejected',
+          reason: 'underpressure',
+          peakPressureKpa,
+        }) === true;
+        if (!rejectionAccepted) return;
         guidePendingOverpressurePeakKpaRef.current = null;
         setGuidePressureIssue('underpressure');
         setCycleStartMs(null);
@@ -875,21 +875,20 @@ PistonOscillationAcquisitionPanelProps
         preTriggerPeakPressureKpaRef.current = quantizePistonOscillationObservedPressureKpa(
           PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
         );
-        onGuideAcquisitionEvent?.({
-          type: 'pressureAttemptRejected',
-          reason: 'underpressure',
-          peakPressureKpa,
-        });
         return;
       } else if (peakPressureKpa > PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA) {
         guidePendingOverpressurePeakKpaRef.current = peakPressureKpa;
         setGuidePressureIssue(null);
         preTriggerPeakPressureKpaRef.current = peakPressureKpa;
       } else {
+        const acceptanceConfirmed = onGuideAcquisitionEvent?.({
+          type: 'pressureAttemptAccepted',
+          peakPressureKpa,
+        }) === true;
+        if (!acceptanceConfirmed) return;
         guidePendingOverpressurePeakKpaRef.current = null;
         setGuidePressureIssue(null);
         preTriggerPeakPressureKpaRef.current = peakPressureKpa;
-        onGuideAcquisitionEvent?.({ type: 'pressureAttemptAccepted', peakPressureKpa });
       }
     }
     setActiveTrajectory(nextTrajectory);
@@ -906,7 +905,8 @@ PistonOscillationAcquisitionPanelProps
     setTriggerSourceSampleIndex(nextTriggerSample?.sampleIndex ?? null);
     publishDisplayClock(performance.now());
     guideTriggeredNotifiedRef.current = false;
-    guideRecordingReadyNotifiedRef.current = false;
+    guidePendingRecordingCandidateRef.current = null;
+    guideRecordingCommitAttemptedAtMsRef.current = null;
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
   }, [
@@ -954,10 +954,16 @@ PistonOscillationAcquisitionPanelProps
           presentedNowMs - cycleStartMs - guideAccumulatedPauseMsRef.current
         ) / 1000 >= triggerSeconds
       ) {
-        updatePhase('recording');
-        if (guideActive && !guideTriggeredNotifiedRef.current) {
-          guideTriggeredNotifiedRef.current = true;
-          onGuideAcquisitionEvent?.({ type: 'triggered' });
+        if (guideActive) {
+          if (
+            !guideTriggeredNotifiedRef.current
+            && onGuideAcquisitionEvent?.({ type: 'triggered' }) === true
+          ) {
+            guideTriggeredNotifiedRef.current = true;
+            updatePhase('recording');
+          }
+        } else {
+          updatePhase('recording');
         }
       }
       if (phaseRef.current === 'armed' || phaseRef.current === 'recording') {
@@ -1706,32 +1712,64 @@ PistonOscillationAcquisitionPanelProps
       || guidePaused
       || phase !== 'recording'
       || formalElapsedSeconds < PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
-      || guideRecordingReadyNotifiedRef.current
     ) return;
-    const candidate = buildGuideCandidate(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S);
+
+    // Freeze the visible recording frontier first. A temporarily rejected
+    // parent commit must never leave the clock and curve running forever.
+    if (stopElapsedSeconds === null) {
+      setStopElapsedSeconds(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S);
+    }
+
+    if (guideSession?.step !== 'recording') {
+      guidePendingRecordingCandidateRef.current = null;
+      guideRecordingCommitAttemptedAtMsRef.current = null;
+      return;
+    }
+
+    const candidate = guidePendingRecordingCandidateRef.current
+      ?? buildGuideCandidate(PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S);
     if (!candidate || candidate.samples.length < 2) return;
-    guideRecordingReadyNotifiedRef.current = true;
-    setStopElapsedSeconds(candidate.acquisitionSettings.recordedDurationS);
+    guidePendingRecordingCandidateRef.current = candidate;
+
+    const lastAttemptedAtMs = guideRecordingCommitAttemptedAtMsRef.current;
+    if (
+      lastAttemptedAtMs !== null
+      && displayNowMs - lastAttemptedAtMs < 120
+    ) return;
+    guideRecordingCommitAttemptedAtMsRef.current = displayNowMs;
+
     const overpressurePeakKpa = guidePendingOverpressurePeakKpaRef.current;
     if (overpressurePeakKpa !== null) {
-      guidePendingOverpressurePeakKpaRef.current = null;
-      setGuidePressureIssue('overpressure');
-      updatePhase('stopped');
-      onGuideAcquisitionEvent?.({
+      const rejectionAccepted = onGuideAcquisitionEvent?.({
         type: 'pressureAttemptRejected',
         reason: 'overpressure',
         peakPressureKpa: overpressurePeakKpa,
-      });
+      }) === true;
+      if (!rejectionAccepted) return;
+      guidePendingRecordingCandidateRef.current = null;
+      guideRecordingCommitAttemptedAtMsRef.current = null;
+      guidePendingOverpressurePeakKpaRef.current = null;
+      setGuidePressureIssue('overpressure');
+      updatePhase('stopped');
       return;
     }
-    onGuideAcquisitionEvent?.({ type: 'recordingReady', candidate });
+    const recordingAccepted = onGuideAcquisitionEvent?.({
+      type: 'recordingReady',
+      candidate,
+    }) === true;
+    if (!recordingAccepted) return;
+    guidePendingRecordingCandidateRef.current = null;
+    guideRecordingCommitAttemptedAtMsRef.current = null;
   }, [
     buildGuideCandidate,
+    displayNowMs,
     formalElapsedSeconds,
     guideActive,
     guidePaused,
+    guideSession?.step,
     onGuideAcquisitionEvent,
     phase,
+    stopElapsedSeconds,
     updatePhase,
   ]);
 
@@ -1756,6 +1794,10 @@ PistonOscillationAcquisitionPanelProps
       }
       if (!freeSession.experimentPlan) return;
     }
+    if (
+      guideActive
+      && onGuideAcquisitionEvent?.({ type: 'startAcquisition' }) !== true
+    ) return;
     const recordingStartedAtMs = performance.now();
     const currentObservation = livePressureObservation ?? {
       sampleClockIndex: Math.floor(recordingStartedAtMs),
@@ -1806,6 +1848,8 @@ PistonOscillationAcquisitionPanelProps
     setFreeRecordingTimelineRevision((revision) => revision + 1);
     freeAttemptIdRef.current = `${Date.now()}-${Math.floor(recordingStartedAtMs * 1_000)}`;
     if (freeSelected) onFreeCandidateChange?.(null);
+    guidePendingRecordingCandidateRef.current = null;
+    guideRecordingCommitAttemptedAtMsRef.current = null;
     guidePendingOverpressurePeakKpaRef.current = null;
     preTriggerPeakPressureKpaRef.current = livePressureObservation?.absolutePressureKpa
       ?? quantizePistonOscillationObservedPressureKpa(
@@ -1813,10 +1857,12 @@ PistonOscillationAcquisitionPanelProps
       );
     resetDisplayClock(recordingStartedAtMs);
     updatePhase(startsImmediately ? 'recording' : 'armed');
-    if (guideActive) onGuideAcquisitionEvent?.({ type: 'startAcquisition' });
   };
 
   const handleGuideOverpressureRedo = () => {
+    if (
+      onGuideAcquisitionEvent?.({ type: 'redoOverpressureAttempt' }) !== true
+    ) return;
     setCycleStartMs(null);
     setTriggerSeconds(null);
     setTriggerSourceSampleIndex(null);
@@ -1828,6 +1874,8 @@ PistonOscillationAcquisitionPanelProps
     setStopElapsedSeconds(null);
     setRetained(false);
     setGuidePressureIssue(null);
+    guidePendingRecordingCandidateRef.current = null;
+    guideRecordingCommitAttemptedAtMsRef.current = null;
     guidePendingOverpressurePeakKpaRef.current = null;
     freeReleaseSegmentsRef.current = [];
     freePressStartedAtMsRef.current = [];
@@ -1838,12 +1886,10 @@ PistonOscillationAcquisitionPanelProps
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       );
     guideTriggeredNotifiedRef.current = false;
-    guideRecordingReadyNotifiedRef.current = false;
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
     resetDisplayClock(performance.now());
     updatePhase('armed');
-    onGuideAcquisitionEvent?.({ type: 'redoOverpressureAttempt' });
   };
 
   const handleStop = () => {
@@ -1858,20 +1904,29 @@ PistonOscillationAcquisitionPanelProps
       && restoredFreeCandidate === null
     ) return;
     const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds();
-    const candidate = restoredGuidePauseCandidate ?? buildGuideCandidate(pauseElapsedSeconds);
+    const candidate = restoredGuidePauseCandidate
+      ?? buildGuideCandidate(pauseElapsedSeconds)
+      ?? (guideSession?.step === 'pauseAvailable'
+        ? guideSession.acquisitionCandidate
+        : null);
     const effectiveCandidate = guideSelected
       ? candidate
       : restoredFreeCandidate ?? buildFreeCandidate(pauseElapsedSeconds);
-    if (guideActive && candidate) {
-      onGuideAcquisitionEvent?.({ type: 'curvePaused', candidate });
+    if (!effectiveCandidate) return;
+    if (guideActive) {
+      if (!candidate) return;
+      const pauseAccepted = onGuideAcquisitionEvent?.({
+        type: 'curvePaused',
+        candidate,
+      }) === true;
+      if (!pauseAccepted) return;
     }
-    if (freeSelected && effectiveCandidate) {
+    if (freeSelected) {
       frozenFreeCandidateRef.current = effectiveCandidate;
       onFreeCandidateChange?.(effectiveCandidate);
     }
     setStopElapsedSeconds(
-      effectiveCandidate?.acquisitionSettings.recordedDurationS
-        ?? pauseElapsedSeconds,
+      effectiveCandidate.acquisitionSettings.recordedDurationS,
     );
     updatePhase('stopped');
   };
@@ -1898,6 +1953,19 @@ PistonOscillationAcquisitionPanelProps
   ]);
 
   const acquisitionActive = effectivePhase === 'armed' || effectivePhase === 'recording';
+  const guidePrimaryControl = guideSelected
+    ? getPistonOscillationGuidePrimaryControlState({
+        status: guideSession.status,
+        step: guideSession.step,
+        pauseReady: guidePauseReady,
+        candidateAvailable: guideSession.acquisitionCandidate !== null,
+      })
+    : null;
+  const guidePrimaryAction = guidePrimaryControl?.action ?? null;
+  const primaryShowsPause = guideSelected
+    ? guidePrimaryControl?.showsPause === true
+    : acquisitionActive;
+  const primaryLabel = primaryShowsPause ? copy.pause : copy.start;
   const effectiveRetained = retained || restoredGuideSavedMeasurement !== null;
   const freeSaveCandidateAvailable = Boolean(
     restoredFreeCandidate ?? frozenFreeCandidateRef.current,
@@ -1927,16 +1995,12 @@ PistonOscillationAcquisitionPanelProps
   const guideInputsLocked = Boolean(
     guideSelected && (guideSession.parametersLocked || guidePaused),
   );
-  const guidePrimaryAllowed = !guideSelected || (
-    guideActive
-    && (
-      (phase === 'idle' && guideSession.step === 'acquisitionReady')
-      || (
-        effectivePhase === 'recording'
-        && guideSession.step === 'pauseAvailable'
-        && guidePauseReady
-      )
-    )
+  const guidePrimaryAllowed = !guideSelected || guidePrimaryControl?.allowed === true;
+  const primaryDisabled = Boolean(
+    demoActive
+    || guidePaused
+    || guidePressureIssue === 'overpressure'
+    || !guidePrimaryAllowed,
   );
   const guideSaveAllowed = Boolean(
     guideActive
@@ -1944,8 +2008,23 @@ PistonOscillationAcquisitionPanelProps
     && guideSession.step === 'awaitingSaveOrRedo'
     && !effectiveRetained,
   );
-  const commitGuideParameter = (field: PistonOscillationGuideParameterField) => {
-    if (!guideInputsLocked) onGuideParameterCommit?.(field);
+  const saveDisabled = Boolean(
+    demoActive
+    || guidePaused
+    || (guideSelected
+      ? !guideSaveAllowed
+      : effectivePhase !== 'stopped'
+        || effectiveRetained
+        || !freeSaveCandidateAvailable),
+  );
+  const commitGuideParameter = (field: PistonOscillationGuideParameterField): boolean => {
+    if (guideInputsLocked) return false;
+    onGuideParameterCommit?.(field);
+    const expectedValue = field === 'sampleRateHz'
+      ? PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
+      : PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;
+    const draft = guideSession.parameterDrafts[field];
+    return draft.trim().length > 0 && Number(draft) === expectedValue;
   };
   const commitFreeParameter = (
     field: 'sampleRateHz' | 'triggerThresholdKpa',
@@ -2094,6 +2173,9 @@ PistonOscillationAcquisitionPanelProps
                   if (freeSelected) {
                     const accepted = commitFreeParameter('sampleRateHz');
                     if (accepted) triggerInputRef.current?.focus();
+                  } else if (guideSelected) {
+                    const accepted = commitGuideParameter('sampleRateHz');
+                    if (accepted) triggerInputRef.current?.focus();
                   } else {
                     event.currentTarget.blur();
                   }
@@ -2152,6 +2234,7 @@ PistonOscillationAcquisitionPanelProps
                 event.stopPropagation();
                 if (event.key === 'Enter') {
                   event.preventDefault();
+                  if (guideSelected) commitGuideParameter('triggerThresholdKpa');
                   event.currentTarget.blur();
                 } else if (event.key === 'Escape' && freeSelected) {
                   event.preventDefault();
@@ -2384,26 +2467,25 @@ PistonOscillationAcquisitionPanelProps
                 : undefined
             }
             data-piston-guide-target="primary"
-            aria-label={acquisitionActive ? copy.pause : copy.start}
-            title={acquisitionActive ? copy.pause : copy.start}
+            aria-label={primaryLabel}
+            title={primaryLabel}
             onClick={() => {
-              if (demoActive || guidePaused) return;
-              if (guideSelected && !attemptGuideAction(
-                acquisitionActive ? 'pauseAcquisition' : 'startAcquisition',
-                'primary',
-              )) return;
+              if (primaryDisabled) return;
+              if (guideSelected) {
+                if (
+                  guidePrimaryAction === null
+                  || !attemptGuideAction(guidePrimaryAction, 'primary')
+                ) return;
+                (guidePrimaryAction === 'pauseAcquisition' ? handleStop : handleStart)();
+                return;
+              }
               (acquisitionActive ? handleStop : handleStart)();
             }}
-            disabled={demoActive || guidePaused || guidePressureIssue === 'overpressure'}
-            aria-disabled={
-              demoActive
-              || guidePaused
-              || guidePressureIssue === 'overpressure'
-              || !guidePrimaryAllowed
-            }
+            disabled={primaryDisabled}
+            aria-disabled={primaryDisabled}
           >
             <span className="piston-acquisition-action-feedback" aria-hidden="true">
-              {acquisitionActive ? (
+              {primaryShowsPause ? (
                 <Square size={13} strokeWidth={2.3} fill="currentColor" aria-hidden="true" />
               ) : (
                 <Play size={14} strokeWidth={2.3} fill="currentColor" aria-hidden="true" />
@@ -2458,12 +2540,14 @@ PistonOscillationAcquisitionPanelProps
             }
             data-piston-guide-target="save"
             onClick={() => {
-              if (!demoActive && !effectiveRetained) {
-                if (guideSelected && !attemptGuideAction('saveMeasurement', 'save')) return;
-                setRetained(true);
-                if (guideActive) {
-                  onGuideAcquisitionEvent?.({ type: 'saveMeasurement' });
+              if (!saveDisabled && !effectiveRetained) {
+                if (guideSelected) {
+                  if (!attemptGuideAction('saveMeasurement', 'save')) return;
+                  if (
+                    onGuideAcquisitionEvent?.({ type: 'saveMeasurement' }) !== true
+                  ) return;
                 }
+                setRetained(true);
                 if (freeSelected) {
                   const candidate = restoredFreeCandidate
                     ?? frozenFreeCandidateRef.current;
@@ -2473,18 +2557,8 @@ PistonOscillationAcquisitionPanelProps
                 onRunRetained?.();
               }
             }}
-            disabled={demoActive || guidePaused || (!guideSelected && (
-              effectivePhase !== 'stopped'
-              || effectiveRetained
-              || !freeSaveCandidateAvailable
-            ))}
-            aria-disabled={demoActive || guidePaused || (
-              guideSelected
-                ? !guideSaveAllowed
-                : effectivePhase !== 'stopped'
-                  || effectiveRetained
-                  || !freeSaveCandidateAvailable
-            )}
+            disabled={saveDisabled}
+            aria-disabled={saveDisabled}
           >
             <span className="piston-acquisition-action-feedback" aria-hidden="true">
               <Check size={15} strokeWidth={2.5} aria-hidden="true" />

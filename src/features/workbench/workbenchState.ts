@@ -6397,15 +6397,24 @@ export const createDefaultHeatCapacityPistonOscillationFile = (
 export const startPistonOscillationGuideWorkbenchState = (
   file: WorkbenchHeatCapacityPistonOscillationState,
   now = Date.now(),
-): WorkbenchHeatCapacityPistonOscillationState => ({
-  ...file,
-  updatedAt: now,
-  previewCameraPreset: 'overview',
-  pistonOscillationGuideSession: transitionPistonOscillationGuideSession(
-    file.pistonOscillationGuideSession,
-    { type: 'start', nowMs: now },
-  ),
-});
+): WorkbenchHeatCapacityPistonOscillationState => {
+  const pistonOscillationFreeSession = file.pistonOscillationFreeSession.status === 'active'
+    ? transitionPistonOscillationFreeSession(
+        file.pistonOscillationFreeSession,
+        { type: 'pause', nowMs: now },
+      )
+    : file.pistonOscillationFreeSession;
+  return {
+    ...file,
+    updatedAt: now,
+    previewCameraPreset: 'overview',
+    pistonOscillationGuideSession: transitionPistonOscillationGuideSession(
+      file.pistonOscillationGuideSession,
+      { type: 'start', nowMs: now },
+    ),
+    pistonOscillationFreeSession,
+  };
+};
 
 export const editPistonOscillationGuideParameterWorkbenchState = (
   file: WorkbenchHeatCapacityPistonOscillationState,
@@ -6454,15 +6463,29 @@ export const transitionPistonOscillationGuideWorkbenchState = (
 export const startPistonOscillationFreeWorkbenchState = (
   file: WorkbenchHeatCapacityPistonOscillationState,
   now = Date.now(),
-): WorkbenchHeatCapacityPistonOscillationState => ({
-  ...file,
-  updatedAt: now,
-  previewCameraPreset: 'overview',
-  pistonOscillationFreeSession: transitionPistonOscillationFreeSession(
-    file.pistonOscillationFreeSession,
-    { type: 'start', nowMs: now },
-  ),
-});
+): WorkbenchHeatCapacityPistonOscillationState => {
+  const guideSessionSelected = file.pistonOscillationGuideSession.status === 'active'
+    || (
+      file.pistonOscillationGuideSession.status === 'completed'
+      && !file.pistonOscillationGuideSession.completionExited
+    );
+  const pistonOscillationGuideSession = guideSessionSelected
+    ? transitionPistonOscillationGuideSession(
+        file.pistonOscillationGuideSession,
+        { type: 'exitSession', nowMs: now },
+      )
+    : file.pistonOscillationGuideSession;
+  return {
+    ...file,
+    updatedAt: now,
+    previewCameraPreset: 'overview',
+    pistonOscillationGuideSession,
+    pistonOscillationFreeSession: transitionPistonOscillationFreeSession(
+      file.pistonOscillationFreeSession,
+      { type: 'start', nowMs: now },
+    ),
+  };
+};
 
 export const transitionPistonOscillationFreeWorkbenchState = (
   file: WorkbenchHeatCapacityPistonOscillationState,

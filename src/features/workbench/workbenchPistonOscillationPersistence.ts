@@ -24,6 +24,9 @@ import {
   normalizePistonOscillationFreeSession,
   type PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import {
+  repairPistonOscillationModeSessionExclusivity,
+} from '../../domain/pistonOscillation/pistonOscillationModeSessionExclusivity.ts';
 
 export interface PistonOscillationPersistencePayloadV1 {
   experimentKind: 'heatCapacityPistonOscillation';
@@ -217,6 +220,16 @@ export const normalizePistonOscillationRuntimeState = (
       ? value.liveWorkspaceSplitRatio
       : undefined,
   });
+  const pistonOscillationGuideSession = normalizePistonOscillationGuideSession(
+    value.pistonOscillationGuideSession,
+  );
+  const normalizedFreeSession = normalizePistonOscillationFreeSession(
+    value.pistonOscillationFreeSession,
+  );
+  const modeSessionRepair = repairPistonOscillationModeSessionExclusivity(
+    pistonOscillationGuideSession,
+    normalizedFreeSession,
+  );
   return {
     ...fallback,
     id: value.id,
@@ -244,12 +257,8 @@ export const normalizePistonOscillationRuntimeState = (
     pistonOscillationDemoSession: normalizePistonOscillationDemoSession(
       value.pistonOscillationDemoSession,
     ),
-    pistonOscillationGuideSession: normalizePistonOscillationGuideSession(
-      value.pistonOscillationGuideSession,
-    ),
-    pistonOscillationFreeSession: normalizePistonOscillationFreeSession(
-      value.pistonOscillationFreeSession,
-    ),
+    pistonOscillationGuideSession: modeSessionRepair.guideSession,
+    pistonOscillationFreeSession: modeSessionRepair.freeSession,
     pistonOscillationMaterialsExpanded:
       value.pistonOscillationMaterialsExpanded !== false,
   };

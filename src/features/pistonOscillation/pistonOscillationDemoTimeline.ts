@@ -121,6 +121,9 @@ export const PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS = 2_700;
 export const PISTON_OSCILLATION_DEMO_ORIENT_MS = 1_800;
 export const PISTON_OSCILLATION_DEMO_PRE_HIGHLIGHT_MS = 3_100;
 export const PISTON_OSCILLATION_DEMO_OBSERVE_MS = 2_050;
+export const PISTON_OSCILLATION_DEMO_HEIGHT_ACTION_MS = 2_100;
+export const PISTON_OSCILLATION_DEMO_RECONNECT_HOSE_ACTION_MS = 1_050;
+export const PISTON_OSCILLATION_DEMO_DISCONNECT_HOSE_ACTION_MS = 1_025;
 export const PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS =
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S;
 
@@ -473,7 +476,12 @@ const createRunSteps = (measurementIndex: number): StepDefinition[] => [
   { kind: 'adjustHeight', measurementIndex, focusMode: 'pistonFocus', segments: [
     orient('pistonFocus', 'scaleReadingView'),
     highlight(['platform', 'mirrorOutline'], 'pistonFocus', 'scaleReadingView'),
-    action('platform', 4_200, 'pistonFocus', 'scaleReadingView'),
+    action(
+      'platform',
+      PISTON_OSCILLATION_DEMO_HEIGHT_ACTION_MS,
+      'pistonFocus',
+      'scaleReadingView',
+    ),
   ] },
   { kind: 'secureHeight', measurementIndex, focusMode: 'pistonFocus', segments: [
     orient('pistonFocus', 'screwOperationView'),
@@ -483,7 +491,7 @@ const createRunSteps = (measurementIndex: number): StepDefinition[] => [
   { kind: 'reconnectHose', measurementIndex, focusMode: 'overview', segments: [
     orient('overview'),
     highlight(['hose', 'hoseSnap'], 'overview'),
-    action('hose', 2_100, 'overview'),
+    action('hose', PISTON_OSCILLATION_DEMO_RECONNECT_HOSE_ACTION_MS, 'overview'),
   ] },
   { kind: 'restoreFreeMotion', measurementIndex, focusMode: 'pistonFocus', segments: [
     orient('pistonFocus', 'screwOperationView'),
@@ -515,7 +523,9 @@ const STEP_DEFINITIONS: StepDefinition[] = [
     ...(measurementIndex === 0 ? [] : [
       { kind: 'settle', measurementIndex, focusMode: 'overview', segments: [action(null, 3_550)] },
       { kind: 'disconnect', measurementIndex, focusMode: 'overview', segments: [
-        orient('overview'), highlight('hose', 'overview'), action('hose', 2_050, 'overview'),
+        orient('overview'),
+        highlight('hose', 'overview'),
+        action('hose', PISTON_OSCILLATION_DEMO_DISCONNECT_HOSE_ACTION_MS, 'overview'),
       ] },
     ] as StepDefinition[]),
     ...createRunSteps(measurementIndex),

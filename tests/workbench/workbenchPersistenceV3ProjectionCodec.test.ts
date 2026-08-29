@@ -11,6 +11,7 @@ import {
   editPistonOscillationGuideParameterWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  startPistonOscillationFreeWorkbenchState,
   startPistonOscillationGuideWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type WorkbenchFileState,
@@ -2308,6 +2309,102 @@ assert.deepEqual(
   pistonGuideReprojected.value.pistonOscillationFreeSession,
   pistonGuideFile.pistonOscillationFreeSession,
   'an independent empty Free Mode session must survive alongside Guide Mode state',
+);
+
+const legacyBaselinePistonProjection = structuredClone(pistonGuideProjection.value);
+const legacyBaselineGuide = legacyBaselinePistonProjection.fields.authoritative
+  .guideSession as unknown as Record<string, unknown>;
+legacyBaselineGuide.status = 'active';
+legacyBaselineGuide.measurementIndex = 0;
+legacyBaselineGuide.step = 'baselineStabilizing';
+legacyBaselineGuide.savedMeasurements = [];
+legacyBaselineGuide.dataProcessing = null;
+const reprojectedLegacyBaseline = reprojectWorkbenchPersistenceV3File(
+  legacyBaselinePistonProjection,
+  451,
+);
+if (!reprojectedLegacyBaseline.ok) {
+  throw new Error(reprojectedLegacyBaseline.diagnostics[0].message);
+}
+assert.equal(reprojectedLegacyBaseline.value.kind, 'heatCapacityPistonOscillation');
+if (reprojectedLegacyBaseline.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected legacy baseline Piston guide file reprojection.');
+}
+assert.equal(
+  reprojectedLegacyBaseline.value.pistonOscillationGuideSession.step,
+  'acquisitionReady',
+  'V3 restore must migrate the removed baseline checkpoint to the visible Start step',
+);
+
+const legacyCrossRunPistonProjection = structuredClone(legacyBaselinePistonProjection);
+const legacyCrossRunGuide = legacyCrossRunPistonProjection.fields.authoritative
+  .guideSession as unknown as Record<string, unknown>;
+legacyCrossRunGuide.measurementIndex = 1;
+legacyCrossRunGuide.step = 'crossRunStabilizing';
+const reprojectedLegacyCrossRun = reprojectWorkbenchPersistenceV3File(
+  legacyCrossRunPistonProjection,
+  451,
+);
+if (!reprojectedLegacyCrossRun.ok) {
+  throw new Error(reprojectedLegacyCrossRun.diagnostics[0].message);
+}
+assert.equal(reprojectedLegacyCrossRun.value.kind, 'heatCapacityPistonOscillation');
+if (reprojectedLegacyCrossRun.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected legacy between-run Piston guide file reprojection.');
+}
+assert.equal(
+  reprojectedLegacyCrossRun.value.pistonOscillationGuideSession.step,
+  'crossRunDisconnect',
+  'V3 restore must migrate the removed between-run checkpoint to the next visible operation',
+);
+
+const doubleActivePistonProjection = structuredClone(pistonGuideProjection.value);
+doubleActivePistonProjection.fields.authoritative.freeSession =
+  startPistonOscillationFreeWorkbenchState(
+    createDefaultHeatCapacityPistonOscillationFile(452),
+    10_600,
+  ).pistonOscillationFreeSession;
+const repairedDoubleActivePiston = reprojectWorkbenchPersistenceV3File(
+  doubleActivePistonProjection,
+  452,
+);
+if (!repairedDoubleActivePiston.ok) {
+  throw new Error(repairedDoubleActivePiston.diagnostics[0].message);
+}
+assert.equal(repairedDoubleActivePiston.status, 'repaired-cache');
+assert.equal(repairedDoubleActivePiston.value.kind, 'heatCapacityPistonOscillation');
+if (repairedDoubleActivePiston.value.kind !== 'heatCapacityPistonOscillation') {
+  throw new Error('Expected repaired double-active Piston projection.');
+}
+assert.equal(
+  repairedDoubleActivePiston.value.pistonOscillationGuideSession.status,
+  'active',
+);
+assert.equal(
+  repairedDoubleActivePiston.value.pistonOscillationFreeSession.status,
+  'paused',
+);
+assert.equal(
+  repairedDoubleActivePiston.value.pistonOscillationFreeSession.startedAtMs,
+  10_600,
+  'V3 mode repair must preserve the suspended Free session progress',
+);
+assert.deepEqual(
+  repairedDoubleActivePiston.diagnostics.map((diagnostic) => ({
+    category: diagnostic.category,
+    code: diagnostic.code,
+    recovery: diagnostic.recovery,
+    fieldPath: diagnostic.fieldPath,
+    mode: diagnostic.mode,
+  })),
+  [{
+    category: 'relationship',
+    code: 'persistence-v3-piston-mode-exclusivity-repaired',
+    recovery: 'none',
+    fieldPath: 'fields.authoritative.freeSession.status',
+    mode: 'free',
+  }],
+  'V3 mode repair must report a relationship repair rather than a derived-cache rebuild',
 );
 assert.deepEqual(
   pistonGuideReprojected.value.pistonOscillationGuideSession.savedMeasurements.map(

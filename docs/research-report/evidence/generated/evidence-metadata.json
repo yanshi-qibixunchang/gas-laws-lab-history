@@ -2,56 +2,32 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-28T23:15:53.952Z",
-  "finishedAt": "2026-08-28T23:16:18.205Z",
+  "generatedAt": "2026-08-29T12:14:03.009Z",
+  "finishedAt": "2026-08-29T12:14:26.792Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
     "packageVersion": "6.2.1",
-    "gitCommit": "519f6fdf388933207290ec855a12c722893af4ff",
+    "gitCommit": "a51f4fe895bf689b2f4867d91dcc3c2e860b9212",
     "dirtyAtStart": true,
     "statusAtStart": [
-      "M README.md",
-      " M README.zh-CN.md",
-      " M README.zh-TW.md",
-      " M docs/build-notice-zh-CN.md",
-      " M docs/releases/release-notes.json",
-      " M package-lock.json",
-      " M package.json",
-      " M src/app/App.tsx",
-      " M src/domain/calculation/decimalHalfEven.ts",
-      " M src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts",
-      " M src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts",
-      " M src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts",
-      " M src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts",
+      "M src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts",
       " M src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx",
-      " M src/features/pistonOscillation/PistonOscillationDataProcessingPanel.tsx",
-      " M src/features/pistonOscillation/PistonOscillationInteractionWorkspace.tsx",
-      " M src/features/pistonOscillation/PistonOscillationInteractiveModel.tsx",
-      " M src/features/pistonOscillation/pistonOscillationCalculationCopy.ts",
+      " M src/features/pistonOscillation/index.ts",
       " M src/features/pistonOscillation/pistonOscillationCopy.ts",
-      " M src/features/workbench/WorkbenchStudioPrototype.css",
       " M src/features/workbench/WorkbenchStudioPrototype.tsx",
-      " M tests/calculation/decimalHalfEven.test.ts",
+      " M src/features/workbench/persistenceV3/projection.ts",
+      " M src/features/workbench/workbenchPistonOscillationPersistence.ts",
+      " M src/features/workbench/workbenchState.ts",
       " M tests/pistonOscillation/pistonOscillationAcquisitionConfig.test.ts",
-      " M tests/pistonOscillation/pistonOscillationCalculationWindow.test.ts",
-      " M tests/pistonOscillation/pistonOscillationDataProcessingModel.test.ts",
-      " M tests/pistonOscillation/pistonOscillationFreeWorkflowModel.test.ts",
-      " M tests/pistonOscillation/pistonOscillationInteractionWorkspace.test.ts",
-      " M tests/pistonOscillation/pistonOscillationModelIntegration.test.ts",
-      " M tests/pistonOscillation/pistonOscillationPhysicsEngine.test.ts",
+      " M tests/pistonOscillation/pistonOscillationGuideWorkflowModel.test.ts",
       " M tests/pistonOscillation/workbenchPistonOscillationShell.test.ts",
-      " M tests/workbench/workbenchDesktopWindowFrame.test.ts",
-      " M tests/workbench/workbenchPromptFeedback.test.ts",
-      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
-      "?? docs/releases/v6.2.1.md",
-      "?? src/components/errors/",
-      "?? src/development/",
-      "?? src/features/workbench/WorkbenchRenderErrorFallback.tsx",
-      "?? src/features/workbench/WorkbenchWindowControls.tsx",
-      "?? tests/pistonOscillation/pistonOscillationFreeEndToEnd.test.ts",
-      "?? tests/pistonOscillation/pistonOscillationRenderRecovery.test.ts"
+      " M tests/workbench/workbenchPersistenceV3ProjectionCodec.test.ts",
+      " M tests/workbench/workbenchPistonOscillationPersistence.test.ts",
+      "?? src/features/pistonOscillation/pistonOscillationGuideAcquisitionBridge.ts",
+      "?? src/features/pistonOscillation/pistonOscillationGuidePrimaryControl.ts",
+      "?? tests/pistonOscillation/pistonOscillationGuidePrimaryControl.test.ts"
     ]
   },
   "runtime": {
@@ -432,8 +408,8 @@
     },
     {
       "path": "src/features/workbench/workbenchState.ts",
-      "sha256": "c27ac91190df81767fe3b2eaad62a6874246c360d001dd1cf209efd3cf5fd342",
-      "bytes": 282022
+      "sha256": "ba94358a9be897eecfb9b9f4a5099462c8a2d1720671c2906dbaa933436d455d",
+      "bytes": 282892
     }
   ],
   "generatedFiles": [
@@ -445,7 +421,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "16d407eda9d93fd5b676275e43063e46e3bd4548a4b04a660530751d7e6d4404"
+      "sha256": "e5809201415bfd900dc5885ab1f82eaa24fd537a43f15b5863a4751974063dcd"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",

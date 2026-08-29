@@ -30,8 +30,13 @@ assert.match(
 );
 assert.match(
   workspace,
-  /const continuousDropStartedHeightMm = pistonEquilibriumHeightMmRef\.current;[\s\S]*nextHeightMm <= PISTON_EQUILIBRIUM_HEIGHT_MIN_MM[\s\S]*dropDistanceMm:[\s\S]*continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM/,
+  /const continuousDropStartedHeightMm = pistonEquilibriumHeightMmRef\.current;[\s\S]*nextHeightMm <= PISTON_EQUILIBRIUM_HEIGHT_MIN_MM[\s\S]*emitBottomImpactAudio\([\s\S]*continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM/,
   'bottom impact should use the current uninterrupted unsupported segment',
+);
+assert.match(
+  workspace,
+  /guideHeightReset\?\.phase !== 'resetting'[\s\S]*const animateReset = \(nowMs: number\) => \{[\s\S]*emitBottomImpactAudio\([\s\S]*startedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM/,
+  'Guide height reset should reuse the Free-mode distance-scaled bottom-impact event',
 );
 assert.match(
   workspace,

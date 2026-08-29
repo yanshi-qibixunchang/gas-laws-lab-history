@@ -25,6 +25,18 @@ const acquisitionSource = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx', import.meta.url),
   'utf8',
 );
+const acquisitionBridgeSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/pistonOscillationGuideAcquisitionBridge.ts', import.meta.url),
+  'utf8',
+);
+const guideWorkflowSource = readFileSync(
+  new URL('../../src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts', import.meta.url),
+  'utf8',
+);
+const guideScrewInteractionSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/pistonOscillationGuideScrewInteraction.ts', import.meta.url),
+  'utf8',
+);
 const dataProcessingSource = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationDataProcessingPanel.tsx', import.meta.url),
   'utf8',
@@ -292,7 +304,21 @@ const followingPageFactorySource = pistonGuidePanelSource.slice(
 assert.doesNotMatch(
   followingPageFactorySource,
   /steps:\s*\['crossRunStabilizing'\]/,
-  'piston settling is a Pause completion condition, not a standalone row at the start of the next Run',
+  'legacy cross-Run stabilization must not return as a standalone row at the start of the next Run',
+);
+const canonicalGuideStepTypeSource = guideWorkflowSource.slice(
+  guideWorkflowSource.indexOf('export type PistonOscillationGuideStep ='),
+  guideWorkflowSource.indexOf('export type PistonOscillationGuideParameterField ='),
+);
+assert.doesNotMatch(
+  canonicalGuideStepTypeSource,
+  /baselineStabilizing|crossRunStabilizing/,
+  'internal baseline states must not remain canonical Guide steps',
+);
+assert.match(
+  guideWorkflowSource,
+  /const normalizedStep = value\.step === 'baselineStabilizing'[\s\S]*\? 'acquisitionReady' as const[\s\S]*value\.step === 'crossRunStabilizing'[\s\S]*\? 'crossRunDisconnect' as const/,
+  'persisted legacy baseline steps should migrate directly onto their current visible operation steps',
 );
 assert.match(
   workbenchSource,
@@ -300,8 +326,8 @@ assert.match(
   'Pause must remain locked until the physical piston has settled',
 );
 assert.match(
-  workbenchSource,
-  /event\.type === 'restoreInterruptedAcquisition'[\s\S]*type: 'discardAcquisitionAttempt'[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*pistonOscillationGuideStrongReminderTimerRef\.current = null/,
+  `${acquisitionBridgeSource}\n${workbenchSource}`,
+  /case 'restoreInterruptedAcquisition':[\s\S]*type: 'discardAcquisitionAttempt'[\s\S]*event\.type === 'restoreInterruptedAcquisition'[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*pistonOscillationGuideStrongReminderTimerRef\.current = null/,
   'refresh recovery must realign the workflow and clear a stale blocking reminder',
 );
 const crossRunPhysicalOrder = [
@@ -518,8 +544,8 @@ assert.doesNotMatch(
 );
 assert.match(
   pistonGuidePanelSource,
-  /steps: \['baselineStabilizing', 'acquisitionReady'\][\s\S]*startAcquisitionTitle/,
-  'the internal baseline guard must map directly onto the visible acquisition action row',
+  /id: `acquisitionReady-\$\{measurementNumber\}`[\s\S]*steps: \['acquisitionReady'\][\s\S]*startAcquisitionTitle[\s\S]*startAcquisitionDetail/,
+  'the acquisition row should map directly to the canonical Start action without exposing an internal baseline state',
 );
 assert.match(
   workbenchSource,
@@ -538,8 +564,8 @@ assert.match(
 );
 assert.match(
   instrumentSceneSource,
-  /guidePaused\?: boolean;[\s\S]*guideTimeFrozen\?: boolean;[\s\S]*guideSnapTargetHeightMm\?: number \| null;[\s\S]*guideInitialInstrumentState\?: PistonOscillationGuideInstrumentRestoreState \| null;[\s\S]*guideHeightReset\?: PistonOscillationGuideHeightResetRequest \| null;[\s\S]*onGuideSupportLoss\?:[\s\S]*<PistonOscillationInteractionWorkspace[\s\S]*guidePaused=\{guidePaused\}[\s\S]*guideTimeFrozen=\{guideTimeFrozen\}[\s\S]*guideSnapTargetHeightMm=\{guideSnapTargetHeightMm\}[\s\S]*guideInitialInstrumentState=\{guideInitialInstrumentState\}[\s\S]*guideHeightReset=\{guideHeightReset\}[\s\S]*onGuideSupportLoss=\{onGuideSupportLoss\}[\s\S]*onGuideHeightResetComplete=\{onGuideHeightResetComplete\}/,
-  'the scene boundary should forward time freeze and the exclusive height-reset lifecycle into the shared 3D workspace',
+  /guidePaused\?: boolean;[\s\S]*guideTimeFrozen\?: boolean;[\s\S]*guideScrewInteractionMode\?: PistonOscillationGuideScrewInteractionMode \| null;[\s\S]*guideSnapTargetHeightMm\?: number \| null;[\s\S]*guideInitialInstrumentState\?: PistonOscillationGuideInstrumentRestoreState \| null;[\s\S]*guideHeightReset\?: PistonOscillationGuideHeightResetRequest \| null;[\s\S]*onGuideScrewDirectionFeedback\?:[\s\S]*onGuideSupportLoss\?:[\s\S]*<PistonOscillationInteractionWorkspace[\s\S]*guidePaused=\{guidePaused\}[\s\S]*guideTimeFrozen=\{guideTimeFrozen\}[\s\S]*guideScrewInteractionMode=\{guideScrewInteractionMode\}[\s\S]*guideSnapTargetHeightMm=\{guideSnapTargetHeightMm\}[\s\S]*guideInitialInstrumentState=\{guideInitialInstrumentState\}[\s\S]*guideHeightReset=\{guideHeightReset\}[\s\S]*onGuideScrewDirectionFeedback=\{onGuideScrewDirectionFeedback\}[\s\S]*onGuideSupportLoss=\{onGuideSupportLoss\}[\s\S]*onGuideHeightResetComplete=\{onGuideHeightResetComplete\}/,
+  'the scene boundary should forward time freeze, screw guidance, and the exclusive height-reset lifecycle into the shared 3D workspace',
 );
 assert.match(
   workbenchSource,
@@ -563,13 +589,34 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /pistonGuideStep === 'firstHeightAdjustment'[\s\S]*pistonGuideStep === 'nextHeightAdjustment'[\s\S]*pistonGuideHeightConfirmationReady \? 'heightStageAction' : 'platform'[\s\S]*pistonGuideStep === 'screwLock'[\s\S]*pistonGuidePulseIndex === 0 \? 'mirrorOutline' : 'screw'/,
-  'a height step should cue the platform until the target is reached, then cue confirmation; the following screw step should cue only its mirror and screw',
+  /pistonGuideStep === 'firstHeightAdjustment'[\s\S]*pistonGuideStep === 'nextHeightAdjustment'[\s\S]*pistonGuideHeightConfirmationReady \? 'heightStageAction' : 'platform'[\s\S]*pistonGuideStep === 'screwLock'[\s\S]*\? 'screw'[\s\S]*pistonGuideStep === 'screwLoosen'[\s\S]*\? 'screw'/,
+  'height steps should switch from platform to confirmation, while both screw operations keep the screw cue continuously active',
+);
+assert.match(
+  guideScrewInteractionSource,
+  /case 'acquisitionReady':[\s\S]*case 'awaitingSaveOrRedo':[\s\S]*return 'protectLoose';[\s\S]*case 'screwLock':[\s\S]*return 'tighten';[\s\S]*case 'hoseReconnect':[\s\S]*return 'protectLocked';[\s\S]*case 'screwLoosen':[\s\S]*return 'loosen'/,
+  'each canonical Guide phase should select the correct active or protected screw mode',
 );
 assert.match(
   workbenchSource,
-  /handlePistonOscillationGuideHeightConfirmed[\s\S]*type: 'confirmHeight'[\s\S]*heightMm: Math\.round\(snapshot\.equilibriumHeightMm\)[\s\S]*leftHandSupporting: snapshot\.spaceHeld[\s\S]*rightHandReleased: !snapshot\.mouseHeld/,
-  'height confirmation should formally commit the target only after the left hand has taken support and the right hand has released',
+  /const pistonGuideScrewInteractionMode =[\s\S]*getPistonOscillationGuideScrewInteractionMode\([\s\S]*activePistonOscillationGuideSession\.step[\s\S]*guideScrewInteractionMode=\{pistonGuideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{[\s\S]*handlePistonOscillationGuideScrewDirectionFeedback/,
+  'Workbench should derive screw mode from the live canonical step and wire both mode and direction feedback into the scene',
+);
+assert.match(
+  focusInteractionSource,
+  /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-guide-screw-direction=\{[\s\S]*displayedScrewCueDirection[\s\S]*role="img"[\s\S]*screwTightenDirectionAria[\s\S]*screwLoosenDirectionAria/,
+  'the breathing screw cue should expose an accessible clockwise or counterclockwise arrow for the active operation',
+);
+
+assert.match(
+  focusInteractionSource,
+  /demoFrame\?\.activeControl === 'screw'[\s\S]*demoHighlightControls\.includes\('screw'\)[\s\S]*data-piston-demo-screw-direction=\{demoScrewCueDirection \?\? undefined\}/,
+  'Demo mode should render the clockwise or counterclockwise screw arrow during its screw stages',
+);
+assert.match(
+  workbenchSource,
+  /handlePistonOscillationGuideHeightConfirmed[\s\S]*type: 'confirmHeight'[\s\S]*heightMm: snapshot\.equilibriumHeightMm[\s\S]*leftHandSupporting: snapshot\.spaceHeld[\s\S]*rightHandReleased: !snapshot\.mouseHeld/,
+  'height confirmation should commit the same physical reading that the action guard accepted',
 );
 assert.match(
   workbenchSource,
@@ -598,9 +645,24 @@ assert.match(
   'Demo playback should not retain the Guide acquisition callback bridge',
 );
 assert.match(
+  acquisitionBridgeSource,
+  /case 'curvePaused':[\s\S]*session\.step !== 'pauseAvailable'[\s\S]*type: 'updateRecording'[\s\S]*type: 'pauseRecording'[\s\S]*type: 'curveFreezeComplete'/,
+  'Guide Pause must calculate update, pause, and freeze as one accepted acquisition transition',
+);
+assert.match(
   workbenchSource,
-  /const baselineStep = guideStep === 'baselineStabilizing'[\s\S]*guideStep === 'crossRunStabilizing'[\s\S]*expectedBaselineHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[\s\S]*expectedTrueBaselineHeightMm = createPistonOscillationLoadedEquilibriumState[\s\S]*snapshot\?\.hoseState !== 'connected'[\s\S]*snapshot\.lockingScrewState !== 'loose'[\s\S]*snapshot\.spaceHeld[\s\S]*snapshot\.mouseHeld[\s\S]*snapshot\.pistonPhase !== 'idle'[\s\S]*snapshot\.thermodynamicState\.phase !== 'sealed-loaded'[\s\S]*Math\.abs\(snapshot\.equilibriumHeightMm - expectedTrueBaselineHeightMm\) > 0\.025[\s\S]*type: 'baselineStabilized'/,
-  'baseline stabilization should wait for the current or preceding Run to reach its true loaded equilibrium',
+  /commitPistonOscillationGuideAcquisitionSession = \([\s\S]*currentFiles\[fileIndex\] !== liveFile[\s\S]*filesRef\.current = nextFiles;[\s\S]*setFiles\(nextFiles\)[\s\S]*handlePistonOscillationGuideAcquisitionEvent = \([\s\S]*transitionPistonOscillationGuideAcquisitionSession\([\s\S]*nextSession === null[\s\S]*!commitPistonOscillationGuideAcquisitionSession\(liveFile, nextSession, nowMs\)[\s\S]*return false/,
+  'every Guide acquisition event must compare-and-swap one accepted canonical session before the panel advances',
+);
+assert.match(
+  workbenchSource,
+  /onGuideParameterEdit=\{\(field, value\) => \{[\s\S]*editPistonOscillationGuideParameterWorkbenchState[\s\S]*PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ[\s\S]*PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA[\s\S]*Number\(value\) === expectedValue[\s\S]*commitPistonOscillationGuideParameterWorkbenchState/,
+  'correct Guide parameter values must commit in the same update instead of waiting for a later blur',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /baselineStabilizing|crossRunStabilizing|baselineStabilized|expectedTrueBaselineHeightMm/,
+  'Workbench must not recreate the removed hidden baseline timer or its synthetic transition event',
 );
 assert.doesNotMatch(workbenchSource, /PistonOscillationRealtimeUnavailable/);
 assert.match(
@@ -679,8 +741,18 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /if \(!isPistonOscillationGuideStrongReminderActive\(\)\) \{[\s\S]*setPistonOscillationGuidePulseElapsedMs\(0\)[\s\S]*if \(!releaseOnly\) \{[\s\S]*clearPistonOscillationGuideFeedback\(\)/,
-  'starting an allowed continuous gesture must not clear a strong reminder that already belongs to the current target',
+  /const releaseOnly = action === 'platformRelease' \|\| action === 'leftHandRelease';[\s\S]*if \(guard\.allowed\) \{[\s\S]*!releaseOnly[\s\S]*!isPistonOscillationGuideStrongReminderActive\(\)[\s\S]*setPistonOscillationGuidePulseElapsedMs\(0\)[\s\S]*if \(!releaseOnly\) \{[\s\S]*clearPistonOscillationGuideFeedback\(\)/,
+  'allowed release-only gestures should preserve the guidance clock and feedback while other accepted operations advance it',
+);
+assert.match(
+  workbenchSource,
+  /showPistonOscillationGuideFeedback\(message, 'warning', 'guide'\);[\s\S]*if \(!isPistonOscillationGuideStrongReminderActive\(\)\) \{[\s\S]*setPistonOscillationGuidePulseElapsedMs\(0\)/,
+  'a rejected generic Guide action should restart only the ordinary reminder clock when no strong reminder is active',
+);
+assert.match(
+  workbenchSource,
+  /feedback\.kind === 'boundaryBlocked'[\s\S]*screwBoundaryBlockedTighten[\s\S]*screwBoundaryBlockedLoosen[\s\S]*screwWrongDirectionTighten[\s\S]*screwWrongDirectionLoosen[\s\S]*feedback\.kind === 'boundaryBlocked' \? 'warning' : 'info'/,
+  'screw direction feedback should remain informational until the protected functional boundary is blocked',
 );
 assert.match(
   workbenchSource,
@@ -773,8 +845,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /event\.reason === 'underpressure'[\s\S]*pistonOscillationGuidePressureRangeLessonTimerRef\.current = window\.setTimeout[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'redoOverpressureAttempt'[\s\S]*type: 'discardAcquisitionAttempt'[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'selectPeriodRange'[\s\S]*selection\?\.issue === null && selection\.periodCount >= 3[\s\S]*openPistonOscillationGuideOneTimeLesson\('multiPeriod'\)/,
+  /event\.reason === 'underpressure'[\s\S]*pistonOscillationGuidePressureRangeLessonTimerRef\.current = window\.setTimeout[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'redoOverpressureAttempt'[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'selectPeriodRange'[\s\S]*selection\?\.issue === null && selection\.periodCount >= 3[\s\S]*openPistonOscillationGuideOneTimeLesson\('multiPeriod'\)/,
   'each new lesson must open once at its approved completed-action checkpoint',
+);
+assert.match(
+  acquisitionBridgeSource,
+  /case 'redoOverpressureAttempt':[\s\S]*type: 'discardAcquisitionAttempt'/,
+  'the accepted overpressure Redo checkpoint must discard the invalid attempt before its lesson opens',
 );
 assert.match(
   workbenchSource,

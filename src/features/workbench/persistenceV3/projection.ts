@@ -86,6 +86,9 @@ import {
   normalizeWorkbenchPanelKeys,
 } from '../workbenchPanelRegistry.ts';
 import {
+  repairPistonOscillationModeSessionExclusivity,
+} from '../../../domain/pistonOscillation/pistonOscillationModeSessionExclusivity.ts';
+import {
   canonicalizeWorkbenchPersistenceV3Json,
 } from './fingerprint.ts';
 import {
@@ -3082,24 +3085,31 @@ const reprojectPistonOscillationFile = (
     )
       ? ui.previewCameraPreset as typeof fallback.previewCameraPreset
       : fallback.previewCameraPreset;
-  const guideSession = normalizePistonOscillationGuideSession(
+  const normalizedGuideSession = normalizePistonOscillationGuideSession(
     projection.fields.authoritative.guideSession,
   );
   const demoSession = normalizePistonOscillationDemoSession(
     projection.fields.authoritative.demoSession,
   );
   const freeSessionSource = projection.fields.authoritative.freeSession;
-  const freeSession = normalizePistonOscillationFreeSession(freeSessionSource);
+  const normalizedFreeSession = normalizePistonOscillationFreeSession(freeSessionSource);
+  const modeSessionRepair = repairPistonOscillationModeSessionExclusivity(
+    normalizedGuideSession,
+    normalizedFreeSession,
+  );
+  const guideSession = modeSessionRepair.guideSession;
+  const freeSession = modeSessionRepair.freeSession;
   const migrated = !isPlainRecord(freeSessionSource) ||
     projection.fields.authoritative.pistonGuideSessionProjectionVersion !==
       PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
   const expectedDerivedCache = createPistonOscillationGuideDerivedCache(
     guideSession,
   );
-  const repaired = !migrated && !areCanonicalValuesEqual(
+  const derivedCacheRepaired = !migrated && !areCanonicalValuesEqual(
     projection.fields.derived.pistonGuideDataProcessingCache,
     expectedDerivedCache,
   );
+  const repaired = derivedCacheRepaired || modeSessionRepair.repaired;
   const lessonIntroAutoShown =
     projection.fields.authoritative.lessonIntroAutoShown === true;
   return {
@@ -3128,6 +3138,8 @@ const reprojectPistonOscillationFile = (
     },
     migrated,
     repaired,
+    derivedCacheRepaired,
+    modeSessionExclusivityRepaired: modeSessionRepair.repaired,
   };
 };
 
@@ -3279,19 +3291,41 @@ export const reprojectWorkbenchPersistenceV3File = (
                   ? 'repaired-cache'
                   : 'exact',
               result.file,
-              result.repaired
-                ? [createFileDiagnostic({
-                    fileId: projection.fileId,
-                    fileKind: projection.fileKind,
-                    phase: 'restore',
-                    category: 'derived-cache',
-                    code: 'persistence-v3-piston-guide-cache-repaired',
-                    message:
-                      'Piston-oscillation derived processing values were rebuilt from recorded observations and endpoint sample indices.',
-                    fieldPath:
-                      'fields.derived.pistonGuideDataProcessingCache',
-                  })]
-                : [],
+              [
+                ...(result.derivedCacheRepaired
+                  ? [createFileDiagnostic({
+                      fileId: projection.fileId,
+                      fileKind: projection.fileKind,
+                      phase: 'restore',
+                      category: 'derived-cache',
+                      code: 'persistence-v3-piston-guide-cache-repaired',
+                      message:
+                        'Piston-oscillation derived processing values were rebuilt from recorded observations and endpoint sample indices.',
+                      fieldPath:
+                        'fields.derived.pistonGuideDataProcessingCache',
+                    })]
+                  : []),
+                ...(result.modeSessionExclusivityRepaired
+                  ? [createWorkbenchPersistenceV3Diagnostic({
+                      severity: 'warning',
+                      phase: 'restore',
+                      category: 'relationship',
+                      code: 'persistence-v3-piston-mode-exclusivity-repaired',
+                      message:
+                        'Conflicting active Guide and Free sessions were repaired by pausing Free Mode without discarding its progress.',
+                      aggregate: {
+                        kind: 'piston-oscillation-document',
+                        id: projection.fileId,
+                        fileId: projection.fileId,
+                        fileKind: projection.fileKind,
+                      },
+                      retry: 'never',
+                      recovery: 'none',
+                      fieldPath: 'fields.authoritative.freeSession.status',
+                      mode: 'free',
+                    })]
+                  : []),
+              ],
             );
       }
       default:
