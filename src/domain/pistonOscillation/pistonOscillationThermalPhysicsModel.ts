@@ -128,6 +128,15 @@ const getVolumeM3 = (pistonHeightM: number) => (
     * pistonHeightM
 );
 
+const getThermalRelaxationTimeFromNormalizedConfigS = (
+  totalVolumeM3: number,
+  config: PistonOscillationThermalModelConfig,
+) => {
+  const referenceVolumeM3 = getVolumeM3(config.referenceGraduatedHeightM);
+  return config.relaxationTimeAtReferenceHeightS
+    * (totalVolumeM3 / referenceVolumeM3) ** config.volumeExponent;
+};
+
 export const getPistonOscillationThermalRelaxationTimeS = (
   totalVolumeM3: number,
   configInput: Partial<PistonOscillationThermalModelConfig> = {},
@@ -139,9 +148,7 @@ export const getPistonOscillationThermalRelaxationTimeS = (
     Number.MIN_VALUE,
     1,
   );
-  const referenceVolumeM3 = getVolumeM3(config.referenceGraduatedHeightM);
-  return config.relaxationTimeAtReferenceHeightS
-    * (normalizedVolumeM3 / referenceVolumeM3) ** config.volumeExponent;
+  return getThermalRelaxationTimeFromNormalizedConfigS(normalizedVolumeM3, config);
 };
 
 const createThermodynamicState = (input: {
@@ -155,7 +162,11 @@ const createThermodynamicState = (input: {
   thermalConfig: PistonOscillationThermalModelConfig;
 }): PistonOscillationThermodynamicState => {
   const pistonHeightM = assertFiniteRange('pistonHeightM', input.pistonHeightM, 0, 0.2);
-  const totalVolumeM3 = getVolumeM3(pistonHeightM);
+  const graduatedCylinderVolumeM3 = getPistonCylinderAreaM2(
+    PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
+  ) * pistonHeightM;
+  const totalVolumeM3 = graduatedCylinderVolumeM3
+    + PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3;
   const temperatureK = assertFiniteRange('temperatureK', input.temperatureK, 1, 2_000);
   const gasAmountMol = assertFiniteRange('gasAmountMol', input.gasAmountMol, 1e-12, 10);
   const molarHeatCapacityAtConstantVolumeJPerMolK =
@@ -177,8 +188,7 @@ const createThermodynamicState = (input: {
     ),
     pistonHeightM,
     velocityMPerS: assertFinite('velocityMPerS', input.velocityMPerS),
-    graduatedCylinderVolumeM3: totalVolumeM3
-      - PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3,
+    graduatedCylinderVolumeM3,
     sealedDeadVolumeM3: PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3,
     totalVolumeM3,
     gasAmountMol,
@@ -210,7 +220,10 @@ const getThermalEnergyDerivative = (input: {
   physicsConfig: PistonOscillationPhysicsConfig;
   thermalConfig: PistonOscillationThermalModelConfig;
 }): ThermalEnergyDerivative => {
-  const relaxationTimeS = getPistonOscillationThermalRelaxationTimeS(
+  // The enclosing press/release operation normalized this immutable config
+  // once. Revalidating and reallocating it for every RK4 derivative made a
+  // release block the UI without changing any physical result.
+  const relaxationTimeS = getThermalRelaxationTimeFromNormalizedConfigS(
     input.totalVolumeM3,
     input.thermalConfig,
   );
@@ -350,6 +363,20 @@ interface ThermalMotionDerivative {
   heatTransferRateW: number;
 }
 
+interface ThermalMotionEnvironment {
+  equilibriumHeightM: number;
+  gasAmountMol: number;
+  physicsConfig: PistonOscillationPhysicsConfig;
+  thermalConfig: PistonOscillationThermalModelConfig;
+  cylinderAreaM2: number;
+  thermalReferenceVolumeM3: number;
+  gasHeatCapacityJPerK: number;
+  virtualHand?: {
+    targetDownwardDisplacementM: number;
+    stiffnessNPerM: number;
+  };
+}
+
 const addDerivative = (
   state: ThermalMotionState,
   derivative: ThermalMotionDerivative,
@@ -362,101 +389,94 @@ const addDerivative = (
     state.cumulativeHeatTransferJ + derivative.heatTransferRateW * scaleS,
 });
 
-const getMotionDerivative = (input: {
-  state: ThermalMotionState;
-  equilibriumHeightM: number;
-  gasAmountMol: number;
-  physicsConfig: PistonOscillationPhysicsConfig;
-  thermalConfig: PistonOscillationThermalModelConfig;
-  virtualHand?: {
-    targetDownwardDisplacementM: number;
-    stiffnessNPerM: number;
-  };
-}): ThermalMotionDerivative => {
-  const pistonHeightM = input.equilibriumHeightM + input.state.displacementM;
+const getMotionDerivative = (
+  state: ThermalMotionState,
+  environment: ThermalMotionEnvironment,
+): ThermalMotionDerivative => {
+  const pistonHeightM = environment.equilibriumHeightM + state.displacementM;
   if (!Number.isFinite(pistonHeightM) || pistonHeightM < 0) {
     throw new RangeError('The piston motion cannot pass below the 0 mm stop.');
   }
-  const cylinderAreaM2 = getPistonCylinderAreaM2(
-    PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
-  );
-  const totalVolumeM3 = getVolumeM3(pistonHeightM);
-  const pressurePa = input.gasAmountMol
+  const totalVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
+    + environment.cylinderAreaM2 * pistonHeightM;
+  const pressurePa = environment.gasAmountMol
     * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
-    * input.state.temperatureK
+    * state.temperatureK
     / totalVolumeM3;
-  const pressureForceN = cylinderAreaM2
-    * (pressurePa - input.physicsConfig.ambientPressurePa);
-  const gravityForceN = input.physicsConfig.movingMassKg
+  const pressureForceN = environment.cylinderAreaM2
+    * (pressurePa - environment.physicsConfig.ambientPressurePa);
+  const gravityForceN = environment.physicsConfig.movingMassKg
     * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2;
-  const dampingForceN = input.physicsConfig.linearDampingNsPerM
-    * input.state.velocityMPerS;
-  const downwardDisplacementM = input.equilibriumHeightM - pistonHeightM;
-  const virtualHandForceN = input.virtualHand
-    ? input.virtualHand.stiffnessNPerM * Math.max(
+  const dampingForceN = environment.physicsConfig.linearDampingNsPerM
+    * state.velocityMPerS;
+  const downwardDisplacementM = environment.equilibriumHeightM - pistonHeightM;
+  const virtualHandForceN = environment.virtualHand
+    ? environment.virtualHand.stiffnessNPerM * Math.max(
         0,
-        input.virtualHand.targetDownwardDisplacementM - downwardDisplacementM,
+        environment.virtualHand.targetDownwardDisplacementM - downwardDisplacementM,
       )
     : 0;
-  const thermalDerivative = getThermalEnergyDerivative({
-    temperatureK: input.state.temperatureK,
-    totalVolumeM3,
-    volumeRateM3PerS: cylinderAreaM2 * input.state.velocityMPerS,
-    gasAmountMol: input.gasAmountMol,
-    physicsConfig: input.physicsConfig,
-    thermalConfig: input.thermalConfig,
-  });
+  const relaxationTimeS = environment.thermalConfig.relaxationTimeAtReferenceHeightS
+    * (totalVolumeM3 / environment.thermalReferenceVolumeM3)
+      ** environment.thermalConfig.volumeExponent;
+  const temperatureRateFromWorkKPerS = -(
+    environment.physicsConfig.gamma - 1
+  ) * state.temperatureK
+    * (environment.cylinderAreaM2 * state.velocityMPerS)
+    / totalVolumeM3;
+  const temperatureRateFromHeatKPerS = (
+    environment.physicsConfig.ambientTemperatureK - state.temperatureK
+  ) / relaxationTimeS;
   const derivative = {
-    displacementRateMPerS: input.state.velocityMPerS,
+    displacementRateMPerS: state.velocityMPerS,
     velocityRateMPerS2: (
       pressureForceN - gravityForceN - dampingForceN - virtualHandForceN
-    ) / input.physicsConfig.movingMassKg,
-    ...thermalDerivative,
+    ) / environment.physicsConfig.movingMassKg,
+    temperatureRateKPerS:
+      temperatureRateFromWorkKPerS + temperatureRateFromHeatKPerS,
+    heatTransferRateW:
+      environment.gasHeatCapacityJPerK * temperatureRateFromHeatKPerS,
   };
-  for (const value of Object.values(derivative)) assertFinite('motion derivative', value);
+  if (
+    !Number.isFinite(derivative.displacementRateMPerS)
+    || !Number.isFinite(derivative.velocityRateMPerS2)
+    || !Number.isFinite(derivative.temperatureRateKPerS)
+    || !Number.isFinite(derivative.heatTransferRateW)
+  ) {
+    throw new RangeError('motion derivative must be finite.');
+  }
   return derivative;
 };
 
-const stepMotionRungeKutta = (input: {
-  state: ThermalMotionState;
-  dtS: number;
-  equilibriumHeightM: number;
-  gasAmountMol: number;
-  physicsConfig: PistonOscillationPhysicsConfig;
-  thermalConfig: PistonOscillationThermalModelConfig;
-  virtualHand?: {
-    targetDownwardDisplacementM: number;
-    stiffnessNPerM: number;
-  };
-}) => {
-  const derivative = (state: ThermalMotionState) => getMotionDerivative({
-    ...input,
-    state,
-  });
-  const k1 = derivative(input.state);
-  const k2 = derivative(addDerivative(input.state, k1, input.dtS / 2));
-  const k3 = derivative(addDerivative(input.state, k2, input.dtS / 2));
-  const k4 = derivative(addDerivative(input.state, k3, input.dtS));
+const stepMotionRungeKutta = (
+  state: ThermalMotionState,
+  dtS: number,
+  environment: ThermalMotionEnvironment,
+) => {
+  const k1 = getMotionDerivative(state, environment);
+  const k2 = getMotionDerivative(addDerivative(state, k1, dtS / 2), environment);
+  const k3 = getMotionDerivative(addDerivative(state, k2, dtS / 2), environment);
+  const k4 = getMotionDerivative(addDerivative(state, k3, dtS), environment);
   return {
-    displacementM: input.state.displacementM + input.dtS / 6 * (
+    displacementM: state.displacementM + dtS / 6 * (
       k1.displacementRateMPerS
       + 2 * k2.displacementRateMPerS
       + 2 * k3.displacementRateMPerS
       + k4.displacementRateMPerS
     ),
-    velocityMPerS: input.state.velocityMPerS + input.dtS / 6 * (
+    velocityMPerS: state.velocityMPerS + dtS / 6 * (
       k1.velocityRateMPerS2
       + 2 * k2.velocityRateMPerS2
       + 2 * k3.velocityRateMPerS2
       + k4.velocityRateMPerS2
     ),
-    temperatureK: input.state.temperatureK + input.dtS / 6 * (
+    temperatureK: state.temperatureK + dtS / 6 * (
       k1.temperatureRateKPerS
       + 2 * k2.temperatureRateKPerS
       + 2 * k3.temperatureRateKPerS
       + k4.temperatureRateKPerS
     ),
-    cumulativeHeatTransferJ: input.state.cumulativeHeatTransferJ + input.dtS / 6 * (
+    cumulativeHeatTransferJ: state.cumulativeHeatTransferJ + dtS / 6 * (
       k1.heatTransferRateW
       + 2 * k2.heatTransferRateW
       + 2 * k3.heatTransferRateW
@@ -470,6 +490,7 @@ export interface PistonOscillationVirtualHandPressInput {
   equilibriumHeightMm: number;
   targetDownwardDisplacementMm: number;
   elapsedS: number;
+  preventUpwardMotion?: boolean;
 }
 
 /**
@@ -543,24 +564,44 @@ export const advancePistonOscillationVirtualHandThermodynamicState = (
     );
     const substepCount = Math.max(1, Math.ceil(elapsedS / maximumStepS));
     const dtS = elapsedS / substepCount;
+    const motionEnvironment: ThermalMotionEnvironment = {
+      equilibriumHeightM,
+      gasAmountMol: input.referenceState.gasAmountMol,
+      physicsConfig,
+      thermalConfig,
+      cylinderAreaM2,
+      thermalReferenceVolumeM3: getVolumeM3(
+        thermalConfig.referenceGraduatedHeightM,
+      ),
+      gasHeatCapacityJPerK: input.referenceState.gasAmountMol
+        * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+        / (physicsConfig.gamma - 1),
+      virtualHand: {
+        targetDownwardDisplacementM,
+        stiffnessNPerM: virtualHandConfig.handStiffnessNPerM,
+      },
+    };
     for (let substep = 0; substep < substepCount; substep += 1) {
-      state = stepMotionRungeKutta({
-        state,
-        dtS,
-        equilibriumHeightM,
-        gasAmountMol: input.referenceState.gasAmountMol,
-        physicsConfig,
-        thermalConfig,
-        virtualHand: {
-          targetDownwardDisplacementM,
-          stiffnessNPerM: virtualHandConfig.handStiffnessNPerM,
-        },
-      });
+      state = stepMotionRungeKutta(state, dtS, motionEnvironment);
     }
+  }
+  const nextPistonHeightM = equilibriumHeightM + state.displacementM;
+  if (
+    input.preventUpwardMotion
+    && nextPistonHeightM > input.referenceState.pistonHeightM
+  ) {
+    return advancePistonOscillationPrescribedThermodynamicState({
+      referenceState: input.referenceState,
+      pistonHeightMm: input.referenceState.pistonHeightM * 1_000,
+      velocityMmPerS: 0,
+      elapsedS,
+      physicsConfig,
+      thermalConfig,
+    });
   }
   return createThermodynamicState({
     nominalLockedHeightM: input.referenceState.nominalLockedHeightM,
-    pistonHeightM: equilibriumHeightM + state.displacementM,
+    pistonHeightM: nextPistonHeightM,
     velocityMPerS: state.velocityMPerS,
     gasAmountMol: input.referenceState.gasAmountMol,
     temperatureK: state.temperatureK,
@@ -705,6 +746,19 @@ export const simulatePistonOscillationThermalRelease = (
     cumulativeHeatTransferJ:
       activatedInitialState.thermal.cumulativeHeatTransferJ,
   };
+  const motionEnvironment: ThermalMotionEnvironment = {
+    equilibriumHeightM: equilibrium.equilibriumHeightM,
+    gasAmountMol: equilibrium.gasAmountMol,
+    physicsConfig,
+    thermalConfig,
+    cylinderAreaM2: equilibrium.cylinderAreaM2,
+    thermalReferenceVolumeM3: getVolumeM3(
+      thermalConfig.referenceGraduatedHeightM,
+    ),
+    gasHeatCapacityJPerK: equilibrium.gasAmountMol
+      * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+      / (physicsConfig.gamma - 1),
+  };
   const samples: PistonOscillationTrajectorySample[] = [];
   for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
     samples.push(createTrajectorySample({
@@ -715,14 +769,7 @@ export const simulatePistonOscillationThermalRelease = (
     }));
     if (sampleIndex === sampleCount - 1) break;
     for (let substep = 0; substep < integrationSubstepsPerSample; substep += 1) {
-      state = stepMotionRungeKutta({
-        state,
-        dtS: integrationStepS,
-        equilibriumHeightM: equilibrium.equilibriumHeightM,
-        gasAmountMol: equilibrium.gasAmountMol,
-        physicsConfig,
-        thermalConfig,
-      });
+      state = stepMotionRungeKutta(state, integrationStepS, motionEnvironment);
     }
   }
   const pressuresKpa = samples.map((sample) => sample.pressurePa / 1_000);
@@ -746,7 +793,7 @@ export const simulatePistonOscillationThermalRelease = (
     diagnostics: {
       minimumPressureKpa,
       maximumPressureKpa,
-      withinIdealSensorRange:
+      withinSensorRange:
         minimumPressureKpa >= PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA
         && maximumPressureKpa <= PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
     },

@@ -26,12 +26,13 @@ import {
 } from './pistonOscillationDataProcessingModel.ts';
 import {
   createPistonOscillationAtmosphericLockedState,
-  createPistonOscillationEquilibriumState,
-  createPistonOscillationLoadedGasState,
   normalizePistonOscillationThermodynamicState,
   resolvePistonOscillationStablePhysicalState,
   type PistonOscillationThermodynamicState,
 } from './pistonOscillationPhysicsEngine.ts';
+import {
+  createLegacyPistonOscillationLooseConnectedThermodynamicState,
+} from './pistonOscillationLegacyCompatibility.ts';
 
 export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 5 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
@@ -1169,11 +1170,8 @@ const normalizeInstrumentState = (
         'sealed-locked-atmospheric',
       );
     }
-    const legacyEquilibrium = createPistonOscillationEquilibriumState(
+    return createLegacyPistonOscillationLooseConnectedThermodynamicState(
       equilibriumHeightMm,
-    );
-    return createPistonOscillationLoadedGasState(
-      legacyEquilibrium,
       pistonOffsetMm,
     );
   })();

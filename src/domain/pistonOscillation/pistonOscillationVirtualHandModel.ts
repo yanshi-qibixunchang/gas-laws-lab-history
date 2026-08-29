@@ -1,5 +1,14 @@
 export const PISTON_OSCILLATION_VIRTUAL_HAND_MODEL_VERSION =
-  'piston-oscillation-virtual-hand-v1' as const;
+  'piston-oscillation-virtual-hand-v2' as const;
+
+/**
+ * Interaction-controller thresholds, not apparatus constants. A meaningful
+ * downward pointer command temporarily prevents the force solver from moving
+ * the piston back through the user's advancing hands. Once pointer movement
+ * pauses, the ordinary compliant force response is restored.
+ */
+export const PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX = 0.2;
+export const PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_HOLD_MS = 80;
 
 /**
  * Interaction calibration only. These values describe how the mouse gesture

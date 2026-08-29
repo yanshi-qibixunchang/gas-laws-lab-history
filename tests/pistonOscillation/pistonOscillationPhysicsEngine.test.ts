@@ -15,18 +15,17 @@ import {
   createPistonOscillationAdiabaticStateFromReference,
   createPistonOscillationAtmosphericLockedState,
   createPistonOscillationEquilibriumState,
-  createPistonOscillationLoadedGasState,
+  createPistonOscillationIdealAdiabaticLoadedGasState,
   createPistonOscillationLoadedEquilibriumState,
-  findPistonOscillationFallingTriggerTimeS,
   getPistonCylinderAreaM2,
-  getPistonOscillationInstantaneousThermodynamicState,
+  getPistonOscillationIdealAdiabaticInstantaneousState,
   getPistonOscillationSettlingStateAtProgress,
   getPistonOscillationSmallSignalFrequencyHz,
   getPistonOscillationSmallSignalFrequencyFromLockedHeightHz,
   getPistonOscillationTrajectorySampleAt,
   normalizePistonOscillationPhysicsConfig,
   normalizePistonOscillationThermodynamicState,
-  simulatePistonOscillationRelease,
+  simulatePistonOscillationIdealAdiabaticRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
@@ -170,11 +169,11 @@ assert.ok(
 );
 assert.ok(compressedBeforeSettling80.temperatureK > lockedAtmospheric80.temperatureK);
 
-const instantaneousPressedState = getPistonOscillationInstantaneousThermodynamicState(
+const instantaneousPressedState = getPistonOscillationIdealAdiabaticInstantaneousState(
   80,
   -10.5,
 );
-const equivalentReleaseState = simulatePistonOscillationRelease({
+const equivalentReleaseState = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -10.5,
 }).samples[0];
@@ -187,12 +186,12 @@ assert.ok(
 );
 assert.equal(instantaneousPressedState.config.gamma, PISTON_OSCILLATION_AIR_ADIABATIC_INDEX);
 assert.throws(
-  () => getPistonOscillationInstantaneousThermodynamicState(5, -6),
+  () => getPistonOscillationIdealAdiabaticInstantaneousState(5, -6),
   /cannot pass below the 0 mm stop/,
 );
 
 const trajectories = [60, 70, 80].map((equilibriumHeightMm) => (
-  simulatePistonOscillationRelease({
+  simulatePistonOscillationIdealAdiabaticRelease({
     equilibriumHeightMm,
     initialDisplacementMm: -8,
   })
@@ -205,9 +204,6 @@ for (const trajectory of trajectories) {
     (trajectory.samples[0]?.pressurePa ?? 0) > 105_000,
     'the pressed state must begin above the 105 kPa falling trigger',
   );
-  const triggerTimeS = findPistonOscillationFallingTriggerTimeS(trajectory, 105);
-  assert.ok(triggerTimeS !== null && triggerTimeS > 0 && triggerTimeS < 0.1);
-
   const atRelease = getPistonOscillationTrajectorySampleAt(trajectory, 0);
   const afterDecay = getPistonOscillationTrajectorySampleAt(trajectory, 0.8);
   assert.equal(atRelease.displacementM, -0.008);
@@ -222,7 +218,7 @@ for (const trajectory of trajectories) {
     ) < 1e-9,
     'samples requested after the simulated window must remain continuous',
   );
-  assert.equal(trajectory.diagnostics.withinIdealSensorRange, true);
+  assert.equal(trajectory.diagnostics.withinSensorRange, true);
   const sampledPressuresKpa = trajectory.samples.map((sample) => sample.pressurePa / 1_000);
   assert.equal(
     trajectory.diagnostics.minimumPressureKpa,
@@ -265,7 +261,7 @@ for (const trajectory of trajectories) {
   }
 }
 
-const overRangeTrajectory = simulatePistonOscillationRelease({
+const overRangeTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -8,
 }, {
@@ -276,12 +272,12 @@ assert.ok(
     > PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
 );
 assert.equal(
-  overRangeTrajectory.diagnostics.withinIdealSensorRange,
+  overRangeTrajectory.diagnostics.withinSensorRange,
   false,
   'diagnostics must reject a trajectory that exceeds the ideal sensor range',
 );
 
-const lowSampleRateTrajectory = simulatePistonOscillationRelease({
+const lowSampleRateTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -8,
 }, {
@@ -406,7 +402,7 @@ const warmer = createPistonOscillationEquilibriumState(80, {
 });
 assert.ok(warmer.gasAmountMol < equilibrium80.gasAmountMol);
 
-const repeated = simulatePistonOscillationRelease({
+const repeated = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -8,
 }, DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG);
@@ -463,47 +459,47 @@ for (const invalidHeightMm of [Number.NaN, -0.001, 80.001]) {
 }
 
 assert.throws(
-  () => simulatePistonOscillationRelease({
+  () => simulatePistonOscillationIdealAdiabaticRelease({
     equilibriumHeightMm: 5,
     initialDisplacementMm: -8,
   }),
   /initialDisplacementMm/,
 );
 assert.throws(
-  () => simulatePistonOscillationRelease({
+  () => simulatePistonOscillationIdealAdiabaticRelease({
     equilibriumHeightMm: 80,
     initialDisplacementMm: -8,
   }, { gamma: 1 }),
   /gamma must be greater than 1/,
 );
 assert.throws(
-  () => simulatePistonOscillationRelease({
+  () => simulatePistonOscillationIdealAdiabaticRelease({
     equilibriumHeightMm: 80,
     initialDisplacementMm: -8,
   }, { sensorSampleRateHz: Number.NaN }),
   /sensorSampleRateHz/,
 );
 assert.throws(
-  () => simulatePistonOscillationRelease({
+  () => simulatePistonOscillationIdealAdiabaticRelease({
     equilibriumHeightMm: 80,
     initialDisplacementMm: 0.001,
   }),
   /initialDisplacementMm/,
 );
 assert.throws(
-  () => simulatePistonOscillationRelease({
+  () => simulatePistonOscillationIdealAdiabaticRelease({
     equilibriumHeightMm: 80,
     initialDisplacementMm: -80.001,
   }),
   /initialDisplacementMm/,
 );
-const forceBalancedDeepPressTrajectory = simulatePistonOscillationRelease({
+const forceBalancedDeepPressTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -18,
 });
 assert.equal(forceBalancedDeepPressTrajectory.initialDisplacementM, -0.018);
 const highVelocityEquilibrium = createPistonOscillationEquilibriumState(60);
-const positiveHighVelocityState = createPistonOscillationLoadedGasState(
+const positiveHighVelocityState = createPistonOscillationIdealAdiabaticLoadedGasState(
   highVelocityEquilibrium,
   0,
   2_380,
@@ -515,13 +511,13 @@ const negativeHighVelocityState = createPistonOscillationAdiabaticStateFromRefer
   -2_380,
 );
 assert.equal(negativeHighVelocityState.velocityMPerS, -2.38);
-const highInitialVelocityTrajectory = simulatePistonOscillationRelease({
+const highInitialVelocityTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -8,
   initialVelocityMmPerS: 2_380,
 });
 assert.equal(highInitialVelocityTrajectory.initialVelocityMPerS, 2.38);
-const firstFreeRecordingTrajectory = simulatePistonOscillationRelease({
+const firstFreeRecordingTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
   lockedHeightMm: 80,
   initialDisplacementMm: -12,
 });
@@ -529,7 +525,7 @@ const firstFreeRecordingPeak = firstFreeRecordingTrajectory.samples.reduce(
   (peak, sample) => sample.displacementM > peak.displacementM ? sample : peak,
   firstFreeRecordingTrajectory.samples[0]!,
 );
-const firstFreeRecordingPeakState = createPistonOscillationLoadedGasState(
+const firstFreeRecordingPeakState = createPistonOscillationIdealAdiabaticLoadedGasState(
   firstFreeRecordingTrajectory.equilibrium,
   firstFreeRecordingPeak.displacementM * 1_000,
   firstFreeRecordingPeak.velocityMPerS * 1_000,
@@ -542,7 +538,7 @@ assert.ok(Number.isFinite(firstFreeRecordingPeakState.pressurePa));
 assert.ok(Number.isFinite(firstFreeRecordingPeakState.temperatureK));
 for (const invalidVelocity of [Number.NaN, Number.POSITIVE_INFINITY]) {
   assert.throws(
-    () => createPistonOscillationLoadedGasState(
+    () => createPistonOscillationIdealAdiabaticLoadedGasState(
       highVelocityEquilibrium,
       0,
       invalidVelocity,
@@ -558,7 +554,7 @@ for (const invalidVelocity of [Number.NaN, Number.POSITIVE_INFINITY]) {
     /velocityMmPerS must be a finite number/,
   );
   assert.throws(
-    () => simulatePistonOscillationRelease({
+    () => simulatePistonOscillationIdealAdiabaticRelease({
       equilibriumHeightMm: 80,
       initialDisplacementMm: -8,
       initialVelocityMmPerS: invalidVelocity,

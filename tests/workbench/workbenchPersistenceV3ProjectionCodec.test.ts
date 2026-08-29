@@ -61,7 +61,6 @@ import {
 import {
   advancePistonOscillationPeriodRun,
   createPistonOscillationRawMeasurementRecord,
-  createPistonOscillationSensorObservationSnapshot,
   createPistonOscillationDataProcessingSession,
   findPistonOscillationExtrema,
   formatPistonOscillationEndpointTime,
@@ -76,16 +75,8 @@ import {
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
-  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
-  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-  createPistonOscillationEquilibriumState,
-} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
-import {
-  createPistonOscillationAirMaterialSnapshot,
-} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
-import {
-  createPistonOscillationEquivalentLossSnapshot,
-} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+  createPistonOscillationCurrentRecordTestArtifacts,
+} from '../pistonOscillation/helpers/pistonOscillationCurrentRecordTestFactory.ts';
 
 const files: WorkbenchFileState[] = [
   createDefaultStandardFile(1),
@@ -2021,34 +2012,26 @@ const createPersistencePistonMeasurement = (
       ) * 100) / 100,
     }),
   );
-  const sensorObservationSnapshot =
-    createPistonOscillationSensorObservationSnapshot({
-      sampleRateHz: 1000,
-      triggerSourceSampleIndex: 0,
-    });
+  const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
+    lockedHeightMm: targetHeightMm,
+    sampleRateHz: 1_000,
+    samples,
+  });
   return createPistonOscillationRawMeasurementRecord({
     recordId: `persistence-guide-${measurementIndex}`,
     capturedAtMs: 10_500 + measurementIndex,
     measurementIndex,
     targetHeightMm,
-    confirmedHeightMm: targetHeightMm,
+    confirmedHeightMm: artifacts.confirmedHeightMm,
     sampleRateHz: 1000,
     triggerThresholdKpa: 105,
     recordedDurationS: 2,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples,
-    sensorObservationSnapshot,
-    physicsSnapshot: {
-      modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-      provenance: 'captured',
-      airMaterial: createPistonOscillationAirMaterialSnapshot(),
-      equivalentLoss: createPistonOscillationEquivalentLossSnapshot(),
-      config: { ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG },
-      equilibrium: createPistonOscillationEquilibriumState(targetHeightMm),
-      initialDisplacementM: 0,
-      initialVelocityMPerS: 0,
-      integrationSubstepsPerSample: 1,
-      triggerTimeS: 0,
-    },
+    pressOperationEvidence: artifacts.pressOperationEvidence,
+    sensorObservationSnapshot: artifacts.sensorObservationSnapshot,
+    physicsSnapshot: artifacts.physicsSnapshot,
   });
 };
 const pistonGuideMeasurements = [

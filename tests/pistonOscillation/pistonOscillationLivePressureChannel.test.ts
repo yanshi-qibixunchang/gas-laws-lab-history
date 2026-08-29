@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  createPistonOscillationAdiabaticStateFromReference,
   getPistonOscillationSettlingStateAtProgress,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
@@ -15,11 +16,17 @@ let notifications = 0;
 const unsubscribe = channel.subscribe(() => {
   notifications += 1;
 });
+const baselineState = getPistonOscillationSettlingStateAtProgress(80, 1);
+const pressedState = createPistonOscillationAdiabaticStateFromReference(
+  baselineState,
+  baselineState.pistonHeightM * 1_000 - 10.5,
+);
 
 const baseline = channel.publishPhysicalState({
   observedAtMs: 1_000.25,
   equilibriumHeightMm: 80,
   displacementMm: 0,
+  thermodynamicState: baselineState,
 });
 assert.ok(baseline);
 assert.equal(baseline?.sampleClockIndex, 1_000);
@@ -31,6 +38,7 @@ const duplicateGridSample = channel.publishPhysicalState({
   observedAtMs: 1_000.8,
   equilibriumHeightMm: 80,
   displacementMm: -10.5,
+  thermodynamicState: pressedState,
 });
 assert.equal(duplicateGridSample, baseline, 'one sensor grid time must yield at most one sample');
 assert.equal(notifications, 1);
@@ -39,6 +47,7 @@ const pressed = channel.publishPhysicalState({
   observedAtMs: 1_001.01,
   equilibriumHeightMm: 80,
   displacementMm: -10.5,
+  thermodynamicState: pressedState,
 });
 assert.ok((pressed?.absolutePressureKpa ?? 0) > (baseline?.absolutePressureKpa ?? 0));
 assert.ok(
@@ -68,6 +77,7 @@ const restarted = channel.publishPhysicalState({
   observedAtMs: 2_000.25,
   equilibriumHeightMm: 80,
   displacementMm: 0,
+  thermodynamicState: baselineState,
 });
 assert.equal(restarted?.sensorState.sessionElapsedS, 0);
 assert.equal(
@@ -82,6 +92,7 @@ assert.throws(
     observedAtMs: -1,
     equilibriumHeightMm: 80,
     displacementMm: 0,
+    thermodynamicState: baselineState,
   }),
   /observedAtMs/,
 );

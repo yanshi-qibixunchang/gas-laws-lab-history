@@ -68,6 +68,11 @@ assert.match(
 );
 assert.match(workbenchSource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
 assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
+assert.match(
+  workbenchSource,
+  /const handlePistonOscillationFreeInstrumentSnapshot = \([\s\S]*if \(snapshot\.pistonPhase !== 'idle'\) return;[\s\S]*updateRuntimeFileById/,
+  'transient piston animation frames must not rerender and persist the entire free-mode workbench',
+);
 
 assert.match(
   workbenchSource,

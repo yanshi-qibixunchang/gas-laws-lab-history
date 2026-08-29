@@ -5,6 +5,7 @@ import {
   continuePistonOscillationCalculationAnswer,
   continuePistonOscillationPeriodAnswer,
   createPistonOscillationDataProcessingSession,
+  createPistonOscillationIncompletePhysicsSnapshot,
   createPistonOscillationPeriodSelection,
   createPistonOscillationRawMeasurementRecord,
   findPistonOscillationExtrema,
@@ -28,36 +29,25 @@ import {
   type PistonOscillationRawMeasurementRecord,
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
-import {
-  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
-  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-  createPistonOscillationEquilibriumState,
+import type {
+  PistonOscillationThermodynamicState,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
   PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
-  createPistonOscillationAirMaterialSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
 import {
   PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
-  createPistonOscillationEquivalentLossSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+import {
+  createPistonOscillationIncompletePressOperationEvidence,
+} from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
+import {
+  createPistonOscillationCurrentRecordTestArtifacts,
+} from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
 
 const SAMPLE_RATE_HZ = 1_000;
 const PERIOD_SAMPLES = [40, 36, 32] as const;
-
-const createPhysicsSnapshot = (targetHeightMm: number) => ({
-  modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-  provenance: 'captured' as const,
-  airMaterial: createPistonOscillationAirMaterialSnapshot(),
-  equivalentLoss: createPistonOscillationEquivalentLossSnapshot(),
-  config: { ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG },
-  equilibrium: createPistonOscillationEquilibriumState(targetHeightMm),
-  initialDisplacementM: 0.004,
-  initialVelocityMPerS: 0,
-  integrationSubstepsPerSample: 4,
-  triggerTimeS: 0.003,
-});
 
 const createOscillationRecord = (
   measurementIndex: number,
@@ -76,17 +66,26 @@ const createOscillationRecord = (
       };
     },
   );
+  const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
+    lockedHeightMm: targetHeightMm,
+    sampleRateHz: SAMPLE_RATE_HZ,
+    samples,
+  });
   return createPistonOscillationRawMeasurementRecord({
     recordId: `processing-${measurementIndex}`,
     capturedAtMs: 1_000 + measurementIndex,
     measurementIndex,
     targetHeightMm,
-    confirmedHeightMm: targetHeightMm,
+    confirmedHeightMm: artifacts.confirmedHeightMm,
     sampleRateHz: SAMPLE_RATE_HZ,
     triggerThresholdKpa: 105,
     recordedDurationS: periodSamples * 4 / SAMPLE_RATE_HZ,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples,
-    physicsSnapshot: createPhysicsSnapshot(targetHeightMm),
+    pressOperationEvidence: artifacts.pressOperationEvidence,
+    sensorObservationSnapshot: artifacts.sensorObservationSnapshot,
+    physicsSnapshot: artifacts.physicsSnapshot,
   });
 };
 
@@ -160,20 +159,31 @@ const fractionalGridSamples: PistonOscillationRawSample[] = Array.from(
   (_, sampleIndex) => ({
     sampleIndex,
     timeS: sampleIndex / SAMPLE_RATE_HZ,
-    absolutePressureKpa: 101.325 + Math.cos(2 * Math.PI * sampleIndex / 30.5),
+    absolutePressureKpa: Math.trunc((
+      101.32 + Math.cos(2 * Math.PI * sampleIndex / 30.5)
+    ) * 100) / 100,
   }),
 );
+const fractionalGridArtifacts = createPistonOscillationCurrentRecordTestArtifacts({
+  lockedHeightMm: 80,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  samples: fractionalGridSamples,
+});
 const fractionalGridRecord = createPistonOscillationRawMeasurementRecord({
   recordId: 'fractional-grid-period',
   capturedAtMs: 1_500,
   measurementIndex: 0,
   targetHeightMm: 80,
-  confirmedHeightMm: 80,
+  confirmedHeightMm: fractionalGridArtifacts.confirmedHeightMm,
   sampleRateHz: SAMPLE_RATE_HZ,
   triggerThresholdKpa: 105,
   recordedDurationS: 0.123,
+  recordingPath: 'falling-trigger',
+  releaseOffsetS: null,
   samples: fractionalGridSamples,
-  physicsSnapshot: createPhysicsSnapshot(80),
+  pressOperationEvidence: fractionalGridArtifacts.pressOperationEvidence,
+  sensorObservationSnapshot: fractionalGridArtifacts.sensorObservationSnapshot,
+  physicsSnapshot: fractionalGridArtifacts.physicsSnapshot,
 });
 let fractionalGridProcessing = createPistonOscillationDataProcessingSession(
   [fractionalGridRecord],
@@ -780,46 +790,60 @@ const validCurrentRecord = normalizePistonOscillationRawMeasurementRecord(
   structuredClone(records[0]),
 );
 assert.ok(validCurrentRecord);
-assert.equal(validCurrentRecord.schemaVersion, 4);
+assert.equal(validCurrentRecord.schemaVersion, 5);
 assert.equal(validCurrentRecord.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(validCurrentRecord.acquisitionSettings.releaseOffsetS, null);
 
+const releasedImmediatePhysics = {
+  ...records[0].physicsSnapshot,
+  triggerTimeS: null,
+};
 const immediateRecord = createPistonOscillationRawMeasurementRecord({
   recordId: 'immediate-recording',
   capturedAtMs: 0,
   measurementIndex: 0,
   targetHeightMm: 80,
-  confirmedHeightMm: 80,
+  confirmedHeightMm: records[0].confirmedHeightMm,
   sampleRateHz: SAMPLE_RATE_HZ,
   triggerThresholdKpa: 100,
   recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
   recordingPath: 'immediate',
   releaseOffsetS: 0.02,
   samples: records[0].samples,
-  physicsSnapshot: {
-    ...createPhysicsSnapshot(80),
-    triggerTimeS: null,
-  },
+  pressOperationEvidence: records[0].pressOperationEvidence,
+  sensorObservationSnapshot: records[0].sensorObservationSnapshot,
+  physicsSnapshot: releasedImmediatePhysics,
 });
 assert.equal(immediateRecord.acquisitionSettings.recordingPath, 'immediate');
 assert.equal(immediateRecord.acquisitionSettings.releaseOffsetS, 0.02);
 assert.equal(immediateRecord.physicsSnapshot.triggerTimeS, null);
+const incompleteThermodynamicState = records[0].physicsSnapshot
+  .initialThermodynamicState as PistonOscillationThermodynamicState;
+const incompletePhysicsSnapshot = createPistonOscillationIncompletePhysicsSnapshot({
+  lockedHeightMm: 80,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  thermodynamicState: incompleteThermodynamicState,
+});
+const incompletePressOperationEvidence =
+  createPistonOscillationIncompletePressOperationEvidence({
+    trace: [],
+    capturedUntilMs: 0,
+  });
 const unfinishedImmediateRecord = createPistonOscillationRawMeasurementRecord({
   recordId: 'unfinished-immediate-recording',
   capturedAtMs: 0,
   measurementIndex: 0,
   targetHeightMm: 80,
-  confirmedHeightMm: 80,
+  confirmedHeightMm: incompletePhysicsSnapshot.equilibrium.equilibriumHeightM * 1_000,
   sampleRateHz: SAMPLE_RATE_HZ,
   triggerThresholdKpa: 100,
   recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
   recordingPath: 'immediate',
   releaseOffsetS: null,
   samples: records[0].samples,
-  physicsSnapshot: {
-    ...createPhysicsSnapshot(80),
-    triggerTimeS: null,
-  },
+  pressOperationEvidence: incompletePressOperationEvidence,
+  sensorObservationSnapshot: records[0].sensorObservationSnapshot,
+  physicsSnapshot: incompletePhysicsSnapshot,
 });
 assert.equal(unfinishedImmediateRecord.acquisitionSettings.releaseOffsetS, null);
 assert.throws(
@@ -828,22 +852,22 @@ assert.throws(
     capturedAtMs: 0,
     measurementIndex: 0,
     targetHeightMm: 80,
-    confirmedHeightMm: 80,
+    confirmedHeightMm: records[0].confirmedHeightMm,
     sampleRateHz: SAMPLE_RATE_HZ,
     triggerThresholdKpa: 100,
     recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
     recordingPath: 'immediate',
     releaseOffsetS: records[0].acquisitionSettings.recordedDurationS + 0.001,
     samples: records[0].samples,
-    physicsSnapshot: {
-      ...createPhysicsSnapshot(80),
-      triggerTimeS: null,
-    },
+    pressOperationEvidence: records[0].pressOperationEvidence,
+    sensorObservationSnapshot: records[0].sensorObservationSnapshot,
+    physicsSnapshot: releasedImmediatePhysics,
   }),
   /recording path/,
 );
 
 const materiallessHistoricalRecord = structuredClone(records[0]) as unknown as Record<string, unknown>;
+materiallessHistoricalRecord.schemaVersion = 4;
 const materiallessHistoricalPhysics = materiallessHistoricalRecord.physicsSnapshot as Record<
   string,
   unknown
@@ -885,12 +909,16 @@ assert.throws(
     capturedAtMs: 0,
     measurementIndex: 0,
     targetHeightMm: 80,
-    confirmedHeightMm: 80,
+    confirmedHeightMm: records[0].confirmedHeightMm,
     sampleRateHz: SAMPLE_RATE_HZ,
     triggerThresholdKpa: 105,
     recordedDurationS: records[0].acquisitionSettings.recordedDurationS - 0.001,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples: records[0].samples,
-    physicsSnapshot: createPhysicsSnapshot(80),
+    pressOperationEvidence: records[0].pressOperationEvidence,
+    sensorObservationSnapshot: records[0].sensorObservationSnapshot,
+    physicsSnapshot: records[0].physicsSnapshot,
   }),
   /every observation/,
 );
@@ -903,12 +931,16 @@ assert.throws(
     capturedAtMs: 0,
     measurementIndex: 0,
     targetHeightMm: 80,
-    confirmedHeightMm: 80,
+    confirmedHeightMm: records[0].confirmedHeightMm,
     sampleRateHz: SAMPLE_RATE_HZ,
     triggerThresholdKpa: 105,
     recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples: nonUniformCreationSamples,
-    physicsSnapshot: createPhysicsSnapshot(80),
+    pressOperationEvidence: records[0].pressOperationEvidence,
+    sensorObservationSnapshot: records[0].sensorObservationSnapshot,
+    physicsSnapshot: records[0].physicsSnapshot,
   }),
   /valid sensor observation/,
 );
@@ -969,7 +1001,7 @@ const legacy = normalizePistonOscillationRawMeasurementRecord({
   ],
 });
 assert.ok(legacy);
-assert.equal(legacy.schemaVersion, 4);
+assert.equal(legacy.schemaVersion, 5);
 assert.equal(legacy.pressOperationEvidence.provenance, 'legacy-unknown');
 assert.equal(legacy.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(legacy.acquisitionSettings.releaseOffsetS, null);

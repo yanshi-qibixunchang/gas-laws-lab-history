@@ -27,8 +27,8 @@ import {
 import {
   PISTON_OSCILLATION_SETTLING_DURATION_S,
   createPistonOscillationAtmosphericLockedState,
+  createPistonOscillationAdiabaticStateFromReference,
   createPistonOscillationLoadedEquilibriumState,
-  createPistonOscillationLoadedGasState,
   getPistonOscillationTrajectorySampleAt,
   getPistonOscillationSettlingStateAtProgress,
   resolvePistonOscillationStablePhysicalState,
@@ -43,6 +43,8 @@ import {
   simulatePistonOscillationThermalRelease,
 } from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
 import {
+  PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_HOLD_MS,
+  PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX,
   getPistonOscillationVirtualHandTargetDisplacementMm,
   scalePistonOscillationVirtualHandDragToReferencePx,
 } from '../../domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
@@ -207,6 +209,8 @@ interface HoseHandleBounds {
 
 const FOCUS_TRANSITION_DURATION_MS = 360;
 const PISTON_REBOUND_VISIBLE_DURATION_MS = 800;
+const PISTON_LIVE_PRESENTATION_INTERVAL_MS = 1_000 / 60;
+const PISTON_LIVE_PRESENTATION_TOLERANCE_MS = 0.5;
 const PISTON_HEIGHT_DRAG_MM_PER_PX = 0.3;
 const PISTON_GUIDE_HEIGHT_RESET_MIN_DURATION_MS = 520;
 const PISTON_GUIDE_HEIGHT_RESET_MAX_DURATION_MS = 820;
@@ -1257,8 +1261,13 @@ const createInitialPistonThermodynamicState = (
       'sealed-locked-atmospheric',
     );
   }
-  const equilibrium = createPistonOscillationLoadedEquilibriumState(nominalHeightMm);
-  return createPistonOscillationLoadedGasState(equilibrium, pistonOffsetMm);
+  if (Math.abs(pistonOffsetMm) <= 1e-9) {
+    return getPistonOscillationSettlingStateAtProgress(nominalHeightMm, 1);
+  }
+  return createPistonOscillationAdiabaticStateFromReference(
+    getPistonOscillationSettlingStateAtProgress(nominalHeightMm, 1),
+    visibleHeightMm,
+  );
 };
 
 export interface PistonOscillationInteractionWorkspaceProps {
@@ -1450,6 +1459,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const mouseHeldRef = useRef(false);
   const pistonOffsetMmRef = useRef(initialPistonOffsetMm);
   const virtualHandReferenceDragPxRef = useRef(0);
+  const virtualHandDownwardCommandUntilMsRef = useRef(0);
   const pistonEquilibriumHeightMmRef = useRef(initialPhysicalBaseHeightMm);
   const pistonNominalHeightMmRef = useRef(initialNominalHeightMm);
   const thermodynamicStateRef = useRef(initialThermodynamicState);
@@ -1748,6 +1758,7 @@ export const PistonOscillationInteractionWorkspace = ({
     pressTraceRef.current = [];
     thermodynamicUpdatedAtMsRef.current = null;
     virtualHandReferenceDragPxRef.current = 0;
+    virtualHandDownwardCommandUntilMsRef.current = 0;
     setPressThermalClockActive(false);
     setVirtualHandReferenceDragPx(0);
     setSpaceHeld(false);
@@ -1827,29 +1838,23 @@ export const PistonOscillationInteractionWorkspace = ({
   ]);
 
   useEffect(() => {
-    onLivePhysicalStateChange?.({
-      observedAtMs: performance.now(),
-      equilibriumHeightMm: pistonEquilibriumHeightMm,
-      displacementMm: pistonOffsetMm,
-      thermodynamicState,
-    });
-  }, [
-    onLivePhysicalStateChange,
-    pistonEquilibriumHeightMm,
-    pistonOffsetMm,
-    thermodynamicState,
-  ]);
-
-  useEffect(() => {
     if (!onLivePhysicalStateChange || demoActive) return undefined;
     let animationFrame: number | null = null;
+    let lastPublishedAtMs = performance.now() - PISTON_LIVE_PRESENTATION_INTERVAL_MS;
     const publishSensorClock = (observedAtMs: number) => {
-      onLivePhysicalStateChange({
-        observedAtMs,
-        equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
-        displacementMm: pistonOffsetMmRef.current,
-        thermodynamicState: thermodynamicStateRef.current,
-      });
+      if (
+        observedAtMs - lastPublishedAtMs
+          >= PISTON_LIVE_PRESENTATION_INTERVAL_MS
+            - PISTON_LIVE_PRESENTATION_TOLERANCE_MS
+      ) {
+        lastPublishedAtMs = observedAtMs;
+        onLivePhysicalStateChange({
+          observedAtMs,
+          equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
+          displacementMm: pistonOffsetMmRef.current,
+          thermodynamicState: thermodynamicStateRef.current,
+        });
+      }
       animationFrame = window.requestAnimationFrame(publishSensorClock);
     };
     animationFrame = window.requestAnimationFrame(publishSensorClock);
@@ -2129,6 +2134,7 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [capturePressTracePoint, onPressStartEvent]);
   const resetVirtualHandInput = useCallback(() => {
     virtualHandReferenceDragPxRef.current = 0;
+    virtualHandDownwardCommandUntilMsRef.current = 0;
     setVirtualHandReferenceDragPx(0);
   }, []);
   const endPressTrace = useCallback(() => {
@@ -2186,11 +2192,18 @@ export const PistonOscillationInteractionWorkspace = ({
           virtualHandReferenceDragPxRef.current,
         ),
       elapsedS,
+      preventUpwardMotion:
+        observedAtMs <= virtualHandDownwardCommandUntilMsRef.current,
     });
     const nextOffsetMm = nextState.pistonHeightM * 1_000
       - pistonEquilibriumHeightMmRef.current;
     pistonOffsetMmRef.current = nextOffsetMm;
     setPistonOffsetMm(nextOffsetMm);
+    setVirtualHandReferenceDragPx((current) => (
+      current === virtualHandReferenceDragPxRef.current
+        ? current
+        : virtualHandReferenceDragPxRef.current
+    ));
     commitThermodynamicState(nextState);
   }, [commitThermodynamicState, hoseState]);
   const setPistonOffset = useCallback((nextOffsetMm: number) => {
@@ -2205,11 +2218,24 @@ export const PistonOscillationInteractionWorkspace = ({
     nextReferenceDragPx: number,
   ) => {
     const observedAtMs = performance.now();
-    if (pressTraceActiveRef.current) advanceVirtualHandPressTo(observedAtMs);
-    virtualHandReferenceDragPxRef.current = Math.max(0, nextReferenceDragPx);
-    setVirtualHandReferenceDragPx(virtualHandReferenceDragPxRef.current);
+    const previousReferenceDragPx = virtualHandReferenceDragPxRef.current;
+    const normalizedReferenceDragPx = Math.max(0, nextReferenceDragPx);
+    const referenceDragDeltaPx = normalizedReferenceDragPx - previousReferenceDragPx;
+    if (
+      referenceDragDeltaPx
+        > PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX
+    ) {
+      virtualHandDownwardCommandUntilMsRef.current = observedAtMs
+        + PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_HOLD_MS;
+    } else if (
+      referenceDragDeltaPx
+        < -PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX
+    ) {
+      virtualHandDownwardCommandUntilMsRef.current = observedAtMs;
+    }
+    virtualHandReferenceDragPxRef.current = normalizedReferenceDragPx;
     if (spaceHeldRef.current && mouseHeldRef.current) setPistonPhase('pressing');
-  }, [advanceVirtualHandPressTo]);
+  }, []);
   useEffect(() => {
     if (
       !pressThermalClockActive
@@ -2225,8 +2251,15 @@ export const PistonOscillationInteractionWorkspace = ({
         animationFrame = null;
         return;
       }
-      advanceVirtualHandPressTo(observedAtMs);
-      capturePressTracePoint(observedAtMs);
+      const previousUpdatedAtMs = thermodynamicUpdatedAtMsRef.current ?? observedAtMs;
+      if (
+        observedAtMs - previousUpdatedAtMs
+          >= PISTON_LIVE_PRESENTATION_INTERVAL_MS
+            - PISTON_LIVE_PRESENTATION_TOLERANCE_MS
+      ) {
+        advanceVirtualHandPressTo(observedAtMs);
+        capturePressTracePoint(observedAtMs);
+      }
       animationFrame = window.requestAnimationFrame(advancePressThermalClock);
     };
     animationFrame = window.requestAnimationFrame(advancePressThermalClock);

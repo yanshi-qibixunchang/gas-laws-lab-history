@@ -11,14 +11,14 @@ import {
 } from 'react';
 import { Check, Play, RotateCcw, Square } from 'lucide-react';
 import {
-  createPistonOscillationLoadedEquilibriumState,
-  simulatePistonOscillationRelease,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
+  createPistonOscillationIncompletePhysicsSnapshot,
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
   createPistonOscillationSensorObservationSnapshot,
+  type PistonOscillationPhysicsSnapshot,
   type PistonOscillationRawMeasurementRecord,
 } from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
@@ -26,7 +26,6 @@ import {
   createInitialPistonOscillationDynamicSensorState,
   createPistonOscillationRecordedObservationSamples,
   createPistonOscillationDynamicSensorObservationSeries,
-  createPistonOscillationSensorObservationSeries,
   findPistonOscillationObservedFallingTriggerSample,
   formatPistonOscillationObservedPressureKpa,
   getPistonOscillationObservedTimeS,
@@ -41,8 +40,15 @@ import {
   PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS,
 } from './pistonOscillationAcquisitionConfig.ts';
 import {
+  PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS,
+  advancePistonOscillationAcquisitionDisplayClock,
+  createPistonOscillationAcquisitionDisplayClock,
+  getPistonOscillationAcquisitionPresentedNowMs,
+  rebasePistonOscillationAcquisitionDisplayClock,
+} from './pistonOscillationAcquisitionDisplayClock.ts';
+import {
   getPistonOscillationDemoFrame,
-  getPistonOscillationDemoTrajectory,
+  getPistonOscillationDemoObservationSeries,
   type PistonOscillationDemoFrame,
 } from './pistonOscillationDemoTimeline.ts';
 import {
@@ -61,7 +67,7 @@ import type {
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
-  createLegacyUnknownPistonOscillationPressOperationEvidence,
+  createPistonOscillationIncompletePressOperationEvidence,
   type PistonOscillationPressOperationEvidence,
 } from '../../domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
 import {
@@ -186,7 +192,6 @@ const GRAPH_LEFT = 64;
 const GRAPH_RIGHT_MARGIN = 24;
 const GRAPH_TOP = 24;
 const GRAPH_BOTTOM = 334;
-const ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1000 / 30;
 const GRAPH_MIN_PRESSURE_KPA = 96;
 const GRAPH_MAX_PRESSURE_KPA = 121;
 
@@ -443,13 +448,19 @@ PistonOscillationAcquisitionPanelProps
     useState<PistonOscillationPressOperationEvidence | null>(null);
   const [freeRecordingTimelineRevision, setFreeRecordingTimelineRevision] = useState(0);
   const [displayNowMs, setDisplayNowMs] = useState(() => performance.now());
+  const [displayClockLagMs, setDisplayClockLagMs] = useState(0);
   const [stopElapsedSeconds, setStopElapsedSeconds] = useState<number | null>(null);
   const [retained, setRetained] = useState(false);
   const frozenFreeCandidateRef = useRef<PistonOscillationRawMeasurementRecord | null>(
     freeSession?.acquisitionCandidate ?? null,
   );
   const chartWrapRef = useRef<HTMLDivElement | null>(null);
+  const liveCurveCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const [graphWidth, setGraphWidth] = useState(GRAPH_DEFAULT_WIDTH);
+  const liveCurvePixelRatio = Math.max(
+    1,
+    Math.min(2, window.devicePixelRatio || 1),
+  );
   const [freeRunPressureGraphDomain, setFreeRunPressureGraphDomain] =
     useState<PressureGraphDomain | null>(null);
   const guideSelected = guideSession?.status === 'active'
@@ -495,6 +506,9 @@ PistonOscillationAcquisitionPanelProps
   );
   const guidePauseStartedAtMsRef = useRef<number | null>(null);
   const guideAccumulatedPauseMsRef = useRef(0);
+  const displayClockRef = useRef(
+    createPistonOscillationAcquisitionDisplayClock(displayNowMs),
+  );
   const previousGuideMeasurementIndexRef = useRef(guideMeasurementIndex);
   const previousFreeMeasurementIndexRef = useRef(freeSession?.measurementIndex);
   const previousPowerOnRef = useRef(effectivePowerOn);
@@ -555,6 +569,34 @@ PistonOscillationAcquisitionPanelProps
     setPhase(nextPhase);
   }, []);
 
+  const resetDisplayClock = useCallback((wallNowMs: number) => {
+    const nextClock = createPistonOscillationAcquisitionDisplayClock(wallNowMs);
+    displayClockRef.current = nextClock;
+    setDisplayClockLagMs(nextClock.accumulatedLagMs);
+    setDisplayNowMs(wallNowMs);
+  }, []);
+
+  const rebaseDisplayClock = useCallback((wallNowMs: number, resetLag = false) => {
+    const nextClock = rebasePistonOscillationAcquisitionDisplayClock(
+      displayClockRef.current,
+      wallNowMs,
+      { resetLag },
+    );
+    displayClockRef.current = nextClock;
+    if (resetLag) setDisplayClockLagMs(nextClock.accumulatedLagMs);
+  }, []);
+
+  const publishDisplayClock = useCallback((wallNowMs: number) => {
+    const nextClock = advancePistonOscillationAcquisitionDisplayClock(
+      displayClockRef.current,
+      wallNowMs,
+    );
+    displayClockRef.current = nextClock;
+    setDisplayClockLagMs(nextClock.accumulatedLagMs);
+    setDisplayNowMs(wallNowMs);
+    return getPistonOscillationAcquisitionPresentedNowMs(wallNowMs, nextClock);
+  }, []);
+
   const resetRun = useCallback(() => {
     updatePhase('idle');
     setCycleStartMs(null);
@@ -574,7 +616,7 @@ PistonOscillationAcquisitionPanelProps
     freeLiveObservationsRef.current = [];
     freeAttemptIdRef.current = null;
     setGuidePressureIssue(null);
-    setDisplayNowMs(performance.now());
+    resetDisplayClock(performance.now());
     guideTriggeredNotifiedRef.current = false;
     guideRecordingReadyNotifiedRef.current = false;
     guidePendingOverpressurePeakKpaRef.current = null;
@@ -583,7 +625,7 @@ PistonOscillationAcquisitionPanelProps
     );
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
-  }, [updatePhase]);
+  }, [resetDisplayClock, updatePhase]);
 
   useEffect(() => {
     const wasPowerOn = previousPowerOnRef.current;
@@ -742,14 +784,16 @@ PistonOscillationAcquisitionPanelProps
     const nowMs = performance.now();
     if (guidePaused) {
       guidePauseStartedAtMsRef.current ??= nowMs;
+      rebaseDisplayClock(nowMs);
       return;
     }
     if (guidePauseStartedAtMsRef.current !== null) {
       guideAccumulatedPauseMsRef.current += nowMs - guidePauseStartedAtMsRef.current;
       guidePauseStartedAtMsRef.current = null;
+      rebaseDisplayClock(nowMs);
       setDisplayNowMs(nowMs);
     }
-  }, [guidePaused]);
+  }, [guidePaused, rebaseDisplayClock]);
 
   useEffect(() => {
     const freeRecordingActive = freeSelected
@@ -763,6 +807,12 @@ PistonOscillationAcquisitionPanelProps
     ) return;
     if (handledReleaseEventIdRef.current === releaseEvent.id) return;
     handledReleaseEventIdRef.current = releaseEvent.id;
+    if (cycleStartMs === null) {
+      // A falling-trigger run begins at the physical release. Rebase before
+      // projecting the full trajectory so that calculation time becomes
+      // presentation lag instead of an immediate chart jump.
+      rebaseDisplayClock(releaseEvent.startedAtMs, true);
+    }
     const nextTrajectory = releaseEvent.trajectory;
     const nextObservationSeries = createPistonOscillationDynamicSensorObservationSeries(
       nextTrajectory.samples,
@@ -797,7 +847,7 @@ PistonOscillationAcquisitionPanelProps
         ));
       }
       setFreeRecordingTimelineRevision((revision) => revision + 1);
-      setDisplayNowMs(performance.now());
+      publishDisplayClock(performance.now());
       return;
     }
     const nextTriggerSample = findPistonOscillationObservedFallingTriggerSample(
@@ -854,7 +904,7 @@ PistonOscillationAcquisitionPanelProps
     setCycleStartMs(releaseEvent.startedAtMs);
     setTriggerSeconds(nextTriggerSeconds);
     setTriggerSourceSampleIndex(nextTriggerSample?.sampleIndex ?? null);
-    setDisplayNowMs(performance.now());
+    publishDisplayClock(performance.now());
     guideTriggeredNotifiedRef.current = false;
     guideRecordingReadyNotifiedRef.current = false;
     guidePauseStartedAtMsRef.current = null;
@@ -869,6 +919,8 @@ PistonOscillationAcquisitionPanelProps
     immediateReleaseOffsetS,
     livePressureObservation,
     onGuideAcquisitionEvent,
+    publishDisplayClock,
+    rebaseDisplayClock,
     releaseEvent,
     triggerSeconds,
     activeTrajectory,
@@ -882,20 +934,24 @@ PistonOscillationAcquisitionPanelProps
       || (phase !== 'armed' && phase !== 'recording')
     ) return;
     let frame = 0;
-    let lastDisplayUpdateMs = 0;
+    let lastDisplayUpdateMs = displayClockRef.current.lastWallNowMs;
     const animate = (nowMs: number) => {
+      let presentedNowMs = getPistonOscillationAcquisitionPresentedNowMs(
+        nowMs,
+        displayClockRef.current,
+      );
       if (
-        lastDisplayUpdateMs === 0
-        || nowMs - lastDisplayUpdateMs >= ACQUISITION_DISPLAY_FRAME_INTERVAL_MS
+        nowMs - lastDisplayUpdateMs
+          >= PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS
       ) {
         lastDisplayUpdateMs = nowMs;
-        setDisplayNowMs(nowMs);
+        presentedNowMs = publishDisplayClock(nowMs);
       }
       if (
         phaseRef.current === 'armed'
         && triggerSeconds !== null
         && (
-          nowMs - cycleStartMs - guideAccumulatedPauseMsRef.current
+          presentedNowMs - cycleStartMs - guideAccumulatedPauseMsRef.current
         ) / 1000 >= triggerSeconds
       ) {
         updatePhase('recording');
@@ -917,6 +973,7 @@ PistonOscillationAcquisitionPanelProps
     guidePaused,
     onGuideAcquisitionEvent,
     phase,
+    publishDisplayClock,
     triggerSeconds,
     updatePhase,
   ]);
@@ -927,6 +984,7 @@ PistonOscillationAcquisitionPanelProps
       0,
       (
         displayNowMs
+        - displayClockLagMs
         - cycleStartMs
         - guideAccumulatedPauseMsRef.current
         - (
@@ -973,20 +1031,11 @@ PistonOscillationAcquisitionPanelProps
     ?? restoredGuideSavedMeasurement;
   const restoredMeasurement = restoredGuideMeasurement ?? restoredFreeCandidate;
   const demoActive = demoFrame !== undefined;
-  const demoTrajectory = useMemo(
+  const demoObservationSeries = useMemo(
     () => demoFrame
-      ? getPistonOscillationDemoTrajectory(demoFrame.measurementIndex)
+      ? getPistonOscillationDemoObservationSeries(demoFrame.measurementIndex)
       : null,
     [demoFrame?.measurementIndex],
-  );
-  const demoObservationSeries = useMemo(
-    () => demoTrajectory
-      ? createPistonOscillationSensorObservationSeries(
-        demoTrajectory.samples,
-        demoTrajectory.sampleRateHz,
-      )
-      : null,
-    [demoTrajectory],
   );
   const demoTriggerSample = useMemo(
     () => demoObservationSeries
@@ -1018,28 +1067,10 @@ PistonOscillationAcquisitionPanelProps
     ?.acquisitionSettings.recordedDurationS
     ?? demoFrame?.formalElapsedSeconds
     ?? localFormalElapsedSeconds;
-  const getCurrentRecordingElapsedSeconds = () => {
-    if (
-      cycleStartMs === null
-      || triggerSeconds === null
-      || stopElapsedSeconds !== null
-      || restoredMeasurement
-      || demoFrame
-    ) return formalElapsedSeconds;
-    const nowMs = performance.now();
-    const activePauseMs = guidePaused && guidePauseStartedAtMsRef.current !== null
-      ? Math.max(0, nowMs - guidePauseStartedAtMsRef.current)
-      : 0;
-    return Math.max(
-      0,
-      (
-        nowMs
-        - cycleStartMs
-        - guideAccumulatedPauseMsRef.current
-        - activePauseMs
-      ) / 1_000 - triggerSeconds,
-    );
-  };
+  // Pause freezes the exact sample frontier already committed to the chart.
+  // Reading performance.now() here would reintroduce an unseen jump whenever
+  // the click is delivered immediately after a slow calculation or render.
+  const getCurrentRecordingElapsedSeconds = () => formalElapsedSeconds;
   const graphMinimumDomainSeconds = guideSelected || demoFrame
     ? PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
     : 0.8;
@@ -1052,6 +1083,36 @@ PistonOscillationAcquisitionPanelProps
       && triggerSeconds !== null
       && (phase === 'recording' || phase === 'stopped')
     ) {
+      const releaseSegments = freeReleaseSegmentsRef.current;
+      if (
+        freeRecordingPath === 'falling-trigger'
+        && releaseSegments.length === 1
+        && freePressStartedAtMsRef.current.length === 0
+        && freeLiveObservationsRef.current.length === 0
+        && activeObservationSeries
+        && triggerSourceSampleIndex !== null
+      ) {
+        const maximumIntervalCount = Math.max(
+          0,
+          activeObservationSeries.samples.length - triggerSourceSampleIndex - 1,
+        );
+        const intervalCount = Math.min(
+          maximumIntervalCount,
+          Math.max(0, Math.floor(
+            formalElapsedSeconds * activeObservationSeries.sampleRateHz + 1e-9,
+          )),
+        );
+        return Array.from({ length: intervalCount + 1 }, (_, sampleIndex) => ({
+          sampleIndex,
+          timeS: getPistonOscillationObservedTimeS(
+            sampleIndex,
+            activeObservationSeries.sampleRateHz,
+          ),
+          absolutePressureKpa: activeObservationSeries.samples[
+            triggerSourceSampleIndex + sampleIndex
+          ]!.absolutePressureKpa,
+        }));
+      }
       return createPistonOscillationContinuousRecordingSamples({
         durationS: formalElapsedSeconds,
         sampleRateHz: freeSession?.sampleRateHz
@@ -1159,10 +1220,9 @@ PistonOscillationAcquisitionPanelProps
   const graphCenterX = (GRAPH_LEFT + graphRight) / 2;
   const observedPressureGraphDomain = useMemo(
     () => {
+      if (freeSelected) return DEFAULT_PRESSURE_GRAPH_DOMAIN;
       const domain = restoredMeasurement
       ? getRecordedPressureGraphDomain(restoredMeasurement)
-      : freeSelected && displayedObservationSamples.length > 0
-        ? getObservedPressureGraphDomain(displayedObservationSamples)
       : demoObservationSeries && demoTriggerSample
         ? getObservedPressureGraphDomain(demoObservationSeries.samples.slice(
           demoTriggerSample.sampleIndex,
@@ -1207,7 +1267,6 @@ PistonOscillationAcquisitionPanelProps
       demoObservationSeries,
       demoTriggerSample,
       demoFrame,
-      displayedObservationSamples,
       freeSelected,
       graphMinimumDomainSeconds,
       guideSelected,
@@ -1215,16 +1274,29 @@ PistonOscillationAcquisitionPanelProps
       triggerSourceSampleIndex,
     ],
   );
+  const displayedPressureRange = useMemo(() => {
+    let minimumKpa = Number.POSITIVE_INFINITY;
+    let maximumKpa = Number.NEGATIVE_INFINITY;
+    for (const sample of displayedObservationSamples) {
+      minimumKpa = Math.min(minimumKpa, sample.absolutePressureKpa);
+      maximumKpa = Math.max(maximumKpa, sample.absolutePressureKpa);
+    }
+    return Number.isFinite(minimumKpa) && Number.isFinite(maximumKpa)
+      ? { minimumKpa, maximumKpa }
+      : null;
+  }, [displayedObservationSamples]);
   const adaptiveFreePressureGraphDomain = useMemo(
     () => getPistonOscillationAdaptivePressureGraphDomain(
       pressureGraphTriggerKpa,
       [
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA,
         currentPressureKpa,
-        ...displayedObservationSamples.map((sample) => sample.absolutePressureKpa),
+        ...(displayedPressureRange
+          ? [displayedPressureRange.minimumKpa, displayedPressureRange.maximumKpa]
+          : []),
       ],
     ),
-    [currentPressureKpa, displayedObservationSamples, pressureGraphTriggerKpa],
+    [currentPressureKpa, displayedPressureRange, pressureGraphTriggerKpa],
   );
   useEffect(() => {
     if (
@@ -1256,8 +1328,14 @@ PistonOscillationAcquisitionPanelProps
   const pressureGraphDomain = freeSelected
     ? freeRunPressureGraphDomain ?? adaptiveFreePressureGraphDomain
     : observedPressureGraphDomain;
+  const liveCanvasPressurePresentation = phase === 'recording'
+    && !restoredMeasurement
+    && !demoFrame
+    && displayedObservationSamples.length > 0;
   const pressurePath = useMemo(
-    () => displayedObservationSamples.length === 0 || formalElapsedSeconds <= 0
+    () => liveCanvasPressurePresentation
+      || displayedObservationSamples.length === 0
+      || formalElapsedSeconds <= 0
       ? ''
       : buildPressurePath(
         displayedObservationSamples,
@@ -1271,11 +1349,14 @@ PistonOscillationAcquisitionPanelProps
       formalElapsedSeconds,
       graphMinimumDomainSeconds,
       graphRight,
+      liveCanvasPressurePresentation,
       pressureGraphDomain,
     ],
   );
   const pressureSampleMarkerPath = useMemo(
-    () => displayedObservationSamples.length === 0 || formalElapsedSeconds <= 0
+    () => liveCanvasPressurePresentation
+      || displayedObservationSamples.length === 0
+      || formalElapsedSeconds <= 0
       ? ''
       : buildPressureSampleMarkerPath(
         displayedObservationSamples,
@@ -1289,10 +1370,87 @@ PistonOscillationAcquisitionPanelProps
       formalElapsedSeconds,
       graphMinimumDomainSeconds,
       graphRight,
+      liveCanvasPressurePresentation,
       pressureGraphDomain,
     ],
   );
   const graphDomainSeconds = Math.max(graphMinimumDomainSeconds, formalElapsedSeconds);
+  useLayoutEffect(() => {
+    const canvas = liveCurveCanvasRef.current;
+    if (!canvas) return;
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    if (!liveCanvasPressurePresentation) {
+      context.setTransform(1, 0, 0, 1, 0, 0);
+      context.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+    context.setTransform(
+      liveCurvePixelRatio,
+      0,
+      0,
+      liveCurvePixelRatio,
+      0,
+      0,
+    );
+    context.clearRect(0, 0, graphWidth, GRAPH_HEIGHT);
+    context.save();
+    context.beginPath();
+    context.rect(
+      GRAPH_LEFT + 1,
+      GRAPH_TOP + 1,
+      Math.max(0, graphRight - GRAPH_LEFT - 2),
+      Math.max(0, GRAPH_BOTTOM - GRAPH_TOP - 2),
+    );
+    context.clip();
+    context.strokeStyle = getComputedStyle(canvas)
+      .getPropertyValue('--piston-acquisition-curve')
+      .trim() || '#4aa9df';
+    context.fillStyle = context.strokeStyle;
+    context.lineWidth = 1.6;
+    context.lineCap = 'butt';
+    context.lineJoin = 'miter';
+    context.beginPath();
+    for (const sample of displayedObservationSamples) {
+      if (sample.timeS > formalElapsedSeconds + 1e-12) break;
+      const x = GRAPH_LEFT
+        + (sample.timeS / graphDomainSeconds) * (graphRight - GRAPH_LEFT);
+      const y = pressureToY(sample.absolutePressureKpa, pressureGraphDomain);
+      if (sample.sampleIndex === 0) context.moveTo(x, y);
+      else context.lineTo(x, y);
+    }
+    context.stroke();
+    const plotWidth = Math.max(1, graphRight - GRAPH_LEFT);
+    const markerStride = Math.max(
+      1,
+      Math.ceil(displayedObservationSamples.length / (plotWidth / 3)),
+    );
+    for (
+      let sampleIndex = 0;
+      sampleIndex < displayedObservationSamples.length;
+      sampleIndex += markerStride
+    ) {
+      const sample = displayedObservationSamples[sampleIndex]!;
+      if (sample.timeS > formalElapsedSeconds + 1e-12) break;
+      const x = GRAPH_LEFT
+        + (sample.timeS / graphDomainSeconds) * (graphRight - GRAPH_LEFT);
+      const y = pressureToY(sample.absolutePressureKpa, pressureGraphDomain);
+      context.beginPath();
+      context.arc(x, y, 1.8, 0, Math.PI * 2);
+      context.fill();
+    }
+    context.restore();
+  }, [
+    displayedObservationSamples,
+    formalElapsedSeconds,
+    graphDomainSeconds,
+    graphRight,
+    graphWidth,
+    liveCanvasPressurePresentation,
+    liveCurvePixelRatio,
+    pressureGraphDomain,
+  ]);
+  const pressureCurveVisible = liveCanvasPressurePresentation || pressurePath.length > 0;
   const triggerY = pressureToY(effectiveTriggerKpa, pressureGraphDomain);
   const qualityUpperY = pressureToY(
     PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA,
@@ -1320,6 +1478,7 @@ PistonOscillationAcquisitionPanelProps
       !guideSession
       || !activeTrajectory
       || !activeObservationSeries
+      || !activePressOperationEvidence
       || triggerSeconds === null
       || triggerSourceSampleIndex === null
     ) return null;
@@ -1350,9 +1509,10 @@ PistonOscillationAcquisitionPanelProps
       sampleRateHz: activeObservationSeries.sampleRateHz,
       triggerThresholdKpa: effectiveTriggerKpa,
       recordedDurationS: boundedDurationS,
+      recordingPath: 'falling-trigger',
+      releaseOffsetS: null,
       samples,
-      pressOperationEvidence: activePressOperationEvidence
-        ?? createLegacyUnknownPistonOscillationPressOperationEvidence(),
+      pressOperationEvidence: activePressOperationEvidence,
       sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
         sampleRateHz: activeObservationSeries.sampleRateHz,
         triggerSourceSampleIndex,
@@ -1389,35 +1549,9 @@ PistonOscillationAcquisitionPanelProps
     freeAttemptIdRef.current = attemptId;
     if (freeRecordingPath === 'immediate') {
       if (cycleStartMs === null) return null;
-      const latestLiveObservation = freeLiveObservationsRef.current.at(-1)
-        ?? livePressureObservation;
       const snapshotLockedHeightMm = freeSession.instrumentState.nominalHeightMm;
-      let snapshotEquilibrium: ReturnType<
-        typeof createPistonOscillationLoadedEquilibriumState
-      >;
-      try {
-        snapshotEquilibrium = createPistonOscillationLoadedEquilibriumState(
-          snapshotLockedHeightMm,
-        );
-      } catch {
-        // At the rigid lower stop, the piston cannot create a usable loaded
-        // equilibrium or an oscillation record. Keep the stopped acquisition
-        // visible, but do not manufacture a savable candidate.
-        return null;
-      }
-      const snapshotVisibleHeightMm = latestLiveObservation?.truePistonHeightMm
-        ?? freeSession.instrumentState.thermodynamicState.pistonHeightM * 1_000;
-      const snapshotTrajectory = activeTrajectory ?? simulatePistonOscillationRelease({
-        lockedHeightMm: snapshotLockedHeightMm,
-        initialDisplacementMm: Math.min(
-          0,
-          snapshotVisibleHeightMm - snapshotEquilibrium.equilibriumHeightM * 1_000,
-        ),
-      }, {
-        sensorSampleRateHz: freeSession.sampleRateHz,
-      });
       const observationSampleRateHz = activeObservationSeries?.sampleRateHz
-        ?? snapshotTrajectory.sampleRateHz;
+        ?? freeSession.sampleRateHz;
       const samples = createPistonOscillationContinuousRecordingSamples({
         durationS,
         sampleRateHz: observationSampleRateHz,
@@ -1442,34 +1576,70 @@ PistonOscillationAcquisitionPanelProps
           && immediateReleaseOffsetS > boundedDurationS
         )
       ) return null;
+      const captureEndedAtMs = cycleStartMs + boundedDurationS * 1_000;
+      const latestPressStartedAtMs = [...freePressStartedAtMsRef.current]
+        .reverse()
+        .find((startedAtMs) => startedAtMs <= captureEndedAtMs) ?? null;
+      const incompleteTrace = latestPressStartedAtMs === null
+        ? []
+        : freeLiveObservationsRef.current
+          .filter((observation) => (
+            observation.sampledAtMs >= latestPressStartedAtMs
+            && observation.sampledAtMs <= captureEndedAtMs
+          ))
+          .map((observation) => ({
+            observedAtMs: observation.sampledAtMs,
+            pistonHeightMm: observation.truePistonHeightMm,
+            displacementMm: observation.displacementMm,
+            pressurePa: observation.physicalPressurePa,
+            temperatureK: observation.temperatureK,
+          }));
+      const pressOperationEvidence = activeTrajectory
+        ? activePressOperationEvidence
+        : createPistonOscillationIncompletePressOperationEvidence({
+            trace: incompleteTrace,
+            capturedUntilMs: captureEndedAtMs,
+          });
+      if (!pressOperationEvidence) return null;
+      let physicsSnapshot: PistonOscillationPhysicsSnapshot;
+      try {
+        physicsSnapshot = activeTrajectory
+          ? createPistonOscillationPhysicsSnapshot(activeTrajectory, null)
+          : createPistonOscillationIncompletePhysicsSnapshot({
+              lockedHeightMm: snapshotLockedHeightMm,
+              sampleRateHz: snapshotObservationSeries.sampleRateHz,
+              thermodynamicState: freeSession.instrumentState.thermodynamicState,
+            });
+      } catch {
+        // A physically invalid setup remains visible as a stopped trace, but
+        // cannot be mislabeled as a valid current-model measurement record.
+        return null;
+      }
       return createPistonOscillationRawMeasurementRecord({
         recordId: `piston-free-${freeSession.startedAtMs ?? 0}-${target?.targetId ?? freeSession.measurementIndex}-${attemptId}`,
         capturedAtMs: Date.now(),
         measurementIndex: freeSession.measurementIndex,
         targetHeightMm,
-        confirmedHeightMm: snapshotTrajectory.equilibrium.equilibriumHeightM * 1_000,
+        confirmedHeightMm: physicsSnapshot.equilibrium.equilibriumHeightM * 1_000,
         sampleRateHz: snapshotObservationSeries.sampleRateHz,
         triggerThresholdKpa: effectiveTriggerKpa,
         recordedDurationS: boundedDurationS,
         recordingPath: 'immediate',
         releaseOffsetS: immediateReleaseOffsetS,
         samples,
-        pressOperationEvidence: activePressOperationEvidence
-          ?? createLegacyUnknownPistonOscillationPressOperationEvidence(),
+        pressOperationEvidence,
         sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
           sampleRateHz: snapshotObservationSeries.sampleRateHz,
           triggerSourceSampleIndex: 0,
           observationSeries: snapshotObservationSeries,
         }),
-        physicsSnapshot: createPistonOscillationPhysicsSnapshot(
-          snapshotTrajectory,
-          null,
-        ),
+        physicsSnapshot,
       });
     }
     if (
       !activeTrajectory
       || !activeObservationSeries
+      || !activePressOperationEvidence
       || cycleStartMs === null
       || triggerSeconds === null
       || triggerSourceSampleIndex === null
@@ -1504,8 +1674,7 @@ PistonOscillationAcquisitionPanelProps
       recordingPath: 'falling-trigger',
       releaseOffsetS: null,
       samples,
-      pressOperationEvidence: activePressOperationEvidence
-        ?? createLegacyUnknownPistonOscillationPressOperationEvidence(),
+      pressOperationEvidence: activePressOperationEvidence,
       sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
         sampleRateHz: activeObservationSeries.sampleRateHz,
         triggerSourceSampleIndex,
@@ -1642,7 +1811,7 @@ PistonOscillationAcquisitionPanelProps
       ?? quantizePistonOscillationObservedPressureKpa(
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       );
-    setDisplayNowMs(recordingStartedAtMs);
+    resetDisplayClock(recordingStartedAtMs);
     updatePhase(startsImmediately ? 'recording' : 'armed');
     if (guideActive) onGuideAcquisitionEvent?.({ type: 'startAcquisition' });
   };
@@ -1672,7 +1841,7 @@ PistonOscillationAcquisitionPanelProps
     guideRecordingReadyNotifiedRef.current = false;
     guidePauseStartedAtMsRef.current = null;
     guideAccumulatedPauseMsRef.current = 0;
-    setDisplayNowMs(performance.now());
+    resetDisplayClock(performance.now());
     updatePhase('armed');
     onGuideAcquisitionEvent?.({ type: 'redoOverpressureAttempt' });
   };
@@ -2171,12 +2340,21 @@ PistonOscillationAcquisitionPanelProps
           <text x="18" y="179" transform="rotate(-90 18 179)" textAnchor="middle" className="piston-acquisition-axis-label">
             {copy.pressureAxis}
           </text>
-          {!pressurePath ? (
+          {!pressureCurveVisible ? (
             <text x={graphCenterX} y="179" textAnchor="middle" className="piston-acquisition-empty-label">
               {effectivePhase === 'armed' ? copy.waitingTrigger : copy.emptyCurve}
             </text>
           ) : null}
           </svg>
+          <canvas
+            ref={liveCurveCanvasRef}
+            className="piston-acquisition-live-curve-canvas"
+            data-piston-acquisition-live-curve="true"
+            data-piston-acquisition-live-curve-active={liveCanvasPressurePresentation}
+            width={Math.round(graphWidth * liveCurvePixelRatio)}
+            height={Math.round(GRAPH_HEIGHT * liveCurvePixelRatio)}
+            aria-hidden="true"
+          />
         </div>
         <div className="piston-acquisition-chart-footer">
           <div

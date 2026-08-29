@@ -14,19 +14,13 @@ import {
   type PistonOscillationRawMeasurementRecord,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
-  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
-  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
   createPistonOscillationAdiabaticStateFromReference,
   createPistonOscillationAtmosphericLockedState,
-  createPistonOscillationEquilibriumState,
   getPistonOscillationSettlingStateAtProgress,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
-  createPistonOscillationAirMaterialSnapshot,
-} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
-import {
-  createPistonOscillationEquivalentLossSnapshot,
-} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+  createPistonOscillationCurrentRecordTestArtifacts,
+} from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
 
 const createMeasurement = (
   measurementIndex: number,
@@ -35,37 +29,38 @@ const createMeasurement = (
 ): PistonOscillationRawMeasurementRecord => {
   const sampleRateHz = 1000;
   const recordedDurationS = 0.5;
+  const samples = Array.from(
+    { length: recordedDurationS * sampleRateHz + 1 },
+    (_, sampleIndex) => ({
+      sampleIndex,
+      timeS: sampleIndex / sampleRateHz,
+      absolutePressureKpa: Math.trunc((
+        101.32
+          + 4 * Math.exp(-2.4 * sampleIndex / sampleRateHz)
+            * Math.cos(2 * Math.PI * sampleIndex / sampleRateHz / 0.04)
+      ) * 100) / 100,
+    }),
+  );
+  const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
+    lockedHeightMm: targetHeightMm,
+    sampleRateHz,
+    samples,
+  });
   return createPistonOscillationRawMeasurementRecord({
     recordId: `free-${measurementIndex}-${capturedAtMs}`,
     capturedAtMs,
     measurementIndex,
     targetHeightMm,
-    confirmedHeightMm: targetHeightMm,
+    confirmedHeightMm: artifacts.confirmedHeightMm,
     sampleRateHz,
     triggerThresholdKpa: 120,
     recordedDurationS,
-    samples: Array.from(
-      { length: recordedDurationS * sampleRateHz + 1 },
-      (_, sampleIndex) => ({
-        sampleIndex,
-        timeS: sampleIndex / sampleRateHz,
-        absolutePressureKpa: 101.32
-          + 4 * Math.exp(-2.4 * sampleIndex / sampleRateHz)
-            * Math.cos(2 * Math.PI * sampleIndex / sampleRateHz / 0.04),
-      }),
-    ),
-    physicsSnapshot: {
-      modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-      provenance: 'captured',
-      airMaterial: createPistonOscillationAirMaterialSnapshot(),
-      equivalentLoss: createPistonOscillationEquivalentLossSnapshot(),
-      config: { ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG },
-      equilibrium: createPistonOscillationEquilibriumState(targetHeightMm),
-      initialDisplacementM: 0,
-      initialVelocityMPerS: 0,
-      integrationSubstepsPerSample: 1,
-      triggerTimeS: 0,
-    },
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
+    samples,
+    pressOperationEvidence: artifacts.pressOperationEvidence,
+    sensorObservationSnapshot: artifacts.sensorObservationSnapshot,
+    physicsSnapshot: artifacts.physicsSnapshot,
   });
 };
 

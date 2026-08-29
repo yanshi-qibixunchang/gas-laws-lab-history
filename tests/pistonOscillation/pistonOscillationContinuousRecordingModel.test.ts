@@ -2,11 +2,11 @@ import assert from 'node:assert/strict';
 import {
   DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
-  PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
-  PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
-  PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
   assertPistonOscillationSensorObservationSeries,
+  createInitialPistonOscillationDynamicSensorState,
+  createPistonOscillationDynamicSensorObservationSeries,
   getPistonOscillationObservedTimeS,
+  type PistonOscillationDynamicSensorState,
   type PistonOscillationSensorObservationSeries,
 } from '../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 import {
@@ -19,17 +19,24 @@ import type {
 
 const SAMPLE_RATE_HZ = 10;
 
-const createSeries = (pressuresKpa: readonly number[]): PistonOscillationSensorObservationSeries => ({
-  modelVersion: PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
-  pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
-  samples: pressuresKpa.map((absolutePressureKpa, sampleIndex) => ({
-    sampleIndex,
-    timeS: getPistonOscillationObservedTimeS(sampleIndex, SAMPLE_RATE_HZ),
-    absolutePressureKpa,
-  })),
-});
+const createSeries = (
+  pressuresKpa: readonly number[],
+  initialState: PistonOscillationDynamicSensorState,
+): PistonOscillationSensorObservationSeries => {
+  const generated = createPistonOscillationDynamicSensorObservationSeries(
+    pressuresKpa.map((pressureKpa) => ({ pressurePa: pressureKpa * 1_000 })),
+    SAMPLE_RATE_HZ,
+    { initialState },
+  );
+  return {
+    ...generated,
+    samples: pressuresKpa.map((absolutePressureKpa, sampleIndex) => ({
+      sampleIndex,
+      timeS: getPistonOscillationObservedTimeS(sampleIndex, SAMPLE_RATE_HZ),
+      absolutePressureKpa,
+    })),
+  };
+};
 
 const createLiveObservation = (
   sampledAtMs: number,
@@ -55,10 +62,10 @@ const createLiveObservation = (
 
 const firstRelease = createSeries([
   121, 119, 117, 115, 113, 111, 109, 107, 105, 103, 102, 101,
-]);
+], createInitialPistonOscillationDynamicSensorState(121_000));
 const secondRelease = createSeries([
   130, 116, 110, 106, 103, 101, 100, 101, 101, 101, 101, 101,
-]);
+], firstRelease.finalDynamicState!);
 const releaseSegments = [
   { startedAtMs: 1_000, observationSeries: firstRelease },
   { startedAtMs: 1_800, observationSeries: secondRelease },

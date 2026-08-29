@@ -1,6 +1,5 @@
 import {
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
-  PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
   getPistonOscillationObservedTimeS,
@@ -175,23 +174,19 @@ export const createPistonOscillationContinuousObservationSeries = (options: {
     : latestReleaseSegment?.observationSeries.finalDynamicState
       ?? latestLiveObservation?.sensorState
       ?? null;
-  if (dynamicConfig && finalDynamicState) {
-    return {
-      modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
-      sampleRateHz: options.sampleRateHz,
-      pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
-      pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
-      samples,
-      dynamicConfig: { ...dynamicConfig },
-      initialDynamicState: initialDynamicState ? { ...initialDynamicState } : null,
-      finalDynamicState: { ...finalDynamicState },
-    };
+  if (!dynamicConfig || !finalDynamicState) {
+    throw new RangeError(
+      'Continuous current recordings require dynamic sensor state and configuration.',
+    );
   }
   return {
-    modelVersion: PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
+    modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
     sampleRateHz: options.sampleRateHz,
     pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
     pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
     samples,
+    dynamicConfig: { ...dynamicConfig },
+    initialDynamicState: initialDynamicState ? { ...initialDynamicState } : null,
+    finalDynamicState: { ...finalDynamicState },
   };
 };

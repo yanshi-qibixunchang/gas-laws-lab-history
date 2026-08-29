@@ -17,11 +17,18 @@ import {
   type PistonOscillationFreeSession,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
+  createPistonOscillationLoadedEquilibriumState,
   getPistonOscillationSettlingStateAtProgress,
-  simulatePistonOscillationRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
-  createPistonOscillationSensorObservationSeries,
+  advancePistonOscillationPrescribedThermodynamicState,
+  simulatePistonOscillationThermalRelease,
+} from '../../src/domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
+import {
+  createPistonOscillationPressOperationEvidence,
+} from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
+import {
+  createPistonOscillationDynamicSensorObservationSeries,
 } from '../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 
 type UntimedFreeEvent = PistonOscillationFreeEvent extends infer Event
@@ -43,17 +50,59 @@ const createCapturedMeasurement = (
   measurementIndex: number,
   targetHeightMm: number,
 ) => {
-  const trajectory = simulatePistonOscillationRelease({
+  const sampleRateHz = 1_000;
+  const equilibrium = createPistonOscillationLoadedEquilibriumState(
+    targetHeightMm,
+    { sensorSampleRateHz: sampleRateHz },
+  );
+  let releaseState = getPistonOscillationSettlingStateAtProgress(
+    targetHeightMm,
+    1,
+    { sensorSampleRateHz: sampleRateHz },
+  );
+  const pressPhysicalSamples = [{ pressurePa: releaseState.pressurePa }];
+  for (let sampleIndex = 1; sampleIndex <= 80; sampleIndex += 1) {
+    releaseState = advancePistonOscillationPrescribedThermodynamicState({
+      referenceState: releaseState,
+      pistonHeightMm: equilibrium.equilibriumHeightM * 1_000
+        - 12 * sampleIndex / 80,
+      elapsedS: 1 / sampleRateHz,
+      velocityMmPerS: -150,
+      physicsConfig: { sensorSampleRateHz: sampleRateHz },
+    });
+    pressPhysicalSamples.push({ pressurePa: releaseState.pressurePa });
+  }
+  const pressObservations = createPistonOscillationDynamicSensorObservationSeries(
+    pressPhysicalSamples,
+    sampleRateHz,
+  );
+  const trajectory = simulatePistonOscillationThermalRelease({
     lockedHeightMm: targetHeightMm,
     initialDisplacementMm: -12,
+    initialVelocityMmPerS: -150,
+    referenceThermodynamicState: releaseState,
   }, {
-    sensorSampleRateHz: 1_000,
+    sensorSampleRateHz: sampleRateHz,
     trajectoryDurationS: 0.5,
   });
-  const observations = createPistonOscillationSensorObservationSeries(
+  const observations = createPistonOscillationDynamicSensorObservationSeries(
     trajectory.samples,
     trajectory.sampleRateHz,
+    {
+      initialState: pressObservations.finalDynamicState,
+      initialObservedPressureKpa:
+        pressObservations.samples.at(-1)!.absolutePressureKpa,
+    },
   );
+  const pressOperationEvidence = createPistonOscillationPressOperationEvidence({
+    trace: [],
+    releasedAtMs: clockMs,
+    spaceReleasedAtMs: clockMs,
+    mouseReleasedAtMs: clockMs,
+    equilibriumHeightMm: equilibrium.equilibriumHeightM * 1_000,
+    releaseThermodynamicState: releaseState,
+    releaseVelocityMPerS: releaseState.velocityMPerS,
+  });
   const measurement = createPistonOscillationRawMeasurementRecord({
     recordId: `end-to-end-${targetHeightMm}-${measurementIndex}-${clockMs}`,
     capturedAtMs: clockMs,
@@ -66,9 +115,11 @@ const createCapturedMeasurement = (
     recordingPath: 'immediate',
     releaseOffsetS: 0,
     samples: observations.samples,
+    pressOperationEvidence,
     sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
       sampleRateHz: observations.sampleRateHz,
       triggerSourceSampleIndex: 0,
+      observationSeries: observations,
     }),
     physicsSnapshot: createPistonOscillationPhysicsSnapshot(trajectory, null),
   });

@@ -71,6 +71,10 @@ const panelSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'pistonOscillation', 'PistonOscillationAcquisitionPanel.tsx'),
   'utf8',
 );
+const demoTimelineSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'pistonOscillation', 'pistonOscillationDemoTimeline.ts'),
+  'utf8',
+);
 const panelStyles = readFileSync(
   join(process.cwd(), 'src', 'features', 'pistonOscillation', 'PistonOscillationAcquisitionPanel.css'),
   'utf8',
@@ -152,15 +156,25 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /snapshotLockedHeightMm[\s\S]*try \{[\s\S]*createPistonOscillationLoadedEquilibriumState[\s\S]*\} catch \{[\s\S]*return null;/,
+  /snapshotLockedHeightMm[\s\S]*try \{[\s\S]*createPistonOscillationIncompletePhysicsSnapshot[\s\S]*\} catch \{[\s\S]*return null;/,
   'an acquisition at the rigid lower stop must remain visible but must not become a fabricated savable oscillation record',
 );
 assert.doesNotMatch(panelSource, />Run 1\/7</);
 assert.match(panelSource, /phaseRef\.current === 'armed'[\s\S]*updatePhase\('recording'\)/);
 assert.match(
   panelSource,
-  /ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1000 \/ 30[\s\S]*nowMs - lastDisplayUpdateMs >= ACQUISITION_DISPLAY_FRAME_INTERVAL_MS[\s\S]*setDisplayNowMs\(nowMs\)/,
-  'the live chart should render at a bounded display cadence without changing the formal sensor sampling rate',
+  /PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS[\s\S]*nowMs - lastDisplayUpdateMs[\s\S]*publishDisplayClock\(nowMs\)[\s\S]*presentedNowMs - cycleStartMs/,
+  'the live chart should advance through bounded presentation frames without changing the formal sensor sampling rate',
+);
+assert.match(
+  panelSource,
+  /cycleStartMs === null[\s\S]*rebaseDisplayClock\(releaseEvent\.startedAtMs, true\)[\s\S]*createPistonOscillationDynamicSensorObservationSeries[\s\S]*publishDisplayClock\(performance\.now\(\)\)/,
+  'release calculation time must become display lag instead of an immediate post-trigger curve jump',
+);
+assert.match(
+  panelSource,
+  /displayNowMs[\s\S]*- displayClockLagMs[\s\S]*const getCurrentRecordingElapsedSeconds = \(\) => formalElapsedSeconds/,
+  'both the visible curve and Pause action must use the same lag-compensated acquisition time',
 );
 assert.match(
   panelSource,
@@ -246,8 +260,13 @@ assert.match(
 );
 assert.doesNotMatch(
   panelSource,
-  /getPistonOscillationTrajectorySampleAt|findPistonOscillationFallingTriggerTimeS/,
+  /getPistonOscillationTrajectorySampleAt|findPistonOscillationFallingTriggerTimeS|simulatePistonOscillationIdealAdiabaticRelease|createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
   'the acquisition panel must not recover interpolated physical pressure or a continuous threshold crossing',
+);
+assert.doesNotMatch(
+  demoTimelineSource,
+  /simulatePistonOscillationIdealAdiabaticRelease|createPistonOscillationIdealAdiabaticLoadedGasState|createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
+  'Demo generation must stay on the same current thermal and sensor chain as live acquisition',
 );
 assert.match(
   panelSource,
@@ -322,8 +341,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /getPistonOscillationDemoTrajectory\(demoFrame\.measurementIndex\)[\s\S]*createPistonOscillationSensorObservationSeries[\s\S]*findPistonOscillationObservedFallingTriggerSample[\s\S]*createPistonOscillationRecordedObservationSamples/,
-  'each demo run must pass through the same quantized sensor-observation and falling-trigger chain as Guide mode',
+  /getPistonOscillationDemoObservationSeries\(demoFrame\.measurementIndex\)[\s\S]*findPistonOscillationObservedFallingTriggerSample[\s\S]*createPistonOscillationRecordedObservationSamples/,
+  'each demo run must use the shared current dynamic-sensor and falling-trigger chain',
 );
 assert.match(
   panelSource,
@@ -393,6 +412,16 @@ assert.match(
   panelSource,
   /className="piston-acquisition-pressure-sample-markers"[\s\S]*aria-hidden="true"/,
   'adaptive observation markers must render as a visual layer without flooding the accessibility tree',
+);
+assert.match(
+  panelSource,
+  /liveCanvasPressurePresentation[\s\S]*for \(const sample of displayedObservationSamples\)[\s\S]*context\.lineTo\(x, y\)[\s\S]*data-piston-acquisition-live-curve="true"/,
+  'active recording should draw every visible formal sample on a lightweight canvas without changing the saved series',
+);
+assert.match(
+  panelStyles,
+  /\.piston-acquisition-live-curve-canvas\s*\{[\s\S]*position:\s*absolute;[\s\S]*pointer-events:\s*none;/,
+  'the live canvas should overlay the scientific axes without intercepting acquisition controls',
 );
 assert.match(
   panelSource,

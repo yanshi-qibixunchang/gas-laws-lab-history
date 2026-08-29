@@ -9,8 +9,10 @@ export const PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K =
   8.31446261815324;
 export const PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2 = 9.80665;
 
-export const PISTON_OSCILLATION_PHYSICS_MODEL_VERSION =
+export const PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION =
   'piston-oscillation-rk4-pasco-td8572a-v3' as const;
+export const PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION =
+  'piston-oscillation-equilibrium-state-v1' as const;
 export const PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION =
   'piston-oscillation-rk4-single-temperature-thermal-v4' as const;
 
@@ -88,7 +90,8 @@ export type PistonOscillationThermalExtensionState =
 export interface PistonOscillationThermodynamicState {
   schemaVersion: typeof PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION;
   modelVersion:
-    | typeof PISTON_OSCILLATION_PHYSICS_MODEL_VERSION
+    | typeof PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION
+    | typeof PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
     | typeof PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION;
   phase: PistonOscillationThermodynamicPhase;
   nominalLockedHeightM: number;
@@ -129,7 +132,7 @@ export interface PistonOscillationTrajectory {
   diagnostics: {
     minimumPressureKpa: number;
     maximumPressureKpa: number;
-    withinIdealSensorRange: boolean;
+    withinSensorRange: boolean;
   };
 }
 
@@ -142,7 +145,7 @@ export interface PistonOscillationReleaseInput {
   initialVelocityMmPerS?: number;
 }
 
-export interface PistonOscillationInstantaneousThermodynamicState {
+export interface PistonOscillationIdealAdiabaticInstantaneousState {
   displacementM: number;
   pressurePa: number;
   temperatureK: number;
@@ -360,7 +363,7 @@ const createThermodynamicState = (input: {
   }
   return {
     schemaVersion: PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION,
-    modelVersion: input.modelVersion ?? PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+    modelVersion: input.modelVersion ?? PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION,
     phase: input.phase,
     nominalLockedHeightM,
     pistonHeightM,
@@ -604,7 +607,11 @@ export const normalizePistonOscillationThermodynamicState = (
     && value.thermal.provenance === 'identified-candidate';
   const supportedModelAndThermal =
     (
-      value.modelVersion === PISTON_OSCILLATION_PHYSICS_MODEL_VERSION
+      (
+        value.modelVersion === PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION
+        || value.modelVersion
+          === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
+      )
       && disabledThermal
     )
     || (
@@ -694,17 +701,22 @@ export const normalizePistonOscillationThermodynamicState = (
   };
 };
 
-interface MotionState {
+/*
+ * Ideal adiabatic reference solver. It remains available for scientific
+ * comparison and persisted-record tests, but current acquisition must use the
+ * finite-thermal solver in pistonOscillationThermalPhysicsModel.ts.
+ */
+interface IdealAdiabaticMotionState {
   displacementM: number;
   velocityMPerS: number;
 }
 
-interface MotionDerivative {
+interface IdealAdiabaticMotionDerivative {
   displacementRateMPerS: number;
   velocityRateMPerS2: number;
 }
 
-const getThermodynamicState = (
+const getIdealAdiabaticThermodynamicState = (
   displacementM: number,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
@@ -736,7 +748,7 @@ const getThermodynamicState = (
   return { pressurePa, temperatureK };
 };
 
-export const createPistonOscillationLoadedGasState = (
+export const createPistonOscillationIdealAdiabaticLoadedGasState = (
   equilibrium: PistonOscillationEquilibriumState,
   displacementMm = 0,
   velocityMmPerS = 0,
@@ -754,7 +766,7 @@ export const createPistonOscillationLoadedGasState = (
   if (pistonHeightM < 0) {
     throw new RangeError('The piston motion cannot pass below the 0 mm stop.');
   }
-  const state = getThermodynamicState(displacementM, equilibrium, config);
+  const state = getIdealAdiabaticThermodynamicState(displacementM, equilibrium, config);
   return createThermodynamicState({
     phase: 'sealed-loaded',
     nominalLockedHeightM: equilibrium.lockedHeightM,
@@ -909,11 +921,11 @@ export const resolvePistonOscillationStablePhysicalState = (
   };
 };
 
-export const getPistonOscillationInstantaneousThermodynamicState = (
+export const getPistonOscillationIdealAdiabaticInstantaneousState = (
   equilibriumHeightMm: number,
   displacementMm: number,
   configInput: Partial<PistonOscillationPhysicsConfig> = {},
-): PistonOscillationInstantaneousThermodynamicState => {
+): PistonOscillationIdealAdiabaticInstantaneousState => {
   const config = normalizePistonOscillationPhysicsConfig(configInput);
   const equilibrium = createPistonOscillationEquilibriumState(
     equilibriumHeightMm,
@@ -929,7 +941,7 @@ export const getPistonOscillationInstantaneousThermodynamicState = (
     throw new RangeError('The piston motion cannot pass below the 0 mm stop.');
   }
   const displacementM = normalizedDisplacementMm / 1_000;
-  const gasState = createPistonOscillationLoadedGasState(
+  const gasState = createPistonOscillationIdealAdiabaticLoadedGasState(
     equilibrium,
     normalizedDisplacementMm,
     0,
@@ -946,13 +958,13 @@ export const getPistonOscillationInstantaneousThermodynamicState = (
 };
 
 const getMotionDerivative = (
-  state: MotionState,
+  state: IdealAdiabaticMotionState,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
-): MotionDerivative => {
+): IdealAdiabaticMotionDerivative => {
   assertFiniteNumber('motion displacement', state.displacementM);
   assertFiniteNumber('motion velocity', state.velocityMPerS);
-  const { pressurePa } = getThermodynamicState(
+  const { pressurePa } = getIdealAdiabaticThermodynamicState(
     state.displacementM,
     equilibrium,
     config,
@@ -974,20 +986,20 @@ const getMotionDerivative = (
 };
 
 const addDerivative = (
-  state: MotionState,
-  derivative: MotionDerivative,
+  state: IdealAdiabaticMotionState,
+  derivative: IdealAdiabaticMotionDerivative,
   scaleS: number,
-): MotionState => ({
+): IdealAdiabaticMotionState => ({
   displacementM: state.displacementM + derivative.displacementRateMPerS * scaleS,
   velocityMPerS: state.velocityMPerS + derivative.velocityRateMPerS2 * scaleS,
 });
 
 const stepMotionRungeKutta = (
-  state: MotionState,
+  state: IdealAdiabaticMotionState,
   dtS: number,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
-): MotionState => {
+): IdealAdiabaticMotionState => {
   const k1 = getMotionDerivative(state, equilibrium, config);
   const k2 = getMotionDerivative(
     addDerivative(state, k1, dtS / 2),
@@ -1025,7 +1037,7 @@ const stepMotionRungeKutta = (
 
 const createTrajectorySample = (
   timeS: number,
-  state: MotionState,
+  state: IdealAdiabaticMotionState,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
 ): PistonOscillationTrajectorySample => {
@@ -1036,7 +1048,7 @@ const createTrajectorySample = (
     timeS,
     displacementM: state.displacementM,
     velocityMPerS: state.velocityMPerS,
-    ...getThermodynamicState(state.displacementM, equilibrium, config),
+    ...getIdealAdiabaticThermodynamicState(state.displacementM, equilibrium, config),
   };
 };
 
@@ -1045,7 +1057,7 @@ const getIntegrationSubstepsPerSample = (
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
 ) => {
-  const initialThermodynamicState = getThermodynamicState(
+  const initialThermodynamicState = getIdealAdiabaticThermodynamicState(
     initialDisplacementM,
     equilibrium,
     config,
@@ -1076,7 +1088,7 @@ const getIntegrationSubstepsPerSample = (
   return Math.max(1, Math.ceil((1 / config.sensorSampleRateHz) / maximumStepS));
 };
 
-export const simulatePistonOscillationRelease = (
+export const simulatePistonOscillationIdealAdiabaticRelease = (
   input: PistonOscillationReleaseInput,
   configInput: Partial<PistonOscillationPhysicsConfig> = {},
 ): PistonOscillationTrajectory => {
@@ -1118,7 +1130,7 @@ export const simulatePistonOscillationRelease = (
     config.trajectoryDurationS * config.sensorSampleRateHz,
   ) + 1;
   const samples: PistonOscillationTrajectorySample[] = [];
-  let motionState: MotionState = {
+  let motionState: IdealAdiabaticMotionState = {
     displacementM: initialDisplacementM,
     velocityMPerS: initialVelocityMPerS,
   };
@@ -1147,7 +1159,7 @@ export const simulatePistonOscillationRelease = (
   const minimumPressureKpa = Math.min(...pressuresKpa);
   const maximumPressureKpa = Math.max(...pressuresKpa);
   return {
-    modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+    modelVersion: PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION,
     initialThermodynamicState: null,
     thermalModel: null,
     config,
@@ -1160,7 +1172,7 @@ export const simulatePistonOscillationRelease = (
     diagnostics: {
       minimumPressureKpa,
       maximumPressureKpa,
-      withinIdealSensorRange:
+      withinSensorRange:
         minimumPressureKpa >= PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA
         && maximumPressureKpa <= PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
     },
@@ -1199,43 +1211,6 @@ export const getPistonOscillationTrajectorySampleAt = (
     temperatureK: lower.temperatureK
       + (upper.temperatureK - lower.temperatureK) * blend,
   };
-};
-
-export const findPistonOscillationFallingTriggerTimeS = (
-  trajectory: PistonOscillationTrajectory,
-  thresholdKpa: number,
-  sampleRateHz = trajectory.sampleRateHz,
-) => {
-  const thresholdPa = assertFiniteRange(
-    'thresholdKpa',
-    thresholdKpa,
-    PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
-    PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
-  ) * 1_000;
-  const normalizedSampleRateHz = Math.round(assertFiniteRange(
-    'sampleRateHz',
-    sampleRateHz,
-    1,
-    trajectory.sampleRateHz,
-  ));
-  const durationS = trajectory.samples[trajectory.samples.length - 1]?.timeS ?? 0;
-  const sampleCount = Math.floor(durationS * normalizedSampleRateHz) + 1;
-  let previous = getPistonOscillationTrajectorySampleAt(trajectory, 0);
-  for (let index = 1; index < sampleCount; index += 1) {
-    const current = getPistonOscillationTrajectorySampleAt(
-      trajectory,
-      index / normalizedSampleRateHz,
-    );
-    if (previous.pressurePa >= thresholdPa && current.pressurePa < thresholdPa) {
-      const pressureSpanPa = previous.pressurePa - current.pressurePa;
-      const fraction = pressureSpanPa <= 0
-        ? 1
-        : (previous.pressurePa - thresholdPa) / pressureSpanPa;
-      return previous.timeS + (current.timeS - previous.timeS) * fraction;
-    }
-    previous = current;
-  }
-  return null;
 };
 
 export const getPistonOscillationSmallSignalFrequencyHz = (

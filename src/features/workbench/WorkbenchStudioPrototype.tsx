@@ -8632,6 +8632,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const handlePistonOscillationFreeInstrumentSnapshot = (
     snapshot: PistonOscillationGuideInstrumentSnapshot,
   ) => {
+    // Press, hold, fall, and rebound are transient actions. Persisting every
+    // animation frame forced the entire workbench to render and serialize at
+    // pointer frequency. The final idle snapshot contains the stable physical
+    // state that free-mode restore is designed to retain.
+    if (snapshot.pistonPhase !== 'idle') return;
     const fileId = activeFileIdRef.current;
     updateRuntimeFileById(fileId, (file) => {
       if (

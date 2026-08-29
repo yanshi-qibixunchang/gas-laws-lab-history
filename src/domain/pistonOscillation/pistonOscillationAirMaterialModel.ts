@@ -20,20 +20,9 @@ export const PISTON_OSCILLATION_AIR_MATERIAL = Object.freeze({
 });
 
 export const createPistonOscillationAirMaterialSnapshot = (
-  provenance: PistonOscillationAirMaterialSnapshot['provenance'] = 'captured',
 ): PistonOscillationAirMaterialSnapshot => ({
   ...PISTON_OSCILLATION_AIR_MATERIAL,
-  provenance,
-});
-
-export const createLegacyPistonOscillationAirMaterialSnapshot = (
-  adiabaticIndex: number,
-): PistonOscillationAirMaterialSnapshot => ({
-  schemaVersion: PISTON_OSCILLATION_AIR_MATERIAL_SCHEMA_VERSION,
-  modelVersion: 'legacy-physics-config-air-material',
-  materialId: PISTON_OSCILLATION_AIR_MATERIAL_ID,
-  adiabaticIndex,
-  provenance: 'legacy-inferred',
+  provenance: 'captured',
 });
 
 export const isPistonOscillationAirMaterialSnapshot = (
@@ -60,4 +49,3 @@ export const isPistonOscillationAirMaterialSnapshot = (
       )
     );
 };
-

@@ -1,18 +1,21 @@
 import assert from 'node:assert/strict';
 import {
-  createPistonOscillationLoadedGasState,
+  createPistonOscillationIdealAdiabaticLoadedGasState,
   createPistonOscillationLoadedEquilibriumState,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
   appendPistonOscillationPressTracePoint,
-  createLegacyUnknownPistonOscillationPressOperationEvidence,
+  createPistonOscillationIncompletePressOperationEvidence,
   createPistonOscillationPressOperationEvidence,
   type PistonOscillationPressTracePoint,
 } from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
+import {
+  createLegacyUnknownPistonOscillationPressOperationEvidence,
+} from '../../src/domain/pistonOscillation/pistonOscillationLegacyCompatibility.ts';
 
 const equilibrium = createPistonOscillationLoadedEquilibriumState(80);
-const releaseState = createPistonOscillationLoadedGasState(equilibrium, -8);
+const releaseState = createPistonOscillationIdealAdiabaticLoadedGasState(equilibrium, -8);
 const trace: PistonOscillationPressTracePoint[] = [];
 for (const point of [
   { observedAtMs: 1_000, pistonHeightMm: 79.5, displacementMm: 0 },
@@ -76,6 +79,15 @@ const exactVelocityRelease = createPistonOscillationPressOperationEvidence({
 });
 assert.equal(exactVelocityRelease.releaseVelocityMPerS, -0.0125);
 assert.equal(exactVelocityRelease.releaseState?.velocityMPerS, -0.0125);
+
+const incomplete = createPistonOscillationIncompletePressOperationEvidence({
+  trace,
+  capturedUntilMs: 1_600,
+});
+assert.equal(incomplete.completion, 'not-released');
+assert.equal(incomplete.releaseState, null);
+assert.equal(incomplete.releaseVelocityMPerS, null);
+assert.equal(incomplete.holdDurationS, 0.4);
 
 const legacy = createLegacyUnknownPistonOscillationPressOperationEvidence();
 assert.equal(legacy.provenance, 'legacy-unknown');

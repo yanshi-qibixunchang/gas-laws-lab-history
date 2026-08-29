@@ -95,6 +95,21 @@ assert.match(
 );
 
 assert.match(workspaceSource, /data-piston-oscillation-interaction-workspace="true"/);
+assert.doesNotMatch(
+  workspaceSource,
+  /virtualHandReferenceDragPxRef\.current = normalizedReferenceDragPx;[\s\S]{0,180}advanceVirtualHandPressTo\(observedAtMs\)/,
+  'pointer events should only update the hand target; the animation clock owns the single physical advance',
+);
+assert.equal(
+  (workspaceSource.match(/onLivePhysicalStateChange\(\{/g) ?? []).length,
+  1,
+  'the live sensor should publish once per animation clock rather than once again after each React commit',
+);
+assert.match(
+  workspaceSource,
+  /const PISTON_LIVE_PRESENTATION_INTERVAL_MS = 1_000 \/ 60;[\s\S]*const publishSensorClock[\s\S]*observedAtMs - lastPublishedAtMs[\s\S]*PISTON_LIVE_PRESENTATION_INTERVAL_MS[\s\S]*const advancePressThermalClock[\s\S]*observedAtMs - previousUpdatedAtMs[\s\S]*PISTON_LIVE_PRESENTATION_INTERVAL_MS/,
+  'high-refresh displays must not make the interaction and pressure UI render faster than 60 Hz',
+);
 assert.match(workspaceSource, /data-piston-focus-operation-mirror="true"/);
 assert.match(workspaceSource, /data-piston-focus-exit-panel="true"/);
 assert.match(
@@ -516,10 +531,25 @@ assert.doesNotMatch(
   /PISTON_PRESS_DEFAULT_MAX_OFFSET_MM|PISTON_PRESS_DRAG_RANGE_PX|mapPistonDragToOffsetMm/,
   'the reviewed virtual hand must replace the fixed 12 mm prescribed-position wall',
 );
+assert.doesNotMatch(
+  workspaceSource,
+  /simulatePistonOscillationIdealAdiabaticRelease|createPistonOscillationIdealAdiabaticLoadedGasState|createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
+  'the live interaction workspace must stay on the current thermal chain and outside legacy compatibility',
+);
 assert.match(
   workspaceSource,
   /const advanceVirtualHandPressTo = useCallback[\s\S]*advancePistonOscillationVirtualHandThermodynamicState\(\{[\s\S]*targetDownwardDisplacementMm:[\s\S]*getPistonOscillationVirtualHandTargetDisplacementMm/,
   'the mouse must set only the virtual hand target while force integration determines visible piston motion',
+);
+assert.match(
+  workspaceSource,
+  /preventUpwardMotion:[\s\S]*observedAtMs <= virtualHandDownwardCommandUntilMsRef\.current/,
+  'continued downward input must temporarily prevent thermal force feedback from pushing through the advancing hands',
+);
+assert.match(
+  workspaceSource,
+  /referenceDragDeltaPx[\s\S]*PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX[\s\S]*virtualHandReferenceDragPxRef\.current = normalizedReferenceDragPx;[\s\S]*advanceVirtualHandPressTo\(observedAtMs\)/,
+  'the latest hand target must be committed before physics advances, while a pause or micro-movement restores ordinary feedback',
 );
 assert.match(
   workspaceSource,
@@ -758,8 +788,8 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /onLivePhysicalStateChange\?\.\(\{[\s\S]*observedAtMs: performance\.now\(\),[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*displacementMm: pistonOffsetMm,[\s\S]*thermodynamicState,[\s\S]*\}\)/,
-  'the formal scene must publish the same live piston position and physical gas state used by its interaction model',
+  /const publishSensorClock = \(observedAtMs: number\) => \{[\s\S]*onLivePhysicalStateChange\(\{[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMmRef\.current,[\s\S]*displacementMm: pistonOffsetMmRef\.current,[\s\S]*thermodynamicState: thermodynamicStateRef\.current/,
+  'the formal scene must publish the live piston position and physical gas state once per sensor animation clock',
 );
 assert.match(
   workspaceSource,

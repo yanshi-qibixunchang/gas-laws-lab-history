@@ -21,16 +21,8 @@ import {
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
-  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
-  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-  createPistonOscillationEquilibriumState,
-} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
-import {
-  createPistonOscillationAirMaterialSnapshot,
-} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
-import {
-  createPistonOscillationEquivalentLossSnapshot,
-} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+  createPistonOscillationCurrentRecordTestArtifacts,
+} from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
 
 const transition = (
   session: PistonOscillationGuideSession,
@@ -42,7 +34,6 @@ const createCandidate = (
   recordedDurationS: number,
   samples: PistonOscillationRawSample[],
   capturedAtMs: number,
-  confirmedHeightMm: number = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex],
 ): PistonOscillationRawMeasurementRecord => {
   const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
   const sampleRateHz = 1000;
@@ -58,34 +49,34 @@ const createCandidate = (
       return {
         sampleIndex,
         timeS,
-        absolutePressureKpa: baselinePressureKpa
-          + amplitudeKpa * Math.exp(-2.4 * timeS)
-            * Math.cos(2 * Math.PI * timeS / periodS),
+        absolutePressureKpa: Math.trunc((
+          baselinePressureKpa
+            + amplitudeKpa * Math.exp(-2.4 * timeS)
+              * Math.cos(2 * Math.PI * timeS / periodS)
+        ) * 100) / 100,
       };
     },
   );
+  const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
+    lockedHeightMm: targetHeightMm,
+    sampleRateHz,
+    samples: formalSamples,
+  });
   return createPistonOscillationRawMeasurementRecord({
     recordId: `guide-${measurementIndex}-${capturedAtMs}`,
     capturedAtMs,
     measurementIndex,
     targetHeightMm,
-    confirmedHeightMm,
+    confirmedHeightMm: artifacts.confirmedHeightMm,
     sampleRateHz,
     triggerThresholdKpa: 120,
     recordedDurationS,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples: formalSamples,
-    physicsSnapshot: {
-      modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
-      provenance: 'captured',
-      airMaterial: createPistonOscillationAirMaterialSnapshot(),
-      equivalentLoss: createPistonOscillationEquivalentLossSnapshot(),
-      config: { ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG },
-      equilibrium: createPistonOscillationEquilibriumState(confirmedHeightMm),
-      initialDisplacementM: 0,
-      initialVelocityMPerS: 0,
-      integrationSubstepsPerSample: 1,
-      triggerTimeS: 0,
-    },
+    pressOperationEvidence: artifacts.pressOperationEvidence,
+    sensorObservationSnapshot: artifacts.sensorObservationSnapshot,
+    physicsSnapshot: artifacts.physicsSnapshot,
   });
 };
 
@@ -416,7 +407,7 @@ const recordedSamples: PistonOscillationRawSample[] = [
   { sampleIndex: 2, timeS: 0.3, absolutePressureKpa: 106.1 },
   { sampleIndex: 3, timeS: 0.6, absolutePressureKpa: 101.325 },
 ];
-const recordedCandidate = createCandidate(0, 0.6, recordedSamples, 340, 79.8);
+const recordedCandidate = createCandidate(0, 0.6, recordedSamples, 340);
 session = transition(session, {
   type: 'updateRecording',
   recordedDurationS: PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S + 0.1,

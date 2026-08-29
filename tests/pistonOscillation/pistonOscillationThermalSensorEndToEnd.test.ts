@@ -16,6 +16,9 @@ import {
   simulatePistonOscillationThermalRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
 import {
+  createPistonOscillationPressOperationEvidence,
+} from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
+import {
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   createPistonOscillationDynamicSensorObservationSeries,
   createPistonOscillationRecordedObservationSamples,
@@ -116,6 +119,15 @@ const fitPoints = [80, 70, 60].map((lockedHeightMm, runIndex) => {
     trajectory,
     trajectory.samples[trigger.sampleIndex]!.timeS,
   );
+  const pressOperationEvidence = createPistonOscillationPressOperationEvidence({
+    trace: [],
+    releasedAtMs: 0,
+    spaceReleasedAtMs: 0,
+    mouseReleasedAtMs: 0,
+    equilibriumHeightMm: trajectory.equilibrium.equilibriumHeightM * 1_000,
+    releaseThermodynamicState: pressHistory.finalThermodynamicState,
+    releaseVelocityMPerS: pressHistory.finalThermodynamicState.velocityMPerS,
+  });
   const record = createPistonOscillationRawMeasurementRecord({
     recordId: `thermal-sensor-${lockedHeightMm}`,
     capturedAtMs: 10_000 + runIndex,
@@ -125,7 +137,10 @@ const fitPoints = [80, 70, 60].map((lockedHeightMm, runIndex) => {
     sampleRateHz: SAMPLE_RATE_HZ,
     triggerThresholdKpa: TRIGGER_THRESHOLD_KPA,
     recordedDurationS: RECORDED_DURATION_S,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples: recordedSamples,
+    pressOperationEvidence,
     sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
       sampleRateHz: SAMPLE_RATE_HZ,
       triggerSourceSampleIndex: trigger.sampleIndex,

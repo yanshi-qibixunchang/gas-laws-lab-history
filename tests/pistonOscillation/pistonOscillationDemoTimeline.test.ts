@@ -4,6 +4,9 @@ import {
   createPistonOscillationLoadedEquilibriumState,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
+  DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG,
+} from '../../src/domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
+import {
   PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS,
   PISTON_OSCILLATION_DEMO_DURATION_MS,
   PISTON_OSCILLATION_DEMO_INITIAL_DELAY_MS,
@@ -293,10 +296,12 @@ assert.deepEqual(
     createPistonOscillationLoadedEquilibriumState(heightMm).equilibriumHeightM * 1_000
   )),
 );
-assert.deepEqual(
-  trajectories.map((trajectory) => trajectory.initialDisplacementM * 1_000),
-  [-10.5, -9.8, -9],
-);
+assert.ok(trajectories.every((trajectory) => {
+  const displacementMm = trajectory.initialDisplacementM * 1_000;
+  return displacementMm < -10
+    && displacementMm > -DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG
+      .normalTargetDisplacementMm;
+}));
 assert.ok(trajectories.every((trajectory) => trajectory.config.gamma === 1.4));
 assert.ok(trajectories.every((trajectory) => trajectory.samples[0]!.pressurePa / 1_000 >= 120));
 assert.ok(trajectories.every((trajectory) => trajectory.samples[0]!.pressurePa / 1_000 < 127));

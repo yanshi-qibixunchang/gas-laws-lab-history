@@ -2,13 +2,20 @@ import {
   PISTON_OSCILLATION_SETTLING_DURATION_S,
   createPistonOscillationAtmosphericLockedState,
   createPistonOscillationLoadedEquilibriumState,
-  createPistonOscillationLoadedGasState,
   getPistonOscillationTrajectorySampleAt,
   getPistonOscillationSettlingStateAtProgress,
-  simulatePistonOscillationRelease,
   type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  advancePistonOscillationVirtualHandThermodynamicState,
+  createPistonOscillationThermodynamicStateFromTrajectorySample,
+  simulatePistonOscillationThermalRelease,
+} from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
+import {
+  DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG,
+  getPistonOscillationVirtualHandTargetDisplacementMm,
+} from '../../domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
 import {
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
@@ -16,8 +23,10 @@ import {
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
-  createPistonOscillationSensorObservationSeries,
+  PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+  createPistonOscillationDynamicSensorObservationSeries,
   findPistonOscillationObservedFallingTriggerSample,
+  type PistonOscillationSensorObservationSeries,
 } from '../../domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 import {
   getPistonOscillationShellCopy,
@@ -45,16 +54,6 @@ export type PistonOscillationDemoControl =
   | 'stop'
   | 'retain'
   | null;
-export const PISTON_OSCILLATION_DEMO_PRESS_DISPLACEMENTS_MM = [10.5, 9.8, 9] as const;
-export const getPistonOscillationDemoPressDisplacementMm = (measurementIndex: number) => {
-  const normalizedIndex = Number.isFinite(measurementIndex)
-    ? Math.min(
-      PISTON_OSCILLATION_DEMO_PRESS_DISPLACEMENTS_MM.length - 1,
-      Math.max(0, Math.round(measurementIndex)),
-    )
-    : 0;
-  return PISTON_OSCILLATION_DEMO_PRESS_DISPLACEMENTS_MM[normalizedIndex];
-};
 export type PistonOscillationDemoPlatformAction = 'adjustHeight' | 'press' | null;
 export type PistonOscillationDemoKeyboardField = 'sampleRate' | 'trigger' | null;
 export type PistonOscillationDemoStepKind =
@@ -595,30 +594,91 @@ const getPowerPresentation = (elapsedMs: number) => {
   return { powerOn, powerButtonPressProgress };
 };
 
-const trajectoryCache = new Map<number, PistonOscillationTrajectory>();
-const triggerTimeCache = new Map<number, number>();
-export const getPistonOscillationDemoTrajectory = (measurementIndex: number) => {
+const PISTON_OSCILLATION_DEMO_PRESS_RAMP_S = 1.1;
+const PISTON_OSCILLATION_DEMO_PRESS_HOLD_S = 0.4;
+
+interface PistonOscillationDemoPhysicalRun {
+  pressStates: PistonOscillationThermodynamicState[];
+  trajectory: PistonOscillationTrajectory;
+  observationSeries: PistonOscillationSensorObservationSeries;
+}
+
+const physicalRunCache = new Map<number, PistonOscillationDemoPhysicalRun>();
+
+const getPistonOscillationDemoPhysicalRun = (
+  measurementIndex: number,
+): PistonOscillationDemoPhysicalRun => {
   const index = Math.min(2, Math.max(0, Math.round(measurementIndex)));
-  const cached = trajectoryCache.get(index);
+  const cached = physicalRunCache.get(index);
   if (cached) return cached;
-  const trajectory = simulatePistonOscillationRelease({
-    lockedHeightMm: PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index],
-    initialDisplacementMm: -getPistonOscillationDemoPressDisplacementMm(index),
+  const lockedHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index];
+  const equilibrium = createPistonOscillationLoadedEquilibriumState(lockedHeightMm);
+  let thermodynamicState = getPistonOscillationSettlingStateAtProgress(
+    lockedHeightMm,
+    1,
+  );
+  const pressStates: PistonOscillationThermodynamicState[] = [];
+  const pressDurationS = PISTON_OSCILLATION_DEMO_PRESS_RAMP_S
+    + PISTON_OSCILLATION_DEMO_PRESS_HOLD_S;
+  const pressSampleCount = Math.round(
+    pressDurationS * PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+  ) + 1;
+  for (let sampleIndex = 0; sampleIndex < pressSampleCount; sampleIndex += 1) {
+    const elapsedS = sampleIndex / PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ;
+    if (sampleIndex > 0) {
+      const rampProgress = easeInOut(
+        Math.min(1, elapsedS / PISTON_OSCILLATION_DEMO_PRESS_RAMP_S),
+      );
+      thermodynamicState = advancePistonOscillationVirtualHandThermodynamicState({
+        referenceState: thermodynamicState,
+        equilibriumHeightMm: equilibrium.equilibriumHeightM * 1_000,
+        targetDownwardDisplacementMm:
+          getPistonOscillationVirtualHandTargetDisplacementMm(
+            DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG.normalDragReferencePx
+              * rampProgress,
+          ),
+        elapsedS: 1 / PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+        preventUpwardMotion: elapsedS <= PISTON_OSCILLATION_DEMO_PRESS_RAMP_S,
+      });
+    }
+    pressStates.push(thermodynamicState);
+  }
+  const pressObservationSeries =
+    createPistonOscillationDynamicSensorObservationSeries(
+      pressStates.map((state) => ({ pressurePa: state.pressurePa })),
+      PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+    );
+  const trajectory = simulatePistonOscillationThermalRelease({
+    lockedHeightMm,
+    initialDisplacementMm:
+      (thermodynamicState.pistonHeightM - equilibrium.equilibriumHeightM) * 1_000,
+    initialVelocityMmPerS: thermodynamicState.velocityMPerS * 1_000,
+    referenceThermodynamicState: thermodynamicState,
   });
-  trajectoryCache.set(index, trajectory);
-  return trajectory;
+  const observationSeries = createPistonOscillationDynamicSensorObservationSeries(
+    trajectory.samples,
+    trajectory.sampleRateHz,
+    { initialState: pressObservationSeries.finalDynamicState },
+  );
+  const run = { pressStates, trajectory, observationSeries };
+  physicalRunCache.set(index, run);
+  return run;
 };
 
+export const getPistonOscillationDemoTrajectory = (measurementIndex: number) => {
+  return getPistonOscillationDemoPhysicalRun(measurementIndex).trajectory;
+};
+
+export const getPistonOscillationDemoObservationSeries = (
+  measurementIndex: number,
+) => getPistonOscillationDemoPhysicalRun(measurementIndex).observationSeries;
+
+const triggerTimeCache = new Map<number, number>();
 const getDemoTriggerTimeS = (measurementIndex: number) => {
   const cached = triggerTimeCache.get(measurementIndex);
   if (cached !== undefined) return cached;
-  const trajectory = getPistonOscillationDemoTrajectory(measurementIndex);
-  const observations = createPistonOscillationSensorObservationSeries(
-    trajectory.samples,
-    trajectory.sampleRateHz,
-  );
   const triggerTimeS = findPistonOscillationObservedFallingTriggerSample(
-    observations,
+    getPistonOscillationDemoObservationSeries(measurementIndex),
     PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
   )?.timeS ?? 0;
   triggerTimeCache.set(measurementIndex, triggerTimeS);
@@ -732,13 +792,14 @@ const getConfiguredMeasurementIndex = (elapsedMs: number) => {
 const getDemoThermodynamicState = (
   elapsedMs: number,
   hoseState: PistonOscillationDemoFrame['hoseState'],
-  pistonOffsetMm: number,
+  activeRunState: PistonOscillationThermodynamicState | null,
 ) => {
+  if (activeRunState) return activeRunState;
   const configuredIndex = getConfiguredMeasurementIndex(elapsedMs);
   const physicalBaseHeightMm = getPhysicalEquilibriumHeight(elapsedMs);
   if (configuredIndex < 0 || hoseState === 'disconnected') {
     return createPistonOscillationAtmosphericLockedState(
-      Math.min(80, Math.max(0, physicalBaseHeightMm + pistonOffsetMm)),
+      Math.min(80, Math.max(0, physicalBaseHeightMm)),
       {},
       'vented',
     );
@@ -763,10 +824,7 @@ const getDemoThermodynamicState = (
       settlingProgress,
     );
   }
-  return createPistonOscillationLoadedGasState(
-    createPistonOscillationLoadedEquilibriumState(nominalHeightMm),
-    pistonOffsetMm,
-  );
+  return getPistonOscillationSettlingStateAtProgress(nominalHeightMm, 1);
 };
 
 const getHosePresentation = (elapsedMs: number) => {
@@ -936,22 +994,32 @@ export const getPistonOscillationDemoFrame = (
       : currentWindow.kind === 'recordOscillation' ? 'press' : null;
   const leftHandSupporting = isDemoSpaceHeld(elapsedMs);
   let pistonOffsetMm = 0;
-  if (platformAction === 'press') {
-    const pressDisplacementMm = getPistonOscillationDemoPressDisplacementMm(
-      measurementIndex,
+  let activeRunState: PistonOscillationThermodynamicState | null = null;
+  const physicalRun = getPistonOscillationDemoPhysicalRun(measurementIndex);
+  if (elapsedMs >= runTiming.pressStartMs && elapsedMs < runTiming.releaseAtMs) {
+    const pressSampleIndex = Math.min(
+      physicalRun.pressStates.length - 1,
+      Math.max(0, Math.round(
+        (elapsedMs - runTiming.pressStartMs)
+          * PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ / 1_000,
+      )),
     );
-    pistonOffsetMm = elapsedMs < runTiming.pressEndMs
-      ? -pressDisplacementMm
-        * easeInOut(progressBetween(elapsedMs, runTiming.pressStartMs, runTiming.pressEndMs))
-      : elapsedMs < runTiming.releaseAtMs
-        ? -pressDisplacementMm
-        : 0;
-  }
-  if (elapsedMs >= runTiming.releaseAtMs) {
-    pistonOffsetMm = getPistonOscillationTrajectorySampleAt(
+    activeRunState = physicalRun.pressStates[pressSampleIndex];
+  } else if (elapsedMs >= runTiming.releaseAtMs) {
+    const trajectorySample = getPistonOscillationTrajectorySampleAt(
       trajectory,
-      (elapsedMs - runTiming.releaseAtMs) / 1000,
-    ).displacementM * 1_000;
+      (elapsedMs - runTiming.releaseAtMs) / 1_000,
+    );
+    activeRunState = createPistonOscillationThermodynamicStateFromTrajectorySample(
+      trajectory,
+      trajectorySample,
+    );
+  }
+  if (activeRunState) {
+    pistonOffsetMm = (
+      activeRunState.pistonHeightM
+      - physicalRun.trajectory.equilibrium.equilibriumHeightM
+    ) * 1_000;
   }
   const latestSegment = currentWindow.segments.slice().reverse().find((segment) => elapsedMs >= segment.startsAtMs);
   const latestOperationMirrorSegment = currentWindow.segments.slice().reverse().find((segment) => (
@@ -976,7 +1044,7 @@ export const getPistonOscillationDemoFrame = (
   const thermodynamicState = getDemoThermodynamicState(
     elapsedMs,
     hose.hoseState,
-    pistonOffsetMm,
+    activeRunState,
   );
   return {
     elapsedMs, ...power, focusMode, activeControl, highlightControl, highlightControls,

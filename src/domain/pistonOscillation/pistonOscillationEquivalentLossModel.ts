@@ -14,23 +14,12 @@ export interface PistonOscillationEquivalentLossSnapshot {
 }
 
 export const createPistonOscillationEquivalentLossSnapshot = (
-  provenance: PistonOscillationEquivalentLossSnapshot['provenance'] = 'captured',
 ): PistonOscillationEquivalentLossSnapshot => ({
   schemaVersion: PISTON_OSCILLATION_EQUIVALENT_LOSS_SCHEMA_VERSION,
   modelVersion: PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
   kind: PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND,
   linearCoefficientNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
-  provenance,
-});
-
-export const createLegacyPistonOscillationEquivalentLossSnapshot = (
-  linearCoefficientNsPerM: number,
-): PistonOscillationEquivalentLossSnapshot => ({
-  schemaVersion: PISTON_OSCILLATION_EQUIVALENT_LOSS_SCHEMA_VERSION,
-  modelVersion: 'legacy-physics-config-equivalent-loss',
-  kind: 'legacy-unspecified-linear-loss',
-  linearCoefficientNsPerM,
-  provenance: 'legacy-inferred',
+  provenance: 'captured',
 });
 
 export const isPistonOscillationEquivalentLossSnapshot = (
@@ -58,4 +47,3 @@ export const isPistonOscillationEquivalentLossSnapshot = (
       )
     );
 };
-

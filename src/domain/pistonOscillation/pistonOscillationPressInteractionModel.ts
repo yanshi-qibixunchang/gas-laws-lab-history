@@ -1,9 +1,12 @@
 import type {
   PistonOscillationThermodynamicState,
 } from './pistonOscillationPhysicsEngine.ts';
+import {
+  createLegacyUnknownPistonOscillationPressOperationEvidence,
+} from './pistonOscillationLegacyCompatibility.ts';
 
 export const PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION =
-  'piston-oscillation-press-interaction-v1' as const;
+  'piston-oscillation-press-interaction-v2' as const;
 
 const RELEASE_VELOCITY_ESTIMATION_WINDOW_S = 0.08;
 const MINIMUM_SEGMENT_DURATION_S = 0.001;
@@ -31,6 +34,11 @@ export type PistonOscillationReleaseOrder =
   | 'simultaneous'
   | 'unknown';
 
+export type PistonOscillationPressCompletion =
+  | 'released'
+  | 'not-released'
+  | 'legacy-unknown';
+
 export interface PistonOscillationReleasePhysicalSnapshot {
   pistonHeightM: number;
   displacementM: number;
@@ -43,6 +51,7 @@ export interface PistonOscillationReleasePhysicalSnapshot {
 export interface PistonOscillationPressOperationEvidence {
   modelVersion: typeof PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION | string;
   provenance: 'captured' | 'legacy-unknown';
+  completion: PistonOscillationPressCompletion;
   pressDurationS: number | null;
   compressionDurationS: number | null;
   holdDurationS: number | null;
@@ -153,6 +162,7 @@ export const createPistonOscillationPressOperationEvidence = (options: {
     return {
       modelVersion: PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
       provenance: 'captured',
+      completion: 'released',
       pressDurationS: 0,
       compressionDurationS: 0,
       holdDurationS: 0,
@@ -225,6 +235,7 @@ export const createPistonOscillationPressOperationEvidence = (options: {
   return {
     modelVersion: PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
     provenance: 'captured',
+    completion: 'released',
     pressDurationS,
     compressionDurationS,
     holdDurationS,
@@ -254,23 +265,90 @@ export const createPistonOscillationPressOperationEvidence = (options: {
   };
 };
 
-export const createLegacyUnknownPistonOscillationPressOperationEvidence = (
-): PistonOscillationPressOperationEvidence => ({
-  modelVersion: 'legacy-unknown',
-  provenance: 'legacy-unknown',
-  pressDurationS: null,
-  compressionDurationS: null,
-  holdDurationS: null,
-  averageDownwardSpeedMPerS: null,
-  peakDownwardSpeedMPerS: null,
-  releaseVelocityMPerS: null,
-  spaceReleaseOffsetS: null,
-  mouseReleaseOffsetS: null,
-  signedReleaseGapS: null,
-  releaseOrder: 'unknown',
-  trace: [],
-  releaseState: null,
-});
+export const createPistonOscillationIncompletePressOperationEvidence = (options: {
+  trace: readonly PistonOscillationPressTracePoint[];
+  capturedUntilMs: number;
+}): PistonOscillationPressOperationEvidence => {
+  const capturedUntilMs = finiteOrThrow('capturedUntilMs', options.capturedUntilMs);
+  const trace = options.trace
+    .filter((point) => point.observedAtMs <= capturedUntilMs)
+    .map((point) => ({ ...point }));
+  if (trace.length === 0) {
+    return {
+      modelVersion: PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
+      provenance: 'captured',
+      completion: 'not-released',
+      pressDurationS: 0,
+      compressionDurationS: 0,
+      holdDurationS: 0,
+      averageDownwardSpeedMPerS: 0,
+      peakDownwardSpeedMPerS: 0,
+      releaseVelocityMPerS: null,
+      spaceReleaseOffsetS: null,
+      mouseReleaseOffsetS: null,
+      signedReleaseGapS: null,
+      releaseOrder: 'unknown',
+      trace: [],
+      releaseState: null,
+    };
+  }
+  const first = trace[0]!;
+  const last = trace.at(-1)!;
+  if (last.observedAtMs < capturedUntilMs) {
+    trace.push({ ...last, observedAtMs: capturedUntilMs });
+  }
+  const initialHeightM = first.pistonHeightMm / 1_000;
+  let minimumHeightM = initialHeightM;
+  let compressionEndedAtMs = first.observedAtMs;
+  let peakDownwardSpeedMPerS = 0;
+  for (let index = 1; index < trace.length; index += 1) {
+    const previous = trace[index - 1]!;
+    const current = trace[index]!;
+    const currentHeightM = current.pistonHeightMm / 1_000;
+    if (currentHeightM < minimumHeightM - MINIMUM_MEANINGFUL_MOTION_M) {
+      minimumHeightM = currentHeightM;
+      compressionEndedAtMs = current.observedAtMs;
+    }
+    const segmentVelocityMPerS = getSegmentVelocityMPerS(previous, current);
+    if (segmentVelocityMPerS !== null) {
+      peakDownwardSpeedMPerS = Math.max(
+        peakDownwardSpeedMPerS,
+        -segmentVelocityMPerS,
+      );
+    }
+  }
+  const pressDurationS = Math.max(0, (capturedUntilMs - first.observedAtMs) / 1_000);
+  const compressionDurationS = Math.max(
+    0,
+    (compressionEndedAtMs - first.observedAtMs) / 1_000,
+  );
+  const downwardDistanceM = Math.max(0, initialHeightM - minimumHeightM);
+  return {
+    modelVersion: PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
+    provenance: 'captured',
+    completion: 'not-released',
+    pressDurationS,
+    compressionDurationS,
+    holdDurationS: Math.max(0, (capturedUntilMs - compressionEndedAtMs) / 1_000),
+    averageDownwardSpeedMPerS: compressionDurationS > 0
+      ? downwardDistanceM / compressionDurationS
+      : 0,
+    peakDownwardSpeedMPerS,
+    releaseVelocityMPerS: null,
+    spaceReleaseOffsetS: null,
+    mouseReleaseOffsetS: null,
+    signedReleaseGapS: null,
+    releaseOrder: 'unknown',
+    trace: trace.map((point) => ({
+      timeS: (point.observedAtMs - first.observedAtMs) / 1_000,
+      pistonHeightM: point.pistonHeightMm / 1_000,
+      displacementM: point.displacementMm / 1_000,
+      pressurePa: point.pressurePa,
+      temperatureK: point.temperatureK,
+    })),
+    releaseState: null,
+  };
+};
 
 const isRecord = (value: unknown): value is Record<string, unknown> => (
   typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -295,6 +373,12 @@ export const normalizePistonOscillationPressOperationEvidence = (
   if (value.provenance === 'legacy-unknown') {
     return createLegacyUnknownPistonOscillationPressOperationEvidence();
   }
+  const legacyCapturedModel = value.modelVersion
+    === 'piston-oscillation-press-interaction-v1'
+    && value.completion === undefined;
+  const completion = legacyCapturedModel
+    ? 'released'
+    : value.completion;
   const releaseOrders: readonly PistonOscillationReleaseOrder[] = [
     'space-first',
     'mouse-first',
@@ -311,8 +395,12 @@ export const normalizePistonOscillationPressOperationEvidence = (
     value.mouseReleaseOffsetS,
   ];
   if (
-    value.modelVersion !== PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION
+    (
+      value.modelVersion !== PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION
+      && !legacyCapturedModel
+    )
     || value.provenance !== 'captured'
+    || (completion !== 'released' && completion !== 'not-released')
     || !releaseOrders.includes(value.releaseOrder as PistonOscillationReleaseOrder)
     || nullableMetrics.some((metric) => !nullableNonNegativeFinite(metric))
     || !(
@@ -381,9 +469,26 @@ export const normalizePistonOscillationPressOperationEvidence = (
       temperatureK: value.releaseState.temperatureK as number,
     };
   }
+  if (
+    (completion === 'released' && releaseState === null)
+    || (
+      completion === 'not-released'
+      && (
+        releaseState !== null
+        || value.releaseVelocityMPerS !== null
+        || value.spaceReleaseOffsetS !== null
+        || value.mouseReleaseOffsetS !== null
+        || value.signedReleaseGapS !== null
+      )
+    )
+  ) return null;
   return {
     modelVersion: PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
     provenance: 'captured',
+    completion: completion as Extract<
+      PistonOscillationPressCompletion,
+      'released' | 'not-released'
+    >,
     pressDurationS: value.pressDurationS as number | null,
     compressionDurationS: value.compressionDurationS as number | null,
     holdDurationS: value.holdDurationS as number | null,

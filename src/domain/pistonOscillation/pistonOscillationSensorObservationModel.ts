@@ -1,4 +1,4 @@
-export const PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION =
+export const PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION =
   'piston-oscillation-sensor-observation-v1' as const;
 export const PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION =
   'piston-oscillation-sensor-observation-lag-drift-v2' as const;
@@ -54,7 +54,7 @@ PistonOscillationDynamicSensorConfig = Object.freeze({
 
 export interface PistonOscillationSensorObservationSeries {
   modelVersion:
-    | typeof PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION
+    | typeof PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION
     | typeof PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
   sampleRateHz: number;
   pressureResolutionKpa: typeof PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA;
@@ -299,7 +299,12 @@ export const formatPistonOscillationObservedPressureKpa = (
   PISTON_OSCILLATION_SENSOR_PRESSURE_DECIMAL_PLACES,
 );
 
-export const createPistonOscillationSensorObservationSeries = (
+/**
+ * Ideal, zero-lag sensor reference retained for scientific comparison and
+ * legacy-record migration. Current acquisition paths use the dynamic sensor
+ * model below and must not call this reference projection.
+ */
+export const createPistonOscillationIdealSensorReferenceSeries = (
   physicalSamples: readonly PistonOscillationPhysicalPressureSample[],
   sampleRateHz: number = PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
 ): PistonOscillationSensorObservationSeries => {
@@ -325,7 +330,7 @@ export const createPistonOscillationSensorObservationSeries = (
     });
   }
   return {
-    modelVersion: PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
+    modelVersion: PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
     sampleRateHz: normalizedSampleRateHz,
     pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
     pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
@@ -414,7 +419,7 @@ export const assertPistonOscillationSensorObservationSeries = (
   const dynamic = series.modelVersion
     === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
   if (
-    series.modelVersion !== PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION
+    series.modelVersion !== PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION
     && !dynamic
   ) {
     throw new RangeError('series uses an unsupported observation model version.');

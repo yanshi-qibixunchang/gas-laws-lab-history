@@ -1,7 +1,6 @@
-import {
-  getPistonOscillationInstantaneousThermodynamicState,
-  type PistonOscillationThermodynamicPhase,
-  type PistonOscillationThermodynamicState,
+import type {
+  PistonOscillationThermodynamicPhase,
+  PistonOscillationThermodynamicState,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
@@ -16,7 +15,7 @@ export interface PistonOscillationLivePhysicalState {
   observedAtMs: number;
   equilibriumHeightMm: number;
   displacementMm: number;
-  thermodynamicState?: PistonOscillationThermodynamicState;
+  thermodynamicState: PistonOscillationThermodynamicState;
 }
 
 export interface PistonOscillationLivePressureObservation {
@@ -69,11 +68,7 @@ export const createPistonOscillationLivePressureChannel = (
       const sampleClockIndex = Math.floor(
         state.observedAtMs * PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ / 1_000,
       );
-      const thermodynamicState = state.thermodynamicState
-        ?? getPistonOscillationInstantaneousThermodynamicState(
-          state.equilibriumHeightMm,
-          state.displacementMm,
-        ).gasState;
+      const thermodynamicState = state.thermodynamicState;
       if (snapshot?.sampleClockIndex === sampleClockIndex) {
         previousPhysicalPressurePa = thermodynamicState.pressurePa;
         return snapshot;

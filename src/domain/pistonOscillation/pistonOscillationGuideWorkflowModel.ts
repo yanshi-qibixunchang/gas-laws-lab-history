@@ -359,6 +359,19 @@ const isConfirmedHeightForTarget = (confirmedHeightMm: number, targetHeightMm: n
     <= PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM
 );
 
+const measurementSetupHeightMatchesTarget = (
+  measurement: PistonOscillationGuideSavedMeasurement,
+  targetHeightMm: number,
+) => {
+  if (measurement.physicsSnapshot.captureKind === 'legacy-imported') {
+    return isConfirmedHeightForTarget(measurement.confirmedHeightMm, targetHeightMm);
+  }
+  return isConfirmedHeightForTarget(
+    measurement.physicsSnapshot.equilibrium.lockedHeightM * 1_000,
+    targetHeightMm,
+  );
+};
+
 const measurementMatchesCurrentRun = (
   session: PistonOscillationGuideSession,
   measurement: PistonOscillationGuideSavedMeasurement,
@@ -366,8 +379,8 @@ const measurementMatchesCurrentRun = (
   measurement.measurementIndex === session.measurementIndex
   && measurement.targetHeightMm
     === PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex]
-  && isConfirmedHeightForTarget(
-    measurement.confirmedHeightMm,
+  && measurementSetupHeightMatchesTarget(
+    measurement,
     PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex],
   )
   && measurement.acquisitionSettings.sampleRateHz
@@ -1194,7 +1207,7 @@ const normalizeMeasurement = (
   if (
     !normalized
     || normalized.targetHeightMm !== targetHeightMm
-    || !isConfirmedHeightForTarget(normalized.confirmedHeightMm, targetHeightMm)
+    || !measurementSetupHeightMatchesTarget(normalized, targetHeightMm)
   ) return null;
   return normalized;
 };
