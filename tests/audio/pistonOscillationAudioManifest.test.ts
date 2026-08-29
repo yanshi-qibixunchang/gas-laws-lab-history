@@ -7,7 +7,7 @@ import type { ExperimentAudioManifest } from '../../src/audio/catalog/audioManif
 
 const projectRoot = process.cwd();
 const audioRoot = join(projectRoot, 'public', 'audio');
-const runtimeRoot = join(audioRoot, 'experiments', 'heat-capacity');
+const runtimeRoot = join(audioRoot, 'experiments', 'piston-oscillation');
 const projectManifest = JSON.parse(readFileSync(join(audioRoot, 'manifest.json'), 'utf8'));
 const manifest = JSON.parse(
   readFileSync(join(runtimeRoot, 'manifest.json'), 'utf8'),
@@ -17,7 +17,12 @@ const readPcmWavMetadata = (buffer: Buffer) => {
   assert.equal(buffer.toString('ascii', 0, 4), 'RIFF');
   assert.equal(buffer.toString('ascii', 8, 12), 'WAVE');
   let offset = 12;
-  let format: { audioFormat: number; channels: number; sampleRateHz: number; bitsPerSample: number } | null = null;
+  let format: {
+    audioFormat: number;
+    channels: number;
+    sampleRateHz: number;
+    bitsPerSample: number;
+  } | null = null;
   let dataSize = 0;
   while (offset + 8 <= buffer.length) {
     const chunkId = buffer.toString('ascii', offset, offset + 4);
@@ -44,23 +49,24 @@ const readPcmWavMetadata = (buffer: Buffer) => {
   };
 };
 
-assert.equal(projectManifest.schemaVersion, 1);
-assert.equal('common' in projectManifest, false, 'the root manifest should not retain an empty common-audio registry');
-assert.equal(existsSync(join(audioRoot, 'common', 'manifest.json')), false);
-assert.ok(projectManifest.experiments.some((entry: { experimentId: string; manifest: string }) => (
-  entry.experimentId === 'heat-capacity' && entry.manifest === 'audio/experiments/heat-capacity/manifest.json'
-)));
 assert.ok(projectManifest.experiments.some((entry: { experimentId: string; manifest: string }) => (
   entry.experimentId === 'piston-oscillation'
     && entry.manifest === 'audio/experiments/piston-oscillation/manifest.json'
 )));
-assert.equal(manifest.experimentId, 'heat-capacity');
+assert.equal(manifest.experimentId, 'piston-oscillation');
 assert.equal(manifest.sources.length, 5);
 
-const sourceById = new Map(manifest.sources.map((source: { assetId: string }) => [source.assetId, source]));
-assert.equal(sourceById.has('freesound.402462'), false, 'the retired pump-valve source should not remain in production metadata');
-assert.equal(sourceById.has('freesound.650353'), true, 'the writing source should be registered');
-assert.equal(sourceById.has('freesound.808874'), true, 'the replacement pump-valve source should be registered');
+const sourceById = new Map(manifest.sources.map((source) => [source.assetId, source]));
+assert.deepEqual(
+  [...sourceById.keys()].sort(),
+  [
+    'freesound.150501',
+    'freesound.452640',
+    'freesound.543637',
+    'freesound.828779',
+    'freesound.840868',
+  ],
+);
 for (const source of manifest.sources) {
   assert.equal(source.license, 'CC0-1.0');
   assert.equal(source.licenseUrl, 'https://creativecommons.org/publicdomain/zero/1.0/');
@@ -76,53 +82,52 @@ const referencedSourceIds = new Set(
 assert.deepEqual(
   [...sourceById.keys()].sort(),
   [...referencedSourceIds].sort(),
-  'the source manifest should not retain materials that no production asset uses',
+  'the piston manifest should not retain sources unused by production audio',
 );
 
 const runtimeFiles = readdirSync(runtimeRoot).filter((name) => name.endsWith('.wav')).sort();
-const heatCapacityCatalogEntries = Object.entries(audioCatalog).filter(([assetId]) => (
-  assetId.startsWith('heatCapacity.')
+const pistonCatalogEntries = Object.entries(audioCatalog).filter(([assetId]) => (
+  assetId.startsWith('pistonOscillation.')
 ));
-const catalogFiles = heatCapacityCatalogEntries.flatMap(([assetId, definition]) => {
-  assert.equal(definition.id, assetId, `${assetId} should agree with its catalog key`);
-  assert.ok(definition.files.length > 0, `${assetId} should provide at least one production file`);
-  assert.ok(Number.isFinite(definition.gain) && definition.gain >= 0, `${assetId} should have a valid gain`);
+const catalogFiles = pistonCatalogEntries.flatMap(([assetId, definition]) => {
+  assert.equal(definition.id, assetId);
+  assert.ok(definition.files.length > 0);
+  assert.ok(Number.isFinite(definition.gain) && definition.gain >= 0);
   return definition.files.map((filePath) => filePath.split('/').at(-1) ?? '');
 }).sort();
-assert.deepEqual(catalogFiles, runtimeFiles, 'every production WAV should be referenced by the runtime catalog');
-assert.equal(
-  audioCatalog['heatCapacity.pumpValve.open'].files.length,
-  audioCatalog['heatCapacity.pumpValve.close'].files.length,
-  'paired pump-valve directions should expose the same number of timbre variants',
-);
+assert.deepEqual(catalogFiles, runtimeFiles);
+assert.equal(audioCatalog['pistonOscillation.power.press'].files.length, 2);
+assert.equal(audioCatalog['pistonOscillation.hose.connect'].files.length, 2);
+assert.equal(audioCatalog['pistonOscillation.hose.disconnect'].files.length, 2);
+assert.equal(audioCatalog['pistonOscillation.lockingScrew.turn'].files.length, 3);
 
-const derivedAssets = manifest.assets.filter((asset: { kind: string }) => asset.kind === 'third-party-derived');
+const derivedAssets = manifest.assets.filter((asset) => asset.kind === 'third-party-derived');
 assert.equal(derivedAssets.length, runtimeFiles.length);
+assert.equal(manifest.assets.some((asset) => asset.kind === 'first-party-procedural'), false);
 assert.deepEqual(
   [...new Set(derivedAssets.map((asset) => asset.audioId))].sort(),
-  heatCapacityCatalogEntries.map(([assetId]) => assetId).sort(),
-  'the runtime catalog and audited third-party asset IDs should have the same ownership boundary',
+  pistonCatalogEntries.map(([assetId]) => assetId).sort(),
 );
 for (const asset of derivedAssets) {
   assert.ok(asset.finalFileName);
   const filePath = join(runtimeRoot, asset.finalFileName);
   assert.ok(existsSync(filePath), `${asset.finalFileName} should exist`);
-  assert.ok(sourceById.has(asset.sourceAssetId), `${asset.finalFileName} should reference an approved source`);
+  assert.ok(sourceById.has(asset.sourceAssetId ?? ''));
   const fileBuffer = readFileSync(filePath);
   const hash = createHash('sha256').update(fileBuffer).digest('hex').toUpperCase();
-  assert.equal(hash, asset.outputSha256, `${asset.finalFileName} hash should match the audited manifest`);
+  assert.equal(hash, asset.outputSha256, `${asset.finalFileName} hash should match`);
   const wav = readPcmWavMetadata(fileBuffer);
-  assert.equal(wav.audioFormat, 1, `${asset.finalFileName} should be uncompressed PCM`);
+  assert.equal(wav.audioFormat, 1);
   assert.equal(wav.sampleRateHz, 48000);
   assert.equal(wav.channels, 1);
   assert.equal(wav.bitsPerSample, 16);
-  assert.ok(Math.abs(wav.durationS - asset.durationS) < 0.000002, `${asset.finalFileName} duration should match manifest`);
+  assert.ok(Math.abs(wav.durationS - (asset.durationS ?? 0)) < 0.000002);
 }
 
-const proceduralAssets = manifest.assets.filter((asset: { kind: string }) => asset.kind === 'first-party-procedural');
-assert.deepEqual(proceduralAssets.map((asset: { audioId: string }) => asset.audioId), ['heatCapacity.release.flow']);
-assert.equal(proceduralAssets[0].sourceAssetId, null);
-assert.equal(proceduralAssets[0].finalFileName, null);
-assert.equal(proceduralAssets[0].outputSha256, null);
+const impactAsset = manifest.assets.find((asset) => (
+  asset.audioId === 'pistonOscillation.piston.bottomImpact'
+));
+assert.ok(impactAsset);
+assert.match(impactAsset.edit, /Runtime gain is derived from the uninterrupted unsupported drop distance/);
 
-console.log('audioManifest tests passed');
+console.log('pistonOscillationAudioManifest tests passed');

@@ -11,7 +11,7 @@ const outputDir = path.join(rootDir, 'public', 'legal');
 const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
-const audioManifestPath = path.join(rootDir, 'public', 'audio', 'experiments', 'heat-capacity', 'manifest.json');
+const audioRootManifestPath = path.join(rootDir, 'public', 'audio', 'manifest.json');
 const pistonModelProvenancePath = path.join(
   rootDir,
   'public',
@@ -47,6 +47,17 @@ let generatedAt = new Date().toISOString();
 let contentFingerprint = '';
 
 const readJson = (filePath) => JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+const getExperimentAudioManifestPaths = () => {
+  const rootManifest = readJson(audioRootManifestPath);
+  return (rootManifest.experiments || []).map((entry) => (
+    path.join(rootDir, 'public', entry.manifest.replace(/^audio[\\/]/, 'audio/'))
+  ));
+};
+
+const readExperimentAudioManifests = () => (
+  getExperimentAudioManifestPaths().map((manifestPath) => readJson(manifestPath))
+);
 
 const readJsonIfExists = (filePath) => {
   if (!fs.existsSync(filePath)) return null;
@@ -206,7 +217,8 @@ const getLegalNoticeInputFingerprint = (records) => {
   appendFile(__filename);
   appendFile(path.join(nodeModulesDir, 'electron', 'dist', 'LICENSE'));
   appendFile(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'));
-  appendFile(audioManifestPath);
+  appendFile(audioRootManifestPath);
+  for (const audioManifestPath of getExperimentAudioManifestPaths()) appendFile(audioManifestPath);
   appendFile(pistonModelProvenancePath);
   appendFile(sharedBenchProvenancePath);
   appendFile(exporterLegalInventoryPath);
@@ -481,16 +493,20 @@ const writeExporterLicensesHtml = (inventory) => {
   writeTextFileIfChanged(path.join(outputDir, 'exporter-licenses.html'), html);
 };
 
-const writeAudioMaterialsHtml = (manifest) => {
+const writeAudioMaterialsHtml = (manifests) => {
   const assetsBySource = new Map();
-  for (const asset of manifest.assets || []) {
-    if (!asset.sourceAssetId) continue;
-    const audioIds = assetsBySource.get(asset.sourceAssetId) || new Set();
-    audioIds.add(asset.audioId);
-    assetsBySource.set(asset.sourceAssetId, audioIds);
+  for (const manifest of manifests) {
+    for (const asset of manifest.assets || []) {
+      if (!asset.sourceAssetId) continue;
+      const sourceKey = `${manifest.experimentId}:${asset.sourceAssetId}`;
+      const audioIds = assetsBySource.get(sourceKey) || new Set();
+      audioIds.add(asset.audioId);
+      assetsBySource.set(sourceKey, audioIds);
+    }
   }
-  const renderRows = () => (manifest.sources || []).map((source) => {
-    const audioIds = [...(assetsBySource.get(source.assetId) || [])].sort().join(', ');
+  const renderRows = () => manifests.flatMap((manifest) => (manifest.sources || []).map((source) => {
+    const sourceKey = `${manifest.experimentId}:${source.assetId}`;
+    const audioIds = [...(assetsBySource.get(sourceKey) || [])].sort().join(', ');
     return `<tr>
       <td><code>${escapeHtml(audioIds)}</code></td>
       <td>${escapeHtml(source.sourceTitle)}</td>
@@ -498,8 +514,8 @@ const writeAudioMaterialsHtml = (manifest) => {
       <td>${renderExternalLink(source.sourceUrl)}</td>
       <td>${renderExternalLink(source.licenseUrl, source.license)}</td>
     </tr>`;
-  }).join('\n');
-  const proceduralAudioIds = (manifest.assets || [])
+  })).join('\n');
+  const proceduralAudioIds = manifests.flatMap((manifest) => manifest.assets || [])
     .filter((asset) => asset.kind === 'first-party-procedural')
     .map((asset) => asset.audioId)
     .sort()
@@ -541,7 +557,7 @@ const writeAudioMaterialsHtml = (manifest) => {
   const html = createHtmlDocument({
     title: 'Audio Materials and Licenses',
     body: `<h1>Audio Materials / 音效素材 / 音效素材</h1>
-      <p class="meta">Generated at ${escapeHtml(generatedAt)} from public/audio/experiments/heat-capacity/manifest.json.</p>
+      <p class="meta">Generated at ${escapeHtml(generatedAt)} from public/audio/manifest.json and its registered experiment manifests.</p>
       ${body}`,
   });
   writeTextFileIfChanged(path.join(outputDir, 'audio-materials.html'), html);
@@ -604,7 +620,7 @@ const exporterLegalInventory = assertExporterLegalInventory(
   createExporterSourceDescriptor(rootDir),
 );
 writeExporterLicensesHtml(exporterLegalInventory);
-writeAudioMaterialsHtml(readJson(audioManifestPath));
+writeAudioMaterialsHtml(readExperimentAudioManifests());
 copyIfExists(path.join(rootDir, 'node_modules', 'electron', 'dist', 'LICENSE'), 'LICENSE.electron.txt');
 copyIfExists(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'), 'font-licenses.txt');
 writeSummary(records);

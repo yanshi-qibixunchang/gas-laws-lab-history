@@ -1,10 +1,14 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-07-12",
+  "generatedAt": "2026-08-29",
   "experiments": [
     {
       "experimentId": "heat-capacity",
       "manifest": "audio/experiments/heat-capacity/manifest.json"
+    },
+    {
+      "experimentId": "piston-oscillation",
+      "manifest": "audio/experiments/piston-oscillation/manifest.json"
     }
   ]
 }

@@ -59,7 +59,12 @@ assert.match(summary.contentFingerprint ?? '', /^[a-f0-9]{64}$/);
 assert.equal(summary.licenseCounts?.UNKNOWN ?? 0, 0, 'published dependency notices must not contain unclassified licenses');
 assert.doesNotMatch(before['third-party-dependencies.html'], />UNKNOWN</, 'the dependency table must not publish UNKNOWN licenses');
 assert.match(generatorSource, /const dependencyManifest = Object\.fromEntries/);
-assert.match(generatorSource, /appendFile\(audioManifestPath\)/);
+assert.match(generatorSource, /appendFile\(audioRootManifestPath\)/);
+assert.match(
+  generatorSource,
+  /getExperimentAudioManifestPaths\(\)[\s\S]*appendFile\(audioManifestPath\)/,
+  'every registered experiment audio manifest should invalidate generated legal output',
+);
 assert.match(generatorSource, /appendFile\(pistonModelProvenancePath\)/, 'piston model provenance should invalidate stale legal output');
 assert.match(generatorSource, /appendFile\(sharedBenchProvenancePath\)/, 'shared bench provenance should invalidate stale legal output');
 assert.match(generatorSource, /appendFile\(exporterLegalInventoryPath\)/, 'actual exporter inventory should invalidate stale legal output');

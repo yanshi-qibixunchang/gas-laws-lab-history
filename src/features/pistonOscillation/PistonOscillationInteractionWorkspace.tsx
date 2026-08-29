@@ -18,6 +18,7 @@ import {
 } from '@react-three/fiber';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
+import { usePistonOscillationAudioController } from '../../audio/experiments/pistonOscillation/pistonOscillationAudioController.ts';
 import { PromptViewportFeedback } from '../../components/prompts/PromptViewportFeedback.tsx';
 import { PROMPT_FEEDBACK_COPY } from '../../components/prompts/promptFeedbackCopy.ts';
 import {
@@ -129,6 +130,16 @@ export type PistonInteractionPhase =
   | 'falling'
   | 'rebounding';
 type PistonPlatformMode = 'press' | 'adjustHeight' | 'screwLocked';
+
+interface PistonOscillationHoseAudioEvent {
+  id: number;
+  state: PistonOscillationHoseConnectionState;
+}
+
+interface PistonOscillationBottomImpactAudioEvent {
+  id: number;
+  dropDistanceMm: number;
+}
 
 export interface PistonOscillationGuideInstrumentSnapshot {
   focusMode: PistonOscillationFocusMode;
@@ -1404,6 +1415,11 @@ export const PistonOscillationInteractionWorkspace = ({
   const [powerButtonBounds, setPowerButtonBounds] =
     useState<ProjectedPowerButtonBounds | null>(null);
   const [manualPowerPressProgress, setManualPowerPressProgress] = useState(0);
+  const [hoseAudioEvent, setHoseAudioEvent] =
+    useState<PistonOscillationHoseAudioEvent | null>(null);
+  const [releaseAudioPulseId, setReleaseAudioPulseId] = useState(0);
+  const [bottomImpactAudioEvent, setBottomImpactAudioEvent] =
+    useState<PistonOscillationBottomImpactAudioEvent | null>(null);
   const [pistonPlatformPoint, setPistonPlatformPoint] = useState<
     readonly [number, number] | null
   >(null);
@@ -1480,6 +1496,8 @@ export const PistonOscillationInteractionWorkspace = ({
   const guideRejectedActionTimerRef = useRef<number | null>(null);
   const powerPressAnimationFrameRef = useRef<number | null>(null);
   const powerOnRef = useRef(powerOn);
+  const hoseAudioEventIdRef = useRef(0);
+  const bottomImpactAudioEventIdRef = useRef(0);
   const previousHoseStateRef = useRef(hoseState);
   const hoseCameraClaimedRef = useRef(false);
   const hoseGuideSupportLostDuringDragRef = useRef(false);
@@ -1537,6 +1555,11 @@ export const PistonOscillationInteractionWorkspace = ({
   const parentTopRightPanelMountedRef = useRef(overlayTopRightPresent);
   const operationMirrorWasVisibleRef = useRef(mode === 'pistonFocus');
   if (overlayTopRightPresent) displayedOverlayTopRightRef.current = overlayTopRight;
+
+  const emitHoseAudioEvent = useCallback((state: PistonOscillationHoseConnectionState) => {
+    hoseAudioEventIdRef.current += 1;
+    setHoseAudioEvent({ id: hoseAudioEventIdRef.current, state });
+  }, []);
 
   useEffect(() => {
     powerOnRef.current = powerOn;
@@ -1682,6 +1705,26 @@ export const PistonOscillationInteractionWorkspace = ({
   const effectivePowerOn = demoFrame?.powerOn ?? powerOn;
   const effectivePowerPressProgress = demoFrame?.powerButtonPressProgress
     ?? manualPowerPressProgress;
+  const demoReleaseAudioKey = demoFrame && demoFrame.releaseElapsedSeconds !== null
+    ? `measurement-${demoFrame.measurementIndex}`
+    : null;
+  usePistonOscillationAudioController({
+    resetKey: `${guideSessionRevision}:${measurementCycleRevision}:${demoActive ? 'demo' : 'live'}`,
+    restoreMuted: guideInteractionPaused
+      || guideHeightReset?.phase === 'resetting'
+      || (demoActive && effectiveDemoPlaybackPhase === 'paused'),
+    powerPressProgress: effectivePowerPressProgress,
+    lockingScrewAngleDeg: lockingScrewProgress
+      * PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS
+      * 360,
+    screwMotionActive: screwDragging
+      || (demoActive && demoFrame?.activeControl === 'screw'),
+    hoseEvent: hoseAudioEvent,
+    demoHoseState: demoFrame?.hoseState ?? null,
+    releasePulseId: releaseAudioPulseId,
+    demoReleaseKey: demoReleaseAudioKey,
+    bottomImpactEvent: bottomImpactAudioEvent,
+  });
   const demoMainFocusTarget: PistonOscillationDemoFocusTarget =
     demoHighlightControls.includes('power')
       ? 'power'
@@ -2887,6 +2930,7 @@ export const PistonOscillationInteractionWorkspace = ({
         onReleaseEvent(releaseEvent);
       }
       startPistonRebound(trajectory, releaseStartedAtMs);
+      setReleaseAudioPulseId((pulseId) => pulseId + 1);
     } catch (cause) {
       recoverPistonMotionFailure(cause, 'release-calculation');
     }
@@ -2981,7 +3025,8 @@ export const PistonOscillationInteractionWorkspace = ({
     hoseGuideSupportLostDuringDragRef.current = true;
     setHoseState('disconnected');
     setHoseWithinMagneticRange(false);
-  }, [hoseState, onGuideActionAttempt]);
+    emitHoseAudioEvent('disconnected');
+  }, [emitHoseAudioEvent, hoseState, onGuideActionAttempt]);
   const handleHoseDragChange = useCallback((
     offset: THREE.Vector3,
     withinMagneticRange: boolean,
@@ -3017,6 +3062,9 @@ export const PistonOscillationInteractionWorkspace = ({
       : withinMagneticRange
         ? 'connected'
         : 'disconnected';
+    if (!supportLostDuringDrag && nextHoseState !== hoseState) {
+      emitHoseAudioEvent(nextHoseState);
+    }
     setHoseState(nextHoseState);
     setHoseDragging(false);
     setMouseVisualizationAction(null);
@@ -3024,6 +3072,8 @@ export const PistonOscillationInteractionWorkspace = ({
     setHoseGhostOffset([0, 0, 0]);
     setHoseWithinMagneticRange(withinMagneticRange);
   }, [
+    emitHoseAudioEvent,
+    hoseState,
     setHoseCameraClaim,
   ]);
   const hoseInteractionState = hoseDragging
@@ -3322,6 +3372,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelPistonRebound();
     pistonOffsetMmRef.current = 0;
     setPistonOffsetMm(0);
+    const continuousDropStartedHeightMm = pistonEquilibriumHeightMmRef.current;
     let previousFrameAtMs = performance.now();
     setPistonPhase('falling');
     setHeightAdjustmentStage('readingHeight');
@@ -3359,6 +3410,14 @@ export const PistonOscillationInteractionWorkspace = ({
       if (nextHeightMm <= PISTON_EQUILIBRIUM_HEIGHT_MIN_MM + 0.001) {
         unsupportedDropAnimationFrameRef.current = null;
         unsupportedDropVelocityMmPerSRef.current = 0;
+        bottomImpactAudioEventIdRef.current += 1;
+        setBottomImpactAudioEvent({
+          id: bottomImpactAudioEventIdRef.current,
+          dropDistanceMm: Math.max(
+            0,
+            continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
+          ),
+        });
         setPistonPhase('idle');
         return;
       }

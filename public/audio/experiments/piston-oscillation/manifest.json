@@ -1,0 +1,201 @@
+{
+  "schemaVersion": 1,
+  "experimentId": "piston-oscillation",
+  "generatedAt": "2026-08-29",
+  "sources": [
+    {
+      "assetId": "freesound.543637",
+      "originalFileName": "candidate-01-freesound-543637-hq-preview.mp3",
+      "sourceTitle": "Vibrating metal ruler on cake tin (Slow).mp3",
+      "author": "belanhud",
+      "freesoundSoundId": 543637,
+      "sourceUrl": "https://freesound.org/people/belanhud/sounds/543637/",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadedAt": "2026-08-29",
+      "sourceSha256": "6ACFFBDA7779373C71DAAC7DA056979246526CDE5FA73A7B00D1CCD95F97765E"
+    },
+    {
+      "assetId": "freesound.452640",
+      "originalFileName": "freesound-452640-hq-preview.mp3",
+      "sourceTitle": "hose screw onto exterior tap threads turn grainy and unscrew1.wav",
+      "author": "kyles",
+      "freesoundSoundId": 452640,
+      "sourceUrl": "https://freesound.org/people/kyles/sounds/452640/",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadedAt": "2026-08-29",
+      "sourceSha256": "1A0BCF132F4A458B918FA65B24FA9DD7C57CB258A9B5EE39514F5B80DE3298ED"
+    },
+    {
+      "assetId": "freesound.840868",
+      "originalFileName": "freesound-840868-hq-preview.mp3",
+      "sourceTitle": "Camera Lens Mounting Sounds and Lens Cap",
+      "author": "justamudkip",
+      "freesoundSoundId": 840868,
+      "sourceUrl": "https://freesound.org/people/justamudkip/sounds/840868/",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadedAt": "2026-08-29",
+      "sourceSha256": "88C8EC8078C279D8AA6C600884F0A608AC79501CE3EEE9D4F793A2F2474489E7"
+    },
+    {
+      "assetId": "freesound.828779",
+      "originalFileName": "freesound-828779-hq-preview.mp3",
+      "sourceTitle": "Ballpoint Pen Switch",
+      "author": "Filmscore",
+      "freesoundSoundId": 828779,
+      "sourceUrl": "https://freesound.org/people/Filmscore/sounds/828779/",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadedAt": "2026-08-29",
+      "sourceSha256": "66A69ED19842A3D2B65DB8E435D3DC5110901AB5699A4B376F68122DFB9D81A4"
+    },
+    {
+      "assetId": "freesound.150501",
+      "originalFileName": "freesound-150501-hq-preview.mp3",
+      "sourceTitle": "Cup Drop",
+      "author": "davdud101",
+      "freesoundSoundId": 150501,
+      "sourceUrl": "https://freesound.org/people/davdud101/sounds/150501/",
+      "license": "CC0-1.0",
+      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "downloadedAt": "2026-08-29",
+      "sourceSha256": "95B9C848BD37AC97A0B60CD349A9628DE61A6CEEF70B6E72A485C88B9B9BFFF8"
+    }
+  ],
+  "assets": [
+    {
+      "audioId": "pistonOscillation.piston.vibration",
+      "finalFileName": "piston-vibration.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.543637",
+      "outputSha256": "05770ADB8A6B0C390C0C12DA7E1794C135B923F093BB8DEB05B2C0985B89B35F",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.32,
+      "edit": "User-approved piston-vibration-A-fast.wav derivative (SHA-256 CFA5CCE7645DF24CE1DD519C005EAB96C6310694EC0CFC380B3E49E507FCEBC4), originally derived from Freesound 543637; 0.000-0.320 s, mono, 35 Hz high-pass, 15 kHz low-pass, 3/22 ms fades, peak -6.0 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.lockingScrew.turn",
+      "finalFileName": "locking-screw-grain-01.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.452640",
+      "outputSha256": "0734E365145F424BC16DE7F4BD158B4AF0E6576E3671CF5772940492E86FA581",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.22,
+      "edit": "9.440-9.660 s; isolated thread-friction grain, mono, 70 Hz high-pass, 12 kHz low-pass, 6/25 ms fades, peak -10.0 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.lockingScrew.turn",
+      "finalFileName": "locking-screw-grain-02.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.452640",
+      "outputSha256": "92D2AC279CDA972BC945EEA57AE51998B80AAD0D078FD476E7E4FD13AFB46119",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.22,
+      "edit": "10.620-10.840 s; isolated thread-friction grain, mono, 70 Hz high-pass, 12 kHz low-pass, 6/25 ms fades, peak -10.0 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.lockingScrew.turn",
+      "finalFileName": "locking-screw-grain-03.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.452640",
+      "outputSha256": "57805162A33F266EE99F87C28FA3416D3BB45EBB22AD14A36D082F4055140A62",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.22,
+      "edit": "11.000-11.220 s; isolated thread-friction grain, mono, 70 Hz high-pass, 12 kHz low-pass, 6/25 ms fades, peak -10.0 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.hose.connect",
+      "finalFileName": "hose-connect-01.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.840868",
+      "outputSha256": "D6138522A42A010D1E4AAB4529AA3C5DD372781B5491DC11FDA8C36A65AC838F",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.72,
+      "edit": "5.720-6.440 s; isolated lens-mount rotation and lock gesture, mono, 55 Hz high-pass, 14 kHz low-pass, 4/28 ms fades, peak -7.5 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.hose.connect",
+      "finalFileName": "hose-connect-02.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.840868",
+      "outputSha256": "51A6BBF3DBF5ADFB47E1A800B1D084B115E181114EC2FED250A0F054285B9608",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.63,
+      "edit": "18.550-19.180 s; isolated lens-mount rotation and lock gesture, mono, 55 Hz high-pass, 14 kHz low-pass, 4/28 ms fades, peak -7.5 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.hose.disconnect",
+      "finalFileName": "hose-disconnect-01.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.840868",
+      "outputSha256": "0103D9D2F54374CDA95141094268FB029C31BA33CEE5AF44F3FDEDBB4479A26B",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.78,
+      "edit": "9.280-10.060 s; isolated release and separation gesture, mono, 55 Hz high-pass, 14 kHz low-pass, 4/28 ms fades, peak -7.5 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.hose.disconnect",
+      "finalFileName": "hose-disconnect-02.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.840868",
+      "outputSha256": "279714C9F5F5962DA0764DA60526890E58DA83A63BDD1C9AACF419A2BE33983E",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.93,
+      "edit": "14.040-14.970 s; isolated release and separation gesture, mono, 55 Hz high-pass, 14 kHz low-pass, 4/28 ms fades, peak -7.5 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.power.press",
+      "finalFileName": "power-button-click-01.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.828779",
+      "outputSha256": "08B6F925316CC1278465E6789DD63AC1A7BE9771C8E13D1190AE2FD763937430",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.405,
+      "edit": "0.335-0.740 s; first complete ballpoint switch gesture, mono, 80 Hz high-pass, 14.5 kHz low-pass, 3/18 ms fades, peak -8.0 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.power.press",
+      "finalFileName": "power-button-click-02.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.828779",
+      "outputSha256": "47B3AA75F377A22DCE779CF9B801E58A4228013D57EFAB873391AE3A6098DEE8",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.455,
+      "edit": "3.150-3.605 s; second complete ballpoint switch gesture, mono, 80 Hz high-pass, 14.5 kHz low-pass, 3/18 ms fades, peak -8.0 dBFS."
+    },
+    {
+      "audioId": "pistonOscillation.piston.bottomImpact",
+      "finalFileName": "piston-bottom-impact.wav",
+      "kind": "third-party-derived",
+      "sourceAssetId": "freesound.150501",
+      "outputSha256": "D50BC3324D79DA2CE3D1DE49C8D48FCA145F8AB80082EEC1849284A2F5754ED0",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.37,
+      "edit": "0.000-0.370 s; primary impact and short resonance only, mono, 35 Hz high-pass, 14.5 kHz low-pass, 1/30 ms fades, peak -3.5 dBFS. Runtime gain is derived from the uninterrupted unsupported drop distance."
+    }
+  ]
+}
