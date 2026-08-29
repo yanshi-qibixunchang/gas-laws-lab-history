@@ -4,7 +4,7 @@
 
 Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v6.2.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v6.3.0`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -23,8 +23,10 @@ The latest published desktop release is `v6.2.1`. The `main` branch may contain 
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
-- `v6.2.1` is a piston-oscillation stability patch. It prevents the first Free acquisition and period-selection result from crashing the production renderer, safely restores selections written by earlier builds, and keeps normal rebound peaks above 2 m/s without an arbitrary velocity clamp.
-- `v6.2.1` also restores the visible loaded-piston settling motion, silently recovers genuine motion-runtime failures, removes transient press/fall/rebound animation state on restart while preserving durable Free work, and adds local plus outer render recovery without replacing the real desktop window controls.
+- `v6.3.0` extends piston Free Mode with a continuous thermal, pressure-sensor, press, and virtual-hand acquisition chain. The recorded trace now follows the actual press and release sequence while preserving the established plan, processing, fitting, and calculation workflow.
+- `v6.3.0` adds localized interaction audio for power, hose, screw, piston vibration, and bottom impacts across the applicable piston modes, including height-aware reset impact feedback.
+- `v6.3.0` repairs Guide sequencing and acquisition: legacy hidden baseline steps are migrated away, valid actions are no longer rejected after reminders, recordings freeze at `0.500 s` before Pause advances the lesson, parameter fields accept Enter consistently, and screw steps gain tolerant continuation, clear rotation arrows, and graduated wrong-direction guidance. Demo height and hose actions are also twice as fast.
+- `v6.2.1` remains the preceding piston stability patch for first acquisition, period selection, rebound validation, render recovery, and restart-safe Free data.
 - `v6.2.0` completes piston-oscillation Free Mode with 3–6-run plans, system and custom 10–80 mm heights, ordered progress, resumable sessions, per-run acquisition settings, dynamic monitoring, manual retry and reset, period verification, fitting, and automatic calculation handoff.
 - `v6.2.0` also unifies the two heat-capacity experiments around shared count and progress controls, aligns mode-specific navigation and visual styling, improves Demo and Guide interactions, and applies one persistent loaded-gas equilibrium model across all three piston modes. Releasing the locking screw now produces a recorded 0.2 s one-way physical settling process while the exact height remains an internal model quantity.
 - `v6.1.1` introduced the reviewed piston instrument, power-gated realtime data, complete Demo and Guide workflows, and strict Guide sequencing.

@@ -2,32 +2,26 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-29T12:14:03.009Z",
-  "finishedAt": "2026-08-29T12:14:26.792Z",
+  "generatedAt": "2026-08-29T21:34:40.836Z",
+  "finishedAt": "2026-08-29T21:35:02.204Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
-    "packageVersion": "6.2.1",
-    "gitCommit": "a51f4fe895bf689b2f4867d91dcc3c2e860b9212",
+    "packageVersion": "6.3.0",
+    "gitCommit": "289f848a78abc3a2e947e7a3b7acb6ad76ae5711",
     "dirtyAtStart": true,
     "statusAtStart": [
-      "M src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts",
-      " M src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx",
-      " M src/features/pistonOscillation/index.ts",
-      " M src/features/pistonOscillation/pistonOscillationCopy.ts",
-      " M src/features/workbench/WorkbenchStudioPrototype.tsx",
-      " M src/features/workbench/persistenceV3/projection.ts",
-      " M src/features/workbench/workbenchPistonOscillationPersistence.ts",
-      " M src/features/workbench/workbenchState.ts",
-      " M tests/pistonOscillation/pistonOscillationAcquisitionConfig.test.ts",
-      " M tests/pistonOscillation/pistonOscillationGuideWorkflowModel.test.ts",
-      " M tests/pistonOscillation/workbenchPistonOscillationShell.test.ts",
-      " M tests/workbench/workbenchPersistenceV3ProjectionCodec.test.ts",
-      " M tests/workbench/workbenchPistonOscillationPersistence.test.ts",
-      "?? src/features/pistonOscillation/pistonOscillationGuideAcquisitionBridge.ts",
-      "?? src/features/pistonOscillation/pistonOscillationGuidePrimaryControl.ts",
-      "?? tests/pistonOscillation/pistonOscillationGuidePrimaryControl.test.ts"
+      "M README.md",
+      " M README.zh-CN.md",
+      " M README.zh-TW.md",
+      " M docs/build-notice-zh-CN.md",
+      " M docs/releases/release-notes.json",
+      " M docs/research-report/evidence/generated/evidence-metadata.json",
+      " M package-lock.json",
+      " M package.json",
+      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
+      "?? docs/releases/v6.3.0.md"
     ]
   },
   "runtime": {
@@ -313,7 +307,7 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "9dfc3f8839c759eb889d3f44124bba9f57e0c28d5e7a844991e41abc6c831625",
+      "sha256": "de6baa723f10ec89f3196ddfe57d77ac80fb5d1f387ed1971c849bac7fc90a9f",
       "bytes": 4497
     },
     {
@@ -421,7 +415,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "e5809201415bfd900dc5885ab1f82eaa24fd537a43f15b5863a4751974063dcd"
+      "sha256": "1e4aa7dae4e5ea070927a16bb5632c1dcb1de71da7b42dfcfb7829e874583a92"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",

@@ -3,6 +3,202 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.3.0",
+      "date": "2026-08-30",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.3.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.3.0/heat-capacity-lab-setup-6.3.0.exe"
+      },
+      "summary": {
+        "zh-CN": "6.3.0 为活塞振动法增加连续热—传感—按压采集与完整交互音效，修复引导模式的步骤拒绝、0.500 s 冻结、暂停解锁和历史步骤卡死，并改进旋钮方向提示与演示节奏。",
+        "zh-TW": "6.3.0 為活塞振動法加入連續熱—感測—按壓採集與完整互動音效，修正引導模式的步驟拒絕、0.500 s 凍結、暫停解鎖和歷史步驟卡死，並改善旋鈕方向提示與演示節奏。",
+        "en": "Version 6.3.0 adds continuous thermal, sensor, press, and virtual-hand acquisition plus complete piston interaction audio; fixes Guide step rejection, 0.500 s freezing, Pause unlocking, and legacy-step stalls; and improves screw direction guidance and Demo pacing."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "自由模式采集与交互反馈",
+            "zh-TW": "自由模式採集與互動回饋",
+            "en": "Free Mode acquisition and interaction feedback"
+          },
+          "items": [
+            {
+              "scope": "piston-thermal-sensor-acquisition",
+              "importance": "high",
+              "title": {
+                "zh-CN": "连续热过程与压力传感链",
+                "zh-TW": "連續熱過程與壓力感測鏈",
+                "en": "Continuous thermal and pressure-sensor chain"
+              },
+              "body": {
+                "zh-CN": "活塞振动法的按压、松手、回弹、阻尼和压力观测现在由连续热过程、仪器响应和传感器观测共同驱动。不同高度会保留各自的真实平衡与回落特征，采集曲线继续进入既有周期处理、拟合和计算流程。",
+                "zh-TW": "活塞振動法的按壓、放手、回彈、阻尼和壓力觀測現在由連續熱過程、儀器響應和感測器觀測共同驅動。不同高度會保留各自的真實平衡與回落特徵，採集曲線繼續進入既有週期處理、擬合和計算流程。",
+                "en": "Piston pressing, release, rebound, damping, and pressure observation are now driven by a continuous thermal process, instrument response, and sensor model. Each height retains its own equilibrium and settling behavior while recorded curves continue into the established period-processing, fitting, and calculation flow."
+              }
+            },
+            {
+              "scope": "piston-virtual-hand-recording",
+              "importance": "high",
+              "title": {
+                "zh-CN": "虚拟双手与连续记录阶段",
+                "zh-TW": "虛擬雙手與連續記錄階段",
+                "en": "Virtual-hand and continuous recording stage"
+              },
+              "body": {
+                "zh-CN": "按压阶段会跟踪左右手的就位、同步下压和松手时间差，正式采集从真实触发点连续记录。显示时钟、原始样本和处理数据共用同一条时间基准，避免界面时间与记录状态脱节。",
+                "zh-TW": "按壓階段會追蹤左右手的就位、同步下壓和放手時間差，正式採集從真實觸發點連續記錄。顯示時鐘、原始樣本和處理資料共用同一條時間基準，避免介面時間與記錄狀態脫節。",
+                "en": "The press stage tracks left- and right-hand acquisition, coordinated travel, and release timing, while formal acquisition records continuously from the actual trigger. The display clock, raw samples, and processed data share one time base so visible time cannot drift from recording state."
+              }
+            },
+            {
+              "scope": "piston-interaction-audio",
+              "importance": "high",
+              "title": {
+                "zh-CN": "活塞实验交互音效",
+                "zh-TW": "活塞實驗互動音效",
+                "en": "Piston experiment interaction audio"
+              },
+              "body": {
+                "zh-CN": "电源按键、软管接入与移除、锁紧螺钉、活塞振动和触底碰撞现在都有与状态一致的音效。适用模式中的高度复位会按实际落差播放触底反馈；小于 5 mm 的微小移动不播放碰撞声。",
+                "zh-TW": "電源按鍵、軟管接入與移除、鎖緊螺釘、活塞振動和觸底碰撞現在都有與狀態一致的音效。適用模式中的高度復位會依實際落差播放觸底回饋；小於 5 mm 的微小移動不播放碰撞聲。",
+                "en": "Power, hose connection and removal, locking-screw motion, piston vibration, and bottom impact now have state-aligned audio. Height resets in applicable modes play an impact according to the actual drop, while movements below 5 mm remain silent."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "引导模式可靠性",
+            "zh-TW": "引導模式可靠性",
+            "en": "Guide Mode reliability"
+          },
+          "items": [
+            {
+              "scope": "piston-guide-step-continuity",
+              "importance": "high",
+              "title": {
+                "zh-CN": "正确操作不再被上一步提醒拒绝",
+                "zh-TW": "正確操作不再被上一步提醒拒絕",
+                "en": "Correct actions are no longer rejected by stale reminders"
+              },
+              "body": {
+                "zh-CN": "引导步骤、主控制键和交互门控现在从同一份有效状态判断。触发轻提示或强提醒后再完成正确操作，下一步不会继续沿用旧步骤的拒绝条件；开始、暂停、保存和跨 Run 推进保持同步。",
+                "zh-TW": "引導步驟、主控制鍵和互動門控現在從同一份有效狀態判斷。觸發輕提示或強提醒後再完成正確操作，下一步不會繼續沿用舊步驟的拒絕條件；開始、暫停、儲存和跨 Run 推進保持同步。",
+                "en": "Guide presentation, primary controls, and interaction gates now derive from the same effective state. After a soft or strong reminder, completing the correct action no longer leaves the next step governed by stale rejection conditions; Start, Pause, Save, and cross-run progression remain synchronized."
+              }
+            },
+            {
+              "scope": "piston-guide-recording-freeze",
+              "importance": "high",
+              "title": {
+                "zh-CN": "0.500 s 自动冻结并开放暂停",
+                "zh-TW": "0.500 s 自動凍結並開放暫停",
+                "en": "Automatic 0.500 s freeze and Pause unlock"
+              },
+              "body": {
+                "zh-CN": "引导采集达到 0.500 s 后会先冻结正式曲线和显示时间，再开放暂停键用于教学推进。判定读取每个高度实际建模后的平衡位置，不再固定按 80 mm 校验，因此 80、70、60 mm 及各自回落量都不会阻塞暂停。",
+                "zh-TW": "引導採集達到 0.500 s 後會先凍結正式曲線和顯示時間，再開放暫停鍵用於教學推進。判定讀取每個高度實際建模後的平衡位置，不再固定依 80 mm 校驗，因此 80、70、60 mm 及各自回落量都不會阻塞暫停。",
+                "en": "At 0.500 s, Guide acquisition first freezes the formal curve and display clock, then enables Pause as the learner-facing progression action. Validation uses the modeled equilibrium for each height instead of a fixed 80 mm check, so 80, 70, and 60 mm runs and their individual settling offsets cannot block Pause."
+              }
+            },
+            {
+              "scope": "piston-guide-parameter-enter",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "参数输入支持回车确认",
+                "zh-TW": "參數輸入支援 Enter 確認",
+                "en": "Enter confirms Guide parameters"
+              },
+              "body": {
+                "zh-CN": "引导模式的采样率与触发阈值输入框现在与自由模式一致：按回车确认当前值并进入下一项，不需要额外点击。",
+                "zh-TW": "引導模式的取樣率與觸發閾值輸入框現在與自由模式一致：按 Enter 確認目前數值並進入下一項，不需要額外點擊。",
+                "en": "Guide sample-rate and trigger-threshold fields now match Free Mode: Enter confirms the current value and advances to the next field without an extra click."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "旋钮引导与演示节奏",
+            "zh-TW": "旋鈕引導與演示節奏",
+            "en": "Screw guidance and Demo pacing"
+          },
+          "items": [
+            {
+              "scope": "piston-screw-guidance-tolerance",
+              "importance": "high",
+              "title": {
+                "zh-CN": "旋钮方向箭头、惯性容忍与分级纠错",
+                "zh-TW": "旋鈕方向箭頭、慣性容忍與分級修正",
+                "en": "Direction arrows, motion tolerance, and graduated correction"
+              },
+              "body": {
+                "zh-CN": "引导和演示中的旋钮提示会围绕真实投影位置显示清晰的顺时针或逆时针箭头。达到松紧临界值后，继续朝正确方向旋到终点不会触发越步警告；轻微反向先给出委婉提示并允许纠正，只有即将改变已完成状态时才阻止并显示明确方向。",
+                "zh-TW": "引導和演示中的旋鈕提示會圍繞真實投影位置顯示清楚的順時針或逆時針箭頭。達到鬆緊臨界值後，繼續朝正確方向旋到終點不會觸發越步警告；輕微反向先給出委婉提示並允許修正，只有即將改變已完成狀態時才阻止並顯示明確方向。",
+                "en": "Guide and Demo screw cues now place a crisp clockwise or counterclockwise arrow around the real projected screw position. Continuing in the correct direction after crossing the completion threshold no longer triggers an out-of-step warning. A small reverse motion receives a gentle correction and remains reversible; only motion that would undo the completed state is blocked with an explicit direction message."
+              }
+            },
+            {
+              "scope": "piston-demo-pacing",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "演示高度与软管动作加快 50%",
+                "zh-TW": "演示高度與軟管動作加快 50%",
+                "en": "Demo height and hose actions are 50% faster"
+              },
+              "body": {
+                "zh-CN": "演示模式中的高度调节、软管移除和软管接入动画耗时缩短为原来的 50%，保留原有虚影、动作顺序和观察重点。",
+                "zh-TW": "演示模式中的高度調節、軟管移除和軟管接入動畫耗時縮短為原來的 50%，保留原有虛影、動作順序和觀察重點。",
+                "en": "Demo height adjustment, hose removal, and hose connection now take 50% of their previous duration while retaining the existing ghosted hose, action order, and observation cues."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "会话恢复与桌面更新",
+            "zh-TW": "工作階段還原與桌面更新",
+            "en": "Session recovery and desktop update"
+          },
+          "items": [
+            {
+              "scope": "piston-guide-session-migration",
+              "importance": "high",
+              "title": {
+                "zh-CN": "旧引导会话自动迁移到现行步骤",
+                "zh-TW": "舊引導工作階段自動遷移到現行步驟",
+                "en": "Legacy Guide sessions migrate to current steps"
+              },
+              "body": {
+                "zh-CN": "旧版本曾保存的底层基线等待状态只在读取边界转换为现行的采集准备或跨 Run 断管步骤，不再重新出现在用户清单中，也不会卡住后续操作。演示、引导和自由会话继续互斥恢复，避免模式状态相互污染。",
+                "zh-TW": "舊版本曾儲存的底層基線等待狀態只在讀取邊界轉換為現行的採集準備或跨 Run 斷管步驟，不再重新出現在使用者清單中，也不會卡住後續操作。演示、引導和自由工作階段繼續互斥還原，避免模式狀態互相污染。",
+                "en": "Previously saved internal baseline-wait states are converted only at the restore boundary into the current acquisition-ready or cross-run disconnect steps. They cannot reappear in the learner checklist or block progress. Demo, Guide, and Free sessions also restore exclusively so state cannot leak between modes."
+              }
+            },
+            {
+              "scope": "desktop-update-compatibility-6-3-0",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保持安装与用户资料身份不变",
+                "zh-TW": "保持安裝與使用者資料身分不變",
+                "en": "Installer and user-data identities remain unchanged"
+              },
+              "body": {
+                "zh-CN": "6.3.0 保持既有应用 ID、产品名、安装身份、公开更新仓库和用户资料目录，可从 6.2.1 直接覆盖更新。可靠的自由模式实验计划、曲线、框选、作答、拟合与计算数据继续恢复。",
+                "zh-TW": "6.3.0 保持既有應用程式 ID、產品名稱、安裝身分、公開更新倉庫和使用者資料目錄，可從 6.2.1 直接覆蓋更新。可靠的自由模式實驗計畫、曲線、框選、作答、擬合與計算資料繼續還原。",
+                "en": "Version 6.3.0 retains the application ID, product name, installer identity, public update repository, and user-data directory for an in-place update from 6.2.1. Durable Free plans, curves, selections, answers, fitting, and calculations continue to restore."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.2.1",
       "date": "2026-08-29",
       "channel": "stable",
