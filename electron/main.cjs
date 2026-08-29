@@ -44,9 +44,9 @@ const UPDATE_INSTALL_EXIT_WATCHDOG_MS = 20_000;
 const UPDATE_INSTALL_APPROVAL_TIMEOUT_MS = UPDATE_INSTALL_EXIT_WATCHDOG_MS + 2_000;
 const exportRootFolderName = 'Gas Laws Lab Exports';
 const USER_GUIDE_URLS = {
-  'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
-  'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
-  en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
+  'zh-CN': 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release#readme',
+  'zh-TW': 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/blob/main/README.zh-TW.md',
+  en: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/blob/main/README.en.md',
 };
 const LEGAL_FILE_NAMES = {
   dependencies: 'third-party-dependencies.html',

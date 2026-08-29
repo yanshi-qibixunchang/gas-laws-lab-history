@@ -89,12 +89,12 @@ for (const locale of locales) {
 }
 assert.equal(
   currentRelease.download?.releasePage,
-  `https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v${packageJson.version}`,
+  `https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v${packageJson.version}`,
   `${packageJson.version} release page should be published in the public release repository`,
 );
 assert.equal(
   currentRelease.download?.windowsInstaller,
-  `https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v${packageJson.version}/heat-capacity-lab-setup-${packageJson.version}.exe`,
+  `https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v${packageJson.version}/heat-capacity-lab-setup-${packageJson.version}.exe`,
   `${packageJson.version} installer should be published in the public release repository`,
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
@@ -240,12 +240,12 @@ for (const locale of locales) {
 }
 assert.equal(
   acceptanceRelease.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.7',
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.7',
   '4.1.7 release page should be published only in the new public release repository',
 );
 assert.equal(
   acceptanceRelease.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe',
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe',
   '4.1.7 installer should be published only in the new public release repository',
 );
 const acceptanceItems = acceptanceRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
@@ -259,12 +259,12 @@ for (const locale of locales) {
 const futureTargets = getReleaseMetadataForVersion('4.1.8');
 assert.equal(
   futureTargets.releasePageUrl,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.8',
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.8',
   'future generated release pages should use the new public release repository',
 );
 assert.equal(
   futureTargets.manualDownloadUrl,
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe',
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe',
   'future generated installers should use the new public release repository',
 );
 
@@ -273,11 +273,11 @@ assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions sh
 assert.equal(firstRelease.channel, 'stable', 'release notes should identify the stable channel');
 assert.match(
   firstRelease.download?.releasePage ?? '',
-  /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-(?:1|release)\/releases\/tag\/v\d+\.\d+\.\d+$/,
+  /^https:\/\/github\.com\/yanshi-qibixunchang\/(?:hard-sphere-lab-1|gas-laws-lab-release)\/releases\/tag\/v\d+\.\d+\.\d+$/,
 );
 assert.match(
   firstRelease.download?.windowsInstaller ?? '',
-  /^https:\/\/github\.com\/yanshi-qibixunchang\/hard-sphere-lab-(?:1|release)\/releases\/download\/v\d+\.\d+\.\d+\/heat-capacity-lab-setup-\d+\.\d+\.\d+\.exe$/,
+  /^https:\/\/github\.com\/yanshi-qibixunchang\/(?:hard-sphere-lab-1|gas-laws-lab-release)\/releases\/download\/v\d+\.\d+\.\d+\/heat-capacity-lab-setup-\d+\.\d+\.\d+\.exe$/,
   'manual download should point directly to the Windows installer exe',
 );
 
@@ -377,7 +377,7 @@ assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.windowsInstaller)
 assert.equal(isAllowedManualDownloadUrl(firstRelease.download?.releasePage), true, 'release page URL should be allowed');
 assert.equal(
   getLatestReleasePageUrl(),
-  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/latest',
+  'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/latest',
   'persistence recovery should derive a trusted latest-release fallback from the configured publish target',
 );
 assert.equal(
@@ -386,7 +386,7 @@ assert.equal(
   'the configured latest-release fallback should be accepted by the same strict URL allowlist',
 );
 assert.equal(
-  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe'),
+  isAllowedManualDownloadUrl('https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe'),
   true,
   'new public release repository installer URL should be allowed',
 );

@@ -6,7 +6,7 @@ Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynami
 
 The latest published desktop release is `v6.3.0`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
-- Public downloads and update metadata: [hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
+- Public downloads and update metadata: [gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
 - Contribution and privacy checks: [CONTRIBUTING.md](./CONTRIBUTING.md)
 

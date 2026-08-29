@@ -1095,9 +1095,9 @@ const getHeatCapacityFreeParameterLockMessage = (
   language: WorkbenchLanguagePreference,
 ) => (reason ? heatCapacityFreeParameterLockText[reason][language] : null);
 const WORKBENCH_USER_GUIDE_URLS: Record<WorkbenchLanguagePreference, string> = {
-  'zh-CN': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release#readme',
-  'zh-TW': 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.zh-TW.md',
-  en: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/blob/main/README.en.md',
+  'zh-CN': 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release#readme',
+  'zh-TW': 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/blob/main/README.zh-TW.md',
+  en: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/blob/main/README.en.md',
 };
 type WorkbenchParameterSymbolPart = string | { sub: string };
 

@@ -7,8 +7,8 @@
       "date": "2026-08-30",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.3.0",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.3.0/heat-capacity-lab-setup-6.3.0.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.3.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.3.0/heat-capacity-lab-setup-6.3.0.exe"
       },
       "summary": {
         "zh-CN": "6.3.0 为活塞振动法增加连续热—传感—按压采集与完整交互音效，修复引导模式的步骤拒绝、0.500 s 冻结、暂停解锁和历史步骤卡死，并改进旋钮方向提示与演示节奏。",
@@ -203,8 +203,8 @@
       "date": "2026-08-29",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.2.1",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.2.1/heat-capacity-lab-setup-6.2.1.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.2.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.2.1/heat-capacity-lab-setup-6.2.1.exe"
       },
       "summary": {
         "zh-CN": "6.2.1 修复活塞振动法自由模式首次采集与周期框选白屏，恢复松开螺钉后的可见下沉，取消无依据的 2 m/s 回弹上限，并增加分层显示与跨重启恢复保护。",
@@ -399,8 +399,8 @@
       "date": "2026-08-28",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.2.0",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.2.0/heat-capacity-lab-setup-6.2.0.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.2.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.2.0/heat-capacity-lab-setup-6.2.0.exe"
       },
       "summary": {
         "zh-CN": "6.2.0 完成活塞振动法自由模式，统一两种热容比实验的计划与进度交互，修复演示和引导流程，并让三种模式共用可恢复的真实加载平衡模型。",
@@ -557,8 +557,8 @@
       "date": "2026-08-27",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v6.1.1",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v6.1.1/heat-capacity-lab-setup-6.1.1.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.1.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.1.1/heat-capacity-lab-setup-6.1.1.exe"
       },
       "summary": {
         "zh-CN": "6.1.1 正式加入活塞振动法空气比热容比实验，并完成混合精修仪器模型、电源门控、严格引导顺序、三轮采集与计算流程的整体验收。",
@@ -697,8 +697,8 @@
       "date": "2026-08-01",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.3.1",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.3.1/heat-capacity-lab-setup-5.3.1.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v5.3.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.3.1/heat-capacity-lab-setup-5.3.1.exe"
       },
       "summary": {
         "zh-CN": "5.3.1 完成绝热膨胀法多组实验、整组计算与评分、过程回顾，以及报告、图表和实验包导出的完整闭环。",
@@ -813,8 +813,8 @@
       "date": "2026-07-25",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.2",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.2/heat-capacity-lab-setup-5.2.2.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v5.2.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.2.2/heat-capacity-lab-setup-5.2.2.exe"
       },
       "summary": {
         "zh-CN": "5.2.2 是开屏流程热修复：工作区恢复达到 100% 后会正常完成淡出并进入软件，不再停留在加载界面。",
@@ -853,8 +853,8 @@
       "date": "2026-07-25",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.1",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.1/heat-capacity-lab-setup-5.2.1.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v5.2.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.2.1/heat-capacity-lab-setup-5.2.1.exe"
       },
       "summary": {
         "zh-CN": "5.2.1 完成首次使用与启动体验升级：新增三语言产品介绍和学习选择，统一工程软件提示体系，并以可感知进度的欢迎动画恢复工作区。",
@@ -1011,8 +1011,8 @@
       "date": "2026-07-20",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.2.0",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.2.0/heat-capacity-lab-setup-5.2.0.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v5.2.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.2.0/heat-capacity-lab-setup-5.2.0.exe"
       },
       "summary": {
         "zh-CN": "5.2.0 是稳定性与兼容性更新：长时间实验不再因高频整量保存逐渐卡顿，并可无损迁移 4.2.3 和 5.1.1 的有效工作区；已撤回的 5.1.2 废版数据不在兼容承诺内。",
@@ -1103,8 +1103,8 @@
       "date": "2026-07-18",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.1.2",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.1.2/heat-capacity-lab-setup-5.1.2.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v5.1.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.1.2/heat-capacity-lab-setup-5.1.2.exe"
       },
       "summary": {
         "zh-CN": "5.1.2 是基于 5.1.1 的稳定性更新，重点完善工作区保存与恢复、实验身份、Free／Guide／Demo 三模式状态一致性、运行时恢复、桌面更新自救及三语言气律实验室品牌。",
@@ -1243,8 +1243,8 @@
       "date": "2026-07-16",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v5.1.1",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.1.1/heat-capacity-lab-setup-5.1.1.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v5.1.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.1.1/heat-capacity-lab-setup-5.1.1.exe"
       },
       "summary": {
         "zh-CN": "5.1.1 是面向所有 4.2.x 用户的稳定更新，完善热容比实验的温度与热力学模型、分子和仪器反馈、三模式会话与精确视角恢复，并重建持久化、GLB 运行和桌面更新可靠性。",
@@ -1377,8 +1377,8 @@
       "date": "2026-07-11",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.2.3",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.2.3/heat-capacity-lab-setup-4.2.3.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.2.3",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.2.3/heat-capacity-lab-setup-4.2.3.exe"
       },
       "summary": {
         "zh-CN": "完成工作台架构收口和发布前稳定化，统一持久化、参数、更新器与热容实验运行边界，并清理不再使用的旧模型、旧样式和重复约束。",
@@ -1511,8 +1511,8 @@
       "date": "2026-07-07",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.2.2",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.2.2/heat-capacity-lab-setup-4.2.2.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.2.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.2.2/heat-capacity-lab-setup-4.2.2.exe"
       },
       "summary": {
         "zh-CN": "继续完善自由模式真实/理想参数体系，加入空气与氦气气体类型联动，校准氦气 1.67 组的正常结果和错误操作偏差，并统一过程回顾、下拉菜单、悬浮提示和桌面更新说明。",
@@ -1669,8 +1669,8 @@
       "date": "2026-07-07",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.2.1",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.2.1/heat-capacity-lab-setup-4.2.1.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.2.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.2.1/heat-capacity-lab-setup-4.2.1.exe"
       },
       "summary": {
         "zh-CN": "重构空气比热容比实验的真实/理想参数体系、引导与演示流程、过程回顾和 GLB 交互细节，并清理旧模型与旧 UI 残余，使自由实验、引导实验和演示实验的边界更清晰。",
@@ -1828,8 +1828,8 @@
       "date": "2026-06-18",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.22",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.22/heat-capacity-lab-setup-4.1.22.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.22",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.22/heat-capacity-lab-setup-4.1.22.exe"
       },
       "summary": {
         "zh-CN": "完善标准模拟结果图和正式导出图：软件内结果页改为科研风格 SVG 图表，补齐坐标标签、白底图例和半对数筛选说明；正式 PDF 导出统一图例与图外信息带，并让半对数能量图用散点、选中区间和完整理论参考展示。",
@@ -1935,8 +1935,8 @@
       "date": "2026-06-18",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.21",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.21/heat-capacity-lab-setup-4.1.21.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.21",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.21/heat-capacity-lab-setup-4.1.21.exe"
       },
       "summary": {
         "zh-CN": "完善标准模拟导出报告的半对数能量图说明：图内会明确标出实际绘制箱数、省略箱数和概率截断阈值，并修复导出样例生成器与真实运行数据不一致的问题。",
@@ -1990,8 +1990,8 @@
       "date": "2026-06-18",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.20",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.20/heat-capacity-lab-setup-4.1.20.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.20",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.20/heat-capacity-lab-setup-4.1.20.exe"
       },
       "summary": {
         "zh-CN": "修复标准模拟导出报告中“半对数能量分布”图为空的问题。导出器现在正确读取真实实验数据中的 energy、logProb 和 theoreticalLog 字段，避免半对数图被压缩到 0 附近。",
@@ -2031,8 +2031,8 @@
       "date": "2026-06-17",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.19",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.19/heat-capacity-lab-setup-4.1.19.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.19",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.19/heat-capacity-lab-setup-4.1.19.exe"
       },
       "summary": {
         "zh-CN": "导出图表升级为正式专业实验图样式：标准模拟和理想气体验证图统一使用 Times 字体、内向刻度、轻量网格和工程化读数框，并优化 PDF 报告中的图像排版。",
@@ -2110,8 +2110,8 @@
       "date": "2026-06-13",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.18",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.18/heat-capacity-lab-setup-4.1.18.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.18",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.18/heat-capacity-lab-setup-4.1.18.exe"
       },
       "summary": {
         "zh-CN": "完善理想气体和标准模拟的实验导出、多语言与菜单交互：新增总导出入口，区分报告 PDF 和图像文件夹导出，补齐控制台及实验专属界面的简体中文、繁体中文和英文文案，并修复顶部二级菜单固定后与新悬浮菜单重叠的问题。",
@@ -2265,8 +2265,8 @@
       "date": "2026-06-13",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.17",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.17/heat-capacity-lab-setup-4.1.17.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.17",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.17/heat-capacity-lab-setup-4.1.17.exe"
       },
       "summary": {
         "zh-CN": "修正热容比 3D 聚焦模式的删除范围：恢复主机面板和打气球聚焦视角，只移除玻璃旋塞与打气阀门共用的聚焦视角及其悬浮入口、状态面板和小仪表；同时保留 Ultra GLB 玻璃旋塞拨杆命中优化和更新下载过程中的结构化更新说明。",
@@ -2396,8 +2396,8 @@
       "date": "2026-06-13",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.16",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.16/heat-capacity-lab-setup-4.1.16.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.16",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.16/heat-capacity-lab-setup-4.1.16.exe"
       },
       "summary": {
         "zh-CN": "继续打磨热容比最高画质模型与桌面更新体验：加入 Ultra 阀门状态指示，优化玻璃旋塞与阀门命中、默认视角和拖拽保护，移除旧的 3D 聚焦模式，并确保下载更新过程中结构化更新说明不会退化为纯文本。",
@@ -2526,8 +2526,8 @@
       "date": "2026-06-12",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.15",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.15/heat-capacity-lab-setup-4.1.15.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.15",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.15/heat-capacity-lab-setup-4.1.15.exe"
       },
       "summary": {
         "zh-CN": "完成热容比微观可视化重构：骨架模型改用独立硬球碰撞模块，Ultra GLB 接入圆柱容器分子运动，并同步修正打气、放气、温度映射、旋塞判定和可视化开关。",
@@ -2695,8 +2695,8 @@
       "date": "2026-06-10",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.14",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.14/heat-capacity-lab-setup-4.1.14.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.14",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.14/heat-capacity-lab-setup-4.1.14.exe"
       },
       "summary": {
         "zh-CN": "修复桌面打包版 Ultra GLB 资源路径，确保最高画质在正式发布版中正确加载新模型并保持原有交互。",
@@ -2760,8 +2760,8 @@
       "date": "2026-06-09",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.13",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.13/heat-capacity-lab-setup-4.1.13.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.13",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.13/heat-capacity-lab-setup-4.1.13.exe"
       },
       "summary": {
         "zh-CN": "热容比实验接入新的 Ultra GLB 最高画质模型，统一自由 / 引导 / 演示 / 聚焦模式的交互和高亮逻辑，修复控件命中与快速点击问题，并在最高档禁用微观可视化。",
@@ -2891,8 +2891,8 @@
       "date": "2026-05-28",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.11",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.11/heat-capacity-lab-setup-4.1.11.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.11",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.11/heat-capacity-lab-setup-4.1.11.exe"
       },
       "summary": {
         "zh-CN": "缩短桌面标题栏最小化横杠长度，使其更接近 Windows 常见应用标题栏比例，并保持按钮中心线对齐。",
@@ -2956,8 +2956,8 @@
       "date": "2026-05-28",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.10",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.10/heat-capacity-lab-setup-4.1.10.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.10",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.10/heat-capacity-lab-setup-4.1.10.exe"
       },
       "summary": {
         "zh-CN": "修正应用内标题栏图标加载与圆角显示，隐藏 Web 端不应出现的桌面窗口按钮，并调整最小化、最大化和还原图标的 Windows 风格视觉对齐。",
@@ -3049,8 +3049,8 @@
       "date": "2026-05-27",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.9",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.9/heat-capacity-lab-setup-4.1.9.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.9",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.9/heat-capacity-lab-setup-4.1.9.exe"
       },
       "summary": {
         "zh-CN": "固定桌面程序默认与退出最大化后的 16:9 窗口尺寸，隐藏原生白色标题栏，并把软件图标、名称和窗口控制整合到应用内顶部栏。",
@@ -3128,8 +3128,8 @@
       "date": "2026-05-27",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.8",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.8",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.8/heat-capacity-lab-setup-4.1.8.exe"
       },
       "summary": {
         "zh-CN": "修复桌面更新安装流程、立即更新按钮加载动效和跟随系统主题，使后续更新静默保留数据，主动卸载仍可选择是否删除用户数据。",
@@ -3221,8 +3221,8 @@
       "date": "2026-05-27",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v4.1.7",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v4.1.7",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v4.1.7/heat-capacity-lab-setup-4.1.7.exe"
       },
       "summary": {
         "zh-CN": "发布新公开发布仓库验收版本，并在帮助菜单新增用户指南入口。",

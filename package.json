@@ -43,7 +43,7 @@
       {
         "provider": "github",
         "owner": "yanshi-qibixunchang",
-        "repo": "hard-sphere-lab-release"
+        "repo": "gas-laws-lab-release"
       }
     ],
     "electronUpdaterCompatibility": ">=2.16",

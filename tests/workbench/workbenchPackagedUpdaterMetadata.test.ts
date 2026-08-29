@@ -63,12 +63,12 @@ try {
   const release = getReleaseMetadataForVersion('5.1.3');
   assert.equal(
     latestUrl,
-    'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/latest',
+    'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/latest',
     'electron-builder-pruned packages must retain the trusted latest-release recovery URL',
   );
   assert.equal(
     release.manualDownloadUrl,
-    'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v5.1.3/heat-capacity-lab-setup-5.1.3.exe',
+    'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v5.1.3/heat-capacity-lab-setup-5.1.3.exe',
     'electron-builder-pruned packages must retain stable future installer URL generation',
   );
   assert.equal(

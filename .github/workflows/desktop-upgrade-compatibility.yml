@@ -44,7 +44,7 @@ jobs:
           $newName = "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
           $oldBlockmapName = "$oldName.blockmap"
           $newBlockmapName = "$newName.blockmap"
-          $baseUrl = 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download'
+          $baseUrl = 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download'
           & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $oldName) "$baseUrl/v${{ inputs.old_version }}/$oldName"
           if ($LASTEXITCODE -ne 0) { throw "Old installer download failed with curl exit code $LASTEXITCODE." }
           & curl.exe --location --fail --retry 3 --retry-all-errors --output (Join-Path $downloadRoot $oldBlockmapName) "$baseUrl/v${{ inputs.old_version }}/$oldBlockmapName"

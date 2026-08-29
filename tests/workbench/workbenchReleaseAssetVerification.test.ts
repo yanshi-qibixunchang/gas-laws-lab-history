@@ -197,8 +197,8 @@ try {
   const blockmapName = `${installerName}.blockmap`;
   const summary = { 'zh-CN': 'Stable', 'zh-TW': 'Stable', en: 'Stable' };
   const sections = [{ id: 'reliability', title: summary, items: [] }];
-  const releasePageUrl = `https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/tag/v${version}`;
-  const manualDownloadUrl = `https://github.com/yanshi-qibixunchang/hard-sphere-lab-release/releases/download/v${version}/${installerName}`;
+  const releasePageUrl = `https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v${version}`;
+  const manualDownloadUrl = `https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v${version}/${installerName}`;
   const release = {
     version,
     summary,
@@ -211,7 +211,7 @@ try {
     version,
     build: {
       productName,
-      publish: [{ provider: 'github', owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-release' }],
+      publish: [{ provider: 'github', owner: 'yanshi-qibixunchang', repo: 'gas-laws-lab-release' }],
     },
   }));
   writeFileSync(join(rootDir, 'package-lock.json'), JSON.stringify({

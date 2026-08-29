@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/components/SimulationCanvas.tsx', import.meta.url), 'utf8');
@@ -160,7 +160,7 @@ assert.match(
 );
 assert.match(
   electronMain,
-  /USER_GUIDE_URLS[\s\S]*zh-CN[\s\S]*hard-sphere-lab-release#readme[\s\S]*zh-TW[\s\S]*README\.zh-TW\.md[\s\S]*en[\s\S]*README\.en\.md/,
+  /USER_GUIDE_URLS[\s\S]*zh-CN[\s\S]*gas-laws-lab-release#readme[\s\S]*zh-TW[\s\S]*README\.zh-TW\.md[\s\S]*en[\s\S]*README\.en\.md/,
   'desktop main process should keep a fixed whitelist of public user-guide URLs',
 );
 assert.match(

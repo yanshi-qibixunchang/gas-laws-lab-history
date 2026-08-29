@@ -6,7 +6,7 @@
 
 当前已公开发布的桌面稳定版是 `v6.3.0`。`main` 可以包含该标签之后已经评审的开发内容；只有在明确确定版本号、同步更新版本文件并发布完整更新资产后，主线源码才构成新的桌面版本。
 
-- 公开下载与更新元数据：[hard-sphere-lab-release](https://github.com/yanshi-qibixunchang/hard-sphere-lab-release)
+- 公开下载与更新元数据：[gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - 安全与漏洞报告规则：[SECURITY.md](./SECURITY.md)
 - 协作、提交与隐私检查：[CONTRIBUTING.md](./CONTRIBUTING.md)
 

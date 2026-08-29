@@ -51,7 +51,7 @@ assert.deepEqual(
 assert.ok(packageJson.dependencies?.['electron-updater'], 'electron-updater must be installed as an app dependency');
 assert.deepEqual(
   packageJson.build?.publish?.[0],
-  { provider: 'github', owner: 'yanshi-qibixunchang', repo: 'hard-sphere-lab-release' },
+  { provider: 'github', owner: 'yanshi-qibixunchang', repo: 'gas-laws-lab-release' },
   '4.1.6 should embed the new public release repository as the future GitHub update channel',
 );
 assert.deepEqual(
