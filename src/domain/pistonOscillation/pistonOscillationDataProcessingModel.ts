@@ -9,11 +9,15 @@ import {
 import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
   PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
-  PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+  PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+  PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
   createPistonOscillationEquilibriumState,
   normalizePistonOscillationPhysicsConfig,
+  normalizePistonOscillationThermodynamicState,
   type PistonOscillationEquilibriumState,
+  type PistonOscillationFiniteThermalExtensionState,
   type PistonOscillationPhysicsConfig,
+  type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
 } from './pistonOscillationPhysicsEngine.ts';
 import {
@@ -30,6 +34,8 @@ import {
   type PistonOscillationEquivalentLossSnapshot,
 } from './pistonOscillationEquivalentLossModel.ts';
 import {
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
@@ -37,9 +43,18 @@ import {
   getPistonOscillationObservedTimeS,
   quantizePistonOscillationObservedPressureKpa,
   type PistonOscillationObservedSample,
+  type PistonOscillationDynamicSensorConfig,
+  type PistonOscillationDynamicSensorState,
+  type PistonOscillationSensorObservationSeries,
 } from './pistonOscillationSensorObservationModel.ts';
+import {
+  clonePistonOscillationPressOperationEvidence,
+  createLegacyUnknownPistonOscillationPressOperationEvidence,
+  normalizePistonOscillationPressOperationEvidence,
+  type PistonOscillationPressOperationEvidence,
+} from './pistonOscillationPressInteractionModel.ts';
 
-export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 3 as const;
+export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 4 as const;
 export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 4 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
   'alternating-observed-local-extrema-v2' as const;
@@ -75,10 +90,12 @@ export interface PistonOscillationPhysicsSnapshot {
   initialVelocityMPerS: number;
   integrationSubstepsPerSample: number;
   triggerTimeS: number | null;
+  initialThermodynamicState?: PistonOscillationThermodynamicState | null;
+  thermalModel?: PistonOscillationFiniteThermalExtensionState | null;
 }
 
 export interface PistonOscillationSensorObservationSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 1 | 2;
   modelVersion: typeof PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION | string;
   provenance: 'captured' | 'legacy-migrated';
   sampleRateHz: number;
@@ -87,6 +104,9 @@ export interface PistonOscillationSensorObservationSnapshot {
   triggerSourceSampleIndex: number | null;
   triggerSourceTimeS: number | null;
   sourceRecordSchemaVersion: number | null;
+  dynamicConfig?: PistonOscillationDynamicSensorConfig | null;
+  initialDynamicState?: PistonOscillationDynamicSensorState | null;
+  finalDynamicState?: PistonOscillationDynamicSensorState | null;
 }
 
 export interface PistonOscillationRawMeasurementRecord {
@@ -98,6 +118,7 @@ export interface PistonOscillationRawMeasurementRecord {
   confirmedHeightMm: number;
   acquisitionSettings: PistonOscillationAcquisitionSettingsSnapshot;
   samples: PistonOscillationRawSample[];
+  pressOperationEvidence: PistonOscillationPressOperationEvidence;
   sensorObservationSnapshot: PistonOscillationSensorObservationSnapshot;
   physicsSnapshot: PistonOscillationPhysicsSnapshot;
 }
@@ -448,6 +469,15 @@ export const createPistonOscillationCalculationKnownsSnapshot = (
   };
 };
 
+const clonePistonOscillationThermodynamicState = (
+  state: PistonOscillationThermodynamicState | null | undefined,
+) => state
+  ? {
+      ...state,
+      thermal: { ...state.thermal },
+    }
+  : null;
+
 export const createPistonOscillationPhysicsSnapshot = (
   trajectory: PistonOscillationTrajectory,
   triggerTimeS: number | null,
@@ -463,7 +493,7 @@ export const createPistonOscillationPhysicsSnapshot = (
     throw new RangeError('Guided measurements must use the versioned temporary equivalent loss.');
   }
   return {
-    modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+    modelVersion: trajectory.modelVersion,
     provenance: 'captured',
     airMaterial: createPistonOscillationAirMaterialSnapshot(),
     equivalentLoss,
@@ -473,12 +503,19 @@ export const createPistonOscillationPhysicsSnapshot = (
     initialVelocityMPerS: trajectory.initialVelocityMPerS,
     integrationSubstepsPerSample: trajectory.integrationSubstepsPerSample,
     triggerTimeS,
+    initialThermodynamicState: clonePistonOscillationThermodynamicState(
+      trajectory.initialThermodynamicState,
+    ),
+    thermalModel: trajectory.thermalModel
+      ? { ...trajectory.thermalModel }
+      : null,
   };
 };
 
 export const createPistonOscillationSensorObservationSnapshot = (options: {
   sampleRateHz: number;
   triggerSourceSampleIndex: number | null;
+  observationSeries?: PistonOscillationSensorObservationSeries | null;
   provenance?: PistonOscillationSensorObservationSnapshot['provenance'];
   sourceRecordSchemaVersion?: number | null;
 }): PistonOscillationSensorObservationSnapshot => {
@@ -493,9 +530,20 @@ export const createPistonOscillationSensorObservationSnapshot = (options: {
   ) {
     throw new RangeError('triggerSourceSampleIndex must be null or non-negative.');
   }
+  const observationSeries = options.observationSeries ?? null;
+  if (
+    observationSeries
+    && observationSeries.sampleRateHz !== sampleRateHz
+  ) {
+    throw new RangeError('The observation series and snapshot sample rates must match.');
+  }
+  if (observationSeries) assertPistonOscillationSensorObservationSeries(observationSeries);
+  const dynamic = observationSeries?.modelVersion
+    === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
   return {
-    schemaVersion: 1,
-    modelVersion: PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
+    schemaVersion: dynamic ? 2 : 1,
+    modelVersion: observationSeries?.modelVersion
+      ?? PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
     provenance: options.provenance ?? 'captured',
     sampleRateHz,
     pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
@@ -505,6 +553,15 @@ export const createPistonOscillationSensorObservationSnapshot = (options: {
       ? null
       : getPistonOscillationObservedTimeS(triggerSourceSampleIndex, sampleRateHz),
     sourceRecordSchemaVersion: options.sourceRecordSchemaVersion ?? null,
+    dynamicConfig: dynamic && observationSeries?.dynamicConfig
+      ? { ...observationSeries.dynamicConfig }
+      : null,
+    initialDynamicState: dynamic && observationSeries?.initialDynamicState
+      ? { ...observationSeries.initialDynamicState }
+      : null,
+    finalDynamicState: dynamic && observationSeries?.finalDynamicState
+      ? { ...observationSeries.finalDynamicState }
+      : null,
   };
 };
 
@@ -545,6 +602,35 @@ const isValidPistonOscillationPhysicsSnapshot = (
       )
     ) return false;
     const normalizedConfig = normalizePistonOscillationPhysicsConfig(snapshot.config);
+    const normalizedInitialThermodynamicState =
+      snapshot.initialThermodynamicState === null
+      || snapshot.initialThermodynamicState === undefined
+        ? null
+        : normalizePistonOscillationThermodynamicState(
+            snapshot.initialThermodynamicState,
+            normalizedConfig,
+          );
+    if (snapshot.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION) {
+      if (
+        !normalizedInitialThermodynamicState
+        || !normalizedInitialThermodynamicState.thermal.enabled
+        || !snapshot.thermalModel?.enabled
+        || snapshot.thermalModel.modelVersion
+          !== normalizedInitialThermodynamicState.thermal.modelVersion
+        || !physicsNumbersAgree(
+          snapshot.thermalModel.relaxationTimeAtReferenceHeightS,
+          normalizedInitialThermodynamicState.thermal.relaxationTimeAtReferenceHeightS,
+        )
+        || !physicsNumbersAgree(
+          snapshot.thermalModel.referenceGraduatedHeightM,
+          normalizedInitialThermodynamicState.thermal.referenceGraduatedHeightM,
+        )
+        || !physicsNumbersAgree(
+          snapshot.thermalModel.volumeExponent,
+          normalizedInitialThermodynamicState.thermal.volumeExponent,
+        )
+      ) return false;
+    }
     const configKeys = Object.keys(normalizedConfig) as Array<keyof PistonOscillationPhysicsConfig>;
     if (configKeys.some((key) => !physicsNumbersAgree(
       normalizedConfig[key],
@@ -583,6 +669,7 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   recordingPath?: PistonOscillationAcquisitionSettingsSnapshot['recordingPath'];
   releaseOffsetS?: number | null;
   samples: PistonOscillationRawSample[];
+  pressOperationEvidence?: PistonOscillationPressOperationEvidence;
   sensorObservationSnapshot?: PistonOscillationSensorObservationSnapshot;
   physicsSnapshot: PistonOscillationPhysicsSnapshot;
 }): PistonOscillationRawMeasurementRecord => {
@@ -637,10 +724,18 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   if (sensorObservationSnapshot.sampleRateHz !== options.sampleRateHz) {
     throw new RangeError('The sensor snapshot and acquisition sample rates must match.');
   }
+  const dynamicSensorSnapshot = sensorObservationSnapshot.modelVersion
+    === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
   if (
-    sensorObservationSnapshot.schemaVersion !== 1
-    || sensorObservationSnapshot.modelVersion
-      !== PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION
+    (
+      dynamicSensorSnapshot
+        ? sensorObservationSnapshot.schemaVersion !== 2
+          || !sensorObservationSnapshot.dynamicConfig
+          || !sensorObservationSnapshot.finalDynamicState
+        : sensorObservationSnapshot.schemaVersion !== 1
+          || sensorObservationSnapshot.modelVersion
+            !== PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION
+    )
     || (
       sensorObservationSnapshot.provenance !== 'captured'
       && sensorObservationSnapshot.provenance !== 'legacy-migrated'
@@ -694,13 +789,25 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
     };
   });
   assertPistonOscillationSensorObservationSeries({
-    modelVersion: PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
+    modelVersion: sensorObservationSnapshot.modelVersion ===
+      PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+      ? PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+      : PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
     sampleRateHz: options.sampleRateHz,
     pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
     pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
     samples,
+    dynamicConfig: sensorObservationSnapshot.dynamicConfig,
+    initialDynamicState: sensorObservationSnapshot.initialDynamicState,
+    finalDynamicState: sensorObservationSnapshot.finalDynamicState,
   });
   const recordedDurationS = samples.at(-1)?.timeS ?? 0;
+  const pressOperationEvidence = options.pressOperationEvidence
+    ? normalizePistonOscillationPressOperationEvidence(options.pressOperationEvidence)
+    : createLegacyUnknownPistonOscillationPressOperationEvidence();
+  if (!pressOperationEvidence) {
+    throw new RangeError('pressOperationEvidence is invalid.');
+  }
   return {
     schemaVersion: PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION,
     recordId: options.recordId,
@@ -716,13 +823,33 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
       releaseOffsetS,
     },
     samples,
-    sensorObservationSnapshot: { ...sensorObservationSnapshot },
+    pressOperationEvidence: clonePistonOscillationPressOperationEvidence(
+      pressOperationEvidence,
+    ),
+    sensorObservationSnapshot: {
+      ...sensorObservationSnapshot,
+      dynamicConfig: sensorObservationSnapshot.dynamicConfig
+        ? { ...sensorObservationSnapshot.dynamicConfig }
+        : null,
+      initialDynamicState: sensorObservationSnapshot.initialDynamicState
+        ? { ...sensorObservationSnapshot.initialDynamicState }
+        : null,
+      finalDynamicState: sensorObservationSnapshot.finalDynamicState
+        ? { ...sensorObservationSnapshot.finalDynamicState }
+        : null,
+    },
     physicsSnapshot: {
       ...options.physicsSnapshot,
       airMaterial: { ...options.physicsSnapshot.airMaterial },
       equivalentLoss: { ...options.physicsSnapshot.equivalentLoss },
       config: { ...options.physicsSnapshot.config },
       equilibrium: { ...options.physicsSnapshot.equilibrium },
+      initialThermodynamicState: clonePistonOscillationThermodynamicState(
+        options.physicsSnapshot.initialThermodynamicState,
+      ),
+      thermalModel: options.physicsSnapshot.thermalModel
+        ? { ...options.physicsSnapshot.thermalModel }
+        : null,
     },
   };
 };
@@ -733,13 +860,33 @@ export const clonePistonOscillationRawMeasurementRecord = (
   ...record,
   acquisitionSettings: { ...record.acquisitionSettings },
   samples: record.samples.map((sample) => ({ ...sample })),
-  sensorObservationSnapshot: { ...record.sensorObservationSnapshot },
+  pressOperationEvidence: clonePistonOscillationPressOperationEvidence(
+    record.pressOperationEvidence,
+  ),
+  sensorObservationSnapshot: {
+    ...record.sensorObservationSnapshot,
+    dynamicConfig: record.sensorObservationSnapshot.dynamicConfig
+      ? { ...record.sensorObservationSnapshot.dynamicConfig }
+      : null,
+    initialDynamicState: record.sensorObservationSnapshot.initialDynamicState
+      ? { ...record.sensorObservationSnapshot.initialDynamicState }
+      : null,
+    finalDynamicState: record.sensorObservationSnapshot.finalDynamicState
+      ? { ...record.sensorObservationSnapshot.finalDynamicState }
+      : null,
+  },
   physicsSnapshot: {
     ...record.physicsSnapshot,
     airMaterial: { ...record.physicsSnapshot.airMaterial },
     equivalentLoss: { ...record.physicsSnapshot.equivalentLoss },
     config: { ...record.physicsSnapshot.config },
     equilibrium: { ...record.physicsSnapshot.equilibrium },
+    initialThermodynamicState: clonePistonOscillationThermodynamicState(
+      record.physicsSnapshot.initialThermodynamicState,
+    ),
+    thermalModel: record.physicsSnapshot.thermalModel
+      ? { ...record.physicsSnapshot.thermalModel }
+      : null,
   },
 });
 
@@ -760,6 +907,8 @@ const createLegacyPhysicsSnapshot = (
   initialVelocityMPerS: 0,
   integrationSubstepsPerSample: 1,
   triggerTimeS: null,
+  initialThermodynamicState: null,
+  thermalModel: null,
 });
 
 const normalizePhysicsConfig = (
@@ -888,6 +1037,42 @@ const normalizePhysicsSnapshot = (
       ? { ...value.equivalentLoss }
       : null;
   if (!airMaterial || !equivalentLoss) return fallback();
+  const initialThermodynamicState = value.initialThermodynamicState === undefined
+    || value.initialThermodynamicState === null
+    ? null
+    : normalizePistonOscillationThermodynamicState(
+        value.initialThermodynamicState,
+        config,
+      );
+  if (value.initialThermodynamicState != null && !initialThermodynamicState) {
+    return fallback();
+  }
+  let thermalModel: PistonOscillationFiniteThermalExtensionState | null = null;
+  if (value.thermalModel !== undefined && value.thermalModel !== null) {
+    if (
+      !isPlainRecord(value.thermalModel)
+      || value.thermalModel.modelVersion
+        !== PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+      || value.thermalModel.enabled !== true
+      || !isFiniteNumber(value.thermalModel.wallTemperatureK)
+      || !isFiniteNumber(value.thermalModel.cumulativeHeatTransferJ)
+      || !isFiniteNumber(value.thermalModel.relaxationTimeAtReferenceHeightS)
+      || !isFiniteNumber(value.thermalModel.referenceGraduatedHeightM)
+      || !isFiniteNumber(value.thermalModel.volumeExponent)
+      || value.thermalModel.provenance !== 'identified-candidate'
+    ) return fallback();
+    thermalModel = {
+      modelVersion: PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+      enabled: true,
+      wallTemperatureK: value.thermalModel.wallTemperatureK,
+      cumulativeHeatTransferJ: value.thermalModel.cumulativeHeatTransferJ,
+      relaxationTimeAtReferenceHeightS:
+        value.thermalModel.relaxationTimeAtReferenceHeightS,
+      referenceGraduatedHeightM: value.thermalModel.referenceGraduatedHeightM,
+      volumeExponent: value.thermalModel.volumeExponent,
+      provenance: 'identified-candidate',
+    };
+  }
   const snapshot: PistonOscillationPhysicsSnapshot = {
     modelVersion: value.modelVersion,
     provenance: value.provenance,
@@ -903,6 +1088,10 @@ const normalizePhysicsSnapshot = (
       : isFiniteNumber(value.triggerTimeS)
         ? value.triggerTimeS
         : null,
+    initialThermodynamicState: clonePistonOscillationThermodynamicState(
+      initialThermodynamicState,
+    ),
+    thermalModel,
   };
   return isValidPistonOscillationPhysicsSnapshot(snapshot) ? snapshot : fallback();
 };
@@ -965,9 +1154,15 @@ const normalizeSensorObservationSnapshot = (
   sourceRecordSchemaVersion: number | null,
 ): PistonOscillationSensorObservationSnapshot | null => {
   if (!migrateLegacy && isPlainRecord(value)) {
+    const dynamic = value.modelVersion
+      === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
     if (
-      value.schemaVersion !== 1
-      || value.modelVersion !== PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION
+      (
+        dynamic
+          ? value.schemaVersion !== 2
+          : value.schemaVersion !== 1
+            || value.modelVersion !== PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION
+      )
       || (value.provenance !== 'captured' && value.provenance !== 'legacy-migrated')
       || value.sampleRateHz !== sampleRateHz
       || value.pressureResolutionKpa
@@ -995,9 +1190,73 @@ const normalizeSensorObservationSnapshot = (
         && !isFiniteNumber(value.sourceRecordSchemaVersion)
       )
     ) return null;
+    let dynamicConfig: PistonOscillationDynamicSensorConfig | null = null;
+    let initialDynamicState: PistonOscillationDynamicSensorState | null = null;
+    let finalDynamicState: PistonOscillationDynamicSensorState | null = null;
+    if (dynamic) {
+      const configValue = value.dynamicConfig;
+      const initialStateValue = value.initialDynamicState;
+      const finalStateValue = value.finalDynamicState;
+      if (
+        !isPlainRecord(configValue)
+        || configValue.modelVersion !== PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION
+        || configValue.provenance !== 'educational-candidate'
+        || !isFiniteNumber(configValue.responseTimeConstantS)
+        || configValue.responseTimeConstantS <= 0
+        || !isFiniteNumber(configValue.driftRatePaPerS)
+        || !isFiniteNumber(configValue.driftWanderAmplitudePa)
+        || configValue.driftWanderAmplitudePa < 0
+        || !isFiniteNumber(configValue.driftWanderPeriodS)
+        || configValue.driftWanderPeriodS <= 0
+        || !isFiniteNumber(configValue.noiseStandardDeviationPa)
+        || configValue.noiseStandardDeviationPa < 0
+        || !Number.isSafeInteger(configValue.seed)
+        || !isPlainRecord(finalStateValue)
+      ) return null;
+      const normalizeDynamicState = (
+        stateValue: Record<string, unknown>,
+      ): PistonOscillationDynamicSensorState | null => (
+        stateValue.modelVersion
+          === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+        && isFiniteNumber(stateValue.filteredPressurePa)
+        && stateValue.filteredPressurePa > 0
+        && isFiniteNumber(stateValue.sessionElapsedS)
+        && stateValue.sessionElapsedS >= 0
+        && Number.isSafeInteger(stateValue.nextNoiseSampleIndex)
+        && (stateValue.nextNoiseSampleIndex as number) >= 0
+          ? {
+              modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+              filteredPressurePa: stateValue.filteredPressurePa,
+              sessionElapsedS: stateValue.sessionElapsedS,
+              nextNoiseSampleIndex: stateValue.nextNoiseSampleIndex as number,
+            }
+          : null
+      );
+      finalDynamicState = normalizeDynamicState(finalStateValue);
+      initialDynamicState = initialStateValue === null
+        ? null
+        : isPlainRecord(initialStateValue)
+          ? normalizeDynamicState(initialStateValue)
+          : null;
+      if (!finalDynamicState || (initialStateValue !== null && !initialDynamicState)) {
+        return null;
+      }
+      dynamicConfig = {
+        modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
+        responseTimeConstantS: configValue.responseTimeConstantS,
+        driftRatePaPerS: configValue.driftRatePaPerS,
+        driftWanderAmplitudePa: configValue.driftWanderAmplitudePa,
+        driftWanderPeriodS: configValue.driftWanderPeriodS,
+        noiseStandardDeviationPa: configValue.noiseStandardDeviationPa,
+        seed: configValue.seed as number,
+        provenance: 'educational-candidate',
+      };
+    }
     return {
-      schemaVersion: 1,
-      modelVersion: PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
+      schemaVersion: dynamic ? 2 : 1,
+      modelVersion: dynamic
+        ? PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+        : PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
       provenance: value.provenance,
       sampleRateHz,
       pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
@@ -1005,6 +1264,9 @@ const normalizeSensorObservationSnapshot = (
       triggerSourceSampleIndex,
       triggerSourceTimeS,
       sourceRecordSchemaVersion: value.sourceRecordSchemaVersion as number | null,
+      dynamicConfig,
+      initialDynamicState,
+      finalDynamicState,
     };
   }
   const inferredTriggerSampleIndex = physicsSnapshot.triggerTimeS === null
@@ -1118,6 +1380,10 @@ export const normalizePistonOscillationRawMeasurementRecord = (
     sourceRecordSchemaVersion,
   );
   if (!sensorObservationSnapshot) return null;
+  const pressOperationEvidence = migrateLegacy && value.pressOperationEvidence === undefined
+    ? createLegacyUnknownPistonOscillationPressOperationEvidence()
+    : normalizePistonOscillationPressOperationEvidence(value.pressOperationEvidence);
+  if (!pressOperationEvidence) return null;
   return {
     schemaVersion: PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION,
     recordId: typeof value.recordId === 'string' && value.recordId.length > 0
@@ -1135,6 +1401,7 @@ export const normalizePistonOscillationRawMeasurementRecord = (
       releaseOffsetS,
     },
     samples,
+    pressOperationEvidence,
     sensorObservationSnapshot,
     physicsSnapshot,
   };

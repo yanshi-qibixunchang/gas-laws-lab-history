@@ -18,6 +18,7 @@ export {
   type PistonOscillationAcquisitionPanelProps,
   type PistonOscillationGuideAcquisitionCue,
   type PistonOscillationGuideAcquisitionEvent,
+  type PistonOscillationPressStartEvent,
   type PistonOscillationReleaseEvent,
 } from './PistonOscillationAcquisitionPanel.tsx';
 export {

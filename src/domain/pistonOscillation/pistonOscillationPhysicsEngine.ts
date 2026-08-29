@@ -5,15 +5,20 @@ import {
   PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
 } from './pistonOscillationEquivalentLossModel.ts';
 
-const UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K = 8.31446261815324;
-const STANDARD_GRAVITY_M_PER_S2 = 9.80665;
+export const PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K =
+  8.31446261815324;
+export const PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2 = 9.80665;
 
 export const PISTON_OSCILLATION_PHYSICS_MODEL_VERSION =
   'piston-oscillation-rk4-pasco-td8572a-v3' as const;
+export const PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION =
+  'piston-oscillation-rk4-single-temperature-thermal-v4' as const;
 
 export const PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION =
   'piston-oscillation-thermal-extension-disabled-v1' as const;
+export const PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION =
+  'piston-oscillation-single-temperature-relaxation-v1' as const;
 export const PISTON_OSCILLATION_SETTLING_MODEL_VERSION =
   'piston-oscillation-isothermal-weight-settling-v1' as const;
 export const PISTON_OSCILLATION_SETTLING_DURATION_S = 0.2 as const;
@@ -52,22 +57,39 @@ export type PistonOscillationThermodynamicPhase =
   | 'settling'
   | 'sealed-loaded';
 
-export interface PistonOscillationThermalExtensionState {
+export interface PistonOscillationDisabledThermalExtensionState {
   modelVersion: typeof PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION;
   enabled: false;
   wallTemperatureK: number;
   cumulativeHeatTransferJ: number;
 }
 
+export interface PistonOscillationFiniteThermalExtensionState {
+  modelVersion: typeof PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION;
+  enabled: true;
+  wallTemperatureK: number;
+  cumulativeHeatTransferJ: number;
+  relaxationTimeAtReferenceHeightS: number;
+  referenceGraduatedHeightM: number;
+  volumeExponent: number;
+  provenance: 'identified-candidate';
+}
+
+export type PistonOscillationThermalExtensionState =
+  | PistonOscillationDisabledThermalExtensionState
+  | PistonOscillationFiniteThermalExtensionState;
+
 /**
  * Authoritative gas state shared by the visual model, live sensor, and saved
- * free-mode instrument state. The thermal fields are deliberately inert in
- * this stage so a later heat-transfer model can evolve the same state without
- * replacing its shape.
+ * free-mode instrument state. Legacy states keep the disabled thermal branch;
+ * finite-thermal runs use the versioned candidate branch without changing the
+ * persisted outer shape.
  */
 export interface PistonOscillationThermodynamicState {
   schemaVersion: typeof PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION;
-  modelVersion: typeof PISTON_OSCILLATION_PHYSICS_MODEL_VERSION;
+  modelVersion:
+    | typeof PISTON_OSCILLATION_PHYSICS_MODEL_VERSION
+    | typeof PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION;
   phase: PistonOscillationThermodynamicPhase;
   nominalLockedHeightM: number;
   pistonHeightM: number;
@@ -90,9 +112,13 @@ export interface PistonOscillationTrajectorySample {
   velocityMPerS: number;
   pressurePa: number;
   temperatureK: number;
+  cumulativeHeatTransferJ?: number;
 }
 
 export interface PistonOscillationTrajectory {
+  modelVersion: string;
+  initialThermodynamicState: PistonOscillationThermodynamicState | null;
+  thermalModel: PistonOscillationFiniteThermalExtensionState | null;
   config: PistonOscillationPhysicsConfig;
   equilibrium: PistonOscillationEquilibriumState;
   initialDisplacementM: number;
@@ -260,7 +286,7 @@ export const getPistonCylinderAreaM2 = (diameterM: number) => (
 );
 
 const getMolarHeatCapacityAtConstantVolume = (gamma: number) => (
-  UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K / (gamma - 1)
+  PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K / (gamma - 1)
 );
 
 const createThermalExtensionState = (
@@ -282,6 +308,8 @@ const createThermodynamicState = (input: {
   pressurePa: number;
   settlingProgress: number;
   config: PistonOscillationPhysicsConfig;
+  modelVersion?: PistonOscillationThermodynamicState['modelVersion'];
+  thermal?: PistonOscillationThermalExtensionState;
 }): PistonOscillationThermodynamicState => {
   const nominalLockedHeightM = assertFiniteNumber(
     'nominalLockedHeightM',
@@ -332,7 +360,7 @@ const createThermodynamicState = (input: {
   }
   return {
     schemaVersion: PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION,
-    modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+    modelVersion: input.modelVersion ?? PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
     phase: input.phase,
     nominalLockedHeightM,
     pistonHeightM,
@@ -346,7 +374,9 @@ const createThermodynamicState = (input: {
     pressurePa,
     temperatureK,
     settlingProgress,
-    thermal: createThermalExtensionState(input.config.ambientTemperatureK),
+    thermal: input.thermal
+      ? { ...input.thermal }
+      : createThermalExtensionState(input.config.ambientTemperatureK),
   };
 };
 
@@ -368,10 +398,11 @@ const createEquilibriumFromLoadedHeight = (
   const graduatedCylinderVolumeM3 = cylinderAreaM2 * equilibriumHeightM;
   const equilibriumVolumeM3 = graduatedCylinderVolumeM3 + sealedDeadVolumeM3;
   const equilibriumPressurePa = config.ambientPressurePa
-    + config.movingMassKg * STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
+    + config.movingMassKg * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
   const gasAmountMol = equilibriumPressurePa * equilibriumVolumeM3
-    / (UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K * config.ambientTemperatureK);
-  const lockedVolumeM3 = gasAmountMol * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    / (PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K * config.ambientTemperatureK);
+  const lockedVolumeM3 = gasAmountMol
+    * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
     * config.ambientTemperatureK / config.ambientPressurePa;
   const lockedHeightM = (lockedVolumeM3 - sealedDeadVolumeM3) / cylinderAreaM2;
   if (lockedHeightM < 0) {
@@ -421,7 +452,7 @@ export const createPistonOscillationLoadedEquilibriumState = (
   const lockedVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
     + cylinderAreaM2 * lockedHeightM;
   const equilibriumPressurePa = config.ambientPressurePa
-    + config.movingMassKg * STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
+    + config.movingMassKg * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
   const equilibriumVolumeM3 = config.ambientPressurePa
     * lockedVolumeM3 / equilibriumPressurePa;
   const equilibriumHeightM = (
@@ -452,7 +483,10 @@ export const createPistonOscillationAtmosphericLockedState = (
   const totalVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
     + cylinderAreaM2 * nominalLockedHeightM;
   const gasAmountMol = config.ambientPressurePa * totalVolumeM3
-    / (UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K * config.ambientTemperatureK);
+    / (
+      PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+      * config.ambientTemperatureK
+    );
   return createThermodynamicState({
     phase,
     nominalLockedHeightM,
@@ -502,7 +536,8 @@ export const getPistonOscillationSettlingStateAtProgress = (
     : equilibrium.settlingDisplacementM * settlingProgressRatePerS;
   const totalVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
     + equilibrium.cylinderAreaM2 * pistonHeightM;
-  const pressurePa = equilibrium.gasAmountMol * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+  const pressurePa = equilibrium.gasAmountMol
+    * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
     * config.ambientTemperatureK / totalVolumeM3;
   return createThermodynamicState({
     phase: normalizedProgress >= 1 ? 'sealed-loaded' : 'settling',
@@ -552,9 +587,33 @@ export const normalizePistonOscillationThermodynamicState = (
     'temperatureK',
     'settlingProgress',
   ] as const;
+  const disabledThermal =
+    value.thermal.modelVersion === PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION
+    && value.thermal.enabled === false;
+  const finiteThermal =
+    value.thermal.modelVersion
+      === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+    && value.thermal.enabled === true
+    && Number.isFinite(value.thermal.relaxationTimeAtReferenceHeightS)
+    && (value.thermal.relaxationTimeAtReferenceHeightS as number) > 0
+    && Number.isFinite(value.thermal.referenceGraduatedHeightM)
+    && (value.thermal.referenceGraduatedHeightM as number) >= 0
+    && (value.thermal.referenceGraduatedHeightM as number) <= 0.08
+    && Number.isFinite(value.thermal.volumeExponent)
+    && (value.thermal.volumeExponent as number) >= 0
+    && value.thermal.provenance === 'identified-candidate';
+  const supportedModelAndThermal =
+    (
+      value.modelVersion === PISTON_OSCILLATION_PHYSICS_MODEL_VERSION
+      && disabledThermal
+    )
+    || (
+      value.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+      && finiteThermal
+    );
   if (
     value.schemaVersion !== PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION
-    || value.modelVersion !== PISTON_OSCILLATION_PHYSICS_MODEL_VERSION
+    || !supportedModelAndThermal
     || !phases.includes(value.phase as PistonOscillationThermodynamicPhase)
     || numericKeys.some((key) => !Number.isFinite(value[key]))
     || value.nominalLockedHeightM as number < 0
@@ -566,8 +625,6 @@ export const normalizePistonOscillationThermodynamicState = (
     || value.temperatureK as number <= 0
     || value.settlingProgress as number < 0
     || value.settlingProgress as number > 1
-    || value.thermal.modelVersion !== PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION
-    || value.thermal.enabled !== false
     || !Number.isFinite(value.thermal.wallTemperatureK)
     || !Number.isFinite(value.thermal.cumulativeHeatTransferJ)
   ) return null;
@@ -579,7 +636,7 @@ export const normalizePistonOscillationThermodynamicState = (
     + PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3;
   const expectedCv = getMolarHeatCapacityAtConstantVolume(config.gamma);
   const expectedPressurePa = (value.gasAmountMol as number)
-    * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
     * (value.temperatureK as number)
     / expectedTotalVolumeM3;
   const expectedInternalEnergyJ = (value.gasAmountMol as number)
@@ -599,9 +656,27 @@ export const normalizePistonOscillationThermodynamicState = (
     || !nearlyEqual(value.pressurePa as number, expectedPressurePa, 1e-7)
     || !nearlyEqual(value.internalEnergyJ as number, expectedInternalEnergyJ, 1e-7)
   ) return null;
+  const thermal: PistonOscillationThermalExtensionState = disabledThermal
+    ? {
+        modelVersion: PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
+        enabled: false,
+        wallTemperatureK: value.thermal.wallTemperatureK as number,
+        cumulativeHeatTransferJ: value.thermal.cumulativeHeatTransferJ as number,
+      }
+    : {
+        modelVersion: PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+        enabled: true,
+        wallTemperatureK: value.thermal.wallTemperatureK as number,
+        cumulativeHeatTransferJ: value.thermal.cumulativeHeatTransferJ as number,
+        relaxationTimeAtReferenceHeightS:
+          value.thermal.relaxationTimeAtReferenceHeightS as number,
+        referenceGraduatedHeightM: value.thermal.referenceGraduatedHeightM as number,
+        volumeExponent: value.thermal.volumeExponent as number,
+        provenance: 'identified-candidate',
+      };
   return {
     schemaVersion: PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION,
-    modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+    modelVersion: value.modelVersion as PistonOscillationThermodynamicState['modelVersion'],
     phase: value.phase as PistonOscillationThermodynamicPhase,
     nominalLockedHeightM: value.nominalLockedHeightM as number,
     pistonHeightM: value.pistonHeightM as number,
@@ -615,12 +690,7 @@ export const normalizePistonOscillationThermodynamicState = (
     pressurePa: expectedPressurePa,
     temperatureK: value.temperatureK as number,
     settlingProgress: value.settlingProgress as number,
-    thermal: {
-      modelVersion: PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
-      enabled: false,
-      wallTemperatureK: value.thermal.wallTemperatureK as number,
-      cumulativeHeatTransferJ: value.thermal.cumulativeHeatTransferJ as number,
-    },
+    thermal,
   };
 };
 
@@ -802,9 +872,9 @@ export const resolvePistonOscillationStablePhysicalState = (
     PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
   );
   const loadedPressurePa = config.ambientPressurePa
-    + config.movingMassKg * STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
+    + config.movingMassKg * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2 / cylinderAreaM2;
   const equilibriumVolumeM3 = reference.gasAmountMol
-    * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
     * config.ambientTemperatureK
     / loadedPressurePa;
   const unconstrainedHeightM = (
@@ -817,7 +887,7 @@ export const resolvePistonOscillationStablePhysicalState = (
   const stableVolumeM3 = PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3
     + cylinderAreaM2 * stableHeightM;
   const stablePressurePa = reference.gasAmountMol
-    * UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
     * config.ambientTemperatureK
     / stableVolumeM3;
   const thermodynamicState = createThermodynamicState({
@@ -889,7 +959,8 @@ const getMotionDerivative = (
   );
   const pressureForceN = equilibrium.cylinderAreaM2
     * (pressurePa - config.ambientPressurePa);
-  const gravityForceN = config.movingMassKg * STANDARD_GRAVITY_M_PER_S2;
+  const gravityForceN = config.movingMassKg
+    * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2;
   const dampingForceN = config.linearDampingNsPerM * state.velocityMPerS;
   const derivative = {
     displacementRateMPerS: state.velocityMPerS,
@@ -1020,10 +1091,11 @@ export const simulatePistonOscillationRelease = (
   const equilibrium = hasLockedHeight
     ? createPistonOscillationLoadedEquilibriumState(referenceHeightMm, config)
     : createPistonOscillationEquilibriumState(referenceHeightMm, config);
+  const minimumDisplacementMm = -equilibrium.equilibriumHeightM * 1_000;
   const initialDisplacementMm = assertFiniteRange(
     'initialDisplacementMm',
     input.initialDisplacementMm,
-    -12,
+    minimumDisplacementMm,
     0,
   );
   if (equilibrium.equilibriumHeightM * 1_000 + initialDisplacementMm < 0) {
@@ -1075,6 +1147,9 @@ export const simulatePistonOscillationRelease = (
   const minimumPressureKpa = Math.min(...pressuresKpa);
   const maximumPressureKpa = Math.max(...pressuresKpa);
   return {
+    modelVersion: PISTON_OSCILLATION_PHYSICS_MODEL_VERSION,
+    initialThermodynamicState: null,
+    thermalModel: null,
     config,
     equilibrium,
     initialDisplacementM,

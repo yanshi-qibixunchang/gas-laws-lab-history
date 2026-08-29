@@ -121,7 +121,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const immediateRecordingActive =[\s\S]*!effectivePowerOn[\s\S]*!releaseEvent[\s\S]*phaseRef\.current !== 'armed'[\s\S]*!effectivePowerOn[\s\S]*cycleStartMs === null/,
+  /const freeRecordingActive =[\s\S]*phaseRef\.current === 'recording'[\s\S]*!effectivePowerOn[\s\S]*!releaseEvent[\s\S]*phaseRef\.current !== 'armed' && !freeRecordingActive[\s\S]*!effectivePowerOn[\s\S]*cycleStartMs === null/,
   'neither a piston release nor the sampling clock may record while power is off',
 );
 assert.match(
@@ -142,8 +142,13 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /createImmediateRecordingSamples[\s\S]*releaseOffsetS[\s\S]*liveObservations[\s\S]*releaseObservationSeries[\s\S]*recordingPath: 'immediate'/,
-  'immediate Free recording must combine the pre-release press and hold with the released oscillation',
+  /createPistonOscillationContinuousRecordingSamples[\s\S]*releaseSegments: freeReleaseSegmentsRef\.current[\s\S]*pressStartedAtMs: freePressStartedAtMsRef\.current[\s\S]*liveObservations: freeLiveObservationsRef\.current[\s\S]*recordingPath: 'immediate'/,
+  'Free recording must combine live press intervals with every released oscillation segment',
+);
+assert.match(
+  panelSource,
+  /createPistonOscillationContinuousObservationSeries\(\{[\s\S]*samples,[\s\S]*releaseSegments: freeReleaseSegmentsRef\.current,[\s\S]*pressStartedAtMs: freePressStartedAtMsRef\.current,[\s\S]*liveObservations: freeLiveObservationsRef\.current/,
+  'an immediate recording stopped before release must still preserve dynamic-sensor provenance',
 );
 assert.match(
   panelSource,
@@ -183,7 +188,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*createPistonOscillationSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
+  /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*createPistonOscillationDynamicSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz,[\s\S]*initialState: livePressureObservation\?\.sensorState \?\? null,[\s\S]*config: livePressureObservation\?\.sensorConfig[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
   'formal acquisition must quantize the released trajectory before choosing its discrete falling-trigger sample',
 );
 assert.doesNotMatch(
@@ -216,6 +221,16 @@ assert.match(
   /useSyncExternalStore\([\s\S]*livePressureChannel\?\.subscribe[\s\S]*livePressureObservation\.absolutePressureKpa[\s\S]*data-piston-pressure-indicator/,
   'the waiting-trigger chart must subscribe to the independent live pressure channel and expose its indicator state',
 );
+assert.match(
+  panelSource,
+  /handledPressStartEventIdRef[\s\S]*phaseRef\.current !== 'recording'[\s\S]*freePressStartedAtMsRef\.current[\s\S]*setFreeRecordingTimelineRevision/,
+  'a later two-hand press must interrupt the active release segment without restarting the Free recording',
+);
+assert.doesNotMatch(
+  panelSource,
+  /onReleaseControlHoldChange|releaseControlExternallyHeld/,
+  'acquisition duration must not keep the physical platform control locked',
+);
 assert.match(panelSource, /piston-acquisition-quality-upper-line/);
 assert.match(panelStyles, /piston-acquisition-pressure-indicator\.is-valid/);
 assert.match(panelStyles, /piston-acquisition-pressure-indicator\.is-over/);
@@ -236,7 +251,7 @@ assert.doesNotMatch(
 );
 assert.match(
   panelSource,
-  /const buildGuideCandidate = useCallback\(\(durationS: number\) => \{[\s\S]*!activeObservationSeries[\s\S]*triggerSourceSampleIndex === null[\s\S]*const samples = createPistonOscillationRecordedObservationSamples\([\s\S]*activeObservationSeries,[\s\S]*triggerSourceSampleIndex,[\s\S]*boundedDurationS[\s\S]*sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot\(\{[\s\S]*sampleRateHz: activeObservationSeries\.sampleRateHz,[\s\S]*triggerSourceSampleIndex/,
+  /const buildGuideCandidate = useCallback\(\(durationS: number\) => \{[\s\S]*!activeObservationSeries[\s\S]*triggerSourceSampleIndex === null[\s\S]*const samples = createPistonOscillationRecordedObservationSamples\([\s\S]*activeObservationSeries,[\s\S]*triggerSourceSampleIndex,[\s\S]*boundedDurationS[\s\S]*sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot\(\{[\s\S]*sampleRateHz: activeObservationSeries\.sampleRateHz,[\s\S]*triggerSourceSampleIndex,[\s\S]*observationSeries: activeObservationSeries/,
   'Guide candidates must contain the trigger-relative observed samples and their versioned sensor snapshot',
 );
 assert.match(

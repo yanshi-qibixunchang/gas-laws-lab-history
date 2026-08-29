@@ -162,6 +162,16 @@ assert.match(
 );
 assert.match(
   workbenchSource,
+  /onPressStartEvent=\{\(event\) => \{[\s\S]*setPistonOscillationPressStartEventsByFileId[\s\S]*\[activeFile\.id\]: event[\s\S]*pressStartEvent=\{pistonOscillationPressStartEventsByFileId\[activeFile\.id\] \?\? null\}/,
+  'the scene and acquisition panel must share later two-hand press-start events for one continuous Free record',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /releaseControlExternallyHeld|onReleaseControlHoldChange|pistonOscillationReleaseControlHoldsByFileId/,
+  'the acquisition lifecycle must not extend the scene motion lock',
+);
+assert.match(
+  workbenchSource,
   /<PistonOscillationAcquisitionPanel[\s\S]*key=\{`\$\{activeFile\.id\}:\$\{[\s\S]*activePistonOscillationGuideSession\?\.startedAtMs \?\? 'standalone'[\s\S]*activePistonOscillationGuideSession\?\.measurementIndex \?\? 'free'[\s\S]*`\}/,
   'each guided measurement must mount an isolated acquisition state so a saved curve cannot block or appear in the next run',
 );
@@ -493,8 +503,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /<PistonOscillationAcquisitionPanel[\s\S]*releaseEvent=\{pistonOscillationReleaseEventsByFileId\[activeFile\.id\] \?\? null\}/,
-  'the realtime area should consume release events from the formal 3D interaction scene',
+  /<PistonOscillationAcquisitionPanel[\s\S]*releaseEvent=\{pistonOscillationReleaseEventsByFileId\[activeFile\.id\] \?\? null\}[\s\S]*pressStartEvent=\{pistonOscillationPressStartEventsByFileId\[activeFile\.id\] \?\? null\}/,
+  'the realtime area should consume release and later press events from the formal 3D interaction scene',
 );
 assert.doesNotMatch(
   pistonGuidePanelSource,

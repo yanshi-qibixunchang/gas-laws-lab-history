@@ -4,8 +4,12 @@ import {
   type PistonOscillationThermodynamicState,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
+  DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
   PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
-  quantizePistonOscillationObservedPressureKpa,
+  normalizePistonOscillationDynamicSensorConfig,
+  observePistonOscillationDynamicPressure,
+  type PistonOscillationDynamicSensorConfig,
+  type PistonOscillationDynamicSensorState,
 } from '../../domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 
 export interface PistonOscillationLivePhysicalState {
@@ -25,6 +29,8 @@ export interface PistonOscillationLivePressureObservation {
   truePistonHeightMm: number;
   temperatureK: number;
   thermodynamicPhase: PistonOscillationThermodynamicPhase;
+  sensorState: PistonOscillationDynamicSensorState;
+  sensorConfig: PistonOscillationDynamicSensorConfig;
 }
 
 export interface PistonOscillationLivePressureChannel {
@@ -37,8 +43,13 @@ export interface PistonOscillationLivePressureChannel {
 }
 
 export const createPistonOscillationLivePressureChannel = (
+  configInput: Partial<PistonOscillationDynamicSensorConfig> =
+    DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
 ): PistonOscillationLivePressureChannel => {
   let snapshot: PistonOscillationLivePressureObservation | null = null;
+  let dynamicState: PistonOscillationDynamicSensorState | null = null;
+  let previousPhysicalPressurePa: number | null = null;
+  const sensorConfig = normalizePistonOscillationDynamicSensorConfig(configInput);
   const listeners = new Set<() => void>();
 
   const notify = () => {
@@ -58,25 +69,68 @@ export const createPistonOscillationLivePressureChannel = (
       const sampleClockIndex = Math.floor(
         state.observedAtMs * PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ / 1_000,
       );
-      if (snapshot?.sampleClockIndex === sampleClockIndex) return snapshot;
       const thermodynamicState = state.thermodynamicState
         ?? getPistonOscillationInstantaneousThermodynamicState(
           state.equilibriumHeightMm,
           state.displacementMm,
         ).gasState;
+      if (snapshot?.sampleClockIndex === sampleClockIndex) {
+        previousPhysicalPressurePa = thermodynamicState.pressurePa;
+        return snapshot;
+      }
+      const previousClockIndex = snapshot?.sampleClockIndex ?? sampleClockIndex;
+      const intervalCount = Math.max(1, sampleClockIndex - previousClockIndex);
+      let absolutePressureKpa = snapshot?.absolutePressureKpa
+        ?? thermodynamicState.pressurePa / 1_000;
+      const publishObservation = (
+        physicalPressurePa: number,
+        elapsedS?: number,
+        noiseSampleIndexAdvance?: number,
+      ) => {
+        const observation = observePistonOscillationDynamicPressure({
+          physicalPressurePa,
+          sampleRateHz: PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+          state: dynamicState,
+          config: sensorConfig,
+          elapsedS,
+          noiseSampleIndexAdvance,
+        });
+        dynamicState = observation.state;
+        absolutePressureKpa = observation.absolutePressureKpa;
+      };
+      if (intervalCount > 2_000 && dynamicState) {
+        publishObservation(
+          thermodynamicState.pressurePa,
+          intervalCount / PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+          intervalCount,
+        );
+      } else {
+        for (let intervalIndex = 1; intervalIndex <= intervalCount; intervalIndex += 1) {
+          const blend = intervalCount <= 1 ? 1 : intervalIndex / intervalCount;
+          const physicalPressurePa = previousPhysicalPressurePa === null
+            ? thermodynamicState.pressurePa
+            : previousPhysicalPressurePa
+              + (thermodynamicState.pressurePa - previousPhysicalPressurePa) * blend;
+          publishObservation(physicalPressurePa);
+        }
+      }
+      previousPhysicalPressurePa = thermodynamicState.pressurePa;
+      if (!dynamicState) {
+        throw new Error('The piston sensor failed to initialize its observation state.');
+      }
       snapshot = {
         sampleClockIndex,
         sampledAtMs: sampleClockIndex
           * 1_000 / PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
         physicalPressurePa: thermodynamicState.pressurePa,
-        absolutePressureKpa: quantizePistonOscillationObservedPressureKpa(
-          thermodynamicState.pressurePa,
-        ),
+        absolutePressureKpa,
         equilibriumHeightMm: state.equilibriumHeightMm,
         displacementMm: state.displacementMm,
         truePistonHeightMm: thermodynamicState.pistonHeightM * 1_000,
         temperatureK: thermodynamicState.temperatureK,
         thermodynamicPhase: thermodynamicState.phase,
+        sensorState: { ...dynamicState },
+        sensorConfig: { ...sensorConfig },
       };
       notify();
       return snapshot;
@@ -84,6 +138,8 @@ export const createPistonOscillationLivePressureChannel = (
     clear: () => {
       if (snapshot === null) return;
       snapshot = null;
+      dynamicState = null;
+      previousPhysicalPressurePa = null;
       notify();
     },
   };

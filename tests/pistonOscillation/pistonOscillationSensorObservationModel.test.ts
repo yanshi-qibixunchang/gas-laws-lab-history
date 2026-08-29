@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import {
   PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
   assertPistonOscillationSensorObservationSeries,
+  createInitialPistonOscillationDynamicSensorState,
   createPistonOscillationRecordedObservationSamples,
+  createPistonOscillationDynamicSensorObservationSeries,
   createPistonOscillationSensorObservationSeries,
   findPistonOscillationObservedFallingTriggerSample,
   formatPistonOscillationObservedPressureKpa,
@@ -17,6 +20,12 @@ import {
 import {
   simulatePistonOscillationRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  createPistonOscillationPhysicsSnapshot,
+  createPistonOscillationRawMeasurementRecord,
+  createPistonOscillationSensorObservationSnapshot,
+  normalizePistonOscillationRawMeasurementRecord,
+} from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 
 assert.equal(PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ, 1_000);
 assert.equal(PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA, 0.01);
@@ -25,6 +34,69 @@ assert.equal(
   PISTON_OSCILLATION_SENSOR_OBSERVATION_MODEL_VERSION,
   'piston-oscillation-sensor-observation-v1',
 );
+
+const stepPhysicalSamples = Array.from({ length: 50 }, (_, sampleIndex) => ({
+  pressurePa: sampleIndex < 10 ? 101_325 : 121_325,
+}));
+const dynamicStep = createPistonOscillationDynamicSensorObservationSeries(
+  stepPhysicalSamples,
+  1_000,
+  {
+    config: {
+      driftRatePaPerS: 0,
+      driftWanderAmplitudePa: 0,
+      noiseStandardDeviationPa: 0,
+    },
+  },
+);
+assert.equal(
+  dynamicStep.modelVersion,
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+);
+assert.equal(
+  dynamicStep.samples[10]?.absolutePressureKpa,
+  106.99,
+  'the 3 ms first-order response must not jump directly to a pressure step',
+);
+assert.ok((dynamicStep.samples[20]?.absolutePressureKpa ?? 0) > 120.8);
+assert.equal(assertPistonOscillationSensorObservationSeries(dynamicStep), dynamicStep);
+assert.equal('pressurePa' in dynamicStep.samples[10]!, false);
+
+const continuedDynamic = createPistonOscillationDynamicSensorObservationSeries(
+  Array.from({ length: 1_000 }, () => ({ pressurePa: 101_325 })),
+  1_000,
+  { initialState: dynamicStep.finalDynamicState },
+);
+assert.ok(
+  (continuedDynamic.finalDynamicState?.sessionElapsedS ?? 0)
+    > (dynamicStep.finalDynamicState?.sessionElapsedS ?? 0),
+  'drift time must continue across runs inside one sensor session',
+);
+const seamlessContinuation = createPistonOscillationDynamicSensorObservationSeries(
+  [{ pressurePa: 130_000 }, { pressurePa: 130_000 }],
+  1_000,
+  {
+    initialState: dynamicStep.finalDynamicState,
+    initialObservedPressureKpa: dynamicStep.samples.at(-1)!.absolutePressureKpa,
+  },
+);
+assert.equal(
+  seamlessContinuation.samples[0]?.absolutePressureKpa,
+  dynamicStep.samples.at(-1)?.absolutePressureKpa,
+  'the release series must begin at the exact live reading without a UI seam',
+);
+const repeatedDynamic = createPistonOscillationDynamicSensorObservationSeries(
+  stepPhysicalSamples,
+  1_000,
+  {
+    config: {
+      driftRatePaPerS: 0,
+      driftWanderAmplitudePa: 0,
+      noiseStandardDeviationPa: 0,
+    },
+  },
+);
+assert.deepEqual(repeatedDynamic, dynamicStep, 'candidate observation noise must be deterministic');
 
 assert.equal(getPistonOscillationObservedTimeS(0), 0);
 assert.equal(getPistonOscillationObservedTimeS(10), 0.01);
@@ -91,6 +163,57 @@ assert.equal(
   'pressurePa' in trajectoryObservations.samples[1]!,
   false,
   'formal observations must not retain the hidden high-precision pressure field',
+);
+
+const dynamicTrajectoryObservations = createPistonOscillationDynamicSensorObservationSeries(
+  physicalTrajectory.samples,
+  physicalTrajectory.sampleRateHz,
+);
+const dynamicRecord = createPistonOscillationRawMeasurementRecord({
+  recordId: 'dynamic-sensor-record',
+  capturedAtMs: 1,
+  measurementIndex: 0,
+  targetHeightMm: 80,
+  confirmedHeightMm: physicalTrajectory.equilibrium.equilibriumHeightM * 1_000,
+  sampleRateHz: dynamicTrajectoryObservations.sampleRateHz,
+  triggerThresholdKpa: 105,
+  recordedDurationS: 0.1,
+  samples: dynamicTrajectoryObservations.samples,
+  sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
+    sampleRateHz: dynamicTrajectoryObservations.sampleRateHz,
+    triggerSourceSampleIndex: 0,
+    observationSeries: dynamicTrajectoryObservations,
+  }),
+  physicsSnapshot: createPistonOscillationPhysicsSnapshot(physicalTrajectory, 0),
+});
+assert.equal(dynamicRecord.sensorObservationSnapshot.schemaVersion, 2);
+assert.equal(
+  dynamicRecord.sensorObservationSnapshot.modelVersion,
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+);
+const normalizedDynamicRecord = normalizePistonOscillationRawMeasurementRecord(
+  structuredClone(dynamicRecord),
+);
+assert.ok(normalizedDynamicRecord);
+assert.deepEqual(normalizedDynamicRecord?.samples, dynamicRecord.samples);
+assert.deepEqual(
+  normalizedDynamicRecord?.sensorObservationSnapshot.dynamicConfig,
+  dynamicRecord.sensorObservationSnapshot.dynamicConfig,
+);
+
+const freshSeamState = createInitialPistonOscillationDynamicSensorState(101_000);
+const freshSeamSeries = createPistonOscillationDynamicSensorObservationSeries(
+  [{ pressurePa: 101_000 }],
+  1_000,
+  {
+    initialState: freshSeamState,
+    initialObservedPressureKpa: 101,
+  },
+);
+assert.equal(
+  assertPistonOscillationSensorObservationSeries(freshSeamSeries),
+  freshSeamSeries,
+  'a reused seam sample may preserve the incoming sensor state without inventing a tick',
 );
 
 const fallingTrigger = findPistonOscillationObservedFallingTriggerSample(

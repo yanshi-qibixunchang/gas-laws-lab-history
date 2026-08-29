@@ -780,7 +780,7 @@ const validCurrentRecord = normalizePistonOscillationRawMeasurementRecord(
   structuredClone(records[0]),
 );
 assert.ok(validCurrentRecord);
-assert.equal(validCurrentRecord.schemaVersion, 3);
+assert.equal(validCurrentRecord.schemaVersion, 4);
 assert.equal(validCurrentRecord.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(validCurrentRecord.acquisitionSettings.releaseOffsetS, null);
 
@@ -969,7 +969,8 @@ const legacy = normalizePistonOscillationRawMeasurementRecord({
   ],
 });
 assert.ok(legacy);
-assert.equal(legacy.schemaVersion, 3);
+assert.equal(legacy.schemaVersion, 4);
+assert.equal(legacy.pressOperationEvidence.provenance, 'legacy-unknown');
 assert.equal(legacy.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(legacy.acquisitionSettings.releaseOffsetS, null);
 assert.equal(legacy.confirmedHeightMm, 80);

@@ -26,22 +26,36 @@ import {
 } from '../../components/prompts/promptViewportFeedbackController.ts';
 import {
   PISTON_OSCILLATION_SETTLING_DURATION_S,
-  createPistonOscillationAdiabaticStateFromReference,
   createPistonOscillationAtmosphericLockedState,
   createPistonOscillationLoadedEquilibriumState,
   createPistonOscillationLoadedGasState,
   getPistonOscillationTrajectorySampleAt,
   getPistonOscillationSettlingStateAtProgress,
   resolvePistonOscillationStablePhysicalState,
-  simulatePistonOscillationRelease,
+  PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
   type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  advancePistonOscillationVirtualHandThermodynamicState,
+  advancePistonOscillationPrescribedThermodynamicState,
+  createPistonOscillationThermodynamicStateFromTrajectorySample,
+  simulatePistonOscillationThermalRelease,
+} from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
+import {
+  getPistonOscillationVirtualHandTargetDisplacementMm,
+  scalePistonOscillationVirtualHandDragToReferencePx,
+} from '../../domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
 import {
   type PistonOscillationGuideAction,
   type PistonOscillationGuideActionContext,
   type PistonOscillationGuideGuardResult,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import {
+  appendPistonOscillationPressTracePoint,
+  createPistonOscillationPressOperationEvidence,
+  type PistonOscillationPressTracePoint,
+} from '../../domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
 import type { WorkbenchPistonOscillationCameraPreset } from '../workbench/workbenchState.ts';
 import usePreviewOverlayMotion from '../workbench/usePreviewOverlayMotion.ts';
 import { PistonOscillationInstrumentAsset } from './PistonOscillationInstrumentModel.tsx';
@@ -77,7 +91,10 @@ import {
   type PistonOscillationHeightAdjustmentStage,
   type PistonOscillationOperationMirrorView,
 } from './pistonOscillationOperationMirror.ts';
-import type { PistonOscillationReleaseEvent } from './PistonOscillationAcquisitionPanel.tsx';
+import type {
+  PistonOscillationPressStartEvent,
+  PistonOscillationReleaseEvent,
+} from './PistonOscillationAcquisitionPanel.tsx';
 import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
 import {
   PistonOscillationOperationCueView,
@@ -189,8 +206,6 @@ interface HoseHandleBounds {
 }
 
 const FOCUS_TRANSITION_DURATION_MS = 360;
-const PISTON_PRESS_DEFAULT_MAX_OFFSET_MM = 12;
-const PISTON_PRESS_DRAG_RANGE_PX = 150;
 const PISTON_REBOUND_VISIBLE_DURATION_MS = 800;
 const PISTON_HEIGHT_DRAG_MM_PER_PX = 0.3;
 const PISTON_GUIDE_HEIGHT_RESET_MIN_DURATION_MS = 520;
@@ -667,25 +682,15 @@ const PistonPlatformClearanceProbe = ({
   return null;
 };
 
-const mapPistonDragToOffsetMm = (dragDistancePx: number) => {
-  const normalized = THREE.MathUtils.clamp(
-    dragDistancePx / PISTON_PRESS_DRAG_RANGE_PX,
-    0,
-    1,
-  );
-  const resistanceCurve = (1 - Math.exp(-2.35 * normalized)) / (1 - Math.exp(-2.35));
-  return -PISTON_PRESS_DEFAULT_MAX_OFFSET_MM * resistanceCurve;
-};
-
 const PistonPlatformControl = ({
   enabled,
   platformMode,
   spaceHeld,
-  offsetMm,
+  pressReferenceDragPx,
   equilibriumHeightMm,
   guideSnapTargetHeightMm,
   onMouseHeldChange,
-  onOffsetChange,
+  onPressReferenceDragChange,
   onEquilibriumHeightChange,
   onHoverChange,
   onActionAttempt,
@@ -694,11 +699,11 @@ const PistonPlatformControl = ({
   enabled: boolean;
   platformMode: PistonPlatformMode;
   spaceHeld: boolean;
-  offsetMm: number;
+  pressReferenceDragPx: number;
   equilibriumHeightMm: number;
   guideSnapTargetHeightMm: number | null;
   onMouseHeldChange: (held: boolean, releasedAtMs?: number) => void;
-  onOffsetChange: (offsetMm: number) => void;
+  onPressReferenceDragChange: (referenceDragPx: number) => void;
   onEquilibriumHeightChange: (heightMm: number) => void;
   onHoverChange: (hovered: boolean) => void;
   onActionAttempt: (action: 'platformGrab' | 'platformMove' | 'platformRelease') => boolean;
@@ -712,7 +717,8 @@ const PistonPlatformControl = ({
     active: false,
     pointerId: -1,
     startClientY: 0,
-    startOffsetMm: 0,
+    startPressReferenceDragPx: 0,
+    sceneHeightPx: 1,
     startEquilibriumHeightMm: PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
     movementRejected: false,
     movementAuthorized: false,
@@ -807,7 +813,11 @@ const PistonPlatformControl = ({
           active: true,
           pointerId: event.pointerId,
           startClientY: event.nativeEvent.clientY,
-          startOffsetMm: offsetMm,
+          startPressReferenceDragPx: pressReferenceDragPx,
+          sceneHeightPx: Math.max(
+            1,
+            gl.domElement.getBoundingClientRect().height,
+          ),
           startEquilibriumHeightMm: equilibriumHeightMm,
           movementRejected: false,
           movementAuthorized: false,
@@ -847,13 +857,13 @@ const PistonPlatformControl = ({
           return;
         }
         if (platformMode === 'screwLocked') return;
-        const dragDistancePx = Math.max(
-          0,
+        const referenceDragDeltaPx = scalePistonOscillationVirtualHandDragToReferencePx(
           signedDragDistancePx,
+          dragRef.current.sceneHeightPx,
         );
-        onOffsetChange(Math.min(
-          dragRef.current.startOffsetMm,
-          mapPistonDragToOffsetMm(dragDistancePx),
+        onPressReferenceDragChange(Math.max(
+          0,
+          dragRef.current.startPressReferenceDragPx + referenceDragDeltaPx,
         ));
       }}
       onPointerUp={(event) => {
@@ -1263,6 +1273,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
   measurementCycleRevision?: number;
   guideSessionRevision?: number;
   onReleaseEvent?: (event: PistonOscillationReleaseEvent) => void;
+  onPressStartEvent?: (event: PistonOscillationPressStartEvent) => void;
   onLivePhysicalStateChange?: (
     state: PistonOscillationLivePhysicalState,
   ) => void;
@@ -1309,6 +1320,7 @@ export const PistonOscillationInteractionWorkspace = ({
   measurementCycleRevision = 0,
   guideSessionRevision = 0,
   onReleaseEvent,
+  onPressStartEvent,
   onLivePhysicalStateChange,
   demoFrame,
   demoPlaybackPhase,
@@ -1407,6 +1419,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const [pistonOffsetMm, setPistonOffsetMm] = useState(
     initialPistonOffsetMm,
   );
+  const [virtualHandReferenceDragPx, setVirtualHandReferenceDragPx] = useState(0);
   const [pistonEquilibriumHeightMm, setPistonEquilibriumHeightMm] = useState(
     initialPhysicalBaseHeightMm,
   );
@@ -1428,16 +1441,25 @@ export const PistonOscillationInteractionWorkspace = ({
   );
   const [overviewPoseRevision, setOverviewPoseRevision] = useState(0);
   const [releaseGapMs, setReleaseGapMs] = useState<number | null>(null);
+  const [releaseControlLocked, setReleaseControlLocked] = useState(false);
+  const [pressThermalClockActive, setPressThermalClockActive] = useState(false);
   const releaseEventIdRef = useRef(0);
+  const pressStartEventIdRef = useRef(0);
   const lockingScrewProgressRef = useRef(initialGuideScrewProgress);
   const spaceHeldRef = useRef(false);
   const mouseHeldRef = useRef(false);
   const pistonOffsetMmRef = useRef(initialPistonOffsetMm);
+  const virtualHandReferenceDragPxRef = useRef(0);
   const pistonEquilibriumHeightMmRef = useRef(initialPhysicalBaseHeightMm);
   const pistonNominalHeightMmRef = useRef(initialNominalHeightMm);
   const thermodynamicStateRef = useRef(initialThermodynamicState);
+  const thermodynamicUpdatedAtMsRef = useRef<number | null>(null);
   const spaceReleasedAtRef = useRef<number | null>(null);
   const mouseReleasedAtRef = useRef<number | null>(null);
+  const releaseControlLockedRef = useRef(false);
+  const spaceRearmRequiredRef = useRef(false);
+  const pressTraceActiveRef = useRef(false);
+  const pressTraceRef = useRef<PistonOscillationPressTracePoint[]>([]);
   const reboundAnimationFrameRef = useRef<number | null>(null);
   const settlingAnimationFrameRef = useRef<number | null>(null);
   const unsupportedDropAnimationFrameRef = useRef<number | null>(null);
@@ -1722,6 +1744,12 @@ export const PistonOscillationInteractionWorkspace = ({
     mouseHeldRef.current = false;
     spaceReleasedAtRef.current = null;
     mouseReleasedAtRef.current = null;
+    pressTraceActiveRef.current = false;
+    pressTraceRef.current = [];
+    thermodynamicUpdatedAtMsRef.current = null;
+    virtualHandReferenceDragPxRef.current = 0;
+    setPressThermalClockActive(false);
+    setVirtualHandReferenceDragPx(0);
     setSpaceHeld(false);
     setMouseHeld(false);
     setPlatformHovered(false);
@@ -1811,6 +1839,24 @@ export const PistonOscillationInteractionWorkspace = ({
     pistonOffsetMm,
     thermodynamicState,
   ]);
+
+  useEffect(() => {
+    if (!onLivePhysicalStateChange || demoActive) return undefined;
+    let animationFrame: number | null = null;
+    const publishSensorClock = (observedAtMs: number) => {
+      onLivePhysicalStateChange({
+        observedAtMs,
+        equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
+        displacementMm: pistonOffsetMmRef.current,
+        thermodynamicState: thermodynamicStateRef.current,
+      });
+      animationFrame = window.requestAnimationFrame(publishSensorClock);
+    };
+    animationFrame = window.requestAnimationFrame(publishSensorClock);
+    return () => {
+      if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
+    };
+  }, [demoActive, onLivePhysicalStateChange]);
 
   useEffect(() => {
     if (!guideRequestedFocusMode || demoActive) return;
@@ -2041,11 +2087,70 @@ export const PistonOscillationInteractionWorkspace = ({
     thermodynamicStateRef.current = nextState;
     setThermodynamicState(nextState);
   }, []);
+  const setReleaseControlLock = useCallback((locked: boolean) => {
+    releaseControlLockedRef.current = locked;
+    setReleaseControlLocked(locked);
+    if (!locked) return;
+    setPlatformHovered(false);
+    setMouseVisualizationAction(null);
+  }, []);
+  const completeReleaseMotion = useCallback(() => {
+    setReleaseControlLock(false);
+  }, [setReleaseControlLock]);
+  const capturePressTracePoint = useCallback((observedAtMs: number) => {
+    if (!pressTraceActiveRef.current) return;
+    const state = thermodynamicStateRef.current;
+    const monotonicObservedAtMs = Math.max(
+      observedAtMs,
+      thermodynamicUpdatedAtMsRef.current ?? observedAtMs,
+      pressTraceRef.current.at(-1)?.observedAtMs ?? observedAtMs,
+    );
+    appendPistonOscillationPressTracePoint(pressTraceRef.current, {
+      observedAtMs: monotonicObservedAtMs,
+      pistonHeightMm: state.pistonHeightM * 1_000,
+      displacementMm: pistonOffsetMmRef.current,
+      pressurePa: state.pressurePa,
+      temperatureK: state.temperatureK,
+    });
+  }, []);
+  const beginPressTrace = useCallback((observedAtMs: number) => {
+    pressTraceRef.current = [];
+    pressTraceActiveRef.current = true;
+    thermodynamicUpdatedAtMsRef.current = observedAtMs;
+    setPressThermalClockActive(true);
+    capturePressTracePoint(observedAtMs);
+    if (onPressStartEvent) {
+      pressStartEventIdRef.current += 1;
+      onPressStartEvent({
+        id: pressStartEventIdRef.current,
+        startedAtMs: observedAtMs,
+      });
+    }
+  }, [capturePressTracePoint, onPressStartEvent]);
+  const resetVirtualHandInput = useCallback(() => {
+    virtualHandReferenceDragPxRef.current = 0;
+    setVirtualHandReferenceDragPx(0);
+  }, []);
+  const endPressTrace = useCallback(() => {
+    pressTraceActiveRef.current = false;
+    thermodynamicUpdatedAtMsRef.current = null;
+    setPressThermalClockActive(false);
+    resetVirtualHandInput();
+  }, [resetVirtualHandInput]);
   const updateThermodynamicStateForVisiblePosition = useCallback((
     nextOffsetMm: number,
-    velocityMmPerS = 0,
+    velocityMmPerS?: number,
+    observedAtMs = performance.now(),
   ) => {
     const visibleHeightMm = pistonEquilibriumHeightMmRef.current + nextOffsetMm;
+    const previousUpdatedAtMs = thermodynamicUpdatedAtMsRef.current;
+    const monotonicObservedAtMs = previousUpdatedAtMs === null
+      ? observedAtMs
+      : Math.max(observedAtMs, previousUpdatedAtMs);
+    const elapsedS = previousUpdatedAtMs === null
+      ? 0
+      : Math.min(0.25, (monotonicObservedAtMs - previousUpdatedAtMs) / 1_000);
+    thermodynamicUpdatedAtMsRef.current = monotonicObservedAtMs;
     if (hoseState === 'disconnected') {
       commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
         Math.min(80, Math.max(0, visibleHeightMm)),
@@ -2055,18 +2160,87 @@ export const PistonOscillationInteractionWorkspace = ({
       return;
     }
     if (thermodynamicStateRef.current.phase === 'vented') return;
-    commitThermodynamicState(createPistonOscillationAdiabaticStateFromReference(
-      thermodynamicStateRef.current,
-      Math.min(80, Math.max(0, visibleHeightMm)),
+    commitThermodynamicState(advancePistonOscillationPrescribedThermodynamicState({
+      referenceState: thermodynamicStateRef.current,
+      pistonHeightMm: Math.min(80, Math.max(0, visibleHeightMm)),
+      elapsedS,
       velocityMmPerS,
-    ));
+    }));
   }, [commitThermodynamicState, hoseState]);
-  const setPistonOffset = useCallback((nextOffsetMm: number) => {
+  const advanceVirtualHandPressTo = useCallback((observedAtMs: number) => {
+    const previousUpdatedAtMs = thermodynamicUpdatedAtMsRef.current;
+    const monotonicObservedAtMs = previousUpdatedAtMs === null
+      ? observedAtMs
+      : Math.max(observedAtMs, previousUpdatedAtMs);
+    const elapsedS = previousUpdatedAtMs === null
+      ? 0
+      : Math.min(0.25, (monotonicObservedAtMs - previousUpdatedAtMs) / 1_000);
+    thermodynamicUpdatedAtMsRef.current = monotonicObservedAtMs;
+    if (hoseState === 'disconnected') return;
+    if (thermodynamicStateRef.current.phase === 'vented') return;
+    const nextState = advancePistonOscillationVirtualHandThermodynamicState({
+      referenceState: thermodynamicStateRef.current,
+      equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
+      targetDownwardDisplacementMm:
+        getPistonOscillationVirtualHandTargetDisplacementMm(
+          virtualHandReferenceDragPxRef.current,
+        ),
+      elapsedS,
+    });
+    const nextOffsetMm = nextState.pistonHeightM * 1_000
+      - pistonEquilibriumHeightMmRef.current;
     pistonOffsetMmRef.current = nextOffsetMm;
     setPistonOffsetMm(nextOffsetMm);
-    updateThermodynamicStateForVisiblePosition(nextOffsetMm);
+    commitThermodynamicState(nextState);
+  }, [commitThermodynamicState, hoseState]);
+  const setPistonOffset = useCallback((nextOffsetMm: number) => {
+    const observedAtMs = performance.now();
+    pistonOffsetMmRef.current = nextOffsetMm;
+    setPistonOffsetMm(nextOffsetMm);
+    updateThermodynamicStateForVisiblePosition(nextOffsetMm, undefined, observedAtMs);
+    capturePressTracePoint(observedAtMs);
     if (spaceHeldRef.current && mouseHeldRef.current) setPistonPhase('pressing');
-  }, [updateThermodynamicStateForVisiblePosition]);
+  }, [capturePressTracePoint, updateThermodynamicStateForVisiblePosition]);
+  const handleVirtualHandReferenceDragChange = useCallback((
+    nextReferenceDragPx: number,
+  ) => {
+    const observedAtMs = performance.now();
+    if (pressTraceActiveRef.current) advanceVirtualHandPressTo(observedAtMs);
+    virtualHandReferenceDragPxRef.current = Math.max(0, nextReferenceDragPx);
+    setVirtualHandReferenceDragPx(virtualHandReferenceDragPxRef.current);
+    if (spaceHeldRef.current && mouseHeldRef.current) setPistonPhase('pressing');
+  }, [advanceVirtualHandPressTo]);
+  useEffect(() => {
+    if (
+      !pressThermalClockActive
+      || demoActive
+      || guideInteractionPaused
+      || hoseState === 'disconnected'
+      || releaseControlLockedRef.current
+    ) return undefined;
+    thermodynamicUpdatedAtMsRef.current = performance.now();
+    let animationFrame: number | null = null;
+    const advancePressThermalClock = (observedAtMs: number) => {
+      if (!pressTraceActiveRef.current || releaseControlLockedRef.current) {
+        animationFrame = null;
+        return;
+      }
+      advanceVirtualHandPressTo(observedAtMs);
+      capturePressTracePoint(observedAtMs);
+      animationFrame = window.requestAnimationFrame(advancePressThermalClock);
+    };
+    animationFrame = window.requestAnimationFrame(advancePressThermalClock);
+    return () => {
+      if (animationFrame !== null) window.cancelAnimationFrame(animationFrame);
+    };
+  }, [
+    capturePressTracePoint,
+    advanceVirtualHandPressTo,
+    demoActive,
+    guideInteractionPaused,
+    hoseState,
+    pressThermalClockActive,
+  ]);
   const handleEquilibriumHeightChange = useCallback((nextHeightMm: number) => {
     const clampedHeightMm = clampPistonEquilibriumHeightMm(nextHeightMm);
     const previousHeightMm = pistonEquilibriumHeightMmRef.current;
@@ -2259,6 +2433,7 @@ export const PistonOscillationInteractionWorkspace = ({
     commitThermodynamicState(stablePhysicalState.thermodynamicState);
     setPistonPhase('idle');
     setReleaseGapMs(null);
+    setReleaseControlLock(false);
     console.error(`[piston-oscillation] Recovered silently after ${stage}.`, cause);
   }, [
     abortHeldInputs,
@@ -2268,6 +2443,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelUnsupportedDrop,
     commitThermodynamicState,
     hoseState,
+    setReleaseControlLock,
   ]);
 
   useEffect(() => {
@@ -2276,6 +2452,7 @@ export const PistonOscillationInteractionWorkspace = ({
     if (previousHoseState === hoseState || demoActive) return;
     cancelPistonRebound();
     cancelSettlingAnimation();
+    setReleaseControlLock(false);
     const visibleHeightMm = clampPistonEquilibriumHeightMm(
       pistonEquilibriumHeightMmRef.current + pistonOffsetMmRef.current,
     );
@@ -2296,6 +2473,7 @@ export const PistonOscillationInteractionWorkspace = ({
     commitThermodynamicState,
     demoActive,
     hoseState,
+    setReleaseControlLock,
   ]);
 
   useEffect(() => {
@@ -2307,6 +2485,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelSettlingAnimation();
     cancelUnsupportedDrop();
     abortHeldInputs();
+    setReleaseControlLock(false);
     const restoredHeightMm = clampPistonEquilibriumHeightMm(
       guideInitialInstrumentState?.equilibriumHeightMm
         ?? PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
@@ -2376,6 +2555,7 @@ export const PistonOscillationInteractionWorkspace = ({
     guideInitialInstrumentState,
     guideSessionRevision,
     guideRequestedFocusMode,
+    setReleaseControlLock,
   ]);
 
   useEffect(() => {
@@ -2383,6 +2563,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelPistonRebound();
     cancelSettlingAnimation();
     cancelUnsupportedDrop();
+    setReleaseControlLock(false);
     const heightBeingAdjusted = demoFrame.platformAction === 'adjustHeight';
     const pistonBeingPressed = demoFrame.platformAction === 'press';
     const platformBeingHeldForLocking = demoFrame.activeControl === 'screw'
@@ -2439,6 +2620,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelSettlingAnimation,
     cancelUnsupportedDrop,
     demoFrame,
+    setReleaseControlLock,
   ]);
   useEffect(() => {
     if (
@@ -2513,6 +2695,7 @@ export const PistonOscillationInteractionWorkspace = ({
     if (Math.abs(initialOffsetMm) < 0.02) {
       setPistonOffset(0);
       setPistonPhase('idle');
+      completeReleaseMotion();
       return;
     }
     setPistonPhase('rebounding');
@@ -2538,14 +2721,48 @@ export const PistonOscillationInteractionWorkspace = ({
         const nextOffsetMm = trajectorySample.displacementM * 1_000;
         pistonOffsetMmRef.current = nextOffsetMm;
         setPistonOffsetMm(nextOffsetMm);
-        updateThermodynamicStateForVisiblePosition(
-          nextOffsetMm,
-          trajectorySample.velocityMPerS * 1_000,
-        );
+        if (
+          trajectory.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+          && trajectory.thermalModel
+        ) {
+          commitThermodynamicState(
+            createPistonOscillationThermodynamicStateFromTrajectorySample(
+              trajectory,
+              trajectorySample,
+            ),
+          );
+        } else {
+          updateThermodynamicStateForVisiblePosition(
+            nextOffsetMm,
+            trajectorySample.velocityMPerS * 1_000,
+            nowMs,
+          );
+        }
         if (elapsedMs >= PISTON_REBOUND_VISIBLE_DURATION_MS) {
-          setPistonOffset(0);
+          pistonOffsetMmRef.current = 0;
+          setPistonOffsetMm(0);
+          if (
+            trajectory.modelVersion
+              === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+            && trajectory.thermalModel
+          ) {
+            commitThermodynamicState(
+              createPistonOscillationThermodynamicStateFromTrajectorySample(
+                trajectory,
+                {
+                  ...trajectorySample,
+                  displacementM: 0,
+                  velocityMPerS: 0,
+                  temperatureK: trajectory.config.ambientTemperatureK,
+                },
+              ),
+            );
+          } else {
+            setPistonOffset(0);
+          }
           setPistonPhase('idle');
           reboundAnimationFrameRef.current = null;
+          completeReleaseMotion();
           return;
         }
         reboundAnimationFrameRef.current = window.requestAnimationFrame(animate);
@@ -2556,21 +2773,24 @@ export const PistonOscillationInteractionWorkspace = ({
     reboundAnimationFrameRef.current = window.requestAnimationFrame(animate);
   }, [
     cancelPistonRebound,
+    commitThermodynamicState,
+    completeReleaseMotion,
     recoverPistonMotionFailure,
     setPistonOffset,
     updateThermodynamicStateForVisiblePosition,
   ]);
   const finishTwoHandRelease = useCallback(() => {
     if (spaceHeldRef.current || mouseHeldRef.current) return;
+    if (releaseControlLockedRef.current) return;
+    const releaseStartedAtMs = performance.now();
     const spaceReleasedAt = spaceReleasedAtRef.current;
     const mouseReleasedAt = mouseReleasedAtRef.current;
-    setReleaseGapMs(
-      spaceReleasedAt !== null && mouseReleasedAt !== null
-        ? Math.abs(spaceReleasedAt - mouseReleasedAt)
-        : null,
-    );
     try {
+      advanceVirtualHandPressTo(releaseStartedAtMs);
+      capturePressTracePoint(releaseStartedAtMs);
       if (pistonNominalHeightMmRef.current <= 0) {
+        endPressTrace();
+        pressTraceRef.current = [];
         setPistonOffset(0);
         setPistonPhase('idle');
         return;
@@ -2583,6 +2803,8 @@ export const PistonOscillationInteractionWorkspace = ({
         + pistonOffsetMmRef.current;
       const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm;
       if (visibleHeightMm < 0) {
+        endPressTrace();
+        pressTraceRef.current = [];
         setPistonOffset(0);
         setPistonPhase('idle');
         return;
@@ -2592,21 +2814,42 @@ export const PistonOscillationInteractionWorkspace = ({
       setPistonEquilibriumHeightMm(equilibriumHeightMm);
       setPistonOffsetMm(initialDisplacementMm);
       if (initialDisplacementMm >= -0.02) {
+        endPressTrace();
+        pressTraceRef.current = [];
         setPistonOffset(0);
         setPistonPhase('idle');
         return;
       }
-      const trajectory = simulatePistonOscillationRelease({
+      const pressOperationEvidence = createPistonOscillationPressOperationEvidence({
+        trace: pressTraceRef.current,
+        releasedAtMs: releaseStartedAtMs,
+        spaceReleasedAtMs: spaceReleasedAt,
+        mouseReleasedAtMs: mouseReleasedAt,
+        equilibriumHeightMm,
+        releaseThermodynamicState: thermodynamicStateRef.current,
+        releaseVelocityMPerS: thermodynamicStateRef.current.velocityMPerS,
+      });
+      endPressTrace();
+      pressTraceRef.current = [];
+      setReleaseGapMs(
+        pressOperationEvidence.signedReleaseGapS === null
+          ? null
+          : Math.abs(pressOperationEvidence.signedReleaseGapS * 1_000),
+      );
+      setReleaseControlLock(true);
+      const trajectory = simulatePistonOscillationThermalRelease({
         lockedHeightMm: pistonNominalHeightMmRef.current,
         initialDisplacementMm,
+        initialVelocityMmPerS: (pressOperationEvidence.releaseVelocityMPerS ?? 0) * 1_000,
+        referenceThermodynamicState: thermodynamicStateRef.current,
       }, { sensorSampleRateHz });
-      const releaseStartedAtMs = performance.now();
       if (onReleaseEvent && initialDisplacementMm < -0.02) {
         releaseEventIdRef.current += 1;
         const releaseEvent: PistonOscillationReleaseEvent = {
           id: releaseEventIdRef.current,
           startedAtMs: releaseStartedAtMs,
           trajectory,
+          pressOperationEvidence,
         };
         onReleaseEvent(releaseEvent);
       }
@@ -2615,13 +2858,18 @@ export const PistonOscillationInteractionWorkspace = ({
       recoverPistonMotionFailure(cause, 'release-calculation');
     }
   }, [
+    capturePressTracePoint,
+    advanceVirtualHandPressTo,
+    endPressTrace,
     onReleaseEvent,
     recoverPistonMotionFailure,
     sensorSampleRateHz,
     setPistonOffset,
+    setReleaseControlLock,
     startPistonRebound,
   ]);
   const handleMouseHeldChange = useCallback((held: boolean, releasedAtMs?: number) => {
+    if (held && releaseControlLockedRef.current) return;
     mouseHeldRef.current = held;
     setMouseHeld(held);
     if (held) {
@@ -2636,6 +2884,7 @@ export const PistonOscillationInteractionWorkspace = ({
         spaceReleasedAtRef.current = null;
         setReleaseGapMs(null);
         setPistonPhase('pressing');
+        beginPressTrace(performance.now());
       } else {
         setPistonPhase('ready');
       }
@@ -2643,6 +2892,7 @@ export const PistonOscillationInteractionWorkspace = ({
     }
     setMouseVisualizationAction(null);
     mouseReleasedAtRef.current = releasedAtMs ?? performance.now();
+    capturePressTracePoint(mouseReleasedAtRef.current);
     if (heldInputInterruptedRef.current) {
       setPistonPhase('idle');
       return;
@@ -2656,7 +2906,13 @@ export const PistonOscillationInteractionWorkspace = ({
       return;
     }
     finishTwoHandRelease();
-  }, [cancelPistonRebound, finishTwoHandRelease, platformMode]);
+  }, [
+    beginPressTrace,
+    cancelPistonRebound,
+    capturePressTracePoint,
+    finishTwoHandRelease,
+    platformMode,
+  ]);
   const setHoseCameraClaim = useCallback((claimed: boolean) => {
     hoseCameraClaimedRef.current = claimed;
     const controls = controlsRef.current;
@@ -2798,6 +3054,11 @@ export const PistonOscillationInteractionWorkspace = ({
         || isEditableKeyboardTarget(event.target)
       ) return;
       event.preventDefault();
+      if (releaseControlLockedRef.current) {
+        spaceRearmRequiredRef.current = true;
+        return;
+      }
+      if (spaceRearmRequiredRef.current) return;
       if (event.repeat || spaceHeldRef.current) return;
       if (!attemptGuideAction('leftHandPress')) return;
       cancelPistonRebound();
@@ -2809,6 +3070,7 @@ export const PistonOscillationInteractionWorkspace = ({
         mouseReleasedAtRef.current = null;
         setReleaseGapMs(null);
         setPistonPhase('pressing');
+        beginPressTrace(performance.now());
       } else {
         setPistonPhase('ready');
       }
@@ -2828,6 +3090,11 @@ export const PistonOscillationInteractionWorkspace = ({
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.code !== 'Space') return;
       event.preventDefault();
+      if (spaceRearmRequiredRef.current) {
+        spaceRearmRequiredRef.current = false;
+        return;
+      }
+      capturePressTracePoint(performance.now());
       releaseSpaceHand();
     };
     const handleVisibilityChange = () => {
@@ -2844,7 +3111,9 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [
     abortHeldInputs,
     attemptGuideAction,
+    beginPressTrace,
     cancelPistonRebound,
+    capturePressTracePoint,
     demoActive,
     finishTwoHandRelease,
     guideInteractionPaused,
@@ -2853,6 +3122,7 @@ export const PistonOscillationInteractionWorkspace = ({
 
   useEffect(() => {
     if (mode === 'pistonFocus') return;
+    if (releaseControlLockedRef.current) return;
     if (mode === 'overview' && spaceHeldRef.current) {
       cancelPistonRebound();
       cancelUnsupportedDrop();
@@ -2919,6 +3189,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelGuideHeightReset();
     abortHeldInputs();
     cancelSettlingAnimation();
+    setReleaseControlLock(false);
     setMode('pistonFocus');
     setOperationMirrorViewOverride(null);
     setHeightAdjustmentStage('readingHeight');
@@ -2987,6 +3258,7 @@ export const PistonOscillationInteractionWorkspace = ({
     commitThermodynamicState,
     guideHeightReset?.phase,
     guideHeightReset?.revision,
+    setReleaseControlLock,
   ]);
 
   useEffect(() => {
@@ -3108,6 +3380,7 @@ export const PistonOscillationInteractionWorkspace = ({
         data-piston-focus-mode={mode}
         data-piston-focus-hose-state={hoseState}
         data-piston-focus-hose-dragging={hoseDragging ? 'true' : 'false'}
+        data-piston-focus-release-control-locked={releaseControlLocked ? 'true' : 'false'}
         data-piston-focus-guide-snap-target-mm={guideSnapTargetHeightMm ?? 'none'}
         data-piston-focus-hose-within-magnetic-range={
           hoseWithinMagneticRange ? 'true' : 'false'
@@ -3262,14 +3535,15 @@ export const PistonOscillationInteractionWorkspace = ({
               && !transitionActive
               && !demoActive
               && !guideInteractionPaused
+              && !releaseControlLocked
             }
             platformMode={platformMode}
             spaceHeld={spaceHeld}
-            offsetMm={pistonOffsetMm}
+            pressReferenceDragPx={virtualHandReferenceDragPx}
             equilibriumHeightMm={pistonEquilibriumHeightMm}
             guideSnapTargetHeightMm={guideSnapTargetHeightMm}
             onMouseHeldChange={handleMouseHeldChange}
-            onOffsetChange={setPistonOffset}
+            onPressReferenceDragChange={handleVirtualHandReferenceDragChange}
             onEquilibriumHeightChange={handleEquilibriumHeightChange}
             onHoverChange={setPlatformHovered}
             onActionAttempt={attemptGuideAction}

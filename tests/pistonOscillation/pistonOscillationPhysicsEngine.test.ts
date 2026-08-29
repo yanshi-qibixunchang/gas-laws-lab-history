@@ -467,7 +467,7 @@ assert.throws(
     equilibriumHeightMm: 5,
     initialDisplacementMm: -8,
   }),
-  /cannot move below 0 mm/,
+  /initialDisplacementMm/,
 );
 assert.throws(
   () => simulatePistonOscillationRelease({
@@ -493,10 +493,15 @@ assert.throws(
 assert.throws(
   () => simulatePistonOscillationRelease({
     equilibriumHeightMm: 80,
-    initialDisplacementMm: -12.001,
+    initialDisplacementMm: -80.001,
   }),
   /initialDisplacementMm/,
 );
+const forceBalancedDeepPressTrajectory = simulatePistonOscillationRelease({
+  equilibriumHeightMm: 80,
+  initialDisplacementMm: -18,
+});
+assert.equal(forceBalancedDeepPressTrajectory.initialDisplacementM, -0.018);
 const highVelocityEquilibrium = createPistonOscillationEquilibriumState(60);
 const positiveHighVelocityState = createPistonOscillationLoadedGasState(
   highVelocityEquilibrium,

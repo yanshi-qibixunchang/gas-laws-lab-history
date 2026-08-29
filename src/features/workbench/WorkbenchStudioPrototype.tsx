@@ -484,6 +484,7 @@ import {
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideStrongTargetId,
   type PistonOscillationGuideVisualCue,
+  type PistonOscillationPressStartEvent,
   type PistonOscillationReleaseEvent,
   type PistonOscillationShellCopy,
 } from '../pistonOscillation/index.ts';
@@ -5373,6 +5374,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const [parameterInputDrafts, setParameterInputDrafts] = useState<Record<string, string>>({});
   const [pistonOscillationReleaseEventsByFileId, setPistonOscillationReleaseEventsByFileId] =
     useState<Record<string, PistonOscillationReleaseEvent>>({});
+  const [pistonOscillationPressStartEventsByFileId,
+    setPistonOscillationPressStartEventsByFileId] =
+    useState<Record<string, PistonOscillationPressStartEvent>>({});
   const [pistonOscillationMeasurementCyclesByFileId, setPistonOscillationMeasurementCyclesByFileId] =
     useState<Record<string, number>>({});
   const [pistonOscillationPowerOnByFileId, setPistonOscillationPowerOnByFileId] =
@@ -8611,6 +8615,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               nowMs: Date.now(),
             })
           : file);
+        pistonOscillationLivePressureChannel.clear();
         setPistonOscillationPowerOnByFileId((current) => ({
           ...current,
           [fileId]: false,
@@ -24035,6 +24040,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   [activeFile.id]: event,
                 }));
               }}
+              onPressStartEvent={(event) => {
+                setPistonOscillationPressStartEventsByFileId((current) => ({
+                  ...current,
+                  [activeFile.id]: event,
+                }));
+              }}
               onLivePhysicalStateChange={
                 pistonOscillationLivePressureChannel.publishPhysicalState
               }
@@ -24385,6 +24396,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           language={settingsLanguagePreference}
           powerOn={activePistonOscillationPowerOn}
           releaseEvent={pistonOscillationReleaseEventsByFileId[activeFile.id] ?? null}
+          pressStartEvent={pistonOscillationPressStartEventsByFileId[activeFile.id] ?? null}
           livePressureChannel={pistonOscillationLivePressureChannel}
           demoPlaybackChannel={
             activePistonOscillationDemoPlaybackPhase === 'idle'

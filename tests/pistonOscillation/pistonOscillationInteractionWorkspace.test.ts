@@ -508,8 +508,23 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /name="HIT_PistonPlatform_InteractionWorkspace"[\s\S]*space_plus_vertical_press_drag[\s\S]*onPointerDown=[\s\S]*setPointerCapture[\s\S]*onPointerMove=[\s\S]*if \(!spaceHeld && platformMode !== 'adjustHeight'\) return;[\s\S]*mapPistonDragToOffsetMm/,
-  'the top platform should require the mouse hand plus the Space hand before downward motion',
+  /name="HIT_PistonPlatform_InteractionWorkspace"[\s\S]*space_plus_vertical_press_drag[\s\S]*onPointerDown=[\s\S]*setPointerCapture[\s\S]*sceneHeightPx:[\s\S]*getBoundingClientRect\(\)\.height[\s\S]*onPointerMove=[\s\S]*if \(!spaceHeld && platformMode !== 'adjustHeight'\) return;[\s\S]*scalePistonOscillationVirtualHandDragToReferencePx[\s\S]*onPressReferenceDragChange/,
+  'the top platform should require both hands and scale its force gesture by the current 3D scene height',
+);
+assert.doesNotMatch(
+  workspaceSource,
+  /PISTON_PRESS_DEFAULT_MAX_OFFSET_MM|PISTON_PRESS_DRAG_RANGE_PX|mapPistonDragToOffsetMm/,
+  'the reviewed virtual hand must replace the fixed 12 mm prescribed-position wall',
+);
+assert.match(
+  workspaceSource,
+  /const advanceVirtualHandPressTo = useCallback[\s\S]*advancePistonOscillationVirtualHandThermodynamicState\(\{[\s\S]*targetDownwardDisplacementMm:[\s\S]*getPistonOscillationVirtualHandTargetDisplacementMm/,
+  'the mouse must set only the virtual hand target while force integration determines visible piston motion',
+);
+assert.match(
+  workspaceSource,
+  /const nextOffsetMm = nextState\.pistonHeightM \* 1_000[\s\S]*setPistonOffsetMm\(nextOffsetMm\);[\s\S]*commitThermodynamicState\(nextState\);/,
+  'the integrated force state must drive both the visible offset and the shared thermodynamic state',
 );
 assert.match(
   workspaceSource,
@@ -668,17 +683,72 @@ assert.match(
 );
 assert.match(
   workspaceSource,
+  /setReleaseControlLock\(true\);[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*initialVelocityMmPerS: \(pressOperationEvidence\.releaseVelocityMPerS \?\? 0\) \* 1_000,[\s\S]*referenceThermodynamicState: thermodynamicStateRef\.current[\s\S]*pressOperationEvidence,[\s\S]*startPistonRebound\(trajectory, releaseStartedAtMs\)/,
+  'the second-hand release must atomically lock control, preserve release velocity and publish the operation evidence with the shared trajectory',
+);
+assert.match(
+  workspaceSource,
+  /if \(held && releaseControlLockedRef\.current\) return;[\s\S]*if \(releaseControlLockedRef\.current\) \{[\s\S]*spaceRearmRequiredRef\.current = true;[\s\S]*if \(spaceRearmRequiredRef\.current\) return;/,
+  'mouse and Space input must not take control while the released piston is moving',
+);
+assert.match(
+  workspaceSource,
+  /if \(spaceRearmRequiredRef\.current\) \{[\s\S]*spaceRearmRequiredRef\.current = false;[\s\S]*return;[\s\S]*capturePressTracePoint\(performance\.now\(\)\);/,
+  'a Space key held through the lock must be released before it can start a new press',
+);
+assert.match(
+  workspaceSource,
+  /elapsedMs >= PISTON_REBOUND_VISIBLE_DURATION_MS[\s\S]*setPistonPhase\('idle'\);[\s\S]*completeReleaseMotion\(\)/,
+  'the visible animation must mark physical release motion complete before control can unlock',
+);
+assert.match(
+  workspaceSource,
+  /const completeReleaseMotion = useCallback\(\(\) => \{[\s\S]*setReleaseControlLock\(false\);[\s\S]*\}, \[setReleaseControlLock\]\)/,
+  'physical motion completion must immediately restore platform control',
+);
+assert.match(
+  workspaceSource,
+  /const advancePressThermalClock = \(observedAtMs: number\) => \{[\s\S]*!pressTraceActiveRef\.current \|\| releaseControlLockedRef\.current[\s\S]*animationFrame = null;[\s\S]*return;/,
+  'the press thermal clock must stop synchronously at the atomic release boundary',
+);
+assert.match(
+  workspaceSource,
+  /const capturePressTracePoint = useCallback[\s\S]*const monotonicObservedAtMs = Math\.max\([\s\S]*thermodynamicUpdatedAtMsRef\.current \?\? observedAtMs,[\s\S]*pressTraceRef\.current\.at\(-1\)\?\.observedAtMs \?\? observedAtMs[\s\S]*observedAtMs: monotonicObservedAtMs/,
+  'press samples must preserve monotonic time when pointer events and animation frames share one browser frame',
+);
+assert.equal(
+  workspaceSource.match(/thermodynamicUpdatedAtMsRef\.current = monotonicObservedAtMs;/g)?.length,
+  2,
+  'both prescribed motion and virtual-hand motion must keep the thermodynamic clock monotonic',
+);
+assert.doesNotMatch(
+  workspaceSource,
+  /releaseControlExternallyHeld|releaseMotionCompleteRef/,
+  'recording duration must not extend the physical-motion input lock',
+);
+assert.match(
+  workspaceSource,
+  /const beginPressTrace = useCallback[\s\S]*pressStartEventIdRef\.current \+= 1;[\s\S]*onPressStartEvent\(\{[\s\S]*startedAtMs: observedAtMs/,
+  'each later two-hand press must publish its start time so the active Free record can capture it',
+);
+assert.match(
+  workspaceSource,
+  /enabled=\{[\s\S]*!releaseControlLocked[\s\S]*\}/,
+  'the platform pointer control must also be disabled for the complete release transaction',
+);
+assert.match(
+  workspaceSource,
   /const startPistonRebound = useCallback\(\(\s*trajectory: PistonOscillationTrajectory,\s*startedAtMs: number,[\s\S]*accumulatedPauseMsAtStart[\s\S]*const activePauseMs = guidePausedRef\.current[\s\S]*const elapsedMs = Math\.max\([\s\S]*nowMs[\s\S]*- startedAtMs[\s\S]*guideAccumulatedPauseMsRef\.current - accumulatedPauseMsAtStart[\s\S]*- activePauseMs/,
   'formal 3D rebound must use the shared release timestamp while excluding Guide pause time',
 );
 assert.match(
   workspaceSource,
-  /const visibleHeightMm = pistonEquilibriumHeightMmRef\.current[\s\S]*const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm[\s\S]*simulatePistonOscillationRelease\(\{[\s\S]*lockedHeightMm: pistonNominalHeightMmRef\.current,[\s\S]*initialDisplacementMm/,
+  /const visibleHeightMm = pistonEquilibriumHeightMmRef\.current[\s\S]*const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*lockedHeightMm: pistonNominalHeightMmRef\.current,[\s\S]*initialDisplacementMm/,
   'formal release must create one nonlinear trajectory from the nominal lock height and true live position',
 );
 assert.match(
   workspaceSource,
-  /const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm;[\s\S]*if \(initialDisplacementMm >= -0\.02\) \{[\s\S]*setPistonOffset\(0\);[\s\S]*setPistonPhase\('idle'\);[\s\S]*return;[\s\S]*\}[\s\S]*simulatePistonOscillationRelease/,
+  /const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm;[\s\S]*if \(initialDisplacementMm >= -0\.02\) \{[\s\S]*setPistonOffset\(0\);[\s\S]*setPistonPhase\('idle'\);[\s\S]*return;[\s\S]*\}[\s\S]*simulatePistonOscillationThermalRelease/,
   'releasing without a real downward press should stay idle instead of integrating across the 0 mm stop',
 );
 assert.match(
@@ -708,7 +778,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /try \{[\s\S]*simulatePistonOscillationRelease[\s\S]*startPistonRebound\(trajectory, releaseStartedAtMs\);[\s\S]*\} catch \(cause\) \{[\s\S]*recoverPistonMotionFailure\(cause, 'release-calculation'\)/,
+  /try \{[\s\S]*simulatePistonOscillationThermalRelease[\s\S]*startPistonRebound\(trajectory, releaseStartedAtMs\);[\s\S]*\} catch \(cause\) \{[\s\S]*recoverPistonMotionFailure\(cause, 'release-calculation'\)/,
   'release calculation failures must use the same silent stable-state recovery',
 );
 assert.doesNotMatch(
