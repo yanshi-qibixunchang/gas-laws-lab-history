@@ -219,12 +219,12 @@ for (const locale of locales) {
 }
 assert.equal(
   migrationRelease.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.6',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/tag/v4.1.6',
   '4.1.6 release page should remain in the old source repository for 4.1.5 clients',
 );
 assert.equal(
   migrationRelease.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe',
   '4.1.6 installer should remain in the old source repository for 4.1.5 clients',
 );
 const migrationItems = migrationRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
@@ -312,8 +312,8 @@ assert.ok(metadata.releaseSections?.length, 'metadata should expose structured r
 
 const remoteStructuredMetadata = getReleaseMetadataForUpdateInfo({
   version: '4.1.5',
-  releasePageUrl: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.5',
-  manualDownloadUrl: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe',
+  releasePageUrl: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/tag/v4.1.5',
+  manualDownloadUrl: 'https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe',
   releaseSummary: {
     'zh-CN': '远端简体摘要',
     'zh-TW': '遠端繁體摘要',

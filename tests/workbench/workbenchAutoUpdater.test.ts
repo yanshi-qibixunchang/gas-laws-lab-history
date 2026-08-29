@@ -42,7 +42,10 @@ const { RUNTIME_RELEASE_CONFIG } = require('../../electron/runtimeReleaseConfig.
 assert.match(packageJson.description ?? '', /hard-sphere molecular dynamics/, 'desktop package metadata should describe the product');
 assert.deepEqual(
   packageJson.author,
-  { name: 'yanshi-qibixunchang', url: 'https://github.com/yanshi-qibixunchang' },
+  {
+    name: 'Project Team',
+    url: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-history',
+  },
   'desktop package metadata should identify the repository owner without inventing contact details',
 );
 assert.ok(packageJson.dependencies?.['electron-updater'], 'electron-updater must be installed as an app dependency');
@@ -59,12 +62,12 @@ assert.deepEqual(
 const migrationRelease = releaseNotes.releases?.find((release) => release.version === '4.1.6');
 assert.equal(
   migrationRelease?.download?.releasePage,
-  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.6',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/tag/v4.1.6',
   '4.1.6 release notes should keep the migration release page in the old repository for 4.1.5 clients',
 );
 assert.equal(
   migrationRelease?.download?.windowsInstaller,
-  'https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe',
+  'https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe',
   '4.1.6 release notes should keep the migration installer in the old repository for 4.1.5 clients',
 );
 assert.equal(packageJson.build?.electronUpdaterCompatibility, '>=2.16', 'updater metadata should use the modern files format');

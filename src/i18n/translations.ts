@@ -281,7 +281,6 @@ export const translations: Record<LanguageCode, Translation> = {
       supervisor: "指导教师",
       references: "参考资料",
       visitorCount: "欢迎访问本站",
-      school: "Project Institution",
     version: "v3.5.1 正式版",
       links: "相关链接",
       github: "GitHub 仓库",
@@ -293,7 +292,6 @@ export const translations: Record<LanguageCode, Translation> = {
       copied: "已复制！",
       emailCopiedMsg: "联系邮箱已复制到剪贴板",
       acknowledgement: "特别致谢 AI 助手\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\n提供开发支持",
-      designedBy: "网页设计与开发: Project Team",
       role_leader: "组长 / 网页 & 算法设计",
       role_algo: "Matlab 算法协助",
       role_research: "参与文献调研与报告撰写"
@@ -579,7 +577,6 @@ export const translations: Record<LanguageCode, Translation> = {
       supervisor: "指導教師",
       references: "參考資料",
       visitorCount: "歡迎訪問本站",
-      school: "Project Institution（威海）",
     version: "v3.5.1 正式版",
       links: "相關連結",
       github: "GitHub 倉庫",
@@ -591,7 +588,6 @@ export const translations: Record<LanguageCode, Translation> = {
       copied: "已複製！",
       emailCopiedMsg: "聯繫郵箱已複製到剪貼簿",
       acknowledgement: "特別致谢 AI 助手\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\n提供開發支持",
-      designedBy: "網頁設計與開發: Project Team",
       role_leader: "組長 / 網頁 & 算法設計",
       role_algo: "Matlab 演算法協助",
       role_research: "參與文獻調研與報告撰寫"
@@ -877,7 +873,6 @@ export const translations: Record<LanguageCode, Translation> = {
       supervisor: "Supervisor",
       references: "References",
       visitorCount: "Welcome to the site",
-      school: "Project Institution",
     version: "v3.5.1 Official",
       links: "Links",
       github: "GitHub Repo",
@@ -889,7 +884,6 @@ export const translations: Record<LanguageCode, Translation> = {
       copied: "Copied!",
       emailCopiedMsg: "Email address copied to clipboard",
       acknowledgement: "Special thanks to AI assistants\nOpenAI\u00A0ChatGPT / Google\u00A0Gemini\nfor development support.",
-      designedBy: "Designed by Project Team",
       role_leader: "Leader / Web & Algo Design",
       role_algo: "Matlab Algo Support",
       role_research: "Contributed to literature review and report writing"

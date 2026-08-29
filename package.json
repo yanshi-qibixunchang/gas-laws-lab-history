@@ -3,8 +3,12 @@
   "version": "6.3.0",
   "description": "Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments.",
   "author": {
-    "name": "yanshi-qibixunchang",
-    "url": "https://github.com/yanshi-qibixunchang"
+    "name": "Project Team",
+    "url": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history.git"
   },
   "type": "module",
   "main": "electron/main.cjs",

@@ -3262,8 +3262,8 @@
       "date": "2026-05-27",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.6",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/tag/v4.1.6",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/download/v4.1.6/heat-capacity-lab-setup-4.1.6.exe"
       },
       "summary": {
         "zh-CN": "迁移桌面自动更新通道，后续版本将从新的公开发布仓库提供安装包、更新元数据和版本说明。",
@@ -3317,8 +3317,8 @@
       "date": "2026-05-27",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.5",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/tag/v4.1.5",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/download/v4.1.5/heat-capacity-lab-setup-4.1.5.exe"
       },
       "summary": {
         "zh-CN": "正式发布 Workbench 清理、热容自由实验过程回顾升级、参数栏自动收起、工程化 UI 打磨和多语言/亮暗模式适配。",
@@ -3528,8 +3528,8 @@
       "date": "2026-05-25",
       "channel": "stable",
       "download": {
-        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v4.1.4",
-        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/download/v4.1.4/heat-capacity-lab-setup-4.1.4.exe"
+        "releasePage": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/tag/v4.1.4",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/hard-sphere-lab-1/releases/download/v4.1.4/heat-capacity-lab-setup-4.1.4.exe"
       },
       "summary": {
         "zh-CN": "相比 v4.1.3，本版补齐热容自由实验参数调整、过程回顾、保存恢复、工程化参数界面和桌面更新失败恢复能力。",

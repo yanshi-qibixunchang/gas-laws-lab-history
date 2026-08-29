@@ -368,7 +368,6 @@ export interface Translation {
     supervisor: string;
     references: string;
     visitorCount: string;
-    school: string;
     version: string;
     links: string;        
     github: string;       
@@ -380,7 +379,6 @@ export interface Translation {
     copied: string;       
     emailCopiedMsg: string; // Added
     acknowledgement: string; 
-    designedBy: string;   
     role_leader: string;
     role_algo: string;
     role_research: string;

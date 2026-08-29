@@ -73,7 +73,7 @@
 - 本地领先提交：`bcdb505 feat: refine heat-capacity particle feedback and guide timing`
 - 上游头：`e8a5e12 feat: rebuild heat capacity temperature physics`
 - `main`：本地 `7dfad18`；远端 `origin/main` / `origin/HEAD` 为 `ac99af9`。
-- 当前 `origin`：`https://github.com/yanshi-qibixunchang/gas-laws-lab-history.git`
+- 当前 `origin`：`https://github.com/yanshi-qibixunchang/hard-sphere-lab-1.git`
 - GitHub 实时查询结果：`yanshi-qibixunchang/hard-sphere-lab-1` 当前为 **PUBLIC**，默认分支 `main`。
 - 安全结论：后续任何任务分支推送前，必须把远端核对为用户主要的私有 `-1` 仓库且确认可见性为 PRIVATE；当前 `origin` 不满足“不得推送到公开仓库”的硬约束，届时若仍未纠正必须停止并报告，禁止推送。
 - 当前工作区：存在 38 个已跟踪文件的未提交修改；本阶段不得覆盖或丢弃。
@@ -361,6 +361,6 @@
 
 ### 12.6 远端安全门
 
-- 当前 `origin` 仍指向 `https://github.com/yanshi-qibixunchang/gas-laws-lab-history.git`，实时可见性为 PUBLIC。
+- 当前 `origin` 仍指向 `https://github.com/yanshi-qibixunchang/hard-sphere-lab-1.git`，实时可见性为 PUBLIC。
 - 该状态违反“只推送私有 `-1` 仓库”的硬约束；本阶段只做本地分支与本地提交，不推送、不发布、不创建 GitHub Release。
 - 远端在用户确认并修正为目标私有仓库前，不得执行 `git push`。

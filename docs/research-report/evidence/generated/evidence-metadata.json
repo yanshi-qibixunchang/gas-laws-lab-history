@@ -2,26 +2,36 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-29T21:34:40.836Z",
-  "finishedAt": "2026-08-29T21:35:02.204Z",
+  "generatedAt": "2026-08-29T22:11:35.384Z",
+  "finishedAt": "2026-08-29T22:11:56.621Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
     "packageVersion": "6.3.0",
-    "gitCommit": "289f848a78abc3a2e947e7a3b7acb6ad76ae5711",
+    "gitCommit": "79934dbe7731809ccb5ab2107a0c7af598d2c848",
     "dirtyAtStart": true,
     "statusAtStart": [
-      "M README.md",
+      "M .github/workflows/desktop-upgrade-compatibility.yml",
+      " M README.md",
       " M README.zh-CN.md",
       " M README.zh-TW.md",
-      " M docs/build-notice-zh-CN.md",
+      " M design-qa.md",
+      " M docs/PERSISTENCE_V3_HANDOFF_2026-07-19.md",
       " M docs/releases/release-notes.json",
-      " M docs/research-report/evidence/generated/evidence-metadata.json",
-      " M package-lock.json",
+      " M \"docs/research-report/\\347\\240\\224\\347\\251\\266\\346\\212\\245\\345\\221\\212\\345\\256\\232\\344\\275\\215\\344\\270\\216\\345\\206\\231\\344\\275\\234\\345\\217\\243\\345\\276\\204\\345\\237\\272\\347\\272\\277.md\"",
+      " M docs/superpowers/plans/2026-07-14-engineering-ui-refactor-master-plan.md",
+      " M electron/main.cjs",
+      " M electron/runtimeReleaseConfig.cjs",
+      " M electron/updaterMetadata.cjs",
       " M package.json",
-      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
-      "?? docs/releases/v6.3.0.md"
+      " M src/features/workbench/WorkbenchStudioPrototype.tsx",
+      " M src/i18n/translations.ts",
+      " M src/shared/types.ts",
+      " M tests/workbench/workbenchAutoUpdater.test.ts",
+      " M tests/workbench/workbenchPackagedUpdaterMetadata.test.ts",
+      " M tests/workbench/workbenchReleaseAssetVerification.test.ts",
+      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts"
     ]
   },
   "runtime": {
@@ -307,8 +317,8 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "de6baa723f10ec89f3196ddfe57d77ac80fb5d1f387ed1971c849bac7fc90a9f",
-      "bytes": 4497
+      "sha256": "50619487d7011c94ec4b9467a6977e44efa411ceeda28912c42c9684b53d632d",
+      "bytes": 4657
     },
     {
       "path": "scripts/research-report/generate-evidence.ts",
@@ -415,7 +425,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "1e4aa7dae4e5ea070927a16bb5632c1dcb1de71da7b42dfcfb7829e874583a92"
+      "sha256": "3fd8664276991691072e46df0e640d85e26c356e7f375b52c51c6f40e037b98d"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",

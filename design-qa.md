@@ -65,12 +65,12 @@ final result: passed
 
 ## 对照基准
 
-- 设计真值：`<local-user>\AppData\Local\Temp\codex-clipboard-397d8c7b-0c47-4eec-838a-3b7190b846b5.png`
+- 设计真值：评审过程中提供的原始参考截图
 - 归一化设计图：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\source-normalized.png`
 - 浏览器实现：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\implementation-en-page2.png`
 - 全视图并排对照：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\comparison-normalized.png`
 - 学习路径重点对照：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\path-focused-comparison.png`
-- 回放入口问题截图：`<local-user>\AppData\Local\Temp\codex-clipboard-d3a13b5b-7e5f-462e-bbaa-4d31d57d15c1.png`
+- 回放入口问题截图：评审过程中记录的回放入口参考截图
 - 回放入口修复截图：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\replay-en-page2-finish-fixed.png`
 - 回放入口全视图对照：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\replay-en-full-comparison.png`
 - 回放入口学习路径对照：`D:\program\Codex\Home\visualizations\2026\07\22\019f877c-37eb-7891-9af8-e5db686d482b\onboarding-balance-qa\replay-en-path-comparison.png`
