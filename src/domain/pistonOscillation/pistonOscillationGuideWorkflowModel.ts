@@ -1303,6 +1303,8 @@ export const normalizePistonOscillationGuideSession = (
   const normalizedMeasurementIndex = isMeasurementIndex(value.measurementIndex)
     ? value.measurementIndex
     : 0;
+  // Legacy persisted aliases are accepted only at this normalization boundary;
+  // neither value is part of the current Guide step model or visible checklist.
   const normalizedStep = value.step === 'baselineStabilizing'
     ? 'acquisitionReady' as const
     : value.step === 'crossRunStabilizing'

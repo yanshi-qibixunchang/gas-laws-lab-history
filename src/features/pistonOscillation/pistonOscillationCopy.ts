@@ -194,8 +194,6 @@ export interface PistonOscillationShellCopy {
     pauseRecordingDetail: string;
     saveCurveTitle: (measurementNumber: number) => string;
     saveCurveDetail: (measurementNumber: number) => string;
-    crossRunStabilizingTitle: string;
-    crossRunStabilizingDetail: string;
     crossRunDisconnectTitle: string;
     crossRunDisconnectDetail: string;
     completedTitle: string;
@@ -523,8 +521,6 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       pauseRecordingDetail: '记录时间达到 0.500 s 后，等待活塞完全停止振动，再点击暂停，冻结本次曲线。',
       saveCurveTitle: (measurementNumber) => `保存第 ${measurementNumber} 次测量`,
       saveCurveDetail: (measurementNumber) => `检查曲线后点击保存，将它记入第 ${measurementNumber} 次测量。`,
-      crossRunStabilizingTitle: '停止采集并等待活塞稳定',
-      crossRunStabilizingDetail: '确认当前曲线已保存，等待活塞完全停止振动。',
       crossRunDisconnectTitle: '托住平台并断开软管',
       crossRunDisconnectDetail: '保持左手（Space）托住顶部平台，用右手（鼠标左键）拖出白色接头，使气缸与大气连通。',
       completedTitle: '数据处理与计算已完成',
@@ -857,8 +853,6 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       pauseRecordingDetail: '記錄時間達到 0.500 s 後，等待活塞完全停止振動，再點擊暫停，凍結本次曲線。',
       saveCurveTitle: (measurementNumber) => `儲存第 ${measurementNumber} 次測量`,
       saveCurveDetail: (measurementNumber) => `檢查曲線後點擊儲存，將它記入第 ${measurementNumber} 次測量。`,
-      crossRunStabilizingTitle: '停止採集並等待活塞穩定',
-      crossRunStabilizingDetail: '確認目前曲線已儲存，等待活塞完全停止振動。',
       crossRunDisconnectTitle: '托住平台並斷開軟管',
       crossRunDisconnectDetail: '保持左手（Space）托住頂部平台，用右手（滑鼠左鍵）拖出白色接頭，使氣缸與大氣連通。',
       completedTitle: '資料處理與計算已完成',
@@ -1191,8 +1185,6 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       pauseRecordingDetail: 'After 0.500 s of recording, wait until the piston stops oscillating, then select Pause to freeze the current curve.',
       saveCurveTitle: (measurementNumber) => `Save measurement ${measurementNumber}`,
       saveCurveDetail: (measurementNumber) => `Check the frozen curve, then select Save to store it as measurement ${measurementNumber}.`,
-      crossRunStabilizingTitle: 'Stop acquisition and let the piston settle',
-      crossRunStabilizingDetail: 'Confirm that the current curve is saved, then wait until the piston stops completely.',
       crossRunDisconnectTitle: 'Support the platform and disconnect the hose',
       crossRunDisconnectDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to pull out the white connector so the cylinder is open to the atmosphere.',
       completedTitle: 'Data processing and calculations complete',

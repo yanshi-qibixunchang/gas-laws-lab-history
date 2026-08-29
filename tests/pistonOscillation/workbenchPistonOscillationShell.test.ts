@@ -604,13 +604,13 @@ assert.match(
 );
 assert.match(
   focusInteractionSource,
-  /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-guide-screw-direction=\{[\s\S]*displayedScrewCueDirection[\s\S]*role="img"[\s\S]*screwTightenDirectionAria[\s\S]*screwLoosenDirectionAria/,
+  /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-screw-direction=\{displayedScrewCueDirection\}[\s\S]*role="img"[\s\S]*screwTightenDirectionAria[\s\S]*screwLoosenDirectionAria/,
   'the breathing screw cue should expose an accessible clockwise or counterclockwise arrow for the active operation',
 );
 
 assert.match(
   focusInteractionSource,
-  /demoFrame\?\.activeControl === 'screw'[\s\S]*demoHighlightControls\.includes\('screw'\)[\s\S]*data-piston-demo-screw-direction=\{demoScrewCueDirection \?\? undefined\}/,
+  /demoFrame\?\.activeControl === 'screw'[\s\S]*demoHighlightControls\.includes\('screw'\)[\s\S]*data-piston-screw-direction-mode=\{[\s\S]*demoScrewCueDirection === null \? 'guide' : 'demo'/,
   'Demo mode should render the clockwise or counterclockwise screw arrow during its screw stages',
 );
 assert.match(

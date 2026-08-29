@@ -201,6 +201,7 @@ interface DemoMetaCopy {
   settingsTarget: string;
   settingsCriterion: string;
   settingsNote: string;
+  settleTitle: string;
   settleDescription: string;
   settleTarget: string;
   settleCriterion: string;
@@ -266,6 +267,7 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     settingsTarget: '设置采样率与触发值',
     settingsCriterion: '输入框显示 1000、120',
     settingsNote: '依次选择、输入并确认。',
+    settleTitle: '等待活塞稳定',
     settleDescription: '确认曲线已保存，等待活塞停止。',
     settleTarget: '等待活塞稳定',
     settleCriterion: '曲线已保存，活塞已停止',
@@ -329,6 +331,7 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     settingsTarget: '設定採樣率與觸發值',
     settingsCriterion: '輸入框顯示 1000、120',
     settingsNote: '依序選擇、輸入並確認。',
+    settleTitle: '等待活塞穩定',
     settleDescription: '確認曲線已儲存，等待活塞停止。',
     settleTarget: '等待活塞穩定',
     settleCriterion: '曲線已儲存，活塞已停止',
@@ -392,6 +395,7 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     settingsTarget: 'Set the sample rate and trigger',
     settingsCriterion: 'The fields show 1000 and 120',
     settingsNote: 'Select, enter, and confirm each value.',
+    settleTitle: 'Let the piston settle',
     settleDescription: 'Confirm the curve is saved, then wait for the piston to stop.',
     settleTarget: 'Wait for the piston to settle',
     settleCriterion: 'The curve is saved and the piston has stopped',
@@ -704,7 +708,7 @@ const getStepCopy = (language: PistonOscillationLanguage, window: PistonOscillat
   switch (window.kind) {
     case 'powerOn': return { title: guide.powerOnTitle, description: meta.powerOnDescription, target: meta.powerOnTarget, criterion: meta.powerOnCriterion, note: meta.powerOnNote };
     case 'settings': return { title: guide.parameterSetupTitle, description: meta.settingsDescription, target: meta.settingsTarget, criterion: meta.settingsCriterion, note: meta.settingsNote };
-    case 'settle': return { title: guide.crossRunStabilizingTitle, description: meta.settleDescription, target: meta.settleTarget, criterion: meta.settleCriterion, note: meta.settleNote };
+    case 'settle': return { title: meta.settleTitle, description: meta.settleDescription, target: meta.settleTarget, criterion: meta.settleCriterion, note: meta.settleNote };
     case 'disconnect': return { title: guide.crossRunDisconnectTitle, description: meta.disconnectDescription, target: meta.disconnectTarget, criterion: meta.disconnectCriterion, note: meta.adjustNote };
     case 'adjustHeight': return { title: guide.adjustHeightTitle(height), description: meta.adjustDescription(height), target: meta.adjustTarget(height), criterion: meta.adjustCriterion(height), note: meta.adjustNote };
     case 'secureHeight': return { title: meta.secureTitle, description: meta.secureDescription, target: meta.secureTarget(height), criterion: meta.secureCriterion, note: meta.secureNote };

@@ -3955,17 +3955,17 @@ export const PistonOscillationInteractionWorkspace = ({
               />
             ) : null}
           </Canvas>
-          {displayedScrewCueDirection !== null ? (
+          {displayedScrewCueDirection !== null && screwHitPoint !== null ? (
             <div
-              className={`piston-guide-screw-direction-cue is-${displayedScrewCueDirection}`}
-              data-piston-guide-screw-direction={
-                demoScrewCueDirection === null ? displayedScrewCueDirection : undefined
+              className={`piston-screw-direction-cue is-${displayedScrewCueDirection}`}
+              data-piston-screw-direction={displayedScrewCueDirection}
+              data-piston-screw-direction-mode={
+                demoScrewCueDirection === null ? 'guide' : 'demo'
               }
-              data-piston-demo-screw-direction={demoScrewCueDirection ?? undefined}
               role="img"
               style={{
-                left: screwHitPoint === null ? '50%' : `${(screwHitPoint[0] + 1) * 50}%`,
-                top: screwHitPoint === null ? '50%' : `${(1 - screwHitPoint[1]) * 50}%`,
+                left: `${(screwHitPoint[0] + 1) * 50}%`,
+                top: `${(1 - screwHitPoint[1]) * 50}%`,
               }}
               aria-label={
                 displayedScrewCueDirection === 'clockwise'
@@ -3975,19 +3975,19 @@ export const PistonOscillationInteractionWorkspace = ({
             >
               <svg viewBox="0 0 100 100" aria-hidden="true">
                 <path
-                  className="piston-guide-screw-direction-outline"
+                  className="piston-screw-direction-outline"
                   d="M 23 72 C 8 49 16 24 38 14 C 60 4 83 19 85 43"
                 />
                 <path
-                  className="piston-guide-screw-direction-arc"
+                  className="piston-screw-direction-arc"
                   d="M 23 72 C 8 49 16 24 38 14 C 60 4 83 19 85 43"
                 />
                 <path
-                  className="piston-guide-screw-direction-head"
+                  className="piston-screw-direction-head"
                   d="M 85 57 L 73 38 L 97 38 Z"
                 />
               </svg>
-              <span className="piston-guide-screw-direction-label" aria-hidden="true">
+              <span className="piston-screw-direction-label" aria-hidden="true">
                 {displayedScrewCueDirection === 'clockwise'
                   ? interactionCopy.screwTightenDirectionLabel
                   : interactionCopy.screwLoosenDirectionLabel}

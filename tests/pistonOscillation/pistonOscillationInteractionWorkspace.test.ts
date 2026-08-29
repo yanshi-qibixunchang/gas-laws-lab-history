@@ -495,33 +495,38 @@ assert.match(
 
 assert.match(
   workspaceSource,
-  /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-guide-screw-direction=\{[\s\S]*displayedScrewCueDirection[\s\S]*interactionCopy\.screwTightenDirectionAria[\s\S]*interactionCopy\.screwLoosenDirectionAria[\s\S]*interactionCopy\.screwTightenDirectionLabel[\s\S]*interactionCopy\.screwLoosenDirectionLabel/,
+  /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-screw-direction=\{displayedScrewCueDirection\}[\s\S]*interactionCopy\.screwTightenDirectionAria[\s\S]*interactionCopy\.screwLoosenDirectionAria[\s\S]*interactionCopy\.screwTightenDirectionLabel[\s\S]*interactionCopy\.screwLoosenDirectionLabel/,
   'the breathing screw cue must add a localized clockwise or counterclockwise arc arrow for the active Guide step',
 );
 
 assert.match(
   workspaceSource,
-  /demoFrame\?\.activeControl === 'screw'[\s\S]*rotateCounterclockwise[\s\S]*\? 'counterclockwise'[\s\S]*: 'clockwise'[\s\S]*demoHighlightControls\.includes\('screw'\)[\s\S]*lockingScrewLocked[\s\S]*data-piston-demo-screw-direction=\{demoScrewCueDirection \?\? undefined\}/,
+  /demoFrame\?\.activeControl === 'screw'[\s\S]*rotateCounterclockwise[\s\S]*\? 'counterclockwise'[\s\S]*: 'clockwise'[\s\S]*demoHighlightControls\.includes\('screw'\)[\s\S]*lockingScrewLocked[\s\S]*data-piston-screw-direction-mode=\{[\s\S]*demoScrewCueDirection === null \? 'guide' : 'demo'/,
   'Demo screw highlight and action stages should expose the same explicit direction arrow as Guide mode',
 );
 assert.match(
   workspaceSource,
-  /left: screwHitPoint === null \? '50%' : `\$\{\(screwHitPoint\[0\] \+ 1\) \* 50\}%`[\s\S]*top: screwHitPoint === null \? '50%' : `\$\{\(1 - screwHitPoint\[1\]\) \* 50\}%`/,
-  'the direction cue should follow the projected screw center instead of the operation-mirror center',
+  /displayedScrewCueDirection !== null && screwHitPoint !== null[\s\S]*left: `\$\{\(screwHitPoint\[0\] \+ 1\) \* 50\}%`[\s\S]*top: `\$\{\(1 - screwHitPoint\[1\]\) \* 50\}%`/,
+  'the direction cue should render only after the real projected screw center is available',
+);
+assert.doesNotMatch(
+  workspaceSource,
+  /screwHitPoint === null \? '50%'/,
+  'the removed operation-mirror-center fallback must not return',
 );
 assert.match(
   workspaceSource,
-  /piston-guide-screw-direction-outline[\s\S]*piston-guide-screw-direction-arc[\s\S]*piston-guide-screw-direction-head[\s\S]*M 85 57 L 73 38 L 97 38 Z/,
+  /piston-screw-direction-outline[\s\S]*piston-screw-direction-arc[\s\S]*piston-screw-direction-head[\s\S]*M 85 57 L 73 38 L 97 38 Z/,
   'the shortened arc must use a separate high-contrast outline and an unmistakable solid arrowhead',
 );
 assert.match(
   workspaceCss,
-  /\.piston-guide-screw-direction-cue\s*\{[\s\S]*width:\s*clamp\(110px, 48%, 160px\);[\s\S]*filter:\s*none;[\s\S]*opacity:\s*1;[\s\S]*pointer-events:\s*none;[\s\S]*animation:\s*none;[\s\S]*\.piston-guide-screw-direction-cue\.is-counterclockwise svg\s*\{[\s\S]*transform:\s*scaleX\(-1\);/,
+  /\.piston-screw-direction-cue\s*\{[\s\S]*width:\s*clamp\(110px, 48%, 160px\);[\s\S]*filter:\s*none;[\s\S]*opacity:\s*1;[\s\S]*pointer-events:\s*none;[\s\S]*animation:\s*none;[\s\S]*\.piston-screw-direction-cue\.is-counterclockwise svg\s*\{[\s\S]*transform:\s*scaleX\(-1\);/,
   'the crisp direction arrow must not breathe or intercept dragging and must mirror deterministically for counterclockwise operation',
 );
 assert.match(
   workspaceCss,
-  /\.piston-guide-screw-direction-outline\s*\{[\s\S]*stroke:\s*rgba\(255, 255, 255, 0\.96\);[\s\S]*stroke-width:\s*10;[\s\S]*\.piston-guide-screw-direction-head\s*\{[\s\S]*stroke:\s*rgba\(255, 255, 255, 0\.98\);[\s\S]*stroke-width:\s*4;[\s\S]*paint-order:\s*stroke fill;/,
+  /\.piston-screw-direction-outline\s*\{[\s\S]*stroke:\s*rgba\(255, 255, 255, 0\.96\);[\s\S]*stroke-width:\s*10;[\s\S]*\.piston-screw-direction-head\s*\{[\s\S]*stroke:\s*rgba\(255, 255, 255, 0\.98\);[\s\S]*stroke-width:\s*4;[\s\S]*paint-order:\s*stroke fill;/,
   'the arc and its enlarged solid head must retain a crisp white edge over both light and dark instrument surfaces',
 );
 assert.match(

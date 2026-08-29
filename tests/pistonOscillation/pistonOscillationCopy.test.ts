@@ -156,7 +156,6 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     'releasePistonTitle',
     'recordingTitle',
     'pauseRecordingTitle',
-    'crossRunStabilizingTitle',
     'crossRunDisconnectTitle',
     'completedTitle',
   ] as const) {
