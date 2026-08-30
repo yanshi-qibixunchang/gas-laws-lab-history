@@ -2,33 +2,16 @@
   "schemaVersion": 1,
   "scriptVersion": "research-report-evidence-v2",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-08-30T12:07:54.252Z",
-  "finishedAt": "2026-08-30T12:08:19.298Z",
+  "generatedAt": "2026-08-30T23:25:07.178Z",
+  "finishedAt": "2026-08-30T23:25:30.817Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": "D:\\projects\\hard-sphere-lab-new",
     "packageName": "hard-sphere-lab",
-    "packageVersion": "6.3.1",
-    "gitCommit": "c53d507c9579e0b22e1992975c8407a3b18f8119",
-    "dirtyAtStart": true,
-    "statusAtStart": [
-      "M README.md",
-      " M README.zh-CN.md",
-      " M README.zh-TW.md",
-      " M docs/build-notice-zh-CN.md",
-      " M docs/releases/release-notes.json",
-      " M package-lock.json",
-      " M package.json",
-      " M tests/workbench/workbenchUpdateReleaseNotes.test.ts",
-      "?? .codex-tmp/",
-      "?? docs/releases/v6.3.1.md",
-      "?? docs/research-report/working/",
-      "?? \"docs/research-report/\\351\\231\\204\\345\\275\\225C_\\345\\205\\263\\351\\224\\256\\347\\211\\251\\347\\220\\206\\346\\250\\241\\345\\236\\213\\345\\217\\202\\346\\225\\260\\344\\270\\216\\346\\240\\270\\345\\277\\203\\346\\272\\220\\347\\240\\201\\350\\212\\202\\351\\200\\211.md\"",
-      "?? scripts/analysis/pistonOscillationContinuousMicroslipProbe.mjs",
-      "?? scripts/analysis/pistonOscillationFrictionReallocationProbe.mjs",
-      "?? scripts/analysis/pistonOscillationStickSlipProbe.mjs",
-      "?? scripts/analysis/pistonOscillationTailIrregularityProbe.mjs"
-    ]
+    "packageVersion": "6.4.0",
+    "gitCommit": "d036719d46d69b187ec2596a35af033d2db9f854",
+    "dirtyAtStart": false,
+    "statusAtStart": []
   },
   "runtime": {
     "node": "v24.12.0",
@@ -313,7 +296,7 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "22fdab30b3eb81c0e3e9a2bdb4c3b20a127e792c3e7b675f299c3b855fe2126a",
+      "sha256": "b0ef655ca3271cc6b18bf296455996203da44c16b4b0085a76d977d5374b5201",
       "bytes": 4654
     },
     {
@@ -421,7 +404,7 @@
     {
       "path": "docs/research-report/evidence/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "01958879fe9afd8c96e598961498eee809b361274a3468566cbea3171e99cf22"
+      "sha256": "3f8621d253f683a0b25a9491d6f08b873aa45c5cc7707424e41d98a5b88e3ee4"
     },
     {
       "path": "docs/research-report/evidence/generated/rapid-release/rapid-release-runs.csv",
