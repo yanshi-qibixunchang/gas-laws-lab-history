@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { Check, Play, RotateCcw, Square } from 'lucide-react';
 import {
+  getPistonOscillationSmallSignalFrequencyFromLockedHeightHz,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
@@ -34,6 +35,9 @@ import {
   type PistonOscillationSensorObservationSeries,
 } from '../../domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 import {
+  applyPistonOscillationTailIrregularityObservation,
+} from '../../domain/pistonOscillation/pistonOscillationTailIrregularityObservationModel.ts';
+import {
   PISTON_ACQUISITION_BASELINE_PRESSURE_KPA,
   PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
   PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
@@ -44,6 +48,7 @@ import {
   PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS,
   advancePistonOscillationAcquisitionDisplayClock,
   createPistonOscillationAcquisitionDisplayClock,
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds,
   getPistonOscillationAcquisitionPresentedNowMs,
   rebasePistonOscillationAcquisitionDisplayClock,
 } from './pistonOscillationAcquisitionDisplayClock.ts';
@@ -828,7 +833,7 @@ PistonOscillationAcquisitionPanelProps
       rebaseDisplayClock(releaseEvent.startedAtMs, true);
     }
     const nextTrajectory = releaseEvent.trajectory;
-    const nextObservationSeries = createPistonOscillationDynamicSensorObservationSeries(
+    const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries(
       nextTrajectory.samples,
       nextTrajectory.sampleRateHz,
       {
@@ -838,6 +843,15 @@ PistonOscillationAcquisitionPanelProps
         config: livePressureObservation?.sensorConfig,
       },
     );
+    const expectedPeriodS = 1
+      / getPistonOscillationSmallSignalFrequencyFromLockedHeightHz(
+        nextTrajectory.equilibrium.lockedHeightM * 1_000,
+        nextTrajectory.config,
+      );
+    const nextObservationSeries = applyPistonOscillationTailIrregularityObservation({
+      observationSeries: baseObservationSeries,
+      expectedPeriodS,
+    }).observationSeries;
     const nextReleaseSegment: PistonOscillationRecordingReleaseSegment = {
       startedAtMs: releaseEvent.startedAtMs,
       observationSeries: nextObservationSeries,
@@ -1004,7 +1018,7 @@ PistonOscillationAcquisitionPanelProps
     updatePhase,
   ]);
 
-  const localElapsedSinceReleaseSeconds = cycleStartMs === null
+  const localPresentationElapsedSinceReleaseSeconds = cycleStartMs === null
     ? null
     : Math.max(
       0,
@@ -1020,6 +1034,15 @@ PistonOscillationAcquisitionPanelProps
             : 0
         )
       ) / 1000,
+    );
+  const localElapsedSinceReleaseSeconds = (
+    triggerSeconds === null
+    || localPresentationElapsedSinceReleaseSeconds === null
+    || localPresentationElapsedSinceReleaseSeconds <= triggerSeconds
+  )
+    ? localPresentationElapsedSinceReleaseSeconds
+    : triggerSeconds + getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(
+      localPresentationElapsedSinceReleaseSeconds - triggerSeconds,
     );
   const localFormalElapsedSeconds = triggerSeconds === null || localElapsedSinceReleaseSeconds === null
     ? 0

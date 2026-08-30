@@ -1,6 +1,10 @@
 export const PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1_000 / 30;
 export const PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS = 50;
 export const PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS = 300;
+// Presentation-only parameters. They do not rescale sensor timestamps or
+// enter saved measurement data.
+export const PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE = 0.75;
+export const PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS = 0.4;
 
 export interface PistonOscillationAcquisitionDisplayClock {
   lastWallNowMs: number;
@@ -75,3 +79,32 @@ export const getPistonOscillationAcquisitionPresentedNowMs = (
     - assertFiniteNonNegative('clock.accumulatedLagMs', clock.accumulatedLagMs)
     - PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS,
 );
+
+/**
+ * Stretch only the short, useful oscillation window. Once that window has
+ * been presented, resume 1x progression without jumping or catching up. The
+ * returned value remains physical experiment time, so sample timestamps and
+ * period calculations are never rescaled.
+ */
+export const getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds = (
+  presentationElapsedSeconds: number,
+  playbackRate: number = PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE,
+  slowWindowSeconds:
+    number = PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS,
+) => {
+  const elapsedSeconds = assertFiniteNonNegative(
+    'presentationElapsedSeconds',
+    presentationElapsedSeconds,
+  );
+  const rate = assertFiniteNonNegative('playbackRate', playbackRate);
+  const slowWindow = assertFiniteNonNegative('slowWindowSeconds', slowWindowSeconds);
+  if (rate <= 0 || rate > 1) {
+    throw new RangeError('playbackRate must be greater than zero and no greater than one.');
+  }
+  if (slowWindow === 0 || rate === 1) return elapsedSeconds;
+  const slowWindowWallDurationSeconds = slowWindow / rate;
+  if (elapsedSeconds <= slowWindowWallDurationSeconds) {
+    return elapsedSeconds * rate;
+  }
+  return slowWindow + (elapsedSeconds - slowWindowWallDurationSeconds);
+};

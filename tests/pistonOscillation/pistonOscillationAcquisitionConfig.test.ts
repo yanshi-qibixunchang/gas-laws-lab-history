@@ -210,6 +210,16 @@ assert.match(
   /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*createPistonOscillationDynamicSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz,[\s\S]*initialState: livePressureObservation\?\.sensorState \?\? null,[\s\S]*config: livePressureObservation\?\.sensorConfig[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
   'formal acquisition must quantize the released trajectory before choosing its discrete falling-trigger sample',
 );
+assert.match(
+  panelSource,
+  /const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries\([\s\S]*const expectedPeriodS = 1[\s\S]*getPistonOscillationSmallSignalFrequencyFromLockedHeightHz\([\s\S]*const nextObservationSeries = applyPistonOscillationTailIrregularityObservation\(\{[\s\S]*observationSeries: baseObservationSeries,[\s\S]*expectedPeriodS,[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries/,
+  'formal acquisition must apply the seeded tail irregularity observation before display, trigger slicing, and persistence',
+);
+assert.match(
+  panelSource,
+  /const localPresentationElapsedSinceReleaseSeconds[\s\S]*const localElapsedSinceReleaseSeconds[\s\S]*triggerSeconds \+ getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds\([\s\S]*localPresentationElapsedSinceReleaseSeconds - triggerSeconds[\s\S]*const localFormalElapsedSeconds/,
+  'manual acquisition must slow the initial visible post-trigger window without rescaling stored sample time',
+);
 assert.doesNotMatch(
   panelSource,
   /getPistonAcquisitionPresetPressureKpa|findPistonAcquisitionFallingTriggerSeconds/,

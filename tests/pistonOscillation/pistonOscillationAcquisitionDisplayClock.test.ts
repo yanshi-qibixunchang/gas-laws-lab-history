@@ -3,8 +3,11 @@ import {
   PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS,
   PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS,
   PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS,
+  PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE,
+  PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS,
   advancePistonOscillationAcquisitionDisplayClock,
   createPistonOscillationAcquisitionDisplayClock,
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds,
   getPistonOscillationAcquisitionPresentedNowMs,
   rebasePistonOscillationAcquisitionDisplayClock,
 } from '../../src/features/pistonOscillation/pistonOscillationAcquisitionDisplayClock.ts';
@@ -14,6 +17,8 @@ const maximumVisibleAdvanceMs =
   PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS;
 const presentationDelayMs = PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS;
 assert.equal(presentationDelayMs, 300);
+assert.equal(PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE, 0.75);
+assert.equal(PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS, 0.4);
 let clock = createPistonOscillationAcquisitionDisplayClock(1_000);
 clock = advancePistonOscillationAcquisitionDisplayClock(clock, 1_000 + frameIntervalMs);
 const presentedBeforeStallMs = getPistonOscillationAcquisitionPresentedNowMs(
@@ -74,9 +79,42 @@ const resetClock = rebasePistonOscillationAcquisitionDisplayClock(
 );
 assert.equal(resetClock.accumulatedLagMs, 0);
 
+const slowWindowWallDurationSeconds =
+  PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS
+  / PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE;
+assert.ok(Math.abs(
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(0.2) - 0.15,
+) < 1e-12);
+assert.ok(Math.abs(
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(
+    slowWindowWallDurationSeconds,
+  ) - PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS,
+) < 1e-12);
+assert.ok(Math.abs(
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(
+    slowWindowWallDurationSeconds + 0.2,
+  ) - 0.6,
+) < 1e-12, 'the chart must resume 1x without jumping after the slow window');
+assert.equal(
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(0.7, 1, 0.4),
+  0.7,
+);
+assert.equal(
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(0.7, 0.75, 0),
+  0.7,
+);
+
 assert.throws(
   () => advancePistonOscillationAcquisitionDisplayClock(clock, Number.NaN),
   /wallNowMs/,
+);
+assert.throws(
+  () => getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(1, 0),
+  /playbackRate/,
+);
+assert.throws(
+  () => getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(1, 1.01),
+  /playbackRate/,
 );
 
 console.log('pistonOscillationAcquisitionDisplayClock tests passed');
