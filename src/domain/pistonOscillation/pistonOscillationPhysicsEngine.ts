@@ -2,7 +2,7 @@ import {
   PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
 } from './pistonOscillationAirMaterialModel.ts';
 import {
-  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 } from './pistonOscillationEquivalentLossModel.ts';
 
 export const PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K =
@@ -208,12 +208,11 @@ export const PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA = 200;
 const PISTON_OSCILLATION_MAX_INTEGRATION_STEP_S = 1 / 12_000;
 const PISTON_OSCILLATION_MIN_INTEGRATION_STEPS_PER_PERIOD = 240;
 
-export const PISTON_OSCILLATION_INITIAL_CALIBRATION_PROFILE = {
+export const PISTON_OSCILLATION_LEGACY_CALIBRATION_PROFILE = {
   equivalentDeadVolumeHeightM: PISTON_OSCILLATION_EQUIVALENT_DEAD_VOLUME_HEIGHT_M,
-  // This coefficient preserves the already accepted guided waveform only. It is
-  // a versioned temporary equivalent loss, not an identified friction or
-  // thermodynamic-damping coefficient.
-  linearDampingNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  // Compatibility fallback for records that predate an explicitly persisted
+  // current loss coefficient. New press and release paths pass 1.1 N·s/m.
+  linearDampingNsPerM: PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 } as const;
 
 export const DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG: PistonOscillationPhysicsConfig = {
@@ -221,7 +220,7 @@ export const DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG: PistonOscillationPhysics
   ambientPressurePa: 101_325,
   ambientTemperatureK: 293.15,
   movingMassKg: PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG,
-  ...PISTON_OSCILLATION_INITIAL_CALIBRATION_PROFILE,
+  ...PISTON_OSCILLATION_LEGACY_CALIBRATION_PROFILE,
   sensorSampleRateHz: 1_000,
   trajectoryDurationS: 6,
 };

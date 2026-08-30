@@ -220,6 +220,11 @@ assert.match(
   /const localPresentationElapsedSinceReleaseSeconds[\s\S]*const localElapsedSinceReleaseSeconds[\s\S]*triggerSeconds \+ getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds\([\s\S]*localPresentationElapsedSinceReleaseSeconds - triggerSeconds[\s\S]*const localFormalElapsedSeconds/,
   'manual acquisition must slow the initial visible post-trigger window without rescaling stored sample time',
 );
+assert.match(
+  panelSource,
+  /createPistonOscillationIncompletePhysicsSnapshot\(\{[\s\S]*thermodynamicState: freeSession\.instrumentState\.thermodynamicState,[\s\S]*linearDampingNsPerM:[\s\S]*PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M/,
+  'new immediate-path press captures must explicitly record the formal 1.1 loss',
+);
 assert.doesNotMatch(
   panelSource,
   /getPistonAcquisitionPresetPressureKpa|findPistonAcquisitionFallingTriggerSeconds/,

@@ -1,15 +1,22 @@
 export const PISTON_OSCILLATION_EQUIVALENT_LOSS_SCHEMA_VERSION = 1 as const;
-export const PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION =
+export const PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION =
+  'piston-oscillation-unified-equivalent-linear-loss-v1' as const;
+export const PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND =
+  'unified-equivalent-linear-loss' as const;
+export const PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M = 1.1 as const;
+
+// These identifiers and the 0.434 N·s/m value remain readable only because
+// released files may already contain them. New experiments must use the single
+// current coefficient above for both virtual-hand press and free release.
+export const PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION =
   'piston-oscillation-temporary-equivalent-linear-loss-v1' as const;
-export const PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND =
+export const PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_KIND =
   'temporary-equivalent-linear-loss' as const;
-export const PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M = 0.434 as const;
-export const PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION =
+export const PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M = 0.434 as const;
+export const PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION =
   'piston-oscillation-finite-thermal-release-loss-review-v1' as const;
-export const PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND =
+export const PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND =
   'review-candidate-residual-linear-release-loss' as const;
-export const PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M =
-  1.1 as const;
 
 export interface PistonOscillationEquivalentLossSnapshot {
   schemaVersion: typeof PISTON_OSCILLATION_EQUIVALENT_LOSS_SCHEMA_VERSION;
@@ -25,20 +32,19 @@ export const createPistonOscillationEquivalentLossSnapshot = (
   let modelVersion: string;
   let kind: string;
   if (
-    linearCoefficientNsPerM
-      === PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M
+    linearCoefficientNsPerM === PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M
+  ) {
+    modelVersion = PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION;
+    kind = PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND;
+  } else if (
+    linearCoefficientNsPerM === PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M
   ) {
     modelVersion =
-      PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION;
-    kind = PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND;
-  } else if (
-    linearCoefficientNsPerM === PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M
-  ) {
-    modelVersion = PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION;
-    kind = PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND;
+      PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION;
+    kind = PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_KIND;
   } else {
     throw new RangeError(
-      'Captured piston release loss must use a versioned review or baseline value.',
+      'Captured piston equivalent loss must use the current or a supported legacy value.',
     );
   }
   return {
@@ -54,19 +60,26 @@ const isCapturedPistonOscillationEquivalentLossSnapshot = (
   snapshot: Partial<PistonOscillationEquivalentLossSnapshot>,
 ) => (
   (
-    snapshot.modelVersion
-      === PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION
-    && snapshot.kind
-      === PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND
+    snapshot.modelVersion === PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION
+    && snapshot.kind === PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND
     && snapshot.linearCoefficientNsPerM
-      === PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M
+      === PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M
   )
   || (
     snapshot.modelVersion
-      === PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION
-    && snapshot.kind === PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND
+      === PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION
+    && snapshot.kind
+      === PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND
     && snapshot.linearCoefficientNsPerM
-      === PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M
+      === PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M
+  )
+  || (
+    snapshot.modelVersion
+      === PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION
+    && snapshot.kind
+      === PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_KIND
+    && snapshot.linearCoefficientNsPerM
+      === PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M
   )
 );
 

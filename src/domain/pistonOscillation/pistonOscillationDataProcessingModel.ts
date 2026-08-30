@@ -607,9 +607,11 @@ export const createPistonOscillationIncompletePhysicsSnapshot = (options: {
   lockedHeightMm: number;
   sampleRateHz: number;
   thermodynamicState: PistonOscillationThermodynamicState;
+  linearDampingNsPerM?: number;
 }): PistonOscillationPhysicsSnapshot => {
   const config = normalizePistonOscillationPhysicsConfig({
     sensorSampleRateHz: options.sampleRateHz,
+    linearDampingNsPerM: options.linearDampingNsPerM,
   });
   const equilibrium = createPistonOscillationLoadedEquilibriumState(
     options.lockedHeightMm,

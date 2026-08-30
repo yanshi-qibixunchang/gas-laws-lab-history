@@ -13,6 +13,9 @@ import {
   simulatePistonOscillationThermalRelease,
 } from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
 import {
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+} from '../../domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+import {
   DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG,
   getPistonOscillationVirtualHandTargetDisplacementMm,
 } from '../../domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
@@ -653,6 +656,9 @@ const getPistonOscillationDemoPhysicalRun = (
           ),
         elapsedS: 1 / PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
         preventUpwardMotion: elapsedS <= PISTON_OSCILLATION_DEMO_PRESS_RAMP_S,
+      }, {
+        linearDampingNsPerM:
+          PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
       });
     }
     pressStates.push(thermodynamicState);

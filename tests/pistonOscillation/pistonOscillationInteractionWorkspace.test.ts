@@ -801,8 +801,8 @@ assert.doesNotMatch(
 );
 assert.match(
   workspaceSource,
-  /const advanceVirtualHandPressTo = useCallback[\s\S]*advancePistonOscillationVirtualHandThermodynamicState\(\{[\s\S]*targetDownwardDisplacementMm:[\s\S]*getPistonOscillationVirtualHandTargetDisplacementMm/,
-  'the mouse must set only the virtual hand target while force integration determines visible piston motion',
+  /const advanceVirtualHandPressTo = useCallback[\s\S]*advancePistonOscillationVirtualHandThermodynamicState\(\{[\s\S]*targetDownwardDisplacementMm:[\s\S]*getPistonOscillationVirtualHandTargetDisplacementMm[\s\S]*linearDampingNsPerM:[\s\S]*PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M/,
+  'the mouse must set only the virtual hand target while the formal 1.1 loss drives force integration',
 );
 assert.match(
   workspaceSource,

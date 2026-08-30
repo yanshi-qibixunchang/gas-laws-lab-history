@@ -337,7 +337,7 @@
 .studio-piston-calculation-step-main {
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) 72px;
+  grid-template-columns: minmax(0, 1fr) max-content;
   align-items: start;
   gap: 10px;
 }

@@ -98,6 +98,11 @@ assert.match(
   /\.studio-piston-calculation-step-active\s*\{[\s\S]*background:\s*color-mix[\s\S]*0 0 0 1px/,
   'active piston calculation steps should use the shared symmetric emphasis treatment',
 );
+assert.match(
+  styleSource,
+  /\.studio-piston-calculation-step-main\s*\{[^}]*grid-template-columns:\s*minmax\(0, 1fr\) max-content/,
+  'calculation action buttons must size to their localized label instead of a fixed narrow column',
+);
 assert.match(styleSource, /studioPistonFitGuidancePulse/);
 
 assert.match(componentSource, /groups\.at\(-1\)[\s\S]*entry\.runIndex === previous\.last \+ 1/);

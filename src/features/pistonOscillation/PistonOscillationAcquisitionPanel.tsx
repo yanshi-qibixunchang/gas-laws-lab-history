@@ -38,6 +38,9 @@ import {
   applyPistonOscillationTailIrregularityObservation,
 } from '../../domain/pistonOscillation/pistonOscillationTailIrregularityObservationModel.ts';
 import {
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+} from '../../domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+import {
   PISTON_ACQUISITION_BASELINE_PRESSURE_KPA,
   PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ,
   PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
@@ -1663,6 +1666,8 @@ PistonOscillationAcquisitionPanelProps
               lockedHeightMm: snapshotLockedHeightMm,
               sampleRateHz: snapshotObservationSeries.sampleRateHz,
               thermodynamicState: freeSession.instrumentState.thermodynamicState,
+              linearDampingNsPerM:
+                PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
             });
       } catch {
         // A physically invalid setup remains visible as a stopped trace, but

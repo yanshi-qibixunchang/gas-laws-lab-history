@@ -4,7 +4,7 @@ import {
   PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
   PISTON_OSCILLATION_CYLINDER_DIAMETER_TOLERANCE_M,
   PISTON_OSCILLATION_EQUIVALENT_DEAD_VOLUME_HEIGHT_M,
-  PISTON_OSCILLATION_INITIAL_CALIBRATION_PROFILE,
+  PISTON_OSCILLATION_LEGACY_CALIBRATION_PROFILE,
   PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG,
   PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_TOLERANCE_KG,
   PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3,
@@ -32,11 +32,13 @@ import {
   PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
 import {
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
-  PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
-  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND,
+  PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION,
   createPistonOscillationEquivalentLossSnapshot,
   isPistonOscillationEquivalentLossSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
@@ -49,31 +51,38 @@ assert.equal(
   'the guided physics equation must use the single versioned dry-air material value',
 );
 assert.equal(
-  PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION,
   'piston-oscillation-temporary-equivalent-linear-loss-v1',
 );
-assert.equal(PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M, 0.434);
-assert.equal(PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M, 1.1);
-const reviewCandidateLossSnapshot = createPistonOscillationEquivalentLossSnapshot(
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+assert.equal(PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M, 0.434);
+assert.equal(PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M, 1.1);
+const currentLossSnapshot = createPistonOscillationEquivalentLossSnapshot(
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
 );
 assert.equal(
-  reviewCandidateLossSnapshot.modelVersion,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+  currentLossSnapshot.modelVersion,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
 );
 assert.equal(
-  reviewCandidateLossSnapshot.kind,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND,
+  currentLossSnapshot.kind,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND,
 );
-assert.ok(isPistonOscillationEquivalentLossSnapshot(reviewCandidateLossSnapshot));
+assert.ok(isPistonOscillationEquivalentLossSnapshot(currentLossSnapshot));
 assert.ok(isPistonOscillationEquivalentLossSnapshot(
   createPistonOscillationEquivalentLossSnapshot(
-    PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+    PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
   ),
 ));
+assert.ok(isPistonOscillationEquivalentLossSnapshot({
+  schemaVersion: 1,
+  modelVersion: PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION,
+  kind: PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND,
+  linearCoefficientNsPerM: PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  provenance: 'captured',
+}));
 assert.throws(
   () => createPistonOscillationEquivalentLossSnapshot(0.8),
-  /versioned review or baseline/,
+  /current or a supported legacy value/,
 );
 assert.equal(PISTON_OSCILLATION_SETTLING_DURATION_S, 0.2);
 
@@ -435,9 +444,9 @@ const repeated = simulatePistonOscillationIdealAdiabaticRelease({
 }, DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG);
 assert.deepEqual(repeated.samples.slice(0, 25), trajectories[2]?.samples.slice(0, 25));
 
-assert.deepEqual(PISTON_OSCILLATION_INITIAL_CALIBRATION_PROFILE, {
+assert.deepEqual(PISTON_OSCILLATION_LEGACY_CALIBRATION_PROFILE, {
   equivalentDeadVolumeHeightM: PISTON_OSCILLATION_EQUIVALENT_DEAD_VOLUME_HEIGHT_M,
-  linearDampingNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  linearDampingNsPerM: PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 });
 assert.equal('cylinderDiameterM' in DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG, false);
 assert.equal(

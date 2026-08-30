@@ -1,12 +1,22 @@
 import assert from 'node:assert/strict';
 import {
+  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
   getPistonOscillationSettlingStateAtProgress,
+  type PistonOscillationPhysicsConfig,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
+} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 import {
   advancePistonOscillationPrescribedThermodynamicState,
   advancePistonOscillationVirtualHandThermodynamicState,
   simulatePistonOscillationThermalRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
+import {
+  createPistonOscillationDynamicSensorObservationSeries,
+  findPistonOscillationObservedFallingTriggerSample,
+} from '../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG,
   PISTON_OSCILLATION_VIRTUAL_HAND_MODEL_VERSION,
@@ -15,6 +25,12 @@ import {
 } from '../../src/domain/pistonOscillation/pistonOscillationVirtualHandModel.ts';
 
 const config = DEFAULT_PISTON_OSCILLATION_VIRTUAL_HAND_CONFIG;
+const currentPhysicsConfig = {
+  linearDampingNsPerM: PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+};
+const legacyPhysicsConfig = {
+  linearDampingNsPerM: PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
+};
 assert.equal(config.modelVersion, PISTON_OSCILLATION_VIRTUAL_HAND_MODEL_VERSION);
 assert.equal(PISTON_OSCILLATION_VIRTUAL_HAND_MODEL_VERSION, 'piston-oscillation-virtual-hand-v2');
 assert.equal(config.normalDragReferencePx, 200);
@@ -60,6 +76,7 @@ const advanceRamp = (
   endReferenceDragPx: number,
   durationS: number,
   initialState = getPistonOscillationSettlingStateAtProgress(lockedHeightMm, 1),
+  physicsConfigInput: Partial<PistonOscillationPhysicsConfig> = currentPhysicsConfig,
 ) => {
   const equilibriumHeightMm = getPistonOscillationSettlingStateAtProgress(
     lockedHeightMm,
@@ -80,7 +97,7 @@ const advanceRamp = (
         getPistonOscillationVirtualHandTargetDisplacementMm(referenceDragPx),
       elapsedS: 0.001,
       preventUpwardMotion: downwardCommandActive,
-    });
+    }, physicsConfigInput);
     if (downwardCommandActive) {
       assert.ok(
         state.pistonHeightM <= previousHeightM + 1e-12,
@@ -150,7 +167,7 @@ for (let intervalIndex = 0; intervalIndex < 250; intervalIndex += 1) {
     targetDownwardDisplacementMm:
       getPistonOscillationVirtualHandTargetDisplacementMm(200),
     elapsedS: 0.001,
-  });
+  }, currentPhysicsConfig);
 }
 assert.ok(
   heldState.pressurePa < rapidPressurePa,
@@ -159,6 +176,80 @@ assert.ok(
 assert.ok(
   heldState.pistonHeightM < rapidHeightM,
   'the piston should creep slightly downward while the compressed gas cools against a compliant hand',
+);
+
+assert.equal(
+  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.linearDampingNsPerM,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
+  'the historical/global press baseline must remain 0.434 N·s/m',
+);
+assert.equal(PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M, 1.1);
+const currentSlow = advanceRamp(80, 0, 200, 1);
+const legacySlow = advanceRamp(80, 0, 200, 1, undefined, legacyPhysicsConfig);
+assert.ok(
+  currentSlow.state.pressurePa / 1_000 >= 120
+    && currentSlow.state.pressurePa / 1_000 <= 121.5,
+  'the formal 1.1 press loss must retain the accepted 80 mm / 200 px pressure anchor',
+);
+assert.ok(
+  Math.abs(currentSlow.state.pistonHeightM - legacySlow.state.pistonHeightM) * 1_000
+    < 0.02,
+  'the slow 200 px press endpoint should remain within 0.02 mm of the prior hand feel',
+);
+const legacyRapid = advanceRamp(80, 0, 200, 0.1, undefined, legacyPhysicsConfig);
+assert.ok(
+  Math.abs(rapid.state.pistonHeightM - legacyRapid.state.pistonHeightM) * 1_000
+    < 0.15,
+  'the rapid 200 px press must not develop a visible displacement shortfall',
+);
+assert.ok(
+  Math.abs(rapid.state.pressurePa - legacyRapid.state.pressurePa) / 1_000 < 0.25,
+  'the rapid 200 px pressure endpoint must remain close to the prior response',
+);
+const summarizeRelease = (
+  pressed: ReturnType<typeof advanceRamp>,
+) => {
+  const displacementMm = pressed.state.pistonHeightM * 1_000
+    - pressed.equilibriumHeightMm;
+  const trajectory = simulatePistonOscillationThermalRelease({
+    lockedHeightMm: 80,
+    initialDisplacementMm: displacementMm,
+    initialVelocityMmPerS: pressed.state.velocityMPerS * 1_000,
+    referenceThermodynamicState: pressed.state,
+  }, { sensorSampleRateHz: 1_000 });
+  const observed = createPistonOscillationDynamicSensorObservationSeries(
+    trajectory.samples,
+    1_000,
+  );
+  const firstWindow = observed.samples.filter((sample) => sample.timeS <= 0.06);
+  return {
+    displacementMm,
+    triggerTimeS: findPistonOscillationObservedFallingTriggerSample(
+      observed,
+      120,
+    )?.timeS ?? null,
+    firstMaximumKpa: Math.max(...firstWindow.map(
+      (sample) => sample.absolutePressureKpa,
+    )),
+    firstMinimumKpa: Math.min(...firstWindow.map(
+      (sample) => sample.absolutePressureKpa,
+    )),
+  };
+};
+const currentRapidRelease = summarizeRelease(rapid);
+const legacyRapidRelease = summarizeRelease(legacyRapid);
+assert.equal(
+  currentRapidRelease.triggerTimeS,
+  legacyRapidRelease.triggerTimeS,
+  'the formal press loss must not move the 120 kPa trigger sample in the rapid comparison',
+);
+assert.ok(
+  Math.abs(currentRapidRelease.firstMaximumKpa - legacyRapidRelease.firstMaximumKpa)
+    < 0.25,
+);
+assert.ok(
+  Math.abs(currentRapidRelease.firstMinimumKpa - legacyRapidRelease.firstMinimumKpa)
+    < 0.25,
 );
 
 const settled80 = getPistonOscillationSettlingStateAtProgress(80, 1);

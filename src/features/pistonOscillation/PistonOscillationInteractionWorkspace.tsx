@@ -44,6 +44,9 @@ import {
   simulatePistonOscillationThermalRelease,
 } from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
 import {
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+} from '../../domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+import {
   PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_HOLD_MS,
   PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX,
   getPistonOscillationVirtualHandTargetDisplacementMm,
@@ -2295,6 +2298,9 @@ export const PistonOscillationInteractionWorkspace = ({
       elapsedS,
       preventUpwardMotion:
         observedAtMs <= virtualHandDownwardCommandUntilMsRef.current,
+    }, {
+      linearDampingNsPerM:
+        PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
     });
     const nextOffsetMm = nextState.pistonHeightM * 1_000
       - pistonEquilibriumHeightMmRef.current;

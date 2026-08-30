@@ -55,10 +55,13 @@ import {
   PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
 import {
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
-  PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND,
-  PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
-  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_KIND,
+  PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND,
+  PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 import {
   createPistonOscillationIncompletePressOperationEvidence,
@@ -125,22 +128,34 @@ assert.equal(
 );
 assert.equal(
   records[0].physicsSnapshot.equivalentLoss.modelVersion,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
 );
 
-const baselineCapturedRecord = structuredClone(records[0]);
-baselineCapturedRecord.physicsSnapshot.config.linearDampingNsPerM =
-  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M;
-baselineCapturedRecord.physicsSnapshot.equivalentLoss = {
+const legacyBaselineCapturedRecord = structuredClone(records[0]);
+legacyBaselineCapturedRecord.physicsSnapshot.config.linearDampingNsPerM =
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M;
+legacyBaselineCapturedRecord.physicsSnapshot.equivalentLoss = {
   schemaVersion: 1,
-  modelVersion: PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
-  kind: PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND,
-  linearCoefficientNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  modelVersion: PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION,
+  kind: PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_KIND,
+  linearCoefficientNsPerM: PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
   provenance: 'captured',
 };
 assert.ok(
-  normalizePistonOscillationRawMeasurementRecord(baselineCapturedRecord),
+  normalizePistonOscillationRawMeasurementRecord(legacyBaselineCapturedRecord),
   'records captured with the prior 0.434 loss snapshot must remain readable',
+);
+const legacyReviewCapturedRecord = structuredClone(records[0]);
+legacyReviewCapturedRecord.physicsSnapshot.equivalentLoss = {
+  schemaVersion: 1,
+  modelVersion: PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION,
+  kind: PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND,
+  linearCoefficientNsPerM: PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  provenance: 'captured',
+};
+assert.ok(
+  normalizePistonOscillationRawMeasurementRecord(legacyReviewCapturedRecord),
+  'records captured with the pre-formal 1.1 review snapshot must remain readable',
 );
 
 const mismatchedAirMaterialRecords = structuredClone(records);
@@ -884,6 +899,23 @@ const incompletePhysicsSnapshot = createPistonOscillationIncompletePhysicsSnapsh
   sampleRateHz: SAMPLE_RATE_HZ,
   thermodynamicState: incompleteThermodynamicState,
 });
+assert.equal(
+  incompletePhysicsSnapshot.config.linearDampingNsPerM,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
+  'compatibility callers without an explicit loss must retain the historical default',
+);
+const currentIncompletePhysicsSnapshot = createPistonOscillationIncompletePhysicsSnapshot({
+  lockedHeightMm: 80,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  thermodynamicState: incompleteThermodynamicState,
+  linearDampingNsPerM:
+    PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+});
+assert.equal(
+  currentIncompletePhysicsSnapshot.config.linearDampingNsPerM,
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  'new incomplete press captures must record the formal current loss',
+);
 const incompletePressOperationEvidence =
   createPistonOscillationIncompletePressOperationEvidence({
     trace: [],

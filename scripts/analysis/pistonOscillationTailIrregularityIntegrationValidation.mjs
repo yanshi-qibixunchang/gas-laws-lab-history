@@ -14,7 +14,7 @@ import {
   simulatePistonOscillationThermalRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
 import {
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 import {
   PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
@@ -240,7 +240,7 @@ const createProductReleaseTrajectory = (press) => (
   }, {
     ...press.physicsConfig,
     linearDampingNsPerM:
-      PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+      PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
     trajectoryDurationS: TRAJECTORY_DURATION_S,
   })
 );

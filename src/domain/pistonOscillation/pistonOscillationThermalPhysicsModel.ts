@@ -23,7 +23,7 @@ import {
   type PistonOscillationVirtualHandConfig,
 } from './pistonOscillationVirtualHandModel.ts';
 import {
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
 } from './pistonOscillationEquivalentLossModel.ts';
 
 export const PISTON_OSCILLATION_THERMAL_MODEL_CONFIG_VERSION =
@@ -759,12 +759,12 @@ export const simulatePistonOscillationThermalRelease = (
   physicsConfigInput: Partial<PistonOscillationPhysicsConfig> = {},
   thermalConfigInput?: Partial<PistonOscillationThermalModelConfig>,
 ): PistonOscillationTrajectory => {
-  // Review-only candidate: apply the jointly identified residual linear loss
-  // to free release without changing the accepted virtual-hand press feel.
+  // New experiments use one formally accepted equivalent linear loss through
+  // both the virtual-hand press and the subsequent free release.
   const physicsConfig = normalizePistonOscillationPhysicsConfig({
     ...physicsConfigInput,
     linearDampingNsPerM: physicsConfigInput.linearDampingNsPerM
-      ?? PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+      ?? PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
   });
   const inheritedThermalConfig = createThermalConfigFromState(
     input.referenceThermodynamicState,

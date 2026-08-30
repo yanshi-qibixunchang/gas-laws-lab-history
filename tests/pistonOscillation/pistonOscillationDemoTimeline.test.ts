@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import {
   PISTON_OSCILLATION_SETTLING_DURATION_S,
   createPistonOscillationLoadedEquilibriumState,
@@ -21,6 +22,16 @@ import {
   getPistonOscillationDemoTrajectory,
   type PistonOscillationDemoStepKind,
 } from '../../src/features/pistonOscillation/pistonOscillationDemoTimeline.ts';
+
+const demoTimelineSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/pistonOscillationDemoTimeline.ts', import.meta.url),
+  'utf8',
+);
+assert.match(
+  demoTimelineSource,
+  /advancePistonOscillationVirtualHandThermodynamicState\(\{[\s\S]*preventUpwardMotion:[\s\S]*\}, \{[\s\S]*linearDampingNsPerM:[\s\S]*PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M/,
+  'new demo runs must use the same formal 1.1 loss during virtual-hand press',
+);
 
 const frameInside = (startsAtMs: number, endsAtMs: number, fraction = 0.5) => (
   getPistonOscillationDemoFrame(startsAtMs + (endsAtMs - startsAtMs) * fraction)

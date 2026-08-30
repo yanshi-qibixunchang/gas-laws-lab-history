@@ -19,9 +19,9 @@ import {
   createPistonOscillationPhysicsSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
-  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 
 const loadedState = getPistonOscillationSettlingStateAtProgress(80, 1);
@@ -140,8 +140,8 @@ assert.equal(release.samples.length, 6_001);
 assert.equal(release.initialVelocityMPerS, -0.04);
 assert.equal(
   release.config.linearDampingNsPerM,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
-  'free release must use the review candidate without changing press-stage defaults',
+  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+  'free release must use the same formal loss as the current press stage',
 );
 assert.ok(release.thermalModel);
 assert.equal(
@@ -157,7 +157,7 @@ assert.ok(persistedPhysicsSnapshot.initialThermodynamicState?.thermal.enabled);
 assert.ok(persistedPhysicsSnapshot.thermalModel?.enabled);
 assert.equal(
   persistedPhysicsSnapshot.equivalentLoss.modelVersion,
-  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
 );
 assert.ok(
   Math.abs((release.samples[0]?.pressurePa ?? 0) - fastPressedState.pressurePa) < 1e-7,
@@ -191,13 +191,13 @@ assert.ok(
   'the candidate thermal trajectory must still settle within the accepted visible window',
 );
 
-const baselineRelease = simulatePistonOscillationThermalRelease({
+const legacyLossRelease = simulatePistonOscillationThermalRelease({
   lockedHeightMm: 80,
   initialDisplacementMm,
   initialVelocityMmPerS: -40,
   referenceThermodynamicState: fastPressedState,
 }, {
-  linearDampingNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  linearDampingNsPerM: PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 });
 const displacementRms = (samples: typeof release.samples) => Math.sqrt(
   samples.slice(250, 351).reduce(
@@ -206,8 +206,8 @@ const displacementRms = (samples: typeof release.samples) => Math.sqrt(
   ) / 101,
 );
 assert.ok(
-  displacementRms(release.samples) < displacementRms(baselineRelease.samples),
-  'the review candidate must reduce the late physical envelope relative to the 0.434 baseline',
+  displacementRms(release.samples) < displacementRms(legacyLossRelease.samples),
+  'the current loss must reduce the late physical envelope relative to the legacy 0.434 value',
 );
 
 const reconstructed = createPistonOscillationThermodynamicStateFromTrajectorySample(
