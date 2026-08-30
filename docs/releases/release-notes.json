@@ -3,6 +3,174 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.4.0",
+      "date": "2026-08-31",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.4.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.0/heat-capacity-lab-setup-6.4.0.exe"
+      },
+      "summary": {
+        "zh-CN": "6.4.0 完成活塞振动法自由模式的过程回顾、评分、参数调节和 PDF 报告闭环，并让环境压强、触发线、采集、处理、回顾和导出共享同一套可保存参数快照。",
+        "zh-TW": "6.4.0 完成活塞振動法自由模式的過程回顧、評分、參數調節和 PDF 報告閉環，並讓環境壓力、觸發線、採集、處理、回顧和匯出共用同一套可儲存參數快照。",
+        "en": "Version 6.4.0 completes Piston-Oscillation Free-mode process review, scoring, parameter controls, and PDF reporting while keeping ambient pressure, triggering, acquisition, processing, review, and export on one saved experiment profile."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "过程回顾、评分与报告",
+            "zh-TW": "過程回顧、評分與報告",
+            "en": "Process review, scoring, and reporting"
+          },
+          "items": [
+            {
+              "scope": "piston-process-review-scoring",
+              "importance": "high",
+              "title": {
+                "zh-CN": "逐次过程回顾与证据评分",
+                "zh-TW": "逐次過程回顧與證據評分",
+                "en": "Per-experiment review and evidence-based scoring"
+              },
+              "body": {
+                "zh-CN": "自由模式新增过程回顾与评分页面。切换实验次数会同步更新仪器操作时间条、正式曲线、周期选区、关键证据和可展开评分明细；普通操作与重要节点沿用既有热容比实验的颜色、节点和悬浮信息规范。",
+                "zh-TW": "自由模式新增過程回顧與評分頁面。切換實驗次數會同步更新儀器操作時間軸、正式曲線、週期選區、關鍵證據和可展開評分明細；普通操作與重要節點沿用既有熱容量比實驗的顏色、節點和懸浮資訊規範。",
+                "en": "Free Mode adds a Process Review and Scoring page. Switching the experiment number updates its operation timeline, formal trace, selected period, evidence, and expandable score details together, reusing the established heat-capacity colors, milestones, and tooltip treatment."
+              }
+            },
+            {
+              "scope": "piston-report-export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "活塞振动法 PDF 实验报告",
+                "zh-TW": "活塞振動法 PDF 實驗報告",
+                "en": "Piston-oscillation PDF experiment report"
+              },
+              "body": {
+                "zh-CN": "完成自由模式报告导出，沿用绝热膨胀法的报告结构，精简呈现实验文件、逐次记录、周期、拟合、最终计算、过程证据和评分摘要，不增加独立的实验原理或公式章节。",
+                "zh-TW": "完成自由模式報告匯出，沿用絕熱膨脹法的報告結構，精簡呈現實驗檔案、逐次記錄、週期、擬合、最終計算、過程證據和評分摘要，不增加獨立的實驗原理或公式章節。",
+                "en": "Completed Free experiments can export a compact PDF based on the established adiabatic-expansion report structure, covering the file, recorded measurements, periods, fit, final calculation, process evidence, and scores without a separate theory or formula chapter."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "参数与实验链路",
+            "zh-TW": "參數與實驗鏈路",
+            "en": "Parameters and experiment pipeline"
+          },
+          "items": [
+            {
+              "scope": "piston-free-parameter-sidebar",
+              "importance": "high",
+              "title": {
+                "zh-CN": "自由模式参数栏与高级设置",
+                "zh-TW": "自由模式參數欄與進階設定",
+                "en": "Free-mode parameter sidebar and advanced settings"
+              },
+              "body": {
+                "zh-CN": "自由模式右侧栏开放环境压强、环境温度、采样率、下降触发线和键鼠可视化；高级窗口开放已建模的热过程、传感器、双手松手差和尾段观测参数。高级编辑需确认风险，只读装置常量不再暴露。",
+                "zh-TW": "自由模式右側欄開放環境壓力、環境溫度、取樣率、下降觸發線和按鍵視覺化；進階視窗開放已建模的熱過程、感測器、雙手放手差和尾段觀測參數。進階編輯需確認風險，唯讀裝置常數不再顯示。",
+                "en": "The Free-mode sidebar exposes ambient pressure and temperature, sampling, the falling trigger, and input visualization. A confirmed advanced dialog contains the modeled thermal, sensor, release-asymmetry, and tail-observation parameters, while read-only apparatus constants stay hidden."
+              }
+            },
+            {
+              "scope": "piston-dynamic-trigger-window",
+              "importance": "high",
+              "title": {
+                "zh-CN": "监测线随环境压强自适应",
+                "zh-TW": "監測線隨環境壓力自適應",
+                "en": "Ambient-pressure-adaptive trigger window"
+              },
+              "body": {
+                "zh-CN": "下降触发线的允许范围按环境压强保持相同比例缩放，标准环境仍使用已审核的 96–130 kPa 窗口。低压和高压设置不再被固定绝对范围阻止，同时仍限制在传感器量程内。",
+                "zh-TW": "下降觸發線的允許範圍依環境壓力維持相同比例縮放，標準環境仍使用已審核的 96–130 kPa 視窗。低壓和高壓設定不再受固定絕對範圍阻擋，同時仍限制在感測器量程內。",
+                "en": "The allowed falling-trigger range now scales at a constant ratio to ambient pressure while retaining the reviewed 96–130 kPa window at standard conditions. Low- and high-pressure profiles remain reachable within sensor limits."
+              }
+            },
+            {
+              "scope": "piston-parameter-pipeline",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "参数贯通采集、处理、回顾和导出",
+                "zh-TW": "參數貫通採集、處理、回顧和匯出",
+                "en": "One parameter profile across acquisition, review, and export"
+              },
+              "body": {
+                "zh-CN": "采样率和触发线会与实时数据区域双向同步；环境与高级参数进入同一实验快照，并贯通物理过程、正式曲线、数据处理、过程回顾、评分和报告。首条正式曲线保存后整套参数随文件固化。",
+                "zh-TW": "取樣率和觸發線會與即時資料區域雙向同步；環境與進階參數進入同一實驗快照，並貫通物理過程、正式曲線、資料處理、過程回顧、評分和報告。首條正式曲線儲存後整套參數隨檔案固定。",
+                "en": "Sampling and the trigger remain synchronized with Realtime Data. Basic and advanced values share one experiment snapshot across physics, formal traces, processing, review, scoring, and reports, and the complete profile freezes after the first formal curve is saved."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "采集与界面修复",
+            "zh-TW": "採集與介面修正",
+            "en": "Acquisition and interface fixes"
+          },
+          "items": [
+            {
+              "scope": "piston-review-acquisition-stability",
+              "importance": "high",
+              "title": {
+                "zh-CN": "过程回顾接入后仍可暂停与保存",
+                "zh-TW": "接入過程回顧後仍可暫停與儲存",
+                "en": "Acquisition remains pausable and saveable with review enabled"
+              },
+              "body": {
+                "zh-CN": "过程回顾与评分接入工作台后，正式曲线的暂停、保存、监测点、监测线和未触发后的再次按压仍按原流程工作；评分明细展开和表格布局也完成可用性修复。",
+                "zh-TW": "過程回顧與評分接入工作臺後，正式曲線的暫停、儲存、監測點、監測線和未觸發後的再次按壓仍依原流程運作；評分明細展開和表格版面也完成可用性修正。",
+                "en": "After process review and scoring were integrated, formal traces remain pausable and saveable, monitoring and missed-trigger retries keep working, and expandable scoring rows and table layout remain usable."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性与更新",
+            "zh-TW": "相容性與更新",
+            "en": "Compatibility and updating"
+          },
+          "items": [
+            {
+              "scope": "piston-parameter-snapshot-compatibility",
+              "importance": "high",
+              "title": {
+                "zh-CN": "旧实验继续使用原参数快照",
+                "zh-TW": "舊實驗繼續使用原參數快照",
+                "en": "Historical experiments retain their captured parameter snapshots"
+              },
+              "body": {
+                "zh-CN": "新参数栏不会重新解释旧实验。已保存曲线、旧损耗、旧传感器配置、处理结果和实验证据继续按文件中的版本化快照恢复。",
+                "zh-TW": "新參數欄不會重新解釋舊實驗。已儲存曲線、舊損耗、舊感測器設定、處理結果和實驗證據繼續依檔案中的版本化快照還原。",
+                "en": "The new sidebar does not reinterpret historical experiments. Saved traces, older loss and sensor profiles, processing results, and evidence continue to restore from the versioned snapshot stored in each file."
+              }
+            },
+            {
+              "scope": "desktop-update-v6-4-0",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "支持 6.3.1 原位更新",
+                "zh-TW": "支援 6.3.1 原地更新",
+                "en": "In-place update from 6.3.1"
+              },
+              "body": {
+                "zh-CN": "继续沿用相同应用 ID、安装身份、公开更新仓库和用户资料目录，可从 6.3.1 直接覆盖更新。",
+                "zh-TW": "繼續沿用相同應用程式 ID、安裝身分、公開更新倉庫和使用者資料目錄，可從 6.3.1 直接覆蓋更新。",
+                "en": "The application ID, installer identity, public update repository, and user-data directory remain unchanged for an in-place update from 6.3.1."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.3.1",
       "date": "2026-08-30",
       "channel": "stable",

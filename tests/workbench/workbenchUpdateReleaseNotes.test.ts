@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.3.1', 'next desktop update release should bump package version to 6.3.1');
-assert.match(readme, /latest published desktop release is `v6\.3\.1`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.3\.1`/, 'Simplified Chinese README should name the current public release');
-assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.3\.1`/, 'Traditional Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.3\.1。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.4.0', 'next desktop update release should bump package version to 6.4.0');
+assert.match(readme, /latest published desktop release is `v6\.4\.0`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.4\.0`/, 'Simplified Chinese README should name the current public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.4\.0`/, 'Traditional Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.4\.0。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -99,28 +99,52 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-primary-cycle-reacquisition' && item.importance === 'high'),
-  '6.3.1 should include the high-importance primary-cycle reacquisition update',
+  currentItems.some((item) => item.scope === 'piston-process-review-scoring' && item.importance === 'high'),
+  '6.4.0 should include the high-importance process-review and scoring update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-free-unified-validation' && item.importance === 'high'),
-  '6.3.1 should include the high-importance Free unified-validation update',
+  currentItems.some((item) => item.scope === 'piston-report-export' && item.importance === 'high'),
+  '6.4.0 should include the high-importance piston report export',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-unified-equivalent-loss' && item.importance === 'high'),
-  '6.3.1 should include the high-importance unified equivalent-loss update',
+  currentItems.some((item) => item.scope === 'piston-free-parameter-sidebar' && item.importance === 'high'),
+  '6.4.0 should include the high-importance Free parameter sidebar',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-acquisition-display-pacing' && item.importance === 'high'),
-  '6.3.1 should include the high-importance acquisition display pacing update',
+  currentItems.some((item) => item.scope === 'piston-dynamic-trigger-window' && item.importance === 'high'),
+  '6.4.0 should include the high-importance ambient-pressure-adaptive trigger window',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-missed-trigger-retry' && item.importance === 'high'),
-  '6.3.1 should include the high-importance missed-trigger retry fix',
+  currentItems.some((item) => item.scope === 'piston-review-acquisition-stability' && item.importance === 'high'),
+  '6.4.0 should retain acquisition stability after process-review integration',
+);
+
+const qualityRelease = findRelease('6.3.1');
+assert.ok(qualityRelease, 'release notes should retain the 6.3.1 data-quality release');
+const qualityItems = qualityRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+assert.ok(
+  qualityItems.some((item) => item.scope === 'piston-primary-cycle-reacquisition' && item.importance === 'high'),
+  '6.3.1 should retain the high-importance primary-cycle reacquisition update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-tail-observation' && item.importance === 'medium'),
-  '6.3.1 should include the tail-observation update and its documented scope',
+  qualityItems.some((item) => item.scope === 'piston-free-unified-validation' && item.importance === 'high'),
+  '6.3.1 should retain the high-importance Free unified-validation update',
+);
+assert.ok(
+  qualityItems.some((item) => item.scope === 'piston-unified-equivalent-loss' && item.importance === 'high'),
+  '6.3.1 should retain the high-importance unified equivalent-loss update',
+);
+assert.ok(
+  qualityItems.some((item) => item.scope === 'piston-acquisition-display-pacing' && item.importance === 'high'),
+  '6.3.1 should retain the high-importance acquisition display pacing update',
+);
+assert.ok(
+  qualityItems.some((item) => item.scope === 'piston-missed-trigger-retry' && item.importance === 'high'),
+  '6.3.1 should retain the high-importance missed-trigger retry fix',
+);
+assert.ok(
+  qualityItems.some((item) => item.scope === 'piston-tail-observation' && item.importance === 'medium'),
+  '6.3.1 should retain the tail-observation update and its documented scope',
 );
 
 const acquisitionRelease = findRelease('6.3.0');

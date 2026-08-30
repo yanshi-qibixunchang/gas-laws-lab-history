@@ -36,6 +36,10 @@ output-*.jpeg
 output-*.webm
 output-*.mp4
 docs/research-report/source-materials/videos/**/*.mp4
+docs/research-report/working/
+docs/research-report/figures/candidates/
+docs/research-report/source-materials/
+docs/research-report/qa/
 tmp/
 .tmp*/
 install-test/

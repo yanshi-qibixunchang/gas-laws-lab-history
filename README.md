@@ -4,7 +4,7 @@
 
 Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v6.3.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v6.4.0`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -23,6 +23,10 @@ The latest published desktop release is `v6.3.1`. The `main` branch may contain 
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
+- `v6.4.0` adds a complete Piston-Oscillation Free-mode review and scoring workspace. Each experiment attempt has its own instrument-operation timeline, saved-curve evidence, selection result, expandable scoring evidence, and consistent per-attempt switching; user-facing text now uses experiment numbers rather than the internal “Run” name.
+- `v6.4.0` adds local PDF report export for completed piston experiments. The report follows the established adiabatic-expansion layout and includes compact file information, recorded measurements, calculation results, process evidence, and score summaries without adding a separate theory chapter.
+- `v6.4.0` adds a Free-mode parameter sidebar aligned with the existing heat-capacity controls. Ambient pressure and temperature, sampling, trigger level, and input visualization are available directly; reviewed thermal, sensor, release-asymmetry, and tail-observation parameters remain behind an acknowledged advanced-settings dialog and freeze after the first formal curve is saved.
+- `v6.4.0` makes the falling-trigger range follow the configured ambient pressure while preserving the reviewed standard-pressure window. Parameter edits now propagate through the saved experiment profile, physical process, acquisition, processing, review, and export paths without reinterpreting historical files.
 - `v6.3.1` completes the piston Free-mode data-quality loop. It separates an unusable whole recording from a merely narrow selection, reacquires only the affected run, preserves excluded attempts as evidence, and validates `t1 / t2 / T` plus final calculations in editable batches.
 - `v6.3.1` adds seeded late-trace irregularities and a short-lived release-asymmetry loss, while new experiments use one versioned `1.1 N·s/m` equivalent loss for pressing and free oscillation. Historical `0.434 N·s/m` and other supported snapshots remain unchanged.
 - `v6.3.1` gives the operator more time to pause through a `0.300 s` presentation delay and `0.55x` pacing over the first `0.400 s` of physical trace without rescaling samples. It also restores live monitoring after a missed trigger and lets long unified-validation button labels size correctly.
@@ -55,15 +59,11 @@ The latest published desktop release is `v6.3.1`. The `main` branch may contain 
 
 Generated dependencies and outputs such as `node_modules/`, `dist/`, `release/`, `output/`, and `tmp/` are intentionally ignored.
 
-## Repository Access And Codex Collaboration
+## Source History And Release Channels
 
-The source repository is maintained privately, while installers and update metadata are published separately through the public release repository. Authorized teammates can work with the source through explicit GitHub access:
-
-1. Invite each teammate's GitHub account as a collaborator on the private repository.
-2. The teammate accepts the GitHub invitation.
-3. The teammate either clones the repository and opens the local folder in Codex, or authorizes the repository when connecting GitHub to Codex/ChatGPT.
-
-A personal-account private repository gives collaborators write access. If the team needs read-only roles, transfer the source repository to a GitHub organization and grant an organization `Read` role instead.
+- Reviewed, anonymized source history is published at [gas-laws-lab-history](https://github.com/yanshi-qibixunchang/gas-laws-lab-history). Its release tags preserve the app-source evolution needed to inspect published versions while private research-report working material remains outside that mirror.
+- Installers, `latest.yml`, blockmaps, changelogs, and user-facing release notes are published separately at [gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release).
+- Active collaboration and unreleased work remain in a private development repository. Repository access does not grant redistribution rights, and the public source-history mirror is not the desktop update channel.
 
 ## Development
 
