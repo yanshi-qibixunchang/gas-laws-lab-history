@@ -212,6 +212,11 @@ assert.match(
 );
 assert.match(
   panelSource,
+  /const nextTriggerSeconds = nextTriggerSample\?\.timeS \?\? null;[\s\S]*if \(freeSelected && nextTriggerSeconds === null\) \{[\s\S]*freeReleaseSegmentsRef\.current = \[\];[\s\S]*setCycleStartMs\(null\);[\s\S]*setActiveTrajectory\(null\);[\s\S]*setActiveObservationSeries\(null\);[\s\S]*setFreeRunPressureGraphDomain\(null\);[\s\S]*resetDisplayClock\(performance\.now\(\)\);[\s\S]*return;/,
+  'a Free release that never crosses the trigger must discard its projection and restore the live monitor for the next press',
+);
+assert.match(
+  panelSource,
   /const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries\([\s\S]*const expectedPeriodS = 1[\s\S]*getPistonOscillationSmallSignalFrequencyFromLockedHeightHz\([\s\S]*const nextObservationSeries = applyPistonOscillationTailIrregularityObservation\(\{[\s\S]*observationSeries: baseObservationSeries,[\s\S]*expectedPeriodS,[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries/,
   'formal acquisition must apply the seeded tail irregularity observation before display, trigger slicing, and persistence',
 );

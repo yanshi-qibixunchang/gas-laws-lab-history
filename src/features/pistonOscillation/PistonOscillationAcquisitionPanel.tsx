@@ -886,6 +886,28 @@ PistonOscillationAcquisitionPanelProps
       configuredTriggerKpa,
     );
     const nextTriggerSeconds = nextTriggerSample?.timeS ?? null;
+    if (freeSelected && nextTriggerSeconds === null) {
+      // A below-threshold release is only a monitoring attempt. Discard its
+      // projected trajectory so the armed indicator immediately returns to
+      // the live sensor channel for the next press.
+      freeReleaseSegmentsRef.current = [];
+      freePressStartedAtMsRef.current = [];
+      freeLiveObservationsRef.current = [];
+      freeAttemptIdRef.current = null;
+      setFreeRecordingPath('falling-trigger');
+      setImmediateReleaseOffsetS(null);
+      setCycleStartMs(null);
+      setTriggerSeconds(null);
+      setTriggerSourceSampleIndex(null);
+      setActiveTrajectory(null);
+      setActiveObservationSeries(null);
+      setActivePressOperationEvidence(null);
+      setStopElapsedSeconds(null);
+      setFreeRunPressureGraphDomain(null);
+      setFreeRecordingTimelineRevision((revision) => revision + 1);
+      resetDisplayClock(performance.now());
+      return;
+    }
     if (guideActive) {
       const releasePressureKpa = nextObservationSeries.samples[0]?.absolutePressureKpa
         ?? Number.NEGATIVE_INFINITY;
@@ -959,6 +981,7 @@ PistonOscillationAcquisitionPanelProps
     publishDisplayClock,
     rebaseDisplayClock,
     releaseEvent,
+    resetDisplayClock,
     triggerSeconds,
     activeTrajectory,
   ]);
