@@ -25,6 +25,10 @@ const acquisitionSource = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationAcquisitionPanel.tsx', import.meta.url),
   'utf8',
 );
+const parameterPanelSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationParameterPanel.tsx', import.meta.url),
+  'utf8',
+);
 const acquisitionBridgeSource = readFileSync(
   new URL('../../src/features/pistonOscillation/pistonOscillationGuideAcquisitionBridge.ts', import.meta.url),
   'utf8',
@@ -121,10 +125,20 @@ const sidebarRailSource = sourceSlice(
   'const collapseHeatCapacityFreeParameterSidebarForExperimentAction',
 );
 assert.match(sidebarRailSource, /setParametersCollapsed\(false\)/);
-assert.doesNotMatch(
+assert.match(
   sidebarRailSource,
-  /activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*showPistonOscillationDevelopmentNotice\('rightSidebar'\);[\s\S]*return;/,
-  'the Piston right rail must remain manually reopenable after a mode collapses it',
+  /activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*!activePistonOscillationParameterSidebarAvailable[\s\S]*getPistonOscillationParameterSidebarFreeOnlyMessage[\s\S]*return;/,
+  'the Piston right rail must reject Demo and Guide while remaining reopenable in Free Mode',
+);
+assert.match(
+  workbenchSource,
+  /const activePistonOscillationParameterSidebarAvailable =[\s\S]*activePistonOscillationParameterMode === 'free'/,
+  'only Piston Free Mode should make its parameter sidebar available',
+);
+assert.match(
+  workbenchSource,
+  /if \(!activePistonOscillationParameterSidebarAvailable\) \{\s*setParametersCollapsed\(true\);\s*\}/,
+  'leaving Piston Free Mode should collapse the parameter sidebar immediately',
 );
 assert.match(workbenchSource, /const effectiveParametersCollapsed = parametersCollapsed;/);
 assert.doesNotMatch(
@@ -144,8 +158,38 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /!isWorkbenchEmpty \? \([\s\S]*<aside[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*pistonOscillationCopy\.unavailable\.rightSidebar/,
-  'Piston should use the same reopenable right sidebar shell while its contents remain read-only',
+  /!isWorkbenchEmpty \? \([\s\S]*<aside[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*<PistonOscillationParameterPanel/,
+  'Piston should use the same reopenable right sidebar shell with its dedicated parameter panel',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]{0,240}pistonOscillationCopy\.unavailable\.rightSidebar/,
+  'the implemented Piston parameter sidebar must not retain the old unavailable placeholder',
+);
+assert.match(
+  workbenchSource,
+  /renderParameterHelpButton=\{\(parameterId, modelEffect\) => \([\s\S]*renderHeatCapacityParameterHelpButton/,
+  'Piston parameters should reuse the established Heat Capacity help-button and popover implementation',
+);
+assert.match(
+  parameterPanelSource,
+  /<PromptDialogShell[\s\S]*variant="task"[\s\S]*studio-heat-advanced-window[\s\S]*<WorkbenchHeatCapacityAdvancedRiskDialog[\s\S]*open=\{riskPending\}/,
+  'Piston advanced settings should reuse the established task window and first-open risk confirmation layer',
+);
+assert.match(
+  parameterPanelSource,
+  /document\.querySelector<HTMLElement>\('\.studio-workbench'\) \?\? document\.body[\s\S]*createPortal\([\s\S]*dialogPortalHost/,
+  'Piston parameter dialogs should mount at the Workbench root so the sidebar cannot clip the established full-window UI',
+);
+assert.match(
+  acquisitionSource,
+  /value=\{demoFrame\?\.sampleRateInput\s*\?\?\s*\(guideSelected \? guideSession\.parameterDrafts\.sampleRateHz : sampleRateDraft\)\}/,
+  'the Demo and Guide sample-rate field must remain sourced from its own teaching workflow',
+);
+assert.match(
+  acquisitionSource,
+  /value=\{demoFrame\?\.triggerInput\s*\?\?\s*\(guideSelected \? guideSession\.parameterDrafts\.triggerThresholdKpa : triggerDraft\)\}/,
+  'the Demo and Guide trigger field must remain sourced from its own teaching workflow',
 );
 
 const windowMenuSource = sourceSlice(
@@ -169,13 +213,13 @@ assert.doesNotMatch(
 
 assert.match(
   workbenchSource,
-  /<PistonOscillationInstrumentScene[\s\S]*?key=\{activeFile\.id\}[\s\S]*?language=\{settingsLanguagePreference\}[\s\S]*?sceneTheme=\{resolvedWorkbenchTheme\}[\s\S]*?cameraPreset=\{activeFile\.previewCameraPreset\}[\s\S]*?guideSessionRevision=\{[\s\S]*?activeFile\.pistonOscillationGuideSession\.startedAtMs \?\? 0[\s\S]*?\}[\s\S]*?overlayTopRight=\{pistonOscillationGuideStepPanel\}[\s\S]*?onReleaseEvent=\{\(event\) =>/,
-  'the piston preview must keep one stable scene, reset new Guide sessions explicitly, inject Guide into its top-right slot, and publish two-hand releases',
+  /<PistonOscillationInstrumentScene[\s\S]*?activePistonOscillationParameterSignature[\s\S]*?language=\{settingsLanguagePreference\}[\s\S]*?physicsConfig=\{activePistonOscillationPhysicsConfig\}[\s\S]*?thermalConfig=\{activePistonOscillationThermalConfig\}[\s\S]*?guideSessionRevision=\{[\s\S]*?activeFile\.pistonOscillationGuideSession\.startedAtMs \?\? 0[\s\S]*?\}[\s\S]*?overlayTopRight=\{pistonOscillationGuideStepPanel\}[\s\S]*?onReleaseEvent=\{\(event\) =>/,
+  'the piston preview must apply the active parameter profile, reset Guide sessions explicitly, inject Guide into its top-right slot, and publish two-hand releases',
 );
 assert.match(
   workbenchSource,
-  /const pistonOscillationLivePressureChannel = useMemo\([\s\S]*createPistonOscillationLivePressureChannel\(\)[\s\S]*\[activeFile\.id\][\s\S]*onLivePhysicalStateChange=\{[\s\S]*pistonOscillationLivePressureChannel\.publishPhysicalState[\s\S]*<PistonOscillationAcquisitionPanel[\s\S]*livePressureChannel=\{pistonOscillationLivePressureChannel\}/,
-  'one file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples',
+  /const pistonOscillationLivePressureChannel = useMemo\([\s\S]*createPistonOscillationLivePressureChannel\([\s\S]*activePistonOscillationSensorConfig[\s\S]*\[activeFile\.id, activePistonOscillationSensorConfig\][\s\S]*onLivePhysicalStateChange=\{[\s\S]*pistonOscillationLivePressureChannel\.publishPhysicalState[\s\S]*<PistonOscillationAcquisitionPanel[\s\S]*livePressureChannel=\{pistonOscillationLivePressureChannel\}/,
+  'one parameterized file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples',
 );
 assert.match(
   workbenchSource,

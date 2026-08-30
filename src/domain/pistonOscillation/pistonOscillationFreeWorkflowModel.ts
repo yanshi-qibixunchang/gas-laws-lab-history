@@ -37,8 +37,19 @@ import {
 import {
   createLegacyPistonOscillationLooseConnectedThermodynamicState,
 } from './pistonOscillationLegacyCompatibility.ts';
+import {
+  createDefaultPistonOscillationFreeParameterDraft,
+  createPistonOscillationFreeParameterDraftFromMeasurement,
+  createPistonOscillationFreeParameterSnapshot,
+  doesPistonOscillationMeasurementMatchFreeParameters,
+  getPistonOscillationFreePhysicsConfig,
+  normalizePistonOscillationFreeParameterDraft,
+  normalizePistonOscillationFreeParameterSnapshot,
+  type PistonOscillationFreeParameterDraft,
+  type PistonOscillationFreeParameterSnapshot,
+} from './pistonOscillationFreeParameterConfig.ts';
 
-export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 6 as const;
+export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 8 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 2 as const;
@@ -137,6 +148,8 @@ export type PistonOscillationFreeAuditEventType =
   | 'session-reset'
   | 'plan-updated'
   | 'power-changed'
+  | 'parameter-changed'
+  | 'parameters-restored'
   | 'acquisition-setting-changed'
   | 'operation-observed'
   | 'acquisition-excluded'
@@ -165,6 +178,9 @@ export interface PistonOscillationFreeSession {
   experimentPlan: PistonOscillationFreeExperimentPlan | null;
   measurementIndex: number;
   powerOn: boolean;
+  advancedParametersRiskAcknowledged: boolean;
+  parameterDraft: PistonOscillationFreeParameterDraft;
+  frozenParameterSnapshot: PistonOscillationFreeParameterSnapshot | null;
   sampleRateHz: number | null;
   triggerThresholdKpa: number | null;
   acquisitionCandidate: PistonOscillationRawMeasurementRecord | null;
@@ -202,6 +218,12 @@ export type PistonOscillationFreeEvent =
       field: 'sampleRateHz' | 'triggerThresholdKpa';
       value: number;
     } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'setParameterDraft';
+      parameterDraft: PistonOscillationFreeParameterDraft;
+    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'restoreDefaultParameters' } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'acknowledgeAdvancedParametersRisk' } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'observeOperation';
       operation: PistonOscillationFreeObservedOperation;
@@ -279,6 +301,8 @@ const FREE_EVENT_TYPES: readonly PistonOscillationFreeAuditEventType[] = [
   'session-reset',
   'plan-updated',
   'power-changed',
+  'parameter-changed',
+  'parameters-restored',
   'acquisition-setting-changed',
   'operation-observed',
   'acquisition-excluded',
@@ -425,6 +449,7 @@ const normalizeExperimentPlan = (value: unknown): PistonOscillationFreeExperimen
 };
 
 export const createDefaultPistonOscillationFreeInstrumentState = (
+  parameterDraft = createDefaultPistonOscillationFreeParameterDraft(),
 ): PistonOscillationFreeInstrumentState => ({
   schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
   focusMode: 'overview',
@@ -437,13 +462,15 @@ export const createDefaultPistonOscillationFreeInstrumentState = (
   pistonPhase: 'idle',
   thermodynamicState: createPistonOscillationAtmosphericLockedState(
     0,
-    {},
+    getPistonOscillationFreePhysicsConfig(parameterDraft),
     'vented',
   ),
 });
 
 export const createDefaultPistonOscillationFreeSession = ():
-PistonOscillationFreeSession => ({
+PistonOscillationFreeSession => {
+  const parameterDraft = createDefaultPistonOscillationFreeParameterDraft();
+  return ({
   schemaVersion: PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION,
   status: 'idle',
   startedAtMs: null,
@@ -451,6 +478,9 @@ PistonOscillationFreeSession => ({
   experimentPlan: null,
   measurementIndex: 0,
   powerOn: false,
+  advancedParametersRiskAcknowledged: false,
+  parameterDraft,
+  frozenParameterSnapshot: null,
   sampleRateHz: null,
   triggerThresholdKpa: null,
   acquisitionCandidate: null,
@@ -460,10 +490,11 @@ PistonOscillationFreeSession => ({
   excludedAttempts: [],
   primaryCycleEligibilityByRecordId: {},
   reacquisition: null,
-  instrumentState: createDefaultPistonOscillationFreeInstrumentState(),
+  instrumentState: createDefaultPistonOscillationFreeInstrumentState(parameterDraft),
   dataProcessing: null,
   audit: [],
-});
+  });
+};
 
 const appendAudit = (
   session: PistonOscillationFreeSession,
@@ -494,12 +525,22 @@ const appendAudit = (
 const createFreshActiveSession = (
   nowMs: number,
   auditType: 'session-started' | 'session-reset' = 'session-started',
+  retainedParameterDraft = createDefaultPistonOscillationFreeParameterDraft(),
+  advancedParametersRiskAcknowledged = false,
 ): PistonOscillationFreeSession => {
+  const parameterDraft = normalizePistonOscillationFreeParameterDraft(
+    retainedParameterDraft,
+  );
   const session: PistonOscillationFreeSession = {
     ...createDefaultPistonOscillationFreeSession(),
     status: 'active',
     startedAtMs: nowMs,
     updatedAtMs: nowMs,
+    advancedParametersRiskAcknowledged,
+    parameterDraft,
+    sampleRateHz: parameterDraft.sampleRateHz,
+    triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
+    instrumentState: createDefaultPistonOscillationFreeInstrumentState(parameterDraft),
   };
   return {
     ...session,
@@ -585,7 +626,12 @@ export const transitionPistonOscillationFreeSession = (
   if (event.type === 'start') {
     if (session.status === 'active') return session;
     if (session.status === 'idle' || session.startedAtMs === null) {
-      return createFreshActiveSession(event.nowMs);
+      return createFreshActiveSession(
+        event.nowMs,
+        'session-started',
+        session.parameterDraft,
+        session.advancedParametersRiskAcknowledged,
+      );
     }
     const next = {
       ...session,
@@ -598,7 +644,12 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
   if (event.type === 'reset') {
-    return createFreshActiveSession(event.nowMs, 'session-reset');
+    return createFreshActiveSession(
+      event.nowMs,
+      'session-reset',
+      session.parameterDraft,
+      session.advancedParametersRiskAcknowledged,
+    );
   }
   if (event.type === 'pause') {
     if (session.status !== 'active') return session;
@@ -617,6 +668,96 @@ export const transitionPistonOscillationFreeSession = (
       audit: appendAudit(next, 'session-paused', event.nowMs),
     };
   }
+  if (event.type === 'setParameterDraft') {
+    if (session.frozenParameterSnapshot !== null) return session;
+    const parameterDraft = normalizePistonOscillationFreeParameterDraft(
+      event.parameterDraft,
+      session.parameterDraft,
+    );
+    if (JSON.stringify(parameterDraft) === JSON.stringify(session.parameterDraft)) {
+      return session;
+    }
+    const thermodynamicInputsChanged = [
+      'ambientPressureKpa',
+      'ambientTemperatureK',
+      'thermalRelaxationTimeS',
+      'heatFlowLagTimeS',
+    ].some((key) => (
+      parameterDraft[key as keyof PistonOscillationFreeParameterDraft]
+        !== session.parameterDraft[key as keyof PistonOscillationFreeParameterDraft]
+    ));
+    const next = {
+      ...session,
+      parameterDraft,
+      sampleRateHz: parameterDraft.sampleRateHz,
+      triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
+      instrumentState: thermodynamicInputsChanged
+        ? createDefaultPistonOscillationFreeInstrumentState(parameterDraft)
+        : session.instrumentState,
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'parameter-changed', event.nowMs),
+    };
+  }
+
+  if (event.type === 'restoreDefaultParameters') {
+    if (session.frozenParameterSnapshot !== null) return session;
+    const parameterDraft = createDefaultPistonOscillationFreeParameterDraft();
+    const next = {
+      ...session,
+      parameterDraft,
+      sampleRateHz: parameterDraft.sampleRateHz,
+      triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
+      instrumentState: createDefaultPistonOscillationFreeInstrumentState(parameterDraft),
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'parameters-restored', event.nowMs),
+    };
+  }
+
+  if (event.type === 'acknowledgeAdvancedParametersRisk') {
+    if (session.advancedParametersRiskAcknowledged) return session;
+    return {
+      ...session,
+      advancedParametersRiskAcknowledged: true,
+      updatedAtMs: event.nowMs,
+    };
+  }
+
+  if (event.type === 'setAcquisitionSetting') {
+    if (session.frozenParameterSnapshot !== null) return session;
+    const valueValid = event.field === 'sampleRateHz'
+      ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
+      : Number.isFinite(event.value)
+        && event.value >= 96
+        && event.value <= 130
+        && Number.isSafeInteger(Math.round(event.value * 10))
+        && Math.abs(event.value * 10 - Math.round(event.value * 10)) < 1e-8;
+    if (!valueValid || session[event.field] === event.value) return session;
+    const parameterDraft = {
+      ...session.parameterDraft,
+      [event.field]: event.value,
+    };
+    const next = {
+      ...session,
+      [event.field]: event.value,
+      parameterDraft,
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'acquisition-setting-changed', event.nowMs, {
+        measurementIndex: session.measurementIndex,
+        targetHeightMm: getPistonOscillationFreeCurrentTargetHeightMm(session),
+        payload: { field: event.field, value: event.value },
+      }),
+    };
+  }
+
   if (session.status !== 'active') return session;
 
   if (event.type === 'setPlan') {
@@ -668,30 +809,6 @@ export const transitionPistonOscillationFreeSession = (
       audit: appendAudit(next, 'power-changed', event.nowMs, {
         operation: 'togglePower',
         payload: { powerOn: event.powerOn },
-      }),
-    };
-  }
-
-  if (event.type === 'setAcquisitionSetting') {
-    const valueValid = event.field === 'sampleRateHz'
-      ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
-      : Number.isFinite(event.value)
-        && event.value >= 96
-        && event.value <= 130
-        && Number.isSafeInteger(Math.round(event.value * 10))
-        && Math.abs(event.value * 10 - Math.round(event.value * 10)) < 1e-8;
-    if (!valueValid || session[event.field] === event.value) return session;
-    const next = {
-      ...session,
-      [event.field]: event.value,
-      updatedAtMs: event.nowMs,
-    };
-    return {
-      ...next,
-      audit: appendAudit(next, 'acquisition-setting-changed', event.nowMs, {
-        measurementIndex: session.measurementIndex,
-        targetHeightMm: getPistonOscillationFreeCurrentTargetHeightMm(session),
-        payload: { field: event.field, value: event.value },
       }),
     };
   }
@@ -806,6 +923,12 @@ export const transitionPistonOscillationFreeSession = (
       measurementIndex,
     );
     if (!normalized || normalized.targetHeightMm !== target.heightMm) return session;
+    const frozenParameters = session.frozenParameterSnapshot?.parameters
+      ?? session.parameterDraft;
+    if (!doesPistonOscillationMeasurementMatchFreeParameters(
+      normalized,
+      frozenParameters,
+    )) return session;
     const savedMeasurements = [
       ...session.savedMeasurements.filter((measurement) => (
         measurement.measurementIndex !== measurementIndex
@@ -868,6 +991,11 @@ export const transitionPistonOscillationFreeSession = (
       : null;
     const next = {
       ...session,
+      frozenParameterSnapshot: session.frozenParameterSnapshot
+        ?? createPistonOscillationFreeParameterSnapshot(
+          session.parameterDraft,
+          event.nowMs,
+        ),
       savedMeasurements,
       savedMeasurementTargetIds,
       excludedAttempts,
@@ -945,7 +1073,9 @@ export const transitionPistonOscillationFreeSession = (
         returnRunIndex: event.runIndex,
         requestedAtMs: event.nowMs,
       } satisfies PistonOscillationFreeReacquisitionState,
-      instrumentState: createDefaultPistonOscillationFreeInstrumentState(),
+      instrumentState: createDefaultPistonOscillationFreeInstrumentState(
+        session.frozenParameterSnapshot?.parameters ?? session.parameterDraft,
+      ),
       updatedAtMs: event.nowMs,
     };
     return {
@@ -1285,8 +1415,10 @@ const FREE_INSTRUMENT_PISTON_PHASES: readonly PistonOscillationFreeInstrumentSta
 const normalizeInstrumentState = (
   value: unknown,
   recoverTransientState = false,
+  parameterDraft = createDefaultPistonOscillationFreeParameterDraft(),
 ): PistonOscillationFreeInstrumentState => {
-  const fallback = createDefaultPistonOscillationFreeInstrumentState();
+  const physicsConfig = getPistonOscillationFreePhysicsConfig(parameterDraft);
+  const fallback = createDefaultPistonOscillationFreeInstrumentState(parameterDraft);
   if (!isPlainRecord(value)) return fallback;
   const equilibriumHeightMm = isFiniteNumber(value.equilibriumHeightMm)
     ? Math.min(80, Math.max(0, value.equilibriumHeightMm))
@@ -1309,14 +1441,14 @@ const normalizeInstrumentState = (
     if (hoseState === 'disconnected') {
       return createPistonOscillationAtmosphericLockedState(
         pistonHeightMm,
-        {},
+        physicsConfig,
         'vented',
       );
     }
     if (lockingScrewProgress >= 0.6) {
       return createPistonOscillationAtmosphericLockedState(
         pistonHeightMm,
-        {},
+        physicsConfig,
         'sealed-locked-atmospheric',
       );
     }
@@ -1343,7 +1475,7 @@ const normalizeInstrumentState = (
           thermodynamicState.pistonHeightM * 1_000,
         )),
         referenceThermodynamicState: thermodynamicState,
-      })
+      }, physicsConfig)
     : null;
   return {
     schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
@@ -1663,6 +1795,43 @@ export const normalizePistonOscillationFreeSession = (
         { answerValidationMode: 'batch' },
       )
     : null;
+  const persistedSampleRateHz = Number.isSafeInteger(value.sampleRateHz)
+    && (value.sampleRateHz as number) > 0
+    && (value.sampleRateHz as number) <= 1000
+    ? value.sampleRateHz as number
+    : null;
+  const persistedTriggerThresholdKpa = isFiniteNumber(value.triggerThresholdKpa)
+    && value.triggerThresholdKpa >= 96
+    && value.triggerThresholdKpa <= 130
+    && Number.isSafeInteger(Math.round(value.triggerThresholdKpa * 10))
+    && Math.abs(value.triggerThresholdKpa * 10
+      - Math.round(value.triggerThresholdKpa * 10)) < 1e-8
+    ? value.triggerThresholdKpa
+    : null;
+  const measurementInferredDraft = savedMeasurements[0]
+    ? createPistonOscillationFreeParameterDraftFromMeasurement(savedMeasurements[0])
+    : createDefaultPistonOscillationFreeParameterDraft();
+  const persistedParameterDraft = normalizePistonOscillationFreeParameterDraft(
+    value.parameterDraft,
+    measurementInferredDraft,
+  );
+  const synchronizedParameterDraft = normalizePistonOscillationFreeParameterDraft({
+    ...persistedParameterDraft,
+    sampleRateHz: persistedSampleRateHz ?? persistedParameterDraft.sampleRateHz,
+    triggerThresholdKpa:
+      persistedTriggerThresholdKpa ?? persistedParameterDraft.triggerThresholdKpa,
+  }, persistedParameterDraft);
+  const persistedFrozenParameterSnapshot =
+    normalizePistonOscillationFreeParameterSnapshot(value.frozenParameterSnapshot);
+  const frozenParameterSnapshot = savedMeasurements.length === 0
+    ? null
+    : persistedFrozenParameterSnapshot
+      ?? createPistonOscillationFreeParameterSnapshot(
+        measurementInferredDraft,
+        savedMeasurements[0]?.capturedAtMs ?? startedAtMs ?? Date.now(),
+      );
+  const parameterDraft = frozenParameterSnapshot?.parameters
+    ?? synchronizedParameterDraft;
   return {
     ...fallback,
     status,
@@ -1671,19 +1840,12 @@ export const normalizePistonOscillationFreeSession = (
     experimentPlan,
     measurementIndex,
     powerOn: status === 'active' && (reacquisition !== null || value.powerOn === true),
-    sampleRateHz: Number.isSafeInteger(value.sampleRateHz)
-      && (value.sampleRateHz as number) > 0
-      && (value.sampleRateHz as number) <= 1000
-      ? value.sampleRateHz as number
-      : null,
-    triggerThresholdKpa: isFiniteNumber(value.triggerThresholdKpa)
-      && value.triggerThresholdKpa >= 96
-      && value.triggerThresholdKpa <= 130
-      && Number.isSafeInteger(Math.round(value.triggerThresholdKpa * 10))
-      && Math.abs(value.triggerThresholdKpa * 10
-        - Math.round(value.triggerThresholdKpa * 10)) < 1e-8
-      ? value.triggerThresholdKpa
-      : null,
+    advancedParametersRiskAcknowledged:
+      value.advancedParametersRiskAcknowledged === true,
+    parameterDraft,
+    frozenParameterSnapshot,
+    sampleRateHz: parameterDraft.sampleRateHz,
+    triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
     acquisitionCandidate: normalizedAcquisitionCandidate,
     acquisitionCandidateTargetId,
     savedMeasurements,
@@ -1691,7 +1853,11 @@ export const normalizePistonOscillationFreeSession = (
     excludedAttempts,
     primaryCycleEligibilityByRecordId,
     reacquisition,
-    instrumentState: normalizeInstrumentState(value.instrumentState, true),
+    instrumentState: normalizeInstrumentState(
+      value.instrumentState,
+      true,
+      parameterDraft,
+    ),
     dataProcessing,
     audit,
   };

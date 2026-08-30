@@ -26,6 +26,7 @@ __pycache__/
 
 # Local Codex workspace state
 .codex/
+.codex-tmp/
 .playwright-cli/
 .playwright-mcp/
 output/
@@ -62,6 +63,7 @@ docs/instrument-modeling/heat-capacity-new-member-brief-draft.md
 !.vscode/extensions.json
 .idea/
 .DS_Store
+~$*.docx
 *.suo
 *.ntvs*
 *.njsproj

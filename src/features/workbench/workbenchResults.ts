@@ -6,6 +6,9 @@ import {
   createHeatCapacityExportPayload,
   type HeatCapacityExportSelection,
 } from './workbenchHeatCapacityExport.ts';
+import {
+  createPistonOscillationReportExportPayload,
+} from './workbenchPistonOscillationExport.ts';
 
 export type WorkbenchExportLanguage = 'zh-CN' | 'zh-TW' | 'en';
 
@@ -414,6 +417,9 @@ export const createWorkbenchExportPayload = (
 ): WorkbenchExportPayload => {
   if (file.kind === 'heatCapacity') {
     return createHeatCapacityExportPayload(file, mode, language, heatCapacitySelection);
+  }
+  if (file.kind === 'heatCapacityPistonOscillation' && mode === 'report') {
+    return createPistonOscillationReportExportPayload(file, language);
   }
   if (mode === 'pointsCsv') {
     return {

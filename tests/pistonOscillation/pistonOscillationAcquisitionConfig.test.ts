@@ -223,8 +223,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries\([\s\S]*const expectedPeriodS = 1[\s\S]*getPistonOscillationSmallSignalFrequencyFromLockedHeightHz\([\s\S]*const nextObservationSeries = applyPistonOscillationTailIrregularityObservation\(\{[\s\S]*observationSeries: baseObservationSeries,[\s\S]*expectedPeriodS,[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries/,
-  'formal acquisition must apply the seeded tail irregularity observation before display, trigger slicing, and persistence',
+  /const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries\([\s\S]*const expectedPeriodS = 1[\s\S]*getPistonOscillationSmallSignalFrequencyFromLockedHeightHz\([\s\S]*const nextObservationSeries = freeSelected[\s\S]*!effectiveFreeParameterDraft\.tailIrregularityEnabled[\s\S]*\? baseObservationSeries[\s\S]*: applyPistonOscillationTailIrregularityObservation\(\{[\s\S]*observationSeries: baseObservationSeries,[\s\S]*expectedPeriodS,[\s\S]*config: freeSelected \? effectiveFreeTailConfig \?\? undefined : undefined[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries/,
+  'formal acquisition must either bypass disabled tail irregularity or apply its configured observation before display, trigger slicing, and persistence',
 );
 assert.match(
   panelSource,

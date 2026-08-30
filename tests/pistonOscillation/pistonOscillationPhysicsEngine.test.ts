@@ -80,9 +80,15 @@ assert.ok(isPistonOscillationEquivalentLossSnapshot({
   linearCoefficientNsPerM: PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
   provenance: 'captured',
 }));
+const configurableLossSnapshot = createPistonOscillationEquivalentLossSnapshot(0.8);
+assert.equal(configurableLossSnapshot.linearCoefficientNsPerM, 0.8);
+assert.equal(
+  configurableLossSnapshot.modelVersion,
+  PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
+);
 assert.throws(
-  () => createPistonOscillationEquivalentLossSnapshot(0.8),
-  /current or a supported legacy value/,
+  () => createPistonOscillationEquivalentLossSnapshot(10.1),
+  /between 0 and 10/,
 );
 assert.equal(PISTON_OSCILLATION_SETTLING_DURATION_S, 0.2);
 

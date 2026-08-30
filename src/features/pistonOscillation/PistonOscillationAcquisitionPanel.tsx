@@ -76,6 +76,11 @@ import type {
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
+  getPistonOscillationFreePhysicsConfig,
+  getPistonOscillationFreeSensorConfig,
+  getPistonOscillationFreeTailConfig,
+} from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
+import {
   createPistonOscillationIncompletePressOperationEvidence,
   type PistonOscillationPressOperationEvidence,
 } from '../../domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
@@ -483,6 +488,31 @@ PistonOscillationAcquisitionPanelProps
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
   const freeSelected = freeSession?.status === 'active';
+  const effectiveFreeParameterDraft = freeSession?.frozenParameterSnapshot?.parameters
+    ?? freeSession?.parameterDraft
+    ?? null;
+  const effectiveFreePhysicsConfig = useMemo(
+    () => effectiveFreeParameterDraft
+      ? getPistonOscillationFreePhysicsConfig(effectiveFreeParameterDraft)
+      : null,
+    [effectiveFreeParameterDraft],
+  );
+  const effectiveFreeSensorConfig = useMemo(
+    () => effectiveFreeParameterDraft
+      ? getPistonOscillationFreeSensorConfig(effectiveFreeParameterDraft)
+      : null,
+    [effectiveFreeParameterDraft],
+  );
+  const effectiveFreeTailConfig = useMemo(
+    () => effectiveFreeParameterDraft
+      ? getPistonOscillationFreeTailConfig(effectiveFreeParameterDraft)
+      : null,
+    [effectiveFreeParameterDraft],
+  );
+  const freeParametersLocked = Boolean(
+    freeSession?.frozenParameterSnapshot
+    || freeSession?.acquisitionCandidate,
+  );
   const configuredTriggerKpa = guideSelected
     ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
       || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
@@ -851,10 +881,15 @@ PistonOscillationAcquisitionPanelProps
         nextTrajectory.equilibrium.lockedHeightM * 1_000,
         nextTrajectory.config,
       );
-    const nextObservationSeries = applyPistonOscillationTailIrregularityObservation({
-      observationSeries: baseObservationSeries,
-      expectedPeriodS,
-    }).observationSeries;
+    const nextObservationSeries = freeSelected
+      && effectiveFreeParameterDraft
+      && !effectiveFreeParameterDraft.tailIrregularityEnabled
+      ? baseObservationSeries
+      : applyPistonOscillationTailIrregularityObservation({
+          observationSeries: baseObservationSeries,
+          expectedPeriodS,
+          config: freeSelected ? effectiveFreeTailConfig ?? undefined : undefined,
+        }).observationSeries;
     const nextReleaseSegment: PistonOscillationRecordingReleaseSegment = {
       startedAtMs: releaseEvent.startedAtMs,
       observationSeries: nextObservationSeries,
@@ -972,6 +1007,8 @@ PistonOscillationAcquisitionPanelProps
     configuredTriggerKpa,
     cycleStartMs,
     effectivePowerOn,
+    effectiveFreeParameterDraft,
+    effectiveFreeTailConfig,
     freeRecordingPath,
     freeSelected,
     guideActive,
@@ -1689,8 +1726,9 @@ PistonOscillationAcquisitionPanelProps
               lockedHeightMm: snapshotLockedHeightMm,
               sampleRateHz: snapshotObservationSeries.sampleRateHz,
               thermodynamicState: freeSession.instrumentState.thermodynamicState,
-              linearDampingNsPerM:
-                PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+              linearDampingNsPerM: effectiveFreePhysicsConfig?.linearDampingNsPerM
+                ?? PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+              physicsConfig: effectiveFreePhysicsConfig ?? undefined,
             });
       } catch {
         // A physically invalid setup remains visible as a stopped trace, but
@@ -1795,6 +1833,7 @@ PistonOscillationAcquisitionPanelProps
     activePressOperationEvidence,
     activeTrajectory,
     cycleStartMs,
+    effectiveFreePhysicsConfig,
     effectiveTriggerKpa,
     freeRecordingPath,
     freeSelected,
@@ -1916,7 +1955,8 @@ PistonOscillationAcquisitionPanelProps
       sensorState: createInitialPistonOscillationDynamicSensorState(
         PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       ),
-      sensorConfig: { ...DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG },
+      sensorConfig: effectiveFreeSensorConfig
+        ?? { ...DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG },
     };
     const startsImmediately = freeSelected
       && currentObservation.absolutePressureKpa > configuredTriggerKpa;
@@ -2147,7 +2187,7 @@ PistonOscillationAcquisitionPanelProps
   const commitFreeParameter = (
     field: 'sampleRateHz' | 'triggerThresholdKpa',
   ): boolean => {
-    if (!freeSelected) return false;
+    if (!freeSelected || freeParametersLocked) return false;
     const draft = field === 'sampleRateHz' ? sampleRateDraft : triggerDraft;
     const value = field === 'sampleRateHz'
       ? parsePistonOscillationFreeSampleRate(draft)
@@ -2260,7 +2300,11 @@ PistonOscillationAcquisitionPanelProps
               value={demoFrame?.sampleRateInput
                 ?? (guideSelected ? guideSession.parameterDrafts.sampleRateHz : sampleRateDraft)}
               readOnly={demoActive || guideInputsLocked}
-              disabled={!demoActive && !guideActive && (phase === 'armed' || phase === 'recording')}
+              disabled={!demoActive && !guideActive && (
+                phase === 'armed'
+                || phase === 'recording'
+                || freeParametersLocked
+              )}
               aria-invalid={guideSession?.parameterStatus.sampleRateHz === 'invalid'
                 || (freeSelected
                   && sampleRateDraft.trim().length > 0
@@ -2324,7 +2368,11 @@ PistonOscillationAcquisitionPanelProps
               value={demoFrame?.triggerInput
                 ?? (guideSelected ? guideSession.parameterDrafts.triggerThresholdKpa : triggerDraft)}
               readOnly={demoActive || guideInputsLocked}
-              disabled={!demoActive && !guideActive && (phase === 'armed' || phase === 'recording')}
+              disabled={!demoActive && !guideActive && (
+                phase === 'armed'
+                || phase === 'recording'
+                || freeParametersLocked
+              )}
               aria-invalid={guideSession?.parameterStatus.triggerThresholdKpa === 'invalid'
                 || (freeSelected
                   && triggerDraft.trim().length > 0

@@ -539,15 +539,29 @@ export const createPistonOscillationCalculationKnownsSnapshot = (
   records: readonly PistonOscillationRawMeasurementRecord[],
 ): PistonOscillationCalculationKnownsSnapshot => {
   const airMaterial = requireConsistentPistonOscillationAirMaterialSnapshot(records);
+  const firstConfig = records[0]?.physicsSnapshot.config;
+  if (firstConfig && records.some((record) => (
+    !physicsNumbersAgree(
+      record.physicsSnapshot.config.ambientPressurePa,
+      firstConfig.ambientPressurePa,
+    )
+    || !physicsNumbersAgree(
+      record.physicsSnapshot.config.movingMassKg,
+      firstConfig.movingMassKg,
+    )
+  ))) {
+    throw new RangeError('All fitted runs must use the same saved apparatus parameters.');
+  }
   return {
     schemaVersion: 1,
     modelVersion: PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
     airMaterialModelVersion: airMaterial.modelVersion,
     airMaterialId: airMaterial.materialId,
-    movingMassKg: records[0]?.physicsSnapshot.config.movingMassKg
+    movingMassKg: firstConfig?.movingMassKg
       ?? DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.movingMassKg,
     cylinderDiameterM: PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
-    pressurePa: PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
+    pressurePa: firstConfig?.ambientPressurePa
+      ?? PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
     referenceGamma: airMaterial.adiabaticIndex,
   };
 };
@@ -608,10 +622,13 @@ export const createPistonOscillationIncompletePhysicsSnapshot = (options: {
   sampleRateHz: number;
   thermodynamicState: PistonOscillationThermodynamicState;
   linearDampingNsPerM?: number;
+  physicsConfig?: Partial<PistonOscillationPhysicsConfig>;
 }): PistonOscillationPhysicsSnapshot => {
   const config = normalizePistonOscillationPhysicsConfig({
+    ...options.physicsConfig,
     sensorSampleRateHz: options.sampleRateHz,
-    linearDampingNsPerM: options.linearDampingNsPerM,
+    linearDampingNsPerM: options.linearDampingNsPerM
+      ?? options.physicsConfig?.linearDampingNsPerM,
   });
   const equilibrium = createPistonOscillationLoadedEquilibriumState(
     options.lockedHeightMm,

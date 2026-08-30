@@ -30,6 +30,15 @@ import type {
   PistonOscillationGuideFocusMode,
   PistonOscillationGuideInstrumentRestoreState,
 } from './pistonOscillationGuidePresentation.ts';
+import type {
+  PistonOscillationPhysicsConfig,
+} from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import type {
+  PistonOscillationThermalModelConfig,
+} from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
+import type {
+  PistonOscillationReleaseAsymmetryConfig,
+} from '../../domain/pistonOscillation/pistonOscillationReleaseAsymmetryModel.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import { getPistonOscillationShellCopy } from './pistonOscillationCopy.ts';
 import './PistonOscillationInstrumentScene.css';
@@ -68,6 +77,9 @@ export interface PistonOscillationInstrumentSceneProps {
   powerOn: boolean;
   onPowerToggle?: (powerOn: boolean) => void;
   sensorSampleRateHz?: number;
+  physicsConfig?: Partial<PistonOscillationPhysicsConfig>;
+  thermalConfig?: Partial<PistonOscillationThermalModelConfig>;
+  releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
   sceneTheme: 'light' | 'dark';
   cameraPreset: WorkbenchPistonOscillationCameraPreset;
   className?: string;
@@ -119,6 +131,9 @@ export const PistonOscillationInstrumentScene = ({
   powerOn,
   onPowerToggle,
   sensorSampleRateHz,
+  physicsConfig,
+  thermalConfig,
+  releaseAsymmetryConfig,
   sceneTheme,
   cameraPreset,
   className = '',
@@ -193,6 +208,9 @@ export const PistonOscillationInstrumentScene = ({
           powerOn={powerOn}
           onPowerToggle={onPowerToggle}
           sensorSampleRateHz={sensorSampleRateHz}
+          physicsConfig={physicsConfig}
+          thermalConfig={thermalConfig}
+          releaseAsymmetryConfig={releaseAsymmetryConfig}
           initialMode={guideInitialInstrumentState?.focusMode ?? 'overview'}
           cameraPreset={cameraPreset}
           sceneTheme={sceneTheme}

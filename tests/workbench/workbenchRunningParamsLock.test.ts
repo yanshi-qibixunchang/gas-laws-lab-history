@@ -3,6 +3,10 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
+const pistonParameterPanelSource = readFileSync(
+  new URL('../../src/features/pistonOscillation/PistonOscillationParameterPanel.tsx', import.meta.url),
+  'utf8',
+);
 
 assert.match(
   source,
@@ -11,8 +15,13 @@ assert.match(
 );
 assert.match(
   source,
-  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*\? true[\s\S]*: activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
-  'Piston Oscillation should stay locked while Heat Capacity Free Mode remains editable during a run',
+  /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*\? false[\s\S]*: activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
+  'experiment-specific Free parameter panels should own their profile lock instead of inheriting the generic run lock',
+);
+assert.match(
+  pistonParameterPanelSource,
+  /const physicsLocked = !freeMode[\s\S]*session\.frozenParameterSnapshot !== null[\s\S]*candidateLocked/,
+  'Piston Oscillation should remain editable before the first formal save and lock its profile once evidence is frozen',
 );
 assert.match(
   source,

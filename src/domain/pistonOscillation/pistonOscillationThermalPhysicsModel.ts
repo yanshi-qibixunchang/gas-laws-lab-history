@@ -28,6 +28,7 @@ import {
 import {
   createPistonOscillationReleaseAsymmetryProfile,
   getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM,
+  type PistonOscillationReleaseAsymmetryConfig,
   type PistonOscillationReleaseAsymmetryInput,
   type PistonOscillationReleaseAsymmetryProfile,
 } from './pistonOscillationReleaseAsymmetryModel.ts';
@@ -781,6 +782,7 @@ export interface PistonOscillationThermalReleaseInput
   extends PistonOscillationReleaseInput {
   referenceThermodynamicState: PistonOscillationThermodynamicState;
   releaseAsymmetry?: PistonOscillationReleaseAsymmetryInput;
+  releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
 }
 
 export const simulatePistonOscillationThermalRelease = (
@@ -885,6 +887,7 @@ export const simulatePistonOscillationThermalRelease = (
     ? createPistonOscillationReleaseAsymmetryProfile(
         input.releaseAsymmetry,
         2 * Math.PI / naturalAngularFrequencyRadPerS,
+        input.releaseAsymmetryConfig,
       )
     : undefined;
   const periodLimitedStepS = 1 / (

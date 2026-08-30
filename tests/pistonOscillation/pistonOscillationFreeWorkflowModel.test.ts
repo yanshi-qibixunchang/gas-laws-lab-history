@@ -104,6 +104,7 @@ assert.equal(baseline.status, 'idle');
 assert.equal(baseline.experimentPlan, null);
 assert.equal(baseline.sampleRateHz, null);
 assert.equal(baseline.triggerThresholdKpa, null);
+assert.equal(baseline.advancedParametersRiskAcknowledged, false);
 assert.equal(getPistonOscillationFreeCurrentTargetHeightMm(baseline), null);
 assert.equal(isPistonOscillationFreePlanComplete(baseline), false);
 
@@ -145,6 +146,34 @@ assert.equal(active.status, 'active');
 assert.equal(active.startedAtMs, 100);
 assert.equal(active.audit.length, 1);
 assert.equal(active.audit[0]?.type, 'session-started');
+
+const advancedAcknowledged = transitionPistonOscillationFreeSession(active, {
+  type: 'acknowledgeAdvancedParametersRisk',
+  nowMs: 105,
+});
+assert.equal(advancedAcknowledged.advancedParametersRiskAcknowledged, true);
+assert.equal(
+  normalizePistonOscillationFreeSession(
+    JSON.parse(JSON.stringify(advancedAcknowledged)),
+  ).advancedParametersRiskAcknowledged,
+  true,
+);
+assert.equal(
+  normalizePistonOscillationFreeSession({
+    ...JSON.parse(JSON.stringify(active)),
+    advancedParametersRiskAcknowledged: undefined,
+  }).advancedParametersRiskAcknowledged,
+  false,
+  'legacy sessions without the acknowledgement field should still show the first-open warning',
+);
+const resetAfterAdvancedAcknowledgement = transitionPistonOscillationFreeSession(
+  advancedAcknowledged,
+  {
+    type: 'reset',
+    nowMs: 106,
+  },
+);
+assert.equal(resetAfterAdvancedAcknowledgement.advancedParametersRiskAcknowledged, true);
 
 const configured = transitionPistonOscillationFreeSession(active, {
   type: 'setPlan',
@@ -295,8 +324,8 @@ assert.deepEqual(
   repaired.experimentPlan?.targetHeightsMm,
   [50, 40, 30],
 );
-assert.equal(repaired.sampleRateHz, null);
-assert.equal(repaired.triggerThresholdKpa, null);
+assert.equal(repaired.sampleRateHz, 1000);
+assert.equal(repaired.triggerThresholdKpa, 120.1);
 assert.equal(repaired.audit.some((event) => event.eventId === 'invalid-event'), false);
 
 const reset = transitionPistonOscillationFreeSession(resumed, {
@@ -306,8 +335,9 @@ const reset = transitionPistonOscillationFreeSession(resumed, {
 assert.equal(reset.status, 'active');
 assert.equal(reset.startedAtMs, 200);
 assert.equal(reset.experimentPlan, null);
-assert.equal(reset.sampleRateHz, null);
-assert.equal(reset.triggerThresholdKpa, null);
+assert.equal(reset.sampleRateHz, 1000);
+assert.equal(reset.triggerThresholdKpa, 120.1);
+assert.equal(reset.frozenParameterSnapshot, null);
 assert.equal(reset.audit.length, 1);
 assert.equal(reset.audit[0]?.type, 'session-reset');
 
@@ -319,6 +349,18 @@ collection = transitionPistonOscillationFreeSession(collection, {
   type: 'setPlan',
   targetHeightsMm: [80, 70, 60],
   nowMs: 301,
+});
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'setAcquisitionSetting',
+  field: 'sampleRateHz',
+  value: 1000,
+  nowMs: 302,
+});
+collection = transitionPistonOscillationFreeSession(collection, {
+  type: 'setAcquisitionSetting',
+  field: 'triggerThresholdKpa',
+  value: 120,
+  nowMs: 303,
 });
 const firstCandidate = createMeasurement(0, 80, 310);
 collection = transitionPistonOscillationFreeSession(collection, {
@@ -357,6 +399,25 @@ collection = transitionPistonOscillationFreeSession(collection, {
 assert.equal(collection.measurementIndex, 1);
 assert.equal(collection.acquisitionCandidate, null);
 assert.equal(collection.dataProcessing, null);
+assert.equal(collection.frozenParameterSnapshot?.parameters.sampleRateHz, 1000);
+assert.equal(collection.frozenParameterSnapshot?.parameters.triggerThresholdKpa, 120);
+const rejectedLockedParameterEdit = transitionPistonOscillationFreeSession(collection, {
+  type: 'setParameterDraft',
+  parameterDraft: {
+    ...collection.parameterDraft,
+    sensorFluctuationEnabled: false,
+  },
+  nowMs: 341,
+});
+assert.equal(rejectedLockedParameterEdit, collection);
+const unlockedAfterWholeReset = transitionPistonOscillationFreeSession(collection, {
+  type: 'reset',
+  nowMs: 342,
+});
+assert.equal(unlockedAfterWholeReset.frozenParameterSnapshot, null);
+assert.equal(unlockedAfterWholeReset.parameterDraft.sampleRateHz, 1000);
+assert.equal(unlockedAfterWholeReset.parameterDraft.triggerThresholdKpa, 120);
+assert.equal(unlockedAfterWholeReset.savedMeasurements.length, 0);
 
 for (const [measurementIndex, targetHeightMm] of [[1, 70], [2, 60]] as const) {
   collection = transitionPistonOscillationFreeSession(collection, {

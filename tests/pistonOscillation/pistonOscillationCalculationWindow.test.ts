@@ -149,7 +149,11 @@ assert.match(modelSource, /visibleFieldIds: PistonOscillationCalculationFieldId\
 assert.match(modelSource, /batchAttempts: PistonOscillationCalculationBatchAttemptSnapshot\[\]/);
 assert.match(modelSource, /attemptedAtMs:\s*number \| null;[\s\S]*draftRaw:\s*string \| null;[\s\S]*resolution:\s*PistonOscillationAnswerResolution/);
 assert.match(modelSource, /ordinary-least-squares-v1/);
-assert.match(modelSource, /pressurePa:\s*PISTON_OSCILLATION_REFERENCE_PRESSURE_PA/);
+assert.match(
+  modelSource,
+  /const firstConfig = records\[0\]\?\.physicsSnapshot\.config;[\s\S]*records\.some\(\(record\) => \([\s\S]*record\.physicsSnapshot\.config\.ambientPressurePa,[\s\S]*firstConfig\.ambientPressurePa[\s\S]*throw new RangeError\('All fitted runs must use the same saved apparatus parameters\.'\)[\s\S]*pressurePa: firstConfig\?\.ambientPressurePa[\s\S]*\?\? PISTON_OSCILLATION_REFERENCE_PRESSURE_PA/,
+  'calculation knowns must use the pressure frozen in the records and reject mixed apparatus profiles',
+);
 assert.match(modelSource, /status:\s*'selecting-points' \| 'calculating' \| 'ready-to-exit' \| 'completed'/);
 
 for (const language of ["'zh-CN'", "'zh-TW'", 'en:']) {

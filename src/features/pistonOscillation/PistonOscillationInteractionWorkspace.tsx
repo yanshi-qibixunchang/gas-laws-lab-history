@@ -34,6 +34,7 @@ import {
   getPistonOscillationSettlingStateAtProgress,
   resolvePistonOscillationStablePhysicalState,
   PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
+  type PistonOscillationPhysicsConfig,
   type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
 } from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
@@ -42,10 +43,11 @@ import {
   advancePistonOscillationPrescribedThermodynamicState,
   createPistonOscillationThermodynamicStateFromTrajectorySample,
   simulatePistonOscillationThermalRelease,
+  type PistonOscillationThermalModelConfig,
 } from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
-import {
-  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
-} from '../../domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
+import type {
+  PistonOscillationReleaseAsymmetryConfig,
+} from '../../domain/pistonOscillation/pistonOscillationReleaseAsymmetryModel.ts';
 import {
   PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_HOLD_MS,
   PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_THRESHOLD_PX,
@@ -246,6 +248,11 @@ const PISTON_HEIGHT_DRAG_MM_PER_PX = 0.3;
 const PISTON_GUIDE_HEIGHT_RESET_MIN_DURATION_MS = 520;
 const PISTON_GUIDE_HEIGHT_RESET_MAX_DURATION_MS = 820;
 const PISTON_GUIDE_SCREW_DIRECTION_THRESHOLD = 0.0025;
+const EMPTY_PISTON_OSCILLATION_PHYSICS_CONFIG: Partial<PistonOscillationPhysicsConfig> = {};
+const EMPTY_PISTON_OSCILLATION_THERMAL_CONFIG:
+Partial<PistonOscillationThermalModelConfig> = {};
+const EMPTY_PISTON_OSCILLATION_RELEASE_ASYMMETRY_CONFIG:
+Partial<PistonOscillationReleaseAsymmetryConfig> = {};
 const isEditableKeyboardTarget = (target: EventTarget | null) => target instanceof HTMLElement
   && Boolean(target.closest('input, select, textarea, [contenteditable="true"]'));
 const createPistonOscillationPointerEvents: typeof createPointerEvents = (store) => {
@@ -1267,6 +1274,7 @@ const createInitialPistonThermodynamicState = (
   restoreState: PistonOscillationGuideInstrumentRestoreState | null,
   fallbackHeightMm: number,
   screwProgress: number,
+  physicsConfig: Partial<PistonOscillationPhysicsConfig>,
 ) => {
   if (restoreState?.thermodynamicState) return restoreState.thermodynamicState;
   const pistonOffsetMm = restoreState?.pistonOffsetMm ?? 0;
@@ -1276,14 +1284,14 @@ const createInitialPistonThermodynamicState = (
   if (restoreState?.hoseState !== 'connected') {
     return createPistonOscillationAtmosphericLockedState(
       visibleHeightMm,
-      {},
+      physicsConfig,
       'vented',
     );
   }
   if (getPistonLockingScrewClampState(screwProgress) === 'locked') {
     return createPistonOscillationAtmosphericLockedState(
       visibleHeightMm,
-      {},
+      physicsConfig,
       'sealed-locked-atmospheric',
     );
   }
@@ -1291,16 +1299,22 @@ const createInitialPistonThermodynamicState = (
   if (nominalHeightMm <= 0) {
     return createPistonOscillationAtmosphericLockedState(
       visibleHeightMm,
-      {},
+      physicsConfig,
       'sealed-locked-atmospheric',
     );
   }
   if (Math.abs(pistonOffsetMm) <= 1e-9) {
-    return getPistonOscillationSettlingStateAtProgress(nominalHeightMm, 1);
+    return getPistonOscillationSettlingStateAtProgress(
+      nominalHeightMm,
+      1,
+      physicsConfig,
+    );
   }
   return createPistonOscillationAdiabaticStateFromReference(
-    getPistonOscillationSettlingStateAtProgress(nominalHeightMm, 1),
+    getPistonOscillationSettlingStateAtProgress(nominalHeightMm, 1, physicsConfig),
     visibleHeightMm,
+    0,
+    physicsConfig,
   );
 };
 
@@ -1309,6 +1323,9 @@ export interface PistonOscillationInteractionWorkspaceProps {
   powerOn?: boolean;
   onPowerToggle?: (powerOn: boolean) => void;
   sensorSampleRateHz?: number;
+  physicsConfig?: Partial<PistonOscillationPhysicsConfig>;
+  thermalConfig?: Partial<PistonOscillationThermalModelConfig>;
+  releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
   initialMode?: PistonOscillationFocusMode;
   cameraPreset?: WorkbenchPistonOscillationCameraPreset;
   sceneTheme?: 'light' | 'dark';
@@ -1364,6 +1381,9 @@ export const PistonOscillationInteractionWorkspace = ({
   powerOn = false,
   onPowerToggle,
   sensorSampleRateHz,
+  physicsConfig: providedPhysicsConfig,
+  thermalConfig: providedThermalConfig,
+  releaseAsymmetryConfig: providedReleaseAsymmetryConfig,
   initialMode = 'pistonFocus',
   cameraPreset = 'overview',
   sceneTheme = 'light',
@@ -1402,6 +1422,12 @@ export const PistonOscillationInteractionWorkspace = ({
   restoreDefaultViewLabel,
   onRestoreDefaultView,
 }: PistonOscillationInteractionWorkspaceProps) => {
+  const physicsConfig = providedPhysicsConfig
+    ?? EMPTY_PISTON_OSCILLATION_PHYSICS_CONFIG;
+  const thermalConfig = providedThermalConfig
+    ?? EMPTY_PISTON_OSCILLATION_THERMAL_CONFIG;
+  const releaseAsymmetryConfig = providedReleaseAsymmetryConfig
+    ?? EMPTY_PISTON_OSCILLATION_RELEASE_ASYMMETRY_CONFIG;
   const copy = getPistonOscillationShellCopy(language);
   const interactionCopy = copy.interaction;
   const demoPresentationCopy = copy.demoPresentation;
@@ -1437,6 +1463,7 @@ export const PistonOscillationInteractionWorkspace = ({
     guideInitialInstrumentState,
     initialGuideHeightMm,
     initialGuideScrewProgress,
+    physicsConfig,
   );
   const initialPistonOffsetMm = guideInitialInstrumentState?.pistonOffsetMm ?? 0;
   const initialPhysicalBaseHeightMm = initialThermodynamicState.pistonHeightM * 1_000
@@ -2273,7 +2300,7 @@ export const PistonOscillationInteractionWorkspace = ({
     if (hoseState === 'disconnected') {
       commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
         Math.min(80, Math.max(0, visibleHeightMm)),
-        {},
+        physicsConfig,
         'vented',
       ));
       return;
@@ -2284,8 +2311,10 @@ export const PistonOscillationInteractionWorkspace = ({
       pistonHeightMm: Math.min(80, Math.max(0, visibleHeightMm)),
       elapsedS,
       velocityMmPerS,
+      physicsConfig,
+      thermalConfig,
     }));
-  }, [commitThermodynamicState, hoseState]);
+  }, [commitThermodynamicState, hoseState, physicsConfig, thermalConfig]);
   const advanceVirtualHandPressTo = useCallback((observedAtMs: number) => {
     const previousUpdatedAtMs = thermodynamicUpdatedAtMsRef.current;
     const monotonicObservedAtMs = previousUpdatedAtMs === null
@@ -2305,6 +2334,8 @@ export const PistonOscillationInteractionWorkspace = ({
         pistonHeightMm: thermodynamicStateRef.current.pistonHeightM * 1_000,
         velocityMmPerS: 0,
         elapsedS,
+        physicsConfig,
+        thermalConfig,
       }));
       return;
     }
@@ -2318,10 +2349,7 @@ export const PistonOscillationInteractionWorkspace = ({
       elapsedS,
       preventUpwardMotion:
         observedAtMs <= virtualHandDownwardCommandUntilMsRef.current,
-    }, {
-      linearDampingNsPerM:
-        PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
-    });
+    }, physicsConfig, thermalConfig);
     const nextOffsetMm = nextState.pistonHeightM * 1_000
       - pistonEquilibriumHeightMmRef.current;
     pistonOffsetMmRef.current = nextOffsetMm;
@@ -2332,7 +2360,7 @@ export const PistonOscillationInteractionWorkspace = ({
         : virtualHandReferenceDragPxRef.current
     ));
     commitThermodynamicState(nextState);
-  }, [commitThermodynamicState, hoseState]);
+  }, [commitThermodynamicState, hoseState, physicsConfig, thermalConfig]);
   const setPistonOffset = useCallback((nextOffsetMm: number) => {
     const observedAtMs = performance.now();
     pistonOffsetMmRef.current = nextOffsetMm;
@@ -2420,12 +2448,12 @@ export const PistonOscillationInteractionWorkspace = ({
     setPistonNominalHeightMm(clampedHeightMm);
     commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
       clampedHeightMm,
-      {},
+      physicsConfig,
       'vented',
     ));
     setPistonPhase('adjustingHeight');
     setHeightAdjustmentStage('readingHeight');
-  }, [commitThermodynamicState]);
+  }, [commitThermodynamicState, physicsConfig]);
   const handleLockingScrewProgressDelta = useCallback((progressDelta: number) => {
     if (guideInteractionPaused) return;
     if (Math.abs(progressDelta) < 0.000001) return;
@@ -2679,7 +2707,7 @@ export const PistonOscillationInteractionWorkspace = ({
         nominalHeightMm,
         visibleHeightMm,
         referenceThermodynamicState: thermodynamicStateRef.current,
-      });
+      }, physicsConfig);
     } catch (recoveryCause) {
       console.error(
         '[piston-oscillation] Failed to use the current gas state during motion recovery.',
@@ -2691,7 +2719,7 @@ export const PistonOscillationInteractionWorkspace = ({
           lockingScrewLocked,
           nominalHeightMm,
           visibleHeightMm,
-        });
+        }, physicsConfig);
       } catch (fallbackCause) {
         console.error(
           '[piston-oscillation] Stable-state calculation failed during motion recovery.',
@@ -2706,7 +2734,7 @@ export const PistonOscillationInteractionWorkspace = ({
           pistonOffsetMm: 0,
           thermodynamicState: createPistonOscillationAtmosphericLockedState(
             fallbackHeightMm,
-            {},
+            physicsConfig,
             hoseState === 'disconnected'
               ? 'vented'
               : 'sealed-locked-atmospheric',
@@ -2733,6 +2761,7 @@ export const PistonOscillationInteractionWorkspace = ({
     cancelUnsupportedDrop,
     commitThermodynamicState,
     hoseState,
+    physicsConfig,
     setReleaseControlLock,
   ]);
 
@@ -2754,7 +2783,7 @@ export const PistonOscillationInteractionWorkspace = ({
     setPistonOffsetMm(0);
     commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
       visibleHeightMm,
-      {},
+      physicsConfig,
       hoseState === 'connected' ? 'sealed-locked-atmospheric' : 'vented',
     ));
   }, [
@@ -2763,6 +2792,7 @@ export const PistonOscillationInteractionWorkspace = ({
     commitThermodynamicState,
     demoActive,
     hoseState,
+    physicsConfig,
     setReleaseControlLock,
   ]);
 
@@ -2792,6 +2822,7 @@ export const PistonOscillationInteractionWorkspace = ({
       guideInitialInstrumentState,
       restoredHeightMm,
       restoredScrewProgress,
+      physicsConfig,
     );
     const restoredPhysicalBaseHeightMm = restoredThermodynamicState.pistonHeightM * 1_000
       - restoredOffsetMm;
@@ -2845,6 +2876,7 @@ export const PistonOscillationInteractionWorkspace = ({
     guideInitialInstrumentState,
     guideSessionRevision,
     guideRequestedFocusMode,
+    physicsConfig,
     setReleaseControlLock,
   ]);
 
@@ -2950,6 +2982,7 @@ export const PistonOscillationInteractionWorkspace = ({
       const nextState = getPistonOscillationSettlingStateAtProgress(
         pistonNominalHeightMmRef.current,
         progress,
+        physicsConfig,
       );
       const nextHeightMm = nextState.pistonHeightM * 1_000;
       pistonEquilibriumHeightMmRef.current = nextHeightMm;
@@ -2973,6 +3006,7 @@ export const PistonOscillationInteractionWorkspace = ({
     hoseState,
     lockingScrewClampState,
     mouseHeld,
+    physicsConfig,
     spaceHeld,
     thermodynamicState.phase,
   ]);
@@ -3087,6 +3121,7 @@ export const PistonOscillationInteractionWorkspace = ({
       }
       const equilibrium = createPistonOscillationLoadedEquilibriumState(
         pistonNominalHeightMmRef.current,
+        physicsConfig,
       );
       const equilibriumHeightMm = equilibrium.equilibriumHeightM * 1_000;
       const visibleHeightMm = pistonEquilibriumHeightMmRef.current
@@ -3135,7 +3170,11 @@ export const PistonOscillationInteractionWorkspace = ({
         releaseAsymmetry: {
           signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
         },
-      }, { sensorSampleRateHz });
+        releaseAsymmetryConfig,
+      }, {
+        ...physicsConfig,
+        sensorSampleRateHz,
+      }, thermalConfig);
       onFreeOperationObserved?.({
         operation: 'releasePiston',
         payload: {
@@ -3169,11 +3208,14 @@ export const PistonOscillationInteractionWorkspace = ({
     endPressTrace,
     onFreeOperationObserved,
     onReleaseEvent,
+    physicsConfig,
     recoverPistonMotionFailure,
+    releaseAsymmetryConfig,
     sensorSampleRateHz,
     setPistonOffset,
     setReleaseControlLock,
     startPistonRebound,
+    thermalConfig,
   ]);
   const handleMouseHeldChange = useCallback((held: boolean, releasedAtMs?: number) => {
     if (held && releaseControlLockedRef.current) return;
@@ -3545,7 +3587,7 @@ export const PistonOscillationInteractionWorkspace = ({
     setPistonNominalHeightMm(startedHeightMm);
     commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
       startedHeightMm,
-      {},
+      physicsConfig,
       'vented',
     ));
     const durationMs = startedHeightMm <= 0.05
@@ -3569,7 +3611,7 @@ export const PistonOscillationInteractionWorkspace = ({
       setPistonNominalHeightMm(nextHeightMm);
       commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
         nextHeightMm,
-        {},
+        physicsConfig,
         'vented',
       ));
       if (progress < 1) {
@@ -3600,6 +3642,7 @@ export const PistonOscillationInteractionWorkspace = ({
     emitBottomImpactAudio,
     guideHeightReset?.phase,
     guideHeightReset?.revision,
+    physicsConfig,
     setReleaseControlLock,
   ]);
 
@@ -3663,7 +3706,7 @@ export const PistonOscillationInteractionWorkspace = ({
       setPistonNominalHeightMm(nextHeightMm);
       commitThermodynamicState(createPistonOscillationAtmosphericLockedState(
         nextHeightMm,
-        {},
+        physicsConfig,
         'vented',
       ));
       if (nextHeightMm <= PISTON_EQUILIBRIUM_HEIGHT_MIN_MM + 0.001) {
@@ -3691,6 +3734,7 @@ export const PistonOscillationInteractionWorkspace = ({
     emitBottomImpactAudio,
     guideInteractionPaused,
     onGuideActionAttempt,
+    physicsConfig,
   ]);
 
   useEffect(() => () => {

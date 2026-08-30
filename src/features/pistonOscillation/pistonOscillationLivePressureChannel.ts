@@ -45,16 +45,15 @@ export interface PistonOscillationLivePressureChannel {
 export const createPistonOscillationLivePressureChannel = (
   configInput?: Partial<PistonOscillationDynamicSensorConfig>,
 ): PistonOscillationLivePressureChannel => {
-  const usesGeneratedSessionSeed = configInput === undefined;
+  const usesGeneratedSessionSeed = configInput?.seed === undefined;
+  const createSensorConfig = () => normalizePistonOscillationDynamicSensorConfig({
+    ...(configInput ?? DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG),
+    seed: configInput?.seed ?? createPistonOscillationSensorSessionSeed(),
+  });
   let snapshot: PistonOscillationLivePressureObservation | null = null;
   let dynamicState: PistonOscillationDynamicSensorState | null = null;
   let previousPhysicalPressurePa: number | null = null;
-  let sensorConfig = normalizePistonOscillationDynamicSensorConfig(
-    configInput ?? {
-      ...DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
-      seed: createPistonOscillationSensorSessionSeed(),
-    },
-  );
+  let sensorConfig = createSensorConfig();
   const listeners = new Set<() => void>();
 
   const notify = () => {
@@ -142,10 +141,7 @@ export const createPistonOscillationLivePressureChannel = (
       dynamicState = null;
       previousPhysicalPressurePa = null;
       if (usesGeneratedSessionSeed) {
-        sensorConfig = normalizePistonOscillationDynamicSensorConfig({
-          ...DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
-          seed: createPistonOscillationSensorSessionSeed(),
-        });
+        sensorConfig = createSensorConfig();
       }
       notify();
     },

@@ -362,6 +362,9 @@ import {
   isHeatCapacityExportModeReady,
 } from './workbenchHeatCapacityExport.ts';
 import {
+  isPistonOscillationReportReady,
+} from './workbenchPistonOscillationExport.ts';
+import {
   loadClosedWorkbenchFiles,
   loadWorkbenchSession,
 } from './workbenchSession.ts';
@@ -520,6 +523,18 @@ import {
 import type {
   PistonOscillationFreeEvent,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import {
+  getPistonOscillationFreePhysicsConfig,
+  getPistonOscillationFreeReleaseAsymmetryConfig,
+  getPistonOscillationFreeSensorConfig,
+  getPistonOscillationFreeThermalConfig,
+  type PistonOscillationFreeParameterDraft,
+} from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
+import {
+  getPistonOscillationParameterLockMessage,
+  getPistonOscillationParameterSidebarFreeOnlyMessage,
+  PistonOscillationParameterPanel,
+} from '../pistonOscillation/PistonOscillationParameterPanel.tsx';
 import {
   WorkbenchTopCommands,
   type WorkbenchTopMenuId,
@@ -6335,12 +6350,49 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       && activeTeachingCompletionKey !== previousActiveTeachingCompletionKeyRef.current
     ) {
       setLeftCollapsed(false);
-    }
-    previousActiveTeachingCompletionKeyRef.current = activeTeachingCompletionKey;
+  }
+  previousActiveTeachingCompletionKeyRef.current = activeTeachingCompletionKey;
   }, [activeTeachingCompletionKey]);
+  const activePistonOscillationParameterDraft = activeFile.kind
+    === 'heatCapacityPistonOscillation'
+    && activeFile.pistonOscillationFreeSession.status === 'active'
+    ? activeFile.pistonOscillationFreeSession.frozenParameterSnapshot?.parameters
+      ?? activeFile.pistonOscillationFreeSession.parameterDraft
+    : null;
+  const activePistonOscillationPhysicsConfig = useMemo(
+    () => activePistonOscillationParameterDraft
+      ? getPistonOscillationFreePhysicsConfig(activePistonOscillationParameterDraft)
+      : undefined,
+    [activePistonOscillationParameterDraft],
+  );
+  const activePistonOscillationThermalConfig = useMemo(
+    () => activePistonOscillationParameterDraft
+      ? getPistonOscillationFreeThermalConfig(activePistonOscillationParameterDraft)
+      : undefined,
+    [activePistonOscillationParameterDraft],
+  );
+  const activePistonOscillationReleaseAsymmetryConfig = useMemo(
+    () => activePistonOscillationParameterDraft
+      ? getPistonOscillationFreeReleaseAsymmetryConfig(
+          activePistonOscillationParameterDraft,
+        )
+      : undefined,
+    [activePistonOscillationParameterDraft],
+  );
+  const activePistonOscillationSensorConfig = useMemo(
+    () => activePistonOscillationParameterDraft
+      ? getPistonOscillationFreeSensorConfig(activePistonOscillationParameterDraft)
+      : undefined,
+    [activePistonOscillationParameterDraft],
+  );
+  const activePistonOscillationParameterSignature = activePistonOscillationParameterDraft
+    ? JSON.stringify(activePistonOscillationParameterDraft)
+    : 'teaching-defaults';
   const pistonOscillationLivePressureChannel = useMemo(
-    () => createPistonOscillationLivePressureChannel(),
-    [activeFile.id],
+    () => createPistonOscillationLivePressureChannel(
+      activePistonOscillationSensorConfig,
+    ),
+    [activeFile.id, activePistonOscillationSensorConfig],
   );
   const pistonOscillationAcquisitionPanelRef = useRef<
     PistonOscillationAcquisitionPanelHandle | null
@@ -6455,6 +6507,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       activePistonOscillationGuideSession?.status === 'completed'
       && !activePistonOscillationGuideSession.completionExited
     );
+  const activePistonOscillationParameterMode =
+    activePistonOscillationDemoPlaybackPhase !== 'idle'
+      ? 'demo' as const
+      : activePistonOscillationGuideSelected
+        ? 'guide' as const
+        : activePistonOscillationFreeSelected
+          ? 'free' as const
+          : 'explore' as const;
+  const activePistonOscillationParameterSidebarAvailable =
+    activeFile.kind === 'heatCapacityPistonOscillation'
+    && activePistonOscillationParameterMode === 'free';
   const activeExperimentMaterialsPanelKeys = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityMaterialsTabOrder(activeFile).map(heatCapacityTabIdToPanelKey)
     : activeFile.kind === 'heatCapacityPistonOscillation'
@@ -7210,7 +7273,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const parametersDirty = !areWorkbenchParamsEqual(activeFile.params, activeFile.appliedParams);
   const parameterControlsLocked = activeFile.runState === 'running' || activeFile.runState === 'paused';
   const currentParameterControlsLocked = activeFile.kind === 'heatCapacityPistonOscillation'
-    ? true
+    ? false
     : activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
       ? false
       : parameterControlsLocked;
@@ -8079,7 +8142,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   useEffect(() => {
     if (activeFile.kind === 'heatCapacityPistonOscillation') {
-      setParametersCollapsed(true);
+      if (!activePistonOscillationParameterSidebarAvailable) {
+        setParametersCollapsed(true);
+      }
       setIdealAdvancedSettingsOpen(false);
       setIdealAdvancedSettingsBodyVisible(false);
       return;
@@ -8093,7 +8158,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       setHoveredHeatCapacityParamHelpId(null);
       setHeatCapacityParamHelpPopoverStyle(undefined);
     }
-  }, [activeFile.kind, activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null]);
+  }, [
+    activeFile.kind,
+    activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
+    activePistonOscillationParameterSidebarAvailable,
+  ]);
 
   useEffect(() => {
     if (pinnedHeatCapacityParamHelpId === null) return undefined;
@@ -8603,8 +8672,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       ? {
           eyebrow: 'Free mode',
           title: 'Reset the entire Free-mode experiment?',
-          body: 'The current plan, custom candidates, saved and unsaved curves, processing progress, acquisition settings, and instrument state will be cleared.',
-          consequence: 'Demo mode, Guide mode, and global settings are not affected. You can undo this reset from the Edit menu.',
+          body: 'The current plan, custom candidates, saved and unsaved curves, processing progress, and instrument state will be cleared.',
+          consequence: 'The current parameter profile is retained and unlocked. Demo mode, Guide mode, and global settings are not affected. You can undo this reset from the Edit menu.',
           cancel: 'Cancel',
           confirm: 'Reset Free mode',
           close: 'Close',
@@ -8613,8 +8682,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ? {
             eyebrow: '自由模式',
             title: '重設整個自由模式實驗？',
-            body: '目前計畫、自訂候選、已儲存與未儲存曲線、資料處理進度、採集設定和儀器狀態都會被清空。',
-            consequence: '演示模式、引導模式和軟體全域設定不受影響；可從「編輯」選單復原本次重設。',
+            body: '目前計畫、自訂候選、已儲存與未儲存曲線、資料處理進度和儀器狀態都會被清空。',
+            consequence: '目前參數組會保留並解除鎖定；演示模式、引導模式和軟體全域設定不受影響。可從「編輯」選單復原本次重設。',
             cancel: '取消',
             confirm: '重設自由模式',
             close: '關閉',
@@ -8622,8 +8691,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         : {
             eyebrow: '自由模式',
             title: '重置整个自由模式实验？',
-            body: '当前计划、自定义候选、已保存与未保存曲线、数据处理进度、采集设置和仪器状态都会被清空。',
-            consequence: '演示模式、引导模式和软件全局设置不受影响；可以从“编辑”菜单撤销本次重置。',
+            body: '当前计划、自定义候选、已保存与未保存曲线、数据处理进度和仪器状态都会被清空。',
+            consequence: '当前参数组会保留并解除锁定；演示模式、引导模式和软件全局设置不受影响。可以从“编辑”菜单撤销本次重置。',
             cancel: '取消',
             confirm: '重置自由模式',
             close: '关闭',
@@ -9674,13 +9743,53 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const togglePistonOscillationOperationVisualization = () => {
+    if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
+    setPistonOscillationOperationVisualization(
+      !activeFile.pistonOscillationOperationVisualizationEnabled,
+    );
+  };
+
+  const setPistonOscillationOperationVisualization = (enabled: boolean) => {
     updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
       ? {
           ...file,
-          pistonOscillationOperationVisualizationEnabled:
-            !file.pistonOscillationOperationVisualizationEnabled,
+          pistonOscillationOperationVisualizationEnabled: enabled,
           updatedAt: Date.now(),
         }
+      : file);
+  };
+
+  const updatePistonOscillationFreeParameterDraft = (
+    parameterDraft: PistonOscillationFreeParameterDraft,
+  ) => {
+    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, {
+          type: 'setParameterDraft',
+          parameterDraft,
+          nowMs: Date.now(),
+        })
+      : file);
+  };
+
+  const restorePistonOscillationFreeParameters = () => {
+    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+      ? {
+          ...transitionPistonOscillationFreeWorkbenchState(file, {
+            type: 'restoreDefaultParameters',
+            nowMs: Date.now(),
+          }),
+          pistonOscillationOperationVisualizationEnabled: false,
+          updatedAt: Date.now(),
+        }
+      : file);
+  };
+
+  const acknowledgePistonOscillationAdvancedParametersRisk = () => {
+    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, {
+          type: 'acknowledgeAdvancedParametersRisk',
+          nowMs: Date.now(),
+        })
       : file);
   };
 
@@ -9694,6 +9803,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const openParameterSidebarFromRail = () => {
+    if (
+      activeFile.kind === 'heatCapacityPistonOscillation'
+      && !activePistonOscillationParameterSidebarAvailable
+    ) {
+      showParameterSidebarBlockReason(
+        getPistonOscillationParameterSidebarFreeOnlyMessage,
+      );
+      return;
+    }
     if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(activeFile)) {
       showParameterSidebarBlockReason(
         (language) => getHeatCapacityRealtimeCopy(language).freePowerOffBeforeNextGroup,
@@ -9708,6 +9826,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       return;
     }
     setParametersCollapsed(false);
+  };
+
+  const showPistonOscillationParameterLockHint = () => {
+    if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
+    showParameterSidebarBlockReason((language) => (
+      getPistonOscillationParameterLockMessage(
+        activeFile.pistonOscillationFreeSession,
+        language,
+      )
+    ));
   };
 
   const collapseHeatCapacityFreeParameterSidebarForExperimentAction = () => {
@@ -23920,13 +24048,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
           <div className="studio-piston-oscillation-preview-mount">
             <PistonOscillationInstrumentScene
-              key={activeFile.id}
+              key={`${activeFile.id}:${activePistonOscillationParameterSignature}`}
               language={settingsLanguagePreference}
               powerOn={activePistonOscillationPowerOn}
               onPowerToggle={handlePistonOscillationPowerToggle}
               sensorSampleRateHz={activePistonOscillationFreeSelected
                 ? activeFile.pistonOscillationFreeSession.sampleRateHz ?? undefined
                 : undefined}
+              physicsConfig={activePistonOscillationPhysicsConfig}
+              thermalConfig={activePistonOscillationThermalConfig}
+              releaseAsymmetryConfig={
+                activePistonOscillationReleaseAsymmetryConfig
+              }
               sceneTheme={resolvedWorkbenchTheme}
               cameraPreset={activeFile.previewCameraPreset}
               operationVisualizationEnabled={
@@ -24497,6 +24630,47 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             )}
           >
             <div className="studio-piston-process-review-scroll">
+              <section
+                className="studio-heat-export-card studio-piston-report-export-card"
+                data-piston-oscillation-export-actions="true"
+              >
+                <div>
+                  <strong>
+                    {settingsLanguagePreference === 'en'
+                      ? 'Export report'
+                      : settingsLanguagePreference === 'zh-TW'
+                        ? '匯出報告'
+                        : '导出报告'}
+                  </strong>
+                  <span>
+                    {settingsLanguagePreference === 'en'
+                      ? 'Export the saved curves, calculation results, process evidence, and score summary as PDF.'
+                      : settingsLanguagePreference === 'zh-TW'
+                        ? '將已儲存曲線、計算結果、過程證據與評分摘要匯出為 PDF。'
+                        : '将已保存曲线、计算结果、过程证据与评分摘要导出为 PDF。'}
+                  </span>
+                </div>
+                <div className="studio-heat-export-buttons">
+                  <button
+                    type="button"
+                    disabled={!isExportModeDataReady('report') || exportInProgress}
+                    onClick={() => { void handleExportAction('report'); }}
+                  >
+                    <Download size={13} />
+                    {exportInProgress
+                      ? settingsLanguagePreference === 'en'
+                        ? 'Exporting...'
+                        : settingsLanguagePreference === 'zh-TW'
+                          ? '匯出中...'
+                          : '导出中...'
+                      : settingsLanguagePreference === 'en'
+                        ? 'Export PDF report'
+                        : settingsLanguagePreference === 'zh-TW'
+                          ? '匯出 PDF 報告'
+                          : '导出 PDF 报告'}
+                  </button>
+                </div>
+              </section>
               <PistonOscillationProcessReviewPanel
                 session={activeFile.pistonOscillationFreeSession}
                 language={settingsLanguagePreference}
@@ -24931,6 +25105,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const isExportModeDataReady = (mode: WorkbenchExportMode) => (
     activeFile.kind === 'heatCapacity'
       ? isHeatCapacityExportModeReady(activeFile, mode)
+      : activeFile.kind === 'heatCapacityPistonOscillation'
+        ? mode === 'report' && isPistonOscillationReportReady(activeFile)
       : activeFile.kind === 'ideal'
       ? mode === 'pointsCsv' || mode === 'completeBundle'
         ? idealPointCount > 0
@@ -27780,7 +27956,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 </div>
                 <div className="studio-current-params-body" ref={currentParametersBodyRef}>
                   <div className="studio-param-file">
-                    <strong>{activeFile.kind === 'standard' ? workbenchCopy.parameters.standardSimulation : activeFile.kind === 'ideal' ? workbenchCopy.parameters.idealSimulation : workbenchCopy.parameters.heatCapacityExperiment}</strong>
+                    <strong>{activeFile.kind === 'standard'
+                      ? workbenchCopy.parameters.standardSimulation
+                      : activeFile.kind === 'ideal'
+                        ? workbenchCopy.parameters.idealSimulation
+                        : activeFile.kind === 'heatCapacityPistonOscillation'
+                          ? pistonOscillationCopy.methodName
+                          : workbenchCopy.parameters.heatCapacityExperiment}</strong>
                     <span>{activeFile.name}</span>
                     <span className={`studio-param-state ${parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) ? 'studio-param-state-pending' : ''}`}>
                       {parametersDirty
@@ -27793,6 +27975,30 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   {renderIdealControls()}
                   {activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free' ? (
                     renderHeatCapacityFreeParameterPanel()
+                  ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
+                    <PistonOscillationParameterPanel
+                      language={settingsLanguagePreference}
+                      mode={activePistonOscillationParameterMode}
+                      session={activeFile.pistonOscillationFreeSession}
+                      operationVisualizationEnabled={
+                        activeFile.pistonOscillationOperationVisualizationEnabled
+                      }
+                      renderParameterHelpButton={(parameterId, modelEffect) => (
+                        renderHeatCapacityParameterHelpButton(
+                          `pistonOscillation-${parameterId}`,
+                          modelEffect,
+                        )
+                      )}
+                      onParameterDraftChange={updatePistonOscillationFreeParameterDraft}
+                      onOperationVisualizationChange={
+                        setPistonOscillationOperationVisualization
+                      }
+                      onAcknowledgeAdvancedParametersRisk={
+                        acknowledgePistonOscillationAdvancedParametersRisk
+                      }
+                      onRestoreDefaults={restorePistonOscillationFreeParameters}
+                      onLockedInteraction={showPistonOscillationParameterLockHint}
+                    />
                   ) : activeFile.kind === 'heatCapacity' ? (
                     <>
                       <div className="studio-panel-note">{workbenchCopy.parameters.heatCapacityReadonlyNote}</div>
@@ -27833,15 +28039,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                       ))}
                     </div>
                   ) : null}
+                  {activeFile.kind !== 'heatCapacityPistonOscillation' ? (
                   <div className="studio-readonly-note">
                     {activeFile.kind === 'standard'
                         ? workbenchCopy.parameters.standardReadonlyNote
                         : activeFile.kind === 'heatCapacity'
                           ? workbenchCopy.parameters.heatCapacityReadonlyNote
-                          : activeFile.kind === 'heatCapacityPistonOscillation'
-                            ? pistonOscillationCopy.unavailable.rightSidebar
                           : workbenchCopy.parameters.idealReadonlyNote}
                   </div>
+                  ) : null}
                 </div>
               </aside>
               ) : null}

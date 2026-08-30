@@ -29,28 +29,19 @@ export interface PistonOscillationEquivalentLossSnapshot {
 export const createPistonOscillationEquivalentLossSnapshot = (
   linearCoefficientNsPerM: number,
 ): PistonOscillationEquivalentLossSnapshot => {
-  let modelVersion: string;
-  let kind: string;
   if (
-    linearCoefficientNsPerM === PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M
+    !Number.isFinite(linearCoefficientNsPerM)
+    || linearCoefficientNsPerM < 0
+    || linearCoefficientNsPerM > 10
   ) {
-    modelVersion = PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION;
-    kind = PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND;
-  } else if (
-    linearCoefficientNsPerM === PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M
-  ) {
-    modelVersion =
-      PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION;
-    kind = PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_KIND;
-  } else {
     throw new RangeError(
-      'Captured piston equivalent loss must use the current or a supported legacy value.',
+      'Captured piston equivalent loss must be between 0 and 10 N·s/m.',
     );
   }
   return {
     schemaVersion: PISTON_OSCILLATION_EQUIVALENT_LOSS_SCHEMA_VERSION,
-    modelVersion,
-    kind,
+    modelVersion: PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
+    kind: PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND,
     linearCoefficientNsPerM,
     provenance: 'captured',
   };
@@ -62,8 +53,10 @@ const isCapturedPistonOscillationEquivalentLossSnapshot = (
   (
     snapshot.modelVersion === PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION
     && snapshot.kind === PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND
-    && snapshot.linearCoefficientNsPerM
-      === PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M
+    && typeof snapshot.linearCoefficientNsPerM === 'number'
+    && Number.isFinite(snapshot.linearCoefficientNsPerM)
+    && snapshot.linearCoefficientNsPerM >= 0
+    && snapshot.linearCoefficientNsPerM <= 10
   )
   || (
     snapshot.modelVersion

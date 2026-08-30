@@ -1176,6 +1176,10 @@ def is_heat_capacity_export(data: dict[str, Any]) -> bool:
     return data.get("exportKind") == "heat-capacity-adiabatic-expansion"
 
 
+def is_piston_oscillation_export(data: dict[str, Any]) -> bool:
+    return data.get("exportKind") == "heat-capacity-piston-oscillation"
+
+
 def get_heat_copy(data: dict[str, Any]) -> dict[str, str]:
     language = str(data.get("language") or "zh-CN")
     resolved_language = language if language in HEAT_CAPACITY_COPY else "zh-CN"
@@ -2586,6 +2590,844 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
     return target
 
 
+PISTON_OSCILLATION_REPORT_COPY = {
+    "zh-CN": {
+        "title": "活塞振动法测空气比热容比实验报告",
+        "mode": "自由模式",
+        "file_information": "实验文件信息",
+        "basic_information": "基本信息",
+        "result_overview": "本轮结果概览",
+        "actual_records": "实际记录数据",
+        "measurement_records": "正式测量记录",
+        "pressure_curves": "正式压力曲线",
+        "calculation_results": "实验计算结果",
+        "period_results": "周期处理结果",
+        "fit_results": "线性拟合结果",
+        "final_results": "最终计算结果",
+        "process_score": "过程与评分摘要",
+        "process_evidence": "关键过程证据",
+        "score_results": "评分结果",
+        "file": "实验文件",
+        "experiment": "实验名称",
+        "experiment_mode": "实验模式",
+        "file_created": "文件创建时间",
+        "first_started": "首次实验开始时间",
+        "last_completed": "最终计算完成时间",
+        "duration": "实验总时长",
+        "exported": "导出时间",
+        "information_item": "信息项",
+        "content": "内容",
+        "measurement_count": "正式测量",
+        "fit_points": "拟合点",
+        "theory": "理论值",
+        "relative_error": "相对误差",
+        "operation_calculation": "操作+计算",
+        "total_score": "总分",
+        "number": "次序",
+        "target_height": "目标/mm",
+        "actual_height": "实际/mm",
+        "height_source": "高度来源",
+        "sample_rate": "采样/Hz",
+        "trigger": "触发/kPa",
+        "samples": "样本",
+        "duration_s": "时长/s",
+        "release_gap": "松手差/ms",
+        "system": "系统",
+        "custom": "自定义",
+        "period_count": "周期数",
+        "delta_time": "Δt/s",
+        "period": "T/s",
+        "period_squared": "T^2/s^2",
+        "maximum_deviation": "最大偏离",
+        "included": "拟合",
+        "yes": "是",
+        "no": "否",
+        "slope": "斜率/(m·s^-2)",
+        "intercept": "截距/m",
+        "calculation_item": "计算项目",
+        "user_result": "用户结果",
+        "reference": "参考值",
+        "evaluation": "评价",
+        "credit": "得分率",
+        "area": "气缸横截面积 A",
+        "gamma": "空气比热容比 γ",
+        "first_correct": "首次正确",
+        "retry_correct": "修改后正确",
+        "revealed": "查看答案后完成",
+        "unresolved": "未完成",
+        "height_deviation": "高度偏差",
+        "touchdown": "触底",
+        "press_count": "按压次数",
+        "reset_count": "重置次数",
+        "formal_result": "正式结果",
+        "saved": "保存",
+        "operation_score": "操作分",
+        "status": "评价",
+        "main_evidence": "主要依据",
+        "operation_average": "操作平均分",
+        "group_calculation": "整组计算分",
+        "report_note": "报告只保留与结果和评分直接相关的过程证据；完整操作时间条仍可在软件的过程回顾页面中查看。",
+        "curve_note": "图中浅绿色区域为最终周期选区；橙色虚线为触发阈值。图形仅用于报告显示，保存的正式样本未被改写。",
+        "fit_caption": "本轮 h-T^2 线性拟合与最终选点",
+        "curve_caption": "各次正式压力曲线及最终周期选区",
+        "page": "第 {number} 页",
+    },
+    "zh-TW": {
+        "title": "活塞振動法測空氣比熱容比實驗報告",
+        "mode": "自由模式",
+        "file_information": "實驗檔案資訊",
+        "basic_information": "基本資訊",
+        "result_overview": "本輪結果概覽",
+        "actual_records": "實際記錄資料",
+        "measurement_records": "正式測量記錄",
+        "pressure_curves": "正式壓力曲線",
+        "calculation_results": "實驗計算結果",
+        "period_results": "週期處理結果",
+        "fit_results": "線性擬合結果",
+        "final_results": "最終計算結果",
+        "process_score": "過程與評分摘要",
+        "process_evidence": "關鍵過程證據",
+        "score_results": "評分結果",
+    },
+    "en": {
+        "title": "Air Heat-Capacity Ratio by Piston Oscillation",
+        "mode": "Free mode",
+        "file_information": "Experiment file information",
+        "basic_information": "Basic information",
+        "result_overview": "Result overview",
+        "actual_records": "Recorded data",
+        "measurement_records": "Formal measurements",
+        "pressure_curves": "Formal pressure curves",
+        "calculation_results": "Calculation results",
+        "period_results": "Period processing",
+        "fit_results": "Linear fit",
+        "final_results": "Final calculation",
+        "process_score": "Process and score summary",
+        "process_evidence": "Key process evidence",
+        "score_results": "Scores",
+    },
+}
+
+
+def get_piston_report_copy(data: dict[str, Any]) -> dict[str, str]:
+    language = str(data.get("language") or "zh-CN")
+    base = PISTON_OSCILLATION_REPORT_COPY["zh-CN"]
+    translated = PISTON_OSCILLATION_REPORT_COPY.get(language, {})
+    return {**base, **translated}
+
+
+def piston_finite_number(value: Any) -> float | None:
+    try:
+        number = float(value)
+        return number if math.isfinite(number) else None
+    except (TypeError, ValueError):
+        return None
+
+
+def format_piston_number(value: Any, decimals: int, suffix: str = "") -> str:
+    number = piston_finite_number(value)
+    return "--" if number is None else f"{number:.{decimals}f}{suffix}"
+
+
+def format_piston_datetime(value: Any) -> str:
+    milliseconds = piston_finite_number(value)
+    if milliseconds is None:
+        return "--"
+    return datetime.fromtimestamp(milliseconds / 1000).strftime("%Y-%m-%d %H:%M:%S")
+
+
+def format_piston_duration(start_value: Any, end_value: Any, language: str) -> str:
+    start = piston_finite_number(start_value)
+    end = piston_finite_number(end_value)
+    if start is None or end is None or end < start:
+        return "--"
+    total_seconds = int(round((end - start) / 1000))
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    if language == "en":
+        return f"{hours} h {minutes} min" if hours else f"{minutes} min {seconds} s"
+    return f"{hours} 小时 {minutes} 分钟" if hours else f"{minutes} 分钟 {seconds} 秒"
+
+
+def save_piston_figure(fig: Any, target: Path, deps: dict[str, Any]) -> dict[str, Path]:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    save_professional_figure(fig, target)
+    deps["plt"].close(fig)
+    return {"png": target}
+
+
+def plot_piston_oscillation_fit(
+    data: dict[str, Any],
+    figures_dir: Path,
+    deps: dict[str, Any],
+) -> dict[str, Path] | None:
+    fit = data.get("linearFitResult") or {}
+    points = [point for point in (fit.get("points") or []) if isinstance(point, dict)]
+    if len(points) < 2:
+        return None
+    copy = get_piston_report_copy(data)
+    plt = deps["plt"]
+    cjk_font = deps.get("matplotlib_cjk_font")
+    fig, ax = plt.subplots(figsize=(6.5, 3.05))
+    fig.subplots_adjust(left=0.13, right=0.97, bottom=0.2, top=0.88)
+    x_values = [safe_float(point.get("periodSquaredS2")) for point in points]
+    y_values = [safe_float(point.get("heightM")) for point in points]
+    ax.scatter(
+        x_values,
+        y_values,
+        s=42,
+        color=PROFESSIONAL_COLORS["primary"],
+        edgecolor="white",
+        linewidth=0.7,
+        label="参与拟合" if data.get("language") != "en" else "Included in fit",
+        zorder=3,
+    )
+    slope = safe_float(fit.get("slopeMPerS2"))
+    intercept = safe_float(fit.get("interceptM"))
+    x_min, x_max = min(x_values), max(x_values)
+    padding = max((x_max - x_min) * 0.08, 1e-6)
+    line_x = [x_min - padding, x_max + padding]
+    line_y = [slope * value + intercept for value in line_x]
+    ax.plot(
+        line_x,
+        line_y,
+        color=PROFESSIONAL_COLORS["fit"],
+        linewidth=1.35,
+        label="线性拟合" if data.get("language") != "en" else "Linear fit",
+    )
+    ax.text(
+        0.03,
+        0.95,
+        f"h = {slope:.5f} T^2 {intercept:+.6f}\nR^2 = {safe_float(fit.get('rSquared')):.4f}",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        fontsize=8.5,
+        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "#cbd5e1"},
+    )
+    ax.set_title(
+        "h-T^2 线性拟合" if data.get("language") != "en" else "h-T^2 linear fit",
+        fontsize=11,
+        fontfamily=cjk_font if data.get("language") != "en" else None,
+    )
+    ax.set_xlabel("T^2 / s^2")
+    ax.set_ylabel("h / m")
+    ax.grid(True, color="#d7dee8", linewidth=0.65, alpha=0.78)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.legend(
+        loc="lower right",
+        frameon=False,
+        fontsize=8.5,
+        ncol=2,
+        prop={"family": cjk_font, "size": 8.5} if data.get("language") != "en" and cjk_font else None,
+    )
+    return save_piston_figure(fig, figures_dir / "piston-h-t2-fit.png", deps)
+
+
+def plot_piston_oscillation_pressure_overview(
+    data: dict[str, Any],
+    figures_dir: Path,
+    deps: dict[str, Any],
+) -> dict[str, Path] | None:
+    measurements = [
+        measurement
+        for measurement in (data.get("measurements") or [])
+        if isinstance(measurement, dict) and measurement.get("samples")
+    ]
+    if not measurements:
+        return None
+    language = str(data.get("language") or "zh-CN")
+    plt = deps["plt"]
+    cjk_font = deps.get("matplotlib_cjk_font")
+    columns = 2
+    rows = math.ceil(len(measurements) / columns)
+    fig, axes = plt.subplots(rows, columns, figsize=(6.75, 1.72 * rows + 0.28), squeeze=False)
+    fig.subplots_adjust(
+        left=0.085,
+        right=0.985,
+        bottom=0.12 if rows <= 2 else 0.08,
+        top=0.94,
+        hspace=0.5,
+        wspace=0.24,
+    )
+    for index, axis in enumerate(axes.flat):
+        if index >= len(measurements):
+            axis.axis("off")
+            continue
+        measurement = measurements[index]
+        samples = measurement.get("samples") or []
+        stride = max(1, math.ceil(len(samples) / 1200))
+        rendered = samples[::stride]
+        if rendered and rendered[-1] is not samples[-1]:
+            rendered = [*rendered, samples[-1]]
+        times = [safe_float(sample.get("timeS")) for sample in rendered]
+        pressures = [safe_float(sample.get("absolutePressureKpa")) for sample in rendered]
+        axis.plot(times, pressures, color=PROFESSIONAL_COLORS["primary"], linewidth=0.95)
+        selection = measurement.get("selection") or {}
+        range_start = piston_finite_number(selection.get("rangeStartTimeS"))
+        range_end = piston_finite_number(selection.get("rangeEndTimeS"))
+        if range_start is not None and range_end is not None and range_end > range_start:
+            axis.axvspan(range_start, range_end, color="#8bbd9b", alpha=0.2, linewidth=0)
+        trigger = piston_finite_number((measurement.get("acquisitionSettings") or {}).get("triggerThresholdKpa"))
+        if trigger is not None:
+            axis.axhline(trigger, color="#dc8b28", linewidth=0.8, linestyle="--")
+        source = measurement.get("heightSource")
+        source_label = (
+            "custom" if language == "en" and source == "custom"
+            else "system" if language == "en"
+            else "自定义" if source == "custom"
+            else "系统"
+        )
+        number = int(measurement.get("number") or index + 1)
+        height = format_piston_number(measurement.get("targetHeightMm"), 0)
+        title = (
+            f"Run {number}   {height} mm ({source_label})"
+            if language == "en"
+            else f"第 {number} 次   {height} mm（{source_label}）"
+        )
+        axis.set_title(
+            title,
+            fontsize=8.5,
+            pad=5,
+            fontfamily=cjk_font if language != "en" else None,
+        )
+        axis.set_xlabel(
+            "Time after trigger / s" if language == "en" else "触发后时间 / s",
+            fontsize=7.2,
+            fontfamily=cjk_font if language != "en" else None,
+        )
+        axis.set_ylabel(
+            "Absolute pressure / kPa" if language == "en" else "绝对压强 / kPa",
+            fontsize=7.2,
+            fontfamily=cjk_font if language != "en" else None,
+        )
+        axis.tick_params(axis="both", labelsize=6.6, colors="#475569")
+        axis.grid(True, color="#d7dee8", linewidth=0.48, alpha=0.72)
+        axis.spines["top"].set_visible(False)
+        axis.spines["right"].set_visible(False)
+    return save_piston_figure(fig, figures_dir / "piston-pressure-overview.png", deps)
+
+
+def create_piston_oscillation_figures(
+    data: dict[str, Any],
+    figures_dir: Path,
+    deps: dict[str, Any],
+) -> list[dict[str, Path]]:
+    outputs = [
+        plot_piston_oscillation_fit(data, figures_dir, deps),
+        plot_piston_oscillation_pressure_overview(data, figures_dir, deps),
+    ]
+    return [output for output in outputs if output is not None]
+
+
+def build_piston_oscillation_report(
+    data: dict[str, Any],
+    figures_dir: Path,
+    out_dir: Path,
+    deps: dict[str, Any],
+) -> Path:
+    colors = deps["colors"]
+    A4 = deps["A4"]
+    Image = deps["Image"]
+    PageBreak = deps["PageBreak"]
+    Paragraph = deps["Paragraph"]
+    ParagraphStyle = deps["ParagraphStyle"]
+    SimpleDocTemplate = deps["SimpleDocTemplate"]
+    Spacer = deps["Spacer"]
+    Table = deps["Table"]
+    TableStyle = deps["TableStyle"]
+    Canvas = deps["Canvas"]
+    TA_CENTER = deps["TA_CENTER"]
+    TA_LEFT = deps["TA_LEFT"]
+    mm = deps["mm"]
+    pdfmetrics = deps["pdfmetrics"]
+    fonts = register_report_fonts(deps)
+    copy = get_piston_report_copy(data)
+    language = str(data.get("language") or "zh-CN")
+    target = out_dir / "report.pdf"
+    doc = SimpleDocTemplate(
+        str(target),
+        pagesize=A4,
+        leftMargin=18 * mm,
+        rightMargin=18 * mm,
+        topMargin=17 * mm,
+        bottomMargin=17 * mm,
+        title=copy["title"],
+        author="Gas Laws Lab",
+    )
+
+    title_style = ParagraphStyle(
+        "PistonTitle",
+        fontName=fonts["cjk"],
+        fontSize=20,
+        leading=26,
+        textColor=colors.HexColor("#111827"),
+        alignment=TA_CENTER,
+        spaceAfter=17 * mm,
+    )
+    chapter_style = ParagraphStyle(
+        "PistonChapter",
+        fontName=fonts["cjk"],
+        fontSize=16.5,
+        leading=21,
+        textColor=colors.HexColor("#111827"),
+        spaceAfter=7 * mm,
+    )
+    section_style = ParagraphStyle(
+        "PistonSection",
+        fontName=fonts["cjk"],
+        fontSize=12.5,
+        leading=16,
+        textColor=colors.HexColor("#1f2937"),
+        spaceBefore=2.2 * mm,
+        spaceAfter=3.5 * mm,
+    )
+    body_style = ParagraphStyle(
+        "PistonBody",
+        fontName=fonts["cjk"],
+        fontSize=8.4,
+        leading=11.2,
+        textColor=colors.HexColor("#334155"),
+        alignment=TA_LEFT,
+    )
+    table_style = ParagraphStyle(
+        "PistonTable",
+        parent=body_style,
+        fontSize=7.7,
+        leading=9.5,
+        alignment=TA_CENTER,
+    )
+    table_left_style = ParagraphStyle(
+        "PistonTableLeft",
+        parent=table_style,
+        alignment=TA_LEFT,
+    )
+    caption_style = ParagraphStyle(
+        "PistonCaption",
+        parent=body_style,
+        fontSize=8.4,
+        leading=11,
+        alignment=TA_CENTER,
+        textColor=colors.HexColor("#1f2937"),
+        spaceBefore=2.2 * mm,
+        spaceAfter=3 * mm,
+    )
+    note_style = ParagraphStyle(
+        "PistonNote",
+        parent=body_style,
+        fontSize=7.7,
+        leading=10.3,
+        textColor=colors.HexColor("#64748b"),
+    )
+
+    def is_cjk(character: str) -> bool:
+        codepoint = ord(character)
+        return (
+            0x2E80 <= codepoint <= 0x9FFF
+            or 0xF900 <= codepoint <= 0xFAFF
+            or 0xFF00 <= codepoint <= 0xFFEF
+        )
+
+    def mixed_markup(value: Any, *, bold: bool = False) -> str:
+        text = str(value if value is not None else "--")
+        if not text:
+            text = "--"
+        runs: list[tuple[str, str]] = []
+        for character in text:
+            font_name = (
+                fonts["cjk"]
+            ) if is_cjk(character) else (
+                fonts["serif_bold"] if bold else fonts["serif"]
+            )
+            if runs and runs[-1][0] == font_name:
+                runs[-1] = (font_name, runs[-1][1] + character)
+            else:
+                runs.append((font_name, character))
+        return "".join(
+            f'<font name="{font_name}">{escape(text_run).replace(" ", "&#160;")}</font>'
+            for font_name, text_run in runs
+        )
+
+    def paragraph(value: Any, style: Any = body_style, *, bold: bool = False) -> Any:
+        return Paragraph(mixed_markup(value, bold=bold), style)
+
+    table_number = 0
+    figure_number = 0
+
+    def append_table(
+        story: list[Any],
+        caption: str,
+        headers: list[Any],
+        rows: list[list[Any]],
+        widths: list[Any],
+        *,
+        left_columns: set[int] | None = None,
+        compact: bool = False,
+    ) -> None:
+        nonlocal table_number
+        table_number += 1
+        story.append(paragraph(f"表 {table_number} {caption}", caption_style))
+        left_columns = left_columns or set()
+        cell_style = table_style if not compact else ParagraphStyle(
+            f"PistonTableCompact{table_number}",
+            parent=table_style,
+            fontSize=7.0,
+            leading=8.3,
+        )
+        left_style = table_left_style if not compact else ParagraphStyle(
+            f"PistonTableCompactLeft{table_number}",
+            parent=cell_style,
+            alignment=TA_LEFT,
+        )
+        data_rows = [[paragraph(header, cell_style, bold=True) for header in headers]]
+        for row in rows:
+            data_rows.append([
+                paragraph(value, left_style if column_index in left_columns else cell_style)
+                for column_index, value in enumerate(row)
+            ])
+        table = Table(data_rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
+        table.setStyle(TableStyle([
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+            ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.HexColor("#111827")),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.45, colors.HexColor("#111827")),
+            ("LINEBELOW", (0, -1), (-1, -1), 0.8, colors.HexColor("#111827")),
+            ("LEFTPADDING", (0, 0), (-1, -1), 2.2),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 2.2),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.4 if compact else 3.1),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.4 if compact else 3.1),
+        ]))
+        story.append(table)
+        story.append(Spacer(1, 3.5 * mm))
+
+    def append_figure(story: list[Any], path: Path, caption: str, max_height_mm: float) -> None:
+        nonlocal figure_number
+        if not path.exists():
+            return
+        figure_number += 1
+        image = Image(str(path))
+        maximum_width = 170 * mm
+        maximum_height = max_height_mm * mm
+        scale = min(maximum_width / image.imageWidth, maximum_height / image.imageHeight)
+        image.drawWidth = image.imageWidth * scale
+        image.drawHeight = image.imageHeight * scale
+        image.hAlign = "CENTER"
+        story.append(image)
+        story.append(paragraph(f"图 {figure_number} {caption}", caption_style))
+
+    summary = data.get("summary") or {}
+    measurements = [item for item in (data.get("measurements") or []) if isinstance(item, dict)]
+    fit = data.get("linearFitResult") or {}
+    calculation = data.get("calculationSession") or {}
+    answers = calculation.get("answers") or {}
+    knowns = calculation.get("knowns") or {}
+    story: list[Any] = []
+
+    story.append(paragraph(copy["title"], title_style))
+    story.append(paragraph(f"1 {copy['file_information']}", chapter_style))
+    story.append(paragraph(f"1.1 {copy['basic_information']}", section_style))
+    append_table(
+        story,
+        copy["file_information"],
+        [copy["information_item"], copy["content"]],
+        [
+            [copy["file"], data.get("fileName")],
+            [copy["experiment"], data.get("experimentName")],
+            [copy["experiment_mode"], copy["mode"]],
+            [copy["file_created"], format_piston_datetime(data.get("fileCreatedAtMs"))],
+            [copy["first_started"], format_piston_datetime(data.get("sessionStartedAtMs"))],
+            [copy["last_completed"], format_piston_datetime(data.get("sessionCompletedAtMs"))],
+            [copy["duration"], format_piston_duration(data.get("sessionStartedAtMs"), data.get("sessionCompletedAtMs"), language)],
+            [copy["exported"], format_piston_datetime(data.get("exportedAtMs"))],
+        ],
+        [72 * mm, 98 * mm],
+        left_columns={0},
+        compact=True,
+    )
+    story.append(paragraph(f"1.2 {copy['result_overview']}", section_style))
+    append_table(
+        story,
+        copy["result_overview"],
+        [copy["measurement_count"], copy["fit_points"], "γ", copy["theory"], copy["relative_error"], "R^2", copy["operation_calculation"], copy["total_score"]],
+        [[
+            summary.get("measurementCount"),
+            summary.get("fitPointCount"),
+            format_piston_number(summary.get("gamma"), 4),
+            format_piston_number(summary.get("referenceGamma"), 4),
+            format_piston_number(summary.get("relativeErrorPercent"), 2, "%"),
+            format_piston_number(summary.get("rSquared"), 4),
+            f"{summary.get('operationAverageScore', '--')} + {summary.get('calculationScore', '--')}",
+            f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}",
+        ]],
+        [20 * mm, 19 * mm, 18 * mm, 21 * mm, 23 * mm, 19 * mm, 27 * mm, 23 * mm],
+        compact=True,
+    )
+    append_figure(story, figures_dir / "piston-h-t2-fit.png", copy["fit_caption"], 76)
+
+    story.append(PageBreak())
+    story.append(paragraph(f"2 {copy['actual_records']}", chapter_style))
+    story.append(paragraph(f"2.1 {copy['measurement_records']}", section_style))
+    measurement_rows = []
+    for measurement in measurements:
+        acquisition = measurement.get("acquisitionSettings") or {}
+        measurement_rows.append([
+            f"第 {measurement.get('number')} 次" if language != "en" else f"Run {measurement.get('number')}",
+            format_piston_number(measurement.get("targetHeightMm"), 0),
+            format_piston_number(measurement.get("confirmedHeightMm"), 1),
+            copy["custom"] if measurement.get("heightSource") == "custom" else copy["system"],
+            format_piston_number(acquisition.get("sampleRateHz"), 0),
+            format_piston_number(acquisition.get("triggerThresholdKpa"), 0),
+            measurement.get("sampleCount"),
+            format_piston_number(acquisition.get("recordedDurationS"), 3),
+            format_piston_number((measurement.get("keyEvidence") or {}).get("releaseGapMs"), 0),
+        ])
+    append_table(
+        story,
+        "各次正式测量条件与过程摘要" if language != "en" else "Formal measurement conditions",
+        [copy["number"], copy["target_height"], copy["actual_height"], copy["height_source"], copy["sample_rate"], copy["trigger"], copy["samples"], copy["duration_s"], copy["release_gap"]],
+        measurement_rows,
+        [20 * mm, 17 * mm, 17 * mm, 20 * mm, 18 * mm, 18 * mm, 17 * mm, 20 * mm, 23 * mm],
+        compact=len(measurement_rows) > 3,
+    )
+    story.append(paragraph(f"2.2 {copy['pressure_curves']}", section_style))
+    append_figure(story, figures_dir / "piston-pressure-overview.png", copy["curve_caption"], 146 if len(measurements) > 3 else 126)
+    story.append(paragraph(copy["curve_note"], note_style))
+
+    story.append(PageBreak())
+    story.append(paragraph(f"3 {copy['calculation_results']}", chapter_style))
+    story.append(paragraph(f"3.1 {copy['period_results']}", section_style))
+    period_rows = []
+    for measurement in measurements:
+        result = measurement.get("periodResult") or {}
+        periods = ((measurement.get("processReview") or {}).get("scoreRows") or [])
+        selection_row = next((row for row in periods if row.get("id") == "piston-selection-fit"), {})
+        deviation_text = "--"
+        evidence_text = str(selection_row.get("evidence") or "")
+        match = re.search(r"(\d+(?:\.\d+)?)%", evidence_text)
+        if match:
+            deviation_text = f"{match.group(1)}%"
+        period_rows.append([
+            f"第 {measurement.get('number')} 次" if language != "en" else f"Run {measurement.get('number')}",
+            format_piston_number(result.get("t1S"), 3),
+            format_piston_number(result.get("t2S"), 3),
+            format_piston_number(result.get("periodCount"), 1).rstrip("0").rstrip("."),
+            format_piston_number(result.get("deltaTimeS"), 4),
+            format_piston_number(result.get("periodS"), 5),
+            format_piston_number(result.get("periodSquaredS2"), 7),
+            deviation_text,
+            copy["yes"] if measurement.get("includedInFit") else copy["no"],
+        ])
+    append_table(
+        story,
+        "各次周期处理结果" if language != "en" else "Period-processing results",
+        [copy["number"], "t1/s", "t2/s", copy["period_count"], copy["delta_time"], copy["period"], copy["period_squared"], copy["maximum_deviation"], copy["included"]],
+        period_rows,
+        [21 * mm, 17 * mm, 17 * mm, 18 * mm, 21 * mm, 20 * mm, 25 * mm, 22 * mm, 16 * mm],
+        compact=len(period_rows) > 3,
+    )
+    story.append(paragraph(f"3.2 {copy['fit_results']}", section_style))
+    append_table(
+        story,
+        "h-T^2 线性拟合参数" if language != "en" else "h-T^2 linear-fit parameters",
+        [copy["fit_points"], copy["slope"], copy["intercept"], "R^2"],
+        [[
+            len(fit.get("selectedRunIndices") or []),
+            format_piston_number(fit.get("slopeMPerS2"), 5),
+            format_piston_number(fit.get("interceptM"), 6),
+            format_piston_number(fit.get("rSquared"), 6),
+        ]],
+        [42.5 * mm] * 4,
+        compact=True,
+    )
+    story.append(paragraph(f"3.3 {copy['final_results']}", section_style))
+
+    def answer_row(field: str, label: str, decimals: int, suffix: str = "") -> list[Any]:
+        answer = answers.get(field) or {}
+        expected = answer.get("expectedValue")
+        raw = str(answer.get("draftRaw") or "").strip()
+        user_value = raw if raw else format_piston_number(expected, decimals, suffix)
+        resolution = answer.get("resolution")
+        if resolution == "first-correct":
+            evaluation, credit = copy["first_correct"], "100%"
+        elif resolution == "retry-correct":
+            evaluation, credit = copy["retry_correct"], "80%"
+        elif resolution in ("revealed-after-attempt", "revealed-without-valid-attempt"):
+            evaluation, credit = copy["revealed"], "0%"
+        else:
+            evaluation, credit = copy["unresolved"], "0%"
+        return [
+            label,
+            f"{user_value}{suffix if raw and suffix else ''}",
+            format_piston_number(expected, decimals, suffix),
+            evaluation,
+            credit,
+        ]
+
+    append_table(
+        story,
+        "最终计算与答案评价" if language != "en" else "Final calculation and answer evaluation",
+        [copy["calculation_item"], copy["user_result"], copy["reference"], copy["evaluation"], copy["credit"]],
+        [
+            answer_row("area", copy["area"], 6, " m^2"),
+            answer_row("gamma", copy["gamma"], 4),
+            answer_row("relativeError", copy["relative_error"], 2, "%"),
+        ],
+        [45 * mm, 35 * mm, 35 * mm, 35 * mm, 20 * mm],
+        compact=True,
+    )
+
+    story.append(PageBreak())
+    story.append(paragraph(f"4 {copy['process_score']}", chapter_style))
+    story.append(paragraph(f"4.1 {copy['process_evidence']}", section_style))
+    evidence_rows = []
+    score_rows = []
+    for measurement in measurements:
+        key = measurement.get("keyEvidence") or {}
+        score = measurement.get("score") or {}
+        process = measurement.get("processReview") or {}
+        touchdown = bool(key.get("touchdown"))
+        release_gap = piston_finite_number(key.get("releaseGapMs"))
+        selection_score = safe_float(score.get("selectionAndFit"), 0)
+        evidence_rows.append([
+            f"第 {measurement.get('number')} 次" if language != "en" else f"Run {measurement.get('number')}",
+            format_piston_number(key.get("heightDeviationMm"), 1, " mm",),
+            format_piston_number(release_gap, 0, " ms"),
+            copy["yes"] if touchdown else copy["no"],
+            key.get("pressCount", 0),
+            key.get("resetCount", 0),
+            copy["saved"] if key.get("result") == "saved" else "--",
+        ])
+        if touchdown:
+            main_evidence = "记录到未支撑触底" if language != "en" else "Unsupported bottom impact recorded"
+        elif (release_gap or 0) >= 60 or selection_score < 27:
+            main_evidence = "注意松手同步与周期选区" if language != "en" else "Review release timing and period selection"
+        elif safe_float(score.get("evidence"), 0) < 5:
+            main_evidence = "记录证据不完整" if language != "en" else "Incomplete evidence"
+        else:
+            main_evidence = "过程证据完整" if language != "en" else "Complete process evidence"
+        score_rows.append([
+            f"第 {measurement.get('number')} 次" if language != "en" else f"Run {measurement.get('number')}",
+            f"{score.get('operation', '--')} / {score.get('operationMaximum', 75)}",
+            process.get("statusLabel") or "--",
+            main_evidence,
+        ])
+    append_table(
+        story,
+        "各次实验关键操作记录" if language != "en" else "Key operation records",
+        [copy["number"], copy["height_deviation"], copy["release_gap"], copy["touchdown"], copy["press_count"], copy["reset_count"], copy["formal_result"]],
+        evidence_rows,
+        [23 * mm, 30 * mm, 30 * mm, 20 * mm, 24 * mm, 24 * mm, 19 * mm],
+        compact=len(evidence_rows) > 3,
+    )
+    story.append(paragraph(copy["report_note"], note_style))
+    story.append(Spacer(1, 2 * mm))
+    story.append(paragraph(f"4.2 {copy['score_results']}", section_style))
+    append_table(
+        story,
+        "各次实验操作评分" if language != "en" else "Operation scores",
+        [copy["number"], copy["operation_score"], copy["status"], copy["main_evidence"]],
+        score_rows,
+        [28 * mm, 38 * mm, 34 * mm, 70 * mm],
+        left_columns={3},
+        compact=len(score_rows) > 3,
+    )
+    append_table(
+        story,
+        "本轮最终评分" if language != "en" else "Final score",
+        [copy["operation_average"], copy["group_calculation"], copy["total_score"]],
+        [[
+            f"{summary.get('operationAverageScore', '--')} / {summary.get('operationMaximum', 75)}",
+            f"{summary.get('calculationScore', '--')} / {summary.get('calculationMaximum', 25)}",
+            f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}",
+        ]],
+        [170 * mm / 3] * 3,
+        compact=True,
+    )
+
+    def split_font_runs(value: Any) -> list[tuple[str, str]]:
+        text = str(value or "")
+        runs: list[tuple[str, str]] = []
+        for character in text:
+            font_name = fonts["cjk"] if is_cjk(character) else fonts["serif"]
+            if runs and runs[-1][0] == font_name:
+                runs[-1] = (font_name, runs[-1][1] + character)
+            else:
+                runs.append((font_name, character))
+        return runs
+
+    def draw_mixed_string(canvas: Any, x: float, y: float, value: Any, font_size: float, *, align: str = "left") -> None:
+        runs = split_font_runs(value)
+        total_width = sum(pdfmetrics.stringWidth(text, font_name, font_size) for font_name, text in runs)
+        cursor = x - total_width if align == "right" else x
+        for font_name, text in runs:
+            canvas.setFont(font_name, font_size)
+            canvas.drawString(cursor, y, text)
+            cursor += pdfmetrics.stringWidth(text, font_name, font_size)
+
+    page_contexts = [
+        copy["file_information"],
+        copy["actual_records"],
+        copy["calculation_results"],
+        copy["process_score"],
+    ]
+
+    def draw_page(canvas: Any, document: Any) -> None:
+        canvas.saveState()
+        page_number = max(1, int(document.page))
+        canvas.setFillColor(colors.HexColor("#64748b"))
+        if page_number > 1:
+            canvas.setStrokeColor(colors.HexColor("#cbd5e1"))
+            canvas.setLineWidth(0.4)
+            canvas.line(18 * mm, A4[1] - 12 * mm, A4[0] - 18 * mm, A4[1] - 12 * mm)
+            draw_mixed_string(canvas, 18 * mm, A4[1] - 9 * mm, data.get("fileName") or "", 7.6)
+            draw_mixed_string(
+                canvas,
+                A4[0] - 18 * mm,
+                A4[1] - 9 * mm,
+                page_contexts[min(page_number - 1, len(page_contexts) - 1)],
+                7.6,
+                align="right",
+            )
+        draw_mixed_string(canvas, 18 * mm, 9 * mm, "Gas Laws Lab", 7.6)
+        draw_mixed_string(
+            canvas,
+            A4[0] - 18 * mm,
+            9 * mm,
+            copy["page"].format(number=page_number),
+            7.6,
+            align="right",
+        )
+        canvas.restoreState()
+
+    def make_report_canvas(*args: Any, **kwargs: Any) -> Any:
+        kwargs["initialFontName"] = fonts["serif"]
+        return Canvas(*args, **kwargs)
+
+    doc.build(
+        story,
+        onFirstPage=draw_page,
+        onLaterPages=draw_page,
+        canvasmaker=make_report_canvas,
+    )
+    return target
+
+
+def export_piston_oscillation_payload(
+    data: dict[str, Any],
+    out_dir: Path,
+    formats: set[str],
+    deps: dict[str, Any],
+) -> list[Path]:
+    if "report" not in formats:
+        raise ValueError("Piston-oscillation export currently supports report output only.")
+    paths = ensure_dirs(out_dir, include_figures=True, include_data=False)
+    create_piston_oscillation_figures(data, paths["figures"], deps)
+    report = build_piston_oscillation_report(data, paths["figures"], paths["root"], deps)
+    shutil.rmtree(paths["figures"], ignore_errors=True)
+    return [report]
+
+
 def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv_outputs: list[Path], out_dir: Path, deps: dict[str, Any]) -> Path:
     colors = deps["colors"]
     A4 = deps["A4"]
@@ -2859,6 +3701,8 @@ def export_json_payload(payload: dict[str, Any], out_dir: Path, formats: set[str
     data = payload.get("data")
     if not isinstance(data, dict):
         raise ValueError("JSON payload is missing object data.")
+    if is_piston_oscillation_export(data):
+        return export_piston_oscillation_payload(data, out_dir, formats, deps)
     if is_heat_capacity_export(data):
         return export_heat_capacity_payload(payload, data, out_dir, formats, deps)
 

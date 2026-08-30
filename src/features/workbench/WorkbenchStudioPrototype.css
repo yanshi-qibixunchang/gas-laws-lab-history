@@ -4367,6 +4367,27 @@
   background: var(--studio-surface);
 }
 
+.studio-piston-report-export-card {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  margin: 0 0 10px;
+  border-radius: 4px;
+}
+
+.studio-piston-report-export-card .studio-heat-export-buttons {
+  justify-content: flex-end;
+}
+
+@media (max-width: 920px) {
+  .studio-piston-report-export-card {
+    grid-template-columns: 1fr;
+  }
+
+  .studio-piston-report-export-card .studio-heat-export-buttons {
+    justify-content: flex-start;
+  }
+}
+
 .studio-live-workspace-piston-processing > .studio-live-workspace-resizer {
   width: 0;
   min-width: 0;
