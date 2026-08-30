@@ -966,7 +966,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /const emitBottomImpactAudio = useCallback\([\s\S]*setBottomImpactAudioEvent\([\s\S]*dropDistanceMm: Math\.max\(0, dropDistanceMm\)[\s\S]*const animateReset = \(nowMs: number\) => \{[\s\S]*emitBottomImpactAudio\([\s\S]*startedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM[\s\S]*continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM/,
+  /const emitBottomImpactAudio = useCallback\([\s\S]*const normalizedDropDistanceMm = Math\.max\(0, dropDistanceMm\)[\s\S]*setBottomImpactAudioEvent\([\s\S]*dropDistanceMm: normalizedDropDistanceMm[\s\S]*const animateReset = \(nowMs: number\) => \{[\s\S]*emitBottomImpactAudio\([\s\S]*startedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM[\s\S]*continuousDropStartedHeightMm - PISTON_EQUILIBRIUM_HEIGHT_MIN_MM/,
   'Guide height reset and Free unsupported drop should share the same distance-scaled bottom-impact audio event',
 );
 assert.match(

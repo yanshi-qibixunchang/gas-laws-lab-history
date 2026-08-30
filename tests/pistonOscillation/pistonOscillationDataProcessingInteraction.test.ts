@@ -127,8 +127,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /activePistonOscillationDataProcessing \? 'studio-center-workspace-piston-processing' : ''/,
-  'data processing must mark the center workspace so it can become one continuous canvas',
+  /activePistonOscillationExpandedRealtime \? 'studio-center-workspace-piston-processing' : ''/,
+  'data processing and process review must mark the center workspace so they can become one continuous canvas',
 );
 assert.match(
   workbenchStyle,

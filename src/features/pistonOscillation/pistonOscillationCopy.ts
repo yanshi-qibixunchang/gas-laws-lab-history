@@ -298,6 +298,12 @@ export interface PistonOscillationShellCopy {
     periodReminder: string;
     nextReminder: string;
   };
+  review: {
+    title: string;
+    hint: string;
+    navigationItem: string;
+    closeAria: string;
+  };
 }
 
 export const PISTON_OSCILLATION_SHELL_COPY = {
@@ -641,6 +647,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       periodReminder: '请使用端点时间和周期数计算单个周期 T。',
       nextReminder: '本幅周期结果已经记录，请继续处理下一幅曲线。',
     },
+    review: {
+      title: '过程回顾与评分',
+      hint: '逐次回顾仪器操作、正式曲线、周期证据与评分',
+      navigationItem: '过程回顾与评分',
+      closeAria: '关闭过程回顾与评分',
+    },
   },
   'zh-TW': {
     experimentName: '空氣熱容比（活塞振動法）',
@@ -982,6 +994,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       periodReminder: '請使用端點時間與週期數計算單個週期 T。',
       nextReminder: '本幅週期結果已經記錄，請繼續處理下一幅曲線。',
     },
+    review: {
+      title: '過程回顧與評分',
+      hint: '逐次回顧儀器操作、正式曲線、週期證據與評分',
+      navigationItem: '過程回顧與評分',
+      closeAria: '關閉過程回顧與評分',
+    },
   },
   en: {
     experimentName: 'Air Heat-Capacity Ratio (Piston Oscillation)',
@@ -1322,6 +1340,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       endpointReminder: 'Read and verify t₁ and t₂ in the information box.',
       periodReminder: 'Use the endpoint times and period count to calculate T.',
       nextReminder: 'This period result is recorded. Continue with the next curve.',
+    },
+    review: {
+      title: 'Process Review & Score',
+      hint: 'Review instrument actions, recorded curves, period evidence, and scores by run',
+      navigationItem: 'Process Review & Score',
+      closeAria: 'Close process review and score',
     },
   },
 } as const satisfies Record<PistonOscillationLanguage, PistonOscillationShellCopy>;

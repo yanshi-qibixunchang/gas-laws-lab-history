@@ -472,12 +472,12 @@ assert.match(
 assert.match(workbenchSource, /PISTON_OSCILLATION_DEMO_DURATION_MS/);
 assert.match(
   workbenchSource,
-  /data-piston-oscillation-realtime=\{[\s\S]*activePistonOscillationDataProcessing \? 'data-processing' : 'acquisition'/,
+  /data-piston-oscillation-realtime=\{[\s\S]*activePistonOscillationProcessReview[\s\S]*\? 'process-review'[\s\S]*activePistonOscillationDataProcessing[\s\S]*\? 'data-processing'[\s\S]*: 'acquisition'/,
 );
 assert.match(
   workbenchSource,
-  /activePistonOscillationDataProcessing \? \([\s\S]*<PistonOscillationDataProcessingPanel[\s\S]*guideSession=\{activeFile\.pistonOscillationGuideSession\}[\s\S]*onProcessingEvent=\{handlePistonOscillationProcessingEvent\}[\s\S]*\) : \([\s\S]*<PistonOscillationAcquisitionPanel/,
-  'the realtime panel should switch from acquisition to the mandatory data-processing workspace',
+  /activePistonOscillationProcessReview \? \([\s\S]*<PistonOscillationProcessReviewPanel[\s\S]*activePistonOscillationDataProcessing \? \([\s\S]*<PistonOscillationDataProcessingPanel[\s\S]*onProcessingEvent=\{handlePistonOscillationProcessingEvent\}[\s\S]*\) : \([\s\S]*<PistonOscillationAcquisitionPanel/,
+  'the realtime panel should host process review, data processing, or acquisition without opening a second workspace implementation',
 );
 assert.match(
   workbenchSource,
@@ -486,8 +486,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /studio-live-workspace-piston-processing[\s\S]*disabled=\{activePistonOscillationDataProcessing\}/,
-  'processing should collapse the instrument pane and lock the live split resizer',
+  /studio-live-workspace-piston-processing[\s\S]*disabled=\{activePistonOscillationExpandedRealtime\}/,
+  'processing and process review should collapse the instrument pane and lock the live split resizer',
 );
 assert.match(dataProcessingSource, /onPointerDown=\{handlePointerDown\}[\s\S]*onPointerUp=\{finishPointerInteraction\}/);
 assert.match(dataProcessingSource, /data-piston-guide-target="period-chart"/);

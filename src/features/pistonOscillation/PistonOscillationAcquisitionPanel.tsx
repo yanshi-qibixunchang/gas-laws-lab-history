@@ -1726,24 +1726,47 @@ PistonOscillationAcquisitionPanelProps
       || triggerSeconds === null
       || triggerSourceSampleIndex === null
     ) return null;
-    const samples = createPistonOscillationContinuousRecordingSamples({
-      durationS,
-      sampleRateHz: activeObservationSeries.sampleRateHz,
-      recordingStartedAtMs: cycleStartMs + triggerSeconds * 1_000,
-      releaseSegments: freeReleaseSegmentsRef.current,
-      pressStartedAtMs: freePressStartedAtMsRef.current,
-      liveObservations: freeLiveObservationsRef.current,
-    });
+    const releaseSegments = freeReleaseSegmentsRef.current;
+    const pressStartedAtMs = freePressStartedAtMsRef.current;
+    const liveObservations = freeLiveObservationsRef.current;
+    const singleReleaseRecording = releaseSegments.length === 1
+      && pressStartedAtMs.length === 0
+      && liveObservations.length === 0;
+    const samples = singleReleaseRecording
+      ? createPistonOscillationRecordedObservationSamples(
+          activeObservationSeries,
+          triggerSourceSampleIndex,
+          Math.min(
+            Math.max(0, durationS),
+            Math.max(
+              0,
+              (
+                activeObservationSeries.samples.length
+                - triggerSourceSampleIndex
+                - 1
+              ) / activeObservationSeries.sampleRateHz,
+            ),
+          ),
+        )
+      : createPistonOscillationContinuousRecordingSamples({
+          durationS,
+          sampleRateHz: activeObservationSeries.sampleRateHz,
+          recordingStartedAtMs: cycleStartMs + triggerSeconds * 1_000,
+          releaseSegments,
+          pressStartedAtMs,
+          liveObservations,
+        });
     if (samples.length < 2) return null;
     const boundedDurationS = samples.at(-1)?.timeS ?? 0;
-    const snapshotObservationSeries =
-      createPistonOscillationContinuousObservationSeries({
-        samples,
-        sampleRateHz: activeObservationSeries.sampleRateHz,
-        releaseSegments: freeReleaseSegmentsRef.current,
-        pressStartedAtMs: freePressStartedAtMsRef.current,
-        liveObservations: freeLiveObservationsRef.current,
-      });
+    const snapshotObservationSeries = singleReleaseRecording
+      ? activeObservationSeries
+      : createPistonOscillationContinuousObservationSeries({
+          samples,
+          sampleRateHz: activeObservationSeries.sampleRateHz,
+          releaseSegments,
+          pressStartedAtMs,
+          liveObservations,
+        });
     return createPistonOscillationRawMeasurementRecord({
       recordId: `piston-free-${freeSession.startedAtMs ?? 0}-${target?.targetId ?? freeSession.measurementIndex}-${attemptId}`,
       capturedAtMs: Date.now(),
@@ -1979,15 +2002,34 @@ PistonOscillationAcquisitionPanelProps
       && restoredGuidePauseCandidate === null
       && restoredFreeCandidate === null
     ) return;
-    const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds();
-    const candidate = restoredGuidePauseCandidate
-      ?? buildGuideCandidate(pauseElapsedSeconds)
-      ?? (guideSession?.step === 'pauseAvailable'
-        ? guideSession.acquisitionCandidate
-        : null);
-    const effectiveCandidate = guideSelected
-      ? candidate
-      : restoredFreeCandidate ?? buildFreeCandidate(pauseElapsedSeconds);
+    const requestedPauseElapsedSeconds = getCurrentRecordingElapsedSeconds();
+    const pauseElapsedSeconds = freeSelected
+      ? displayedObservationSamples.at(-1)?.timeS ?? requestedPauseElapsedSeconds
+      : requestedPauseElapsedSeconds;
+
+    // Free mode must honor the user's pause click before attempting to package
+    // the visible samples. Record validation may reject a physically incomplete
+    // attempt, but it must never leave the clock and x-axis running forever.
+    if (freeSelected && phaseRef.current === 'recording') {
+      setStopElapsedSeconds(pauseElapsedSeconds);
+      updatePhase('stopped');
+    }
+
+    let candidate: PistonOscillationGuideSavedMeasurement | null = null;
+    let effectiveCandidate: PistonOscillationRawMeasurementRecord | null = null;
+    try {
+      candidate = restoredGuidePauseCandidate
+        ?? buildGuideCandidate(pauseElapsedSeconds)
+        ?? (guideSession?.step === 'pauseAvailable'
+          ? guideSession.acquisitionCandidate
+          : null);
+      effectiveCandidate = guideSelected
+        ? candidate
+        : restoredFreeCandidate ?? buildFreeCandidate(pauseElapsedSeconds);
+    } catch (cause) {
+      console.error('[piston-oscillation] Failed to package the paused acquisition.', cause);
+      return;
+    }
     if (!effectiveCandidate) return;
     if (guideActive) {
       if (!candidate) return;
@@ -1999,12 +2041,12 @@ PistonOscillationAcquisitionPanelProps
     }
     if (freeSelected) {
       frozenFreeCandidateRef.current = effectiveCandidate;
-      onFreeCandidateChange?.(effectiveCandidate);
     }
     setStopElapsedSeconds(
       effectiveCandidate.acquisitionSettings.recordedDurationS,
     );
     updatePhase('stopped');
+    if (freeSelected) onFreeCandidateChange?.(effectiveCandidate);
   };
 
   useImperativeHandle(ref, () => ({

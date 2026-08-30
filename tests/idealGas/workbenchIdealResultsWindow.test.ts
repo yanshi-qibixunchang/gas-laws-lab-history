@@ -96,7 +96,7 @@ assert.match(
 );
 assert.match(
   source,
-  /const showPanelActions = isProcessingRealtime[\s\S]*panel\.key === 'preview' && !activePistonOscillationDataProcessing/,
+  /const showPanelActions = isProcessingRealtime[\s\S]*panel\.key === 'preview' && !activePistonOscillationExpandedRealtime/,
   'Preview Reset should be available for both standard and ideal files',
 );
 assert.match(

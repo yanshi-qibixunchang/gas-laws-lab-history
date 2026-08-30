@@ -101,6 +101,14 @@ assert.deepEqual(
 );
 assert.deepEqual(
   getPistonOscillationMaterialsPanelOrder(pistonFile({
+    freeStatus: 'active',
+    freeDataProcessing: { status: 'completed' },
+  })),
+  ['heatCapacityGuide', 'heatCapacityReview'],
+  'completed Free mode should expose both Data processing and Process review & score',
+);
+assert.deepEqual(
+  getPistonOscillationMaterialsPanelOrder(pistonFile({
     freeStatus: 'paused',
     freeDataProcessing: {},
   })),

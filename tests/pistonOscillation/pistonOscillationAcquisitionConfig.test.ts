@@ -193,7 +193,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /restoredGuidePauseCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*effectivePhase = demoFrame\?\.acquisitionPhase[\s\S]*restoredGuidePauseCandidate[\s\S]*\? 'recording'[\s\S]*const candidate = restoredGuidePauseCandidate[\s\S]*\?\? buildGuideCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*guideSession\.acquisitionCandidate/,
+  /restoredGuidePauseCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*effectivePhase = demoFrame\?\.acquisitionPhase[\s\S]*restoredGuidePauseCandidate[\s\S]*\? 'recording'[\s\S]*candidate = restoredGuidePauseCandidate[\s\S]*\?\? buildGuideCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*guideSession\.acquisitionCandidate/,
   'a complete persisted candidate must restore its curve and remain pausable after remount',
 );
 assert.match(
@@ -203,7 +203,13 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /handleStop[\s\S]*getCurrentRecordingElapsedSeconds\(\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*setStopElapsedSeconds\([\s\S]*effectiveCandidate\.acquisitionSettings\.recordedDurationS/,
+  /handleStop[\s\S]*getCurrentRecordingElapsedSeconds\(\)[\s\S]*displayedObservationSamples\.at\(-1\)\?\.timeS[\s\S]*setStopElapsedSeconds\(pauseElapsedSeconds\);[\s\S]*updatePhase\('stopped'\);[\s\S]*buildFreeCandidate\(pauseElapsedSeconds\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*setStopElapsedSeconds\([\s\S]*effectiveCandidate\.acquisitionSettings\.recordedDurationS/,
+  'Free Pause must freeze the exact visible sample frontier even if record packaging is rejected',
+);
+assert.match(
+  panelSource,
+  /const singleReleaseRecording = releaseSegments\.length === 1[\s\S]*pressStartedAtMs\.length === 0[\s\S]*liveObservations\.length === 0;[\s\S]*createPistonOscillationRecordedObservationSamples\([\s\S]*activeObservationSeries,[\s\S]*triggerSourceSampleIndex,[\s\S]*const snapshotObservationSeries = singleReleaseRecording[\s\S]*\? activeObservationSeries/,
+  'a normal one-release Free run must package the same observed source and frontier shown by the live chart',
 );
 assert.match(
   panelSource,
@@ -342,7 +348,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const handleStop = \(\) => \{[\s\S]*const pauseElapsedSeconds = getCurrentRecordingElapsedSeconds\(\)[\s\S]*buildGuideCandidate\(pauseElapsedSeconds\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*const pauseAccepted = onGuideAcquisitionEvent\?\.\(\{[\s\S]*type: 'curvePaused',[\s\S]*candidate,[\s\S]*\}\) === true;[\s\S]*if \(!pauseAccepted\) return;[\s\S]*updatePhase\('stopped'\)/,
+  /const handleStop = \(\) => \{[\s\S]*const requestedPauseElapsedSeconds = getCurrentRecordingElapsedSeconds\(\)[\s\S]*buildGuideCandidate\(pauseElapsedSeconds\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*const pauseAccepted = onGuideAcquisitionEvent\?\.\(\{[\s\S]*type: 'curvePaused',[\s\S]*candidate,[\s\S]*\}\) === true;[\s\S]*if \(!pauseAccepted\) return;[\s\S]*updatePhase\('stopped'\)/,
   'Guide Pause should freeze locally only after publishing a valid candidate and receiving parent acceptance',
 );
 assert.match(

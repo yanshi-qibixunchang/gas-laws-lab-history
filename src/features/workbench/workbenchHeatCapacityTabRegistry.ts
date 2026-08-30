@@ -47,7 +47,11 @@ export const getPistonOscillationMaterialsPanelOrder = (
     : guideSelected
       ? file.pistonOscillationGuideSession.dataProcessing
       : null;
-  return activeDataProcessing === null ? [] : ['heatCapacityGuide'];
+  if (activeDataProcessing === null) return [];
+  return file.pistonOscillationFreeSession.status === 'active'
+    && activeDataProcessing.status === 'completed'
+      ? ['heatCapacityGuide', 'heatCapacityReview']
+      : ['heatCapacityGuide'];
 };
 
 export const isHeatCapacityPanelKey = (

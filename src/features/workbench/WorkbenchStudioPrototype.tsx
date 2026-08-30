@@ -491,6 +491,9 @@ import {
   type PistonOscillationReleaseEvent,
   type PistonOscillationShellCopy,
 } from '../pistonOscillation/index.ts';
+import {
+  PistonOscillationProcessReviewPanel,
+} from '../processReview/PistonOscillationProcessReviewPanel.tsx';
 import type {
   PistonOscillationGuideAction,
   PistonOscillationGuideActionContext,
@@ -4422,7 +4425,7 @@ const createPistonOscillationPanels = (
   { key: 'realtime', title: copy.panels.heatRealtimeTitle, hint: copy.panels.heatRealtimeHint, icon: <BarChart3 size={13} />, defaultVisible: true },
   { key: 'heatCapacityGuide', title: pistonCopy.processing.navigationItem, hint: pistonCopy.processing.hint, icon: <PanelTopOpen size={13} /> },
   { key: 'heatCapacityRecords', title: heatCopy.recordsTitle, hint: heatCopy.recordsHint, icon: <Table2 size={13} /> },
-  { key: 'heatCapacityReview', title: heatCopy.reviewTitle, hint: heatCopy.reviewHint, icon: <BookOpen size={13} /> },
+  { key: 'heatCapacityReview', title: pistonCopy.review.navigationItem, hint: pistonCopy.review.hint, icon: <BookOpen size={13} /> },
 ];
 
 const createResultsSections = (copy: WorkbenchCopy): Array<{ key: ResultsSectionKey; title: string; icon: React.ReactNode }> => [
@@ -5639,6 +5642,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     useState(false);
   const [pistonOscillationDataProcessingReviewOpen, setPistonOscillationDataProcessingReviewOpen] =
     useState(false);
+  const [pistonOscillationProcessReviewOpen, setPistonOscillationProcessReviewOpen] =
+    useState(false);
   const [pistonOscillationProcessingSuppressedFileId,
     setPistonOscillationProcessingSuppressedFileId] = useState<string | null>(null);
   const [pistonOscillationCalculationSuppressedFileId,
@@ -6409,6 +6414,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     )
     )
   );
+  const activePistonOscillationProcessReview = Boolean(
+    pistonOscillationProcessReviewOpen
+    && activePistonOscillationFreeSelected
+    && activePistonOscillationFreeSession?.status === 'active'
+    && activePistonOscillationFreeSession.dataProcessing?.status === 'completed'
+  );
+  const activePistonOscillationExpandedRealtime =
+    activePistonOscillationDataProcessing || activePistonOscillationProcessReview;
   const activePistonOscillationCalculationSession =
     activePistonOscillationFreeSelected
       ? activePistonOscillationFreeSession?.dataProcessing?.calculationSession ?? null
@@ -6521,6 +6534,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   useEffect(() => {
     setPistonOscillationCalculationReviewOpen(false);
     setPistonOscillationDataProcessingReviewOpen(false);
+    setPistonOscillationProcessReviewOpen(false);
     setPistonOscillationProcessingSuppressedFileId(null);
     setPistonOscillationCalculationSuppressedFileId(null);
   }, [
@@ -6538,6 +6552,20 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.kind,
     activeFile.kind === 'heatCapacityPistonOscillation'
       ? activeFile.pistonOscillationGuideSession.status
+      : null,
+  ]);
+  useEffect(() => {
+    const reviewAvailable = activeFile.kind === 'heatCapacityPistonOscillation'
+      && activeFile.pistonOscillationFreeSession.status === 'active'
+      && activeFile.pistonOscillationFreeSession.dataProcessing?.status === 'completed';
+    if (!reviewAvailable) setPistonOscillationProcessReviewOpen(false);
+  }, [
+    activeFile.kind,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationFreeSession.status
+      : null,
+    activeFile.kind === 'heatCapacityPistonOscillation'
+      ? activeFile.pistonOscillationFreeSession.dataProcessing?.status ?? null
       : null,
   ]);
   useEffect(() => {
@@ -9559,6 +9587,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : activeFile.pistonOscillationGuideSession.dataProcessing;
     if (!dataProcessing) return;
     setSelectedPanel('heatCapacityGuide');
+    setPistonOscillationProcessReviewOpen(false);
     setPistonOscillationCalculationReviewOpen(false);
     setPistonOscillationCalculationSuppressedFileId(activeFile.id);
     setPistonOscillationProcessingSuppressedFileId(null);
@@ -9571,6 +9600,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       || !activePistonOscillationCalculationSession
     ) return;
     setSelectedPanel('heatCapacityGuide');
+    setPistonOscillationProcessReviewOpen(false);
     setPistonOscillationDataProcessingReviewOpen(true);
     setPistonOscillationProcessingSuppressedFileId(null);
     setPistonOscillationCalculationSuppressedFileId(null);
@@ -9584,11 +9614,31 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setLeftCollapsed(false);
   };
 
+  const openPistonOscillationProcessReview = () => {
+    if (
+      activeFile.kind !== 'heatCapacityPistonOscillation'
+      || !activePistonOscillationFreeSelected
+      || activeFile.pistonOscillationFreeSession.status !== 'active'
+      || activeFile.pistonOscillationFreeSession.dataProcessing?.status !== 'completed'
+    ) return;
+    setSelectedPanel('heatCapacityReview');
+    setPistonOscillationDataProcessingReviewOpen(false);
+    setPistonOscillationCalculationReviewOpen(false);
+    setPistonOscillationProcessReviewOpen(true);
+  };
+
+  const closePistonOscillationProcessReview = () => {
+    setPistonOscillationProcessReviewOpen(false);
+    setSelectedPanel('preview');
+    setLeftCollapsed(false);
+  };
+
   const returnToPistonOscillationInstrumentAfterDisplayError = () => {
     setPistonOscillationProcessingSuppressedFileId(activeFile.id);
     setPistonOscillationCalculationSuppressedFileId(activeFile.id);
     setPistonOscillationCalculationReviewOpen(false);
     setPistonOscillationDataProcessingReviewOpen(false);
+    setPistonOscillationProcessReviewOpen(false);
     setSelectedPanel('preview');
     setLeftCollapsed(false);
   };
@@ -24100,6 +24150,24 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   [activeFile.id]: event,
                 }));
               }}
+              onFreeOperationObserved={
+                activePistonOscillationFreeSelected
+                && activePistonOscillationDemoPlaybackPhase === 'idle'
+                  ? ({ operation, payload }) => {
+                      updateActiveFile((file) => (
+                        file.kind === 'heatCapacityPistonOscillation'
+                        && file.pistonOscillationFreeSession.status === 'active'
+                          ? transitionPistonOscillationFreeWorkbenchState(file, {
+                              type: 'observeOperation',
+                              operation,
+                              payload,
+                              nowMs: Date.now(),
+                            })
+                          : file
+                      ));
+                    }
+                  : undefined
+              }
               onLivePhysicalStateChange={
                 pistonOscillationLivePressureChannel.publishPhysicalState
               }
@@ -24408,10 +24476,34 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ref={pistonOscillationContentRenderRecoveryHostRef}
         className="studio-realtime-panel studio-realtime-panel-piston-oscillation"
         data-piston-oscillation-realtime={
-          activePistonOscillationDataProcessing ? 'data-processing' : 'acquisition'
+          activePistonOscillationProcessReview
+            ? 'process-review'
+            : activePistonOscillationDataProcessing
+              ? 'data-processing'
+              : 'acquisition'
         }
       >
-        {activePistonOscillationDataProcessing ? (
+        {activePistonOscillationProcessReview ? (
+          <RecoverableRenderErrorBoundary
+            resetKeys={[activeFile.id]}
+            fallback={({ error, retry }) => (
+              <WorkbenchContentRenderErrorFallback
+                area="data-processing"
+                language={settingsLanguagePreference}
+                error={error}
+                onRetry={retry}
+                onReturnToInstrument={returnToPistonOscillationInstrumentAfterDisplayError}
+              />
+            )}
+          >
+            <div className="studio-piston-process-review-scroll">
+              <PistonOscillationProcessReviewPanel
+                session={activeFile.pistonOscillationFreeSession}
+                language={settingsLanguagePreference}
+              />
+            </div>
+          </RecoverableRenderErrorBoundary>
+        ) : activePistonOscillationDataProcessing ? (
           <RecoverableRenderErrorBoundary
             resetKeys={[activeFile.id]}
             fallback={({ error, retry }) => (
@@ -25989,14 +26081,21 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const renderDockHeader = (panel: PanelDefinition) => {
     const isProcessingRealtime = activePistonOscillationDataProcessing
       && panel.key === 'realtime';
-    const headerTitle = isProcessingRealtime
-      ? pistonOscillationCopy.processing.title
-      : panel.title;
-    const renderedHeaderHint = isProcessingRealtime
-      ? renderScientificText(pistonOscillationCopy.processing.hint)
-      : renderScientificText(panel.hint);
+    const isProcessReviewRealtime = activePistonOscillationProcessReview
+      && panel.key === 'realtime';
+    const headerTitle = isProcessReviewRealtime
+      ? pistonOscillationCopy.review.title
+      : isProcessingRealtime
+        ? pistonOscillationCopy.processing.title
+        : panel.title;
+    const renderedHeaderHint = isProcessReviewRealtime
+      ? renderScientificText(pistonOscillationCopy.review.hint)
+      : isProcessingRealtime
+        ? renderScientificText(pistonOscillationCopy.processing.hint)
+        : renderScientificText(panel.hint);
     const showPanelActions = isProcessingRealtime
-      || (panel.key === 'preview' && !activePistonOscillationDataProcessing);
+      || isProcessReviewRealtime
+      || (panel.key === 'preview' && !activePistonOscillationExpandedRealtime);
     return (
     <div className="studio-dock-header">
       <div>
@@ -26034,6 +26133,19 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               aria-label={workbenchCopy.actions.stop}
             >
               <Square size={13} strokeWidth={2.5} />
+            </button>
+          ) : null}
+          {isProcessReviewRealtime ? (
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                closePistonOscillationProcessReview();
+              }}
+              data-prompt-tooltip={pistonOscillationCopy.review.closeAria}
+              aria-label={pistonOscillationCopy.review.closeAria}
+            >
+              <X size={14} />
             </button>
           ) : null}
         </div>
@@ -26435,7 +26547,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       .filter((panel): panel is PanelDefinition => Boolean(panel));
     const materialsSelected = materialsPanels.some((panel) => panel.key === selectedPanel);
     const materialsOpen = pistonOscillationDataProcessingReviewOpen
-      || pistonOscillationCalculationReviewOpen;
+      || pistonOscillationCalculationReviewOpen
+      || pistonOscillationProcessReviewOpen;
     const toggleMaterialsExpanded = () => {
       if (panelsSectionCollapsed) return;
       updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
@@ -26518,11 +26631,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           <div className="studio-results-nav studio-heat-materials-nav">
             {materialsPanels.map((panel) => {
               const visible = panel.key === 'heatCapacityGuide'
-                ? materialsOpen
+                ? pistonOscillationDataProcessingReviewOpen
+                  || pistonOscillationCalculationReviewOpen
+                : panel.key === 'heatCapacityReview'
+                  ? pistonOscillationProcessReviewOpen
                 : isWindowPanelVisible(panel.key);
               const openMaterialPanel = () => {
                 if (panel.key === 'heatCapacityGuide') {
                   openPistonOscillationDataProcessingReview();
+                } else if (panel.key === 'heatCapacityReview') {
+                  openPistonOscillationProcessReview();
                 } else {
                   openPanel(panel.key);
                 }
@@ -27502,7 +27620,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 aria-hidden="true"
               />
               <div
-                className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${activePistonOscillationDataProcessing ? 'studio-center-workspace-piston-processing' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0 || activeHeatCapacityMaterialsWindowOpen) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
+                className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${activePistonOscillationExpandedRealtime ? 'studio-center-workspace-piston-processing' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0 || activeHeatCapacityMaterialsWindowOpen) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
                 ref={centerWorkspaceRef}
               >
                 {isWorkbenchEmpty ? (
@@ -27519,7 +27637,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                       className={`studio-live-workspace ${
                         liveWorkspaceResizing ? 'studio-live-workspace-resizing' : ''
                       } ${
-                        activePistonOscillationDataProcessing
+                        activePistonOscillationExpandedRealtime
                           ? 'studio-live-workspace-piston-processing'
                           : ''
                       }`}
@@ -27541,7 +27659,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                         type="button"
                         className="studio-live-workspace-resizer"
                         aria-label={workbenchCopy.panels.liveWorkspaceResizeAria}
-                        disabled={activePistonOscillationDataProcessing}
+                        disabled={activePistonOscillationExpandedRealtime}
                         onPointerDown={startLiveWorkspaceResize}
                       />
                       <div

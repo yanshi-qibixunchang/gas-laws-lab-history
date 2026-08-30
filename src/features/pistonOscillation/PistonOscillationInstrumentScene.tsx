@@ -8,6 +8,7 @@ import {
   type PistonOscillationGuideScrewDirectionFeedback,
   type PistonOscillationGuideSupportLossEvent,
   type PistonOscillationGuideVisualCue,
+  type PistonOscillationInteractionWorkspaceProps,
 } from './PistonOscillationInteractionWorkspace.tsx';
 import type {
   PistonOscillationGuideScrewInteractionMode,
@@ -74,6 +75,7 @@ export interface PistonOscillationInstrumentSceneProps {
   guideSessionRevision?: number;
   onReleaseEvent?: (event: PistonOscillationReleaseEvent) => void;
   onPressStartEvent?: (event: PistonOscillationPressStartEvent) => void;
+  onFreeOperationObserved?: PistonOscillationInteractionWorkspaceProps['onFreeOperationObserved'];
   onLivePhysicalStateChange?: (
     state: PistonOscillationLivePhysicalState,
   ) => void;
@@ -124,6 +126,7 @@ export const PistonOscillationInstrumentScene = ({
   guideSessionRevision = 0,
   onReleaseEvent,
   onPressStartEvent,
+  onFreeOperationObserved,
   onLivePhysicalStateChange,
   demoFrame: providedDemoFrame,
   demoPlaybackChannel,
@@ -198,6 +201,7 @@ export const PistonOscillationInstrumentScene = ({
           guideSessionRevision={guideSessionRevision}
           onReleaseEvent={onReleaseEvent}
           onPressStartEvent={onPressStartEvent}
+          onFreeOperationObserved={onFreeOperationObserved}
           onLivePhysicalStateChange={onLivePhysicalStateChange}
           demoFrame={demoFrame}
           demoPlaybackPhase={demoPlaybackPhase}

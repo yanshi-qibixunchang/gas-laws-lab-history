@@ -4342,7 +4342,9 @@
 }
 
 .studio-live-workspace-piston-processing
-  .studio-realtime-panel-piston-oscillation[data-piston-oscillation-realtime='data-processing'] {
+  .studio-realtime-panel-piston-oscillation[data-piston-oscillation-realtime='data-processing'],
+.studio-live-workspace-piston-processing
+  .studio-realtime-panel-piston-oscillation[data-piston-oscillation-realtime='process-review'] {
   display: block;
   height: calc(100% - 36px);
   min-height: 0;
@@ -4353,6 +4355,16 @@
 .studio-live-workspace-piston-processing .piston-processing-panel {
   width: 100%;
   height: 100%;
+}
+
+.studio-piston-process-review-scroll {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  padding: 10px 12px 18px;
+  overflow: auto;
+  background: var(--studio-surface);
 }
 
 .studio-live-workspace-piston-processing > .studio-live-workspace-resizer {

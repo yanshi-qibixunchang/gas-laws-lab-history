@@ -127,7 +127,8 @@ export type PistonOscillationFreeObservedOperation =
   | 'pauseAcquisition'
   | 'redoAcquisition'
   | 'saveMeasurement'
-  | 'releasePiston';
+  | 'releasePiston'
+  | 'bottomImpact';
 
 export type PistonOscillationFreeAuditEventType =
   | 'session-started'
@@ -299,6 +300,7 @@ const FREE_OPERATIONS: readonly PistonOscillationFreeObservedOperation[] = [
   'redoAcquisition',
   'saveMeasurement',
   'releasePiston',
+  'bottomImpact',
 ];
 
 const MAX_PERSISTED_FREE_AUDIT_EVENTS = 4096;

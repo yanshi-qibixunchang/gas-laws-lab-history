@@ -57,6 +57,10 @@ import {
   type PistonOscillationGuideActionContext,
   type PistonOscillationGuideGuardResult,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import type {
+  PistonOscillationFreeAuditPrimitive,
+  PistonOscillationFreeObservedOperation,
+} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
   appendPistonOscillationPressTracePoint,
   createPistonOscillationPressOperationEvidence,
@@ -1313,6 +1317,10 @@ export interface PistonOscillationInteractionWorkspaceProps {
   guideSessionRevision?: number;
   onReleaseEvent?: (event: PistonOscillationReleaseEvent) => void;
   onPressStartEvent?: (event: PistonOscillationPressStartEvent) => void;
+  onFreeOperationObserved?: (event: {
+    operation: PistonOscillationFreeObservedOperation;
+    payload?: Record<string, PistonOscillationFreeAuditPrimitive>;
+  }) => void;
   onLivePhysicalStateChange?: (
     state: PistonOscillationLivePhysicalState,
   ) => void;
@@ -1364,6 +1372,7 @@ export const PistonOscillationInteractionWorkspace = ({
   guideSessionRevision = 0,
   onReleaseEvent,
   onPressStartEvent,
+  onFreeOperationObserved,
   onLivePhysicalStateChange,
   demoFrame,
   demoPlaybackPhase,
@@ -2557,6 +2566,31 @@ export const PistonOscillationInteractionWorkspace = ({
       screwDragStartProgressRef.current = lockingScrewProgressRef.current;
       return;
     }
+    const dragStartClampState = getPistonLockingScrewClampState(
+      screwDragStartProgressRef.current,
+    );
+    const dragEndClampState = getPistonLockingScrewClampState(
+      lockingScrewProgressRef.current,
+    );
+    if (dragStartClampState !== dragEndClampState) {
+      if (dragEndClampState === 'locked') {
+        onFreeOperationObserved?.({
+          operation: 'tightenScrew',
+          payload: {
+            confirmedHeightMm: pistonNominalHeightMmRef.current,
+            lockingScrewProgress: lockingScrewProgressRef.current,
+          },
+        });
+      } else if (dragEndClampState === 'loose') {
+        onFreeOperationObserved?.({
+          operation: 'loosenScrew',
+          payload: {
+            equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
+            lockingScrewProgress: lockingScrewProgressRef.current,
+          },
+        });
+      }
+    }
     const loosenedDuringGesture = lockingScrewProgressRef.current
       < screwDragStartProgressRef.current - 0.001;
     if (
@@ -2566,7 +2600,7 @@ export const PistonOscillationInteractionWorkspace = ({
     ) {
       setHeightAdjustmentStage('readingHeight');
     }
-  }, [hoseState]);
+  }, [hoseState, onFreeOperationObserved]);
   const cancelPistonRebound = useCallback(() => {
     if (reboundAnimationFrameRef.current !== null) {
       window.cancelAnimationFrame(reboundAnimationFrameRef.current);
@@ -2591,12 +2625,17 @@ export const PistonOscillationInteractionWorkspace = ({
     guideHeightResetAnimationFrameRef.current = null;
   }, []);
   const emitBottomImpactAudio = useCallback((dropDistanceMm: number) => {
+    const normalizedDropDistanceMm = Math.max(0, dropDistanceMm);
     bottomImpactAudioEventIdRef.current += 1;
     setBottomImpactAudioEvent({
       id: bottomImpactAudioEventIdRef.current,
-      dropDistanceMm: Math.max(0, dropDistanceMm),
+      dropDistanceMm: normalizedDropDistanceMm,
     });
-  }, []);
+    onFreeOperationObserved?.({
+      operation: 'bottomImpact',
+      payload: { dropDistanceMm: normalizedDropDistanceMm },
+    });
+  }, [onFreeOperationObserved]);
 
   const recoverPistonMotionFailure = useCallback((
     cause: unknown,
@@ -3097,6 +3136,18 @@ export const PistonOscillationInteractionWorkspace = ({
           signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
         },
       }, { sensorSampleRateHz });
+      onFreeOperationObserved?.({
+        operation: 'releasePiston',
+        payload: {
+          signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
+          releaseOrder: pressOperationEvidence.releaseOrder,
+          pressDurationS: pressOperationEvidence.pressDurationS,
+          initialDisplacementMm,
+          peakPressureKpa: Math.max(
+            ...trajectory.samples.map((sample) => sample.pressurePa / 1_000),
+          ),
+        },
+      });
       if (onReleaseEvent && initialDisplacementMm < -0.02) {
         releaseEventIdRef.current += 1;
         const releaseEvent: PistonOscillationReleaseEvent = {
@@ -3116,6 +3167,7 @@ export const PistonOscillationInteractionWorkspace = ({
     capturePressTracePoint,
     advanceVirtualHandPressTo,
     endPressTrace,
+    onFreeOperationObserved,
     onReleaseEvent,
     recoverPistonMotionFailure,
     sensorSampleRateHz,
@@ -3252,6 +3304,16 @@ export const PistonOscillationInteractionWorkspace = ({
     if (!supportLostDuringDrag && nextHoseState !== hoseState) {
       emitHoseAudioEvent(nextHoseState);
     }
+    if (nextHoseState !== hoseState) {
+      onFreeOperationObserved?.({
+        operation: nextHoseState === 'connected' ? 'reconnectHose' : 'disconnectHose',
+        payload: {
+          leftHandSupporting: spaceHeldRef.current,
+          rightHandSupporting: mouseHeldRef.current,
+          heightMm: pistonEquilibriumHeightMmRef.current,
+        },
+      });
+    }
     setHoseState(nextHoseState);
     setHoseDragging(false);
     setMouseVisualizationAction(null);
@@ -3261,6 +3323,7 @@ export const PistonOscillationInteractionWorkspace = ({
   }, [
     emitHoseAudioEvent,
     hoseState,
+    onFreeOperationObserved,
     setHoseCameraClaim,
   ]);
   const hoseInteractionState = hoseDragging
@@ -4241,6 +4304,13 @@ export const PistonOscillationInteractionWorkspace = ({
                             : 'readingHeight';
                           setHeightAdjustmentStage(nextStage);
                           if (nextStage === 'lockingHeight') {
+                            onFreeOperationObserved?.({
+                              operation: 'confirmHeight',
+                              payload: {
+                                confirmedHeightMm: pistonNominalHeightMmRef.current,
+                                equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
+                              },
+                            });
                             onGuideHeightConfirmed?.({
                               focusMode: mode,
                               hoseState,
