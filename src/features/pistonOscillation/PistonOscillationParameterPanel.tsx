@@ -1,22 +1,14 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Wrench } from 'lucide-react';
 import {
   PISTON_OSCILLATION_FREE_PARAMETER_RANGES,
+  getPistonOscillationFreeTriggerThresholdRange,
   type PistonOscillationFreeParameterDraft,
 } from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 import type {
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
-import {
-  PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
-  PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG,
-  PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
-  PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
-} from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
-import {
-  PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
-} from '../../domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
@@ -69,7 +61,6 @@ const text = {
     restoreTitle: '恢复活塞振动法默认参数？',
     restoreBody: '所有自由模式普通与高级参数将恢复默认值，键鼠操作可视化将关闭。',
     restoreConfirm: '恢复默认值',
-    apparatus: '装置固定参数（只读）',
     thermal: '热过程与等效损耗',
     sensor: '传感器观测',
     release: '双手松开不对称',
@@ -90,7 +81,7 @@ const text = {
     cancel: '取消', apply: '儲存設定', confirm: '確認並繼續', riskTitle: '確認調整進階參數',
     riskBody: '進階參數會影響目前實驗檔案的物理過程、感測器讀數和採集結果。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
     restoreTitle: '恢復活塞振動法預設參數？', restoreBody: '所有自由模式普通與進階參數將恢復預設值，鍵鼠操作視覺化將關閉。',
-    restoreConfirm: '恢復預設值', apparatus: '裝置固定參數（唯讀）', thermal: '熱過程與等效損耗',
+    restoreConfirm: '恢復預設值', thermal: '熱過程與等效損耗',
     sensor: '感測器觀測', release: '雙手鬆開不對稱', tail: '尾段不規則', invalid: '請輸入允許範圍內的數值',
     relationInvalid: '飽和時間差必須大於中性時間差', plan: '目前高度方案', notConfigured: '尚未設定',
   },
@@ -103,7 +94,7 @@ const text = {
     editable: 'The complete profile freezes after the first formal curve is saved.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
     riskTitle: 'Confirm advanced-parameter editing', riskBody: 'Advanced parameters affect this file’s physical process, sensor readings, and acquisition results. After confirmation, this file will not show the warning again.',
     restoreTitle: 'Restore piston-oscillation defaults?', restoreBody: 'All basic and advanced Free parameters will be restored, and input visualization will be turned off.',
-    restoreConfirm: 'Restore defaults', apparatus: 'Fixed apparatus constants (read only)', thermal: 'Thermal process and equivalent loss',
+    restoreConfirm: 'Restore defaults', thermal: 'Thermal process and equivalent loss',
     sensor: 'Sensor observation', release: 'Two-hand release asymmetry', tail: 'Tail irregularity', invalid: 'Enter a value within the allowed range',
     relationInvalid: 'The saturation gap must be greater than the neutral gap', plan: 'Current height plan', notConfigured: 'Not configured',
   },
@@ -320,7 +311,20 @@ export const PistonOscillationParameterPanel = ({
   const [advancedDrafts, setAdvancedDrafts] = useState<Record<string, string>>({});
   const [advancedErrors, setAdvancedErrors] = useState<Record<string, string>>({});
   const [restoreOpen, setRestoreOpen] = useState(false);
-  const basic = basicDefinitions;
+  const basic = useMemo(() => {
+    const triggerRange = getPistonOscillationFreeTriggerThresholdRange(
+      parameters.ambientPressureKpa,
+    );
+    return basicDefinitions.map((definition) => (
+      definition.key === 'triggerThresholdKpa'
+        ? {
+            ...definition,
+            minimum: triggerRange.minimumKpa,
+            maximum: triggerRange.maximumKpa,
+          }
+        : definition
+    ));
+  }, [parameters.ambientPressureKpa]);
 
   useEffect(() => {
     setBasicDrafts(Object.fromEntries(basic.map((definition) => [
@@ -533,26 +537,6 @@ export const PistonOscillationParameterPanel = ({
     ? session.experimentPlan.targetHeightsMm.join(' / ')
     : copy.notConfigured;
 
-  const renderApparatusConstant = (
-    id: string,
-    label: string,
-    value: string,
-  ) => (
-    <div className="studio-heat-advanced-grid-item" key={id}>
-      <div
-        className="studio-heat-free-param-row studio-heat-free-param-row-locked"
-        data-piston-oscillation-param-id={id}
-      >
-        {renderParameterLabel(id, label, value)}
-        <span className="studio-heat-free-input-cell">
-          <span className="studio-heat-free-input-shell">
-            <input type="text" value={value} readOnly disabled />
-          </span>
-        </span>
-      </div>
-    </div>
-  );
-
   const riskPending = advancedOpen && !session.advancedParametersRiskAcknowledged;
   const dialogPortalHost = typeof document === 'undefined'
     ? null
@@ -675,31 +659,6 @@ export const PistonOscillationParameterPanel = ({
                   </div>
                 </section>
               ))}
-              <section className="studio-heat-advanced-group">
-                <h3 className="studio-heat-advanced-group-title">{copy.apparatus}</h3>
-                <div className="studio-heat-advanced-grid">
-                  {renderApparatusConstant(
-                    'cylinderDiameter',
-                    language === 'en' ? 'Cylinder diameter' : '气缸内径',
-                    `${(PISTON_OSCILLATION_CYLINDER_DIAMETER_M * 1_000).toFixed(1)} mm`,
-                  )}
-                  {renderApparatusConstant(
-                    'movingMass',
-                    language === 'en' ? 'Moving mass' : '运动质量',
-                    `${(PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG * 1_000).toFixed(1)} g`,
-                  )}
-                  {renderApparatusConstant(
-                    'sensorRange',
-                    language === 'en' ? 'Sensor range' : '压力传感器量程',
-                    `${PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA}–${PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA} kPa`,
-                  )}
-                  {renderApparatusConstant(
-                    'pressureResolution',
-                    language === 'en' ? 'Pressure resolution' : '压力分辨率',
-                    `${PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA.toFixed(2)} kPa`,
-                  )}
-                </div>
-              </section>
             </div>
             <footer className="studio-heat-advanced-actions">
               <button type="button" onClick={() => setAdvancedOpen(false)}>{copy.cancel}</button>

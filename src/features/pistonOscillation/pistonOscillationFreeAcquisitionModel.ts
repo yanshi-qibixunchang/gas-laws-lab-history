@@ -1,3 +1,12 @@
+import {
+  PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+  getPistonOscillationFreeTriggerThresholdRange,
+  isPistonOscillationFreeTriggerThresholdKpa,
+} from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
+import {
+  PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
+} from '../../domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+
 export const PISTON_OSCILLATION_FREE_SAMPLE_RATE_MIN_HZ = 1;
 export const PISTON_OSCILLATION_FREE_SAMPLE_RATE_MAX_HZ = 1000;
 export const PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA = 96;
@@ -22,14 +31,14 @@ export const parsePistonOscillationFreeSampleRate = (draft: string): number | nu
     : null;
 };
 
-export const parsePistonOscillationFreeTriggerThreshold = (draft: string): number | null => {
+export const parsePistonOscillationFreeTriggerThreshold = (
+  draft: string,
+  ambientPressureKpa = PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+): number | null => {
   const trimmed = draft.trim();
   if (!/^(?:\d+|\d+\.\d+)$/.test(trimmed)) return null;
   const value = Number(trimmed);
-  return Number.isFinite(value)
-    && value >= PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA
-    && value <= PISTON_OSCILLATION_FREE_TRIGGER_MAX_KPA
-    && Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
+  return isPistonOscillationFreeTriggerThresholdKpa(value, ambientPressureKpa)
     ? value
     : null;
 };
@@ -49,18 +58,34 @@ const roundPressureTick = (value: number) => Math.round(value * 1e9) / 1e9;
 export const getPistonOscillationAdaptivePressureGraphDomain = (
   triggerThresholdKpa: number,
   pressureValuesKpa: readonly number[],
+  ambientPressureKpa = PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
 ): PressureGraphDomain => {
-  if (parsePistonOscillationFreeTriggerThreshold(String(triggerThresholdKpa)) === null) {
-    throw new RangeError('Free-mode trigger threshold must be a 0.1 kPa value from 96.0 to 130.0 kPa.');
+  if (
+    parsePistonOscillationFreeTriggerThreshold(
+      String(triggerThresholdKpa),
+      ambientPressureKpa,
+    ) === null
+  ) {
+    const range = getPistonOscillationFreeTriggerThresholdRange(ambientPressureKpa);
+    throw new RangeError(
+      `Free-mode trigger threshold must be a 0.1 kPa value from ${range.minimumKpa.toFixed(1)} to ${range.maximumKpa.toFixed(1)} kPa.`,
+    );
   }
+  const triggerRange = getPistonOscillationFreeTriggerThresholdRange(ambientPressureKpa);
+  const graphScale = ambientPressureKpa
+    / PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA;
+  const monitorMaximumKpa = Math.min(
+    PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
+    roundPressureTick(PISTON_OSCILLATION_MONITOR_GRAPH_MAX_KPA * graphScale),
+  );
   const observedValues = pressureValuesKpa.filter(Number.isFinite);
   const desiredMinimum = Math.min(
-    PISTON_OSCILLATION_MONITOR_GRAPH_MIN_KPA,
+    triggerRange.minimumKpa,
     triggerThresholdKpa,
     ...observedValues,
   );
   const desiredMaximum = Math.max(
-    PISTON_OSCILLATION_MONITOR_GRAPH_MAX_KPA,
+    monitorMaximumKpa,
     triggerThresholdKpa,
     ...observedValues,
   );

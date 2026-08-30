@@ -208,6 +208,72 @@ assert.equal(
   'the persisted model should reject trigger values that do not follow the 0.1 kPa step',
 );
 
+const lowAmbientPressureSession = transitionPistonOscillationFreeSession(
+  withAcquisitionSettings,
+  {
+    type: 'setParameterDraft',
+    parameterDraft: {
+      ...withAcquisitionSettings.parameterDraft,
+      ambientPressureKpa: 60,
+    },
+    nowMs: 118,
+  },
+);
+assert.equal(lowAmbientPressureSession.parameterDraft.ambientPressureKpa, 60);
+assert.equal(lowAmbientPressureSession.triggerThresholdKpa, 71.1);
+assert.equal(lowAmbientPressureSession.parameterDraft.triggerThresholdKpa, 71.1);
+const lowAmbientPressureAfterStaleBlurCommit = transitionPistonOscillationFreeSession(
+  lowAmbientPressureSession,
+  {
+    type: 'setParameterDraft',
+    parameterDraft: {
+      ...withAcquisitionSettings.parameterDraft,
+      ambientPressureKpa: 60,
+    },
+    nowMs: 118.5,
+  },
+);
+assert.equal(lowAmbientPressureAfterStaleBlurCommit.triggerThresholdKpa, 71.1);
+assert.equal(
+  lowAmbientPressureAfterStaleBlurCommit.parameterDraft.triggerThresholdKpa,
+  71.1,
+  'the blur commit following Enter must not restore the obsolete standard-pressure threshold',
+);
+const lowAmbientCustomTrigger = transitionPistonOscillationFreeSession(
+  lowAmbientPressureSession,
+  {
+    type: 'setAcquisitionSetting',
+    field: 'triggerThresholdKpa',
+    value: 77,
+    nowMs: 119,
+  },
+);
+assert.equal(lowAmbientCustomTrigger.triggerThresholdKpa, 77);
+assert.equal(
+  transitionPistonOscillationFreeSession(lowAmbientCustomTrigger, {
+    type: 'setAcquisitionSetting',
+    field: 'triggerThresholdKpa',
+    value: 120,
+    nowMs: 120,
+  }),
+  lowAmbientCustomTrigger,
+  'a low-pressure Free session should reject the former fixed trigger range',
+);
+
+const restoredLegacyEditableThreshold = normalizePistonOscillationFreeSession({
+  ...structuredClone(withAcquisitionSettings),
+  parameterDraft: {
+    ...withAcquisitionSettings.parameterDraft,
+    ambientPressureKpa: 60,
+    triggerThresholdKpa: 120,
+  },
+  triggerThresholdKpa: 120,
+  savedMeasurements: [],
+  frozenParameterSnapshot: null,
+});
+assert.equal(restoredLegacyEditableThreshold.triggerThresholdKpa, 71.1);
+assert.equal(restoredLegacyEditableThreshold.parameterDraft.triggerThresholdKpa, 71.1);
+
 const withPower = transitionPistonOscillationFreeSession(withAcquisitionSettings, {
   type: 'setPower',
   powerOn: true,

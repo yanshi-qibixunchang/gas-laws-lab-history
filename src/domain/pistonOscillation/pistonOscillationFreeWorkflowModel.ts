@@ -43,8 +43,12 @@ import {
   createPistonOscillationFreeParameterSnapshot,
   doesPistonOscillationMeasurementMatchFreeParameters,
   getPistonOscillationFreePhysicsConfig,
+  isPistonOscillationFreeTriggerThresholdKpa,
+  isPistonOscillationStoredTriggerThresholdKpa,
   normalizePistonOscillationFreeParameterDraft,
   normalizePistonOscillationFreeParameterSnapshot,
+  PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+  scalePistonOscillationFreeTriggerThresholdKpa,
   type PistonOscillationFreeParameterDraft,
   type PistonOscillationFreeParameterSnapshot,
 } from './pistonOscillationFreeParameterConfig.ts';
@@ -670,10 +674,47 @@ export const transitionPistonOscillationFreeSession = (
   }
   if (event.type === 'setParameterDraft') {
     if (session.frozenParameterSnapshot !== null) return session;
-    const parameterDraft = normalizePistonOscillationFreeParameterDraft(
+    let parameterDraft = normalizePistonOscillationFreeParameterDraft(
       event.parameterDraft,
       session.parameterDraft,
     );
+    const ambientPressureChanged = parameterDraft.ambientPressureKpa
+      !== session.parameterDraft.ambientPressureKpa;
+    const requestedTriggerThresholdKpa = event.parameterDraft.triggerThresholdKpa;
+    if (
+      ambientPressureChanged
+      && (
+        requestedTriggerThresholdKpa === session.parameterDraft.triggerThresholdKpa
+        || (
+          requestedTriggerThresholdKpa !== null
+          && !isPistonOscillationFreeTriggerThresholdKpa(
+            requestedTriggerThresholdKpa,
+            parameterDraft.ambientPressureKpa,
+          )
+        )
+      )
+    ) {
+      parameterDraft = normalizePistonOscillationFreeParameterDraft({
+        ...parameterDraft,
+        triggerThresholdKpa: scalePistonOscillationFreeTriggerThresholdKpa(
+          session.parameterDraft.triggerThresholdKpa,
+          session.parameterDraft.ambientPressureKpa,
+          parameterDraft.ambientPressureKpa,
+        ),
+      }, parameterDraft);
+    } else if (
+      !ambientPressureChanged
+      && requestedTriggerThresholdKpa !== null
+      && !isPistonOscillationFreeTriggerThresholdKpa(
+        requestedTriggerThresholdKpa,
+        parameterDraft.ambientPressureKpa,
+      )
+    ) {
+      parameterDraft = normalizePistonOscillationFreeParameterDraft({
+        ...parameterDraft,
+        triggerThresholdKpa: session.parameterDraft.triggerThresholdKpa,
+      }, parameterDraft);
+    }
     if (JSON.stringify(parameterDraft) === JSON.stringify(session.parameterDraft)) {
       return session;
     }
@@ -732,11 +773,10 @@ export const transitionPistonOscillationFreeSession = (
     if (session.frozenParameterSnapshot !== null) return session;
     const valueValid = event.field === 'sampleRateHz'
       ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
-      : Number.isFinite(event.value)
-        && event.value >= 96
-        && event.value <= 130
-        && Number.isSafeInteger(Math.round(event.value * 10))
-        && Math.abs(event.value * 10 - Math.round(event.value * 10)) < 1e-8;
+      : isPistonOscillationFreeTriggerThresholdKpa(
+          event.value,
+          session.parameterDraft.ambientPressureKpa,
+        );
     if (!valueValid || session[event.field] === event.value) return session;
     const parameterDraft = {
       ...session.parameterDraft,
@@ -1800,12 +1840,9 @@ export const normalizePistonOscillationFreeSession = (
     && (value.sampleRateHz as number) <= 1000
     ? value.sampleRateHz as number
     : null;
-  const persistedTriggerThresholdKpa = isFiniteNumber(value.triggerThresholdKpa)
-    && value.triggerThresholdKpa >= 96
-    && value.triggerThresholdKpa <= 130
-    && Number.isSafeInteger(Math.round(value.triggerThresholdKpa * 10))
-    && Math.abs(value.triggerThresholdKpa * 10
-      - Math.round(value.triggerThresholdKpa * 10)) < 1e-8
+  const persistedTriggerThresholdKpa = isPistonOscillationStoredTriggerThresholdKpa(
+    value.triggerThresholdKpa,
+  )
     ? value.triggerThresholdKpa
     : null;
   const measurementInferredDraft = savedMeasurements[0]
@@ -1815,12 +1852,29 @@ export const normalizePistonOscillationFreeSession = (
     value.parameterDraft,
     measurementInferredDraft,
   );
-  const synchronizedParameterDraft = normalizePistonOscillationFreeParameterDraft({
+  let synchronizedParameterDraft = normalizePistonOscillationFreeParameterDraft({
     ...persistedParameterDraft,
     sampleRateHz: persistedSampleRateHz ?? persistedParameterDraft.sampleRateHz,
     triggerThresholdKpa:
       persistedTriggerThresholdKpa ?? persistedParameterDraft.triggerThresholdKpa,
   }, persistedParameterDraft);
+  if (
+    savedMeasurements.length === 0
+    && synchronizedParameterDraft.triggerThresholdKpa !== null
+    && !isPistonOscillationFreeTriggerThresholdKpa(
+      synchronizedParameterDraft.triggerThresholdKpa,
+      synchronizedParameterDraft.ambientPressureKpa,
+    )
+  ) {
+    synchronizedParameterDraft = normalizePistonOscillationFreeParameterDraft({
+      ...synchronizedParameterDraft,
+      triggerThresholdKpa: scalePistonOscillationFreeTriggerThresholdKpa(
+        synchronizedParameterDraft.triggerThresholdKpa,
+        PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+        synchronizedParameterDraft.ambientPressureKpa,
+      ),
+    }, synchronizedParameterDraft);
+  }
   const persistedFrozenParameterSnapshot =
     normalizePistonOscillationFreeParameterSnapshot(value.frozenParameterSnapshot);
   const frozenParameterSnapshot = savedMeasurements.length === 0

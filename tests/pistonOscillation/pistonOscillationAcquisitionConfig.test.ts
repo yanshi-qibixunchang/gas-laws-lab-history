@@ -32,6 +32,10 @@ assert.equal(parsePistonOscillationFreeTriggerThreshold('130'), 130);
 assert.equal(parsePistonOscillationFreeTriggerThreshold('95.9'), null);
 assert.equal(parsePistonOscillationFreeTriggerThreshold('130.1'), null);
 assert.equal(parsePistonOscillationFreeTriggerThreshold('120.25'), null);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('71.1', 60), 71.1);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('120', 60), null);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('56.8', 60), 56.8);
+assert.equal(parsePistonOscillationFreeTriggerThreshold('77.1', 60), null);
 
 const standardTriggerDomain = getPistonOscillationAdaptivePressureGraphDomain(
   120,
@@ -66,6 +70,13 @@ assert.throws(
   () => getPistonOscillationAdaptivePressureGraphDomain(130.1, [101.32]),
   /trigger threshold/,
 );
+const lowAmbientPressureDomain = getPistonOscillationAdaptivePressureGraphDomain(
+  71.1,
+  [60.57, 80.9],
+  60,
+);
+assert.ok(lowAmbientPressureDomain.minimumKpa < 60.57);
+assert.ok(lowAmbientPressureDomain.maximumKpa > 80.9);
 
 const panelSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'pistonOscillation', 'PistonOscillationAcquisitionPanel.tsx'),
@@ -115,8 +126,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const pressureGraphTriggerKpa = parsePistonOscillationFreeTriggerThreshold\([\s\S]*?String\(effectiveTriggerKpa\),[\s\S]*?\) \?\? PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;[\s\S]*?getPistonOscillationAdaptivePressureGraphDomain\([\s\S]*?pressureGraphTriggerKpa,/,
-  'an incomplete demo trigger draft should retain a valid graph domain until the full value is entered',
+  /const pressureGraphTriggerKpa = parsePistonOscillationFreeTriggerThreshold\([\s\S]*?String\(effectiveTriggerKpa\),[\s\S]*?freeAmbientPressureKpa[\s\S]*?freeFallbackTriggerKpa[\s\S]*?getPistonOscillationAdaptivePressureGraphDomain\([\s\S]*?pressureGraphTriggerKpa,[\s\S]*?freeAmbientPressureKpa/,
+  'Free mode should keep its graph trigger and graph domain synchronized with ambient pressure',
 );
 assert.match(
   panelSource,

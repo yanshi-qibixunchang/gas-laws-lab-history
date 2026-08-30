@@ -6,6 +6,8 @@ import {
 } from './pistonOscillationEquivalentLossModel.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
+  PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
+  PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
   normalizePistonOscillationPhysicsConfig,
   type PistonOscillationPhysicsConfig,
 } from './pistonOscillationPhysicsEngine.ts';
@@ -79,6 +81,87 @@ export const PISTON_OSCILLATION_FREE_PARAMETER_RANGES = Object.freeze({
   tailIntensity: { minimum: 0, maximum: 3 },
 });
 
+export interface PistonOscillationFreeTriggerThresholdRange {
+  minimumKpa: number;
+  maximumKpa: number;
+}
+
+export const PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA =
+  DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.ambientPressurePa / 1_000;
+
+const quantizeTriggerThresholdKpa = (value: number) => Math.round(value * 10) / 10;
+
+const normalizeTriggerAmbientPressureKpa = (value: number) => (
+  Number.isFinite(value)
+    ? Math.min(
+        PISTON_OSCILLATION_FREE_PARAMETER_RANGES.ambientPressureKpa.maximum,
+        Math.max(
+          PISTON_OSCILLATION_FREE_PARAMETER_RANGES.ambientPressureKpa.minimum,
+          value,
+        ),
+      )
+    : PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA
+);
+
+/**
+ * Preserves the reviewed 96–130 kPa window at standard ambient pressure and
+ * scales the same pressure ratios for other Free-mode environments. Sensor
+ * limits remain hard bounds for newly configured monitoring lines.
+ */
+export const getPistonOscillationFreeTriggerThresholdRange = (
+  ambientPressureKpa: number,
+): PistonOscillationFreeTriggerThresholdRange => {
+  const normalizedAmbientPressureKpa = normalizeTriggerAmbientPressureKpa(
+    ambientPressureKpa,
+  );
+  const scale = normalizedAmbientPressureKpa
+    / PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA;
+  const minimumKpa = Math.max(
+    PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
+    quantizeTriggerThresholdKpa(
+      PISTON_OSCILLATION_FREE_PARAMETER_RANGES.triggerThresholdKpa.minimum * scale,
+    ),
+  );
+  const maximumKpa = Math.min(
+    PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
+    quantizeTriggerThresholdKpa(
+      PISTON_OSCILLATION_FREE_PARAMETER_RANGES.triggerThresholdKpa.maximum * scale,
+    ),
+  );
+  return {
+    minimumKpa: Math.min(minimumKpa, maximumKpa),
+    maximumKpa,
+  };
+};
+
+export const isPistonOscillationFreeTriggerThresholdKpa = (
+  value: unknown,
+  ambientPressureKpa: number,
+): value is number => {
+  const range = getPistonOscillationFreeTriggerThresholdRange(ambientPressureKpa);
+  return isFiniteInRange(value, range.minimumKpa, range.maximumKpa)
+    && Number.isSafeInteger(Math.round(value * 10))
+    && Math.abs(value * 10 - Math.round(value * 10)) < 1e-8;
+};
+
+export const scalePistonOscillationFreeTriggerThresholdKpa = (
+  triggerThresholdKpa: number | null,
+  previousAmbientPressureKpa: number,
+  nextAmbientPressureKpa: number,
+): number | null => {
+  if (triggerThresholdKpa === null || !Number.isFinite(triggerThresholdKpa)) return null;
+  const previousAmbient = normalizeTriggerAmbientPressureKpa(previousAmbientPressureKpa);
+  const nextAmbient = normalizeTriggerAmbientPressureKpa(nextAmbientPressureKpa);
+  const nextRange = getPistonOscillationFreeTriggerThresholdRange(nextAmbient);
+  return Math.min(
+    nextRange.maximumKpa,
+    Math.max(
+      nextRange.minimumKpa,
+      quantizeTriggerThresholdKpa(triggerThresholdKpa * nextAmbient / previousAmbient),
+    ),
+  );
+};
+
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => (
   Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 );
@@ -109,16 +192,18 @@ const readNullableSampleRate = (value: unknown) => (
     : null
 );
 
-const readNullableTriggerThreshold = (value: unknown) => (
+export const isPistonOscillationStoredTriggerThresholdKpa = (value: unknown): value is number => (
   isFiniteInRange(
     value,
-    PISTON_OSCILLATION_FREE_PARAMETER_RANGES.triggerThresholdKpa.minimum,
-    PISTON_OSCILLATION_FREE_PARAMETER_RANGES.triggerThresholdKpa.maximum,
+    PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
+    PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
   )
   && Number.isSafeInteger(Math.round(value * 10))
   && Math.abs(value * 10 - Math.round(value * 10)) < 1e-8
-    ? value
-    : null
+);
+
+const readNullableStoredTriggerThreshold = (value: unknown) => (
+  isPistonOscillationStoredTriggerThresholdKpa(value) ? value : null
 );
 
 export const createDefaultPistonOscillationFreeParameterDraft = ():
@@ -160,6 +245,12 @@ export const normalizePistonOscillationFreeParameterDraft = (
 ): PistonOscillationFreeParameterDraft => {
   const valueRecord = isPlainRecord(value) ? value : {};
   const ranges = PISTON_OSCILLATION_FREE_PARAMETER_RANGES;
+  const ambientPressureKpa = readNumber(
+    valueRecord.ambientPressureKpa,
+    fallbackInput.ambientPressureKpa,
+    ranges.ambientPressureKpa.minimum,
+    ranges.ambientPressureKpa.maximum,
+  );
   const releaseNeutralGapS = readNumber(
     valueRecord.releaseNeutralGapS,
     fallbackInput.releaseNeutralGapS,
@@ -173,12 +264,7 @@ export const normalizePistonOscillationFreeParameterDraft = (
     ranges.releaseGapS.maximum,
   );
   return {
-    ambientPressureKpa: readNumber(
-      valueRecord.ambientPressureKpa,
-      fallbackInput.ambientPressureKpa,
-      ranges.ambientPressureKpa.minimum,
-      ranges.ambientPressureKpa.maximum,
-    ),
+    ambientPressureKpa,
     ambientTemperatureK: readNumber(
       valueRecord.ambientTemperatureK,
       fallbackInput.ambientTemperatureK,
@@ -190,7 +276,7 @@ export const normalizePistonOscillationFreeParameterDraft = (
       : readNullableSampleRate(valueRecord.sampleRateHz) ?? fallbackInput.sampleRateHz,
     triggerThresholdKpa: valueRecord.triggerThresholdKpa === null
       ? null
-      : readNullableTriggerThreshold(valueRecord.triggerThresholdKpa)
+      : readNullableStoredTriggerThreshold(valueRecord.triggerThresholdKpa)
         ?? fallbackInput.triggerThresholdKpa,
     sensorFluctuationEnabled: typeof valueRecord.sensorFluctuationEnabled === 'boolean'
       ? valueRecord.sensorFluctuationEnabled

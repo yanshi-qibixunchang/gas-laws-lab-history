@@ -1,12 +1,16 @@
 import assert from 'node:assert/strict';
 import {
   createDefaultPistonOscillationFreeParameterDraft,
+  createPistonOscillationFreeParameterSnapshot,
+  getPistonOscillationFreeTriggerThresholdRange,
   getPistonOscillationFreePhysicsConfig,
   getPistonOscillationFreeReleaseAsymmetryConfig,
   getPistonOscillationFreeSensorConfig,
   getPistonOscillationFreeTailConfig,
   getPistonOscillationFreeThermalConfig,
   normalizePistonOscillationFreeParameterDraft,
+  normalizePistonOscillationFreeParameterSnapshot,
+  scalePistonOscillationFreeTriggerThresholdKpa,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 import {
   PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
@@ -23,6 +27,26 @@ assert.equal(defaults.tailIrregularityEnabled, true);
 assert.equal(
   defaults.equivalentLinearLossNsPerM,
   PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
+);
+assert.deepEqual(getPistonOscillationFreeTriggerThresholdRange(101.325), {
+  minimumKpa: 96,
+  maximumKpa: 130,
+});
+assert.deepEqual(getPistonOscillationFreeTriggerThresholdRange(60), {
+  minimumKpa: 56.8,
+  maximumKpa: 77,
+});
+assert.deepEqual(getPistonOscillationFreeTriggerThresholdRange(20), {
+  minimumKpa: 20,
+  maximumKpa: 25.7,
+});
+assert.deepEqual(getPistonOscillationFreeTriggerThresholdRange(180), {
+  minimumKpa: 170.5,
+  maximumKpa: 200,
+});
+assert.equal(
+  scalePistonOscillationFreeTriggerThresholdKpa(120, 101.325, 60),
+  71.1,
 );
 
 const customized = normalizePistonOscillationFreeParameterDraft({
@@ -93,5 +117,18 @@ assert.equal(rejected.ambientPressureKpa, customized.ambientPressureKpa);
 assert.equal(rejected.sampleRateHz, customized.sampleRateHz);
 assert.equal(rejected.triggerThresholdKpa, customized.triggerThresholdKpa);
 assert.equal(rejected.releaseSaturationGapS, customized.releaseSaturationGapS);
+
+const legacyAbsoluteSnapshot = createPistonOscillationFreeParameterSnapshot({
+  ...defaults,
+  ambientPressureKpa: 60,
+  sampleRateHz: 1_000,
+  triggerThresholdKpa: 120,
+}, 1_000);
+assert.equal(
+  normalizePistonOscillationFreeParameterSnapshot(legacyAbsoluteSnapshot)
+    ?.parameters.triggerThresholdKpa,
+  120,
+  'locked snapshots must retain their saved absolute trigger threshold',
+);
 
 console.log('pistonOscillationFreeParameterConfig tests passed');

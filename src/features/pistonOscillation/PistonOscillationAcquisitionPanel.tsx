@@ -76,9 +76,12 @@ import type {
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
+  PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+  getPistonOscillationFreeTriggerThresholdRange,
   getPistonOscillationFreePhysicsConfig,
   getPistonOscillationFreeSensorConfig,
   getPistonOscillationFreeTailConfig,
+  scalePistonOscillationFreeTriggerThresholdKpa,
 } from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 import {
   createPistonOscillationIncompletePressOperationEvidence,
@@ -110,7 +113,6 @@ import {
 import {
   PISTON_OSCILLATION_FREE_SAMPLE_RATE_MAX_HZ,
   PISTON_OSCILLATION_FREE_SAMPLE_RATE_MIN_HZ,
-  PISTON_OSCILLATION_FREE_TRIGGER_MAX_KPA,
   PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA,
   PISTON_OSCILLATION_MONITOR_GRAPH_MAX_KPA,
   PISTON_OSCILLATION_MONITOR_GRAPH_MIN_KPA,
@@ -491,6 +493,23 @@ PistonOscillationAcquisitionPanelProps
   const effectiveFreeParameterDraft = freeSession?.frozenParameterSnapshot?.parameters
     ?? freeSession?.parameterDraft
     ?? null;
+  const freeAmbientPressureKpa = effectiveFreeParameterDraft?.ambientPressureKpa
+    ?? PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA;
+  const freeTriggerThresholdRange = useMemo(
+    () => getPistonOscillationFreeTriggerThresholdRange(freeAmbientPressureKpa),
+    [freeAmbientPressureKpa],
+  );
+  const freeFallbackTriggerKpa = scalePistonOscillationFreeTriggerThresholdKpa(
+    PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA,
+    PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+    freeAmbientPressureKpa,
+  ) ?? freeTriggerThresholdRange.minimumKpa;
+  const freeFallbackPhysicalPressurePa = freeSession
+    ?.instrumentState.thermodynamicState.pressurePa
+    ?? freeAmbientPressureKpa * 1_000;
+  const freeFallbackPressureKpa = quantizePistonOscillationObservedPressureKpa(
+    freeFallbackPhysicalPressurePa,
+  );
   const effectiveFreePhysicsConfig = useMemo(
     () => effectiveFreeParameterDraft
       ? getPistonOscillationFreePhysicsConfig(effectiveFreeParameterDraft)
@@ -517,7 +536,7 @@ PistonOscillationAcquisitionPanelProps
     ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
       || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
     : freeSelected
-      ? freeSession.triggerThresholdKpa ?? PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA
+      ? freeSession.triggerThresholdKpa ?? freeFallbackTriggerKpa
       : Number(triggerDraft) || PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA;
   const freeSampleRateValid = freeSelected
     && freeSession.sampleRateHz !== null
@@ -526,6 +545,7 @@ PistonOscillationAcquisitionPanelProps
     && freeSession.triggerThresholdKpa !== null
     && parsePistonOscillationFreeTriggerThreshold(
       String(freeSession.triggerThresholdKpa),
+      freeAmbientPressureKpa,
     ) !== null;
   const freeAcquisitionParametersValid = freeSampleRateValid && freeTriggerThresholdValid;
   const guideSessionStartedAtMs = guideSession === undefined
@@ -1168,7 +1188,12 @@ PistonOscillationAcquisitionPanelProps
     : restoredMeasurement?.acquisitionSettings.triggerThresholdKpa ?? configuredTriggerKpa;
   const pressureGraphTriggerKpa = parsePistonOscillationFreeTriggerThreshold(
     String(effectiveTriggerKpa),
-  ) ?? PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;
+    freeSelected
+      ? freeAmbientPressureKpa
+      : PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
+  ) ?? (freeSelected
+    ? freeFallbackTriggerKpa
+    : PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA);
   const effectiveTriggerSeconds = demoFrame
     ? demoTriggerSample?.timeS ?? null
     : restoredMeasurement ? 0 : triggerSeconds;
@@ -1313,16 +1338,26 @@ PistonOscillationAcquisitionPanelProps
         demoObservationSeries.sampleRateHz,
       );
     }
-    return quantizePistonOscillationObservedPressureKpa(
-      PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
-    );
-  }, [activeObservationSeries, demoObservationSeries, restoredMeasurement]);
+    return freeSelected
+      ? freeFallbackPressureKpa
+      : quantizePistonOscillationObservedPressureKpa(
+          PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+        );
+  }, [
+    activeObservationSeries,
+    demoObservationSeries,
+    freeFallbackPressureKpa,
+    freeSelected,
+    restoredMeasurement,
+  ]);
   const currentPressureKpa = elapsedSinceReleaseSeconds === null
     ? effectivePhase === 'armed' && livePressureObservation
       ? livePressureObservation.absolutePressureKpa
-      : quantizePistonOscillationObservedPressureKpa(
-        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
-      )
+      : freeSelected
+        ? freeFallbackPressureKpa
+        : quantizePistonOscillationObservedPressureKpa(
+            PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+          )
     : freeSelected && displayedObservationSamples.length > 0
       ? displayedObservationSamples.at(-1)!.absolutePressureKpa
       : getEffectivePressureKpa(elapsedSinceReleaseSeconds);
@@ -1402,14 +1437,21 @@ PistonOscillationAcquisitionPanelProps
     () => getPistonOscillationAdaptivePressureGraphDomain(
       pressureGraphTriggerKpa,
       [
-        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA,
+        freeFallbackPressureKpa,
         currentPressureKpa,
         ...(displayedPressureRange
           ? [displayedPressureRange.minimumKpa, displayedPressureRange.maximumKpa]
           : []),
       ],
+      freeAmbientPressureKpa,
     ),
-    [currentPressureKpa, displayedPressureRange, pressureGraphTriggerKpa],
+    [
+      currentPressureKpa,
+      displayedPressureRange,
+      freeAmbientPressureKpa,
+      freeFallbackPressureKpa,
+      pressureGraphTriggerKpa,
+    ],
   );
   useEffect(() => {
     if (
@@ -1435,9 +1477,14 @@ PistonOscillationAcquisitionPanelProps
         current.maximumKpa - epsilon,
         adaptiveFreePressureGraphDomain.minimumKpa + epsilon,
         adaptiveFreePressureGraphDomain.maximumKpa - epsilon,
-      ]);
+      ], freeAmbientPressureKpa);
     });
-  }, [adaptiveFreePressureGraphDomain, freeSelected, pressureGraphTriggerKpa]);
+  }, [
+    adaptiveFreePressureGraphDomain,
+    freeAmbientPressureKpa,
+    freeSelected,
+    pressureGraphTriggerKpa,
+  ]);
   const pressureGraphDomain = freeSelected
     ? freeRunPressureGraphDomain ?? adaptiveFreePressureGraphDomain
     : observedPressureGraphDomain;
@@ -1940,10 +1987,14 @@ PistonOscillationAcquisitionPanelProps
     const currentObservation = livePressureObservation ?? {
       sampleClockIndex: Math.floor(recordingStartedAtMs),
       sampledAtMs: recordingStartedAtMs,
-      physicalPressurePa: PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
-      absolutePressureKpa: quantizePistonOscillationObservedPressureKpa(
-        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
-      ),
+      physicalPressurePa: freeSelected
+        ? freeFallbackPhysicalPressurePa
+        : PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+      absolutePressureKpa: freeSelected
+        ? freeFallbackPressureKpa
+        : quantizePistonOscillationObservedPressureKpa(
+            PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+          ),
       equilibriumHeightMm: freeSession?.instrumentState.equilibriumHeightMm ?? 0,
       displacementMm: freeSession?.instrumentState.pistonOffsetMm ?? 0,
       truePistonHeightMm:
@@ -1953,7 +2004,9 @@ PistonOscillationAcquisitionPanelProps
       thermodynamicPhase:
         freeSession?.instrumentState.thermodynamicState.phase ?? 'vented',
       sensorState: createInitialPistonOscillationDynamicSensorState(
-        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+        freeSelected
+          ? freeFallbackPhysicalPressurePa
+          : PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       ),
       sensorConfig: effectiveFreeSensorConfig
         ?? { ...DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG },
@@ -1991,9 +2044,11 @@ PistonOscillationAcquisitionPanelProps
     guideRecordingCommitAttemptedAtMsRef.current = null;
     guidePendingOverpressurePeakKpaRef.current = null;
     preTriggerPeakPressureKpaRef.current = livePressureObservation?.absolutePressureKpa
-      ?? quantizePistonOscillationObservedPressureKpa(
-        PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
-      );
+      ?? (freeSelected
+        ? freeFallbackPressureKpa
+        : quantizePistonOscillationObservedPressureKpa(
+            PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
+          ));
     resetDisplayClock(recordingStartedAtMs);
     updatePhase(startsImmediately ? 'recording' : 'armed');
   };
@@ -2191,7 +2246,7 @@ PistonOscillationAcquisitionPanelProps
     const draft = field === 'sampleRateHz' ? sampleRateDraft : triggerDraft;
     const value = field === 'sampleRateHz'
       ? parsePistonOscillationFreeSampleRate(draft)
-      : parsePistonOscillationFreeTriggerThreshold(draft);
+      : parsePistonOscillationFreeTriggerThreshold(draft, freeAmbientPressureKpa);
     if (value === null) {
       freeCommitRejectedRef.current = true;
       if (field === 'sampleRateHz') {
@@ -2205,7 +2260,9 @@ PistonOscillationAcquisitionPanelProps
             ? ''
             : String(freeSession.triggerThresholdKpa),
         );
-        showFreeParameterFeedback(copy.triggerThresholdRangeWarning);
+        showFreeParameterFeedback(
+          `${copy.triggerThresholdRangeWarning} ${freeTriggerThresholdRange.minimumKpa.toFixed(1)}–${freeTriggerThresholdRange.maximumKpa.toFixed(1)} kPa`,
+        );
       }
       return false;
     }
@@ -2360,10 +2417,12 @@ PistonOscillationAcquisitionPanelProps
             <input
               ref={triggerInputRef}
               type="number"
-              min={PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA}
+              min={guideSelected || demoActive
+                ? PISTON_OSCILLATION_FREE_TRIGGER_MIN_KPA
+                : freeTriggerThresholdRange.minimumKpa}
               max={guideSelected || demoActive
                 ? 140
-                : PISTON_OSCILLATION_FREE_TRIGGER_MAX_KPA}
+                : freeTriggerThresholdRange.maximumKpa}
               step={0.1}
               value={demoFrame?.triggerInput
                 ?? (guideSelected ? guideSession.parameterDrafts.triggerThresholdKpa : triggerDraft)}
@@ -2376,7 +2435,10 @@ PistonOscillationAcquisitionPanelProps
               aria-invalid={guideSession?.parameterStatus.triggerThresholdKpa === 'invalid'
                 || (freeSelected
                   && triggerDraft.trim().length > 0
-                  && parsePistonOscillationFreeTriggerThreshold(triggerDraft) === null)}
+                  && parsePistonOscillationFreeTriggerThreshold(
+                    triggerDraft,
+                    freeAmbientPressureKpa,
+                  ) === null)}
               onPointerDown={() => {
                 if (guideSelected && guideInputsLocked && !guidePaused) {
                   attemptGuideAction('editParameters', 'settings');

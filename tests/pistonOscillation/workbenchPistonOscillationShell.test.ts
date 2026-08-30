@@ -166,6 +166,11 @@ assert.doesNotMatch(
   /activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]{0,240}pistonOscillationCopy\.unavailable\.rightSidebar/,
   'the implemented Piston parameter sidebar must not retain the old unavailable placeholder',
 );
+assert.doesNotMatch(
+  parameterPanelSource,
+  /装置固定参数（只读）|Fixed apparatus constants \(read only\)|renderApparatusConstant/,
+  'the Piston advanced dialog should expose only editable parameters',
+);
 assert.match(
   workbenchSource,
   /renderParameterHelpButton=\{\(parameterId, modelEffect\) => \([\s\S]*renderHeatCapacityParameterHelpButton/,
