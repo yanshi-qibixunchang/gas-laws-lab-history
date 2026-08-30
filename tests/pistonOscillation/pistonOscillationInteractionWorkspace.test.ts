@@ -996,8 +996,13 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /if \(spaceRearmRequiredRef\.current\) \{[\s\S]*spaceRearmRequiredRef\.current = false;[\s\S]*return;[\s\S]*capturePressTracePoint\(performance\.now\(\)\);/,
+  /if \(spaceRearmRequiredRef\.current\) \{[\s\S]*spaceRearmRequiredRef\.current = false;[\s\S]*return;[\s\S]*releaseSpaceHand\(\);/,
   'a Space key held through the lock must be released before it can start a new press',
+);
+assert.match(
+  workspaceSource,
+  /const releaseSpaceHand = \(\) => \{[\s\S]*const releasedAtMs = performance\.now\(\);[\s\S]*advanceVirtualHandPressTo\(releasedAtMs\);[\s\S]*capturePressTracePoint\(releasedAtMs\);[\s\S]*spaceHeldRef\.current = false;/,
+  'the physical press state must advance to the exact Space release boundary before that hand stops supporting it',
 );
 assert.match(
   workspaceSource,
@@ -1048,6 +1053,21 @@ assert.match(
   workspaceSource,
   /const visibleHeightMm = pistonEquilibriumHeightMmRef\.current[\s\S]*const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*lockedHeightMm: pistonNominalHeightMmRef\.current,[\s\S]*initialDisplacementMm/,
   'formal release must create one nonlinear trajectory from the nominal lock height and true live position',
+);
+assert.match(
+  workspaceSource,
+  /const oneHandHoldingAfterPress = pressTraceActiveRef\.current[\s\S]*!spaceHeldRef\.current \|\| !mouseHeldRef\.current[\s\S]*advancePistonOscillationPrescribedThermodynamicState\(\{[\s\S]*pistonHeightMm: thermodynamicStateRef\.current\.pistonHeightM \* 1_000,[\s\S]*velocityMmPerS: 0,[\s\S]*elapsedS/,
+  'after the first hand leaves, the piston must stay fixed while the thermal state keeps advancing',
+);
+assert.match(
+  workspaceSource,
+  /handleVirtualHandReferenceDragChange[\s\S]*pressTraceActiveRef\.current[\s\S]*!spaceHeldRef\.current \|\| !mouseHeldRef\.current[\s\S]*return;/,
+  'mouse motion must not move the held piston after either hand has been released',
+);
+assert.match(
+  workspaceSource,
+  /simulatePistonOscillationThermalRelease\(\{[\s\S]*releaseAsymmetry: \{[\s\S]*signedReleaseGapS: pressOperationEvidence\.signedReleaseGapS/,
+  'the captured two-hand release gap must drive the current release-asymmetry model',
 );
 assert.match(
   workspaceSource,

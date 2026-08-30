@@ -2288,6 +2288,17 @@ export const PistonOscillationInteractionWorkspace = ({
     thermodynamicUpdatedAtMsRef.current = monotonicObservedAtMs;
     if (hoseState === 'disconnected') return;
     if (thermodynamicStateRef.current.phase === 'vented') return;
+    const oneHandHoldingAfterPress = pressTraceActiveRef.current
+      && (!spaceHeldRef.current || !mouseHeldRef.current);
+    if (oneHandHoldingAfterPress) {
+      commitThermodynamicState(advancePistonOscillationPrescribedThermodynamicState({
+        referenceState: thermodynamicStateRef.current,
+        pistonHeightMm: thermodynamicStateRef.current.pistonHeightM * 1_000,
+        velocityMmPerS: 0,
+        elapsedS,
+      }));
+      return;
+    }
     const nextState = advancePistonOscillationVirtualHandThermodynamicState({
       referenceState: thermodynamicStateRef.current,
       equilibriumHeightMm: pistonEquilibriumHeightMmRef.current,
@@ -2325,6 +2336,10 @@ export const PistonOscillationInteractionWorkspace = ({
     nextReferenceDragPx: number,
   ) => {
     const observedAtMs = performance.now();
+    if (
+      pressTraceActiveRef.current
+      && (!spaceHeldRef.current || !mouseHeldRef.current)
+    ) return;
     const previousReferenceDragPx = virtualHandReferenceDragPxRef.current;
     const normalizedReferenceDragPx = Math.max(0, nextReferenceDragPx);
     const referenceDragDeltaPx = normalizedReferenceDragPx - previousReferenceDragPx;
@@ -3078,6 +3093,9 @@ export const PistonOscillationInteractionWorkspace = ({
         initialDisplacementMm,
         initialVelocityMmPerS: (pressOperationEvidence.releaseVelocityMPerS ?? 0) * 1_000,
         referenceThermodynamicState: thermodynamicStateRef.current,
+        releaseAsymmetry: {
+          signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
+        },
       }, { sensorSampleRateHz });
       if (onReleaseEvent && initialDisplacementMm < -0.02) {
         releaseEventIdRef.current += 1;
@@ -3107,6 +3125,14 @@ export const PistonOscillationInteractionWorkspace = ({
   ]);
   const handleMouseHeldChange = useCallback((held: boolean, releasedAtMs?: number) => {
     if (held && releaseControlLockedRef.current) return;
+    const releaseObservedAtMs = held
+      ? null
+      : releasedAtMs ?? performance.now();
+    if (
+      releaseObservedAtMs !== null
+      && mouseHeldRef.current
+      && pressTraceActiveRef.current
+    ) advanceVirtualHandPressTo(releaseObservedAtMs);
     mouseHeldRef.current = held;
     setMouseHeld(held);
     if (held) {
@@ -3128,7 +3154,7 @@ export const PistonOscillationInteractionWorkspace = ({
       return;
     }
     setMouseVisualizationAction(null);
-    mouseReleasedAtRef.current = releasedAtMs ?? performance.now();
+    mouseReleasedAtRef.current = releaseObservedAtMs;
     capturePressTracePoint(mouseReleasedAtRef.current);
     if (heldInputInterruptedRef.current) {
       setPistonPhase('idle');
@@ -3144,6 +3170,7 @@ export const PistonOscillationInteractionWorkspace = ({
     }
     finishTwoHandRelease();
   }, [
+    advanceVirtualHandPressTo,
     beginPressTrace,
     cancelPistonRebound,
     capturePressTracePoint,
@@ -3321,9 +3348,14 @@ export const PistonOscillationInteractionWorkspace = ({
     const releaseSpaceHand = () => {
       if (!spaceHeldRef.current) return;
       attemptGuideAction('leftHandRelease');
+      const releasedAtMs = performance.now();
+      if (pressTraceActiveRef.current) {
+        advanceVirtualHandPressTo(releasedAtMs);
+        capturePressTracePoint(releasedAtMs);
+      }
       spaceHeldRef.current = false;
       setSpaceHeld(false);
-      spaceReleasedAtRef.current = performance.now();
+      spaceReleasedAtRef.current = releasedAtMs;
       if (mouseHeldRef.current) {
         setPistonPhase('holding');
         return;
@@ -3337,7 +3369,6 @@ export const PistonOscillationInteractionWorkspace = ({
         spaceRearmRequiredRef.current = false;
         return;
       }
-      capturePressTracePoint(performance.now());
       releaseSpaceHand();
     };
     const handleVisibilityChange = () => {
@@ -3353,6 +3384,7 @@ export const PistonOscillationInteractionWorkspace = ({
     };
   }, [
     abortHeldInputs,
+    advanceVirtualHandPressTo,
     attemptGuideAction,
     beginPressTrace,
     cancelPistonRebound,

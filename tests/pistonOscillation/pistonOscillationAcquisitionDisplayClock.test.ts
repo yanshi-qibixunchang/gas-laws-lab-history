@@ -17,7 +17,8 @@ const maximumVisibleAdvanceMs =
   PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS;
 const presentationDelayMs = PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS;
 assert.equal(presentationDelayMs, 300);
-assert.equal(PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE, 0.75);
+assert.equal(maximumVisibleAdvanceMs, 40);
+assert.equal(PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE, 0.55);
 assert.equal(PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS, 0.4);
 let clock = createPistonOscillationAcquisitionDisplayClock(1_000);
 clock = advancePistonOscillationAcquisitionDisplayClock(clock, 1_000 + frameIntervalMs);
@@ -53,7 +54,7 @@ assert.ok(
 );
 
 let catchUpWallNowMs = wallNowAfterStallMs;
-for (let frameIndex = 0; frameIndex < 30; frameIndex += 1) {
+for (let frameIndex = 0; frameIndex < 60; frameIndex += 1) {
   catchUpWallNowMs += frameIntervalMs;
   clock = advancePistonOscillationAcquisitionDisplayClock(clock, catchUpWallNowMs);
 }
@@ -66,7 +67,7 @@ assert.ok(
     getPistonOscillationAcquisitionPresentedNowMs(catchUpWallNowMs, clock)
       - (catchUpWallNowMs - presentationDelayMs),
   ) < 1e-8,
-  'temporary calculation lag may drain, but the operator presentation delay must remain',
+  'transient calculation lag may drain, but the operator presentation delay must remain',
 );
 
 const pauseRebasedClock = rebasePistonOscillationAcquisitionDisplayClock(clock, 5_000);
@@ -83,7 +84,7 @@ const slowWindowWallDurationSeconds =
   PISTON_OSCILLATION_ACQUISITION_SLOW_WINDOW_SECONDS
   / PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE;
 assert.ok(Math.abs(
-  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(0.2) - 0.15,
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(0.2) - 0.11,
 ) < 1e-12);
 assert.ok(Math.abs(
   getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(
@@ -100,7 +101,11 @@ assert.equal(
   0.7,
 );
 assert.equal(
-  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(0.7, 0.75, 0),
+  getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds(
+    0.7,
+    PISTON_OSCILLATION_ACQUISITION_PLAYBACK_RATE,
+    0,
+  ),
   0.7,
 );
 

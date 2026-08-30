@@ -25,6 +25,12 @@ import {
 import {
   PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
 } from './pistonOscillationEquivalentLossModel.ts';
+import {
+  createPistonOscillationReleaseAsymmetryProfile,
+  getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM,
+  type PistonOscillationReleaseAsymmetryInput,
+  type PistonOscillationReleaseAsymmetryProfile,
+} from './pistonOscillationReleaseAsymmetryModel.ts';
 
 export const PISTON_OSCILLATION_THERMAL_MODEL_CONFIG_VERSION =
   'piston-oscillation-heat-flow-lag-candidate-config-v2' as const;
@@ -468,6 +474,7 @@ interface ThermalMotionEnvironment {
   thermalConfig: PistonOscillationThermalModelConfig;
   cylinderAreaM2: number;
   gasHeatCapacityJPerK: number;
+  releaseAsymmetryProfile?: PistonOscillationReleaseAsymmetryProfile;
   virtualHand?: {
     targetDownwardDisplacementM: number;
     stiffnessNPerM: number;
@@ -491,6 +498,7 @@ const addDerivative = (
 const getMotionDerivative = (
   state: ThermalMotionState,
   environment: ThermalMotionEnvironment,
+  elapsedMotionS = 0,
 ): ThermalMotionDerivative => {
   const pistonHeightM = environment.equilibriumHeightM + state.displacementM;
   if (!Number.isFinite(pistonHeightM) || pistonHeightM < 0) {
@@ -506,8 +514,15 @@ const getMotionDerivative = (
     * (pressurePa - environment.physicsConfig.ambientPressurePa);
   const gravityForceN = environment.physicsConfig.movingMassKg
     * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2;
-  const dampingForceN = environment.physicsConfig.linearDampingNsPerM
-    * state.velocityMPerS;
+  const extraLinearLossNsPerM = environment.releaseAsymmetryProfile
+    ? getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM(
+        environment.releaseAsymmetryProfile,
+        elapsedMotionS,
+      )
+    : 0;
+  const dampingForceN = (
+    environment.physicsConfig.linearDampingNsPerM + extraLinearLossNsPerM
+  ) * state.velocityMPerS;
   const downwardDisplacementM = environment.equilibriumHeightM - pistonHeightM;
   const virtualHandForceN = environment.virtualHand
     ? environment.virtualHand.stiffnessNPerM * Math.max(
@@ -556,11 +571,24 @@ const stepMotionRungeKutta = (
   state: ThermalMotionState,
   dtS: number,
   environment: ThermalMotionEnvironment,
+  elapsedMotionS = 0,
 ) => {
-  const k1 = getMotionDerivative(state, environment);
-  const k2 = getMotionDerivative(addDerivative(state, k1, dtS / 2), environment);
-  const k3 = getMotionDerivative(addDerivative(state, k2, dtS / 2), environment);
-  const k4 = getMotionDerivative(addDerivative(state, k3, dtS), environment);
+  const k1 = getMotionDerivative(state, environment, elapsedMotionS);
+  const k2 = getMotionDerivative(
+    addDerivative(state, k1, dtS / 2),
+    environment,
+    elapsedMotionS + dtS / 2,
+  );
+  const k3 = getMotionDerivative(
+    addDerivative(state, k2, dtS / 2),
+    environment,
+    elapsedMotionS + dtS / 2,
+  );
+  const k4 = getMotionDerivative(
+    addDerivative(state, k3, dtS),
+    environment,
+    elapsedMotionS + dtS,
+  );
   return {
     displacementM: state.displacementM + dtS / 6 * (
       k1.displacementRateMPerS
@@ -752,6 +780,7 @@ const createTrajectorySample = (input: {
 export interface PistonOscillationThermalReleaseInput
   extends PistonOscillationReleaseInput {
   referenceThermodynamicState: PistonOscillationThermodynamicState;
+  releaseAsymmetry?: PistonOscillationReleaseAsymmetryInput;
 }
 
 export const simulatePistonOscillationThermalRelease = (
@@ -846,12 +875,31 @@ export const simulatePistonOscillationThermalRelease = (
       * equilibrium.cylinderAreaM2
       / (physicsConfig.movingMassKg * initialEffectiveGasHeightM),
   );
+  const naturalAngularFrequencyRadPerS = Math.sqrt(
+    physicsConfig.gamma
+      * equilibrium.equilibriumPressurePa
+      * equilibrium.cylinderAreaM2
+      / (physicsConfig.movingMassKg * equilibrium.effectiveGasHeightM),
+  );
+  const releaseAsymmetryProfile = input.releaseAsymmetry
+    ? createPistonOscillationReleaseAsymmetryProfile(
+        input.releaseAsymmetry,
+        2 * Math.PI / naturalAngularFrequencyRadPerS,
+      )
+    : undefined;
   const periodLimitedStepS = 1 / (
     initialAngularFrequencyRadPerS / (2 * Math.PI)
     * MINIMUM_INTEGRATION_STEPS_PER_PERIOD
   );
-  const dampingLimitedStepS = physicsConfig.linearDampingNsPerM > 0
-    ? physicsConfig.movingMassKg / (physicsConfig.linearDampingNsPerM * 50)
+  const maximumLinearLossNsPerM = physicsConfig.linearDampingNsPerM
+    + (releaseAsymmetryProfile
+      ? getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM(
+          releaseAsymmetryProfile,
+          0,
+        )
+      : 0);
+  const dampingLimitedStepS = maximumLinearLossNsPerM > 0
+    ? physicsConfig.movingMassKg / (maximumLinearLossNsPerM * 50)
     : Number.POSITIVE_INFINITY;
   const maximumStepS = Math.min(
     MAXIMUM_INTEGRATION_STEP_S,
@@ -885,6 +933,7 @@ export const simulatePistonOscillationThermalRelease = (
     gasHeatCapacityJPerK: equilibrium.gasAmountMol
       * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
       / (physicsConfig.gamma - 1),
+    releaseAsymmetryProfile,
   };
   const samples: PistonOscillationTrajectorySample[] = [];
   for (let sampleIndex = 0; sampleIndex < sampleCount; sampleIndex += 1) {
@@ -896,7 +945,12 @@ export const simulatePistonOscillationThermalRelease = (
     }));
     if (sampleIndex === sampleCount - 1) break;
     for (let substep = 0; substep < integrationSubstepsPerSample; substep += 1) {
-      state = stepMotionRungeKutta(state, integrationStepS, motionEnvironment);
+      state = stepMotionRungeKutta(
+        state,
+        integrationStepS,
+        motionEnvironment,
+        sampleIndex * sampleIntervalS + substep * integrationStepS,
+      );
     }
   }
   const pressuresKpa = samples.map((sample) => sample.pressurePa / 1_000);
