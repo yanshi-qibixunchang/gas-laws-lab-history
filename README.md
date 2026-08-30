@@ -4,7 +4,7 @@
 
 Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v6.3.0`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v6.3.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -23,9 +23,10 @@ The latest published desktop release is `v6.3.0`. The `main` branch may contain 
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
-- `v6.3.0` extends piston Free Mode with a continuous thermal, pressure-sensor, press, and virtual-hand acquisition chain. The recorded trace now follows the actual press and release sequence while preserving the established plan, processing, fitting, and calculation workflow.
-- `v6.3.0` adds localized interaction audio for power, hose, screw, piston vibration, and bottom impacts across the applicable piston modes, including height-aware reset impact feedback.
-- `v6.3.0` repairs Guide sequencing and acquisition: legacy hidden baseline steps are migrated away, valid actions are no longer rejected after reminders, recordings freeze at `0.500 s` before Pause advances the lesson, parameter fields accept Enter consistently, and screw steps gain tolerant continuation, clear rotation arrows, and graduated wrong-direction guidance. Demo height and hose actions are also twice as fast.
+- `v6.3.1` completes the piston Free-mode data-quality loop. It separates an unusable whole recording from a merely narrow selection, reacquires only the affected run, preserves excluded attempts as evidence, and validates `t1 / t2 / T` plus final calculations in editable batches.
+- `v6.3.1` adds seeded late-trace irregularities and a short-lived release-asymmetry loss, while new experiments use one versioned `1.1 N·s/m` equivalent loss for pressing and free oscillation. Historical `0.434 N·s/m` and other supported snapshots remain unchanged.
+- `v6.3.1` gives the operator more time to pause through a `0.300 s` presentation delay and `0.55x` pacing over the first `0.400 s` of physical trace without rescaling samples. It also restores live monitoring after a missed trigger and lets long unified-validation button labels size correctly.
+- `v6.3.0` introduced the continuous thermal, pressure-sensor, press, and virtual-hand acquisition chain, complete localized piston interaction audio, and the Guide sequencing, recording-freeze, parameter-entry, screw-guidance, and Demo-pacing repairs that remain the foundation of this patch.
 - `v6.2.1` remains the preceding piston stability patch for first acquisition, period selection, rebound validation, render recovery, and restart-safe Free data.
 - `v6.2.0` completes piston-oscillation Free Mode with 3–6-run plans, system and custom 10–80 mm heights, ordered progress, resumable sessions, per-run acquisition settings, dynamic monitoring, manual retry and reset, period verification, fitting, and automatic calculation handoff.
 - `v6.2.0` also unifies the two heat-capacity experiments around shared count and progress controls, aligns mode-specific navigation and visual styling, improves Demo and Guide interactions, and applies one persistent loaded-gas equilibrium model across all three piston modes. Releasing the locking screw now produces a recorded 0.2 s one-way physical settling process while the exact height remains an internal model quantity.
@@ -56,9 +57,7 @@ Generated dependencies and outputs such as `node_modules/`, `dist/`, `release/`,
 
 ## Repository Access And Codex Collaboration
 
-While the source repository is public, teammates can open its GitHub URL in Codex or clone it locally without a repository invitation.
-
-If the repository is later returned to private visibility, teammates can continue through explicit GitHub access:
+The source repository is maintained privately, while installers and update metadata are published separately through the public release repository. Authorized teammates can work with the source through explicit GitHub access:
 
 1. Invite each teammate's GitHub account as a collaborator on the private repository.
 2. The teammate accepts the GitHub invitation.

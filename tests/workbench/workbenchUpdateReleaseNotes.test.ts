@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.3.0', 'next desktop update release should bump package version to 6.3.0');
-assert.match(readme, /latest published desktop release is `v6\.3\.0`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.3\.0`/, 'Simplified Chinese README should name the current public release');
-assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.3\.0`/, 'Traditional Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.3\.0。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.3.1', 'next desktop update release should bump package version to 6.3.1');
+assert.match(readme, /latest published desktop release is `v6\.3\.1`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.3\.1`/, 'Simplified Chinese README should name the current public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.3\.1`/, 'Traditional Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.3\.1。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -99,28 +99,40 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-thermal-sensor-acquisition' && item.importance === 'high'),
-  '6.3.0 should include the high-importance thermal and sensor acquisition update',
+  currentItems.some((item) => item.scope === 'piston-primary-cycle-reacquisition' && item.importance === 'high'),
+  '6.3.1 should include the high-importance primary-cycle reacquisition update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-virtual-hand-recording' && item.importance === 'high'),
-  '6.3.0 should include the high-importance virtual-hand recording update',
+  currentItems.some((item) => item.scope === 'piston-free-unified-validation' && item.importance === 'high'),
+  '6.3.1 should include the high-importance Free unified-validation update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-interaction-audio' && item.importance === 'high'),
-  '6.3.0 should include the high-importance piston interaction audio update',
+  currentItems.some((item) => item.scope === 'piston-unified-equivalent-loss' && item.importance === 'high'),
+  '6.3.1 should include the high-importance unified equivalent-loss update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-guide-step-continuity' && item.importance === 'high'),
-  '6.3.0 should include the high-importance Guide step continuity fix',
+  currentItems.some((item) => item.scope === 'piston-acquisition-display-pacing' && item.importance === 'high'),
+  '6.3.1 should include the high-importance acquisition display pacing update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-guide-recording-freeze' && item.importance === 'high'),
-  '6.3.0 should include the high-importance Guide recording freeze fix',
+  currentItems.some((item) => item.scope === 'piston-missed-trigger-retry' && item.importance === 'high'),
+  '6.3.1 should include the high-importance missed-trigger retry fix',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-screw-guidance-tolerance' && item.importance === 'high'),
-  '6.3.0 should include the high-importance tolerant screw guidance update',
+  currentItems.some((item) => item.scope === 'piston-tail-observation' && item.importance === 'medium'),
+  '6.3.1 should include the tail-observation update and its documented scope',
+);
+
+const acquisitionRelease = findRelease('6.3.0');
+assert.ok(acquisitionRelease, 'release notes should retain the 6.3.0 acquisition and audio release');
+const acquisitionItems = acquisitionRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+assert.ok(
+  acquisitionItems.some((item) => item.scope === 'piston-thermal-sensor-acquisition' && item.importance === 'high'),
+  '6.3.0 should retain the high-importance thermal and sensor acquisition update',
+);
+assert.ok(
+  acquisitionItems.some((item) => item.scope === 'piston-interaction-audio' && item.importance === 'high'),
+  '6.3.0 should retain the high-importance piston interaction audio update',
 );
 
 const freeModeRelease = findRelease('6.2.0');

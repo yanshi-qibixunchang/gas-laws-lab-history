@@ -3,6 +3,216 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.3.1",
+      "date": "2026-08-30",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.3.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.3.1/heat-capacity-lab-setup-6.3.1.exe"
+      },
+      "summary": {
+        "zh-CN": "6.3.1 完成活塞振动法自由模式的数据质量闭环与曲线呈现调整：自动重做不可用记录、统一校验计算、加入可复现尾段观测与双手松手差异，统一新实验损耗，并修复未触发后再次按压的实时监测。",
+        "zh-TW": "6.3.1 完成活塞振動法自由模式的資料品質閉環與曲線呈現調整：自動重做不可用記錄、統一校驗計算、加入可重現尾段觀測與雙手放手差異，統一新實驗損耗，並修正未觸發後再次按壓的即時監測。",
+        "en": "Version 6.3.1 completes the piston Free-mode data-quality loop and trace presentation: unusable recordings reacquire automatically, calculations validate as batches, reproducible tail observations and release asymmetry are included, new experiments share one loss baseline, and live monitoring recovers after a missed trigger."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "数据质量与实验因果",
+            "zh-TW": "資料品質與實驗因果",
+            "en": "Data quality and experimental causality"
+          },
+          "items": [
+            {
+              "scope": "piston-primary-cycle-reacquisition",
+              "importance": "high",
+              "title": {
+                "zh-CN": "不可用记录自动重做",
+                "zh-TW": "不可用記錄自動重做",
+                "en": "Automatic reacquisition for unusable recordings"
+              },
+              "body": {
+                "zh-CN": "自由模式会根据整条记录中的主极值、预期半周期、传感器分辨率和多尺度结果判断是否至少存在半个可信主周期。明确不足时先保留该次证据，再返回当前 Run：软管断开、活塞归零、螺钉完全松开，同时保留电源、采样率、触发阈值和其他已完成 Run。仅仅框选过窄仍只要求重新框选，不会误触发整次重做。",
+                "zh-TW": "自由模式會依整條記錄中的主極值、預期半週期、感測器解析度和多尺度結果，判斷是否至少存在半個可信主週期。明確不足時會先保留該次證據，再返回目前 Run：軟管斷開、活塞歸零、螺釘完全鬆開，同時保留電源、取樣率、觸發閾值和其他已完成 Run。僅僅框選過窄仍只要求重新框選，不會誤觸發整次重做。",
+                "en": "Free Mode evaluates the whole recording using primary extrema, expected half-period, sensor resolution, and multiscale evidence. A clearly unusable trace is archived and only that run is reacquired with the hose disconnected, piston at zero, screw fully loose, and power, sampling, threshold, and other completed runs preserved. A merely narrow selection still asks only for a new selection."
+              }
+            },
+            {
+              "scope": "piston-free-unified-validation",
+              "importance": "high",
+              "title": {
+                "zh-CN": "自由模式统一校验与过程证据",
+                "zh-TW": "自由模式統一校驗與過程證據",
+                "en": "Free-mode batch validation and process evidence"
+              },
+              "body": {
+                "zh-CN": "每条曲线的 t₁、t₂、T 现在填完后统一校验；拟合后的 A、γ、相对误差也在三项全部填写后统一校验。校验前可以返回修改已显示项目，空值、字母和不完整数字只提示格式，不计入正式错误尝试；可解析的提交、查看答案和最终处理结果会继续保存。引导模式仍保持原有逐步校验。",
+                "zh-TW": "每條曲線的 t₁、t₂、T 現在填完後統一校驗；擬合後的 A、γ、相對誤差也在三項全部填寫後統一校驗。校驗前可以返回修改已顯示項目，空值、字母和不完整數字只提示格式，不計入正式錯誤嘗試；可解析的提交、查看答案和最終處理結果會繼續儲存。引導模式仍維持原有逐步校驗。",
+                "en": "Each Free curve now validates t1, t2, and T together, and the fitted A, gamma, and relative error validate only after all three are entered. Visible fields remain editable before validation; blanks, letters, and incomplete numbers produce format guidance without becoming formal errors, while parseable attempts, revealed answers, and final dispositions remain recorded. Guide Mode keeps its stepwise checks."
+              }
+            },
+            {
+              "scope": "piston-tail-observation",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "可复现的尾段不规则观测",
+                "zh-TW": "可重現的尾段不規則觀測",
+                "en": "Reproducible tail irregularity observations"
+              },
+              "body": {
+                "zh-CN": "新实验的传感器尾段会按实验种子产生少量局部时间折叠和峰谷肩部削弱，使后段周期更考验框选质量。前段主体波形、1000 Hz 时间网格和底层热—力学轨迹不变；同一实验保存、重启后逐点保持一致。现有四组实测比较表明，选择尾段时结果变差的总体方向和量级相近，但不保证每条随机曲线都必然变差。",
+                "zh-TW": "新實驗的感測器尾段會依實驗種子產生少量局部時間摺疊和峰谷肩部削弱，使後段週期更考驗框選品質。前段主體波形、1000 Hz 時間網格和底層熱—力學軌跡不變；同一實驗儲存、重新啟動後逐點維持一致。現有四組實測比較顯示，選擇尾段時結果變差的整體方向和量級相近，但不保證每條隨機曲線都必然變差。",
+                "en": "New experiments use their saved seed to add sparse local time folds and peak/trough shoulder attenuation late in the sensor trace, making late-cycle selection more demanding. The early waveform, 1000 Hz time grid, and underlying thermomechanical trajectory remain unchanged, and saved traces replay sample-for-sample. Comparison with four measured traces supports a similar overall direction and scale of late-selection degradation without forcing every random run to be worse."
+              }
+            },
+            {
+              "scope": "piston-release-asymmetry",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "双手松手差的短时受力影响",
+                "zh-TW": "雙手放手差的短時受力影響",
+                "en": "Short-lived effect of unequal hand release"
+              },
+              "body": {
+                "zh-CN": "左右手释放时刻继续原样记录。时间差超过中性区后，模型会增加一个随约一个自然周期指数衰减的短时侧向接触损耗，表现为初段振幅和衰减差异；单手先松不会被错误处理成平台立即上移，也没有改写气体刚度或加入永久摩擦。",
+                "zh-TW": "左右手放手時刻繼續原樣記錄。時間差超過中性區後，模型會增加一個隨約一個自然週期指數衰減的短時側向接觸損耗，表現為初段振幅和衰減差異；單手先放不會被錯誤處理成平臺立即上移，也沒有改寫氣體剛度或加入永久摩擦。",
+                "en": "Left- and right-hand release times remain recorded exactly. Beyond the neutral gap, a short-lived side-contact loss decays over roughly one natural period and changes early amplitude and attenuation. Releasing one hand first does not incorrectly lift the platform, alter gas stiffness, or introduce permanent friction."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "手感、显示与流程",
+            "zh-TW": "手感、顯示與流程",
+            "en": "Interaction, presentation, and workflow"
+          },
+          "items": [
+            {
+              "scope": "piston-unified-equivalent-loss",
+              "importance": "high",
+              "title": {
+                "zh-CN": "新实验统一按压与自由振动损耗",
+                "zh-TW": "新實驗統一按壓與自由振動損耗",
+                "en": "Unified press and free-oscillation loss for new experiments"
+              },
+              "body": {
+                "zh-CN": "新建实验的虚拟手按压和松手后的自由振动统一使用版本化的 1.1 N·s/m 等效线性损耗，减少按压与释放之间的参数分叉。旧实验和旧存档仍按其已保存的 0.434 N·s/m 或其他受支持快照恢复，不会被重新解释或改写；该等效损耗仍表示聚合耗散，不宣称是单一实物摩擦系数。",
+                "zh-TW": "新建實驗的虛擬手按壓和放手後的自由振動統一使用版本化的 1.1 N·s/m 等效線性損耗，減少按壓與釋放之間的參數分岔。舊實驗和舊存檔仍依其已儲存的 0.434 N·s/m 或其他受支援快照還原，不會被重新解釋或改寫；該等效損耗仍代表聚合耗散，不宣稱是單一實物摩擦係數。",
+                "en": "New experiments now use one versioned 1.1 N·s/m equivalent linear loss for both virtual-hand pressing and free oscillation. Existing experiments and saves continue to restore their captured 0.434 N·s/m or other supported snapshot without reinterpretation. The coefficient remains an aggregate-loss representation, not a claim of one physical friction coefficient."
+              }
+            },
+            {
+              "scope": "piston-acquisition-display-pacing",
+              "importance": "high",
+              "title": {
+                "zh-CN": "采集曲线延迟与短窗口慢放",
+                "zh-TW": "採集曲線延遲與短視窗慢放",
+                "en": "Delayed and paced acquisition presentation"
+              },
+              "body": {
+                "zh-CN": "正式曲线以 30 fps 的受限增量连续揭示，并增加 0.300 s 呈现延迟；最关键的前 0.400 s 物理时间按 0.55 倍节奏显示，之后无跳跃恢复正常推进。该改动只作用于 UI 呈现，不改变传感器采样率、样本时间戳、保存数据、周期或计算结果。",
+                "zh-TW": "正式曲線以 30 fps 的受限增量連續揭示，並增加 0.300 s 呈現延遲；最關鍵的前 0.400 s 物理時間以 0.55 倍節奏顯示，之後不跳躍地恢復正常推進。該改動只作用於 UI 呈現，不改變感測器取樣率、樣本時間戳、儲存資料、週期或計算結果。",
+                "en": "The formal curve is revealed continuously with capped 30 fps advances and a 0.300 s presentation delay. The first 0.400 s of physical trace uses 0.55x presentation pacing before returning to normal progression without a jump. This is UI-only and does not change sensor sampling, timestamps, saved samples, periods, or calculations."
+              }
+            },
+            {
+              "scope": "piston-processing-mode-controls",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "数据处理阶段保留模式控制",
+                "zh-TW": "資料處理階段保留模式控制",
+                "en": "Mode controls remain available during data processing"
+              },
+              "body": {
+                "zh-CN": "自由模式的数据处理主界面继续显示演示、引导、自由和退出控件，允许在二级计算窗口之外切换或退出；二级计算窗口打开时这些控件仍会锁定，避免半途破坏计算状态。",
+                "zh-TW": "自由模式的資料處理主介面繼續顯示演示、引導、自由和退出控制項，允許在二級計算視窗之外切換或退出；二級計算視窗開啟時這些控制項仍會鎖定，避免中途破壞計算狀態。",
+                "en": "Demo, Guide, Free, and exit controls remain visible on the main data-processing view so the user can switch or leave outside the secondary calculation window. Those controls stay locked while the calculation window is open to protect in-progress calculation state."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "修复",
+            "zh-TW": "修正",
+            "en": "Fixes"
+          },
+          "items": [
+            {
+              "scope": "piston-missed-trigger-retry",
+              "importance": "high",
+              "title": {
+                "zh-CN": "未触发记录后可立即再次按压",
+                "zh-TW": "未觸發記錄後可立即再次按壓",
+                "en": "Immediate retry after a missed trigger"
+              },
+              "body": {
+                "zh-CN": "当一次按压没有越过下降触发线时，平台运动和振动音效结束后，实时监测会重新绑定当前传感器会话。用户无需暂停、重做或重新进入模式即可再次按压，监测点和声音会继续响应；自由模式与引导模式共用该修复。",
+                "zh-TW": "當一次按壓沒有越過下降觸發線時，平臺運動和振動音效結束後，即時監測會重新綁定目前感測器工作階段。使用者無需暫停、重做或重新進入模式即可再次按壓，監測點和聲音會繼續回應；自由模式與引導模式共用此修正。",
+                "en": "When a press never crosses the falling trigger, live monitoring now rebinds to the active sensor session after the platform motion and vibration feedback end. The user can press again without pausing, reacquiring, or re-entering the mode, and both the monitor point and audio continue to respond in Free and Guide modes."
+              }
+            },
+            {
+              "scope": "piston-calculation-action-layout",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "完整显示统一校验按钮",
+                "zh-TW": "完整顯示統一校驗按鈕",
+                "en": "Complete unified-validation button labels"
+              },
+              "body": {
+                "zh-CN": "计算窗口的操作列改为按文案自然扩展，统一校验等较长按钮不再被固定宽度截断或溢出。",
+                "zh-TW": "計算視窗的操作列改為依文字自然擴展，統一校驗等較長按鈕不再被固定寬度截斷或溢出。",
+                "en": "Calculation action columns now grow to fit their labels, preventing longer unified-validation actions from clipping or overflowing a fixed-width button."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "兼容性与更新",
+            "zh-TW": "相容性與更新",
+            "en": "Compatibility and updating"
+          },
+          "items": [
+            {
+              "scope": "piston-saved-model-compatibility",
+              "importance": "high",
+              "title": {
+                "zh-CN": "旧曲线与模型快照保持原义",
+                "zh-TW": "舊曲線與模型快照維持原義",
+                "en": "Existing traces and model snapshots retain their meaning"
+              },
+              "body": {
+                "zh-CN": "已保存原始曲线不会在打开时重新生成尾段变化，旧等效损耗、旧传感器版本和已有处理结果继续按原快照恢复。新增模型只作用于新实验，不回写历史数据。",
+                "zh-TW": "已儲存原始曲線不會在開啟時重新產生尾段變化，舊等效損耗、舊感測器版本和既有處理結果繼續依原快照還原。新增模型只作用於新實驗，不回寫歷史資料。",
+                "en": "Saved raw traces are never regenerated with new tail variations. Historical equivalent-loss values, sensor versions, and processing results continue to restore from their captured snapshots. New models apply only to new experiments and do not rewrite old data."
+              }
+            },
+            {
+              "scope": "desktop-update-v6-3-1",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "支持 6.3.0 原位更新",
+                "zh-TW": "支援 6.3.0 原地更新",
+                "en": "In-place update from 6.3.0"
+              },
+              "body": {
+                "zh-CN": "继续沿用相同应用 ID、安装身份、公开更新仓库和用户资料目录，可从 6.3.0 直接覆盖更新。",
+                "zh-TW": "繼續沿用相同應用程式 ID、安裝身分、公開更新倉庫和使用者資料目錄，可從 6.3.0 直接覆蓋更新。",
+                "en": "The application ID, installer identity, public update repository, and user-data directory remain unchanged for an in-place update from 6.3.0."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.3.0",
       "date": "2026-08-30",
       "channel": "stable",
