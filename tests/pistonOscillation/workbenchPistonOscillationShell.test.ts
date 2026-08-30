@@ -476,7 +476,7 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /activePistonOscillationDataProcessing \? \([\s\S]*<PistonOscillationDataProcessingPanel[\s\S]*guideSession=\{activeFile\.pistonOscillationGuideSession\}[\s\S]*onGuideEvent=\{handlePistonOscillationGuideProcessingEvent\}[\s\S]*\) : \([\s\S]*<PistonOscillationAcquisitionPanel/,
+  /activePistonOscillationDataProcessing \? \([\s\S]*<PistonOscillationDataProcessingPanel[\s\S]*guideSession=\{activeFile\.pistonOscillationGuideSession\}[\s\S]*onProcessingEvent=\{handlePistonOscillationProcessingEvent\}[\s\S]*\) : \([\s\S]*<PistonOscillationAcquisitionPanel/,
   'the realtime panel should switch from acquisition to the mandatory data-processing workspace',
 );
 assert.match(

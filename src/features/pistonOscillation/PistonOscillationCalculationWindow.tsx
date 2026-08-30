@@ -17,6 +17,7 @@ import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.ts
 import {
   PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS,
   formatPistonOscillationCalculationAnswer,
+  getInvalidPistonOscillationCalculationBatchFields,
   type PistonOscillationCalculationAnswerState,
   type PistonOscillationCalculationFieldId,
   type PistonOscillationDataProcessingSession,
@@ -31,6 +32,7 @@ import type {
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import type {
+  PistonOscillationFreeEvent,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
@@ -45,13 +47,17 @@ export interface PistonOscillationCalculationWindowProps {
   language: PistonOscillationLanguage;
   guideSession: PistonOscillationGuideSession | null;
   freeSession?: PistonOscillationFreeSession | null;
-  onGuideEvent: (event: PistonOscillationGuideEvent) => void;
+  onCalculationEvent: (event: PistonOscillationCalculationEvent) => void;
   onCompleteAndExit: () => void;
   onClose: () => void;
 }
 
-type PistonOscillationUntimedGuideEvent =
-  PistonOscillationGuideEvent extends infer Event
+type PistonOscillationCalculationEvent =
+  | PistonOscillationGuideEvent
+  | PistonOscillationFreeEvent;
+
+type PistonOscillationUntimedCalculationEvent =
+  PistonOscillationCalculationEvent extends infer Event
     ? Event extends { nowMs: number }
       ? Omit<Event, 'nowMs'>
       : never
@@ -240,16 +246,26 @@ const PistonOscillationCalculationField = ({
   fieldId,
   answer,
   active,
+  batchMode,
+  actionLabel,
+  actionDisabled,
   referenceGamma,
   copy,
-  onGuideEvent,
+  onCalculationEvent,
+  onAction,
+  onDraftEdited,
 }: {
   fieldId: PistonOscillationCalculationFieldId;
   answer: PistonOscillationCalculationAnswerState;
   active: boolean;
+  batchMode: boolean;
+  actionLabel: string | null;
+  actionDisabled: boolean;
   referenceGamma: number;
   copy: PistonOscillationCalculationCopy;
-  onGuideEvent: (event: PistonOscillationGuideEvent) => void;
+  onCalculationEvent: (event: PistonOscillationCalculationEvent) => void;
+  onAction: () => void;
+  onDraftEdited: () => void;
 }) => {
   const resolved = answer.status !== 'unresolved';
   const hasFeedback = answer.feedback !== null;
@@ -261,8 +277,8 @@ const PistonOscillationCalculationField = ({
       : getFeedbackText(answer, copy);
   const inputId = `piston-calculation-${fieldId}`;
   const dispatch = (
-    event: PistonOscillationUntimedGuideEvent,
-  ) => onGuideEvent({ ...event, nowMs: Date.now() } as PistonOscillationGuideEvent);
+    event: PistonOscillationUntimedCalculationEvent,
+  ) => onCalculationEvent({ ...event, nowMs: Date.now() } as PistonOscillationCalculationEvent);
 
   return (
     <article
@@ -294,11 +310,27 @@ const PistonOscillationCalculationField = ({
                 disabled={!active || resolved || hasFeedback}
                 aria-invalid={hasFeedback}
                 aria-describedby={`${inputId}-precision ${inputId}-feedback`}
-                onChange={(event) => dispatch({
-                  type: 'editCalculationAnswer',
-                  field: fieldId,
-                  value: event.currentTarget.value,
-                })}
+                onChange={(event) => {
+                  onDraftEdited();
+                  dispatch({
+                    type: 'editCalculationAnswer',
+                    field: fieldId,
+                    value: event.currentTarget.value,
+                  });
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    event.key === 'Enter'
+                    && active
+                    && !resolved
+                    && !hasFeedback
+                    && actionLabel !== null
+                    && !actionDisabled
+                  ) {
+                    event.preventDefault();
+                    onAction();
+                  }
+                }}
               />
               {getAnswerUnit(fieldId) ? (
                 <span className="studio-piston-calculation-unit">{getAnswerUnit(fieldId)}</span>
@@ -323,10 +355,13 @@ const PistonOscillationCalculationField = ({
             </span>
             {hasFeedback ? (
               <span className="studio-piston-calculation-error-actions">
-                <button type="button" onClick={() => dispatch({
-                  type: 'continueCalculationAnswer',
-                  field: fieldId,
-                })}>
+                <button type="button" onClick={() => {
+                  if (batchMode) {
+                    dispatch({ type: 'continueCalculationBatch' });
+                  } else {
+                    dispatch({ type: 'continueCalculationAnswer', field: fieldId });
+                  }
+                }}>
                   {copy.continueAnswer}
                 </button>
                 <button
@@ -343,17 +378,19 @@ const PistonOscillationCalculationField = ({
             ) : <span className="studio-piston-calculation-actions-placeholder" aria-hidden="true" />}
           </div>
         </div>
-        <button
-          type="button"
-          className={`studio-piston-calculation-check ${
-            active ? '' : 'studio-piston-calculation-check-hidden'
-          }`}
-          disabled={!active || hasFeedback || resolved}
-          tabIndex={active ? 0 : -1}
-          onClick={() => dispatch({ type: 'submitCalculationField', field: fieldId })}
-        >
-          {copy.check}
-        </button>
+        {actionLabel !== null ? (
+          <button
+            type="button"
+            className={`studio-piston-calculation-check ${
+              active ? '' : 'studio-piston-calculation-check-hidden'
+            }`}
+            disabled={!active || hasFeedback || resolved || actionDisabled}
+            tabIndex={active ? 0 : -1}
+            onClick={onAction}
+          >
+            {actionLabel}
+          </button>
+        ) : null}
       </div>
     </article>
   );
@@ -511,7 +548,7 @@ export const PistonOscillationCalculationWindow = ({
   language,
   guideSession,
   freeSession,
-  onGuideEvent,
+  onCalculationEvent,
   onCompleteAndExit,
   onClose,
 }: PistonOscillationCalculationWindowProps) => {
@@ -528,6 +565,8 @@ export const PistonOscillationCalculationWindow = ({
   const [reminderHoles, setReminderHoles] = useState<FitChartRect[]>([]);
   const [interactionRevision, setInteractionRevision] = useState(0);
   const [pulseTarget, setPulseTarget] = useState<'rows' | 'confirm' | null>(null);
+  const [batchFormatInvalid, setBatchFormatInvalid] = useState(false);
+  const batchMode = processing?.processingPolicy.answerValidationMode === 'batch';
   const selectedRunIndices = calculationSession?.selectedRunIndices ?? [];
   const selectedRunSet = useMemo(
     () => new Set(selectedRunIndices),
@@ -584,6 +623,10 @@ export const PistonOscillationCalculationWindow = ({
     if (!fitReminderOpen || missingRunIndices.length > 0) return;
     closeFitReminder();
   }, [closeFitReminder, fitReminderOpen, missingRunIndices.length]);
+
+  useEffect(() => {
+    setBatchFormatInvalid(false);
+  }, [calculationSession?.status, calculationSession?.visibleFieldIds.length, fit]);
 
   const measureReminderHoles = useCallback(() => {
     const layer = strongLayerRef.current;
@@ -645,8 +688,8 @@ export const PistonOscillationCalculationWindow = ({
   };
 
   const dispatch = (
-    event: PistonOscillationUntimedGuideEvent,
-  ) => onGuideEvent({ ...event, nowMs: Date.now() } as PistonOscillationGuideEvent);
+    event: PistonOscillationUntimedCalculationEvent,
+  ) => onCalculationEvent({ ...event, nowMs: Date.now() } as PistonOscillationCalculationEvent);
 
   const toggleFitRun = (runIndex: number) => {
     if (!selectingPoints) return;
@@ -689,8 +732,18 @@ export const PistonOscillationCalculationWindow = ({
     ? CALCULATION_FIELD_ORDER.indexOf(calculationSession.activeFieldId)
     : CALCULATION_FIELD_ORDER.length - 1;
   const visibleFieldIds = fit
-    ? CALCULATION_FIELD_ORDER.slice(0, Math.max(1, activeFieldIndex + 1))
+    ? batchMode
+      ? calculationSession.visibleFieldIds
+      : CALCULATION_FIELD_ORDER.slice(0, Math.max(1, activeFieldIndex + 1))
     : [];
+  const submitCalculationBatch = () => {
+    if (getInvalidPistonOscillationCalculationBatchFields(calculationSession).length > 0) {
+      setBatchFormatInvalid(true);
+      return;
+    }
+    setBatchFormatInvalid(false);
+    dispatch({ type: 'submitCalculationBatch' });
+  };
   const noteId = `${generatedId}-note`;
   const knownTitleId = `${generatedId}-known-title`;
   const fitTitleId = `${generatedId}-fit-title`;
@@ -699,7 +752,11 @@ export const PistonOscillationCalculationWindow = ({
   return (
     <PromptDialogShell
       title={copy.title}
-      subtitle={calculationSession.status === 'completed' ? copy.reviewSubtitle : copy.subtitle}
+      subtitle={calculationSession.status === 'completed'
+        ? copy.reviewSubtitle
+        : batchMode
+          ? copy.freeSubtitle
+          : copy.subtitle}
       variant="task"
       role="dialog"
       ariaDescribedBy={noteId}
@@ -791,24 +848,77 @@ export const PistonOscillationCalculationWindow = ({
           <>
             <PistonOscillationFitChart processing={processing} fit={fit} copy={copy} />
             <div className="studio-piston-calculation-steps">
-              {visibleFieldIds.map((fieldId) => (
-                <PistonOscillationCalculationField
-                  key={fieldId}
-                  fieldId={fieldId}
-                  answer={calculationSession.answers[fieldId]}
-                  active={
-                    calculationSession.status === 'calculating'
-                    && calculationSession.activeFieldId === fieldId
-                  }
-                  referenceGamma={calculationSession.knowns.referenceGamma}
-                  copy={copy}
-                  onGuideEvent={onGuideEvent}
-                />
-              ))}
+              {visibleFieldIds.map((fieldId, visibleIndex) => {
+                const answer = calculationSession.answers[fieldId];
+                const finalVisibleField = visibleIndex === visibleFieldIds.length - 1;
+                const finalCalculationField = fieldId === 'relativeError';
+                const active = calculationSession.status === 'calculating'
+                  && (batchMode
+                    ? answer.status === 'unresolved'
+                    : calculationSession.activeFieldId === fieldId);
+                const actionLabel = batchMode
+                  ? finalVisibleField
+                    ? finalCalculationField ? copy.checkAll : copy.nextCalculation
+                    : null
+                  : copy.check;
+                const batchFeedbackActive = batchMode && CALCULATION_FIELD_ORDER.some((candidate) => (
+                  calculationSession.answers[candidate].feedback !== null
+                ));
+                const actionDisabled = batchMode
+                  ? batchFeedbackActive || (
+                      !finalCalculationField && answer.draftRaw.trim().length === 0
+                    )
+                  : false;
+                const onAction = batchMode
+                  ? finalCalculationField
+                    ? submitCalculationBatch
+                    : () => {
+                        setBatchFormatInvalid(false);
+                        dispatch({ type: 'revealNextCalculationField', field: fieldId });
+                      }
+                  : () => dispatch({ type: 'submitCalculationField', field: fieldId });
+                return (
+                  <PistonOscillationCalculationField
+                    key={fieldId}
+                    fieldId={fieldId}
+                    answer={answer}
+                    active={active}
+                    batchMode={batchMode}
+                    actionLabel={actionLabel}
+                    actionDisabled={actionDisabled}
+                    referenceGamma={calculationSession.knowns.referenceGamma}
+                    copy={copy}
+                    onCalculationEvent={onCalculationEvent}
+                    onAction={onAction}
+                    onDraftEdited={() => setBatchFormatInvalid(false)}
+                  />
+                );
+              })}
+              {batchMode && batchFormatInvalid ? (
+                <div className="studio-piston-calculation-format-warning" role="alert">
+                  {copy.numericFormatReminder}
+                </div>
+              ) : null}
+              {batchMode
+                && calculationSession.status === 'calculating'
+                && calculationSession.visibleFieldIds.length === CALCULATION_FIELD_ORDER.length
+                && calculationSession.batchAttempts.length > 0
+                && calculationSession.answers.relativeError.status !== 'unresolved' ? (
+                  <button
+                    type="button"
+                    className="studio-piston-calculation-batch-retry"
+                    disabled={CALCULATION_FIELD_ORDER.some((fieldId) => (
+                      calculationSession.answers[fieldId].feedback !== null
+                    ))}
+                    onClick={submitCalculationBatch}
+                  >
+                    {copy.checkAll}
+                  </button>
+                ) : null}
               {calculationSession.status === 'ready-to-exit'
                 || calculationSession.status === 'completed' ? (
                   <div className="studio-piston-calculation-ready" role="status">
-                    {copy.ready}
+                    {batchMode ? copy.freeReady : copy.ready}
                   </div>
                 ) : null}
             </div>

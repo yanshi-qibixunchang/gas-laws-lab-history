@@ -13,14 +13,18 @@ export const PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION =
   'piston-oscillation-rk4-pasco-td8572a-v3' as const;
 export const PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION =
   'piston-oscillation-equilibrium-state-v1' as const;
-export const PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION =
+export const PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION =
   'piston-oscillation-rk4-single-temperature-thermal-v4' as const;
+export const PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION =
+  'piston-oscillation-rk4-heat-flow-lag-thermal-v5' as const;
 
 export const PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION =
   'piston-oscillation-thermal-extension-disabled-v1' as const;
-export const PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION =
+export const PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION =
   'piston-oscillation-single-temperature-relaxation-v1' as const;
+export const PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION =
+  'piston-oscillation-heat-flow-lag-relaxation-v2' as const;
 export const PISTON_OSCILLATION_SETTLING_MODEL_VERSION =
   'piston-oscillation-isothermal-weight-settling-v1' as const;
 export const PISTON_OSCILLATION_SETTLING_DURATION_S = 0.2 as const;
@@ -66,16 +70,35 @@ export interface PistonOscillationDisabledThermalExtensionState {
   cumulativeHeatTransferJ: number;
 }
 
-export interface PistonOscillationFiniteThermalExtensionState {
-  modelVersion: typeof PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION;
+interface PistonOscillationFiniteThermalExtensionStateBase {
   enabled: true;
   wallTemperatureK: number;
   cumulativeHeatTransferJ: number;
   relaxationTimeAtReferenceHeightS: number;
   referenceGraduatedHeightM: number;
   volumeExponent: number;
+}
+
+export interface PistonOscillationLegacyFiniteThermalExtensionState
+  extends PistonOscillationFiniteThermalExtensionStateBase {
+  modelVersion:
+    typeof PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION;
   provenance: 'identified-candidate';
 }
+
+export interface PistonOscillationHeatFlowLagThermalExtensionState
+  extends PistonOscillationFiniteThermalExtensionStateBase {
+  modelVersion: typeof PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION;
+  /** Signed total heat-transfer rate into the sealed gas. */
+  heatTransferRateW: number;
+  /** First-order establishment time for the gas-to-wall heat-transfer rate. */
+  heatTransferLagTimeS: number;
+  provenance: 'wp-t1-review-candidate';
+}
+
+export type PistonOscillationFiniteThermalExtensionState =
+  | PistonOscillationLegacyFiniteThermalExtensionState
+  | PistonOscillationHeatFlowLagThermalExtensionState;
 
 export type PistonOscillationThermalExtensionState =
   | PistonOscillationDisabledThermalExtensionState
@@ -92,6 +115,7 @@ export interface PistonOscillationThermodynamicState {
   modelVersion:
     | typeof PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION
     | typeof PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
+    | typeof PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION
     | typeof PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION;
   phase: PistonOscillationThermodynamicPhase;
   nominalLockedHeightM: number;
@@ -116,6 +140,7 @@ export interface PistonOscillationTrajectorySample {
   pressurePa: number;
   temperatureK: number;
   cumulativeHeatTransferJ?: number;
+  heatTransferRateW?: number;
 }
 
 export interface PistonOscillationTrajectory {
@@ -593,7 +618,19 @@ export const normalizePistonOscillationThermodynamicState = (
   const disabledThermal =
     value.thermal.modelVersion === PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION
     && value.thermal.enabled === false;
-  const finiteThermal =
+  const legacyFiniteThermal =
+    value.thermal.modelVersion
+      === PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+    && value.thermal.enabled === true
+    && Number.isFinite(value.thermal.relaxationTimeAtReferenceHeightS)
+    && (value.thermal.relaxationTimeAtReferenceHeightS as number) > 0
+    && Number.isFinite(value.thermal.referenceGraduatedHeightM)
+    && (value.thermal.referenceGraduatedHeightM as number) >= 0
+    && (value.thermal.referenceGraduatedHeightM as number) <= 0.08
+    && Number.isFinite(value.thermal.volumeExponent)
+    && (value.thermal.volumeExponent as number) >= 0
+    && value.thermal.provenance === 'identified-candidate';
+  const heatFlowLagFiniteThermal =
     value.thermal.modelVersion
       === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
     && value.thermal.enabled === true
@@ -604,7 +641,10 @@ export const normalizePistonOscillationThermodynamicState = (
     && (value.thermal.referenceGraduatedHeightM as number) <= 0.08
     && Number.isFinite(value.thermal.volumeExponent)
     && (value.thermal.volumeExponent as number) >= 0
-    && value.thermal.provenance === 'identified-candidate';
+    && Number.isFinite(value.thermal.heatTransferRateW)
+    && Number.isFinite(value.thermal.heatTransferLagTimeS)
+    && (value.thermal.heatTransferLagTimeS as number) > 0
+    && value.thermal.provenance === 'wp-t1-review-candidate';
   const supportedModelAndThermal =
     (
       (
@@ -615,8 +655,13 @@ export const normalizePistonOscillationThermodynamicState = (
       && disabledThermal
     )
     || (
+      value.modelVersion
+        === PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION
+      && legacyFiniteThermal
+    )
+    || (
       value.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
-      && finiteThermal
+      && heatFlowLagFiniteThermal
     );
   if (
     value.schemaVersion !== PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION
@@ -670,8 +715,10 @@ export const normalizePistonOscillationThermodynamicState = (
         wallTemperatureK: value.thermal.wallTemperatureK as number,
         cumulativeHeatTransferJ: value.thermal.cumulativeHeatTransferJ as number,
       }
-    : {
-        modelVersion: PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+    : legacyFiniteThermal
+      ? {
+        modelVersion:
+          PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
         enabled: true,
         wallTemperatureK: value.thermal.wallTemperatureK as number,
         cumulativeHeatTransferJ: value.thermal.cumulativeHeatTransferJ as number,
@@ -680,6 +727,19 @@ export const normalizePistonOscillationThermodynamicState = (
         referenceGraduatedHeightM: value.thermal.referenceGraduatedHeightM as number,
         volumeExponent: value.thermal.volumeExponent as number,
         provenance: 'identified-candidate',
+      }
+      : {
+        modelVersion: PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+        enabled: true,
+        wallTemperatureK: value.thermal.wallTemperatureK as number,
+        cumulativeHeatTransferJ: value.thermal.cumulativeHeatTransferJ as number,
+        relaxationTimeAtReferenceHeightS:
+          value.thermal.relaxationTimeAtReferenceHeightS as number,
+        referenceGraduatedHeightM: value.thermal.referenceGraduatedHeightM as number,
+        volumeExponent: value.thermal.volumeExponent as number,
+        heatTransferRateW: value.thermal.heatTransferRateW as number,
+        heatTransferLagTimeS: value.thermal.heatTransferLagTimeS as number,
+        provenance: 'wp-t1-review-candidate',
       };
   return {
     schemaVersion: PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION,

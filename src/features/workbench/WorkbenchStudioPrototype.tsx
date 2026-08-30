@@ -1322,6 +1322,7 @@ type PistonOscillationGuideLessonDialogState =
   | { kind: 'pressureRange'; fileId: string; closing: boolean }
   | { kind: 'lockingScrew'; fileId: string; closing: boolean }
   | { kind: 'multiPeriod'; fileId: string; closing: boolean }
+  | { kind: 'freeReacquisition'; fileId: string; closing: boolean }
   | { kind: 'completion'; fileId: string; closing: boolean };
 
 type PistonOscillationGuidePressureIssue = 'underpressure' | 'overpressure';
@@ -6400,6 +6401,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     || (
       activePistonOscillationFreeSelected
       && activePistonOscillationFreeSession?.dataProcessing
+      && activePistonOscillationFreeSession.reacquisition === null
       && (
         activePistonOscillationFreeSession.dataProcessing.status !== 'completed'
         || pistonOscillationCompletedDataProcessingReview
@@ -6419,6 +6421,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       )
       || (
         activePistonOscillationFreeSelected
+        && activePistonOscillationFreeSession?.reacquisition === null
         && activePistonOscillationFreeSession?.dataProcessing?.status === 'calculation-ready'
       )
     )
@@ -9050,6 +9053,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         body: pistonOscillationCopy.guide.multiPeriodLessonBody,
       };
     }
+    if (dialog.kind === 'freeReacquisition') {
+      return {
+        key: 'free-reacquisition',
+        title: pistonOscillationCopy.processing.insufficientRecordTitle,
+        body: pistonOscillationCopy.processing.insufficientRecordBody,
+      };
+    }
     const heightReset = activePistonOscillationGuideSession?.heightReset;
     if (!heightReset) return null;
     return heightReset.reason === 'wrongHeightConfirmation'
@@ -9449,20 +9459,21 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     return true;
   };
 
-  const handlePistonOscillationGuideProcessingEvent = (
-    event: PistonOscillationGuideEvent,
+  const handlePistonOscillationProcessingEvent = (
+    event: PistonOscillationGuideEvent | PistonOscillationFreeEvent,
   ) => {
     const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (!liveFile) return;
     const freeProcessingActive = liveFile.kind === 'heatCapacityPistonOscillation'
       && liveFile.pistonOscillationFreeSession.status === 'active'
-      && liveFile.pistonOscillationFreeSession.dataProcessing !== null;
+      && liveFile.pistonOscillationFreeSession.dataProcessing !== null
+      && liveFile.pistonOscillationFreeSession.reacquisition === null;
     const nextFile = freeProcessingActive
       ? transitionPistonOscillationFreeWorkbenchState(
           liveFile,
           event as PistonOscillationFreeEvent,
         )
-      : applyPistonOscillationGuideEvents(liveFile, [event]);
+      : applyPistonOscillationGuideEvents(liveFile, [event as PistonOscillationGuideEvent]);
     updateFileById(liveFile.id, () => nextFile);
     if (
       !freeProcessingActive
@@ -9478,6 +9489,35 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         }, 0);
       }
     }
+  };
+
+  const handlePistonOscillationFreeUnusableMeasurement = (runIndex: number) => {
+    const fileId = activeFileIdRef.current;
+    const liveFile = filesRef.current.find((file) => file.id === fileId);
+    if (
+      !liveFile
+      || liveFile.kind !== 'heatCapacityPistonOscillation'
+      || liveFile.pistonOscillationFreeSession.status !== 'active'
+      || liveFile.pistonOscillationFreeSession.reacquisition !== null
+    ) return;
+    const nextFile = transitionPistonOscillationFreeWorkbenchState(liveFile, {
+      type: 'requestUnusableMeasurementRedo',
+      runIndex,
+      nowMs: Date.now(),
+    });
+    if (nextFile.pistonOscillationFreeSession.reacquisition === null) return;
+    updateFileById(fileId, () => nextFile);
+    pistonOscillationLivePressureChannel.clear();
+    setPistonOscillationMeasurementCyclesByFileId((current) => ({
+      ...current,
+      [fileId]: (current[fileId] ?? 0) + 1,
+    }));
+    setPistonOscillationGuideLessonOutgoingView(null);
+    setPistonOscillationGuideLessonDialog({
+      kind: 'freeReacquisition',
+      fileId,
+      closing: false,
+    });
   };
 
   const completeAndExitPistonOscillationCalculation = () => {
@@ -22094,6 +22134,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const freeSelected = !demoSelected
       && !guideSelected
       && activeFile.pistonOscillationFreeSession.status === 'active';
+    const interactionLocked = pistonOscillationCalculationWindowOpen;
     const commitPistonTeachingModeFile = (
       updater: (file: WorkbenchFileState) => WorkbenchFileState,
     ) => {
@@ -22337,6 +22378,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           data-piston-oscillation-demo-phase={
             demoSelected ? pistonOscillationDemoPlayback.phase : 'idle'
           }
+          data-interaction-locked={interactionLocked || undefined}
         >
           <div
             className={`studio-heat-mode-segment studio-heat-mode-segment-demo ${demoSelected ? 'studio-heat-mode-segment-active' : ''}`}
@@ -22347,6 +22389,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               className={`studio-heat-mode-button ${demoSelected ? 'studio-heat-mode-button-active' : ''}`}
               data-piston-oscillation-mode="demo"
               aria-pressed={demoSelected}
+              disabled={interactionLocked}
               onClick={startDemo}
             >
               {labels.demo}
@@ -22363,6 +22406,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     data-piston-oscillation-mode-action={demoPaused ? 'resume-demo' : 'pause-demo'}
                     data-prompt-tooltip={demoPaused ? labels.resumeDemo : labels.pauseDemo}
                     aria-label={demoPaused ? labels.resumeDemo : labels.pauseDemo}
+                    disabled={interactionLocked}
                     onClick={demoPaused ? resumeDemo : pauseDemo}
                   >
                     {demoPaused ? (
@@ -22377,6 +22421,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     data-piston-oscillation-mode-action="stop-demo"
                     data-prompt-tooltip={labels.stopDemo}
                     aria-label={labels.stopDemo}
+                    disabled={interactionLocked}
                     onClick={stopDemo}
                   >
                     <Square size={12} strokeWidth={2.8} />
@@ -22389,6 +22434,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   data-piston-oscillation-mode-action="exit-demo"
                   data-prompt-tooltip={labels.exitDemo}
                   aria-label={labels.exitDemo}
+                  disabled={interactionLocked}
                   onClick={exitDemo}
                 >
                   <LogOut size={13} strokeWidth={2.7} />
@@ -22405,6 +22451,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               className={`studio-heat-mode-button ${guideSelected ? 'studio-heat-mode-button-active' : ''}`}
               data-piston-oscillation-mode="guide"
               aria-pressed={guideSelected}
+              disabled={interactionLocked}
               onClick={startGuide}
             >
               {labels.guide}
@@ -22425,6 +22472,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     data-piston-oscillation-mode-action="reset-guide"
                     data-prompt-tooltip={labels.resetGuide}
                     aria-label={labels.resetGuide}
+                    disabled={interactionLocked}
                     onClick={resetGuide}
                   >
                     <RotateCcw size={13} strokeWidth={2.7} />
@@ -22435,6 +22483,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     data-piston-oscillation-mode-action="exit-guide"
                     data-prompt-tooltip={labels.exitGuide}
                     aria-label={labels.exitGuide}
+                    disabled={interactionLocked}
                     onClick={exitGuide}
                   >
                     {guideCompleted ? (
@@ -22456,6 +22505,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               className={`studio-heat-mode-button ${freeSelected ? 'studio-heat-mode-button-active' : ''}`}
               data-piston-oscillation-mode="free"
               aria-pressed={freeSelected}
+              disabled={interactionLocked}
               onClick={startFree}
             >
               {labels.free}
@@ -22471,6 +22521,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   data-piston-oscillation-mode-action="exit-free"
                   data-prompt-tooltip={labels.exitFree}
                   aria-label={labels.exitFree}
+                  disabled={interactionLocked}
                   onClick={exitFree}
                 >
                   <LogOut size={13} strokeWidth={2.7} />
@@ -22485,6 +22536,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           data-piston-oscillation-guide-lesson-button="true"
           data-prompt-tooltip={pistonOscillationCopy.lesson.buttonLabel}
           aria-label={pistonOscillationCopy.lesson.buttonLabel}
+          disabled={interactionLocked}
           onClick={openPistonOscillationGuideLessonIntro}
         >
           <Wrench size={18} strokeWidth={2.1} />
@@ -23921,7 +23973,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     menuLabel={copy.pistonMenu}
                     menuTitle={copy.pistonPlan}
                     details={plan.targets.map((target, measurementIndex) => {
-                      const saved = session.savedMeasurements.some((measurement) => (
+                      const replacing = session.reacquisition?.measurementIndex
+                        === measurementIndex;
+                      const saved = !replacing && session.savedMeasurements.some((measurement) => (
                         measurement.measurementIndex === measurementIndex
                       ));
                       const current = session.measurementIndex === measurementIndex;
@@ -24378,10 +24432,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 : undefined}
               pulseActive={pistonGuidePulseActive}
               pulseTarget={pistonGuideExpectedStrongTargetId}
-              onGuideEvent={handlePistonOscillationGuideProcessingEvent}
+              onProcessingEvent={handlePistonOscillationProcessingEvent}
               onInteractionStart={handlePistonOscillationGuideProcessingInteractionStart}
               onSelectionModeChange={setPistonOscillationPeriodSelectionToolActive}
               onInvalidSelection={handlePistonOscillationGuideInvalidPeriodSelection}
+              onUnusableMeasurement={handlePistonOscillationFreeUnusableMeasurement}
               reviewMode={pistonOscillationCompletedDataProcessingReview}
               onOpenCalculationReview={openPistonOscillationCalculationReview}
               onCloseReview={closePistonOscillationDataProcessingReview}
@@ -24392,7 +24447,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           ref={pistonOscillationAcquisitionPanelRef}
           key={`${activeFile.id}:${
             activePistonOscillationGuideSession?.startedAtMs ?? 'standalone'
-          }:${activePistonOscillationGuideSession?.measurementIndex ?? 'free'}`}
+          }:${activePistonOscillationGuideSession?.measurementIndex ?? 'free'}:${
+            activePistonOscillationFreeSession?.reacquisition?.requestedAtMs ?? 'normal'
+          }`}
           language={settingsLanguagePreference}
           powerOn={activePistonOscillationPowerOn}
           releaseEvent={pistonOscillationReleaseEventsByFileId[activeFile.id] ?? null}
@@ -26846,7 +26903,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           freeSession={activePistonOscillationFreeSelected
             ? activePistonOscillationFreeSession
             : undefined}
-          onGuideEvent={handlePistonOscillationGuideProcessingEvent}
+          onCalculationEvent={handlePistonOscillationProcessingEvent}
           onCompleteAndExit={completeAndExitPistonOscillationCalculation}
           onClose={closePistonOscillationCalculationReview}
         />

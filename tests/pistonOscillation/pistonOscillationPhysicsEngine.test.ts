@@ -32,8 +32,13 @@ import {
   PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
 import {
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
   PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
   PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  createPistonOscillationEquivalentLossSnapshot,
+  isPistonOscillationEquivalentLossSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 
 assert.equal(PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION, 'piston-oscillation-dry-air-material-v1');
@@ -48,6 +53,28 @@ assert.equal(
   'piston-oscillation-temporary-equivalent-linear-loss-v1',
 );
 assert.equal(PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M, 0.434);
+assert.equal(PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M, 1.1);
+const reviewCandidateLossSnapshot = createPistonOscillationEquivalentLossSnapshot(
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+);
+assert.equal(
+  reviewCandidateLossSnapshot.modelVersion,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+);
+assert.equal(
+  reviewCandidateLossSnapshot.kind,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_KIND,
+);
+assert.ok(isPistonOscillationEquivalentLossSnapshot(reviewCandidateLossSnapshot));
+assert.ok(isPistonOscillationEquivalentLossSnapshot(
+  createPistonOscillationEquivalentLossSnapshot(
+    PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  ),
+));
+assert.throws(
+  () => createPistonOscillationEquivalentLossSnapshot(0.8),
+  /versioned review or baseline/,
+);
 assert.equal(PISTON_OSCILLATION_SETTLING_DURATION_S, 0.2);
 
 assert.equal(

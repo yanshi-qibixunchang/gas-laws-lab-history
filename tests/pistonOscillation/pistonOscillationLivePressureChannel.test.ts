@@ -97,4 +97,24 @@ assert.throws(
   /observedAtMs/,
 );
 
+const firstNaturalSession = createPistonOscillationLivePressureChannel();
+const secondNaturalSession = createPistonOscillationLivePressureChannel();
+const firstNaturalObservation = firstNaturalSession.publishPhysicalState({
+  observedAtMs: 10,
+  equilibriumHeightMm: 80,
+  displacementMm: 0,
+  thermodynamicState: baselineState,
+});
+const secondNaturalObservation = secondNaturalSession.publishPhysicalState({
+  observedAtMs: 10,
+  equilibriumHeightMm: 80,
+  displacementMm: 0,
+  thermodynamicState: baselineState,
+});
+assert.notEqual(
+  firstNaturalObservation?.sensorConfig.seed,
+  secondNaturalObservation?.sensorConfig.seed,
+  'new live sensor sessions must receive distinct persisted fluctuation seeds',
+);
+
 console.log('pistonOscillationLivePressureChannel tests passed');

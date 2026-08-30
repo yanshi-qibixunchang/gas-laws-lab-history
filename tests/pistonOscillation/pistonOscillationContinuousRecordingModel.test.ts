@@ -54,6 +54,8 @@ const createLiveObservation = (
   sensorState: {
     modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
     filteredPressurePa: absolutePressureKpa * 1_000,
+    fastFluctuationPa: 0,
+    slowFluctuationPa: 0,
     sessionElapsedS: sampledAtMs / 1_000,
     nextNoiseSampleIndex: sampledAtMs,
   },

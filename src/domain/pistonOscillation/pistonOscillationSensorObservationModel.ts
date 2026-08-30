@@ -1,9 +1,15 @@
 export const PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION =
   'piston-oscillation-sensor-observation-v1' as const;
-export const PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION =
+export const PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION =
   'piston-oscillation-sensor-observation-lag-drift-v2' as const;
-export const PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION =
+export const PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION =
+  'piston-oscillation-sensor-observation-correlated-fluctuation-v3' as const;
+export const PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_CONFIG_VERSION =
   'piston-oscillation-sensor-candidate-config-v1' as const;
+export const PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION =
+  'piston-oscillation-sensor-candidate-config-v2' as const;
+export const PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION =
+  'two-timescale-stationary-correlated-residual-v1' as const;
 
 export const PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ = 1_000 as const;
 export const PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA = 0.01 as const;
@@ -28,17 +34,52 @@ export interface PistonOscillationDynamicSensorConfig {
   driftRatePaPerS: number;
   driftWanderAmplitudePa: number;
   driftWanderPeriodS: number;
+  correlatedFluctuationModelVersion:
+    typeof PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION;
+  fastFluctuationTimeConstantS: number;
+  fastFluctuationStandardDeviationPa: number;
+  slowFluctuationTimeConstantS: number;
+  slowFluctuationStandardDeviationPa: number;
   noiseStandardDeviationPa: number;
   seed: number;
   provenance: 'educational-candidate';
 }
 
+export interface PistonOscillationLegacyDynamicSensorConfig {
+  modelVersion: typeof PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_CONFIG_VERSION;
+  responseTimeConstantS: number;
+  driftRatePaPerS: number;
+  driftWanderAmplitudePa: number;
+  driftWanderPeriodS: number;
+  noiseStandardDeviationPa: number;
+  seed: number;
+  provenance: 'educational-candidate';
+}
+
+export type PistonOscillationStoredDynamicSensorConfig =
+  | PistonOscillationDynamicSensorConfig
+  | PistonOscillationLegacyDynamicSensorConfig;
+
 export interface PistonOscillationDynamicSensorState {
   modelVersion: typeof PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
+  filteredPressurePa: number;
+  fastFluctuationPa: number;
+  slowFluctuationPa: number;
+  sessionElapsedS: number;
+  nextNoiseSampleIndex: number;
+}
+
+export interface PistonOscillationLegacyDynamicSensorState {
+  modelVersion:
+    typeof PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
   filteredPressurePa: number;
   sessionElapsedS: number;
   nextNoiseSampleIndex: number;
 }
+
+export type PistonOscillationStoredDynamicSensorState =
+  | PistonOscillationDynamicSensorState
+  | PistonOscillationLegacyDynamicSensorState;
 
 export const DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG:
 PistonOscillationDynamicSensorConfig = Object.freeze({
@@ -47,7 +88,13 @@ PistonOscillationDynamicSensorConfig = Object.freeze({
   driftRatePaPerS: 0.2,
   driftWanderAmplitudePa: 8,
   driftWanderPeriodS: 180,
-  noiseStandardDeviationPa: 4,
+  correlatedFluctuationModelVersion:
+    PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION,
+  fastFluctuationTimeConstantS: 0.002,
+  fastFluctuationStandardDeviationPa: 7,
+  slowFluctuationTimeConstantS: 0.018,
+  slowFluctuationStandardDeviationPa: 9,
+  noiseStandardDeviationPa: 2,
   seed: 1_597_334_677,
   provenance: 'educational-candidate',
 });
@@ -126,6 +173,26 @@ export const normalizePistonOscillationDynamicSensorConfig = (
       'driftWanderPeriodS',
       input.driftWanderPeriodS ?? defaults.driftWanderPeriodS,
     ),
+    correlatedFluctuationModelVersion:
+      PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION,
+    fastFluctuationTimeConstantS: assertFinitePositive(
+      'fastFluctuationTimeConstantS',
+      input.fastFluctuationTimeConstantS ?? defaults.fastFluctuationTimeConstantS,
+    ),
+    fastFluctuationStandardDeviationPa: assertFiniteNonNegative(
+      'fastFluctuationStandardDeviationPa',
+      input.fastFluctuationStandardDeviationPa
+        ?? defaults.fastFluctuationStandardDeviationPa,
+    ),
+    slowFluctuationTimeConstantS: assertFinitePositive(
+      'slowFluctuationTimeConstantS',
+      input.slowFluctuationTimeConstantS ?? defaults.slowFluctuationTimeConstantS,
+    ),
+    slowFluctuationStandardDeviationPa: assertFiniteNonNegative(
+      'slowFluctuationStandardDeviationPa',
+      input.slowFluctuationStandardDeviationPa
+        ?? defaults.slowFluctuationStandardDeviationPa,
+    ),
     noiseStandardDeviationPa: assertFiniteNonNegative(
       'noiseStandardDeviationPa',
       input.noiseStandardDeviationPa ?? defaults.noiseStandardDeviationPa,
@@ -135,23 +202,111 @@ export const normalizePistonOscillationDynamicSensorConfig = (
   };
 };
 
+let previousGeneratedSensorSessionSeed: number | null = null;
+
+export const createPistonOscillationSensorSessionSeed = () => {
+  const randomValues = new Uint32Array(1);
+  let candidate: number;
+  if (globalThis.crypto?.getRandomValues) {
+    globalThis.crypto.getRandomValues(randomValues);
+    candidate = randomValues[0] ?? 0;
+  } else {
+    candidate = Math.floor(Math.random() * 0x1_0000_0000);
+  }
+  if (candidate === previousGeneratedSensorSessionSeed) {
+    candidate = (candidate + 1) % 0x1_0000_0000;
+  }
+  previousGeneratedSensorSessionSeed = candidate;
+  return candidate;
+};
+
 const cloneDynamicSensorState = (
   state: PistonOscillationDynamicSensorState | null | undefined,
 ) => state ? { ...state } : null;
 
-const isDynamicSensorState = (
-  state: PistonOscillationDynamicSensorState | null | undefined,
-): state is PistonOscillationDynamicSensorState => Boolean(
-  state
-  && state.modelVersion
-    === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
-  && Number.isFinite(state.filteredPressurePa)
-  && state.filteredPressurePa > 0
-  && Number.isFinite(state.sessionElapsedS)
-  && state.sessionElapsedS >= 0
-  && Number.isSafeInteger(state.nextNoiseSampleIndex)
-  && state.nextNoiseSampleIndex >= 0,
+const isRecord = (value: unknown): value is Record<string, unknown> => (
+  Boolean(value) && typeof value === 'object' && !Array.isArray(value)
 );
+const isFiniteNumber = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value)
+);
+
+export const isPistonOscillationDynamicSensorConfig = (
+  value: unknown,
+): value is PistonOscillationDynamicSensorConfig => {
+  if (!isRecord(value)) return false;
+  return value.modelVersion === PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION
+    && value.correlatedFluctuationModelVersion
+      === PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION
+    && value.provenance === 'educational-candidate'
+    && isFiniteNumber(value.responseTimeConstantS)
+    && value.responseTimeConstantS > 0
+    && isFiniteNumber(value.driftRatePaPerS)
+    && isFiniteNumber(value.driftWanderAmplitudePa)
+    && value.driftWanderAmplitudePa >= 0
+    && isFiniteNumber(value.driftWanderPeriodS)
+    && value.driftWanderPeriodS > 0
+    && isFiniteNumber(value.fastFluctuationTimeConstantS)
+    && value.fastFluctuationTimeConstantS > 0
+    && isFiniteNumber(value.fastFluctuationStandardDeviationPa)
+    && value.fastFluctuationStandardDeviationPa >= 0
+    && isFiniteNumber(value.slowFluctuationTimeConstantS)
+    && value.slowFluctuationTimeConstantS > 0
+    && isFiniteNumber(value.slowFluctuationStandardDeviationPa)
+    && value.slowFluctuationStandardDeviationPa >= 0
+    && isFiniteNumber(value.noiseStandardDeviationPa)
+    && value.noiseStandardDeviationPa >= 0
+    && Number.isSafeInteger(value.seed);
+};
+
+export const isPistonOscillationLegacyDynamicSensorConfig = (
+  value: unknown,
+): value is PistonOscillationLegacyDynamicSensorConfig => {
+  if (!isRecord(value)) return false;
+  return value.modelVersion
+      === PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_CONFIG_VERSION
+    && value.provenance === 'educational-candidate'
+    && isFiniteNumber(value.responseTimeConstantS)
+    && value.responseTimeConstantS > 0
+    && isFiniteNumber(value.driftRatePaPerS)
+    && isFiniteNumber(value.driftWanderAmplitudePa)
+    && value.driftWanderAmplitudePa >= 0
+    && isFiniteNumber(value.driftWanderPeriodS)
+    && value.driftWanderPeriodS > 0
+    && isFiniteNumber(value.noiseStandardDeviationPa)
+    && value.noiseStandardDeviationPa >= 0
+    && Number.isSafeInteger(value.seed);
+};
+
+export const isPistonOscillationDynamicSensorState = (
+  state: unknown,
+): state is PistonOscillationDynamicSensorState => {
+  if (!isRecord(state)) return false;
+  return state.modelVersion
+      === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+    && isFiniteNumber(state.filteredPressurePa)
+    && state.filteredPressurePa > 0
+    && isFiniteNumber(state.fastFluctuationPa)
+    && isFiniteNumber(state.slowFluctuationPa)
+    && isFiniteNumber(state.sessionElapsedS)
+    && state.sessionElapsedS >= 0
+    && Number.isSafeInteger(state.nextNoiseSampleIndex)
+    && (state.nextNoiseSampleIndex as number) >= 0;
+};
+
+export const isPistonOscillationLegacyDynamicSensorState = (
+  state: unknown,
+): state is PistonOscillationLegacyDynamicSensorState => {
+  if (!isRecord(state)) return false;
+  return state.modelVersion
+      === PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+    && isFiniteNumber(state.filteredPressurePa)
+    && state.filteredPressurePa > 0
+    && isFiniteNumber(state.sessionElapsedS)
+    && state.sessionElapsedS >= 0
+    && Number.isSafeInteger(state.nextNoiseSampleIndex)
+    && (state.nextNoiseSampleIndex as number) >= 0;
+};
 
 const hashUnitInterval = (seed: number, sampleIndex: number, salt: number) => {
   let value = (
@@ -165,13 +320,34 @@ const hashUnitInterval = (seed: number, sampleIndex: number, salt: number) => {
   return (value >>> 0) / 0x1_0000_0000;
 };
 
-const getDeterministicStandardNormal = (seed: number, sampleIndex: number) => {
+const getDeterministicStandardNormal = (
+  seed: number,
+  sampleIndex: number,
+  streamSalt = 0,
+) => {
   const first = Math.max(
     Number.EPSILON,
-    hashUnitInterval(seed, sampleIndex, 0x68bc21eb),
+    hashUnitInterval(seed, sampleIndex, 0x68bc21eb ^ streamSalt),
   );
-  const second = hashUnitInterval(seed, sampleIndex, 0x02e5be93);
+  const second = hashUnitInterval(seed, sampleIndex, 0x02e5be93 ^ streamSalt);
   return Math.sqrt(-2 * Math.log(first)) * Math.cos(2 * Math.PI * second);
+};
+
+const advanceStationaryCorrelatedFluctuation = (options: {
+  previousValuePa: number;
+  elapsedS: number;
+  timeConstantS: number;
+  standardDeviationPa: number;
+  standardNormal: number;
+}) => {
+  if (options.elapsedS === 0 || options.standardDeviationPa === 0) {
+    return options.standardDeviationPa === 0 ? 0 : options.previousValuePa;
+  }
+  const persistence = Math.exp(-options.elapsedS / options.timeConstantS);
+  const innovationScale = options.standardDeviationPa
+    * Math.sqrt(Math.max(0, 1 - persistence * persistence));
+  return persistence * options.previousValuePa
+    + innovationScale * options.standardNormal;
 };
 
 const getDynamicDriftOffsetPa = (
@@ -191,6 +367,8 @@ export const createInitialPistonOscillationDynamicSensorState = (
 ): PistonOscillationDynamicSensorState => ({
   modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   filteredPressurePa: assertFinitePositive('physicalPressurePa', physicalPressurePa),
+  fastFluctuationPa: 0,
+  slowFluctuationPa: 0,
   sessionElapsedS: 0,
   nextNoiseSampleIndex: 0,
 });
@@ -214,16 +392,7 @@ export const observePistonOscillationDynamicPressure = (input: {
   const config = normalizePistonOscillationDynamicSensorConfig(input.config);
   const previousState = input.state
     ?? createInitialPistonOscillationDynamicSensorState(physicalPressurePa);
-  if (
-    previousState.modelVersion
-      !== PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
-    || !Number.isFinite(previousState.filteredPressurePa)
-    || previousState.filteredPressurePa <= 0
-    || !Number.isFinite(previousState.sessionElapsedS)
-    || previousState.sessionElapsedS < 0
-    || !Number.isSafeInteger(previousState.nextNoiseSampleIndex)
-    || previousState.nextNoiseSampleIndex < 0
-  ) {
+  if (!isPistonOscillationDynamicSensorState(previousState)) {
     throw new RangeError('state is not a valid dynamic sensor state.');
   }
   const isInitialSample = input.state === null || input.state === undefined;
@@ -242,17 +411,45 @@ export const observePistonOscillationDynamicPressure = (input: {
   const filteredPressurePa = previousState.filteredPressurePa
     + responseBlend * (physicalPressurePa - previousState.filteredPressurePa);
   const sessionElapsedS = previousState.sessionElapsedS + elapsedStepS;
+  const noiseSampleIndex = previousState.nextNoiseSampleIndex
+    + noiseSampleIndexAdvance - 1;
   const noisePa = config.noiseStandardDeviationPa
     * getDeterministicStandardNormal(
       config.seed,
-      previousState.nextNoiseSampleIndex + noiseSampleIndexAdvance - 1,
+      noiseSampleIndex,
     );
+  const fastFluctuationPa = advanceStationaryCorrelatedFluctuation({
+    previousValuePa: previousState.fastFluctuationPa,
+    elapsedS: elapsedStepS,
+    timeConstantS: config.fastFluctuationTimeConstantS,
+    standardDeviationPa: config.fastFluctuationStandardDeviationPa,
+    standardNormal: getDeterministicStandardNormal(
+      config.seed,
+      noiseSampleIndex,
+      0x2c9277b5,
+    ),
+  });
+  const slowFluctuationPa = advanceStationaryCorrelatedFluctuation({
+    previousValuePa: previousState.slowFluctuationPa,
+    elapsedS: elapsedStepS,
+    timeConstantS: config.slowFluctuationTimeConstantS,
+    standardDeviationPa: config.slowFluctuationStandardDeviationPa,
+    standardNormal: getDeterministicStandardNormal(
+      config.seed,
+      noiseSampleIndex,
+      0x6e624eb7,
+    ),
+  });
   const observedPressurePa = filteredPressurePa
     + getDynamicDriftOffsetPa(sessionElapsedS, config)
+    + fastFluctuationPa
+    + slowFluctuationPa
     + noisePa;
   const state: PistonOscillationDynamicSensorState = {
     modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
     filteredPressurePa,
+    fastFluctuationPa,
+    slowFluctuationPa,
     sessionElapsedS,
     nextNoiseSampleIndex: previousState.nextNoiseSampleIndex + noiseSampleIndexAdvance,
   };
@@ -266,6 +463,8 @@ export const observePistonOscillationDynamicPressure = (input: {
       physicalPressurePa,
       filteredPressurePa,
       driftOffsetPa: getDynamicDriftOffsetPa(sessionElapsedS, config),
+      fastFluctuationPa,
+      slowFluctuationPa,
       noisePa,
     },
   };
@@ -429,21 +628,9 @@ export const assertPistonOscillationSensorObservationSeries = (
     const initialState = series.initialDynamicState;
     const finalState = series.finalDynamicState;
     if (
-      !config
-      || config.modelVersion !== PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION
-      || config.provenance !== 'educational-candidate'
-      || !Number.isFinite(config.responseTimeConstantS)
-      || config.responseTimeConstantS <= 0
-      || !Number.isFinite(config.driftRatePaPerS)
-      || !Number.isFinite(config.driftWanderAmplitudePa)
-      || config.driftWanderAmplitudePa < 0
-      || !Number.isFinite(config.driftWanderPeriodS)
-      || config.driftWanderPeriodS <= 0
-      || !Number.isFinite(config.noiseStandardDeviationPa)
-      || config.noiseStandardDeviationPa < 0
-      || !Number.isSafeInteger(config.seed)
-      || (initialState != null && !isDynamicSensorState(initialState))
-      || !isDynamicSensorState(finalState)
+      !isPistonOscillationDynamicSensorConfig(config)
+      || (initialState != null && !isPistonOscillationDynamicSensorState(initialState))
+      || !isPistonOscillationDynamicSensorState(finalState)
       || (
         initialState == null
           ? finalState.nextNoiseSampleIndex < series.samples.length

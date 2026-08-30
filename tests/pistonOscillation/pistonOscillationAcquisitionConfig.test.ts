@@ -178,8 +178,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /displayNowMs[\s\S]*- displayClockLagMs[\s\S]*const getCurrentRecordingElapsedSeconds = \(\) => formalElapsedSeconds/,
-  'both the visible curve and Pause action must use the same lag-compensated acquisition time',
+  /displayNowMs[\s\S]*- displayClockLagMs[\s\S]*- PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS[\s\S]*const getCurrentRecordingElapsedSeconds = \(\) => formalElapsedSeconds/,
+  'both the visible curve and Pause action must use the same fixed-delay, lag-compensated acquisition time',
 );
 assert.match(
   panelSource,
@@ -397,6 +397,11 @@ assert.match(
 );
 assert.doesNotMatch(panelSource, /电脑采集软件|绝对压力采集|演示审查值，可调整/);
 assert.match(panelSource, /const GRAPH_DEFAULT_WIDTH = 860;/);
+assert.match(
+  panelSource,
+  /const FREE_GRAPH_MINIMUM_DOMAIN_SECONDS = 0\.4;[\s\S]*const graphMinimumDomainSeconds = guideSelected \|\| demoFrame[\s\S]*: FREE_GRAPH_MINIMUM_DOMAIN_SECONDS;/,
+  'free acquisition should reserve the chart width for the informative first 0.4 seconds',
+);
 assert.match(panelSource, /new ResizeObserver\(updateGraphWidth\)/);
 assert.match(
   panelSource,
@@ -435,8 +440,18 @@ assert.doesNotMatch(
 );
 assert.match(
   pressureMarkerPathSource,
-  /const markerStride = Math\.max\(1, Math\.ceil\(visibleSampleCount \/ \(plotWidth \/ 3\)\)\)[\s\S]*const markerRadius = 1\.8;[\s\S]*index \+= markerStride/,
-  'ordinary sample markers should adapt to pixel density without altering the full polyline',
+  /const markerStride = getPressureSampleMarkerStride\(visibleSampleCount, plotWidth\);[\s\S]*const markerRadius = GRAPH_SAMPLE_MARKER_RADIUS_PX;[\s\S]*index \+= markerStride/,
+  'ordinary sample markers should use the shared denser pixel-aware stride without altering the full polyline',
+);
+assert.match(
+  panelSource,
+  /const GRAPH_SAMPLE_MARKER_TARGET_SPACING_PX = 1\.5;[\s\S]*const GRAPH_SAMPLE_MARKER_RADIUS_PX = 1\.6;[\s\S]*getPressureSampleMarkerStride/,
+  'the acquisition graph should expose formal 1000 Hz samples at a denser visual cadence',
+);
+assert.match(
+  panelSource,
+  /const visibleSampleCount = getVisiblePressureSampleCount\([\s\S]*const markerStride = getPressureSampleMarkerStride\([\s\S]*context\.beginPath\(\);[\s\S]*sampleIndex < visibleSampleCount;[\s\S]*context\.moveTo\(x \+ GRAPH_SAMPLE_MARKER_RADIUS_PX, y\);[\s\S]*context\.arc\(x, y, GRAPH_SAMPLE_MARKER_RADIUS_PX[\s\S]*context\.fill\(\);/,
+  'live sample markers should be filled as one canvas path to preserve recording responsiveness',
 );
 assert.match(
   panelSource,

@@ -1,27 +1,31 @@
 import {
   advancePistonOscillationPeriodRun,
+  analyzePistonOscillationPrimaryCycleEligibility,
   clearPistonOscillationPeriodSelection,
   clonePistonOscillationRawMeasurementRecord,
   completePistonOscillationCalculation,
-  continuePistonOscillationCalculationAnswer,
-  continuePistonOscillationPeriodAnswer,
+  continuePistonOscillationFreeCalculationBatch,
+  continuePistonOscillationFreePeriodBatch,
   createPistonOscillationDataProcessingSession,
   normalizePistonOscillationDataProcessingSession,
   normalizePistonOscillationRawMeasurementRecord,
-  revealPistonOscillationCalculationAnswer,
-  revealPistonOscillationPeriodAnswer,
+  replacePistonOscillationProcessingMeasurement,
+  revealNextPistonOscillationFreeCalculationField,
+  revealPistonOscillationFreeCalculationAnswer,
+  revealPistonOscillationFreePeriodAnswer,
+  revealPistonOscillationFreePeriodEntry,
   reopenPreviousPistonOscillationPeriodRun,
   selectPistonOscillationFreePeriodRange,
-  submitPistonOscillationPeriod,
-  submitPistonOscillationPeriodEndpoints,
-  submitPistonOscillationCalculationField,
+  submitPistonOscillationFreeCalculationBatch,
+  submitPistonOscillationFreePeriodBatch,
   submitPistonOscillationLinearFit,
   togglePistonOscillationFitRun,
-  updatePistonOscillationCalculationDraft,
+  updatePistonOscillationFreeCalculationDraft,
   updatePistonOscillationPeriodAnswerDraft,
   type PistonOscillationCalculationFieldId,
   type PistonOscillationDataProcessingSession,
   type PistonOscillationPeriodAnswerField,
+  type PistonOscillationPrimaryCycleEligibilityReport,
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
 import {
@@ -34,10 +38,11 @@ import {
   createLegacyPistonOscillationLooseConnectedThermodynamicState,
 } from './pistonOscillationLegacyCompatibility.ts';
 
-export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 5 as const;
+export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 6 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION = 1 as const;
-export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 1 as const;
+export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 2 as const;
+export const PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT = 3 as const;
@@ -63,7 +68,10 @@ export interface PistonOscillationFreeExperimentPlan {
   customHeightCandidatesMm: number[];
 }
 
-export type PistonOscillationFreeExcludedAttemptReason = 'redo' | 'deleted';
+export type PistonOscillationFreeExcludedAttemptReason =
+  | 'redo'
+  | 'deleted'
+  | 'insufficient-primary-period';
 
 export interface PistonOscillationFreeExcludedAttempt {
   schemaVersion: typeof PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION;
@@ -73,6 +81,16 @@ export interface PistonOscillationFreeExcludedAttempt {
   reason: PistonOscillationFreeExcludedAttemptReason;
   excludedAtMs: number;
   measurement: PistonOscillationRawMeasurementRecord;
+  primaryCycleEligibility: PistonOscillationPrimaryCycleEligibilityReport | null;
+}
+
+export interface PistonOscillationFreeReacquisitionState {
+  schemaVersion: typeof PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION;
+  targetId: string;
+  measurementIndex: number;
+  excludedRecordId: string;
+  returnRunIndex: number;
+  requestedAtMs: number;
 }
 
 export interface PistonOscillationFreeInstrumentState {
@@ -153,6 +171,11 @@ export interface PistonOscillationFreeSession {
   savedMeasurements: PistonOscillationRawMeasurementRecord[];
   savedMeasurementTargetIds: Record<string, string>;
   excludedAttempts: PistonOscillationFreeExcludedAttempt[];
+  primaryCycleEligibilityByRecordId: Record<
+    string,
+    PistonOscillationPrimaryCycleEligibilityReport
+  >;
+  reacquisition: PistonOscillationFreeReacquisitionState | null;
   instrumentState: PistonOscillationFreeInstrumentState;
   dataProcessing: PistonOscillationDataProcessingSession | null;
   audit: PistonOscillationFreeAuditEvent[];
@@ -204,6 +227,10 @@ export type PistonOscillationFreeEvent =
     } & PistonOscillationFreeTimedEvent)
   | ({ type: 'clearPeriodSelection'; runIndex: number } & PistonOscillationFreeTimedEvent)
   | ({
+      type: 'requestUnusableMeasurementRedo';
+      runIndex: number;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
       type: 'selectPeriodRange';
       runIndex: number;
       rangeStartTimeS: number;
@@ -215,18 +242,14 @@ export type PistonOscillationFreeEvent =
       field: PistonOscillationPeriodAnswerField;
       value: string;
     } & PistonOscillationFreeTimedEvent)
-  | ({ type: 'submitPeriodEndpoints'; runIndex: number } & PistonOscillationFreeTimedEvent)
-  | ({
-      type: 'continuePeriodAnswer';
-      runIndex: number;
-      field: PistonOscillationPeriodAnswerField;
-    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'revealPeriodEntry'; runIndex: number } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'submitPeriodBatch'; runIndex: number } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'continuePeriodBatch'; runIndex: number } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'revealPeriodAnswer';
       runIndex: number;
       field: PistonOscillationPeriodAnswerField;
     } & PistonOscillationFreeTimedEvent)
-  | ({ type: 'submitPeriod'; runIndex: number } & PistonOscillationFreeTimedEvent)
   | ({ type: 'advancePeriodRun' } & PistonOscillationFreeTimedEvent)
   | ({ type: 'reopenPreviousPeriodRun' } & PistonOscillationFreeTimedEvent)
   | ({ type: 'toggleFitRun'; runIndex: number } & PistonOscillationFreeTimedEvent)
@@ -237,13 +260,11 @@ export type PistonOscillationFreeEvent =
       value: string;
     } & PistonOscillationFreeTimedEvent)
   | ({
-      type: 'submitCalculationField';
+      type: 'revealNextCalculationField';
       field: PistonOscillationCalculationFieldId;
     } & PistonOscillationFreeTimedEvent)
-  | ({
-      type: 'continueCalculationAnswer';
-      field: PistonOscillationCalculationFieldId;
-    } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'submitCalculationBatch' } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'continueCalculationBatch' } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'revealCalculationAnswer';
       field: PistonOscillationCalculationFieldId;
@@ -435,6 +456,8 @@ PistonOscillationFreeSession => ({
   savedMeasurements: [],
   savedMeasurementTargetIds: {},
   excludedAttempts: [],
+  primaryCycleEligibilityByRecordId: {},
+  reacquisition: null,
   instrumentState: createDefaultPistonOscillationFreeInstrumentState(),
   dataProcessing: null,
   audit: [],
@@ -503,6 +526,7 @@ const appendExcludedAttempt = (
   targetId: string,
   reason: PistonOscillationFreeExcludedAttemptReason,
   nowMs: number,
+  primaryCycleEligibility: PistonOscillationPrimaryCycleEligibilityReport | null = null,
 ) => [
   ...session.excludedAttempts,
   {
@@ -513,6 +537,9 @@ const appendExcludedAttempt = (
     reason,
     excludedAtMs: nowMs,
     measurement: clonePistonOscillationRawMeasurementRecord(measurement),
+    primaryCycleEligibility: primaryCycleEligibility
+      ? structuredClone(primaryCycleEligibility)
+      : null,
   } satisfies PistonOscillationFreeExcludedAttempt,
 ].slice(-MAX_PERSISTED_FREE_EXCLUDED_ATTEMPTS);
 
@@ -524,6 +551,15 @@ export const isPistonOscillationFreePlanComplete = (
 export const getPistonOscillationFreeCurrentTargetHeightMm = (
   session: PistonOscillationFreeSession,
 ) => session.experimentPlan?.targetHeightsMm[session.measurementIndex] ?? null;
+
+export const getPistonOscillationFreeRunPrimaryCycleEligibility = (
+  session: PistonOscillationFreeSession,
+  runIndex: number,
+) => {
+  const run = session.dataProcessing?.runs[runIndex];
+  if (!run) return null;
+  return session.primaryCycleEligibilityByRecordId[run.rawMeasurementRecordId] ?? null;
+};
 
 const advanceCompletedFinalFreePeriodRun = (
   dataProcessing: PistonOscillationDataProcessingSession,
@@ -602,6 +638,8 @@ export const transitionPistonOscillationFreeSession = (
       savedMeasurements: [],
       savedMeasurementTargetIds: {},
       excludedAttempts: [],
+      primaryCycleEligibilityByRecordId: {},
+      reacquisition: null,
       dataProcessing: null,
       updatedAtMs: event.nowMs,
     };
@@ -782,10 +820,14 @@ export const transitionPistonOscillationFreeSession = (
     const replacedMeasurement = session.savedMeasurements.find((measurement) => (
       measurement.measurementIndex === measurementIndex
     )) ?? null;
+    const reacquisition = session.reacquisition?.measurementIndex === measurementIndex
+      && session.reacquisition.excludedRecordId === replacedMeasurement?.recordId
+      ? session.reacquisition
+      : null;
     const replacedTargetId = replacedMeasurement
       ? session.savedMeasurementTargetIds[replacedMeasurement.recordId] ?? target.targetId
       : null;
-    const excludedAttempts = replacedMeasurement && replacedTargetId
+    const excludedAttempts = replacedMeasurement && replacedTargetId && !reacquisition
       ? appendExcludedAttempt(
           session,
           replacedMeasurement,
@@ -800,17 +842,39 @@ export const transitionPistonOscillationFreeSession = (
       )),
     );
     savedMeasurementTargetIds[normalized.recordId] = target.targetId;
+    const primaryCycleEligibility = analyzePistonOscillationPrimaryCycleEligibility(normalized);
+    const primaryCycleEligibilityByRecordId = Object.fromEntries(
+      Object.entries(session.primaryCycleEligibilityByRecordId).filter(([recordId]) => (
+        recordId !== replacedMeasurement?.recordId
+      )),
+    );
+    primaryCycleEligibilityByRecordId[normalized.recordId] = primaryCycleEligibility;
+    const dataProcessing = planComplete
+      ? reacquisition && session.dataProcessing
+        ? replacePistonOscillationProcessingMeasurement(
+            session.dataProcessing,
+            savedMeasurements,
+            reacquisition.returnRunIndex,
+            normalized,
+            event.nowMs,
+          )
+        : createPistonOscillationDataProcessingSession(
+            savedMeasurements,
+            event.nowMs,
+            { answerValidationMode: 'batch' },
+          )
+      : null;
     const next = {
       ...session,
       savedMeasurements,
       savedMeasurementTargetIds,
       excludedAttempts,
+      primaryCycleEligibilityByRecordId,
+      reacquisition: reacquisition ? null : session.reacquisition,
       measurementIndex: measurementIndexAfterSave,
       acquisitionCandidate: null,
       acquisitionCandidateTargetId: null,
-      dataProcessing: planComplete
-        ? createPistonOscillationDataProcessingSession(savedMeasurements, event.nowMs)
-        : null,
+      dataProcessing,
       updatedAtMs: event.nowMs,
     };
     return {
@@ -828,6 +892,73 @@ export const transitionPistonOscillationFreeSession = (
           recordedDurationS: normalized.acquisitionSettings.recordedDurationS,
           recordingPath: normalized.acquisitionSettings.recordingPath,
           releaseOffsetS: normalized.acquisitionSettings.releaseOffsetS,
+          primaryCycleEligibilityStatus: primaryCycleEligibility.status,
+          primaryCycleEligibilityReason: primaryCycleEligibility.reason,
+          reacquisition: reacquisition !== null,
+        },
+      }),
+    };
+  }
+
+  if (event.type === 'requestUnusableMeasurementRedo') {
+    const dataProcessing = session.dataProcessing;
+    const run = dataProcessing?.runs[event.runIndex];
+    const measurement = run
+      ? session.savedMeasurements.find((candidate) => (
+          candidate.recordId === run.rawMeasurementRecordId
+        )) ?? null
+      : null;
+    const target = run ? session.experimentPlan?.targets[run.measurementIndex] ?? null : null;
+    const eligibility = run
+      ? session.primaryCycleEligibilityByRecordId[run.rawMeasurementRecordId] ?? null
+      : null;
+    if (
+      session.reacquisition !== null
+      || dataProcessing?.status !== 'period-processing'
+      || dataProcessing.activeRunIndex !== event.runIndex
+      || !run
+      || !measurement
+      || !target
+      || eligibility?.status !== 'unusable'
+    ) return session;
+    const next = {
+      ...session,
+      measurementIndex: run.measurementIndex,
+      powerOn: true,
+      acquisitionCandidate: null,
+      acquisitionCandidateTargetId: null,
+      excludedAttempts: appendExcludedAttempt(
+        session,
+        measurement,
+        target.targetId,
+        'insufficient-primary-period',
+        event.nowMs,
+        eligibility,
+      ),
+      reacquisition: {
+        schemaVersion: PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION,
+        targetId: target.targetId,
+        measurementIndex: run.measurementIndex,
+        excludedRecordId: measurement.recordId,
+        returnRunIndex: event.runIndex,
+        requestedAtMs: event.nowMs,
+      } satisfies PistonOscillationFreeReacquisitionState,
+      instrumentState: createDefaultPistonOscillationFreeInstrumentState(),
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'acquisition-excluded', event.nowMs, {
+        measurementIndex: run.measurementIndex,
+        targetHeightMm: target.heightMm,
+        operation: 'redoAcquisition',
+        payload: {
+          recordId: measurement.recordId,
+          targetId: target.targetId,
+          reason: 'insufficient-primary-period',
+          eligibilityAlgorithmVersion: eligibility.algorithmVersion,
+          eligibilityReason: eligibility.reason,
+          primaryPeriodCount: eligibility.primaryPeriodCount,
         },
       }),
     };
@@ -877,12 +1008,12 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
-  if (event.type === 'submitPeriodEndpoints') {
+  if (event.type === 'revealPeriodEntry') {
     if (!session.dataProcessing) return session;
     return {
       ...session,
       updatedAtMs: event.nowMs,
-      dataProcessing: submitPistonOscillationPeriodEndpoints(
+      dataProcessing: revealPistonOscillationFreePeriodEntry(
         session.dataProcessing,
         event.runIndex,
         event.nowMs,
@@ -890,26 +1021,24 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
-  if (event.type === 'continuePeriodAnswer') {
+  if (event.type === 'continuePeriodBatch') {
     if (!session.dataProcessing) return session;
     return {
       ...session,
       updatedAtMs: event.nowMs,
-      dataProcessing: continuePistonOscillationPeriodAnswer(
+      dataProcessing: continuePistonOscillationFreePeriodBatch(
         session.dataProcessing,
         event.runIndex,
-        event.field,
         event.nowMs,
       ),
     };
   }
 
-  if (event.type === 'revealPeriodAnswer') {
+  if (event.type === 'submitPeriodBatch') {
     if (!session.dataProcessing) return session;
-    const dataProcessing = revealPistonOscillationPeriodAnswer(
+    const dataProcessing = submitPistonOscillationFreePeriodBatch(
       session.dataProcessing,
       event.runIndex,
-      event.field,
       event.nowMs,
     );
     return {
@@ -923,11 +1052,12 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
-  if (event.type === 'submitPeriod') {
+  if (event.type === 'revealPeriodAnswer') {
     if (!session.dataProcessing) return session;
-    const dataProcessing = submitPistonOscillationPeriod(
+    const dataProcessing = revealPistonOscillationFreePeriodAnswer(
       session.dataProcessing,
       event.runIndex,
+      event.field,
       event.nowMs,
     );
     return {
@@ -997,7 +1127,7 @@ export const transitionPistonOscillationFreeSession = (
     return {
       ...session,
       updatedAtMs: event.nowMs,
-      dataProcessing: updatePistonOscillationCalculationDraft(
+      dataProcessing: updatePistonOscillationFreeCalculationDraft(
         session.dataProcessing,
         event.field,
         event.value,
@@ -1006,12 +1136,12 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
-  if (event.type === 'submitCalculationField') {
+  if (event.type === 'revealNextCalculationField') {
     if (!session.dataProcessing) return session;
     return {
       ...session,
       updatedAtMs: event.nowMs,
-      dataProcessing: submitPistonOscillationCalculationField(
+      dataProcessing: revealNextPistonOscillationFreeCalculationField(
         session.dataProcessing,
         event.field,
         event.nowMs,
@@ -1019,14 +1149,25 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
 
-  if (event.type === 'continueCalculationAnswer') {
+  if (event.type === 'continueCalculationBatch') {
     if (!session.dataProcessing) return session;
     return {
       ...session,
       updatedAtMs: event.nowMs,
-      dataProcessing: continuePistonOscillationCalculationAnswer(
+      dataProcessing: continuePistonOscillationFreeCalculationBatch(
         session.dataProcessing,
-        event.field,
+        event.nowMs,
+      ),
+    };
+  }
+
+  if (event.type === 'submitCalculationBatch') {
+    if (!session.dataProcessing) return session;
+    return {
+      ...session,
+      updatedAtMs: event.nowMs,
+      dataProcessing: submitPistonOscillationFreeCalculationBatch(
+        session.dataProcessing,
         event.nowMs,
       ),
     };
@@ -1037,7 +1178,7 @@ export const transitionPistonOscillationFreeSession = (
     return {
       ...session,
       updatedAtMs: event.nowMs,
-      dataProcessing: revealPistonOscillationCalculationAnswer(
+      dataProcessing: revealPistonOscillationFreeCalculationAnswer(
         session.dataProcessing,
         event.field,
         event.nowMs,
@@ -1064,6 +1205,7 @@ export const transitionPistonOscillationFreeSession = (
     !experimentPlan
     || !isNonNegativeInteger(measurementIndex)
     || measurementIndex >= experimentPlan.targetHeightsMm.length
+    || session.reacquisition?.measurementIndex === measurementIndex
     || !session.savedMeasurements.some((measurement) => (
       measurement.measurementIndex === measurementIndex
     ))
@@ -1081,10 +1223,16 @@ export const transitionPistonOscillationFreeSession = (
       recordId !== deletedMeasurement.recordId
     )),
   );
+  const primaryCycleEligibilityByRecordId = Object.fromEntries(
+    Object.entries(session.primaryCycleEligibilityByRecordId).filter(([recordId]) => (
+      recordId !== deletedMeasurement.recordId
+    )),
+  );
   const next = {
     ...session,
     savedMeasurements,
     savedMeasurementTargetIds,
+    primaryCycleEligibilityByRecordId,
     excludedAttempts: appendExcludedAttempt(
       session,
       deletedMeasurement,
@@ -1228,6 +1376,76 @@ const normalizeInstrumentState = (
   };
 };
 
+const PRIMARY_CYCLE_ELIGIBILITY_STATUSES = ['usable', 'unusable', 'indeterminate'] as const;
+const PRIMARY_CYCLE_ELIGIBILITY_REASONS = [
+  'primary-half-cycle-found',
+  'release-not-observed',
+  'insufficient-post-release-samples',
+  'insufficient-primary-excursion',
+  'insufficient-primary-extrema',
+  'ambiguous-multiscale-extrema',
+] as const;
+
+const normalizePrimaryCycleEligibility = (
+  value: unknown,
+  measurement: PistonOscillationRawMeasurementRecord,
+): PistonOscillationPrimaryCycleEligibilityReport => {
+  const fallback = analyzePistonOscillationPrimaryCycleEligibility(measurement);
+  if (
+    !isPlainRecord(value)
+    || value.schemaVersion !== 1
+    || value.algorithmVersion !== fallback.algorithmVersion
+    || value.rawMeasurementRecordId !== measurement.recordId
+    || !PRIMARY_CYCLE_ELIGIBILITY_STATUSES.includes(
+      value.status as PistonOscillationPrimaryCycleEligibilityReport['status'],
+    )
+    || !PRIMARY_CYCLE_ELIGIBILITY_REASONS.includes(
+      value.reason as PistonOscillationPrimaryCycleEligibilityReport['reason'],
+    )
+    || !isNonNegativeInteger(value.analysisStartSampleIndex)
+    || !isNonNegativeInteger(value.analysisSampleCount)
+    || !isFiniteNumber(value.expectedHalfPeriodSamples)
+    || !isFiniteNumber(value.smoothingWindowSamples)
+    || !isFiniteNumber(value.pressureRangeKpa)
+    || !isFiniteNumber(value.estimatedNoiseFloorKpa)
+    || !isFiniteNumber(value.minimumPrimaryExcursionKpa)
+    || !isFiniteNumber(value.primaryPeriodCount)
+    || !Array.isArray(value.primaryExtrema)
+  ) return fallback;
+  const primaryExtrema = value.primaryExtrema.flatMap((extremum, ordinal) => (
+    isPlainRecord(extremum)
+    && isNonNegativeInteger(extremum.sampleIndex)
+    && (extremum.type === 'peak' || extremum.type === 'trough')
+    && isFiniteNumber(extremum.timeS)
+    && isFiniteNumber(extremum.absolutePressureKpa)
+      ? [{
+          ordinal,
+          sampleIndex: extremum.sampleIndex,
+          type: extremum.type as 'peak' | 'trough',
+          timeS: extremum.timeS,
+          absolutePressureKpa: extremum.absolutePressureKpa,
+        }]
+      : []
+  ));
+  if (primaryExtrema.length !== value.primaryExtrema.length) return fallback;
+  return {
+    schemaVersion: 1,
+    algorithmVersion: fallback.algorithmVersion,
+    rawMeasurementRecordId: measurement.recordId,
+    status: value.status as PistonOscillationPrimaryCycleEligibilityReport['status'],
+    reason: value.reason as PistonOscillationPrimaryCycleEligibilityReport['reason'],
+    analysisStartSampleIndex: value.analysisStartSampleIndex,
+    analysisSampleCount: value.analysisSampleCount,
+    expectedHalfPeriodSamples: value.expectedHalfPeriodSamples,
+    smoothingWindowSamples: value.smoothingWindowSamples,
+    pressureRangeKpa: value.pressureRangeKpa,
+    estimatedNoiseFloorKpa: value.estimatedNoiseFloorKpa,
+    minimumPrimaryExcursionKpa: value.minimumPrimaryExcursionKpa,
+    primaryPeriodCount: value.primaryPeriodCount,
+    primaryExtrema,
+  };
+};
+
 const normalizeExcludedAttempt = (
   value: unknown,
   experimentPlan: PistonOscillationFreeExperimentPlan,
@@ -1235,7 +1453,11 @@ const normalizeExcludedAttempt = (
   if (
     !isPlainRecord(value)
     || !isNonNegativeInteger(value.measurementIndex)
-    || (value.reason !== 'redo' && value.reason !== 'deleted')
+    || (
+      value.reason !== 'redo'
+      && value.reason !== 'deleted'
+      && value.reason !== 'insufficient-primary-period'
+    )
     || !isFiniteNumber(value.excludedAtMs)
   ) return null;
   const target = experimentPlan.targets[value.measurementIndex];
@@ -1255,6 +1477,9 @@ const normalizeExcludedAttempt = (
     reason: value.reason,
     excludedAtMs: value.excludedAtMs,
     measurement,
+    primaryCycleEligibility: value.reason === 'insufficient-primary-period'
+      ? normalizePrimaryCycleEligibility(value.primaryCycleEligibility, measurement)
+      : null,
   };
 };
 
@@ -1351,9 +1576,70 @@ export const normalizePistonOscillationFreeSession = (
       ))
       .slice(-MAX_PERSISTED_FREE_AUDIT_EVENTS)
     : [];
-  const measurementIndex = experimentPlan
+  const persistedEligibilityByRecordId = isPlainRecord(
+    value.primaryCycleEligibilityByRecordId,
+  ) ? value.primaryCycleEligibilityByRecordId : {};
+  const primaryCycleEligibilityByRecordId = savedMeasurements.reduce<Record<
+    string,
+    PistonOscillationPrimaryCycleEligibilityReport
+  >>((reports, measurement) => {
+    reports[measurement.recordId] = normalizePrimaryCycleEligibility(
+      persistedEligibilityByRecordId[measurement.recordId],
+      measurement,
+    );
+    return reports;
+  }, {});
+  const excludedAttempts = experimentPlan && Array.isArray(value.excludedAttempts)
+    ? value.excludedAttempts
+      .map((attempt) => normalizeExcludedAttempt(attempt, experimentPlan))
+      .filter((attempt): attempt is PistonOscillationFreeExcludedAttempt => attempt !== null)
+      .filter((attempt, index, attempts) => (
+        attempts.findIndex((candidate) => candidate.attemptId === attempt.attemptId) === index
+      ))
+      .slice(-MAX_PERSISTED_FREE_EXCLUDED_ATTEMPTS)
+    : [];
+  const persistedReacquisition = isPlainRecord(value.reacquisition)
+    ? value.reacquisition
+    : null;
+  const reacquisitionMeasurementIndex = persistedReacquisition
+    && isNonNegativeInteger(persistedReacquisition.measurementIndex)
+    ? persistedReacquisition.measurementIndex
+    : null;
+  const reacquisitionMeasurement = reacquisitionMeasurementIndex === null
+    ? null
+    : savedMeasurements.find((measurement) => (
+        measurement.measurementIndex === reacquisitionMeasurementIndex
+      )) ?? null;
+  const reacquisitionTarget = reacquisitionMeasurementIndex === null
+    ? null
+    : experimentPlan?.targets[reacquisitionMeasurementIndex] ?? null;
+  const reacquisition: PistonOscillationFreeReacquisitionState | null =
+    persistedReacquisition
+    && reacquisitionMeasurement
+    && reacquisitionTarget
+    && persistedReacquisition.schemaVersion
+      === PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION
+    && persistedReacquisition.targetId === reacquisitionTarget.targetId
+    && persistedReacquisition.excludedRecordId === reacquisitionMeasurement.recordId
+    && isNonNegativeInteger(persistedReacquisition.returnRunIndex)
+    && persistedReacquisition.returnRunIndex < savedMeasurements.length
+    && isFiniteNumber(persistedReacquisition.requestedAtMs)
+    && excludedAttempts.some((attempt) => (
+      attempt.reason === 'insufficient-primary-period'
+      && attempt.measurement.recordId === reacquisitionMeasurement.recordId
+    ))
+      ? {
+          schemaVersion: PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION,
+          targetId: reacquisitionTarget.targetId,
+          measurementIndex: reacquisitionMeasurementIndex,
+          excludedRecordId: reacquisitionMeasurement.recordId,
+          returnRunIndex: persistedReacquisition.returnRunIndex,
+          requestedAtMs: persistedReacquisition.requestedAtMs,
+        }
+      : null;
+  const measurementIndex = reacquisition?.measurementIndex ?? (experimentPlan
     ? getFirstMissingMeasurementIndex(experimentPlan, savedMeasurements)
-    : 0;
+    : 0);
   const candidateTargetHeightMm = experimentPlan?.targetHeightsMm[measurementIndex];
   const acquisitionCandidate = candidateTargetHeightMm !== undefined
     ? normalizePistonOscillationRawMeasurementRecord(value.acquisitionCandidate, measurementIndex)
@@ -1366,21 +1652,13 @@ export const normalizePistonOscillationFreeSession = (
   const acquisitionCandidateTargetId = normalizedAcquisitionCandidate && candidateTarget
     ? candidateTarget.targetId
     : null;
-  const excludedAttempts = experimentPlan && Array.isArray(value.excludedAttempts)
-    ? value.excludedAttempts
-      .map((attempt) => normalizeExcludedAttempt(attempt, experimentPlan))
-      .filter((attempt): attempt is PistonOscillationFreeExcludedAttempt => attempt !== null)
-      .filter((attempt, index, attempts) => (
-        attempts.findIndex((candidate) => candidate.attemptId === attempt.attemptId) === index
-      ))
-      .slice(-MAX_PERSISTED_FREE_EXCLUDED_ATTEMPTS)
-    : [];
   const dataProcessing = experimentPlan
-    && measurementIndex >= experimentPlan.targetHeightsMm.length
+    && savedMeasurements.length >= experimentPlan.targetHeightsMm.length
     ? normalizePistonOscillationDataProcessingSession(
         value.dataProcessing,
         savedMeasurements,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
+        { answerValidationMode: 'batch' },
       )
     : null;
   return {
@@ -1390,7 +1668,7 @@ export const normalizePistonOscillationFreeSession = (
     updatedAtMs: isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : startedAtMs,
     experimentPlan,
     measurementIndex,
-    powerOn: status === 'active' && value.powerOn === true,
+    powerOn: status === 'active' && (reacquisition !== null || value.powerOn === true),
     sampleRateHz: Number.isSafeInteger(value.sampleRateHz)
       && (value.sampleRateHz as number) > 0
       && (value.sampleRateHz as number) <= 1000
@@ -1409,6 +1687,8 @@ export const normalizePistonOscillationFreeSession = (
     savedMeasurements,
     savedMeasurementTargetIds,
     excludedAttempts,
+    primaryCycleEligibilityByRecordId,
+    reacquisition,
     instrumentState: normalizeInstrumentState(value.instrumentState, true),
     dataProcessing,
     audit,

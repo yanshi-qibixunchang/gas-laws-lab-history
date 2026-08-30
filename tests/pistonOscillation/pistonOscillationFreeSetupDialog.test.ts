@@ -123,8 +123,13 @@ assert.match(
 );
 assert.doesNotMatch(
   modeControlSource,
-  /data-piston-oscillation-mode="free"[\s\S]{0,240}(?:disabled|labels\.unavailable)/,
+  /data-piston-oscillation-mode="free"[\s\S]{0,240}(?:disabled=\{true\}|labels\.unavailable)/,
   'the Free button should no longer carry the old unavailable state',
+);
+assert.match(
+  modeControlSource,
+  /data-piston-oscillation-mode="free"[\s\S]{0,240}disabled=\{interactionLocked\}/,
+  'the Free button should only lock while the secondary calculation window is active',
 );
 assert.match(
   modeControlSource,
@@ -146,6 +151,11 @@ assert.match(
   workbenchSource,
   /pistonOscillationFreeSession\.status === 'active'[\s\S]*type: 'setPower'/,
   'Free-mode power changes should be persisted and audited',
+);
+assert.match(
+  workbenchSource,
+  /const replacing = session\.reacquisition\?\.measurementIndex[\s\S]*const saved = !replacing[\s\S]*statusLabel: saved[\s\S]*: current/,
+  'the excluded record being reacquired must appear as the current target, not as a saved result',
 );
 
 console.log('pistonOscillationFreeSetupDialog tests passed');

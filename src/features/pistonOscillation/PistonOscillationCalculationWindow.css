@@ -177,6 +177,7 @@
 
 .studio-piston-fit-confirm,
 .studio-piston-calculation-check,
+.studio-piston-calculation-batch-retry,
 .studio-piston-calculation-exit {
   display: inline-flex;
   min-height: 31px;
@@ -525,7 +526,7 @@
 }
 
 .studio-piston-calculation-check {
-  width: 72px;
+  min-width: 72px;
   margin-top: 1px;
 }
 
@@ -536,6 +537,24 @@
 
 .studio-piston-calculation-check-hidden {
   visibility: hidden;
+}
+
+.studio-piston-calculation-format-warning {
+  border-left: 3px solid var(--studio-danger);
+  background: color-mix(in srgb, var(--studio-danger) 8%, var(--studio-surface));
+  padding: 8px 10px;
+  color: var(--studio-danger);
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.studio-piston-calculation-batch-retry {
+  justify-self: end;
+}
+
+.studio-piston-calculation-batch-retry:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .studio-piston-calculation-ready {

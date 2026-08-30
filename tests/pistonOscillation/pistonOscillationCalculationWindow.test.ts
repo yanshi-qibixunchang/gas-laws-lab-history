@@ -137,7 +137,11 @@ assert.match(componentSource, /referenceGamma=\{calculationSession\.knowns\.refe
 assert.match(componentSource, /continueCalculationAnswer/);
 assert.match(componentSource, /revealCalculationAnswer/);
 assert.match(componentSource, /formatPistonOscillationCalculationAnswer/);
-assert.match(modelSource, /PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 4/);
+assert.match(modelSource, /PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 5/);
+assert.match(componentSource, /batchMode[^]*revealNextCalculationField[^]*submitCalculationBatch/);
+assert.match(componentSource, /getInvalidPistonOscillationCalculationBatchFields/);
+assert.match(modelSource, /visibleFieldIds: PistonOscillationCalculationFieldId\[\]/);
+assert.match(modelSource, /batchAttempts: PistonOscillationCalculationBatchAttemptSnapshot\[\]/);
 assert.match(modelSource, /attemptedAtMs:\s*number \| null;[\s\S]*draftRaw:\s*string \| null;[\s\S]*resolution:\s*PistonOscillationAnswerResolution/);
 assert.match(modelSource, /ordinary-least-squares-v1/);
 assert.match(modelSource, /pressurePa:\s*PISTON_OSCILLATION_REFERENCE_PRESSURE_PA/);

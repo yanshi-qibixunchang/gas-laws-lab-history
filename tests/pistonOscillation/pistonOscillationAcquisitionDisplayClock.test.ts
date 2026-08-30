@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS,
   PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS,
+  PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS,
   advancePistonOscillationAcquisitionDisplayClock,
   createPistonOscillationAcquisitionDisplayClock,
   getPistonOscillationAcquisitionPresentedNowMs,
@@ -11,13 +12,20 @@ import {
 const frameIntervalMs = PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS;
 const maximumVisibleAdvanceMs =
   PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS;
+const presentationDelayMs = PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS;
+assert.equal(presentationDelayMs, 300);
 let clock = createPistonOscillationAcquisitionDisplayClock(1_000);
 clock = advancePistonOscillationAcquisitionDisplayClock(clock, 1_000 + frameIntervalMs);
 const presentedBeforeStallMs = getPistonOscillationAcquisitionPresentedNowMs(
   1_000 + frameIntervalMs,
   clock,
 );
-assert.ok(Math.abs(presentedBeforeStallMs - (1_000 + frameIntervalMs)) < 1e-9);
+assert.ok(
+  Math.abs(
+    presentedBeforeStallMs - (1_000 + frameIntervalMs - presentationDelayMs)
+  ) < 1e-9,
+  'ordinary frames must remain a fixed 300 ms behind real acquisition time',
+);
 
 const wallNowAfterStallMs = 1_000 + frameIntervalMs + 400;
 clock = advancePistonOscillationAcquisitionDisplayClock(clock, wallNowAfterStallMs);
@@ -51,8 +59,9 @@ assert.ok(
 assert.ok(
   Math.abs(
     getPistonOscillationAcquisitionPresentedNowMs(catchUpWallNowMs, clock)
-      - catchUpWallNowMs,
+      - (catchUpWallNowMs - presentationDelayMs),
   ) < 1e-8,
+  'temporary calculation lag may drain, but the operator presentation delay must remain',
 );
 
 const pauseRebasedClock = rebasePistonOscillationAcquisitionDisplayClock(clock, 5_000);

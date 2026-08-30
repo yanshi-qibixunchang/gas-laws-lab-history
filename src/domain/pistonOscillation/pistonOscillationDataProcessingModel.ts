@@ -1,5 +1,6 @@
 import {
   formatNumericAnswerReference,
+  parseNumericAnswerInput,
   validateNumericAnswer,
   type NumericAnswerSpec,
 } from '../calculation/numericAnswerValidation.ts';
@@ -10,6 +11,8 @@ import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
   PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
   PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
   PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
   createPistonOscillationEquilibriumState,
   createPistonOscillationLoadedEquilibriumState,
@@ -36,17 +39,21 @@ import {
   type PistonOscillationEquivalentLossSnapshot,
 } from './pistonOscillationEquivalentLossModel.ts';
 import {
-  PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
   assertPistonOscillationSensorObservationSeries,
   getPistonOscillationObservedTimeS,
+  isPistonOscillationDynamicSensorConfig,
+  isPistonOscillationDynamicSensorState,
+  isPistonOscillationLegacyDynamicSensorConfig,
+  isPistonOscillationLegacyDynamicSensorState,
   quantizePistonOscillationObservedPressureKpa,
   type PistonOscillationObservedSample,
-  type PistonOscillationDynamicSensorConfig,
-  type PistonOscillationDynamicSensorState,
+  type PistonOscillationStoredDynamicSensorConfig,
+  type PistonOscillationStoredDynamicSensorState,
   type PistonOscillationSensorObservationSeries,
 } from './pistonOscillationSensorObservationModel.ts';
 import {
@@ -62,9 +69,13 @@ import {
 } from './pistonOscillationLegacyCompatibility.ts';
 
 export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 5 as const;
-export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 4 as const;
+export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 5 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
   'alternating-observed-local-extrema-v2' as const;
+export const PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION =
+  'multi-scale-primary-extrema-selection-v1' as const;
+export const PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION =
+  'multi-scale-primary-half-cycle-v1' as const;
 export const PISTON_OSCILLATION_LINEAR_FIT_ALGORITHM_VERSION =
   'ordinary-least-squares-v1' as const;
 export const PISTON_OSCILLATION_CALCULATION_MODEL_VERSION =
@@ -72,7 +83,7 @@ export const PISTON_OSCILLATION_CALCULATION_MODEL_VERSION =
 export const PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT = 3 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT = 0.5 as const;
 export const PISTON_OSCILLATION_PROCESSING_POLICY_VERSION =
-  'piston-oscillation-processing-policy-v1' as const;
+  'piston-oscillation-processing-policy-v2' as const;
 export const PISTON_OSCILLATION_GUIDED_MINIMUM_FIT_POINT_COUNT = 3 as const;
 export const PISTON_OSCILLATION_REFERENCE_PRESSURE_PA = 1.01e5 as const;
 
@@ -103,7 +114,7 @@ export interface PistonOscillationPhysicsSnapshot {
 }
 
 export interface PistonOscillationSensorObservationSnapshot {
-  schemaVersion: 1 | 2;
+  schemaVersion: 1 | 2 | 3;
   modelVersion: typeof PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION | string;
   provenance: 'captured' | 'legacy-migrated';
   sampleRateHz: number;
@@ -112,9 +123,9 @@ export interface PistonOscillationSensorObservationSnapshot {
   triggerSourceSampleIndex: number | null;
   triggerSourceTimeS: number | null;
   sourceRecordSchemaVersion: number | null;
-  dynamicConfig?: PistonOscillationDynamicSensorConfig | null;
-  initialDynamicState?: PistonOscillationDynamicSensorState | null;
-  finalDynamicState?: PistonOscillationDynamicSensorState | null;
+  dynamicConfig?: PistonOscillationStoredDynamicSensorConfig | null;
+  initialDynamicState?: PistonOscillationStoredDynamicSensorState | null;
+  finalDynamicState?: PistonOscillationStoredDynamicSensorState | null;
 }
 
 export interface PistonOscillationRawMeasurementRecord {
@@ -141,12 +152,45 @@ export interface PistonOscillationExtremum {
   absolutePressureKpa: number;
 }
 
+export type PistonOscillationPrimaryCycleEligibilityStatus =
+  | 'usable'
+  | 'unusable'
+  | 'indeterminate';
+
+export type PistonOscillationPrimaryCycleEligibilityReason =
+  | 'primary-half-cycle-found'
+  | 'release-not-observed'
+  | 'insufficient-post-release-samples'
+  | 'insufficient-primary-excursion'
+  | 'insufficient-primary-extrema'
+  | 'ambiguous-multiscale-extrema';
+
+export interface PistonOscillationPrimaryCycleEligibilityReport {
+  schemaVersion: 1;
+  algorithmVersion:
+    typeof PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION;
+  rawMeasurementRecordId: string;
+  status: PistonOscillationPrimaryCycleEligibilityStatus;
+  reason: PistonOscillationPrimaryCycleEligibilityReason;
+  analysisStartSampleIndex: number;
+  analysisSampleCount: number;
+  expectedHalfPeriodSamples: number;
+  smoothingWindowSamples: number;
+  pressureRangeKpa: number;
+  estimatedNoiseFloorKpa: number;
+  minimumPrimaryExcursionKpa: number;
+  primaryPeriodCount: number;
+  primaryExtrema: PistonOscillationExtremum[];
+}
+
 export type PistonOscillationPeriodSelectionIssue =
   | 'insufficient-extrema'
   | 'below-guided-minimum';
 
 export interface PistonOscillationPeriodSelection {
-  algorithmVersion: typeof PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION;
+  algorithmVersion:
+    | typeof PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION
+    | typeof PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION;
   rangeStartTimeS: number;
   rangeEndTimeS: number;
   extrema: PistonOscillationExtremum[];
@@ -198,6 +242,16 @@ export interface PistonOscillationAnswerAttemptSnapshot {
   precisionCorrect: boolean | null;
 }
 
+export interface PistonOscillationPeriodBatchAttemptSnapshot {
+  attemptIndex: number;
+  attemptedAtMs: number;
+  fields: Record<
+    PistonOscillationPeriodAnswerField,
+    PistonOscillationAnswerAttemptSnapshot
+  >;
+  allCorrect: boolean;
+}
+
 export interface PistonOscillationPeriodAnswerState {
   draftRaw: string;
   expectedValue: number | null;
@@ -239,29 +293,38 @@ export interface PistonOscillationPeriodRunState {
     t2: PistonOscillationPeriodAnswerState;
     period: PistonOscillationPeriodAnswerState;
   };
+  batchAttempts: PistonOscillationPeriodBatchAttemptSnapshot[];
   result: PistonOscillationPeriodResult | null;
 }
 
+export type PistonOscillationAnswerValidationMode = 'stepwise' | 'batch';
+
 export interface PistonOscillationProcessingPolicySnapshot {
-  schemaVersion: 1;
+  schemaVersion: 2;
   policyVersion: typeof PISTON_OSCILLATION_PROCESSING_POLICY_VERSION;
   guidedMinimumPeriodCount: number;
   freeMinimumPeriodCount: number;
+  answerValidationMode: PistonOscillationAnswerValidationMode;
 }
 
 export type PistonOscillationDataProcessingAuditEventType =
   | 'selection-finalized'
   | 'endpoint-submitted'
   | 'period-submitted'
+  | 'period-entry-revealed'
+  | 'period-batch-submitted'
   | 'answer-revealed'
   | 'run-completed'
   | 'run-advanced'
   | 'run-reopened'
+  | 'measurement-replaced'
   | 'calculation-ready'
   | 'fit-selection-toggled'
   | 'fit-submitted'
   | 'calculation-answer-edited'
   | 'calculation-step-submitted'
+  | 'calculation-field-revealed'
+  | 'calculation-batch-submitted'
   | 'calculation-answer-continued'
   | 'calculation-answer-revealed'
   | 'calculation-completed';
@@ -313,6 +376,16 @@ export type PistonOscillationCalculationFieldId =
 export type PistonOscillationCalculationAttemptSnapshot =
   PistonOscillationAnswerAttemptSnapshot;
 
+export interface PistonOscillationCalculationBatchAttemptSnapshot {
+  attemptIndex: number;
+  attemptedAtMs: number;
+  fields: Record<
+    PistonOscillationCalculationFieldId,
+    PistonOscillationCalculationAttemptSnapshot
+  >;
+  allCorrect: boolean;
+}
+
 export interface PistonOscillationCalculationAnswerState {
   draftRaw: string;
   expectedValue: number | null;
@@ -323,15 +396,17 @@ export interface PistonOscillationCalculationAnswerState {
 }
 
 export interface PistonOscillationCalculationSessionSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 2;
   status: 'selecting-points' | 'calculating' | 'ready-to-exit' | 'completed';
   knowns: PistonOscillationCalculationKnownsSnapshot;
   selectedRunIndices: number[];
   activeFieldId: PistonOscillationCalculationFieldId | null;
+  visibleFieldIds: PistonOscillationCalculationFieldId[];
   answers: Record<
     PistonOscillationCalculationFieldId,
     PistonOscillationCalculationAnswerState
   >;
+  batchAttempts: PistonOscillationCalculationBatchAttemptSnapshot[];
   startedAtMs: number;
   completedAtMs: number | null;
 }
@@ -492,21 +567,21 @@ export const createPistonOscillationPhysicsSnapshot = (
 ): PistonOscillationPhysicsSnapshot => {
   if (
     trajectory.modelVersion !== PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
-    || !trajectory.initialThermodynamicState?.thermal.enabled
-    || !trajectory.thermalModel?.enabled
+    || trajectory.initialThermodynamicState?.modelVersion
+      !== PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+    || trajectory.initialThermodynamicState.thermal.modelVersion
+      !== PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+    || trajectory.thermalModel?.modelVersion
+      !== PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
   ) {
-    throw new RangeError('Current measurements require a finite-thermal trajectory.');
+    throw new RangeError('Current measurements require a heat-flow-lag trajectory.');
   }
   if (trajectory.config.gamma !== PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) {
     throw new RangeError('Current measurements must use the versioned dry-air material.');
   }
-  const equivalentLoss = createPistonOscillationEquivalentLossSnapshot();
-  if (
-    trajectory.config.linearDampingNsPerM
-      !== equivalentLoss.linearCoefficientNsPerM
-  ) {
-    throw new RangeError('Current measurements must use the versioned temporary equivalent loss.');
-  }
+  const equivalentLoss = createPistonOscillationEquivalentLossSnapshot(
+    trajectory.config.linearDampingNsPerM,
+  );
   return {
     modelVersion: trajectory.modelVersion,
     provenance: 'captured',
@@ -557,7 +632,9 @@ export const createPistonOscillationIncompletePhysicsSnapshot = (options: {
         elapsedS: 0,
         physicsConfig: config,
       });
-  const equivalentLoss = createPistonOscillationEquivalentLossSnapshot();
+  const equivalentLoss = createPistonOscillationEquivalentLossSnapshot(
+    config.linearDampingNsPerM,
+  );
   return {
     modelVersion: thermodynamicState.modelVersion,
     provenance: 'captured',
@@ -607,7 +684,7 @@ export const createPistonOscillationSensorObservationSnapshot = (options: {
     throw new RangeError('Current measurements require the dynamic sensor observation model.');
   }
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     modelVersion: observationSeries.modelVersion,
     provenance: 'captured',
     sampleRateHz,
@@ -633,6 +710,11 @@ export const createPistonOscillationSensorObservationSnapshot = (options: {
 const physicsNumbersAgree = (first: number, second: number) => (
   Math.abs(first - second)
     <= Number.EPSILON * Math.max(1, Math.abs(first), Math.abs(second)) * 32
+);
+
+const isFiniteThermalPhysicsModelVersion = (modelVersion: string) => (
+  modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+  || modelVersion === PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION
 );
 
 const isValidPistonOscillationPhysicsSnapshot = (
@@ -678,9 +760,10 @@ const isValidPistonOscillationPhysicsSnapshot = (
             snapshot.initialThermodynamicState,
             normalizedConfig,
           );
-    if (snapshot.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION) {
+    if (isFiniteThermalPhysicsModelVersion(snapshot.modelVersion)) {
       if (
         !normalizedInitialThermodynamicState
+        || normalizedInitialThermodynamicState.modelVersion !== snapshot.modelVersion
         || !normalizedInitialThermodynamicState.thermal.enabled
         || !snapshot.thermalModel?.enabled
         || snapshot.thermalModel.modelVersion
@@ -697,6 +780,27 @@ const isValidPistonOscillationPhysicsSnapshot = (
           snapshot.thermalModel.volumeExponent,
           normalizedInitialThermodynamicState.thermal.volumeExponent,
         )
+      ) return false;
+      if (snapshot.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION) {
+        if (
+          snapshot.thermalModel.modelVersion
+            !== PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+          || normalizedInitialThermodynamicState.thermal.modelVersion
+            !== PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+          || !physicsNumbersAgree(
+            snapshot.thermalModel.heatTransferRateW,
+            normalizedInitialThermodynamicState.thermal.heatTransferRateW,
+          )
+          || !physicsNumbersAgree(
+            snapshot.thermalModel.heatTransferLagTimeS,
+            normalizedInitialThermodynamicState.thermal.heatTransferLagTimeS,
+          )
+        ) return false;
+      } else if (
+        snapshot.thermalModel.modelVersion
+          !== PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+        || normalizedInitialThermodynamicState.thermal.modelVersion
+          !== PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION
       ) return false;
     }
     const configKeys = Object.keys(normalizedConfig) as Array<keyof PistonOscillationPhysicsConfig>;
@@ -788,11 +892,19 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   }
   const dynamicSensorSnapshot = sensorObservationSnapshot.modelVersion
     === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
+  const dynamicConfig = sensorObservationSnapshot.dynamicConfig;
+  const initialDynamicState = sensorObservationSnapshot.initialDynamicState;
+  const finalDynamicState = sensorObservationSnapshot.finalDynamicState;
   if (
     !dynamicSensorSnapshot
-    || sensorObservationSnapshot.schemaVersion !== 2
-    || !sensorObservationSnapshot.dynamicConfig
-    || !sensorObservationSnapshot.finalDynamicState
+    || sensorObservationSnapshot.schemaVersion !== 3
+    || !isPistonOscillationDynamicSensorConfig(dynamicConfig)
+    || (
+      initialDynamicState !== null
+      && initialDynamicState !== undefined
+      && !isPistonOscillationDynamicSensorState(initialDynamicState)
+    )
+    || !isPistonOscillationDynamicSensorState(finalDynamicState)
     || sensorObservationSnapshot.provenance !== 'captured'
     || sensorObservationSnapshot.pressureResolutionKpa
       !== PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA
@@ -843,9 +955,11 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
     pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
     pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
     samples,
-    dynamicConfig: sensorObservationSnapshot.dynamicConfig,
-    initialDynamicState: sensorObservationSnapshot.initialDynamicState,
-    finalDynamicState: sensorObservationSnapshot.finalDynamicState,
+    dynamicConfig,
+    initialDynamicState: isPistonOscillationDynamicSensorState(initialDynamicState)
+      ? initialDynamicState
+      : null,
+    finalDynamicState,
   });
   const recordedDurationS = samples.at(-1)?.timeS ?? 0;
   const pressOperationEvidence = normalizePistonOscillationPressOperationEvidence(
@@ -1090,7 +1204,8 @@ const normalizePhysicsSnapshot = (
     || value.captureKind === 'legacy-imported'
     ? value.captureKind
     : migrateLegacy
-      ? value.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+      ? typeof value.modelVersion === 'string'
+        && isFiniteThermalPhysicsModelVersion(value.modelVersion)
         && value.provenance === 'captured'
         ? 'released'
         : 'legacy-imported'
@@ -1138,27 +1253,52 @@ const normalizePhysicsSnapshot = (
   if (value.thermalModel !== undefined && value.thermalModel !== null) {
     if (
       !isPlainRecord(value.thermalModel)
-      || value.thermalModel.modelVersion
-        !== PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
       || value.thermalModel.enabled !== true
       || !isFiniteNumber(value.thermalModel.wallTemperatureK)
       || !isFiniteNumber(value.thermalModel.cumulativeHeatTransferJ)
       || !isFiniteNumber(value.thermalModel.relaxationTimeAtReferenceHeightS)
       || !isFiniteNumber(value.thermalModel.referenceGraduatedHeightM)
       || !isFiniteNumber(value.thermalModel.volumeExponent)
-      || value.thermalModel.provenance !== 'identified-candidate'
     ) return fallback();
-    thermalModel = {
-      modelVersion: PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
-      enabled: true,
-      wallTemperatureK: value.thermalModel.wallTemperatureK,
-      cumulativeHeatTransferJ: value.thermalModel.cumulativeHeatTransferJ,
-      relaxationTimeAtReferenceHeightS:
-        value.thermalModel.relaxationTimeAtReferenceHeightS,
-      referenceGraduatedHeightM: value.thermalModel.referenceGraduatedHeightM,
-      volumeExponent: value.thermalModel.volumeExponent,
-      provenance: 'identified-candidate',
-    };
+    if (
+      value.thermalModel.modelVersion
+        === PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+      && value.thermalModel.provenance === 'identified-candidate'
+    ) {
+      thermalModel = {
+        modelVersion:
+          PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+        enabled: true,
+        wallTemperatureK: value.thermalModel.wallTemperatureK,
+        cumulativeHeatTransferJ: value.thermalModel.cumulativeHeatTransferJ,
+        relaxationTimeAtReferenceHeightS:
+          value.thermalModel.relaxationTimeAtReferenceHeightS,
+        referenceGraduatedHeightM: value.thermalModel.referenceGraduatedHeightM,
+        volumeExponent: value.thermalModel.volumeExponent,
+        provenance: 'identified-candidate',
+      };
+    } else if (
+      value.thermalModel.modelVersion
+        === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+      && value.thermalModel.provenance === 'wp-t1-review-candidate'
+      && isFiniteNumber(value.thermalModel.heatTransferRateW)
+      && isFiniteNumber(value.thermalModel.heatTransferLagTimeS)
+      && value.thermalModel.heatTransferLagTimeS > 0
+    ) {
+      thermalModel = {
+        modelVersion: PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+        enabled: true,
+        wallTemperatureK: value.thermalModel.wallTemperatureK,
+        cumulativeHeatTransferJ: value.thermalModel.cumulativeHeatTransferJ,
+        relaxationTimeAtReferenceHeightS:
+          value.thermalModel.relaxationTimeAtReferenceHeightS,
+        referenceGraduatedHeightM: value.thermalModel.referenceGraduatedHeightM,
+        volumeExponent: value.thermalModel.volumeExponent,
+        heatTransferRateW: value.thermalModel.heatTransferRateW,
+        heatTransferLagTimeS: value.thermalModel.heatTransferLagTimeS,
+        provenance: 'wp-t1-review-candidate',
+      };
+    } else return fallback();
   }
   const snapshot: PistonOscillationPhysicsSnapshot = {
     modelVersion: value.modelVersion,
@@ -1242,14 +1382,19 @@ const normalizeSensorObservationSnapshot = (
   sourceRecordSchemaVersion: number | null,
 ): PistonOscillationSensorObservationSnapshot | null => {
   if (isPlainRecord(value)) {
-    const dynamic = value.modelVersion
+    const currentDynamic = value.modelVersion
       === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
+    const legacyDynamic = value.modelVersion
+      === PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
+    const dynamic = currentDynamic || legacyDynamic;
     if (
       (!migrateLegacy && !dynamic)
       ||
       (
-        dynamic
-          ? value.schemaVersion !== 2
+        currentDynamic
+          ? value.schemaVersion !== 3
+          : legacyDynamic
+            ? value.schemaVersion !== 2
           : value.schemaVersion !== 1
             || value.modelVersion !== PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION
       )
@@ -1284,73 +1429,55 @@ const normalizeSensorObservationSnapshot = (
         && !isFiniteNumber(value.sourceRecordSchemaVersion)
       )
     ) return null;
-    let dynamicConfig: PistonOscillationDynamicSensorConfig | null = null;
-    let initialDynamicState: PistonOscillationDynamicSensorState | null = null;
-    let finalDynamicState: PistonOscillationDynamicSensorState | null = null;
-    if (dynamic) {
+    let dynamicConfig: PistonOscillationStoredDynamicSensorConfig | null = null;
+    let initialDynamicState: PistonOscillationStoredDynamicSensorState | null = null;
+    let finalDynamicState: PistonOscillationStoredDynamicSensorState | null = null;
+    if (currentDynamic) {
       const configValue = value.dynamicConfig;
       const initialStateValue = value.initialDynamicState;
       const finalStateValue = value.finalDynamicState;
       if (
-        !isPlainRecord(configValue)
-        || configValue.modelVersion !== PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION
-        || configValue.provenance !== 'educational-candidate'
-        || !isFiniteNumber(configValue.responseTimeConstantS)
-        || configValue.responseTimeConstantS <= 0
-        || !isFiniteNumber(configValue.driftRatePaPerS)
-        || !isFiniteNumber(configValue.driftWanderAmplitudePa)
-        || configValue.driftWanderAmplitudePa < 0
-        || !isFiniteNumber(configValue.driftWanderPeriodS)
-        || configValue.driftWanderPeriodS <= 0
-        || !isFiniteNumber(configValue.noiseStandardDeviationPa)
-        || configValue.noiseStandardDeviationPa < 0
-        || !Number.isSafeInteger(configValue.seed)
-        || !isPlainRecord(finalStateValue)
+        !isPistonOscillationDynamicSensorConfig(configValue)
+        || !isPistonOscillationDynamicSensorState(finalStateValue)
+        || (
+          initialStateValue !== null
+          && !isPistonOscillationDynamicSensorState(initialStateValue)
+        )
       ) return null;
-      const normalizeDynamicState = (
-        stateValue: Record<string, unknown>,
-      ): PistonOscillationDynamicSensorState | null => (
-        stateValue.modelVersion
-          === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
-        && isFiniteNumber(stateValue.filteredPressurePa)
-        && stateValue.filteredPressurePa > 0
-        && isFiniteNumber(stateValue.sessionElapsedS)
-        && stateValue.sessionElapsedS >= 0
-        && Number.isSafeInteger(stateValue.nextNoiseSampleIndex)
-        && (stateValue.nextNoiseSampleIndex as number) >= 0
-          ? {
-              modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
-              filteredPressurePa: stateValue.filteredPressurePa,
-              sessionElapsedS: stateValue.sessionElapsedS,
-              nextNoiseSampleIndex: stateValue.nextNoiseSampleIndex as number,
-            }
-          : null
-      );
-      finalDynamicState = normalizeDynamicState(finalStateValue);
+      finalDynamicState = { ...finalStateValue };
       initialDynamicState = initialStateValue === null
         ? null
-        : isPlainRecord(initialStateValue)
-          ? normalizeDynamicState(initialStateValue)
+        : isPistonOscillationDynamicSensorState(initialStateValue)
+          ? { ...initialStateValue }
           : null;
-      if (!finalDynamicState || (initialStateValue !== null && !initialDynamicState)) {
-        return null;
-      }
-      dynamicConfig = {
-        modelVersion: PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
-        responseTimeConstantS: configValue.responseTimeConstantS,
-        driftRatePaPerS: configValue.driftRatePaPerS,
-        driftWanderAmplitudePa: configValue.driftWanderAmplitudePa,
-        driftWanderPeriodS: configValue.driftWanderPeriodS,
-        noiseStandardDeviationPa: configValue.noiseStandardDeviationPa,
-        seed: configValue.seed as number,
-        provenance: 'educational-candidate',
-      };
+      dynamicConfig = { ...configValue };
+    } else if (legacyDynamic) {
+      const configValue = value.dynamicConfig;
+      const initialStateValue = value.initialDynamicState;
+      const finalStateValue = value.finalDynamicState;
+      if (
+        !isPistonOscillationLegacyDynamicSensorConfig(configValue)
+        || !isPistonOscillationLegacyDynamicSensorState(finalStateValue)
+        || (
+          initialStateValue !== null
+          && !isPistonOscillationLegacyDynamicSensorState(initialStateValue)
+        )
+      ) return null;
+      dynamicConfig = { ...configValue };
+      initialDynamicState = initialStateValue === null
+        ? null
+        : isPistonOscillationLegacyDynamicSensorState(initialStateValue)
+          ? { ...initialStateValue }
+          : null;
+      finalDynamicState = { ...finalStateValue };
     }
     return {
-      schemaVersion: dynamic ? 2 : 1,
-      modelVersion: dynamic
+      schemaVersion: currentDynamic ? 3 : legacyDynamic ? 2 : 1,
+      modelVersion: currentDynamic
         ? PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
-        : PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
+        : legacyDynamic
+          ? PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION
+          : PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
       provenance: value.provenance,
       sampleRateHz,
       pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
@@ -1564,6 +1691,342 @@ export const findPistonOscillationExtrema = (
   return candidates.map((candidate, ordinal) => ({ ...candidate, ordinal }));
 };
 
+const getSortedQuantile = (values: readonly number[], quantile: number) => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((first, second) => first - second);
+  const index = Math.max(0, Math.min(
+    sorted.length - 1,
+    Math.round((sorted.length - 1) * quantile),
+  ));
+  return sorted[index] ?? 0;
+};
+
+const smoothPistonOscillationPressure = (
+  values: readonly number[],
+  windowSamples: number,
+) => {
+  const normalizedWindow = Math.max(1, Math.floor(windowSamples));
+  if (normalizedWindow <= 1 || values.length <= 2) return [...values];
+  const radius = Math.floor(normalizedWindow / 2);
+  const prefix = [0];
+  for (const value of values) prefix.push((prefix.at(-1) ?? 0) + value);
+  const pass = values.map((_, index) => {
+    const start = Math.max(0, index - radius);
+    const end = Math.min(values.length, index + radius + 1);
+    return ((prefix[end] ?? 0) - (prefix[start] ?? 0)) / Math.max(1, end - start);
+  });
+  const secondPrefix = [0];
+  for (const value of pass) secondPrefix.push((secondPrefix.at(-1) ?? 0) + value);
+  return pass.map((_, index) => {
+    const start = Math.max(0, index - radius);
+    const end = Math.min(pass.length, index + radius + 1);
+    return ((secondPrefix[end] ?? 0) - (secondPrefix[start] ?? 0))
+      / Math.max(1, end - start);
+  });
+};
+
+const estimatePistonOscillationNoiseFloorKpa = (
+  samples: readonly PistonOscillationRawSample[],
+  pressureResolutionKpa: number,
+) => {
+  const secondDifferences: number[] = [];
+  for (let index = 1; index < samples.length - 1; index += 1) {
+    const previous = samples[index - 1]?.absolutePressureKpa;
+    const current = samples[index]?.absolutePressureKpa;
+    const next = samples[index + 1]?.absolutePressureKpa;
+    if (previous === undefined || current === undefined || next === undefined) continue;
+    secondDifferences.push(Math.abs(next - 2 * current + previous));
+  }
+  return Math.max(
+    pressureResolutionKpa,
+    getSortedQuantile(secondDifferences, 0.5) * 0.75,
+  );
+};
+
+const getExpectedPistonOscillationHalfPeriodSamples = (
+  record: PistonOscillationRawMeasurementRecord,
+) => {
+  const { config, equilibrium } = record.physicsSnapshot;
+  const angularFrequencyRadPerS = Math.sqrt(
+    config.gamma
+      * equilibrium.equilibriumPressurePa
+      * equilibrium.cylinderAreaM2
+      / (config.movingMassKg * equilibrium.effectiveGasHeightM),
+  );
+  const frequencyHz = angularFrequencyRadPerS / (2 * Math.PI);
+  const sampleRateHz = record.acquisitionSettings.sampleRateHz;
+  if (!Number.isFinite(frequencyHz) || frequencyHz <= 0) {
+    return Math.max(2, sampleRateHz / 40);
+  }
+  return Math.max(2, sampleRateHz / (2 * frequencyHz));
+};
+
+interface PistonOscillationSmoothedExtremumCandidate {
+  localIndex: number;
+  type: PistonOscillationExtremumType;
+  smoothedPressureKpa: number;
+}
+
+const findSmoothedPistonOscillationExtrema = (
+  smoothedPressureKpa: readonly number[],
+  slopeEpsilonKpa: number,
+  endpointPressureKpa: readonly number[] = smoothedPressureKpa,
+): PistonOscillationSmoothedExtremumCandidate[] => {
+  if (smoothedPressureKpa.length < 2) return [];
+  const slopes = Array.from(
+    { length: smoothedPressureKpa.length - 1 },
+    (_, index) => (smoothedPressureKpa[index + 1] ?? 0)
+      - (smoothedPressureKpa[index] ?? 0),
+  );
+  const maximumAbsoluteSlope = slopes.reduce(
+    (maximum, slope) => Math.max(maximum, Math.abs(slope)),
+    0,
+  );
+  if (maximumAbsoluteSlope <= slopeEpsilonKpa) return [];
+  const signs = slopes.map((slope) => (
+    slope > slopeEpsilonKpa ? 1 : slope < -slopeEpsilonKpa ? -1 : 0
+  ));
+  const firstNonZeroSlopeIndex = signs.findIndex((sign) => sign !== 0);
+  let lastNonZeroSlopeIndex = -1;
+  for (let index = signs.length - 1; index >= 0; index -= 1) {
+    if (signs[index] !== 0) {
+      lastNonZeroSlopeIndex = index;
+      break;
+    }
+  }
+  if (firstNonZeroSlopeIndex < 0 || lastNonZeroSlopeIndex < 0) return [];
+  const candidates: PistonOscillationSmoothedExtremumCandidate[] = [];
+  const endpointSlopes = Array.from(
+    { length: Math.max(0, endpointPressureKpa.length - 1) },
+    (_, index) => (endpointPressureKpa[index + 1] ?? 0)
+      - (endpointPressureKpa[index] ?? 0),
+  );
+  const maximumEndpointAbsoluteSlope = endpointSlopes.reduce(
+    (maximum, slope) => Math.max(maximum, Math.abs(slope)),
+    0,
+  );
+  const endpointProbeCount = Math.max(
+    1,
+    Math.min(4, Math.floor(endpointSlopes.length / 4)),
+  );
+  const firstEndpointSlope = endpointSlopes.slice(0, endpointProbeCount).reduce(
+    (sum, slope) => sum + Math.abs(slope),
+    0,
+  ) / endpointProbeCount;
+  if (firstEndpointSlope <= maximumEndpointAbsoluteSlope * 0.4) {
+    const firstSign = signs[firstNonZeroSlopeIndex];
+    candidates.push({
+      localIndex: 0,
+      type: firstSign === -1 ? 'peak' : 'trough',
+      smoothedPressureKpa: smoothedPressureKpa[0] ?? 0,
+    });
+  }
+  let previousSign = signs[firstNonZeroSlopeIndex] ?? 0;
+  for (let slopeIndex = firstNonZeroSlopeIndex + 1; slopeIndex <= lastNonZeroSlopeIndex; slopeIndex += 1) {
+    const sign = signs[slopeIndex] ?? 0;
+    if (sign === 0) continue;
+    if (previousSign > 0 && sign < 0) {
+      candidates.push({
+        localIndex: slopeIndex,
+        type: 'peak',
+        smoothedPressureKpa: smoothedPressureKpa[slopeIndex] ?? 0,
+      });
+    } else if (previousSign < 0 && sign > 0) {
+      candidates.push({
+        localIndex: slopeIndex,
+        type: 'trough',
+        smoothedPressureKpa: smoothedPressureKpa[slopeIndex] ?? 0,
+      });
+    }
+    previousSign = sign;
+  }
+  const lastEndpointSlope = endpointSlopes.slice(-endpointProbeCount).reduce(
+    (sum, slope) => sum + Math.abs(slope),
+    0,
+  ) / endpointProbeCount;
+  if (lastEndpointSlope <= maximumEndpointAbsoluteSlope * 0.4) {
+    const lastSign = signs[lastNonZeroSlopeIndex];
+    candidates.push({
+      localIndex: smoothedPressureKpa.length - 1,
+      type: lastSign === 1 ? 'peak' : 'trough',
+      smoothedPressureKpa: smoothedPressureKpa.at(-1) ?? 0,
+    });
+  }
+  return candidates.reduce<PistonOscillationSmoothedExtremumCandidate[]>((alternating, candidate) => {
+    const previous = alternating.at(-1);
+    if (!previous || previous.type !== candidate.type) {
+      alternating.push(candidate);
+      return alternating;
+    }
+    const candidateMoreExtreme = candidate.type === 'peak'
+      ? candidate.smoothedPressureKpa > previous.smoothedPressureKpa
+      : candidate.smoothedPressureKpa < previous.smoothedPressureKpa;
+    if (candidateMoreExtreme) alternating[alternating.length - 1] = candidate;
+    return alternating;
+  }, []);
+};
+
+const selectPrimaryPistonOscillationExtrema = (
+  candidates: readonly PistonOscillationSmoothedExtremumCandidate[],
+  samples: readonly PistonOscillationRawSample[],
+  expectedHalfPeriodSamples: number,
+  minimumExcursionKpa: number,
+) => {
+  const minimumSeparationSamples = Math.max(2, Math.floor(expectedHalfPeriodSamples * 0.6));
+  const maximumSeparationSamples = Math.max(
+    minimumSeparationSamples,
+    Math.ceil(expectedHalfPeriodSamples * 4),
+  );
+  const acceptedIndices = new Set<number>();
+  for (let index = 0; index < candidates.length - 1; index += 1) {
+    const left = candidates[index];
+    const right = candidates[index + 1];
+    if (!left || !right || left.type === right.type) continue;
+    const separationSamples = right.localIndex - left.localIndex;
+    const excursionKpa = Math.abs(
+      right.smoothedPressureKpa - left.smoothedPressureKpa,
+    );
+    if (
+      separationSamples < minimumSeparationSamples
+      || separationSamples > maximumSeparationSamples
+      || excursionKpa < minimumExcursionKpa
+    ) continue;
+    acceptedIndices.add(index);
+    acceptedIndices.add(index + 1);
+  }
+  const selected = candidates.flatMap((candidate, index) => {
+    if (!acceptedIndices.has(index)) return [];
+    const sample = samples[candidate.localIndex];
+    if (!sample) return [];
+    return [{
+      ordinal: 0,
+      sampleIndex: sample.sampleIndex,
+      type: candidate.type,
+      timeS: sample.timeS,
+      absolutePressureKpa: sample.absolutePressureKpa,
+    } satisfies PistonOscillationExtremum];
+  });
+  return selected.reduce<PistonOscillationExtremum[]>((alternating, extremum) => {
+    const previous = alternating.at(-1);
+    if (!previous || previous.type !== extremum.type) {
+      alternating.push(extremum);
+      return alternating;
+    }
+    const extremumMoreExtreme = extremum.type === 'peak'
+      ? extremum.absolutePressureKpa > previous.absolutePressureKpa
+      : extremum.absolutePressureKpa < previous.absolutePressureKpa;
+    if (extremumMoreExtreme) alternating[alternating.length - 1] = extremum;
+    return alternating;
+  }, []).map((extremum, ordinal) => ({ ...extremum, ordinal }));
+};
+
+export const analyzePistonOscillationPrimaryCycleEligibility = (
+  record: PistonOscillationRawMeasurementRecord,
+): PistonOscillationPrimaryCycleEligibilityReport => {
+  const immediateReleaseNotObserved = record.acquisitionSettings.recordingPath === 'immediate'
+    && record.acquisitionSettings.releaseOffsetS === null;
+  const analysisStartTimeS = record.acquisitionSettings.recordingPath === 'immediate'
+    ? record.acquisitionSettings.releaseOffsetS ?? 0
+    : 0;
+  const analysisSamples = record.samples.filter((sample) => sample.timeS >= analysisStartTimeS);
+  const analysisStartSampleIndex = analysisSamples[0]?.sampleIndex
+    ?? record.samples.at(-1)?.sampleIndex
+    ?? 0;
+  const expectedHalfPeriodSamples = getExpectedPistonOscillationHalfPeriodSamples(record);
+  const maximumWindow = Math.max(1, Math.floor(analysisSamples.length / 5));
+  const smoothingWindowSamples = Math.max(1, Math.min(
+    maximumWindow,
+    Math.round(expectedHalfPeriodSamples * 0.18),
+  ));
+  const pressureResolutionKpa = record.sensorObservationSnapshot.pressureResolutionKpa
+    || PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA;
+  const noiseFloorKpa = estimatePistonOscillationNoiseFloorKpa(
+    analysisSamples,
+    pressureResolutionKpa,
+  );
+  const pressureValues = analysisSamples.map((sample) => sample.absolutePressureKpa);
+  const pressureRangeKpa = Math.max(
+    0,
+    getSortedQuantile(pressureValues, 0.95) - getSortedQuantile(pressureValues, 0.05),
+  );
+  const minimumPrimaryExcursionKpa = Math.max(
+    pressureResolutionKpa * 6,
+    noiseFloorKpa * 4,
+    pressureRangeKpa * 0.08,
+  );
+  const createReport = (
+    status: PistonOscillationPrimaryCycleEligibilityStatus,
+    reason: PistonOscillationPrimaryCycleEligibilityReason,
+    primaryExtrema: PistonOscillationExtremum[] = [],
+  ): PistonOscillationPrimaryCycleEligibilityReport => ({
+    schemaVersion: 1,
+    algorithmVersion: PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION,
+    rawMeasurementRecordId: record.recordId,
+    status,
+    reason,
+    analysisStartSampleIndex,
+    analysisSampleCount: analysisSamples.length,
+    expectedHalfPeriodSamples,
+    smoothingWindowSamples,
+    pressureRangeKpa,
+    estimatedNoiseFloorKpa: noiseFloorKpa,
+    minimumPrimaryExcursionKpa,
+    primaryPeriodCount: Math.max(0, (primaryExtrema.length - 1) / 2),
+    primaryExtrema,
+  });
+  if (immediateReleaseNotObserved) {
+    return createReport('unusable', 'release-not-observed');
+  }
+  if (analysisSamples.length < Math.max(4, Math.floor(expectedHalfPeriodSamples * 0.25))) {
+    return createReport('unusable', 'insufficient-post-release-samples');
+  }
+  if (pressureRangeKpa < minimumPrimaryExcursionKpa) {
+    return createReport('unusable', 'insufficient-primary-excursion');
+  }
+  const coarsePressure = smoothPistonOscillationPressure(
+    pressureValues,
+    smoothingWindowSamples,
+  );
+  const slopeEpsilonKpa = Math.max(
+    Number.EPSILON,
+    pressureResolutionKpa / Math.max(2, smoothingWindowSamples * 3),
+  );
+  const coarseCandidates = findSmoothedPistonOscillationExtrema(
+    coarsePressure,
+    slopeEpsilonKpa,
+    pressureValues,
+  );
+  const primaryExtrema = selectPrimaryPistonOscillationExtrema(
+    coarseCandidates,
+    analysisSamples,
+    expectedHalfPeriodSamples,
+    minimumPrimaryExcursionKpa,
+  );
+  if (primaryExtrema.length >= 2) {
+    return createReport('usable', 'primary-half-cycle-found', primaryExtrema);
+  }
+  const mediumWindowSamples = Math.max(1, Math.floor(smoothingWindowSamples / 2));
+  const mediumCandidates = findSmoothedPistonOscillationExtrema(
+    smoothPistonOscillationPressure(pressureValues, mediumWindowSamples),
+    slopeEpsilonKpa,
+    pressureValues,
+  );
+  const mediumExtrema = selectPrimaryPistonOscillationExtrema(
+    mediumCandidates,
+    analysisSamples,
+    expectedHalfPeriodSamples,
+    minimumPrimaryExcursionKpa,
+  );
+  if (mediumExtrema.length >= 2) {
+    return createReport('indeterminate', 'ambiguous-multiscale-extrema', mediumExtrema);
+  }
+  return createReport('unusable', 'insufficient-primary-extrema');
+};
+
+export const findPistonOscillationPrimaryExtrema = (
+  record: PistonOscillationRawMeasurementRecord,
+) => analyzePistonOscillationPrimaryCycleEligibility(record).primaryExtrema;
+
 const getSelectionPeriodCount = (
   leftEndpoint: PistonOscillationExtremum,
   rightEndpoint: PistonOscillationExtremum,
@@ -1602,6 +2065,7 @@ export const createPistonOscillationPeriodSelection = (
   minimumPeriodCount: number,
   nowMs: number,
   freeMinimumPeriodCount: number = PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT,
+  extremaMode: 'observed' | 'primary' = 'observed',
 ): PistonOscillationPeriodSelection => {
   const recordingEndS = record.samples.at(-1)?.timeS
     ?? record.acquisitionSettings.recordedDurationS;
@@ -1613,7 +2077,9 @@ export const createPistonOscillationPeriodSelection = (
     rangeStartTimeS,
     Math.min(recordingEndS, Math.max(rawRangeStartTimeS, rawRangeEndTimeS)),
   );
-  const extrema = findPistonOscillationExtrema(record.samples).filter((extremum) => (
+  const extrema = (extremaMode === 'primary'
+    ? findPistonOscillationPrimaryExtrema(record)
+    : findPistonOscillationExtrema(record.samples)).filter((extremum) => (
     extremum.timeS >= rangeStartTimeS && extremum.timeS <= rangeEndTimeS
   ));
   const leftEndpoint = extrema[0] ?? null;
@@ -1627,7 +2093,9 @@ export const createPistonOscillationPeriodSelection = (
       ? 'below-guided-minimum' as const
       : null;
   return {
-    algorithmVersion: PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION,
+    algorithmVersion: extremaMode === 'primary'
+      ? PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION
+      : PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION,
     rangeStartTimeS,
     rangeEndTimeS,
     extrema,
@@ -1638,6 +2106,21 @@ export const createPistonOscillationPeriodSelection = (
     selectedAtMs: nowMs,
   };
 };
+
+export const createPistonOscillationFreePeriodSelection = (
+  record: PistonOscillationRawMeasurementRecord,
+  rawRangeStartTimeS: number,
+  rawRangeEndTimeS: number,
+  nowMs: number,
+) => createPistonOscillationPeriodSelection(
+  record,
+  rawRangeStartTimeS,
+  rawRangeEndTimeS,
+  PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT,
+  nowMs,
+  PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT,
+  'primary',
+);
 
 const createAnswer = (): PistonOscillationPeriodAnswerState => ({
   draftRaw: '',
@@ -1650,11 +2133,13 @@ const createAnswer = (): PistonOscillationPeriodAnswerState => ({
 });
 
 export const createPistonOscillationProcessingPolicySnapshot = (
+  answerValidationMode: PistonOscillationAnswerValidationMode = 'stepwise',
 ): PistonOscillationProcessingPolicySnapshot => ({
-  schemaVersion: 1,
+  schemaVersion: 2,
   policyVersion: PISTON_OSCILLATION_PROCESSING_POLICY_VERSION,
   guidedMinimumPeriodCount: PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   freeMinimumPeriodCount: PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT,
+  answerValidationMode,
 });
 
 const createRun = (
@@ -1670,6 +2155,7 @@ const createRun = (
     t2: createAnswer(),
     period: createAnswer(),
   },
+  batchAttempts: [],
   result: null,
 });
 
@@ -1691,29 +2177,38 @@ export const createPistonOscillationCalculationSession = (
   const knowns = createPistonOscillationCalculationKnownsSnapshot(records);
   const areaM2 = Math.PI * knowns.cylinderDiameterM ** 2 / 4;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: 'selecting-points',
     knowns,
     selectedRunIndices: [],
     activeFieldId: null,
+    visibleFieldIds: [],
     answers: {
       area: createCalculationAnswer(areaM2),
       gamma: createCalculationAnswer(),
       relativeError: createCalculationAnswer(),
     },
+    batchAttempts: [],
     startedAtMs: nowMs,
     completedAtMs: null,
   };
 };
 
+export interface CreatePistonOscillationDataProcessingSessionOptions {
+  answerValidationMode?: PistonOscillationAnswerValidationMode;
+}
+
 export const createPistonOscillationDataProcessingSession = (
   records: readonly PistonOscillationRawMeasurementRecord[],
   nowMs: number,
+  options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession => {
   requireConsistentPistonOscillationAirMaterialSnapshot(records);
   return {
     schemaVersion: PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION,
-    processingPolicy: createPistonOscillationProcessingPolicySnapshot(),
+    processingPolicy: createPistonOscillationProcessingPolicySnapshot(
+      options.answerValidationMode,
+    ),
     status: 'period-processing',
     activeRunIndex: 0,
     runs: [...records]
@@ -1774,6 +2269,7 @@ export const clearPistonOscillationPeriodSelection = (
         t2: createAnswer(),
         period: createAnswer(),
       },
+      batchAttempts: [],
     })),
     updatedAtMs: nowMs,
   };
@@ -1787,6 +2283,7 @@ const selectPistonOscillationPeriodRangeWithMinimum = (
   rangeEndTimeS: number,
   minimumPeriodCount: number,
   nowMs: number,
+  extremaMode: 'observed' | 'primary' = 'observed',
 ): PistonOscillationDataProcessingSession => {
   const run = session.runs[runIndex];
   const record = run
@@ -1808,6 +2305,7 @@ const selectPistonOscillationPeriodRangeWithMinimum = (
     minimumPeriodCount,
     nowMs,
     session.processingPolicy.freeMinimumPeriodCount,
+    extremaMode,
   );
   const t1 = createAnswer();
   const t2 = createAnswer();
@@ -1823,6 +2321,7 @@ const selectPistonOscillationPeriodRangeWithMinimum = (
       t2,
       period: createAnswer(),
     },
+    batchAttempts: [],
     result: null,
   }));
   return {
@@ -1858,6 +2357,7 @@ export const selectPistonOscillationPeriodRange = (
   rangeEndTimeS,
   session.processingPolicy.guidedMinimumPeriodCount,
   nowMs,
+  'observed',
 );
 
 export const selectPistonOscillationFreePeriodRange = (
@@ -1875,6 +2375,7 @@ export const selectPistonOscillationFreePeriodRange = (
   rangeEndTimeS,
   session.processingPolicy.freeMinimumPeriodCount,
   nowMs,
+  'primary',
 );
 
 export const updatePistonOscillationPeriodAnswerDraft = (
@@ -2243,6 +2744,284 @@ export const submitPistonOscillationPeriod = (
   };
 };
 
+const PERIOD_BATCH_FIELD_ORDER: readonly PistonOscillationPeriodAnswerField[] = [
+  't1',
+  't2',
+  'period',
+];
+
+const getPistonOscillationPeriodAnswerSpec = (
+  field: PistonOscillationPeriodAnswerField,
+) => field === 'period'
+  ? PISTON_OSCILLATION_PERIOD_ANSWER_SPEC
+  : PISTON_OSCILLATION_ENDPOINT_TIME_ANSWER_SPEC;
+
+export const getInvalidPistonOscillationPeriodBatchFields = (
+  run: PistonOscillationPeriodRunState,
+) => PERIOD_BATCH_FIELD_ORDER.filter((field) => (
+  parseNumericAnswerInput(run.answers[field].draftRaw).status !== 'valid'
+));
+
+export const revealPistonOscillationFreePeriodEntry = (
+  session: PistonOscillationDataProcessingSession,
+  runIndex: number,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const run = session.runs[runIndex];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'period-processing'
+    || runIndex !== session.activeRunIndex
+    || !run
+    || run.selection?.issue !== null
+    || !run.selection?.leftEndpoint
+    || !run.selection.rightEndpoint
+    || run.result !== null
+    || run.answers.period.expectedValue !== null
+    || run.answers.t1.draftRaw.trim().length === 0
+    || run.answers.t2.draftRaw.trim().length === 0
+  ) return session;
+  const expectedValue = calculatePistonOscillationPeriodFromSelection(
+    run.selection,
+    run.sampleRateHz,
+  );
+  if (expectedValue === null) return session;
+  return {
+    ...replaceRun(session, runIndex, (current) => ({
+      ...current,
+      answers: {
+        ...current.answers,
+        period: {
+          ...current.answers.period,
+          expectedValue,
+        },
+      },
+    })),
+    audit: appendAudit(session, 'period-entry-revealed', runIndex, nowMs, {
+      t1DraftRaw: run.answers.t1.draftRaw,
+      t2DraftRaw: run.answers.t2.draftRaw,
+    }),
+    updatedAtMs: nowMs,
+  };
+};
+
+const createBatchFieldAttemptSnapshot = (
+  answer: PistonOscillationPeriodAnswerState | PistonOscillationCalculationAnswerState,
+  spec: NumericAnswerSpec,
+  attemptIndex: number,
+  nowMs: number,
+): PistonOscillationAnswerAttemptSnapshot => {
+  if (answer.expectedValue === null) {
+    return {
+      attemptIndex,
+      attemptedAtMs: nowMs,
+      draftRaw: answer.draftRaw,
+      inputKnown: true,
+      parsedValue: null,
+      outcome: 'unknown',
+      numericCorrect: null,
+      precisionCorrect: null,
+    };
+  }
+  const validation = validateNumericAnswer(answer.draftRaw, answer.expectedValue, spec);
+  const feedback = getFeedback(validation);
+  return {
+    attemptIndex,
+    attemptedAtMs: nowMs,
+    draftRaw: answer.draftRaw,
+    inputKnown: true,
+    parsedValue: validation.parseResult.status === 'valid'
+      ? validation.parseResult.parsed.value
+      : null,
+    outcome: validation.correct ? 'correct' : feedback?.outcome ?? 'wrong',
+    numericCorrect: validation.numericCorrect,
+    precisionCorrect: validation.precisionCorrect,
+  };
+};
+
+export const continuePistonOscillationFreePeriodBatch = (
+  session: PistonOscillationDataProcessingSession,
+  runIndex: number,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const run = session.runs[runIndex];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'period-processing'
+    || runIndex !== session.activeRunIndex
+    || !run
+    || !PERIOD_BATCH_FIELD_ORDER.some((field) => (
+      run.answers[field].status === 'unresolved'
+      && run.answers[field].feedback !== null
+    ))
+  ) return session;
+  return {
+    ...replaceRun(session, runIndex, (current) => ({
+      ...current,
+      answers: Object.fromEntries(PERIOD_BATCH_FIELD_ORDER.map((field) => [
+        field,
+        current.answers[field].status === 'unresolved'
+          ? { ...current.answers[field], feedback: null }
+          : current.answers[field],
+      ])) as PistonOscillationPeriodRunState['answers'],
+    })),
+    updatedAtMs: nowMs,
+  };
+};
+
+export const submitPistonOscillationFreePeriodBatch = (
+  session: PistonOscillationDataProcessingSession,
+  runIndex: number,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const run = session.runs[runIndex];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'period-processing'
+    || runIndex !== session.activeRunIndex
+    || !run
+    || run.selection?.issue !== null
+    || run.answers.period.expectedValue === null
+    || run.result !== null
+    || getInvalidPistonOscillationPeriodBatchFields(run).length > 0
+    || PERIOD_BATCH_FIELD_ORDER.some((field) => run.answers[field].feedback !== null)
+  ) return session;
+  const attemptIndex = run.batchAttempts.length + 1;
+  const fieldSnapshots = Object.fromEntries(PERIOD_BATCH_FIELD_ORDER.map((field) => [
+    field,
+    createBatchFieldAttemptSnapshot(
+      run.answers[field],
+      getPistonOscillationPeriodAnswerSpec(field),
+      attemptIndex,
+      nowMs,
+    ),
+  ])) as PistonOscillationPeriodBatchAttemptSnapshot['fields'];
+  const answers = Object.fromEntries(PERIOD_BATCH_FIELD_ORDER.map((field) => {
+    const current = run.answers[field];
+    if (current.status !== 'unresolved') return [field, current];
+    return [
+      field,
+      submitAnswer(current, getPistonOscillationPeriodAnswerSpec(field), nowMs).answer,
+    ];
+  })) as PistonOscillationPeriodRunState['answers'];
+  let nextRun: PistonOscillationPeriodRunState = {
+    ...run,
+    answers,
+    batchAttempts: [
+      ...run.batchAttempts,
+      {
+        attemptIndex,
+        attemptedAtMs: nowMs,
+        fields: fieldSnapshots,
+        allCorrect: PERIOD_BATCH_FIELD_ORDER.every((field) => (
+          fieldSnapshots[field].outcome === 'correct'
+        )),
+      },
+    ],
+  };
+  const allResolved = PERIOD_BATCH_FIELD_ORDER.every((field) => (
+    nextRun.answers[field].status !== 'unresolved'
+  ));
+  if (allResolved) nextRun = { ...nextRun, result: createPeriodResult(nextRun, nowMs) };
+  const next = replaceRun(session, runIndex, () => nextRun);
+  const audit = appendAudit(session, 'period-batch-submitted', runIndex, nowMs, {
+    attemptIndex,
+    t1Outcome: fieldSnapshots.t1.outcome,
+    t2Outcome: fieldSnapshots.t2.outcome,
+    periodOutcome: fieldSnapshots.period.outcome,
+    allCorrect: allResolved,
+  });
+  return {
+    ...next,
+    updatedAtMs: nowMs,
+    audit: nextRun.result
+      ? [
+          ...audit,
+          {
+            id: `${nowMs}:${audit.length}:run-completed:${runIndex}`,
+            atMs: nowMs,
+            type: 'run-completed',
+            runIndex,
+            payload: {
+              periodS: nextRun.result.periodS,
+              periodSquaredS2: nextRun.result.periodSquaredS2,
+              revealed: false,
+              validationMode: 'batch',
+            },
+          },
+        ]
+      : audit,
+  };
+};
+
+export const revealPistonOscillationFreePeriodAnswer = (
+  session: PistonOscillationDataProcessingSession,
+  runIndex: number,
+  field: PistonOscillationPeriodAnswerField,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const run = session.runs[runIndex];
+  const currentAnswer = run?.answers[field];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'period-processing'
+    || runIndex !== session.activeRunIndex
+    || !run
+    || !currentAnswer
+    || currentAnswer.status !== 'unresolved'
+    || currentAnswer.feedback === null
+    || currentAnswer.expectedValue === null
+  ) return session;
+  let nextRun: PistonOscillationPeriodRunState = {
+    ...run,
+    answers: {
+      ...run.answers,
+      [field]: {
+        ...currentAnswer,
+        draftRaw: field === 'period'
+          ? formatPistonOscillationPeriod(currentAnswer.expectedValue)
+          : formatPistonOscillationEndpointTime(currentAnswer.expectedValue),
+        status: 'revealed',
+        feedback: null,
+        resolution: currentAnswer.attempts.some((attempt) => attempt.parsedValue !== null)
+          ? 'revealed-after-attempt'
+          : 'revealed-without-valid-attempt',
+      },
+    },
+  };
+  const allResolved = PERIOD_BATCH_FIELD_ORDER.every((candidate) => (
+    nextRun.answers[candidate].status !== 'unresolved'
+  ));
+  if (allResolved) nextRun = { ...nextRun, result: createPeriodResult(nextRun, nowMs) };
+  const next = replaceRun(session, runIndex, () => nextRun);
+  const audit = appendAudit(session, 'answer-revealed', runIndex, nowMs, {
+    field,
+    revealedDraftRaw: nextRun.answers[field].draftRaw,
+    validationMode: 'batch',
+  });
+  return {
+    ...next,
+    updatedAtMs: nowMs,
+    audit: nextRun.result
+      ? [
+          ...audit,
+          {
+            id: `${nowMs}:${audit.length}:run-completed:${runIndex}`,
+            atMs: nowMs,
+            type: 'run-completed',
+            runIndex,
+            payload: {
+              periodS: nextRun.result.periodS,
+              periodSquaredS2: nextRun.result.periodSquaredS2,
+              revealed: true,
+              validationMode: 'batch',
+            },
+          },
+        ]
+      : audit,
+  };
+};
+
 export const advancePistonOscillationPeriodRun = (
   session: PistonOscillationDataProcessingSession,
   nowMs: number,
@@ -2303,6 +3082,7 @@ export const reopenPreviousPistonOscillationPeriodRun = (
             t2: createAnswer(),
             period: createAnswer(),
           },
+          batchAttempts: [],
           result: null,
         }),
     linearFitResult: null,
@@ -2310,6 +3090,38 @@ export const reopenPreviousPistonOscillationPeriodRun = (
     audit: appendAudit(session, 'run-reopened', previousRunIndex, nowMs, {
       previousActiveRunIndex: session.activeRunIndex,
       archivedRunsJson,
+    }),
+    updatedAtMs: nowMs,
+  };
+};
+
+export const replacePistonOscillationProcessingMeasurement = (
+  session: PistonOscillationDataProcessingSession,
+  records: readonly PistonOscillationRawMeasurementRecord[],
+  runIndex: number,
+  replacement: PistonOscillationRawMeasurementRecord,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const existingRun = session.runs[runIndex];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'period-processing'
+    || runIndex !== session.activeRunIndex
+    || !existingRun
+    || replacement.measurementIndex !== existingRun.measurementIndex
+    || !records.some((record) => record.recordId === replacement.recordId)
+  ) return session;
+  const replacementRun = createRun(replacement);
+  return {
+    ...session,
+    runs: session.runs.map((run, index) => index === runIndex ? replacementRun : run),
+    activeRunIndex: runIndex,
+    linearFitResult: null,
+    calculationSession: null,
+    audit: appendAudit(session, 'measurement-replaced', runIndex, nowMs, {
+      previousRecordId: existingRun.rawMeasurementRecordId,
+      replacementRecordId: replacement.recordId,
+      measurementIndex: replacement.measurementIndex,
     }),
     updatedAtMs: nowMs,
   };
@@ -2463,11 +3275,13 @@ export const submitPistonOscillationLinearFit = (
       status: 'calculating',
       selectedRunIndices,
       activeFieldId: 'area',
+      visibleFieldIds: ['area'],
       answers: {
         area: createCalculationAnswer(areaM2),
         gamma: createCalculationAnswer(gamma),
         relativeError: createCalculationAnswer(relativeErrorPercent),
       },
+      batchAttempts: [],
     },
     audit: appendAudit(session, 'fit-submitted', -1, nowMs, {
       selectedPointCount: selectedRunIndices.length,
@@ -2495,6 +3309,9 @@ const advanceCalculationField = (
     ...calculationSession,
     status: activeFieldId ? 'calculating' as const : 'ready-to-exit' as const,
     activeFieldId,
+    visibleFieldIds: activeFieldId
+      ? [...new Set([...calculationSession.visibleFieldIds, activeFieldId])]
+      : calculationSession.visibleFieldIds,
   };
 };
 
@@ -2672,6 +3489,242 @@ export const revealPistonOscillationCalculationAnswer = (
   };
 };
 
+export const getInvalidPistonOscillationCalculationBatchFields = (
+  calculationSession: PistonOscillationCalculationSessionSnapshot,
+) => CALCULATION_FIELD_ORDER.filter((fieldId) => (
+  parseNumericAnswerInput(calculationSession.answers[fieldId].draftRaw).status !== 'valid'
+));
+
+export const updatePistonOscillationFreeCalculationDraft = (
+  session: PistonOscillationDataProcessingSession,
+  fieldId: PistonOscillationCalculationFieldId,
+  draftRaw: string,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const calculationSession = session.calculationSession;
+  const answer = calculationSession?.answers[fieldId];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'calculation-ready'
+    || calculationSession?.status !== 'calculating'
+    || !calculationSession.visibleFieldIds.includes(fieldId)
+    || !answer
+    || answer.status !== 'unresolved'
+    || answer.feedback !== null
+  ) return session;
+  return {
+    ...session,
+    calculationSession: {
+      ...calculationSession,
+      answers: {
+        ...calculationSession.answers,
+        [fieldId]: { ...answer, draftRaw },
+      },
+    },
+    audit: appendAudit(session, 'calculation-answer-edited', -1, nowMs, {
+      fieldId,
+      draftRaw,
+      draftLength: draftRaw.length,
+      validationMode: 'batch',
+    }),
+    updatedAtMs: nowMs,
+  };
+};
+
+export const revealNextPistonOscillationFreeCalculationField = (
+  session: PistonOscillationDataProcessingSession,
+  currentFieldId: PistonOscillationCalculationFieldId,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const calculationSession = session.calculationSession;
+  const visibleFieldIds = calculationSession?.visibleFieldIds ?? [];
+  const currentVisibleIndex = visibleFieldIds.indexOf(currentFieldId);
+  const currentOrderIndex = CALCULATION_FIELD_ORDER.indexOf(currentFieldId);
+  const nextFieldId = CALCULATION_FIELD_ORDER[currentOrderIndex + 1] ?? null;
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'calculation-ready'
+    || calculationSession?.status !== 'calculating'
+    || currentVisibleIndex !== visibleFieldIds.length - 1
+    || calculationSession.answers[currentFieldId].draftRaw.trim().length === 0
+    || !nextFieldId
+  ) return session;
+  return {
+    ...session,
+    calculationSession: {
+      ...calculationSession,
+      activeFieldId: nextFieldId,
+      visibleFieldIds: [...visibleFieldIds, nextFieldId],
+    },
+    audit: appendAudit(session, 'calculation-field-revealed', -1, nowMs, {
+      currentFieldId,
+      nextFieldId,
+      currentDraftRaw: calculationSession.answers[currentFieldId].draftRaw,
+    }),
+    updatedAtMs: nowMs,
+  };
+};
+
+export const continuePistonOscillationFreeCalculationBatch = (
+  session: PistonOscillationDataProcessingSession,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const calculationSession = session.calculationSession;
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'calculation-ready'
+    || calculationSession?.status !== 'calculating'
+    || !CALCULATION_FIELD_ORDER.some((fieldId) => (
+      calculationSession.answers[fieldId].status === 'unresolved'
+      && calculationSession.answers[fieldId].feedback !== null
+    ))
+  ) return session;
+  return {
+    ...session,
+    calculationSession: {
+      ...calculationSession,
+      answers: Object.fromEntries(CALCULATION_FIELD_ORDER.map((fieldId) => [
+        fieldId,
+        calculationSession.answers[fieldId].status === 'unresolved'
+          ? { ...calculationSession.answers[fieldId], feedback: null }
+          : calculationSession.answers[fieldId],
+      ])) as PistonOscillationCalculationSessionSnapshot['answers'],
+    },
+    updatedAtMs: nowMs,
+  };
+};
+
+export const submitPistonOscillationFreeCalculationBatch = (
+  session: PistonOscillationDataProcessingSession,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const calculationSession = session.calculationSession;
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'calculation-ready'
+    || calculationSession?.status !== 'calculating'
+    || calculationSession.visibleFieldIds.length !== CALCULATION_FIELD_ORDER.length
+    || getInvalidPistonOscillationCalculationBatchFields(calculationSession).length > 0
+    || CALCULATION_FIELD_ORDER.some((fieldId) => (
+      calculationSession.answers[fieldId].feedback !== null
+    ))
+  ) return session;
+  const attemptIndex = calculationSession.batchAttempts.length + 1;
+  const fieldSnapshots = Object.fromEntries(CALCULATION_FIELD_ORDER.map((fieldId) => [
+    fieldId,
+    createBatchFieldAttemptSnapshot(
+      calculationSession.answers[fieldId],
+      PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS[fieldId],
+      attemptIndex,
+      nowMs,
+    ),
+  ])) as PistonOscillationCalculationBatchAttemptSnapshot['fields'];
+  const answers = Object.fromEntries(CALCULATION_FIELD_ORDER.map((fieldId) => {
+    const answer = calculationSession.answers[fieldId];
+    if (answer.status !== 'unresolved' || answer.expectedValue === null) {
+      return [fieldId, answer];
+    }
+    const validation = validateNumericAnswer(
+      answer.draftRaw,
+      answer.expectedValue,
+      PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS[fieldId],
+    );
+    const feedback = getFeedback(validation);
+    const attempt = fieldSnapshots[fieldId];
+    const attempts = [...answer.attempts, attempt];
+    return [fieldId, {
+      ...answer,
+      status: validation.correct ? 'correct' as const : 'unresolved' as const,
+      feedback,
+      attempts,
+      resolution: validation.correct
+        ? attempts.length === 1 ? 'first-correct' as const : 'retry-correct' as const
+        : null,
+    }];
+  })) as PistonOscillationCalculationSessionSnapshot['answers'];
+  const allResolved = CALCULATION_FIELD_ORDER.every((fieldId) => (
+    answers[fieldId].status !== 'unresolved'
+  ));
+  const nextCalculationSession: PistonOscillationCalculationSessionSnapshot = {
+    ...calculationSession,
+    status: allResolved ? 'ready-to-exit' : 'calculating',
+    activeFieldId: allResolved ? null : calculationSession.activeFieldId,
+    answers,
+    batchAttempts: [
+      ...calculationSession.batchAttempts,
+      {
+        attemptIndex,
+        attemptedAtMs: nowMs,
+        fields: fieldSnapshots,
+        allCorrect: CALCULATION_FIELD_ORDER.every((fieldId) => (
+          fieldSnapshots[fieldId].outcome === 'correct'
+        )),
+      },
+    ],
+  };
+  return {
+    ...session,
+    calculationSession: nextCalculationSession,
+    audit: appendAudit(session, 'calculation-batch-submitted', -1, nowMs, {
+      attemptIndex,
+      areaOutcome: fieldSnapshots.area.outcome,
+      gammaOutcome: fieldSnapshots.gamma.outcome,
+      relativeErrorOutcome: fieldSnapshots.relativeError.outcome,
+      allCorrect: allResolved,
+    }),
+    updatedAtMs: nowMs,
+  };
+};
+
+export const revealPistonOscillationFreeCalculationAnswer = (
+  session: PistonOscillationDataProcessingSession,
+  fieldId: PistonOscillationCalculationFieldId,
+  nowMs: number,
+): PistonOscillationDataProcessingSession => {
+  const calculationSession = session.calculationSession;
+  const answer = calculationSession?.answers[fieldId];
+  if (
+    session.processingPolicy.answerValidationMode !== 'batch'
+    || session.status !== 'calculation-ready'
+    || calculationSession?.status !== 'calculating'
+    || !calculationSession.visibleFieldIds.includes(fieldId)
+    || answer?.status !== 'unresolved'
+    || answer.feedback === null
+    || answer.expectedValue === null
+  ) return session;
+  const nextAnswer: PistonOscillationCalculationAnswerState = {
+    ...answer,
+    draftRaw: formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue),
+    status: 'revealed',
+    feedback: null,
+    resolution: answer.attempts.some((attempt) => attempt.parsedValue !== null)
+      ? 'revealed-after-attempt'
+      : 'revealed-without-valid-attempt',
+  };
+  const answers = {
+    ...calculationSession.answers,
+    [fieldId]: nextAnswer,
+  };
+  const allResolved = CALCULATION_FIELD_ORDER.every((candidate) => (
+    answers[candidate].status !== 'unresolved'
+  ));
+  return {
+    ...session,
+    calculationSession: {
+      ...calculationSession,
+      status: allResolved ? 'ready-to-exit' : 'calculating',
+      activeFieldId: allResolved ? null : calculationSession.activeFieldId,
+      answers,
+    },
+    audit: appendAudit(session, 'calculation-answer-revealed', -1, nowMs, {
+      fieldId,
+      revealedDraftRaw: nextAnswer.draftRaw,
+      validationMode: 'batch',
+    }),
+    updatedAtMs: nowMs,
+  };
+};
+
 export const completePistonOscillationCalculation = (
   session: PistonOscillationDataProcessingSession,
   nowMs: number,
@@ -2759,6 +3812,59 @@ const normalizeStoredAnswerAttempts = (
   }));
 };
 
+const normalizeStoredBatchFieldAttempt = (
+  value: unknown,
+): PistonOscillationAnswerAttemptSnapshot | null => (
+  normalizeStoredAnswerAttempts([value], 0)[0] ?? null
+);
+
+const normalizeStoredPeriodBatchAttempts = (
+  value: unknown,
+): PistonOscillationPeriodBatchAttemptSnapshot[] => Array.isArray(value)
+  ? value.flatMap((attempt, index) => {
+      if (!isPlainRecord(attempt) || !isPlainRecord(attempt.fields)) return [];
+      const t1 = normalizeStoredBatchFieldAttempt(attempt.fields.t1);
+      const t2 = normalizeStoredBatchFieldAttempt(attempt.fields.t2);
+      const period = normalizeStoredBatchFieldAttempt(attempt.fields.period);
+      if (!t1 || !t2 || !period || !isFiniteNumber(attempt.attemptedAtMs)) return [];
+      return [{
+        attemptIndex: Number.isSafeInteger(attempt.attemptIndex)
+          && (attempt.attemptIndex as number) > 0
+          ? attempt.attemptIndex as number
+          : index + 1,
+        attemptedAtMs: attempt.attemptedAtMs,
+        fields: { t1, t2, period },
+        allCorrect: attempt.allCorrect === true,
+      } satisfies PistonOscillationPeriodBatchAttemptSnapshot];
+    })
+  : [];
+
+const normalizeStoredCalculationBatchAttempts = (
+  value: unknown,
+): PistonOscillationCalculationBatchAttemptSnapshot[] => Array.isArray(value)
+  ? value.flatMap((attempt, index) => {
+      if (!isPlainRecord(attempt) || !isPlainRecord(attempt.fields)) return [];
+      const area = normalizeStoredBatchFieldAttempt(attempt.fields.area);
+      const gamma = normalizeStoredBatchFieldAttempt(attempt.fields.gamma);
+      const relativeError = normalizeStoredBatchFieldAttempt(attempt.fields.relativeError);
+      if (
+        !area
+        || !gamma
+        || !relativeError
+        || !isFiniteNumber(attempt.attemptedAtMs)
+      ) return [];
+      return [{
+        attemptIndex: Number.isSafeInteger(attempt.attemptIndex)
+          && (attempt.attemptIndex as number) > 0
+          ? attempt.attemptIndex as number
+          : index + 1,
+        attemptedAtMs: attempt.attemptedAtMs,
+        fields: { area, gamma, relativeError },
+        allCorrect: attempt.allCorrect === true,
+      } satisfies PistonOscillationCalculationBatchAttemptSnapshot];
+    })
+  : [];
+
 const resolveStoredAnswerResolution = (
   status: PistonOscillationPeriodAnswerStatus,
   attempts: readonly PistonOscillationAnswerAttemptSnapshot[],
@@ -2830,22 +3936,30 @@ const normalizeAnswer = (
 
 const normalizePistonOscillationProcessingPolicy = (
   value: unknown,
+  answerValidationMode?: PistonOscillationAnswerValidationMode,
 ): PistonOscillationProcessingPolicySnapshot => {
-  const fallback = createPistonOscillationProcessingPolicySnapshot();
+  const fallback = createPistonOscillationProcessingPolicySnapshot(answerValidationMode);
+  const compatiblePolicyVersion = isPlainRecord(value)
+    && (
+      value.policyVersion === PISTON_OSCILLATION_PROCESSING_POLICY_VERSION
+      || value.policyVersion === 'piston-oscillation-processing-policy-v1'
+    );
   if (
     !isPlainRecord(value)
-    || value.schemaVersion !== 1
-    || value.policyVersion !== PISTON_OSCILLATION_PROCESSING_POLICY_VERSION
+    || (value.schemaVersion !== 1 && value.schemaVersion !== 2)
+    || !compatiblePolicyVersion
     || !isFiniteNumber(value.guidedMinimumPeriodCount)
     || !isFiniteNumber(value.freeMinimumPeriodCount)
     || value.freeMinimumPeriodCount < PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT
     || value.guidedMinimumPeriodCount < value.freeMinimumPeriodCount
   ) return fallback;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     policyVersion: PISTON_OSCILLATION_PROCESSING_POLICY_VERSION,
     guidedMinimumPeriodCount: value.guidedMinimumPeriodCount,
     freeMinimumPeriodCount: value.freeMinimumPeriodCount,
+    answerValidationMode: answerValidationMode
+      ?? (value.answerValidationMode === 'batch' ? 'batch' : 'stepwise'),
   };
 };
 
@@ -2857,13 +3971,20 @@ const restoreSelection = (
 ): PistonOscillationPeriodSelection | null => {
   if (
     !isPlainRecord(value)
-    || !isCompatiblePersistedVersion(
-      value.algorithmVersion,
-      PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION,
+    || (
+      !isCompatiblePersistedVersion(
+        value.algorithmVersion,
+        PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION,
+      )
+      && value.algorithmVersion !== PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION
     )
     || !isFiniteNumber(value.rangeStartTimeS)
     || !isFiniteNumber(value.rangeEndTimeS)
   ) return null;
+  const persistedExtremaMode = value.algorithmVersion
+    === PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION
+    ? 'primary' as const
+    : 'observed' as const;
   const regenerated = createPistonOscillationPeriodSelection(
     record,
     value.rangeStartTimeS,
@@ -2871,6 +3992,7 @@ const restoreSelection = (
     processingPolicy.guidedMinimumPeriodCount,
     isFiniteNumber(value.selectedAtMs) ? value.selectedAtMs : nowMs,
     processingPolicy.freeMinimumPeriodCount,
+    persistedExtremaMode,
   );
   const resolveEndpoint = (candidate: unknown) => {
     if (!isPlainRecord(candidate)) return null;
@@ -2889,11 +4011,12 @@ const restoreSelection = (
   const periodCount = getSelectionPeriodCount(leftEndpoint, rightEndpoint);
   const issue = periodCount < processingPolicy.freeMinimumPeriodCount
     ? 'insufficient-extrema' as const
-    : periodCount < processingPolicy.guidedMinimumPeriodCount
+    : processingPolicy.answerValidationMode === 'stepwise'
+      && periodCount < processingPolicy.guidedMinimumPeriodCount
       ? 'below-guided-minimum' as const
       : null;
   return {
-    algorithmVersion: PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION,
+    algorithmVersion: regenerated.algorithmVersion,
     rangeStartTimeS: regenerated.rangeStartTimeS,
     rangeEndTimeS: regenerated.rangeEndTimeS,
     extrema: regenerated.extrema,
@@ -3059,6 +4182,7 @@ const normalizeCalculationSession = (
   records: readonly PistonOscillationRawMeasurementRecord[],
   fitResult: PistonOscillationLinearFitResultSnapshot | null,
   nowMs: number,
+  answerValidationMode: PistonOscillationAnswerValidationMode,
 ): PistonOscillationCalculationSessionSnapshot => {
   const persisted = isPlainRecord(value) ? value : null;
   const fallback = createPistonOscillationCalculationSession(records, nowMs);
@@ -3099,10 +4223,10 @@ const normalizeCalculationSession = (
     relativeErrorPercent,
     'relativeError',
   );
-  if (area.status === 'unresolved') {
+  if (answerValidationMode === 'stepwise' && area.status === 'unresolved') {
     gammaAnswer = createCalculationAnswer(gamma);
     relativeError = createCalculationAnswer(relativeErrorPercent);
-  } else if (gammaAnswer.status === 'unresolved') {
+  } else if (answerValidationMode === 'stepwise' && gammaAnswer.status === 'unresolved') {
     relativeError = createCalculationAnswer(relativeErrorPercent);
   }
   const allResolved = area.status !== 'unresolved'
@@ -3116,8 +4240,33 @@ const normalizeCalculationSession = (
       : gammaAnswer.status === 'unresolved'
         ? 'gamma'
         : 'relativeError';
+  const persistedVisibleFieldIdsValue = persisted?.visibleFieldIds;
+  const persistedVisibleFieldIds = Array.isArray(persistedVisibleFieldIdsValue)
+    ? CALCULATION_FIELD_ORDER.filter((fieldId) => (
+        persistedVisibleFieldIdsValue.includes(fieldId)
+      ))
+    : [];
+  const activeFieldOrderIndex = persisted?.activeFieldId === 'area'
+    || persisted?.activeFieldId === 'gamma'
+    || persisted?.activeFieldId === 'relativeError'
+    ? CALCULATION_FIELD_ORDER.indexOf(persisted.activeFieldId)
+    : -1;
+  const inferredVisibleCount = Math.max(
+    1,
+    activeFieldOrderIndex + 1,
+    area.status !== 'unresolved' ? 2 : 1,
+    gammaAnswer.status !== 'unresolved' ? 3 : 1,
+    relativeError.status !== 'unresolved' ? 3 : 1,
+    gammaAnswer.draftRaw.length > 0 ? 2 : 1,
+    relativeError.draftRaw.length > 0 ? 3 : 1,
+  );
+  const visibleFieldIds = allResolved
+    ? [...CALCULATION_FIELD_ORDER]
+    : persistedVisibleFieldIds.length > 0
+      ? persistedVisibleFieldIds
+      : CALCULATION_FIELD_ORDER.slice(0, inferredVisibleCount);
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     status: persistedCompleted
       ? 'completed'
       : allResolved
@@ -3125,12 +4274,16 @@ const normalizeCalculationSession = (
         : 'calculating',
     knowns,
     selectedRunIndices: fitResult.selectedRunIndices,
-    activeFieldId,
+    activeFieldId: answerValidationMode === 'batch'
+      ? allResolved ? null : visibleFieldIds.at(-1) ?? 'area'
+      : activeFieldId,
+    visibleFieldIds,
     answers: {
       area,
       gamma: gammaAnswer,
       relativeError,
     },
+    batchAttempts: normalizeStoredCalculationBatchAttempts(persisted?.batchAttempts),
     startedAtMs: isFiniteNumber(persisted?.startedAtMs)
       ? persisted.startedAtMs
       : fallback.startedAtMs,
@@ -3144,13 +4297,15 @@ export const normalizePistonOscillationDataProcessingSession = (
   value: unknown,
   records: readonly PistonOscillationRawMeasurementRecord[],
   nowMs = Date.now(),
+  options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession | null => {
   if (records.length === 0) return null;
   if (!getConsistentPistonOscillationAirMaterialSnapshot(records)) return null;
-  const fallback = createPistonOscillationDataProcessingSession(records, nowMs);
+  const fallback = createPistonOscillationDataProcessingSession(records, nowMs, options);
   if (!isPlainRecord(value) || !Array.isArray(value.runs)) return fallback;
   const processingPolicy = normalizePistonOscillationProcessingPolicy(
     value.processingPolicy,
+    options.answerValidationMode,
   );
   const persistedRuns = value.runs;
   const restoredRuns = fallback.runs.map((fallbackRun) => {
@@ -3189,16 +4344,29 @@ export const normalizePistonOscillationDataProcessingSession = (
       PISTON_OSCILLATION_ENDPOINT_TIME_ANSWER_SPEC,
       formatPistonOscillationEndpointTime,
     );
-    const periodExpected = t1.status !== 'unresolved'
-      && t2.status !== 'unresolved'
-      && selection
+    const persistedAnswers = isPlainRecord(persisted.answers) ? persisted.answers : null;
+    const persistedPeriodAnswer = isPlainRecord(persistedAnswers?.period)
+      ? persistedAnswers.period
+      : null;
+    const batchPeriodWasRevealed = processingPolicy.answerValidationMode === 'batch'
+      && (
+        isFiniteNumber(persistedPeriodAnswer?.expectedValue)
+        || (typeof persistedPeriodAnswer?.draftRaw === 'string'
+          && persistedPeriodAnswer.draftRaw.length > 0)
+        || (Array.isArray(persisted.batchAttempts) && persisted.batchAttempts.length > 0)
+      );
+    const periodExpected = selection
+      && (
+        batchPeriodWasRevealed
+        || (t1.status !== 'unresolved' && t2.status !== 'unresolved')
+      )
       ? calculatePistonOscillationPeriodFromSelection(
           selection,
           record.acquisitionSettings.sampleRateHz,
         )
       : null;
     const period = normalizeAnswer(
-      isPlainRecord(persisted.answers) ? persisted.answers.period : null,
+      persistedPeriodAnswer,
       { ...createAnswer(), expectedValue: periodExpected },
       PISTON_OSCILLATION_PERIOD_ANSWER_SPEC,
       formatPistonOscillationPeriod,
@@ -3207,6 +4375,7 @@ export const normalizePistonOscillationDataProcessingSession = (
       ...fallbackRun,
       selection,
       answers: { t1, t2, period },
+      batchAttempts: normalizeStoredPeriodBatchAttempts(persisted.batchAttempts),
       result: null,
     };
     run = {
@@ -3234,6 +4403,7 @@ export const normalizePistonOscillationDataProcessingSession = (
         records,
         restoredLinearFitResult,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : nowMs,
+        processingPolicy.answerValidationMode,
       )
     : null;
   const calculationVersionUnsupported = allRunsCompleted

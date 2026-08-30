@@ -1,8 +1,13 @@
 import assert from 'node:assert/strict';
 import {
+  DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG,
+  PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION,
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
   PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_CONFIG_VERSION,
+  PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
   assertPistonOscillationSensorObservationSeries,
@@ -10,10 +15,12 @@ import {
   createPistonOscillationRecordedObservationSamples,
   createPistonOscillationDynamicSensorObservationSeries,
   createPistonOscillationIdealSensorReferenceSeries,
+  createPistonOscillationSensorSessionSeed,
   findPistonOscillationObservedFallingTriggerSample,
   formatPistonOscillationObservedPressureKpa,
   formatPistonOscillationObservedTimeS,
   getPistonOscillationObservedTimeS,
+  observePistonOscillationDynamicPressure,
   quantizePistonOscillationObservedPressureKpa,
   type PistonOscillationSensorObservationSeries,
 } from '../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
@@ -35,6 +42,36 @@ assert.equal(
   PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
   'piston-oscillation-sensor-observation-v1',
 );
+assert.equal(
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+  'piston-oscillation-sensor-observation-correlated-fluctuation-v3',
+);
+assert.equal(
+  PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
+  'piston-oscillation-sensor-candidate-config-v2',
+);
+assert.equal(
+  DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG
+    .correlatedFluctuationModelVersion,
+  PISTON_OSCILLATION_CORRELATED_FLUCTUATION_MODEL_VERSION,
+);
+assert.equal(
+  DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG.fastFluctuationTimeConstantS,
+  0.002,
+);
+assert.equal(
+  DEFAULT_PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG.slowFluctuationTimeConstantS,
+  0.018,
+);
+const firstSessionSeed = createPistonOscillationSensorSessionSeed();
+const secondSessionSeed = createPistonOscillationSensorSessionSeed();
+assert.ok(Number.isSafeInteger(firstSessionSeed));
+assert.ok(Number.isSafeInteger(secondSessionSeed));
+assert.notEqual(
+  firstSessionSeed,
+  secondSessionSeed,
+  'separate live sensor sessions must not reuse the immediately preceding seed',
+);
 
 const stepPhysicalSamples = Array.from({ length: 50 }, (_, sampleIndex) => ({
   pressurePa: sampleIndex < 10 ? 101_325 : 121_325,
@@ -46,6 +83,8 @@ const dynamicStep = createPistonOscillationDynamicSensorObservationSeries(
     config: {
       driftRatePaPerS: 0,
       driftWanderAmplitudePa: 0,
+      fastFluctuationStandardDeviationPa: 0,
+      slowFluctuationStandardDeviationPa: 0,
       noiseStandardDeviationPa: 0,
     },
   },
@@ -93,11 +132,116 @@ const repeatedDynamic = createPistonOscillationDynamicSensorObservationSeries(
     config: {
       driftRatePaPerS: 0,
       driftWanderAmplitudePa: 0,
+      fastFluctuationStandardDeviationPa: 0,
+      slowFluctuationStandardDeviationPa: 0,
       noiseStandardDeviationPa: 0,
     },
   },
 );
 assert.deepEqual(repeatedDynamic, dynamicStep, 'candidate observation noise must be deterministic');
+
+const getStandardDeviation = (values: readonly number[]) => {
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Math.sqrt(values.reduce(
+    (sum, value) => sum + (value - mean) ** 2,
+    0,
+  ) / values.length);
+};
+const getLagOneCorrelation = (values: readonly number[]) => {
+  const left = values.slice(0, -1);
+  const right = values.slice(1);
+  const leftMean = left.reduce((sum, value) => sum + value, 0) / left.length;
+  const rightMean = right.reduce((sum, value) => sum + value, 0) / right.length;
+  let covariance = 0;
+  let leftVariance = 0;
+  let rightVariance = 0;
+  for (let index = 0; index < left.length; index += 1) {
+    const leftDelta = (left[index] ?? 0) - leftMean;
+    const rightDelta = (right[index] ?? 0) - rightMean;
+    covariance += leftDelta * rightDelta;
+    leftVariance += leftDelta * leftDelta;
+    rightVariance += rightDelta * rightDelta;
+  }
+  return covariance / Math.sqrt(leftVariance * rightVariance);
+};
+
+let correlatedState: ReturnType<
+  typeof createInitialPistonOscillationDynamicSensorState
+> | null = null;
+const correlatedResidualPa: number[] = [];
+for (let sampleIndex = 0; sampleIndex < 4_000; sampleIndex += 1) {
+  const observation = observePistonOscillationDynamicPressure({
+    physicalPressurePa: 101_325,
+    state: correlatedState,
+    config: {
+      driftRatePaPerS: 0,
+      driftWanderAmplitudePa: 0,
+      noiseStandardDeviationPa: 0,
+      seed: 728_391,
+    },
+  });
+  correlatedState = observation.state;
+  correlatedResidualPa.push(
+    observation.components.fastFluctuationPa
+      + observation.components.slowFluctuationPa,
+  );
+}
+const settledCorrelatedResidualPa = correlatedResidualPa.slice(500);
+assert.ok(
+  getStandardDeviation(settledCorrelatedResidualPa) > 8,
+  'the two correlated components must create a visible but small pressure residual',
+);
+assert.ok(
+  getStandardDeviation(settledCorrelatedResidualPa) < 16,
+  'the candidate residual must stay near the intended pascal-scale envelope',
+);
+assert.ok(
+  getLagOneCorrelation(settledCorrelatedResidualPa) > 0.65,
+  'neighboring samples must remain correlated instead of becoming white-noise teeth',
+);
+const correlatedSeries = createPistonOscillationDynamicSensorObservationSeries(
+  Array.from({ length: 600 }, () => ({ pressurePa: 101_325 })),
+  1_000,
+  {
+    config: {
+      driftRatePaPerS: 0,
+      driftWanderAmplitudePa: 0,
+      seed: 728_391,
+    },
+  },
+);
+const repeatedCorrelatedSeries = createPistonOscillationDynamicSensorObservationSeries(
+  Array.from({ length: 600 }, () => ({ pressurePa: 101_325 })),
+  1_000,
+  {
+    config: {
+      driftRatePaPerS: 0,
+      driftWanderAmplitudePa: 0,
+      seed: 728_391,
+    },
+  },
+);
+const differentSeedSeries = createPistonOscillationDynamicSensorObservationSeries(
+  Array.from({ length: 600 }, () => ({ pressurePa: 101_325 })),
+  1_000,
+  {
+    config: {
+      driftRatePaPerS: 0,
+      driftWanderAmplitudePa: 0,
+      seed: 728_392,
+    },
+  },
+);
+assert.deepEqual(
+  repeatedCorrelatedSeries,
+  correlatedSeries,
+  'one saved seed must reproduce the exact correlated observation series',
+);
+assert.notDeepEqual(
+  differentSeedSeries.samples,
+  correlatedSeries.samples,
+  'a new experiment seed must produce a naturally different observation series',
+);
 
 assert.equal(getPistonOscillationObservedTimeS(0), 0);
 assert.equal(getPistonOscillationObservedTimeS(10), 0.01);
@@ -191,7 +335,7 @@ const dynamicRecord = createPistonOscillationRawMeasurementRecord({
   sensorObservationSnapshot: dynamicRecordArtifacts.sensorObservationSnapshot,
   physicsSnapshot: dynamicRecordArtifacts.physicsSnapshot,
 });
-assert.equal(dynamicRecord.sensorObservationSnapshot.schemaVersion, 2);
+assert.equal(dynamicRecord.sensorObservationSnapshot.schemaVersion, 3);
 assert.equal(
   dynamicRecord.sensorObservationSnapshot.modelVersion,
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
@@ -204,6 +348,49 @@ assert.deepEqual(normalizedDynamicRecord?.samples, dynamicRecord.samples);
 assert.deepEqual(
   normalizedDynamicRecord?.sensorObservationSnapshot.dynamicConfig,
   dynamicRecord.sensorObservationSnapshot.dynamicConfig,
+);
+
+const currentFinalSensorState = dynamicRecord.sensorObservationSnapshot.finalDynamicState;
+assert.ok(currentFinalSensorState);
+const legacyDynamicRecord = {
+  ...structuredClone(dynamicRecord),
+  sensorObservationSnapshot: {
+    ...structuredClone(dynamicRecord.sensorObservationSnapshot),
+    schemaVersion: 2,
+    modelVersion: PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+    dynamicConfig: {
+      modelVersion: PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_CONFIG_VERSION,
+      responseTimeConstantS: 0.003,
+      driftRatePaPerS: 0.2,
+      driftWanderAmplitudePa: 8,
+      driftWanderPeriodS: 180,
+      noiseStandardDeviationPa: 4,
+      seed: 1_597_334_677,
+      provenance: 'educational-candidate',
+    },
+    initialDynamicState: null,
+    finalDynamicState: {
+      modelVersion:
+        PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+      filteredPressurePa: currentFinalSensorState!.filteredPressurePa,
+      sessionElapsedS: currentFinalSensorState!.sessionElapsedS,
+      nextNoiseSampleIndex: currentFinalSensorState!.nextNoiseSampleIndex,
+    },
+  },
+};
+const normalizedLegacyDynamicRecord = normalizePistonOscillationRawMeasurementRecord(
+  legacyDynamicRecord,
+);
+assert.ok(normalizedLegacyDynamicRecord, 'existing v2 sensor records must remain readable');
+assert.equal(normalizedLegacyDynamicRecord?.sensorObservationSnapshot.schemaVersion, 2);
+assert.equal(
+  normalizedLegacyDynamicRecord?.sensorObservationSnapshot.modelVersion,
+  PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+);
+assert.deepEqual(
+  normalizedLegacyDynamicRecord?.samples,
+  dynamicRecord.samples,
+  'upgrading the app must not regenerate or reinterpret saved v2 samples',
 );
 
 const freshSeamState = createInitialPistonOscillationDynamicSensorState(101_000);

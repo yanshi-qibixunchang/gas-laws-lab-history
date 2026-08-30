@@ -29,15 +29,36 @@ import {
   type PistonOscillationRawMeasurementRecord,
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
-import type {
-  PistonOscillationThermodynamicState,
+import {
+  PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
+  type PistonOscillationThermodynamicState,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+type MutableFiniteThermalSnapshot = {
+  modelVersion: string;
+  provenance: string;
+  heatTransferRateW?: number;
+  heatTransferLagTimeS?: number;
+};
+type MutablePersistedRecord = Record<string, unknown> & {
+  physicsSnapshot: {
+    modelVersion: string;
+    initialThermodynamicState: {
+      modelVersion: string;
+      thermal: MutableFiniteThermalSnapshot;
+    };
+    thermalModel: MutableFiniteThermalSnapshot;
+  };
+};
 import {
   PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
   PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
 import {
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND,
   PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 import {
   createPistonOscillationIncompletePressOperationEvidence,
@@ -104,7 +125,22 @@ assert.equal(
 );
 assert.equal(
   records[0].physicsSnapshot.equivalentLoss.modelVersion,
-  PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+);
+
+const baselineCapturedRecord = structuredClone(records[0]);
+baselineCapturedRecord.physicsSnapshot.config.linearDampingNsPerM =
+  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M;
+baselineCapturedRecord.physicsSnapshot.equivalentLoss = {
+  schemaVersion: 1,
+  modelVersion: PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_MODEL_VERSION,
+  kind: PISTON_OSCILLATION_TEMPORARY_EQUIVALENT_LOSS_KIND,
+  linearCoefficientNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+  provenance: 'captured',
+};
+assert.ok(
+  normalizePistonOscillationRawMeasurementRecord(baselineCapturedRecord),
+  'records captured with the prior 0.434 loss snapshot must remain readable',
 );
 
 const mismatchedAirMaterialRecords = structuredClone(records);
@@ -793,6 +829,30 @@ assert.ok(validCurrentRecord);
 assert.equal(validCurrentRecord.schemaVersion, 5);
 assert.equal(validCurrentRecord.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(validCurrentRecord.acquisitionSettings.releaseOffsetS, null);
+
+const legacyFiniteThermalRecord = structuredClone(records[0]) as unknown as MutablePersistedRecord;
+const legacyFiniteThermalPhysics = legacyFiniteThermalRecord.physicsSnapshot;
+legacyFiniteThermalPhysics.modelVersion =
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION;
+legacyFiniteThermalPhysics.initialThermodynamicState.modelVersion =
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION;
+for (const thermal of [
+  legacyFiniteThermalPhysics.initialThermodynamicState.thermal,
+  legacyFiniteThermalPhysics.thermalModel,
+]) {
+  thermal.modelVersion =
+    PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION;
+  thermal.provenance = 'identified-candidate';
+  delete thermal.heatTransferRateW;
+  delete thermal.heatTransferLagTimeS;
+}
+const restoredLegacyFiniteThermalRecord =
+  normalizePistonOscillationRawMeasurementRecord(legacyFiniteThermalRecord);
+assert.ok(restoredLegacyFiniteThermalRecord);
+assert.equal(
+  restoredLegacyFiniteThermalRecord.physicsSnapshot.modelVersion,
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
+);
 
 const releasedImmediatePhysics = {
   ...records[0].physicsSnapshot,

@@ -3,6 +3,7 @@ import {
   createDefaultPistonOscillationFreeSession,
   createPistonOscillationFreeExperimentPlan,
   getPistonOscillationFreeCurrentTargetHeightMm,
+  getPistonOscillationFreeRunPrimaryCycleEligibility,
   isValidPistonOscillationFreeCustomHeightMm,
   isPistonOscillationFreePlanComplete,
   isValidPistonOscillationFreeExperimentPlan,
@@ -55,6 +56,40 @@ const createMeasurement = (
     sampleRateHz,
     triggerThresholdKpa: 120,
     recordedDurationS,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
+    samples,
+    pressOperationEvidence: artifacts.pressOperationEvidence,
+    sensorObservationSnapshot: artifacts.sensorObservationSnapshot,
+    physicsSnapshot: artifacts.physicsSnapshot,
+  });
+};
+
+const createUnusableMeasurement = (
+  measurementIndex: number,
+  targetHeightMm: number,
+  capturedAtMs: number,
+): PistonOscillationRawMeasurementRecord => {
+  const sampleRateHz = 1000;
+  const samples = Array.from({ length: 12 }, (_, sampleIndex) => ({
+    sampleIndex,
+    timeS: sampleIndex / sampleRateHz,
+    absolutePressureKpa: 101.32,
+  }));
+  const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
+    lockedHeightMm: targetHeightMm,
+    sampleRateHz,
+    samples,
+  });
+  return createPistonOscillationRawMeasurementRecord({
+    recordId: `free-unusable-${measurementIndex}-${capturedAtMs}`,
+    capturedAtMs,
+    measurementIndex,
+    targetHeightMm,
+    confirmedHeightMm: artifacts.confirmedHeightMm,
+    sampleRateHz,
+    triggerThresholdKpa: 120,
+    recordedDurationS: samples.at(-1)!.timeS,
     recordingPath: 'falling-trigger',
     releaseOffsetS: null,
     samples,
@@ -335,6 +370,9 @@ assert.equal(collection.savedMeasurements.length, 3);
 assert.equal(collection.dataProcessing?.status, 'period-processing');
 assert.equal(collection.dataProcessing?.runs.length, 3);
 
+const deletedRecordId = collection.savedMeasurements.find((measurement) => (
+  measurement.measurementIndex === 1
+))!.recordId;
 collection = transitionPistonOscillationFreeSession(collection, {
   type: 'deleteMeasurement',
   measurementIndex: 1,
@@ -345,6 +383,7 @@ assert.equal(collection.savedMeasurements.length, 2);
 assert.equal(collection.dataProcessing, null);
 assert.equal(collection.excludedAttempts.at(-1)?.reason, 'deleted');
 assert.equal(collection.audit.at(-1)?.type, 'measurement-deleted');
+assert.equal(collection.primaryCycleEligibilityByRecordId[deletedRecordId], undefined);
 
 collection = transitionPistonOscillationFreeSession(collection, {
   type: 'saveMeasurement',
@@ -373,36 +412,157 @@ const resolveFreePeriodRunByReveal = (
   });
   assert.equal(next.dataProcessing?.runs[runIndex].selection?.issue, null);
   next = transitionPistonOscillationFreeSession(next, {
-    type: 'submitPeriodEndpoints',
+    type: 'editPeriodAnswer',
     runIndex,
+    field: 't1',
+    value: '-1',
     nowMs: nowMs + 1,
   });
   next = transitionPistonOscillationFreeSession(next, {
-    type: 'revealPeriodAnswer',
+    type: 'editPeriodAnswer',
     runIndex,
-    field: 't1',
+    field: 't2',
+    value: '-1',
     nowMs: nowMs + 2,
   });
   next = transitionPistonOscillationFreeSession(next, {
-    type: 'revealPeriodAnswer',
+    type: 'revealPeriodEntry',
     runIndex,
-    field: 't2',
     nowMs: nowMs + 3,
   });
   next = transitionPistonOscillationFreeSession(next, {
-    type: 'submitPeriod',
+    type: 'editPeriodAnswer',
     runIndex,
+    field: 'period',
+    value: '-1',
     nowMs: nowMs + 4,
   });
   next = transitionPistonOscillationFreeSession(next, {
-    type: 'revealPeriodAnswer',
+    type: 'submitPeriodBatch',
     runIndex,
-    field: 'period',
     nowMs: nowMs + 5,
   });
+  for (const [offset, field] of ['t1', 't2', 'period'].entries()) {
+    next = transitionPistonOscillationFreeSession(next, {
+      type: 'revealPeriodAnswer',
+      runIndex,
+      field: field as 't1' | 't2' | 'period',
+      nowMs: nowMs + 6 + offset,
+    });
+  }
   assert.ok(next.dataProcessing?.runs[runIndex].result);
   return next;
 };
+
+let reacquisition = transitionPistonOscillationFreeSession(baseline, {
+  type: 'start',
+  nowMs: 500,
+});
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'setPlan',
+  targetHeightsMm: [80, 70, 60],
+  nowMs: 501,
+});
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'setAcquisitionSetting',
+  field: 'sampleRateHz',
+  value: 1000,
+  nowMs: 502,
+});
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'setAcquisitionSetting',
+  field: 'triggerThresholdKpa',
+  value: 120,
+  nowMs: 503,
+});
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'setPower',
+  powerOn: true,
+  nowMs: 504,
+});
+for (const measurement of [
+  createMeasurement(0, 80, 510),
+  createUnusableMeasurement(1, 70, 511),
+  createMeasurement(2, 60, 512),
+]) {
+  reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+    type: 'saveMeasurement',
+    measurement,
+    nowMs: measurement.capturedAtMs,
+  });
+}
+reacquisition = resolveFreePeriodRunByReveal(reacquisition, 0, 520);
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'advancePeriodRun',
+  nowMs: 530,
+});
+assert.equal(
+  getPistonOscillationFreeRunPrimaryCycleEligibility(reacquisition, 1)?.status,
+  'unusable',
+);
+const firstRunResult = structuredClone(reacquisition.dataProcessing!.runs[0]!.result);
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'requestUnusableMeasurementRedo',
+  runIndex: 1,
+  nowMs: 531,
+});
+assert.equal(reacquisition.reacquisition?.measurementIndex, 1);
+assert.equal(reacquisition.measurementIndex, 1);
+assert.equal(reacquisition.powerOn, true);
+assert.equal(reacquisition.sampleRateHz, 1000);
+assert.equal(reacquisition.triggerThresholdKpa, 120);
+assert.equal(reacquisition.instrumentState.hoseState, 'disconnected');
+assert.equal(reacquisition.instrumentState.equilibriumHeightMm, 0);
+assert.equal(reacquisition.instrumentState.lockingScrewProgress, 0);
+assert.equal(reacquisition.excludedAttempts.at(-1)?.reason, 'insufficient-primary-period');
+assert.equal(reacquisition.excludedAttempts.at(-1)?.primaryCycleEligibility?.status, 'unusable');
+assert.deepEqual(reacquisition.dataProcessing?.runs[0]?.result, firstRunResult);
+const reacquisitionDeleteAttempt = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'deleteMeasurement',
+  measurementIndex: 1,
+  nowMs: 532,
+});
+assert.strictEqual(
+  reacquisitionDeleteAttempt,
+  reacquisition,
+  'the archived source record cannot be deleted while its replacement is in progress',
+);
+const restoredReacquisition = normalizePistonOscillationFreeSession(
+  JSON.parse(JSON.stringify(reacquisition)),
+);
+assert.equal(restoredReacquisition.reacquisition?.measurementIndex, 1);
+assert.deepEqual(restoredReacquisition.dataProcessing?.runs[0]?.result, firstRunResult);
+
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'saveMeasurement',
+  measurement: createUnusableMeasurement(1, 70, 540),
+  nowMs: 540,
+});
+assert.equal(reacquisition.reacquisition, null);
+assert.equal(reacquisition.dataProcessing?.activeRunIndex, 1);
+assert.equal(
+  getPistonOscillationFreeRunPrimaryCycleEligibility(reacquisition, 1)?.status,
+  'unusable',
+);
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'requestUnusableMeasurementRedo',
+  runIndex: 1,
+  nowMs: 541,
+});
+assert.equal(reacquisition.excludedAttempts.length, 2);
+reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
+  type: 'saveMeasurement',
+  measurement: createMeasurement(1, 70, 550),
+  nowMs: 550,
+});
+assert.equal(reacquisition.reacquisition, null);
+assert.equal(reacquisition.dataProcessing?.activeRunIndex, 1);
+assert.equal(
+  getPistonOscillationFreeRunPrimaryCycleEligibility(reacquisition, 1)?.status,
+  'usable',
+);
+assert.equal(reacquisition.savedMeasurements[1]?.recordId, 'free-1-550');
+assert.deepEqual(reacquisition.dataProcessing?.runs[0]?.result, firstRunResult);
 
 let automaticCalculation = collection;
 automaticCalculation = resolveFreePeriodRunByReveal(automaticCalculation, 0, 400);

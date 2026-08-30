@@ -1,5 +1,6 @@
 export const PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS = 1_000 / 30;
 export const PISTON_OSCILLATION_ACQUISITION_MAXIMUM_VISIBLE_ADVANCE_MS = 50;
+export const PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS = 300;
 
 export interface PistonOscillationAcquisitionDisplayClock {
   lastWallNowMs: number;
@@ -17,6 +18,8 @@ const assertFiniteNonNegative = (name: string, value: number) => {
  * The formal sensor series remains sampled at its configured rate. This clock
  * only limits how much of that already-computed series may become visible in a
  * single browser frame, so a long calculation cannot make the chart jump.
+ * A separate fixed presentation delay gives the operator time to pause at the
+ * exact sample frontier already visible on screen.
  */
 export const createPistonOscillationAcquisitionDisplayClock = (
   wallNowMs: number,
@@ -69,5 +72,6 @@ export const getPistonOscillationAcquisitionPresentedNowMs = (
 ) => Math.max(
   0,
   assertFiniteNonNegative('wallNowMs', wallNowMs)
-    - assertFiniteNonNegative('clock.accumulatedLagMs', clock.accumulatedLagMs),
+    - assertFiniteNonNegative('clock.accumulatedLagMs', clock.accumulatedLagMs)
+    - PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS,
 );

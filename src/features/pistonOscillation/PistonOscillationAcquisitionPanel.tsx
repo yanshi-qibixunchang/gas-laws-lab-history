@@ -41,6 +41,7 @@ import {
 } from './pistonOscillationAcquisitionConfig.ts';
 import {
   PISTON_OSCILLATION_ACQUISITION_DISPLAY_FRAME_INTERVAL_MS,
+  PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS,
   advancePistonOscillationAcquisitionDisplayClock,
   createPistonOscillationAcquisitionDisplayClock,
   getPistonOscillationAcquisitionPresentedNowMs,
@@ -182,6 +183,9 @@ const GRAPH_TOP = 24;
 const GRAPH_BOTTOM = 334;
 const GRAPH_MIN_PRESSURE_KPA = 96;
 const GRAPH_MAX_PRESSURE_KPA = 121;
+const FREE_GRAPH_MINIMUM_DOMAIN_SECONDS = 0.4;
+const GRAPH_SAMPLE_MARKER_TARGET_SPACING_PX = 1.5;
+const GRAPH_SAMPLE_MARKER_RADIUS_PX = 1.6;
 
 const DEFAULT_PRESSURE_GRAPH_DOMAIN: PressureGraphDomain = {
   minimumKpa: GRAPH_MIN_PRESSURE_KPA,
@@ -276,6 +280,28 @@ const pressureToY = (pressureKpa: number, domain: PressureGraphDomain) => {
   return GRAPH_BOTTOM - normalized * (GRAPH_BOTTOM - GRAPH_TOP);
 };
 
+const getPressureSampleMarkerStride = (
+  visibleSampleCount: number,
+  plotWidth: number,
+) => Math.max(1, Math.ceil(
+  visibleSampleCount
+  / (plotWidth / GRAPH_SAMPLE_MARKER_TARGET_SPACING_PX),
+));
+
+const getVisiblePressureSampleCount = (
+  samples: readonly PistonOscillationObservedSample[],
+  durationSeconds: number,
+) => {
+  let visibleSampleCount = 0;
+  while (
+    visibleSampleCount < samples.length
+    && samples[visibleSampleCount]!.timeS <= durationSeconds + 1e-12
+  ) {
+    visibleSampleCount += 1;
+  }
+  return visibleSampleCount;
+};
+
 const buildPressurePath = (
   samples: readonly PistonOscillationObservedSample[],
   durationSeconds: number,
@@ -305,15 +331,9 @@ const buildPressureSampleMarkerPath = (
   if (samples.length === 0) return '';
   const domainSeconds = Math.max(minimumDomainSeconds, durationSeconds);
   const plotWidth = Math.max(1, graphRight - GRAPH_LEFT);
-  let visibleSampleCount = 0;
-  while (
-    visibleSampleCount < samples.length
-    && samples[visibleSampleCount]!.timeS <= durationSeconds + 1e-12
-  ) {
-    visibleSampleCount += 1;
-  }
-  const markerStride = Math.max(1, Math.ceil(visibleSampleCount / (plotWidth / 3)));
-  const markerRadius = 1.8;
+  const visibleSampleCount = getVisiblePressureSampleCount(samples, durationSeconds);
+  const markerStride = getPressureSampleMarkerStride(visibleSampleCount, plotWidth);
+  const markerRadius = GRAPH_SAMPLE_MARKER_RADIUS_PX;
   const markers: string[] = [];
   for (let index = 0; index < visibleSampleCount; index += markerStride) {
     const sample = samples[index];
@@ -991,6 +1011,7 @@ PistonOscillationAcquisitionPanelProps
       (
         displayNowMs
         - displayClockLagMs
+        - PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS
         - cycleStartMs
         - guideAccumulatedPauseMsRef.current
         - (
@@ -1079,7 +1100,7 @@ PistonOscillationAcquisitionPanelProps
   const getCurrentRecordingElapsedSeconds = () => formalElapsedSeconds;
   const graphMinimumDomainSeconds = guideSelected || demoFrame
     ? PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
-    : 0.8;
+    : FREE_GRAPH_MINIMUM_DOMAIN_SECONDS;
   const displayedObservationSamples = useMemo<PistonOscillationObservedSample[]>(() => {
     if (restoredGuideMeasurement) return restoredGuideMeasurement.samples;
     if (restoredFreeCandidate) return restoredFreeCandidate.samples;
@@ -1427,24 +1448,28 @@ PistonOscillationAcquisitionPanelProps
     }
     context.stroke();
     const plotWidth = Math.max(1, graphRight - GRAPH_LEFT);
-    const markerStride = Math.max(
-      1,
-      Math.ceil(displayedObservationSamples.length / (plotWidth / 3)),
+    const visibleSampleCount = getVisiblePressureSampleCount(
+      displayedObservationSamples,
+      formalElapsedSeconds,
     );
+    const markerStride = getPressureSampleMarkerStride(
+      visibleSampleCount,
+      plotWidth,
+    );
+    context.beginPath();
     for (
       let sampleIndex = 0;
-      sampleIndex < displayedObservationSamples.length;
+      sampleIndex < visibleSampleCount;
       sampleIndex += markerStride
     ) {
       const sample = displayedObservationSamples[sampleIndex]!;
-      if (sample.timeS > formalElapsedSeconds + 1e-12) break;
       const x = GRAPH_LEFT
         + (sample.timeS / graphDomainSeconds) * (graphRight - GRAPH_LEFT);
       const y = pressureToY(sample.absolutePressureKpa, pressureGraphDomain);
-      context.beginPath();
-      context.arc(x, y, 1.8, 0, Math.PI * 2);
-      context.fill();
+      context.moveTo(x + GRAPH_SAMPLE_MARKER_RADIUS_PX, y);
+      context.arc(x, y, GRAPH_SAMPLE_MARKER_RADIUS_PX, 0, Math.PI * 2);
     }
+    context.fill();
     context.restore();
   }, [
     displayedObservationSamples,

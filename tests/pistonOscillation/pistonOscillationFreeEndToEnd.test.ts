@@ -3,7 +3,7 @@ import {
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
   createPistonOscillationSensorObservationSnapshot,
-  findPistonOscillationExtrema,
+  findPistonOscillationPrimaryExtrema,
   formatPistonOscillationCalculationAnswer,
   formatPistonOscillationEndpointTime,
   formatPistonOscillationPeriod,
@@ -51,6 +51,8 @@ const createCapturedMeasurement = (
   targetHeightMm: number,
 ) => {
   const sampleRateHz = 1_000;
+  const pressDisplacementMm = measurementIndex === 2 ? 14 : 12;
+  const pressVelocityMmPerS = -pressDisplacementMm / 0.08;
   const equilibrium = createPistonOscillationLoadedEquilibriumState(
     targetHeightMm,
     { sensorSampleRateHz: sampleRateHz },
@@ -65,9 +67,9 @@ const createCapturedMeasurement = (
     releaseState = advancePistonOscillationPrescribedThermodynamicState({
       referenceState: releaseState,
       pistonHeightMm: equilibrium.equilibriumHeightM * 1_000
-        - 12 * sampleIndex / 80,
+        - pressDisplacementMm * sampleIndex / 80,
       elapsedS: 1 / sampleRateHz,
-      velocityMmPerS: -150,
+      velocityMmPerS: pressVelocityMmPerS,
       physicsConfig: { sensorSampleRateHz: sampleRateHz },
     });
     pressPhysicalSamples.push({ pressurePa: releaseState.pressurePa });
@@ -78,8 +80,8 @@ const createCapturedMeasurement = (
   );
   const trajectory = simulatePistonOscillationThermalRelease({
     lockedHeightMm: targetHeightMm,
-    initialDisplacementMm: -12,
-    initialVelocityMmPerS: -150,
+    initialDisplacementMm: -pressDisplacementMm,
+    initialVelocityMmPerS: pressVelocityMmPerS,
     referenceThermodynamicState: releaseState,
   }, {
     sensorSampleRateHz: sampleRateHz,
@@ -131,8 +133,8 @@ const selectStableRange = (
   records: readonly PistonOscillationRawMeasurementRecord[],
   runIndex: number,
 ) => {
-  const extrema = findPistonOscillationExtrema(records[runIndex]!.samples);
-  assert.ok(extrema.length >= 9);
+  const extrema = findPistonOscillationPrimaryExtrema(records[runIndex]!);
+  assert.ok(extrema.length >= 7);
   const left = extrema[0]!;
   const right = extrema[6]!;
   return send(session, {
@@ -151,10 +153,15 @@ const resolveRunWithRecordedRetries = (
   let next = selectStableRange(session, records, runIndex);
   next = send(next, { type: 'editPeriodAnswer', runIndex, field: 't1', value: '9.999' });
   next = send(next, { type: 'editPeriodAnswer', runIndex, field: 't2', value: '9.999' });
-  next = send(next, { type: 'submitPeriodEndpoints', runIndex });
-  assert.equal(next.dataProcessing?.runs[runIndex].answers.t1.attempts.at(-1)?.draftRaw, '9.999');
-  next = send(next, { type: 'continuePeriodAnswer', runIndex, field: 't1' });
-  next = send(next, { type: 'continuePeriodAnswer', runIndex, field: 't2' });
+  next = send(next, { type: 'revealPeriodEntry', runIndex });
+  next = send(next, { type: 'editPeriodAnswer', runIndex, field: 'period', value: 'abc' });
+  next = send(next, { type: 'submitPeriodBatch', runIndex });
+  assert.equal(next.dataProcessing?.runs[runIndex].batchAttempts.length, 0);
+  next = send(next, { type: 'editPeriodAnswer', runIndex, field: 'period', value: '9.999' });
+  next = send(next, { type: 'submitPeriodBatch', runIndex });
+  assert.equal(next.dataProcessing?.runs[runIndex].batchAttempts.at(-1)?.fields.t1.draftRaw, '9.999');
+  assert.equal(next.dataProcessing?.runs[runIndex].batchAttempts.length, 1);
+  next = send(next, { type: 'continuePeriodBatch', runIndex });
   const t1 = next.dataProcessing!.runs[runIndex].answers.t1.expectedValue!;
   const t2 = next.dataProcessing!.runs[runIndex].answers.t2.expectedValue!;
   next = send(next, {
@@ -169,11 +176,6 @@ const resolveRunWithRecordedRetries = (
     field: 't2',
     value: formatPistonOscillationEndpointTime(t2),
   });
-  next = send(next, { type: 'submitPeriodEndpoints', runIndex });
-  next = send(next, { type: 'editPeriodAnswer', runIndex, field: 'period', value: '9.999' });
-  next = send(next, { type: 'submitPeriod', runIndex });
-  assert.equal(next.dataProcessing?.runs[runIndex].answers.period.attempts.at(-1)?.draftRaw, '9.999');
-  next = send(next, { type: 'continuePeriodAnswer', runIndex, field: 'period' });
   const period = next.dataProcessing!.runs[runIndex].answers.period.expectedValue!;
   next = send(next, {
     type: 'editPeriodAnswer',
@@ -181,7 +183,7 @@ const resolveRunWithRecordedRetries = (
     field: 'period',
     value: formatPistonOscillationPeriod(period),
   });
-  next = send(next, { type: 'submitPeriod', runIndex });
+  next = send(next, { type: 'submitPeriodBatch', runIndex });
   assert.ok(next.dataProcessing?.runs[runIndex].result);
   return next;
 };
@@ -194,11 +196,11 @@ const resolveRunByReveal = (
   let next = selectStableRange(session, records, runIndex);
   next = send(next, { type: 'editPeriodAnswer', runIndex, field: 't1', value: '-1' });
   next = send(next, { type: 'editPeriodAnswer', runIndex, field: 't2', value: '-1' });
-  next = send(next, { type: 'submitPeriodEndpoints', runIndex });
+  next = send(next, { type: 'revealPeriodEntry', runIndex });
+  next = send(next, { type: 'editPeriodAnswer', runIndex, field: 'period', value: '-1' });
+  next = send(next, { type: 'submitPeriodBatch', runIndex });
   next = send(next, { type: 'revealPeriodAnswer', runIndex, field: 't1' });
   next = send(next, { type: 'revealPeriodAnswer', runIndex, field: 't2' });
-  next = send(next, { type: 'editPeriodAnswer', runIndex, field: 'period', value: '-1' });
-  next = send(next, { type: 'submitPeriod', runIndex });
   next = send(next, { type: 'revealPeriodAnswer', runIndex, field: 'period' });
   assert.ok(next.dataProcessing?.runs[runIndex].result);
   return next;
@@ -217,19 +219,23 @@ const completeFitAndCalculation = (session: PistonOscillationFreeSession) => {
 
   const areaExpected = next.dataProcessing!.calculationSession!.answers.area.expectedValue!;
   next = send(next, { type: 'editCalculationAnswer', field: 'area', value: '0' });
-  next = send(next, { type: 'submitCalculationField', field: 'area' });
-  next = send(next, { type: 'continueCalculationAnswer', field: 'area' });
+  next = send(next, { type: 'revealNextCalculationField', field: 'area' });
+  next = send(next, { type: 'editCalculationAnswer', field: 'gamma', value: '999' });
+  next = send(next, { type: 'revealNextCalculationField', field: 'gamma' });
+  next = send(next, { type: 'editCalculationAnswer', field: 'relativeError', value: 'abc' });
+  next = send(next, { type: 'submitCalculationBatch' });
+  assert.equal(next.dataProcessing?.calculationSession?.batchAttempts.length, 0);
+  next = send(next, { type: 'editCalculationAnswer', field: 'relativeError', value: '999' });
+  next = send(next, { type: 'submitCalculationBatch' });
+  next = send(next, { type: 'continueCalculationBatch' });
   next = send(next, {
     type: 'editCalculationAnswer',
     field: 'area',
     value: formatPistonOscillationCalculationAnswer('area', areaExpected),
   });
-  next = send(next, { type: 'submitCalculationField', field: 'area' });
-  for (const field of ['gamma', 'relativeError'] as const) {
-    next = send(next, { type: 'editCalculationAnswer', field, value: '999' });
-    next = send(next, { type: 'submitCalculationField', field });
-    next = send(next, { type: 'revealCalculationAnswer', field });
-  }
+  next = send(next, { type: 'submitCalculationBatch' });
+  next = send(next, { type: 'revealCalculationAnswer', field: 'gamma' });
+  next = send(next, { type: 'revealCalculationAnswer', field: 'relativeError' });
   assert.equal(next.dataProcessing?.calculationSession?.status, 'ready-to-exit');
   next = send(next, { type: 'completeCalculation' });
   assert.equal(next.dataProcessing?.status, 'completed');
@@ -285,12 +291,13 @@ const createCollectedSession = (
 const detailed = createCollectedSession([80, 70, 60], []);
 assert.ok(
   detailed.maximumSpeedsMPerS[2]! > 2,
-  'a 12 mm third-run press must keep its physical rebound peak above 2 m/s',
+  'a reachable 14 mm third-run press must keep its physical rebound peak above 2 m/s',
 );
 assert.ok(detailed.records.every((record) => record.samples.length === 501));
 
 let detailedSession = detailed.session;
-const firstExtrema = findPistonOscillationExtrema(detailed.records[0]!.samples);
+const firstExtrema = findPistonOscillationPrimaryExtrema(detailed.records[0]!);
+assert.ok(firstExtrema.length >= 8);
 detailedSession = send(detailedSession, {
   type: 'selectPeriodRange',
   runIndex: 0,
@@ -302,8 +309,8 @@ detailedSession = send(detailedSession, { type: 'clearPeriodSelection', runIndex
 detailedSession = send(detailedSession, {
   type: 'selectPeriodRange',
   runIndex: 0,
-  rangeStartTimeS: firstExtrema[2]!.timeS - 0.0004,
-  rangeEndTimeS: firstExtrema[8]!.timeS + 0.0004,
+  rangeStartTimeS: firstExtrema[1]!.timeS - 0.0004,
+  rangeEndTimeS: firstExtrema[7]!.timeS + 0.0004,
 });
 assert.notEqual(
   detailedSession.dataProcessing?.runs[0].selection?.leftEndpoint?.sampleIndex,
@@ -318,6 +325,17 @@ detailedSession = send(detailedSession, {
 });
 assert.equal(detailedSession.dataProcessing?.runs[0].selection?.periodCount, 0.5);
 assert.equal(detailedSession.dataProcessing?.runs[0].selection?.issue, null);
+const restoredHalfCycleSelection = normalizePistonOscillationFreeSession(
+  JSON.parse(JSON.stringify(detailedSession)),
+);
+assert.equal(restoredHalfCycleSelection.dataProcessing?.processingPolicy.answerValidationMode, 'batch');
+assert.equal(restoredHalfCycleSelection.dataProcessing?.runs[0].selection?.periodCount, 0.5);
+assert.equal(
+  restoredHalfCycleSelection.dataProcessing?.runs[0].selection?.issue,
+  null,
+  'a persisted Free half-cycle selection must not acquire the Guide three-period minimum',
+);
+detailedSession = restoredHalfCycleSelection;
 
 detailedSession = resolveRunWithRecordedRetries(
   detailedSession,

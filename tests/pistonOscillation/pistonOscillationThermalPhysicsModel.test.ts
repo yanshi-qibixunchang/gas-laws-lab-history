@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import {
+  PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
   PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
+  PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K,
   getPistonOscillationSettlingStateAtProgress,
   normalizePistonOscillationThermodynamicState,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
@@ -14,6 +18,11 @@ import {
 import {
   createPistonOscillationPhysicsSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+  PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+} from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 
 const loadedState = getPistonOscillationSettlingStateAtProgress(80, 1);
 const fastPressedState = advancePistonOscillationPrescribedThermodynamicState({
@@ -32,6 +41,10 @@ assert.equal(
   0.05,
 );
 assert.equal(DEFAULT_PISTON_OSCILLATION_THERMAL_MODEL_CONFIG.volumeExponent, 1);
+assert.equal(
+  DEFAULT_PISTON_OSCILLATION_THERMAL_MODEL_CONFIG.heatTransferLagTimeS,
+  0.0009,
+);
 assert.ok(
   Math.abs(
     getPistonOscillationThermalRelaxationTimeS(fastPressedState.totalVolumeM3)
@@ -45,12 +58,53 @@ assert.ok(
 );
 assert.equal(fastPressedState.modelVersion, PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION);
 assert.equal(fastPressedState.thermal.enabled, true);
+assert.equal(
+  fastPressedState.thermal.modelVersion,
+  PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+);
+assert.equal(fastPressedState.thermal.provenance, 'wp-t1-review-candidate');
 assert.ok(fastPressedState.temperatureK > slowPressedState.temperatureK);
 assert.ok(fastPressedState.pressurePa > slowPressedState.pressurePa);
 assert.ok(
   fastPressedState.temperatureK > loadedState.temperatureK,
   'rapid compression must heat the gas',
 );
+if (
+  fastPressedState.thermal.modelVersion
+    === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+) {
+  const gasHeatCapacityJPerK = fastPressedState.gasAmountMol
+    * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    / (1.4 - 1);
+  const instantaneousTargetHeatTransferRateW = gasHeatCapacityJPerK
+    * (293.15 - fastPressedState.temperatureK)
+    / getPistonOscillationThermalRelaxationTimeS(fastPressedState.totalVolumeM3);
+  assert.ok(fastPressedState.thermal.heatTransferRateW < 0);
+  assert.ok(
+    fastPressedState.thermal.heatTransferRateW
+      > instantaneousTargetHeatTransferRateW,
+    'the established heat flow must lag the more negative instantaneous target after compression',
+  );
+}
+
+const shortHeldState = advancePistonOscillationPrescribedThermodynamicState({
+  referenceState: fastPressedState,
+  pistonHeightMm: 70,
+  elapsedS: 0.0002,
+  velocityMmPerS: 0,
+});
+if (
+  fastPressedState.thermal.modelVersion
+    === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+  && shortHeldState.thermal.modelVersion
+    === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+) {
+  assert.ok(
+    shortHeldState.thermal.heatTransferRateW
+      < fastPressedState.thermal.heatTransferRateW,
+    'heat flow must continue establishing during a fixed-height hold',
+  );
+}
 
 const heldState = advancePistonOscillationPrescribedThermodynamicState({
   referenceState: fastPressedState,
@@ -84,7 +138,16 @@ assert.equal(release.modelVersion, PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERS
 assert.equal(release.sampleRateHz, 1_000);
 assert.equal(release.samples.length, 6_001);
 assert.equal(release.initialVelocityMPerS, -0.04);
+assert.equal(
+  release.config.linearDampingNsPerM,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_RELEASE_LINEAR_LOSS_NS_PER_M,
+  'free release must use the review candidate without changing press-stage defaults',
+);
 assert.ok(release.thermalModel);
+assert.equal(
+  release.thermalModel?.modelVersion,
+  PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+);
 const persistedPhysicsSnapshot = createPistonOscillationPhysicsSnapshot(release, 0.01);
 assert.equal(
   persistedPhysicsSnapshot.modelVersion,
@@ -92,6 +155,10 @@ assert.equal(
 );
 assert.ok(persistedPhysicsSnapshot.initialThermodynamicState?.thermal.enabled);
 assert.ok(persistedPhysicsSnapshot.thermalModel?.enabled);
+assert.equal(
+  persistedPhysicsSnapshot.equivalentLoss.modelVersion,
+  PISTON_OSCILLATION_REVIEW_CANDIDATE_EQUIVALENT_LOSS_MODEL_VERSION,
+);
 assert.ok(
   Math.abs((release.samples[0]?.pressurePa ?? 0) - fastPressedState.pressurePa) < 1e-7,
   'release must begin from the pressure reached by the continuous press history',
@@ -106,11 +173,41 @@ assert.ok(release.samples.every((sample) => (
   && Number.isFinite(sample.pressurePa)
   && Number.isFinite(sample.temperatureK)
   && Number.isFinite(sample.cumulativeHeatTransferJ)
+  && Number.isFinite(sample.heatTransferRateW)
 )));
+if (
+  fastPressedState.thermal.modelVersion
+    === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+) {
+  assert.equal(
+    release.samples[0]?.heatTransferRateW,
+    fastPressedState.thermal.heatTransferRateW,
+    'release must inherit the press-stage heat-flow state without a reset',
+  );
+}
 assert.ok(
   Math.abs(release.samples[800]?.displacementM ?? 1)
     < Math.abs(release.initialDisplacementM) * 0.05,
   'the candidate thermal trajectory must still settle within the accepted visible window',
+);
+
+const baselineRelease = simulatePistonOscillationThermalRelease({
+  lockedHeightMm: 80,
+  initialDisplacementMm,
+  initialVelocityMmPerS: -40,
+  referenceThermodynamicState: fastPressedState,
+}, {
+  linearDampingNsPerM: PISTON_OSCILLATION_TEMPORARY_LINEAR_LOSS_NS_PER_M,
+});
+const displacementRms = (samples: typeof release.samples) => Math.sqrt(
+  samples.slice(250, 351).reduce(
+    (sum, sample) => sum + sample.displacementM ** 2,
+    0,
+  ) / 101,
+);
+assert.ok(
+  displacementRms(release.samples) < displacementRms(baselineRelease.samples),
+  'the review candidate must reduce the late physical envelope relative to the 0.434 baseline',
 );
 
 const reconstructed = createPistonOscillationThermodynamicStateFromTrajectorySample(
@@ -123,6 +220,52 @@ assert.ok(
 );
 assert.ok(
   Math.abs(reconstructed.temperatureK - release.samples[125]!.temperatureK) < 1e-12,
+);
+if (
+  reconstructed.thermal.modelVersion
+    === PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION
+) {
+  assert.equal(
+    reconstructed.thermal.heatTransferRateW,
+    release.samples[125]!.heatTransferRateW,
+  );
+}
+
+const legacyFiniteThermalState = {
+  ...fastPressedState,
+  modelVersion: PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
+  thermal: {
+    modelVersion: PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
+    enabled: true,
+    wallTemperatureK: fastPressedState.thermal.wallTemperatureK,
+    cumulativeHeatTransferJ: fastPressedState.thermal.cumulativeHeatTransferJ,
+    relaxationTimeAtReferenceHeightS:
+      fastPressedState.thermal.relaxationTimeAtReferenceHeightS,
+    referenceGraduatedHeightM: fastPressedState.thermal.referenceGraduatedHeightM,
+    volumeExponent: fastPressedState.thermal.volumeExponent,
+    provenance: 'identified-candidate',
+  },
+} as const;
+const normalizedLegacyFiniteThermalState =
+  normalizePistonOscillationThermodynamicState(legacyFiniteThermalState);
+assert.ok(normalizedLegacyFiniteThermalState);
+assert.equal(
+  normalizedLegacyFiniteThermalState.modelVersion,
+  PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
+);
+const upgradedLegacyFiniteThermalState =
+  advancePistonOscillationPrescribedThermodynamicState({
+    referenceState: normalizedLegacyFiniteThermalState,
+    pistonHeightMm: normalizedLegacyFiniteThermalState.pistonHeightM * 1_000,
+    elapsedS: 0,
+  });
+assert.equal(
+  upgradedLegacyFiniteThermalState.modelVersion,
+  PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
+);
+assert.equal(
+  upgradedLegacyFiniteThermalState.thermal.modelVersion,
+  PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
 );
 
 const repeatedRelease = simulatePistonOscillationThermalRelease({

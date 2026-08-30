@@ -240,6 +240,8 @@ export interface PistonOscillationShellCopy {
     rightEndpoint: string;
     periodCount: string;
     selectionTooShort: string;
+    insufficientRecordTitle: string;
+    insufficientRecordBody: string;
     guidedMinimumWarning: (minimumPeriods: number) => string;
     selectionAccepted: (extremaCount: number, periodCount: string) => string;
     dragHint: string;
@@ -249,16 +251,22 @@ export interface PistonOscillationShellCopy {
     calculationLockedBody: string;
     endpointCheckTitle: string;
     endpointCheckInstruction: string;
+    freeEndpointEntryInstruction: string;
     t1Label: string;
     t2Label: string;
     endpointPrecision: string;
     checkEndpoints: string;
+    continuePeriodCalculation: string;
     periodCheckTitle: string;
     periodCheckInstruction: string;
     periodLabel: string;
     periodPrecision: string;
     checkPeriod: string;
+    freePeriodBatchInstruction: string;
+    checkPeriodBatch: string;
+    numericFormatReminder: string;
     periodWaiting: string;
+    freePeriodWaiting: string;
     previousRun: string;
     nextRun: string;
     nextStep: string;
@@ -270,6 +278,7 @@ export interface PistonOscillationShellCopy {
     reviewInstruction: string;
     reviewRunSummary: (number: number, total: number) => string;
     reviewAttemptSummary: (endpointAttempts: number, periodAttempts: number) => string;
+    reviewBatchAttemptSummary: (attempts: number) => string;
     closeReview: string;
     viewFitAndCalculation: string;
     correctRecorded: string;
@@ -571,6 +580,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       rightEndpoint: '右端点',
       periodCount: '周期数',
       selectionTooShort: '选取范围过短，尚无法确定振动周期。请扩大时间范围，使选区至少包含两个相邻的极值点。',
+      insufficientRecordTitle: '本次记录不足以完成周期计算',
+      insufficientRecordBody: '系统未在整条曲线中确认到至少半个可信的主振动周期。本次记录已保留为实验过程证据，并已自动返回仪器。软管已断开、活塞已复位到 0 mm、锁紧螺钉已完全松开，电源、采样率和触发阈值保持不变；请重新调节本组高度、接通软管并采集替代曲线。',
       guidedMinimumWarning: (minimumPeriods) => `本次测量需要选取至少 ${minimumPeriods} 个完整周期。请扩大时间范围后重新框选。`,
       selectionAccepted: (extremaCount, periodCount) => `已标记 ${extremaCount} 个波峰与波谷；两端极值点之间包含 ${periodCount} 个周期。`,
       dragHint: '点击手型工具切换为十字框选，再在图中横向拖动。',
@@ -580,16 +591,22 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       calculationLockedBody: '选择有效的周期范围后，端点坐标校验将自动解锁。',
       endpointCheckTitle: '第一步：核对端点时间',
       endpointCheckInstruction: '输入信息框中左、右端点的横坐标 t₁ 与 t₂，并一次提交校验。',
+      freeEndpointEntryInstruction: '输入 t₁ 与 t₂ 后继续；此处只展开周期输入，不提前判断答案。',
       t1Label: '左端点时间 t₁',
       t2Label: '右端点时间 t₂',
       endpointPrecision: '按图中显示的 3 位小数观测时间原样填写',
       checkEndpoints: '校验 t₁、t₂',
+      continuePeriodCalculation: '继续计算周期 T',
       periodCheckTitle: '第二步：计算单个周期',
       periodCheckInstruction: '使用 T = (t₂ − t₁) / N 计算单个振动周期。',
       periodLabel: '单个周期 T',
       periodPrecision: '保留 4 位有效数字',
       checkPeriod: '校验周期 T',
+      freePeriodBatchInstruction: '填入单个周期 T 后，一次性校验本组的 t₁、t₂ 与 T。校验前可随时返回修改已显示的输入。',
+      checkPeriodBatch: '统一校验 t₁、t₂、T',
+      numericFormatReminder: '请先把所有输入改为有效数值。空值、字母或不完整数字不会计入正式尝试。',
       periodWaiting: '端点时间校验完成后显示周期计算。',
+      freePeriodWaiting: '填写 t₁、t₂ 并点击继续后显示周期输入；此时不会提前校验。',
       previousRun: '上一幅',
       nextRun: '下一幅',
       nextStep: '下一步',
@@ -601,6 +618,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       reviewInstruction: '点击上方任一幅曲线查看已保存的选区、端点、周期计算与校验结果。回顾中可调整视图，不会改写实验数据。',
       reviewRunSummary: (number, total) => `正在回顾第 ${number} 幅，共 ${total} 幅`,
       reviewAttemptSummary: (endpointAttempts, periodAttempts) => `校验记录：端点提交 ${endpointAttempts} 次，周期提交 ${periodAttempts} 次`,
+      reviewBatchAttemptSummary: (attempts) => `统一校验记录：正式提交 ${attempts} 次`,
       closeReview: '关闭回顾',
       viewFitAndCalculation: '查看拟合与计算',
       correctRecorded: '正确，计算值已被记录。',
@@ -903,6 +921,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       rightEndpoint: '右端點',
       periodCount: '週期數',
       selectionTooShort: '選取範圍過短，尚無法確定振動週期。請擴大時間範圍，使選區至少包含兩個相鄰的極值點。',
+      insufficientRecordTitle: '本次記錄不足以完成週期計算',
+      insufficientRecordBody: '系統未在整條曲線中確認到至少半個可信的主振動週期。本次記錄已保留為實驗過程證據，並已自動返回儀器。軟管已斷開、活塞已復位到 0 mm、鎖緊螺釘已完全鬆開，電源、取樣率和觸發閾值保持不變；請重新調節本組高度、接通軟管並採集替代曲線。',
       guidedMinimumWarning: (minimumPeriods) => `本次測量需要選取至少 ${minimumPeriods} 個完整週期。請擴大時間範圍後重新框選。`,
       selectionAccepted: (extremaCount, periodCount) => `已標記 ${extremaCount} 個波峰與波谷；兩端極值點之間包含 ${periodCount} 個週期。`,
       dragHint: '點擊手型工具切換為十字框選，再在圖中橫向拖動。',
@@ -912,16 +932,22 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       calculationLockedBody: '選擇有效的週期範圍後，端點座標校驗將自動解鎖。',
       endpointCheckTitle: '第一步：核對端點時間',
       endpointCheckInstruction: '輸入資訊框中左、右端點的橫座標 t₁ 與 t₂，並一次提交校驗。',
+      freeEndpointEntryInstruction: '輸入 t₁ 與 t₂ 後繼續；此處只展開週期輸入，不提前判斷答案。',
       t1Label: '左端點時間 t₁',
       t2Label: '右端點時間 t₂',
       endpointPrecision: '按圖中顯示的 3 位小數觀測時間原樣填寫',
       checkEndpoints: '校驗 t₁、t₂',
+      continuePeriodCalculation: '繼續計算週期 T',
       periodCheckTitle: '第二步：計算單個週期',
       periodCheckInstruction: '使用 T = (t₂ − t₁) / N 計算單個振動週期。',
       periodLabel: '單個週期 T',
       periodPrecision: '保留 4 位有效數字',
       checkPeriod: '校驗週期 T',
+      freePeriodBatchInstruction: '填入單個週期 T 後，一次校驗本組的 t₁、t₂ 與 T。校驗前可隨時返回修改已顯示的輸入。',
+      checkPeriodBatch: '統一校驗 t₁、t₂、T',
+      numericFormatReminder: '請先把所有輸入改為有效數值。空值、字母或不完整數字不會計入正式嘗試。',
       periodWaiting: '端點時間校驗完成後顯示週期計算。',
+      freePeriodWaiting: '填寫 t₁、t₂ 並點擊繼續後顯示週期輸入；此時不會提前校驗。',
       previousRun: '上一幅',
       nextRun: '下一幅',
       nextStep: '下一步',
@@ -933,6 +959,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       reviewInstruction: '點擊上方任一幅曲線查看已儲存的選區、端點、週期計算與校驗結果。回顧中可調整視圖，不會改寫實驗資料。',
       reviewRunSummary: (number, total) => `正在回顧第 ${number} 幅，共 ${total} 幅`,
       reviewAttemptSummary: (endpointAttempts, periodAttempts) => `校驗記錄：端點提交 ${endpointAttempts} 次，週期提交 ${periodAttempts} 次`,
+      reviewBatchAttemptSummary: (attempts) => `統一校驗記錄：正式提交 ${attempts} 次`,
       closeReview: '關閉回顧',
       viewFitAndCalculation: '查看擬合與計算',
       correctRecorded: '正確，計算值已被記錄。',
@@ -1235,6 +1262,8 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       rightEndpoint: 'Right endpoint',
       periodCount: 'Periods',
       selectionTooShort: 'The selected range is too short to determine a period. Expand it to include at least two adjacent extrema.',
+      insufficientRecordTitle: 'This recording is too short for period calculation',
+      insufficientRecordBody: 'No credible half-cycle of the primary oscillation was confirmed in the full curve. The recording remains archived as process evidence, and the instrument has returned automatically. The hose is disconnected, the piston is at 0 mm, and the locking screw is fully loose; power, sample rate, and trigger threshold are unchanged. Reset this run\'s height, reconnect the hose, and acquire a replacement curve.',
       guidedMinimumWarning: (minimumPeriods) => `This measurement requires at least ${minimumPeriods} complete periods. Expand the time range and select again.`,
       selectionAccepted: (extremaCount, periodCount) => `${extremaCount} peaks and troughs marked; the two endpoint extrema span ${periodCount} periods.`,
       dragHint: 'Select the hand tool to switch to the crosshair, then drag horizontally in the chart.',
@@ -1244,16 +1273,22 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       calculationLockedBody: 'Endpoint verification unlocks after a valid period range is selected.',
       endpointCheckTitle: 'Step 1: verify endpoint times',
       endpointCheckInstruction: 'Enter the horizontal coordinates t₁ and t₂ shown for the left and right endpoints, then submit them together.',
+      freeEndpointEntryInstruction: 'Enter t₁ and t₂, then continue. This only reveals the period entry and does not check either answer yet.',
       t1Label: 'Left endpoint time t₁',
       t2Label: 'Right endpoint time t₂',
       endpointPrecision: 'Enter the observed time exactly as shown, with 3 decimal places',
       checkEndpoints: 'Check t₁ and t₂',
+      continuePeriodCalculation: 'Continue to period T',
       periodCheckTitle: 'Step 2: calculate one period',
       periodCheckInstruction: 'Use T = (t₂ − t₁) / N to calculate one oscillation period.',
       periodLabel: 'Single period T',
       periodPrecision: 'Use 4 significant figures',
       checkPeriod: 'Check period T',
+      freePeriodBatchInstruction: 'Enter period T, then check t₁, t₂, and T together. Every visible entry remains editable before this check.',
+      checkPeriodBatch: 'Check t₁, t₂, and T together',
+      numericFormatReminder: 'Make every entry a valid number first. Empty, alphabetic, or incomplete values are not recorded as a formal attempt.',
       periodWaiting: 'The period calculation appears after both endpoint times are verified.',
+      freePeriodWaiting: 'Enter t₁ and t₂ and continue to reveal the period field; no answer is checked yet.',
       previousRun: 'Previous curve',
       nextRun: 'Next curve',
       nextStep: 'Next step',
@@ -1265,6 +1300,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       reviewInstruction: 'Select any curve above to inspect its saved range, endpoints, period calculation, and validation result. You can adjust the view without changing the saved experiment data.',
       reviewRunSummary: (number, total) => `Reviewing curve ${number} of ${total}`,
       reviewAttemptSummary: (endpointAttempts, periodAttempts) => `Validation record: ${endpointAttempts} endpoint submissions and ${periodAttempts} period submissions`,
+      reviewBatchAttemptSummary: (attempts) => `Unified validation record: ${attempts} formal submissions`,
       closeReview: 'Close review',
       viewFitAndCalculation: 'View fit and calculations',
       correctRecorded: 'Correct. The calculated value has been recorded.',

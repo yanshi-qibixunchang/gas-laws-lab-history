@@ -816,6 +816,15 @@
   gap: 8px;
 }
 
+.piston-period-batch-format-warning {
+  border-left: 3px solid var(--piston-processing-danger);
+  background: color-mix(in srgb, var(--piston-processing-danger) 8%, transparent);
+  padding: 7px 9px;
+  color: var(--piston-processing-danger);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
 .piston-period-formula {
   display: flex;
   min-width: 0;

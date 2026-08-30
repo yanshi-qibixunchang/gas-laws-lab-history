@@ -20,11 +20,14 @@ import {
 } from 'lucide-react';
 import {
   PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
+  createPistonOscillationFreePeriodSelection,
   createPistonOscillationPeriodSelection,
   findPistonOscillationExtrema,
+  findPistonOscillationPrimaryExtrema,
   formatPistonOscillationEndpointTime,
   formatPistonOscillationPeriod,
   formatPistonOscillationPeriodCount,
+  getInvalidPistonOscillationPeriodBatchFields,
   type PistonOscillationPeriodAnswerField,
   type PistonOscillationPeriodAnswerState,
   type PistonOscillationPeriodFeedbackOutcome,
@@ -42,6 +45,7 @@ import type {
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import type {
+  PistonOscillationFreeEvent,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import type { PistonOscillationGuideStrongTargetId } from './pistonOscillationGuidePresentation.ts';
@@ -91,8 +95,12 @@ interface PanDrag {
 type ChartDrag = SelectionDrag | PanDrag;
 type ChartInteractionMode = 'pan' | 'selection';
 
-type PistonOscillationGuideEventWithoutTimestamp =
-  PistonOscillationGuideEvent extends infer Event
+type PistonOscillationProcessingEvent =
+  | PistonOscillationGuideEvent
+  | PistonOscillationFreeEvent;
+
+type PistonOscillationProcessingEventWithoutTimestamp =
+  PistonOscillationProcessingEvent extends infer Event
     ? Event extends { nowMs: number }
       ? Omit<Event, 'nowMs'>
       : never
@@ -112,10 +120,11 @@ export interface PistonOscillationDataProcessingPanelProps {
   freeSession?: PistonOscillationFreeSession;
   pulseActive?: boolean;
   pulseTarget?: PistonOscillationGuideStrongTargetId | null;
-  onGuideEvent: (event: PistonOscillationGuideEvent) => void;
+  onProcessingEvent: (event: PistonOscillationProcessingEvent) => void;
   onInteractionStart?: () => void;
   onSelectionModeChange?: (active: boolean) => void;
   onInvalidSelection?: () => void;
+  onUnusableMeasurement?: (runIndex: number) => void;
   reviewMode?: boolean;
   onOpenCalculationReview?: () => void;
   onCloseReview?: () => void;
@@ -372,10 +381,11 @@ export const PistonOscillationDataProcessingPanel = ({
   freeSession,
   pulseActive = false,
   pulseTarget = null,
-  onGuideEvent,
+  onProcessingEvent,
   onInteractionStart,
   onSelectionModeChange,
   onInvalidSelection,
+  onUnusableMeasurement,
   reviewMode = false,
   onOpenCalculationReview,
   onCloseReview,
@@ -397,13 +407,14 @@ export const PistonOscillationDataProcessingPanel = ({
   const chartSvgRef = useRef<SVGSVGElement | null>(null);
   const periodInputRef = useRef<HTMLInputElement | null>(null);
   const nextRunButtonRef = useRef<HTMLButtonElement | null>(null);
+  const onUnusableMeasurementRef = useRef(onUnusableMeasurement);
   const answerFocusProgressRef = useRef<{
     runKey: string | null;
-    endpointsResolved: boolean;
+    periodEntryVisible: boolean;
     resultReady: boolean;
   }>({
     runKey: null,
-    endpointsResolved: false,
+    periodEntryVisible: false,
     resultReady: false,
   });
   const [chartWidth, setChartWidth] = useState(CHART_DEFAULT_WIDTH);
@@ -415,6 +426,7 @@ export const PistonOscillationDataProcessingPanel = ({
   const [keyboardAnchorSampleIndex, setKeyboardAnchorSampleIndex] = useState<number | null>(null);
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('');
   const [reviewRunIndex, setReviewRunIndex] = useState(0);
+  const [batchFormatInvalid, setBatchFormatInvalid] = useState(false);
   const runIndex = processing
     ? reviewMode
       ? clamp(reviewRunIndex, 0, Math.max(0, processing.runs.length - 1))
@@ -426,19 +438,41 @@ export const PistonOscillationDataProcessingPanel = ({
         candidate.recordId === run.rawMeasurementRecordId
       )) ?? null
     : null;
+  const primaryCycleEligibility = freeProcessingActive && run
+    ? freeSession?.primaryCycleEligibilityByRecordId[run.rawMeasurementRecordId] ?? null
+    : null;
+
+  useEffect(() => {
+    onUnusableMeasurementRef.current = onUnusableMeasurement;
+  }, [onUnusableMeasurement]);
+
+  useEffect(() => {
+    if (
+      reviewMode
+      || !freeProcessingActive
+      || !record
+      || primaryCycleEligibility?.status !== 'unusable'
+    ) return undefined;
+    const timer = window.setTimeout(() => {
+      onUnusableMeasurementRef.current?.(runIndex);
+    }, 1000);
+    return () => window.clearTimeout(timer);
+  }, [
+    freeProcessingActive,
+    primaryCycleEligibility?.status,
+    record?.recordId,
+    reviewMode,
+    runIndex,
+  ]);
 
   useEffect(() => {
     const runKey = run?.rawMeasurementRecordId ?? null;
-    const endpointsResolved = Boolean(
-      run
-      && run.answers.t1.status !== 'unresolved'
-      && run.answers.t2.status !== 'unresolved',
-    );
+    const periodEntryVisible = Boolean(run && run.answers.period.expectedValue !== null);
     const resultReady = run?.result !== null && run?.result !== undefined;
     const previous = answerFocusProgressRef.current;
-    answerFocusProgressRef.current = { runKey, endpointsResolved, resultReady };
+    answerFocusProgressRef.current = { runKey, periodEntryVisible, resultReady };
     if (reviewMode || runKey === null || previous.runKey !== runKey) return;
-    if (!previous.endpointsResolved && endpointsResolved && !resultReady) {
+    if (!previous.periodEntryVisible && periodEntryVisible && !resultReady) {
       window.requestAnimationFrame(() => periodInputRef.current?.focus());
       return;
     }
@@ -448,8 +482,7 @@ export const PistonOscillationDataProcessingPanel = ({
   }, [
     reviewMode,
     run?.rawMeasurementRecordId,
-    run?.answers.t1.status,
-    run?.answers.t2.status,
+    run?.answers.period.expectedValue,
     run?.result,
   ]);
 
@@ -476,6 +509,7 @@ export const PistonOscillationDataProcessingPanel = ({
     setKeyboardCursorSampleIndex(null);
     setKeyboardAnchorSampleIndex(null);
     setKeyboardAnnouncement('');
+    setBatchFormatInvalid(false);
   }, [record?.recordId]);
 
   useEffect(() => {
@@ -632,8 +666,12 @@ export const PistonOscillationDataProcessingPanel = ({
     chartWidth,
   ]);
   const allExtrema = useMemo(
-    () => record ? findPistonOscillationExtrema(record.samples) : [],
-    [record],
+    () => record
+      ? freeProcessingActive
+        ? findPistonOscillationPrimaryExtrema(record)
+        : findPistonOscillationExtrema(record.samples)
+      : [],
+    [freeProcessingActive, record],
   );
   const keyboardCursorExtremum = keyboardCursorSampleIndex === null
     ? null
@@ -826,6 +864,14 @@ export const PistonOscillationDataProcessingPanel = ({
     && run.answers.t2.status !== 'unresolved';
   const endpointHasFeedback = run.answers.t1.feedback !== null
     || run.answers.t2.feedback !== null;
+  const periodEntryVisible = freeProcessingActive
+    ? run.answers.period.expectedValue !== null
+    : endpointsResolved && run.answers.period.expectedValue !== null;
+  const batchHasFeedback = freeProcessingActive && (
+    run.answers.t1.feedback !== null
+    || run.answers.t2.feedback !== null
+    || run.answers.period.feedback !== null
+  );
   const endpointPulse = pulseActive && pulseTarget === 'periodEndpoints';
   const periodPulse = pulseActive && pulseTarget === 'periodAnswer';
   const nextPulse = pulseActive && pulseTarget === 'periodNext';
@@ -840,8 +886,31 @@ export const PistonOscillationDataProcessingPanel = ({
   const isLastRun = runIndex === processing.runs.length - 1;
   const calculationReady = processing.status === 'calculation-ready';
 
-  const dispatch = (event: PistonOscillationGuideEventWithoutTimestamp) => {
-    onGuideEvent({ ...event, nowMs: Date.now() } as PistonOscillationGuideEvent);
+  const dispatch = (event: PistonOscillationProcessingEventWithoutTimestamp) => {
+    onProcessingEvent({ ...event, nowMs: Date.now() } as PistonOscillationProcessingEvent);
+  };
+  const editPeriodDraft = (
+    field: PistonOscillationPeriodAnswerField,
+    value: string,
+  ) => {
+    setBatchFormatInvalid(false);
+    dispatch({ type: 'editPeriodAnswer', runIndex, field, value });
+  };
+  const revealFreePeriodEntry = () => {
+    if (
+      run.answers.t1.draftRaw.trim().length === 0
+      || run.answers.t2.draftRaw.trim().length === 0
+    ) return;
+    setBatchFormatInvalid(false);
+    dispatch({ type: 'revealPeriodEntry', runIndex });
+  };
+  const submitFreePeriodBatch = () => {
+    if (getInvalidPistonOscillationPeriodBatchFields(run).length > 0) {
+      setBatchFormatInvalid(true);
+      return;
+    }
+    setBatchFormatInvalid(false);
+    dispatch({ type: 'submitPeriodBatch', runIndex });
   };
 
   const getPointerPosition = (event: ReactPointerEvent<SVGSVGElement>) => {
@@ -932,20 +1001,27 @@ export const PistonOscillationDataProcessingPanel = ({
     const rangeEndTimeS = xToTime(finalX);
     setChartMode('pan');
     resetKeyboardSelection();
-    const preview = createPistonOscillationPeriodSelection(
-      record,
-      rangeStartTimeS,
-      rangeEndTimeS,
-      minimumPeriodCount,
-      Date.now(),
-    );
+    const preview = freeProcessingActive
+      ? createPistonOscillationFreePeriodSelection(
+          record,
+          rangeStartTimeS,
+          rangeEndTimeS,
+          Date.now(),
+        )
+      : createPistonOscillationPeriodSelection(
+          record,
+          rangeStartTimeS,
+          rangeEndTimeS,
+          minimumPeriodCount,
+          Date.now(),
+        );
     dispatch({
       type: 'selectPeriodRange',
       runIndex,
       rangeStartTimeS,
       rangeEndTimeS,
     });
-    if (preview.issue !== null) {
+    if (!freeProcessingActive && preview.issue !== null) {
       window.setTimeout(() => onInvalidSelection?.(), 0);
     }
   };
@@ -982,6 +1058,7 @@ export const PistonOscillationDataProcessingPanel = ({
   const periodSubmissionCount = processing.audit.filter((event) => (
     event.runIndex === runIndex && event.type === 'period-submitted'
   )).length;
+  const batchSubmissionCount = run.batchAttempts.length;
   const resetView = () => {
     onInteractionStart?.();
     setViewDomain(defaultTimeDomain);
@@ -1075,13 +1152,20 @@ export const PistonOscillationDataProcessingPanel = ({
     }
     const rangeStartTimeS = Math.min(keyboardAnchorExtremum.timeS, cursor.timeS);
     const rangeEndTimeS = Math.max(keyboardAnchorExtremum.timeS, cursor.timeS);
-    const preview = createPistonOscillationPeriodSelection(
-      record,
-      rangeStartTimeS,
-      rangeEndTimeS,
-      minimumPeriodCount,
-      Date.now(),
-    );
+    const preview = freeProcessingActive
+      ? createPistonOscillationFreePeriodSelection(
+          record,
+          rangeStartTimeS,
+          rangeEndTimeS,
+          Date.now(),
+        )
+      : createPistonOscillationPeriodSelection(
+          record,
+          rangeStartTimeS,
+          rangeEndTimeS,
+          minimumPeriodCount,
+          Date.now(),
+        );
     dispatch({
       type: 'selectPeriodRange',
       runIndex,
@@ -1098,7 +1182,7 @@ export const PistonOscillationDataProcessingPanel = ({
         : copy.selectionTooShort);
     setChartMode('pan');
     resetKeyboardSelection();
-    if (preview.issue !== null) {
+    if (!freeProcessingActive && preview.issue !== null) {
       window.setTimeout(() => onInvalidSelection?.(), 0);
     }
   };
@@ -1538,128 +1622,249 @@ export const PistonOscillationDataProcessingPanel = ({
           </div>
         ) : (
           <div className="piston-period-calculation-flow">
-            <article
-              className={`piston-period-calculation-step ${
-                !endpointsResolved ? 'is-active' : 'is-resolved'
-              } ${endpointPulse ? 'is-guide-pulsing' : ''}`}
-              data-piston-guide-target="period-endpoints"
-            >
-              <header>
-                <span>1</span>
-                <div>
-                  <strong>{copy.endpointCheckTitle}</strong>
-                  <small>{copy.endpointCheckInstruction}</small>
-                </div>
-              </header>
-              <div className="piston-period-endpoint-fields">
-                <PistonOscillationPeriodAnswerField
-                  field="t1"
-                  answer={run.answers.t1}
-                  label={copy.t1Label}
-                  precision={copy.endpointPrecision}
-                  unit="s"
-                  language={language}
-                  disabled={endpointsResolved}
-                  pulse={endpointPulse}
-                  onDraftChange={(value) => dispatch({
-                    type: 'editPeriodAnswer', runIndex, field: 't1', value,
-                  })}
-                  onContinue={() => dispatch({
-                    type: 'continuePeriodAnswer', runIndex, field: 't1',
-                  })}
-                  onReveal={() => dispatch({
-                    type: 'revealPeriodAnswer', runIndex, field: 't1',
-                  })}
-                  onSubmit={() => dispatch({ type: 'submitPeriodEndpoints', runIndex })}
-                />
-                <PistonOscillationPeriodAnswerField
-                  field="t2"
-                  answer={run.answers.t2}
-                  label={copy.t2Label}
-                  precision={copy.endpointPrecision}
-                  unit="s"
-                  language={language}
-                  disabled={endpointsResolved}
-                  pulse={endpointPulse}
-                  onDraftChange={(value) => dispatch({
-                    type: 'editPeriodAnswer', runIndex, field: 't2', value,
-                  })}
-                  onContinue={() => dispatch({
-                    type: 'continuePeriodAnswer', runIndex, field: 't2',
-                  })}
-                  onReveal={() => dispatch({
-                    type: 'revealPeriodAnswer', runIndex, field: 't2',
-                  })}
-                  onSubmit={() => dispatch({ type: 'submitPeriodEndpoints', runIndex })}
-                />
-              </div>
-              <button
-                type="button"
-                className="piston-period-step-confirm"
-                disabled={endpointsResolved || endpointHasFeedback}
-                onClick={() => dispatch({ type: 'submitPeriodEndpoints', runIndex })}
-              >
-                <Check size={14} aria-hidden="true" />
-                {copy.checkEndpoints}
-              </button>
-            </article>
-
-            <article
-              className={`piston-period-calculation-step ${
-                endpointsResolved && !run.result ? 'is-active' : ''
-              } ${run.result ? 'is-resolved' : ''} ${periodPulse ? 'is-guide-pulsing' : ''}`}
-              data-piston-guide-target="period-answer"
-            >
-              <header>
-                <span>2</span>
-                <div>
-                  <strong>{copy.periodCheckTitle}</strong>
-                  <small>{copy.periodCheckInstruction}</small>
-                </div>
-              </header>
-              {endpointsResolved && run.answers.period.expectedValue !== null ? (
-                <div className="piston-period-formula-row">
-                  <div className="piston-period-formula">
-                    <strong>T = (t₂ − t₁) / N</strong>
-                    <span>
-                      = ({formatPistonOscillationEndpointTime(run.answers.t2.expectedValue!)} − {formatPistonOscillationEndpointTime(run.answers.t1.expectedValue!)}) / {formatPistonOscillationPeriodCount(selection.periodCount)}
-                    </span>
+            {freeProcessingActive ? (
+              <>
+                <article
+                  className={`piston-period-calculation-step ${
+                    run.result ? 'is-resolved' : 'is-active'
+                  } ${endpointPulse ? 'is-guide-pulsing' : ''}`}
+                  data-piston-guide-target="period-endpoints"
+                >
+                  <header>
+                    <span>1</span>
+                    <div>
+                      <strong>{copy.endpointCheckTitle}</strong>
+                      <small>{copy.freeEndpointEntryInstruction}</small>
+                    </div>
+                  </header>
+                  <div className="piston-period-endpoint-fields">
+                    <PistonOscillationPeriodAnswerField
+                      field="t1"
+                      answer={run.answers.t1}
+                      label={copy.t1Label}
+                      precision={copy.endpointPrecision}
+                      unit="s"
+                      language={language}
+                      disabled={run.result !== null}
+                      pulse={endpointPulse}
+                      onDraftChange={(value) => editPeriodDraft('t1', value)}
+                      onContinue={() => dispatch({ type: 'continuePeriodBatch', runIndex })}
+                      onReveal={() => dispatch({
+                        type: 'revealPeriodAnswer', runIndex, field: 't1',
+                      })}
+                      onSubmit={revealFreePeriodEntry}
+                    />
+                    <PistonOscillationPeriodAnswerField
+                      field="t2"
+                      answer={run.answers.t2}
+                      label={copy.t2Label}
+                      precision={copy.endpointPrecision}
+                      unit="s"
+                      language={language}
+                      disabled={run.result !== null}
+                      pulse={endpointPulse}
+                      onDraftChange={(value) => editPeriodDraft('t2', value)}
+                      onContinue={() => dispatch({ type: 'continuePeriodBatch', runIndex })}
+                      onReveal={() => dispatch({
+                        type: 'revealPeriodAnswer', runIndex, field: 't2',
+                      })}
+                      onSubmit={revealFreePeriodEntry}
+                    />
                   </div>
-                  <PistonOscillationPeriodAnswerField
-                    field="period"
-                    answer={run.answers.period}
-                    label={copy.periodLabel}
-                    precision={copy.periodPrecision}
-                    unit="s"
-                    language={language}
-                    disabled={!endpointsResolved}
-                    pulse={periodPulse}
-                    inputRef={periodInputRef}
-                    onDraftChange={(value) => dispatch({
-                      type: 'editPeriodAnswer', runIndex, field: 'period', value,
-                    })}
-                    onContinue={() => dispatch({
-                      type: 'continuePeriodAnswer', runIndex, field: 'period',
-                    })}
-                    onReveal={() => dispatch({
-                      type: 'revealPeriodAnswer', runIndex, field: 'period',
-                    })}
-                    onSubmit={() => dispatch({ type: 'submitPeriod', runIndex })}
-                  />
+                  {!periodEntryVisible ? (
+                    <button
+                      type="button"
+                      className="piston-period-step-confirm"
+                      disabled={
+                        run.answers.t1.draftRaw.trim().length === 0
+                        || run.answers.t2.draftRaw.trim().length === 0
+                      }
+                      onClick={revealFreePeriodEntry}
+                    >
+                      <ChevronRight size={14} aria-hidden="true" />
+                      {copy.continuePeriodCalculation}
+                    </button>
+                  ) : null}
+                </article>
+
+                <article
+                  className={`piston-period-calculation-step ${
+                    periodEntryVisible && !run.result ? 'is-active' : ''
+                  } ${run.result ? 'is-resolved' : ''} ${periodPulse ? 'is-guide-pulsing' : ''}`}
+                  data-piston-guide-target="period-answer"
+                >
+                  <header>
+                    <span>2</span>
+                    <div>
+                      <strong>{copy.periodCheckTitle}</strong>
+                      <small>{copy.freePeriodBatchInstruction}</small>
+                    </div>
+                  </header>
+                  {periodEntryVisible ? (
+                    <div className="piston-period-formula-row">
+                      <div className="piston-period-formula">
+                        <strong>T = (t₂ − t₁) / N</strong>
+                        <span>
+                          = ({run.answers.t2.draftRaw || 't₂'} − {run.answers.t1.draftRaw || 't₁'}) / {formatPistonOscillationPeriodCount(selection.periodCount)}
+                        </span>
+                      </div>
+                      <PistonOscillationPeriodAnswerField
+                        field="period"
+                        answer={run.answers.period}
+                        label={copy.periodLabel}
+                        precision={copy.periodPrecision}
+                        unit="s"
+                        language={language}
+                        disabled={run.result !== null}
+                        pulse={periodPulse}
+                        inputRef={periodInputRef}
+                        onDraftChange={(value) => editPeriodDraft('period', value)}
+                        onContinue={() => dispatch({ type: 'continuePeriodBatch', runIndex })}
+                        onReveal={() => dispatch({
+                          type: 'revealPeriodAnswer', runIndex, field: 'period',
+                        })}
+                        onSubmit={submitFreePeriodBatch}
+                      />
+                      {batchFormatInvalid ? (
+                        <div className="piston-period-batch-format-warning" role="alert">
+                          {copy.numericFormatReminder}
+                        </div>
+                      ) : null}
+                      <button
+                        type="button"
+                        className="piston-period-step-confirm"
+                        disabled={run.result !== null || batchHasFeedback}
+                        onClick={submitFreePeriodBatch}
+                      >
+                        <Check size={14} aria-hidden="true" />
+                        {copy.checkPeriodBatch}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="piston-period-step-waiting">{copy.freePeriodWaiting}</div>
+                  )}
+                </article>
+              </>
+            ) : (
+              <>
+                <article
+                  className={`piston-period-calculation-step ${
+                    !endpointsResolved ? 'is-active' : 'is-resolved'
+                  } ${endpointPulse ? 'is-guide-pulsing' : ''}`}
+                  data-piston-guide-target="period-endpoints"
+                >
+                  <header>
+                    <span>1</span>
+                    <div>
+                      <strong>{copy.endpointCheckTitle}</strong>
+                      <small>{copy.endpointCheckInstruction}</small>
+                    </div>
+                  </header>
+                  <div className="piston-period-endpoint-fields">
+                    <PistonOscillationPeriodAnswerField
+                      field="t1"
+                      answer={run.answers.t1}
+                      label={copy.t1Label}
+                      precision={copy.endpointPrecision}
+                      unit="s"
+                      language={language}
+                      disabled={endpointsResolved}
+                      pulse={endpointPulse}
+                      onDraftChange={(value) => editPeriodDraft('t1', value)}
+                      onContinue={() => dispatch({
+                        type: 'continuePeriodAnswer', runIndex, field: 't1',
+                      })}
+                      onReveal={() => dispatch({
+                        type: 'revealPeriodAnswer', runIndex, field: 't1',
+                      })}
+                      onSubmit={() => dispatch({ type: 'submitPeriodEndpoints', runIndex })}
+                    />
+                    <PistonOscillationPeriodAnswerField
+                      field="t2"
+                      answer={run.answers.t2}
+                      label={copy.t2Label}
+                      precision={copy.endpointPrecision}
+                      unit="s"
+                      language={language}
+                      disabled={endpointsResolved}
+                      pulse={endpointPulse}
+                      onDraftChange={(value) => editPeriodDraft('t2', value)}
+                      onContinue={() => dispatch({
+                        type: 'continuePeriodAnswer', runIndex, field: 't2',
+                      })}
+                      onReveal={() => dispatch({
+                        type: 'revealPeriodAnswer', runIndex, field: 't2',
+                      })}
+                      onSubmit={() => dispatch({ type: 'submitPeriodEndpoints', runIndex })}
+                    />
+                  </div>
                   <button
                     type="button"
                     className="piston-period-step-confirm"
-                    disabled={run.result !== null || run.answers.period.feedback !== null}
-                    onClick={() => dispatch({ type: 'submitPeriod', runIndex })}
+                    disabled={endpointsResolved || endpointHasFeedback}
+                    onClick={() => dispatch({ type: 'submitPeriodEndpoints', runIndex })}
                   >
                     <Check size={14} aria-hidden="true" />
-                    {copy.checkPeriod}
+                    {copy.checkEndpoints}
                   </button>
-                </div>
-              ) : (
-                <div className="piston-period-step-waiting">{copy.periodWaiting}</div>
-              )}
-            </article>
+                </article>
+
+                <article
+                  className={`piston-period-calculation-step ${
+                    endpointsResolved && !run.result ? 'is-active' : ''
+                  } ${run.result ? 'is-resolved' : ''} ${periodPulse ? 'is-guide-pulsing' : ''}`}
+                  data-piston-guide-target="period-answer"
+                >
+                  <header>
+                    <span>2</span>
+                    <div>
+                      <strong>{copy.periodCheckTitle}</strong>
+                      <small>{copy.periodCheckInstruction}</small>
+                    </div>
+                  </header>
+                  {periodEntryVisible ? (
+                    <div className="piston-period-formula-row">
+                      <div className="piston-period-formula">
+                        <strong>T = (t₂ − t₁) / N</strong>
+                        <span>
+                          = ({formatPistonOscillationEndpointTime(run.answers.t2.expectedValue!)} − {formatPistonOscillationEndpointTime(run.answers.t1.expectedValue!)}) / {formatPistonOscillationPeriodCount(selection.periodCount)}
+                        </span>
+                      </div>
+                      <PistonOscillationPeriodAnswerField
+                        field="period"
+                        answer={run.answers.period}
+                        label={copy.periodLabel}
+                        precision={copy.periodPrecision}
+                        unit="s"
+                        language={language}
+                        disabled={!endpointsResolved}
+                        pulse={periodPulse}
+                        inputRef={periodInputRef}
+                        onDraftChange={(value) => editPeriodDraft('period', value)}
+                        onContinue={() => dispatch({
+                          type: 'continuePeriodAnswer', runIndex, field: 'period',
+                        })}
+                        onReveal={() => dispatch({
+                          type: 'revealPeriodAnswer', runIndex, field: 'period',
+                        })}
+                        onSubmit={() => dispatch({ type: 'submitPeriod', runIndex })}
+                      />
+                      <button
+                        type="button"
+                        className="piston-period-step-confirm"
+                        disabled={run.result !== null || run.answers.period.feedback !== null}
+                        onClick={() => dispatch({ type: 'submitPeriod', runIndex })}
+                      >
+                        <Check size={14} aria-hidden="true" />
+                        {copy.checkPeriod}
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="piston-period-step-waiting">{copy.periodWaiting}</div>
+                  )}
+                </article>
+              </>
+            )}
           </div>
         )}
 
@@ -1673,7 +1878,9 @@ export const PistonOscillationDataProcessingPanel = ({
             </div>
             {reviewMode ? (
               <div className="piston-period-review-audit" role="note">
-                {copy.reviewAttemptSummary(endpointSubmissionCount, periodSubmissionCount)}
+                {freeProcessingActive
+                  ? copy.reviewBatchAttemptSummary(batchSubmissionCount)
+                  : copy.reviewAttemptSummary(endpointSubmissionCount, periodSubmissionCount)}
               </div>
             ) : null}
           </>
