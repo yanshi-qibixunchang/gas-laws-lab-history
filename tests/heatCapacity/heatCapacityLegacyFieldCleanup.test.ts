@@ -64,6 +64,7 @@ const exactLegacySchemaBoundary = path.join(
   'features',
   'workbench',
   'persistenceV3',
+  'compat',
   'legacyV2Adapter.ts',
 );
 

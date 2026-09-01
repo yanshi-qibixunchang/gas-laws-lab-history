@@ -23,6 +23,7 @@ import {
   projectWorkbenchPersistenceV3File,
   reprojectWorkbenchPersistenceV3File,
   type WorkbenchPersistenceV3FileProjection,
+  type WorkbenchPersistenceV3ProjectionCompatibilityHooks,
 } from './projection.ts';
 
 export const WORKBENCH_PERSISTENCE_V3_FILE_SCHEMA_FAMILY =
@@ -205,11 +206,16 @@ interface CanonicalProjectionResult {
   diagnostics: WorkbenchPersistenceV3Diagnostic[];
 }
 
+export interface WorkbenchPersistenceV3FileDecodeOptions {
+  projectionCompatibility?: WorkbenchPersistenceV3ProjectionCompatibilityHooks;
+}
+
 const canonicalizeProjection = (
   projection: WorkbenchPersistenceV3FileProjection,
   raw: unknown,
   index: number,
   phase: 'encode' | 'decode',
+  options: WorkbenchPersistenceV3FileDecodeOptions = {},
 ): WorkbenchPersistenceV3DecodeResult<CanonicalProjectionResult> => {
   const projectionRecord = projection as unknown as Record<string, unknown>;
   if (
@@ -242,7 +248,11 @@ const canonicalizeProjection = (
       fieldPath: 'projection',
     });
   }
-  const reprojected = reprojectWorkbenchPersistenceV3File(projection, index);
+  const reprojected = reprojectWorkbenchPersistenceV3File(
+    projection,
+    index,
+    options.projectionCompatibility,
+  );
   if (reprojected.ok === false) {
     return preserveNestedFailure(raw, reprojected);
   }
@@ -583,6 +593,7 @@ export const encodeWorkbenchPersistenceV3FileProjection = (
 export const decodeWorkbenchPersistenceV3FileRecord = (
   raw: unknown,
   index = 1,
+  options: WorkbenchPersistenceV3FileDecodeOptions = {},
 ): WorkbenchPersistenceV3DecodeResult<WorkbenchPersistenceV3FileProjection> => {
   const parsed = readProjectionRecord(raw);
   if (parsed.ok === false) return parsed;
@@ -591,6 +602,7 @@ export const decodeWorkbenchPersistenceV3FileRecord = (
     raw,
     index,
     'decode',
+    options,
   );
   if (canonical.ok === false) return canonical;
   return createWorkbenchPersistenceV3Success(

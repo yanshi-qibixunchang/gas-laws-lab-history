@@ -26,7 +26,6 @@ const codecDirectory = join(
   'workbench',
   'persistenceV3',
 );
-const legacyAdapterName = 'legacyV2Adapter.ts';
 const currentCodecSources = readdirSync(codecDirectory)
   .filter((name) => name.endsWith('.ts'))
   .map((name) => ({
@@ -154,7 +153,6 @@ const dependencyRootNames = [
   'projection.ts',
   'codecRegistry.ts',
   'workspaceCodec.ts',
-  legacyAdapterName,
 ] as const;
 for (const rootName of dependencyRootNames) {
   visitLocalDependencies(join(codecDirectory, rootName));
@@ -170,6 +168,11 @@ for (const filePath of dependencyClosure) {
   const relativePath = relative(sourceRoot, filePath)
     .replaceAll('\\', '/');
   const fileName = basename(filePath);
+  assert.equal(
+    relativePath.includes('features/workbench/persistenceV3/compat/'),
+    false,
+    `current V3 dependency closure must not enter compatibility code ${relativePath}`,
+  );
   assert.equal(
     forbiddenDependencyModuleNames.includes(fileName),
     false,

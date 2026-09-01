@@ -19,10 +19,6 @@ import {
   type WorkbenchPersistenceV3FileRecord,
 } from './codecRegistry.ts';
 import {
-  decodeLegacyWorkbenchWorkspaceSource,
-  decodeLegacyWorkbenchFileEnvelopeToV3Projection,
-} from './legacyV2Adapter.ts';
-import {
   createWorkbenchPersistenceV3SemanticProjection,
   projectWorkbenchPersistenceV3File,
   reprojectWorkbenchPersistenceV3File,
@@ -85,6 +81,16 @@ export interface WorkbenchPersistenceV3RuntimeWorkspace {
   files: WorkbenchFileState[];
   activeFileId: string;
   selectedPanel: WorkbenchPanelKey;
+}
+
+export type WorkbenchPersistenceV3ForeignFileDecoder = (
+  raw: unknown,
+  index: number,
+) => WorkbenchPersistenceV3DecodeResult<WorkbenchPersistenceV3FileProjection> | null;
+
+export interface WorkbenchPersistenceV3WorkspaceDecodeOptions {
+  decodeCurrentFileRecord?: WorkbenchPersistenceV3ForeignFileDecoder;
+  decodeForeignFileRecord?: WorkbenchPersistenceV3ForeignFileDecoder;
 }
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
@@ -279,7 +285,8 @@ const decodeWorkspaceFileRecord = (
   raw: unknown,
   manifestFileId: string,
   index: number,
-  sourceAppVersion?: string,
+  decodeCurrentFileRecord?: WorkbenchPersistenceV3ForeignFileDecoder,
+  decodeForeignFileRecord?: WorkbenchPersistenceV3ForeignFileDecoder,
 ): WorkbenchPersistenceV3WorkspaceEntry => {
   if (!isPlainRecord(raw)) {
     const diagnostic = createWorkspaceDiagnostic({
@@ -319,12 +326,20 @@ const decodeWorkspaceFileRecord = (
 
   const decoded = raw.schemaFamily ===
       WORKBENCH_PERSISTENCE_V3_FILE_SCHEMA_FAMILY
-    ? decodeWorkbenchPersistenceV3FileRecord(raw, index + 1)
-      : decodeLegacyWorkbenchFileEnvelopeToV3Projection(
-          raw,
-          index + 1,
-          { sourceAppVersion },
-        );
+    ? decodeCurrentFileRecord?.(raw, index + 1) ??
+      decodeWorkbenchPersistenceV3FileRecord(raw, index + 1)
+    : decodeForeignFileRecord?.(raw, index + 1) ??
+      createWorkbenchPersistenceV3Failure('quarantined', raw, [
+        createWorkspaceDiagnostic({
+          phase: 'decode',
+          category: 'schema-shape',
+          code: 'persistence-v3-workspace-file-family-unsupported',
+          message:
+            'The workspace file record is not a current V3 file record.',
+          fieldPath: `records[${index}].schemaFamily`,
+          fileId: manifestFileId,
+        }),
+      ]);
   if (decoded.ok === false) {
     return preserveFileFailure(manifestFileId, raw, decoded);
   }
@@ -339,12 +354,10 @@ const decodeWorkspaceFileRecord = (
 
 interface WorkspaceSource {
   capturedAtMs: number;
-  sourceAppVersion?: string;
   activeFileId: string | null;
   selectedPanel: WorkbenchPanelKey;
   fileOrder: string[];
   records: unknown[];
-  legacyWorkspace: boolean;
 }
 
 const readCurrentWorkspaceSource = (
@@ -443,12 +456,10 @@ const readCurrentWorkspaceSource = (
     repaired ? 'repaired-cache' : 'exact',
     {
       capturedAtMs: raw.capturedAtMs,
-      sourceAppVersion: undefined,
       activeFileId,
       selectedPanel,
       fileOrder,
       records: [...raw.records],
-      legacyWorkspace: false,
     },
     diagnostics,
   );
@@ -456,6 +467,7 @@ const readCurrentWorkspaceSource = (
 
 export const decodeWorkbenchPersistenceV3WorkspaceRecord = (
   raw: unknown,
+  options: WorkbenchPersistenceV3WorkspaceDecodeOptions = {},
 ): WorkbenchPersistenceV3DecodeResult<WorkbenchPersistenceV3WorkspaceProjection> => {
   if (!isPlainRecord(raw)) {
     return workspaceFailure('quarantined', raw, {
@@ -466,9 +478,16 @@ export const decodeWorkbenchPersistenceV3WorkspaceRecord = (
       fieldPath: '$',
     });
   }
-  const source = raw.schemaFamily === WORKBENCH_PERSISTENCE_V3_SCHEMA_FAMILY
-    ? readCurrentWorkspaceSource(raw)
-    : decodeLegacyWorkbenchWorkspaceSource(raw);
+  if (raw.schemaFamily !== WORKBENCH_PERSISTENCE_V3_SCHEMA_FAMILY) {
+    return workspaceFailure('quarantined', raw, {
+      phase: 'decode',
+      category: 'schema-shape',
+      code: 'persistence-v3-workspace-family-invalid',
+      message: 'The workspace record is not a current V3 workspace.',
+      fieldPath: 'schemaFamily',
+    });
+  }
+  const source = readCurrentWorkspaceSource(raw);
   if (source.ok === false) return source;
 
   const entries = source.value.records.map((record, index) => (
@@ -476,7 +495,8 @@ export const decodeWorkbenchPersistenceV3WorkspaceRecord = (
       record,
       source.value.fileOrder[index]!,
       index,
-      source.value.sourceAppVersion,
+      options.decodeCurrentFileRecord,
+      options.decodeForeignFileRecord,
     )
   ));
   const diagnostics = [

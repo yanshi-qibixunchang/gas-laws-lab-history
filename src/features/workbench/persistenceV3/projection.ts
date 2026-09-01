@@ -8,6 +8,7 @@ import {
 } from '../../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
   getHeatCapacityFreeExperimentGroupInvariantErrors,
+  type HeatCapacityFreeExperimentGroupCollection,
 } from '../../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
   HEAT_CAPACITY_FREE_TRACE_VERSION,
@@ -71,9 +72,6 @@ import {
   type WorkbenchStandardState,
 } from '../workbenchState.ts';
 import {
-  migrateLegacyHeatCapacityFreeExperimentGroups,
-} from '../workbenchHeatCapacityExperimentGroupMigration.ts';
-import {
   assertNeverWorkbenchFileKind,
   isWorkbenchFileKind,
   type WorkbenchFileKind,
@@ -134,6 +132,16 @@ export interface WorkbenchPersistenceV3FileProjection {
     | 'ui-checkpoint'
   >;
   fields: WorkbenchPersistenceV3ClassifiedFields;
+}
+
+export interface WorkbenchPersistenceV3ProjectionCompatibilityHooks {
+  migrateMissingHeatCapacityExperimentGroups?: (input: {
+    fileId: string;
+    selectedScheme: 'real' | 'ideal';
+    real: HeatCapacityFreeExperimentDomainState;
+    ideal: HeatCapacityFreeExperimentDomainState;
+    fallbackCreatedAtMs: number;
+  }) => HeatCapacityFreeExperimentGroupCollection;
 }
 
 const isPlainRecord = (value: unknown): value is Record<string, unknown> => {
@@ -2619,6 +2627,7 @@ const reprojectIdealFile = (
 const reprojectHeatCapacityFile = (
   projection: WorkbenchPersistenceV3FileProjection,
   index: number,
+  compatibilityHooks: WorkbenchPersistenceV3ProjectionCompatibilityHooks,
 ): WorkbenchPersistenceV3DecodeResult<WorkbenchHeatCapacityState> => {
   const metadata = readFileMetadata(projection);
   const authority = projection.fields.authoritative;
@@ -2955,13 +2964,13 @@ const reprojectHeatCapacityFile = (
   }
   const sourceExperimentGroups = authority.freeDomains.experimentGroups;
   const experimentGroups = sourceExperimentGroups === undefined
-    ? migrateLegacyHeatCapacityFreeExperimentGroups({
+    ? compatibilityHooks.migrateMissingHeatCapacityExperimentGroups?.({
         fileId: projection.fileId,
         selectedScheme: relation.heatCapacityFreeParameterScheme,
         real: real.value,
         ideal: ideal.value,
         fallbackCreatedAtMs: metadata.createdAt,
-      })
+      }) ?? null
     : normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
         sourceExperimentGroups,
       );
@@ -3146,6 +3155,7 @@ const reprojectPistonOscillationFile = (
 export const reprojectWorkbenchPersistenceV3File = (
   projection: WorkbenchPersistenceV3FileProjection,
   index = 1,
+  compatibilityHooks: WorkbenchPersistenceV3ProjectionCompatibilityHooks = {},
 ): WorkbenchPersistenceV3DecodeResult<WorkbenchFileState> => {
   if (
     !isPlainRecord(projection) ||
@@ -3201,7 +3211,7 @@ export const reprojectWorkbenchPersistenceV3File = (
           : createWorkbenchPersistenceV3Success('exact', file);
       }
       case 'heatCapacity':
-        return reprojectHeatCapacityFile(projection, index);
+        return reprojectHeatCapacityFile(projection, index, compatibilityHooks);
       case 'heatCapacityPistonOscillation': {
         const sourceVersion =
           projection.fields.authoritative.pistonOscillationSchemaVersion;

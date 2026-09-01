@@ -27,6 +27,9 @@ import {
   encodeWorkbenchPersistenceV3FileProjection,
 } from '../../src/features/workbench/persistenceV3/codecRegistry.ts';
 import {
+  decodeCompatibleWorkbenchV3FileRecord,
+} from '../../src/features/workbench/persistenceV3/compat/legacyV3ProjectionAdapter.ts';
+import {
   WORKBENCH_PERSISTENCE_V3_FINGERPRINT_PROVIDER,
 } from '../../src/features/workbench/persistenceV3/fingerprint.ts';
 import {
@@ -1018,6 +1021,33 @@ const heatCurrentRecord = encodeWorkbenchPersistenceV3FileProjection(
 if (!heatCurrentRecord.ok) {
   throw new Error(heatCurrentRecord.diagnostics[0].message);
 }
+const preGroupAuthorityRecord = structuredClone(heatCurrentRecord.value);
+delete (
+  preGroupAuthorityRecord.projection.fields.authoritative.freeDomains as
+    Record<string, unknown>
+).experimentGroups;
+const strictPreGroupDecode = decodeWorkbenchPersistenceV3FileRecord(
+  preGroupAuthorityRecord,
+  8,
+);
+assert.equal(strictPreGroupDecode.ok, false);
+if (strictPreGroupDecode.ok) {
+  throw new Error('Expected current V3 decoding to reject pre-group authority.');
+}
+assert.equal(strictPreGroupDecode.status, 'quarantined');
+const compatiblePreGroupDecode = decodeCompatibleWorkbenchV3FileRecord(
+  preGroupAuthorityRecord,
+  8,
+);
+assert.equal(compatiblePreGroupDecode.ok, true);
+if (!compatiblePreGroupDecode.ok) {
+  throw new Error(compatiblePreGroupDecode.diagnostics[0].message);
+}
+assert.equal(
+  compatiblePreGroupDecode.status,
+  'migrated',
+  'early V3 heat projections must migrate only through the compatibility adapter',
+);
 for (const [label, section, key, value] of [
   [
     'Guide trial',

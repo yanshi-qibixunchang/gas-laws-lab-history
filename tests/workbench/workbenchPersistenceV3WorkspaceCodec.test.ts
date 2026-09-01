@@ -24,6 +24,9 @@ import {
   projectWorkbenchPersistenceV3Workspace,
   reprojectWorkbenchPersistenceV3Workspace,
 } from '../../src/features/workbench/persistenceV3/workspaceCodec.ts';
+import {
+  decodeCompatibleWorkbenchWorkspaceRecord,
+} from '../../src/features/workbench/persistenceV3/compat/workspaceCompatibilityDecoder.ts';
 
 const capturedRuntimeFiles = [
   createDefaultIdealFile(101),
@@ -311,7 +314,23 @@ const rawWorkspace = {
   ],
 };
 
-const decoded = decodeWorkbenchPersistenceV3WorkspaceRecord(rawWorkspace);
+const strictDecoded = decodeWorkbenchPersistenceV3WorkspaceRecord(rawWorkspace);
+assert.equal(strictDecoded.ok, true);
+if (!strictDecoded.ok) throw new Error(strictDecoded.diagnostics[0].message);
+assert.equal(strictDecoded.status, 'repaired-cache');
+assert.deepEqual(
+  strictDecoded.value.entries.map((entry) => entry.kind),
+  ['decoded', 'preserved', 'preserved', 'preserved'],
+  'ordinary V3 decoding must preserve mixed-age files without invoking migration',
+);
+assert.equal(
+  strictDecoded.value.entries[1]?.kind === 'preserved'
+    ? strictDecoded.value.entries[1].status
+    : null,
+  'quarantined',
+);
+
+const decoded = decodeCompatibleWorkbenchWorkspaceRecord(rawWorkspace);
 assert.equal(decoded.ok, true);
 if (!decoded.ok) throw new Error(decoded.diagnostics[0].message);
 assert.equal(decoded.status, 'migrated');

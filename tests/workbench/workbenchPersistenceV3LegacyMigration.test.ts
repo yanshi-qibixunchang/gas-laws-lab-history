@@ -17,7 +17,10 @@ import {
 import {
   decodeLegacyWorkbenchWorkspaceSource,
   decodeLegacyWorkbenchFileEnvelopeToV3Projection,
-} from '../../src/features/workbench/persistenceV3/legacyV2Adapter.ts';
+} from '../../src/features/workbench/persistenceV3/compat/legacyV2Adapter.ts';
+import {
+  decodeCompatibleWorkbenchWorkspaceRecord as decodeWorkbenchPersistenceV3WorkspaceRecord,
+} from '../../src/features/workbench/persistenceV3/compat/workspaceCompatibilityDecoder.ts';
 import {
   createLegacyWorkbenchFileEnvelopeFixture as createWorkbenchFileEnvelopeWithCodec,
 } from './helpers/legacyWorkbenchSourceFixture.ts';
@@ -47,7 +50,6 @@ import {
   suspendHeatCapacityModeSession,
 } from '../../src/features/workbench/workbenchHeatCapacityModeSession.ts';
 import {
-  decodeWorkbenchPersistenceV3WorkspaceRecord,
   encodeWorkbenchPersistenceV3WorkspaceProjection,
   reprojectWorkbenchPersistenceV3Workspace,
 } from '../../src/features/workbench/persistenceV3/workspaceCodec.ts';

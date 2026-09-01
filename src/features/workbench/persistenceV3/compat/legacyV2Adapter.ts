@@ -18,70 +18,70 @@ import {
   type WorkbenchIdealState,
   type WorkbenchPanelKey,
   type WorkbenchStandardState,
-} from '../workbenchState.ts';
+} from '../../workbenchState.ts';
 import {
   HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
   HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION,
   normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence,
   normalizeHeatCapacityModeSessionStore,
   suspendHeatCapacityModeSession,
-} from '../workbenchHeatCapacityModeSession.ts';
+} from '../../workbenchHeatCapacityModeSession.ts';
 import {
   migrateLegacyHeatCapacityFreeExperimentGroups,
-} from '../workbenchHeatCapacityExperimentGroupMigration.ts';
+} from '../../workbenchHeatCapacityExperimentGroupMigration.ts';
 import {
   HARD_SPHERE_MAX_COLLECTED_SAMPLES,
   HARD_SPHERE_MAX_PARTICLE_COUNT,
   HARD_SPHERE_MAX_PRESSURE_HISTORY,
   HARD_SPHERE_MAX_TEMPERATURE_HISTORY,
   validateHardSphereSimulationParams,
-} from '../../../domain/hardSphere/hardSphereSimulationValidation.ts';
+} from '../../../../domain/hardSphere/hardSphereSimulationValidation.ts';
 import {
   normalizeHardSphereEngineSnapshot,
   upgradeLegacyHardSphereEngineSnapshotV1,
-} from '../../../domain/hardSphere/hardSphereSnapshotCodec.ts';
+} from '../../../../domain/hardSphere/hardSphereSnapshotCodec.ts';
 import {
   HEAT_CAPACITY_FREE_BATCH_VERSION,
   createEmptyHeatCapacityFreeBatchState,
-} from '../../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
+} from '../../../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
   HEAT_CAPACITY_FREE_CALCULATION_VERSION,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
   HEAT_CAPACITY_FREE_TRACE_COMPACTION_VERSION,
   HEAT_CAPACITY_FREE_TRACE_VERSION,
-} from '../../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
+} from '../../../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   areHeatCapacityPersistenceValuesEqual,
   decodeHeatCapacityFreeExperimentDomainAggregate,
-} from '../workbenchHeatCapacityFreeAggregateCodec.ts';
+} from '../../workbenchHeatCapacityFreeAggregateCodec.ts';
 import {
   createWorkbenchPersistenceV3Diagnostic,
   createWorkbenchPersistenceV3Failure,
   createWorkbenchPersistenceV3Success,
   type WorkbenchPersistenceV3DecodeResult,
-} from './contract.ts';
+} from '../contract.ts';
 import {
   assertNeverWorkbenchFileKind,
   isWorkbenchFileKind,
   type WorkbenchFileKind,
-} from '../workbenchFileKind.ts';
+} from '../../workbenchFileKind.ts';
 import {
   getWorkbenchPersistenceV3AggregateKindForFileKind,
   projectWorkbenchPersistenceV3File,
   type WorkbenchPersistenceV3FileProjection,
-} from './projection.ts';
+} from '../projection.ts';
 import {
   decodeHeatCapacityV3AuthorityValues,
-} from './heatCapacityValueDecoder.ts';
+} from '../heatCapacityValueDecoder.ts';
 import {
   normalizePistonOscillationGuideSession,
-} from '../../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+} from '../../../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
   normalizePistonOscillationDemoSession,
-} from '../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
+} from '../../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 import {
   normalizePistonOscillationFreeSession,
-} from '../../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+} from '../../../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 
 const WORKBENCH_SESSION_SCHEMA_FAMILY =
   'hard-sphere-lab.workbench-session' as const;

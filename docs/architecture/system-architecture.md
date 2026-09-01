@@ -65,7 +65,11 @@ Persistence V3 的字段分类以 `src/features/workbench/persistenceV3/contract
 - 工作区格式与引用校验：`src/features/workbench/persistenceV3/workspaceCodec.ts`。
 - 代际存储：`src/features/workbench/persistenceV3/generationStore.ts` 及 IndexedDB 实现。
 - 调度与重试：`src/features/workbench/workbenchPersistenceScheduler.ts`。
-- 旧 V2/历史文件只允许在 `legacyV2Adapter.ts` 和 `workbenchPersistenceMigration.ts` 等边界读取；迁移成功后只写当前格式。
+- 当前 V3 的生产保存与恢复只能依赖 `productionFacade.ts`、`workspaceCodec.ts` 和当前版本编解码器，不得静态依赖历史迁移实现。
+- 在 Persistence V3 内，V2 工作区、V1 文件信封和早期 V3 投影只允许从 `src/features/workbench/persistenceV3/compat/workspaceCompatibilityDecoder.ts` 进入；支持的格式族与版本以 `compat/legacySupportMatrix.ts` 为准，具体旧格式解析冻结在 `compat/legacyV2Adapter.ts`，迁移成功后只写当前格式。
+- 浏览器旧 `localStorage/sessionStorage` 的启动迁移仍由 `workbenchPersistenceMigration.ts` 单独负责，并且只能在没有可恢复 V3 代际时进入；它不得成为当前 V3 工作区的普通解码依赖。
+- 早期 V3 绝热膨胀投影缺少实验组权威字段时，只有兼容入口可通过 `compat/legacyV3ProjectionAdapter.ts` 补齐；当前 V3 普通解码不得用默认值猜测性修复。
+- 历史迁移结果由基线指纹测试锁定。任何默认值或迁移规则调整若改变既有存档结果，必须先核对影响，再显式提升 `migrationBaselineVersion` 并更新测试说明。
 - 不支持的未来版本不得猜测性降级。能够保留的未知文件以 opaque/preserved 形式保留，损坏聚合按诊断结果隔离。
 - 保存成功必须建立在事务成功和读回验证上；退出流程不得把“已发起写入”等同于“已安全保存”。
 
