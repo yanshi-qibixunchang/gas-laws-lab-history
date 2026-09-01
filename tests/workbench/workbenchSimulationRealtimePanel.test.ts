@@ -5,6 +5,7 @@ import {
   formatMetric,
   formatPercent,
   getCompactHistogramBins,
+  getIdealExperimentLanguageCode,
   getLocalizedStatusValue,
 } from '../../src/features/workbench/workbenchPresentationFormatting.ts';
 import { workbenchCopies } from '../../src/features/workbench/workbenchStudioCopy.ts';
@@ -16,6 +17,8 @@ assert.equal(formatMaybeMetric(2.3456, 3), '2.346');
 assert.equal(formatPercent(-1), '0%');
 assert.equal(formatPercent(0.456), '46%');
 assert.equal(formatPercent(2), '100%');
+assert.equal(getIdealExperimentLanguageCode('en'), 'en-GB');
+assert.equal(getIdealExperimentLanguageCode('zh-CN'), 'zh-CN');
 assert.equal(getLocalizedStatusValue('running', workbenchCopies.en), workbenchCopies.en.status.runStates.running);
 assert.equal(getLocalizedStatusValue(undefined, workbenchCopies.en), workbenchCopies.en.status.none);
 

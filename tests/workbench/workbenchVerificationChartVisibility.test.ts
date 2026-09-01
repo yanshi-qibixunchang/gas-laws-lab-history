@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
   for (const match of cssSource.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
@@ -46,14 +47,14 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /<div className=\{`studio-verification-main-layout \$\{isPvVerification \? 'studio-verification-layout-pv' : 'studio-verification-layout-single'\}`\}>[\s\S]*?<div className="studio-verification-chart-column">[\s\S]*?<section className="studio-verification-chart-section studio-verification-chart-primary">[\s\S]*?renderIdealValidationChart\(idealAnalysis\)[\s\S]*?<div className="studio-verification-side">[\s\S]*?studio-result-status[\s\S]*?studio-analysis-grid[\s\S]*?<\/div>/,
+  verificationPanelSource,
+  /studio-verification-main-layout[\s\S]*?studio-verification-layout-pv[\s\S]*?studio-verification-layout-single[\s\S]*?<div className="studio-verification-chart-column">[\s\S]*?<section className="studio-verification-chart-section studio-verification-chart-primary">[\s\S]*?<IdealValidationChart[\s\S]*?<div className="studio-verification-side">[\s\S]*?studio-result-status[\s\S]*?studio-analysis-grid[\s\S]*?<\/div>/,
   'Verification window should lay out chart content on the left and status metrics on the right',
 );
 
 assert.match(
   source,
-  /\{renderVerificationPanel\(\)\}[\s\S]*?studio-ideal-history-locked[\s\S]*?studio-ideal-export-actions/,
+  /<WorkbenchIdealVerificationPanel[\s\S]*?studio-ideal-history-locked[\s\S]*?studio-ideal-export-actions/,
   'History and Export should remain outside the local Verification two-column layout',
 );
 
@@ -124,5 +125,4 @@ assert.match(
 );
 
 console.log('workbenchVerificationChartVisibility tests passed');
-
 

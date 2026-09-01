@@ -1,4 +1,6 @@
 import type { HistogramBin } from '../../shared/types.ts';
+import type { IdealExperimentLanguageCode } from '../../domain/idealGas/idealGasExperiment.ts';
+import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
 import type { WorkbenchFileState } from './workbenchState.ts';
 import type { WorkbenchCopy } from './workbenchStudioCopy.ts';
 
@@ -16,6 +18,12 @@ export const formatMaybeMetric = (
 
 export const formatPercent = (value: number) => (
   `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`
+);
+
+export const getIdealExperimentLanguageCode = (
+  language: WorkbenchLanguagePreference,
+): IdealExperimentLanguageCode => (
+  language === 'en' ? 'en-GB' : language
 );
 
 export const getLocalizedStatusValue = (

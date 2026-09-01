@@ -438,11 +438,9 @@ import {
   getRelationLabel,
   getRelationVariableKey,
   getRelationVariableNumericValue,
-  getRelationXValue,
   isVariableKeyForRelation,
   type ExperimentParamKey,
   type IdealGasAnalysis,
-  type IdealExperimentLanguageCode,
 } from '../../domain/idealGas/idealGasExperiment';
 import {
   HEAT_CAPACITY_QUALITY_PROFILES,
@@ -492,11 +490,13 @@ import { WorkbenchUpdateDialog } from './WorkbenchUpdateDialog.tsx';
 import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
+import { WorkbenchIdealVerificationPanel } from './WorkbenchIdealVerificationPanel.tsx';
 import { WorkbenchSimulationRealtimePanel } from './WorkbenchSimulationRealtimePanel.tsx';
 import {
   formatMaybeMetric,
   formatMetric,
   getCompactHistogramBins,
+  getIdealExperimentLanguageCode,
   getLocalizedStatusValue,
 } from './workbenchPresentationFormatting.ts';
 import {
@@ -2299,12 +2299,6 @@ type FinalChartLegendItem = {
   label: string;
   className?: string;
 };
-
-const getIdealExperimentLanguageCode = (
-  language: WorkbenchLanguagePreference,
-): IdealExperimentLanguageCode => (
-  language === 'en' ? 'en-GB' : language
-);
 
 const getChangedIdealParamKeys = (
   previousParams: SimulationParams,
@@ -22651,97 +22645,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const renderIdealValidationChart = (
-    analysis: IdealGasAnalysis,
-    variant: 'linear' | 'pvRaw' = 'linear',
-  ) => {
-    if (activeFile.kind !== 'ideal') return null;
-
-    const points = analysis.sortedPoints
-      .map((point) => ({
-        point,
-        x: variant === 'pvRaw' ? point.volume ?? 0 : getRelationXValue(analysis.relation, point),
-        measured: point.meanPressure,
-        ideal: point.idealPressure,
-      }))
-      .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.measured) && point.x > 0);
-
-    if (points.length === 0) {
-      return <div className="studio-final-figure-empty">{workbenchCopy.results.noPoints}</div>;
-    }
-
-    const xValues = points.map((point) => point.x);
-    const yValues = points.flatMap((point) => [point.measured, point.ideal]);
-    if (variant === 'linear' && analysis.regression.slope !== null && analysis.regression.intercept !== null) {
-      xValues.forEach((x) => yValues.push((analysis.regression.slope ?? 0) * x + (analysis.regression.intercept ?? 0)));
-    }
-
-    const minX = Math.min(...xValues);
-    const maxX = Math.max(...xValues);
-    const minY = Math.min(0, ...yValues);
-    const maxY = Math.max(0.0001, ...yValues);
-    const xSpan = Math.max(0.0001, maxX - minX);
-    const ySpan = Math.max(0.0001, maxY - minY);
-    const xTo = (value: number) => 34 + ((value - minX) / xSpan) * 324;
-    const yTo = (value: number) => 146 - ((value - minY) / ySpan) * 112;
-    const measuredPoints = points.map((point) => `${xTo(point.x)},${yTo(point.measured)}`).join(' ');
-    const idealPoints = points.map((point) => `${xTo(point.x)},${yTo(point.ideal)}`).join(' ');
-    const fitPoints =
-      variant === 'linear' && analysis.regression.slope !== null && analysis.regression.intercept !== null
-        ? [minX, maxX]
-            .map((x) => `${xTo(x)},${yTo(analysis.regression.slope * x + analysis.regression.intercept)}`)
-            .join(' ')
-        : '';
-    const theoryPoints =
-      variant === 'linear' && analysis.theoreticalSlope !== null
-        ? [minX, maxX].map((x) => `${xTo(x)},${yTo(analysis.theoreticalSlope * x)}`).join(' ')
-        : idealPoints;
-    const xLabel = variant === 'pvRaw'
-      ? 'V'
-      : analysis.relation === 'pv'
-        ? '1/V'
-        : analysis.relation === 'pn'
-          ? 'N'
-          : 'T';
-
-    return (
-      <div className="studio-ideal-chart-card">
-        <svg viewBox="0 0 392 176" role="img" aria-label={workbenchCopy.results.verificationChartAria(getRelationLabel(analysis.relation))}>
-          <line x1="34" y1="146" x2="358" y2="146" />
-          <line x1="34" y1="34" x2="34" y2="146" />
-          {[0.25, 0.5, 0.75].map((ratio) => (
-            <line
-              key={`grid-${ratio}`}
-              className="studio-ideal-chart-grid"
-              x1="34"
-              y1={146 - ratio * 112}
-              x2="358"
-              y2={146 - ratio * 112}
-            />
-          ))}
-          {theoryPoints ? <polyline className="studio-ideal-chart-theory" points={theoryPoints} /> : null}
-          {fitPoints ? <polyline className="studio-ideal-chart-fit" points={fitPoints} /> : null}
-          <polyline className="studio-ideal-chart-measured" points={measuredPoints} />
-          {points.map((point) => (
-            <circle
-              key={`${variant}-${point.point.id}`}
-              cx={xTo(point.x)}
-              cy={yTo(point.measured)}
-              r="3.4"
-            />
-          ))}
-          <text x="196" y="169">{xLabel}</text>
-          <text x="8" y="25">P</text>
-        </svg>
-        <div className="studio-ideal-chart-legend">
-          <span><i className="studio-ideal-legend-measured-dot" />{workbenchCopy.results.measuredLegend}</span>
-          <span><i className="studio-ideal-legend-fit" />{workbenchCopy.results.fitLegend}</span>
-          <span><i className="studio-ideal-legend-theory" />{workbenchCopy.results.theoryLegend}</span>
-        </div>
-      </div>
-    );
-  };
-
   const renderResultsDataTable = () => {
     return (
       <div className="studio-data-table-panel">
@@ -23503,7 +23406,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
     return (
       <div className="studio-ideal-child-window-body">
-        {renderVerificationPanel()}
+        <WorkbenchIdealVerificationPanel
+          analysis={idealAnalysis}
+          file={activeFile}
+          language={settingsLanguagePreference}
+          workbenchCopy={workbenchCopy}
+        />
         <div className={`studio-ideal-results-card ${idealAnalysis.isVerified ? 'studio-ideal-history-unlocked' : 'studio-ideal-history-locked'}`}>
           <div className="studio-ideal-results-card-header">
             <div>
@@ -23686,86 +23594,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const renderVerificationPanel = () => {
-    if (activeFile.kind !== 'ideal' || !idealAnalysis) {
-      return (
-        <div className="studio-empty">
-          <div>
-            <strong>{workbenchCopy.results.noVerificationChartTitle}</strong>
-            <p>{workbenchCopy.results.noVerificationChartBody}</p>
-          </div>
-        </div>
-      );
-    }
-
-    const idealLanguage = getIdealExperimentLanguageCode(settingsLanguagePreference);
-    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, idealLanguage);
-    const recommendationText = getIdealRecommendationText(
-      idealAnalysis.diagnosis.failureReason,
-      idealAnalysis.verdictState,
-      activeFile.relation,
-      idealLanguage,
-    );
-    const isPvVerification = activeFile.relation === 'pv';
-
-    return (
-      <div className={`studio-verification-panel studio-verification-panel-${activeFile.relation}`}>
-        <div className={`studio-verification-main-layout ${isPvVerification ? 'studio-verification-layout-pv' : 'studio-verification-layout-single'}`}>
-          <div className="studio-verification-chart-column">
-            <section className="studio-verification-chart-section studio-verification-chart-primary">
-              <div className="studio-results-subheader">
-                <div>
-                  <strong>{isPvVerification ? workbenchCopy.results.pvLinearizedValidation : workbenchCopy.results.relationValidation(getRelationLabel(activeFile.relation))}</strong>
-                  <span>{workbenchCopy.results.measuredScatterHint}</span>
-                </div>
-              </div>
-              {renderIdealValidationChart(idealAnalysis)}
-            </section>
-
-            {isPvVerification ? (
-              <section className="studio-verification-chart-section studio-verification-chart-secondary">
-                <div className="studio-results-subheader">
-                  <div>
-                    <strong>{workbenchCopy.results.originalPvPhysicalView}</strong>
-                    <span>{workbenchCopy.results.originalPvPhysicalHint}</span>
-                  </div>
-                </div>
-                {renderIdealValidationChart(idealAnalysis, 'pvRaw')}
-              </section>
-            ) : null}
-          </div>
-
-          <div className="studio-verification-side">
-            <div className={`studio-result-status ${idealAnalysis.isVerified ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-              <strong>{workbenchCopy.results.verdictLabel(getRelationLabel(activeFile.relation), getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy))}</strong>
-              <span>{recommendationText}</span>
-            </div>
-
-            <div className="studio-analysis-grid">
-              <div className="studio-analysis-cell"><span>{workbenchCopy.results.pointsMetric}</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
-              <div className="studio-analysis-cell"><span>{workbenchCopy.results.rSquared}</span><strong>{formatMaybeMetric(idealAnalysis.regression.rSquared, 5)}</strong></div>
-              <div className="studio-analysis-cell"><span>{workbenchCopy.results.slope}</span><strong>{formatMaybeMetric(idealAnalysis.regression.slope, 6)}</strong></div>
-              <div className="studio-analysis-cell"><span>{workbenchCopy.results.theorySlope}</span><strong>{formatMaybeMetric(idealAnalysis.theoreticalSlope, 6)}</strong></div>
-              <div className="studio-analysis-cell"><span>{workbenchCopy.results.slopeError}</span><strong>{idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`}</strong></div>
-              <div className="studio-analysis-cell"><span>{workbenchCopy.results.failureReason}</span><strong>{idealAnalysis.diagnosis.failureReason ? failureReasonText : workbenchCopy.results.noneValue}</strong></div>
-            </div>
-
-            <div className="studio-ideal-diagnosis-card">
-              <div>
-                <span>{workbenchCopy.results.whyItHappened}</span>
-                <strong>{failureReasonText}</strong>
-              </div>
-              <div>
-                <span>{workbenchCopy.results.recommendedNextStep}</span>
-                <strong>{recommendationText}</strong>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   const renderHistoryPanel = () => (
     activeFile.kind === 'ideal' && idealAnalysis ? (
       <div className="studio-history">
@@ -23797,7 +23625,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const renderPanelContent = (panel: PanelDefinition) => {
     if (panel.key === 'preview') return renderPreviewPanel();
     if (panel.key === 'realtime') return renderRealtimePanel();
-    if (panel.key === 'verification') return activeFile.kind === 'ideal' ? renderIdealVerificationWindow() : renderVerificationPanel();
+    if (panel.key === 'verification') {
+      return activeFile.kind === 'ideal' ? renderIdealVerificationWindow() : (
+        <WorkbenchIdealVerificationPanel
+          analysis={null}
+          file={null}
+          language={settingsLanguagePreference}
+          workbenchCopy={workbenchCopy}
+        />
+      );
+    }
     if (panel.key === 'results') return renderResultsPanel();
     if (panel.key === 'experimentPoints') return renderIdealPointsWindow();
     if (activeFile.kind === 'heatCapacity' && panel.key === 'heatCapacityReview') {

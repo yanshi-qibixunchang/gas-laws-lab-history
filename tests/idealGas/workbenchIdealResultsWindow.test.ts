@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
+const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
 const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
@@ -103,7 +104,7 @@ assert.match(
   'Preview Reset should be available for both standard and ideal files',
 );
 assert.match(
-  source,
+  verificationPanelSource,
   /studio-ideal-legend-measured-dot/,
   'measured legend marker should be a scatter dot, not a line swatch',
 );
@@ -223,28 +224,28 @@ assert.match(
   'ideal realtime current point summary should render as a compact strip',
 );
 assert.match(
-  source,
-  /studio-verification-panel-\$\{activeFile\.relation\}/,
+  verificationPanelSource,
+  /studio-verification-panel-\$\{file\.relation\}/,
   'ideal Verification should add a relation-specific panel class',
 );
 assert.match(
-  source,
+  verificationPanelSource,
   /studio-verification-layout-pv/,
   'ideal P-V Verification should use a dedicated double-chart layout class',
 );
 assert.match(
-  source,
+  verificationPanelSource,
   /studio-verification-layout-single/,
   'ideal P-T and P-N Verification should use a dedicated single-chart layout class',
 );
 assert.match(
-  source,
-  /studio-verification-chart-primary[\s\S]*?renderIdealValidationChart\(idealAnalysis\)/,
+  verificationPanelSource,
+  /studio-verification-chart-primary[\s\S]*?<IdealValidationChart[\s\S]*?analysis=\{analysis\}/,
   'ideal Verification should render the linearized validation chart as the primary chart',
 );
 assert.match(
-  source,
-  /isPvVerification \? \([\s\S]*?studio-verification-chart-secondary[\s\S]*?renderIdealValidationChart\(idealAnalysis,\s*'pvRaw'\)/,
+  verificationPanelSource,
+  /isPvVerification \? \([\s\S]*?studio-verification-chart-secondary[\s\S]*?<IdealValidationChart[\s\S]*?variant="pvRaw"/,
   'ideal P-V Verification should render the raw P-V chart only in the P-V branch',
 );
 assert.match(
@@ -318,7 +319,7 @@ assert.doesNotMatch(
   'footer status should no longer show the internal workbench batch label',
 );
 assert.match(
-  source,
+  verificationPanelSource,
   /studio-ideal-diagnosis-card/,
   'ideal Verification should surface shared failure diagnosis and recommendation text',
 );

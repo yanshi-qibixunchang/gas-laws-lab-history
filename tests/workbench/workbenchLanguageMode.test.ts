@@ -6,7 +6,8 @@ const copySource = readFileSync(new URL('../../src/features/workbench/workbenchS
 const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
-const uiSource = `${source}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}`;
+const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
+const uiSource = `${source}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}\n${verificationPanelSource}`;
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -40,7 +41,7 @@ const getLanguageBlock = (languageKey) => {
 const zhCNBlock = getLanguageBlock("'zh-CN'");
 const zhTWBlock = getLanguageBlock("'zh-TW'");
 const enBlock = getLanguageBlock('en');
-const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}`;
+const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}\n${verificationPanelSource}`;
 
 for (const [field, zhCNText, zhTWText, enText] of [
   ['openFiles', '打开文件', '開啟檔案', 'Open Files'],
