@@ -117,12 +117,12 @@ assert.match(
 );
 assert.match(
   selectFileBody,
-  /if \(switchingFile && file\.kind === 'heatCapacity'\) \{[\s\S]*activeModeCheckpointOverride = activateHeatCapacityFileModeSession\(file\.id\)/,
+  /if \(switchingFile && selectedFile\.kind === 'heatCapacity'\) \{[\s\S]*activeModeCheckpointOverride = activateHeatCapacityFileModeSession\(selectedFile\.id\)/,
   'returning to a heat-capacity file should restore its selected mode session',
 );
 assert.match(
   selectFileBody,
-  /activeModeCheckpointOverride = activateHeatCapacityFileModeSession\(file\.id\)[\s\S]*flushWorkspacePersistenceRef\.current\(activeModeCheckpointOverride\)/,
+  /activeModeCheckpointOverride = activateHeatCapacityFileModeSession\(selectedFile\.id\)[\s\S]*flushWorkspacePersistenceRef\.current\(activeModeCheckpointOverride\)/,
   'returning to a heat-capacity file should atomically flush the restored target checkpoint',
 );
 

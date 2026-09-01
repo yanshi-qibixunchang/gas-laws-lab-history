@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
+const fileLifecycleSource = readFileSync(new URL('../../src/features/workbench/workbenchFileLifecycleCoordinator.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.doesNotMatch(
@@ -24,8 +25,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const nextActiveFileId = nextActiveFile\?\.id \?\? '';[\s\S]*?commitWorkbenchFileCollections\(remainingFiles, nextClosedFiles, nextActiveFileId\);/,
+  fileLifecycleSource,
+  /nextActiveFileId: nextActiveFile\?\.id \?\? ''/,
   'deleting the active final file should clear the active file id instead of selecting a missing file',
 );
 

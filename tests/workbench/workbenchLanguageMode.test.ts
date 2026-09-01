@@ -193,7 +193,7 @@ assert.match(
 
 assert.match(
   source,
-  /workbenchCopies\[language\]\.logs\.fileSelected\(file\.name\)/,
+  /workbenchCopies\[language\]\.logs\.fileSelected\(selectedFile\.name\)/,
   'Common dynamic logs should read from the language selected at render time',
 );
 

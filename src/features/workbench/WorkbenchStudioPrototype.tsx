@@ -392,6 +392,14 @@ import {
   createUniqueWorkbenchFileId,
   getNextWorkbenchFileDisplayIndex,
 } from './workbenchFileIdentity.ts';
+import {
+  applyWorkbenchFileRename,
+  createWorkbenchFileClosePlan,
+  createWorkbenchFileDeletePlan,
+  createWorkbenchFileReopenPlan,
+  createWorkbenchFileSelectionPlan,
+  resolveWorkbenchFileRename,
+} from './workbenchFileLifecycleCoordinator.ts';
 import { areCanonicalPersistenceValuesEqual } from './workbenchWorkspaceFileValidation.ts';
 import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
 import { trimWorkbenchEditHistory } from './workbenchEditHistory.ts';
@@ -18598,30 +18606,28 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const commitRenameFile = (fileId: string) => {
-    const nextName = renameDraft.trim();
-    if (!nextName) {
+    const renameDecision = resolveWorkbenchFileRename(files, fileId, renameDraft);
+    if (renameDecision.kind === 'empty') {
       pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
       return;
     }
-
-    const targetFile = files.find((file) => file.id === fileId);
-    if (targetFile && targetFile.name === nextName) {
+    if (renameDecision.kind === 'missing') {
       cancelRenameFile();
-      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(nextName));
+      return;
+    }
+    if (renameDecision.kind === 'unchanged') {
+      cancelRenameFile();
+      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(renameDecision.name));
       return;
     }
 
     captureUndoSnapshot('renamed file', 'file', fileId);
-    updateFileById(fileId, (file) => ({
-      ...file,
-      name: nextName,
-      updatedAt: Date.now(),
-    }));
+    updateFileById(fileId, (file) => applyWorkbenchFileRename(file, renameDecision.name, Date.now()));
     renamingFileIdRef.current = null;
     renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
-    pushLog((language) => workbenchCopies[language].logs.fileRenamed(nextName), 'success');
+    pushLog((language) => workbenchCopies[language].logs.fileRenamed(renameDecision.name), 'success');
   };
 
   const cancelRenameFile = () => {
@@ -18635,8 +18641,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const fileId = renamingFileIdRef.current;
     if (!fileId) return;
 
-    const nextName = renameDraft.trim();
-    if (!nextName) {
+    const renameDecision = resolveWorkbenchFileRename(filesRef.current, fileId, renameDraft);
+    if (renameDecision.kind === 'empty') {
       pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
       renamingFileIdRef.current = null;
       renameSelectionModeRef.current = 'normal';
@@ -18644,25 +18650,23 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       setRenameDraft('');
       return;
     }
-
-    const targetFile = filesRef.current.find((file) => file.id === fileId);
-    if (targetFile && targetFile.name === nextName) {
+    if (renameDecision.kind === 'missing') {
       cancelRenameFile();
-      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(nextName));
+      return;
+    }
+    if (renameDecision.kind === 'unchanged') {
+      cancelRenameFile();
+      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(renameDecision.name));
       return;
     }
 
     captureUndoSnapshot('renamed file', 'file', fileId);
-    updateFileById(fileId, (file) => ({
-      ...file,
-      name: nextName,
-      updatedAt: Date.now(),
-    }));
+    updateFileById(fileId, (file) => applyWorkbenchFileRename(file, renameDecision.name, Date.now()));
     renamingFileIdRef.current = null;
     renameSelectionModeRef.current = 'normal';
     setRenamingFileId(null);
     setRenameDraft('');
-    pushLog((language) => workbenchCopies[language].logs.fileRenamed(nextName), 'success');
+    pushLog((language) => workbenchCopies[language].logs.fileRenamed(renameDecision.name), 'success');
   };
 
   useEffect(() => {
@@ -18756,9 +18760,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const closeWorkbenchFile = (fileId: string) => {
-    const openFiles = filesRef.current;
-    const index = openFiles.findIndex((file) => file.id === fileId);
-    let file = openFiles[index];
+    let file = filesRef.current.find((candidate) => candidate.id === fileId);
     if (!file) return;
     captureUndoSnapshot('closed file', 'workspace');
 
@@ -18773,28 +18775,25 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     delete idealRuntimeRef.current[fileId];
     if (file.kind === 'heatCapacity' && !isClosingActiveFile) releaseHeatCapacityRuntimeForFileExit(fileId);
 
-    const cachedFile: WorkbenchFileState = {
-      ...file,
-      runState: file.kind === 'heatCapacity'
-        ? file.runState
-        : file.runState === 'running' ? 'paused' : file.runState,
-      updatedAt: Date.now(),
-    };
-    const remainingFiles = filesRef.current.filter((candidate) => candidate.id !== fileId);
-    const nextClosedFiles = [
-      cachedFile,
-      ...closedFilesRef.current.filter((candidate) => candidate.id !== fileId),
-    ];
-    const nextActiveFile = isClosingActiveFile
-      ? remainingFiles[Math.min(index, remainingFiles.length - 1)]
-      : remainingFiles.find((candidate) => candidate.id === activeFileIdRef.current);
-    const nextActiveFileId = nextActiveFile?.id ?? '';
+    const closePlan = createWorkbenchFileClosePlan(
+      filesRef.current,
+      closedFilesRef.current,
+      activeFileIdRef.current,
+      fileId,
+      Date.now(),
+    );
+    if (closePlan.kind !== 'ready') return;
+    file = closePlan.file;
 
     if (isClosingActiveFile) selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(remainingFiles, nextClosedFiles, nextActiveFileId);
+    commitWorkbenchFileCollections(
+      closePlan.nextFiles,
+      closePlan.nextClosedFiles,
+      closePlan.nextActiveFileId,
+    );
     let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (isClosingActiveFile && nextActiveFile?.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(nextActiveFile.id);
+    if (isClosingActiveFile && closePlan.nextActiveFile?.kind === 'heatCapacity') {
+      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(closePlan.nextActiveFile.id);
     }
     heatCapacityRefreshPersistRef.current();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
@@ -18860,15 +18859,21 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
 
     const reopenedFile = prepareReopenedWorkbenchFile(file);
-    const nextClosedFiles = closedFilesRef.current.filter((candidate) => candidate.id !== fileId);
-    const reopenedFiles = filesRef.current.some((candidate) => candidate.id === reopenedFile.id)
-      ? filesRef.current
-      : [...filesRef.current, reopenedFile];
+    const reopenPlan = createWorkbenchFileReopenPlan(
+      filesRef.current,
+      closedFilesRef.current,
+      reopenedFile,
+    );
+    if (reopenPlan.kind !== 'ready') return;
     selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(reopenedFiles, nextClosedFiles, reopenedFile.id);
+    commitWorkbenchFileCollections(
+      reopenPlan.nextFiles,
+      reopenPlan.nextClosedFiles,
+      reopenPlan.nextActiveFileId,
+    );
     let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (reopenedFile.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(reopenedFile.id);
+    if (reopenPlan.nextActiveFile.kind === 'heatCapacity') {
+      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(reopenPlan.nextActiveFile.id);
     }
     heatCapacityRefreshPersistRef.current();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
@@ -18886,11 +18891,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const deleteWorkbenchFile = (fileId: string) => {
-    const openFiles = filesRef.current;
-    const index = openFiles.findIndex((file) => file.id === fileId);
-    const file = openFiles[index];
-    if (!file) return;
-    const deletingActiveFile = fileId === activeFileIdRef.current;
+    const deletePlan = createWorkbenchFileDeletePlan(
+      filesRef.current,
+      closedFilesRef.current,
+      activeFileIdRef.current,
+      fileId,
+    );
+    if (deletePlan.kind !== 'ready') return;
+    const { file } = deletePlan;
+    const deletingActiveFile = deletePlan.wasActive;
 
     captureUndoSnapshot('deleted file', 'workspace');
     if (deletingActiveFile && file.kind === 'heatCapacity') {
@@ -18902,18 +18911,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (file.kind === 'heatCapacity' && !deletingActiveFile) {
       releaseHeatCapacityRuntimeForFileExit(fileId);
     }
-    const remainingFiles = openFiles.filter((candidate) => candidate.id !== fileId);
-    const nextClosedFiles = closedFilesRef.current.filter((candidate) => candidate.id !== fileId);
-    const nextActiveFile = deletingActiveFile
-      ? remainingFiles[Math.min(index, remainingFiles.length - 1)]
-      : remainingFiles.find((candidate) => candidate.id === activeFileIdRef.current);
-    const nextActiveFileId = nextActiveFile?.id ?? '';
 
     selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(remainingFiles, nextClosedFiles, nextActiveFileId);
+    commitWorkbenchFileCollections(
+      deletePlan.nextFiles,
+      deletePlan.nextClosedFiles,
+      deletePlan.nextActiveFileId,
+    );
     let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (deletingActiveFile && nextActiveFile?.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(nextActiveFile.id);
+    if (deletingActiveFile && deletePlan.nextActiveFile?.kind === 'heatCapacity') {
+      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(deletePlan.nextActiveFile.id);
     }
     heatCapacityRefreshPersistRef.current();
     void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
@@ -18996,6 +19003,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const selectFile = (file: WorkbenchFileState) => {
     setSelectedFileId(file.id);
     if (file.id === activeFileIdRef.current) return;
+    let selectedFile = file;
     const currentActiveFile = filesRef.current.find((candidate) => (
       candidate.id === activeFileIdRef.current
     )) ?? activeFile;
@@ -19021,21 +19029,27 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
 
     if (switchingFile) {
-      const openedAt = Date.now();
-      const nextFiles = filesRef.current.map((candidate) => candidate.id === file.id
-        ? { ...candidate, lastOpenedAt: openedAt }
-        : candidate);
-      filesRef.current = nextFiles;
-      setFiles(nextFiles);
+      const selectionPlan = createWorkbenchFileSelectionPlan(
+        filesRef.current,
+        activeFileIdRef.current,
+        file.id,
+        Date.now(),
+      );
+      if (selectionPlan.kind !== 'ready') return;
+      selectedFile = selectionPlan.nextActiveFile;
       if (!switchingFromPendingHeatCapacityRefresh) {
         heatCapacityRefreshPersistRef.current();
         void flushWorkspacePersistenceRef.current();
       }
-      commitWorkbenchFileCollections(nextFiles, closedFilesRef.current, file.id);
+      commitWorkbenchFileCollections(
+        selectionPlan.nextFiles,
+        closedFilesRef.current,
+        selectionPlan.nextActiveFileId,
+      );
     }
     let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (switchingFile && file.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(file.id);
+    if (switchingFile && selectedFile.kind === 'heatCapacity') {
+      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(selectedFile.id);
     }
     selectedPanelRef.current = 'preview';
     if (switchingFile) {
@@ -19054,7 +19068,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setSamplingPresetMenuOpen(false);
-    pushLog((language) => workbenchCopies[language].logs.fileSelected(file.name));
+    pushLog((language) => workbenchCopies[language].logs.fileSelected(selectedFile.name));
   };
 
   const renderWorkbenchParameterSymbol = (parts: WorkbenchParameterSymbolPart[]) => (
