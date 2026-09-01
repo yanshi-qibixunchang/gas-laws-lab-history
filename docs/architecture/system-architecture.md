@@ -2,7 +2,7 @@
 
 > 状态：当前合同
 > 适用版本：6.4.0 及其后的未发布开发版本
-> 最后核验：2026-09-01
+> 最后核验：2026-09-02
 > 替代关系：替代归档目录中所有旧架构草案；旧草案只作历史背景
 
 ## 1. 总体数据流
@@ -33,6 +33,7 @@ React 入口与启动门禁
 | 工作台窗口交互 | `workbenchResultsWindowCoordinator.ts`、`workbenchHeatCapacityMaterialsWindowCoordinator.ts` 及同目录专用协调器 | 以纯状态计划定义 Results 与绝热膨胀法实验资料标签的追加、替换、激活、关闭和下一标签选择 | 写入 React 状态、生成撤销记录、日志或直接操作窗口 |
 | 工作台文件生命周期 | `workbenchFileLifecycleCoordinator.ts` | 以纯状态计划定义重命名判定、关闭缓存、重新打开、删除、选择及下一活动文件 | 暂停运行时、释放热容会话、生成撤销记录、日志或持久化写入 |
 | 工作台只读展示 | `WorkbenchSimulationRealtimePanel.tsx`、`WorkbenchIdealVerificationPanel.tsx`、`workbenchIdealVerificationChart.ts`、`workbenchPresentationFormatting.ts` 及同目录专用展示模块 | 从已计算状态渲染标准/理想实验实时摘要、关系验证图与诊断，并统一纯展示格式化和图表坐标模型 | 创建运行时、修改文件状态、持久化或执行实验操作 |
+| 工作台面板兼容 | `workbenchPanelRegistry.ts`、`workbenchPanelCompatibility.ts` | 注册当前可用面板键；只在读取边界把旧 `history` 映射到当前 `verification`，并去除映射后的重复项 | 把历史键重新加入当前状态类型、界面分支或写出白名单 |
 | 工作台状态适配 | `src/features/workbench/workbenchState.ts` 及同目录专用模块 | 把文件状态、领域模型和 UI 操作连接起来；维持兼容入口 | 复制已经存在于领域对象中的权威状态 |
 | 领域层 | `src/domain/` | 硬球、理想气体、绝热膨胀、活塞振荡、评分和计算的确定性规则 | 浏览器存储、窗口、文件选择和界面副作用 |
 | 持久化 | `src/features/workbench/persistenceV3/` | 权威字段投影、版本化编码、诊断、保留未知数据、恢复 | 把可重算显示值重新定义成权威事实 |
@@ -74,6 +75,7 @@ Persistence V3 的字段分类以 `src/features/workbench/persistenceV3/contract
 - 在 Persistence V3 内，V2 工作区、V1 文件信封和早期 V3 投影只允许从 `src/features/workbench/persistenceV3/compat/workspaceCompatibilityDecoder.ts` 进入；支持的格式族与版本以 `compat/legacySupportMatrix.ts` 为准，具体旧格式解析冻结在 `compat/legacyV2Adapter.ts`，迁移成功后只写当前格式。
 - 浏览器旧 `localStorage/sessionStorage` 的启动迁移仍由 `workbenchPersistenceMigration.ts` 单独负责，并且只能在没有可恢复 V3 代际时进入；它不得成为当前 V3 工作区的普通解码依赖。
 - 早期 V3 绝热膨胀投影缺少实验组权威字段时，只有兼容入口可通过 `compat/legacyV3ProjectionAdapter.ts` 补齐；当前 V3 普通解码不得用默认值猜测性修复。
+- 面板键以 `workbenchPanelRegistry.ts` 为当前集合；旧 `history` 仅由 `workbenchPanelCompatibility.ts` 在会话、旧工作区、文件布局和 V3 UI 检查点的读取边界映射为 `verification`。任何当前编码或保存路径都不得重新写出旧键。
 - 历史迁移结果由基线指纹测试锁定。任何默认值或迁移规则调整若改变既有存档结果，必须先核对影响，再显式提升 `migrationBaselineVersion` 并更新测试说明。
 - 不支持的未来版本不得猜测性降级。能够保留的未知文件以 opaque/preserved 形式保留，损坏聚合按诊断结果隔离。
 - 保存成功必须建立在事务成功和读回验证上；退出流程不得把“已发起写入”等同于“已安全保存”。

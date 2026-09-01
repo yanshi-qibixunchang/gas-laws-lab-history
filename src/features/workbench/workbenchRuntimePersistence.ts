@@ -12,7 +12,7 @@ import {
   isPersistenceFiniteNumber,
   isPersistenceRecord,
 } from './workbenchPersistenceValue.ts';
-import { normalizeWorkbenchPanelKeys } from './workbenchPanelRegistry.ts';
+import { normalizeWorkbenchPanelKeys } from './workbenchPanelCompatibility.ts';
 import {
   createEmptyChartData,
   createIdleStats,

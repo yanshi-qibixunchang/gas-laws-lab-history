@@ -9,6 +9,7 @@ import {
   type WorkbenchPanelKey,
 } from './workbenchState.ts';
 import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
+import { normalizeWorkbenchPanelKey } from './workbenchPanelCompatibility.ts';
 import type {
   WorkbenchSessionState,
 } from './workbenchSession.ts';
@@ -3219,11 +3220,15 @@ const decodeEnvelopeAsRuntimeSession = (
     ? envelope.activeFileId ?? ''
     : runtimeFiles[0]?.id ?? '';
   const activeFile = runtimeFiles.find((file) => file.id === activeFileId);
+  const normalizedSelectedPanel = normalizeWorkbenchPanelKey(
+    envelope.selectedPanel,
+    'preview',
+  );
   const selectedPanel = activeFile?.kind === 'heatCapacityPistonOscillation' &&
-    envelope.selectedPanel !== 'preview' &&
-    envelope.selectedPanel !== 'realtime'
+    normalizedSelectedPanel !== 'preview' &&
+    normalizedSelectedPanel !== 'realtime'
     ? 'preview'
-    : envelope.selectedPanel;
+    : normalizedSelectedPanel;
   return {
     version: 1,
     files: runtimeFiles,

@@ -23594,34 +23594,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const renderHistoryPanel = () => (
-    activeFile.kind === 'ideal' && idealAnalysis ? (
-      <div className="studio-history">
-        {idealAnalysis.isVerified ? (
-          <>
-            <p><strong>{getIdealHistoryContent(getIdealExperimentLanguageCode(settingsLanguagePreference), activeFile.relation).title}</strong></p>
-            <p>{getIdealHistoryContent(getIdealExperimentLanguageCode(settingsLanguagePreference), activeFile.relation).discovery}</p>
-            <p>{getIdealHistoryContent(getIdealExperimentLanguageCode(settingsLanguagePreference), activeFile.relation).simulation}</p>
-            <p>{workbenchCopy.results.currentVerification(formatMaybeMetric(idealAnalysis.regression.rSquared, 5), idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`)}</p>
-          </>
-        ) : (
-          <>
-            <p><strong>{workbenchCopy.results.historyLockedFor(getRelationLabel(activeFile.relation))}</strong></p>
-            <p>{getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, getIdealExperimentLanguageCode(settingsLanguagePreference))}</p>
-            <p>{workbenchCopy.results.currentVerdictRecommendation(getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy), getIdealRecommendationText(idealAnalysis.diagnosis.failureReason, idealAnalysis.verdictState, activeFile.relation, getIdealExperimentLanguageCode(settingsLanguagePreference)))}</p>
-          </>
-        )}
-      </div>
-    ) : (
-      <div className="studio-empty">
-        <div>
-          <strong>{workbenchCopy.results.noIdealHistoryTitle}</strong>
-          <p>{workbenchCopy.results.noIdealHistoryBody}</p>
-        </div>
-      </div>
-    )
-  );
-
   const renderPanelContent = (panel: PanelDefinition) => {
     if (panel.key === 'preview') return renderPreviewPanel();
     if (panel.key === 'realtime') return renderRealtimePanel();
@@ -23744,7 +23716,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         />
       );
     }
-    if (panel.key === 'history') return renderHistoryPanel();
     return (
       <div className="studio-empty">
         <div>

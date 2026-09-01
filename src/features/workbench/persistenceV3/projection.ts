@@ -82,7 +82,7 @@ import {
 } from './layoutNormalization.ts';
 import {
   normalizeWorkbenchPanelKeys,
-} from '../workbenchPanelRegistry.ts';
+} from '../workbenchPanelCompatibility.ts';
 import {
   repairPistonOscillationModeSessionExclusivity,
 } from '../../../domain/pistonOscillation/pistonOscillationModeSessionExclusivity.ts';

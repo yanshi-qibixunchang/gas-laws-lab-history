@@ -122,6 +122,28 @@ const capturedWorkspaceDecoded =
 if (!capturedWorkspaceDecoded.ok) {
   throw new Error(capturedWorkspaceDecoded.diagnostics[0].message);
 }
+const legacyHistoryWorkspaceRecord = structuredClone(
+  capturedWorkspaceEncoded.value,
+) as unknown as Record<string, unknown>;
+(
+  legacyHistoryWorkspaceRecord.manifest as Record<string, unknown>
+).selectedPanel = 'history';
+const legacyHistoryWorkspaceDecoded =
+  decodeWorkbenchPersistenceV3WorkspaceRecord(
+    legacyHistoryWorkspaceRecord,
+  );
+assert.equal(legacyHistoryWorkspaceDecoded.ok, true);
+if (!legacyHistoryWorkspaceDecoded.ok) {
+  throw new Error(legacyHistoryWorkspaceDecoded.diagnostics[0].message);
+}
+assert.equal(legacyHistoryWorkspaceDecoded.status, 'repaired-cache');
+assert.equal(legacyHistoryWorkspaceDecoded.value.selectedPanel, 'verification');
+assert.ok(
+  legacyHistoryWorkspaceDecoded.diagnostics.some((diagnostic) => (
+    diagnostic.fieldPath === 'manifest.selectedPanel'
+  )),
+  'legacy history selection repair must be reported at the manifest boundary',
+);
 const capturedWorkspaceRestored =
   reprojectWorkbenchPersistenceV3Workspace(
     capturedWorkspaceDecoded.value,
@@ -402,7 +424,7 @@ assert.deepEqual(
 );
 const uiOnlyWorkspaceChange = structuredClone(decoded.value);
 uiOnlyWorkspaceChange.capturedAtMs += 1;
-uiOnlyWorkspaceChange.selectedPanel = 'history';
+uiOnlyWorkspaceChange.selectedPanel = 'verification';
 assert.deepEqual(
   createWorkbenchPersistenceV3WorkspaceSemanticProjection(
     uiOnlyWorkspaceChange,

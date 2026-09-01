@@ -115,6 +115,20 @@ assert.equal(
   '4.2.3',
   'legacy workspace appVersion must remain available to per-file migration',
 );
+const legacyHistoryWorkspace = structuredClone(emptyLegacyWorkspace) as
+  Record<string, unknown>;
+legacyHistoryWorkspace.selectedPanel = 'history';
+const legacyHistoryWorkspaceDecoded =
+  decodeLegacyWorkbenchWorkspaceSource(legacyHistoryWorkspace);
+assert.equal(legacyHistoryWorkspaceDecoded.ok, true);
+if (!legacyHistoryWorkspaceDecoded.ok) {
+  throw new Error(legacyHistoryWorkspaceDecoded.diagnostics[0]?.message);
+}
+assert.equal(
+  legacyHistoryWorkspaceDecoded.value.selectedPanel,
+  'verification',
+  'legacy history selection must migrate to the current verification panel',
+);
 const guideSessionWorkspace = {
   ...structuredClone(emptyLegacyWorkspace),
   heatCapacityGuideSession: {

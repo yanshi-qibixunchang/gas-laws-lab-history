@@ -20,6 +20,11 @@ import {
   type WorkbenchStandardState,
 } from '../../workbenchState.ts';
 import {
+  isRestorableWorkbenchPanelKey,
+  normalizeWorkbenchPanelKey,
+  normalizeWorkbenchPanelKeys,
+} from '../../workbenchPanelCompatibility.ts';
+import {
   HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
   HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION,
   normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence,
@@ -119,25 +124,6 @@ const isPlainPersistenceRecord = (
   const prototype = Object.getPrototypeOf(value);
   return prototype === Object.prototype || prototype === null;
 };
-
-const LEGACY_WORKBENCH_PANEL_KEYS = new Set<WorkbenchPanelKey>([
-  'preview',
-  'realtime',
-  'results',
-  'experimentPoints',
-  'verification',
-  'heatCapacityGuide',
-  'heatCapacityRecords',
-  'heatCapacityReview',
-  'history',
-]);
-
-const isLegacyWorkbenchPanelKey = (
-  value: unknown,
-): value is WorkbenchPanelKey => (
-  typeof value === 'string' &&
-  LEGACY_WORKBENCH_PANEL_KEYS.has(value as WorkbenchPanelKey)
-);
 
 const LEGACY_WORKBENCH_WORKSPACE_KEYS = [
   'schemaFamily',
@@ -253,7 +239,7 @@ export const decodeLegacyWorkbenchWorkspaceSource = (
       raw.activeFileId === null ||
       typeof raw.activeFileId === 'string'
     ) ||
-    !isLegacyWorkbenchPanelKey(raw.selectedPanel)
+    !isRestorableWorkbenchPanelKey(raw.selectedPanel)
   ) {
     return fail(
       'quarantined',
@@ -319,7 +305,10 @@ export const decodeLegacyWorkbenchWorkspaceSource = (
       capturedAtMs: raw.savedAt,
       sourceAppVersion: raw.appVersion,
       activeFileId: raw.activeFileId as string | null,
-      selectedPanel: raw.selectedPanel,
+      selectedPanel: normalizeWorkbenchPanelKey(
+        raw.selectedPanel,
+        'preview',
+      ),
       fileOrder: fileOrder as string[],
       records: [...raw.files],
       legacyWorkspace: true,
@@ -1722,7 +1711,7 @@ const hasValidLegacyFileLayoutShape = (
   if (
     !Array.isArray(value.visiblePanels) ||
     new Set(value.visiblePanels).size !== value.visiblePanels.length ||
-    !value.visiblePanels.every(isLegacyWorkbenchPanelKey) ||
+    !value.visiblePanels.every(isRestorableWorkbenchPanelKey) ||
     typeof value.liveWorkspaceSplitRatio !== 'number' ||
     !Number.isFinite(value.liveWorkspaceSplitRatio) ||
     clampWorkbenchLiveSplitRatio(value.liveWorkspaceSplitRatio) !==
@@ -1835,9 +1824,10 @@ const rebuildLegacyStandardFile = (
     createdAt: envelope.createdAt,
     updatedAt: envelope.updatedAt,
     lastOpenedAt: envelope.lastOpenedAt ?? envelope.updatedAt,
-    visiblePanels: cloneLegacyPersistenceValue(
+    visiblePanels: normalizeWorkbenchPanelKeys(
       envelope.layout.visiblePanels,
-    ) as WorkbenchStandardState['visiblePanels'],
+      fallback.visiblePanels,
+    ),
     liveWorkspaceSplitRatio:
       envelope.layout.liveWorkspaceSplitRatio as number,
     params,
@@ -1908,9 +1898,10 @@ const rebuildLegacyIdealFile = (
     createdAt: envelope.createdAt,
     updatedAt: envelope.updatedAt,
     lastOpenedAt: envelope.lastOpenedAt ?? envelope.updatedAt,
-    visiblePanels: cloneLegacyPersistenceValue(
+    visiblePanels: normalizeWorkbenchPanelKeys(
       envelope.layout.visiblePanels,
-    ) as WorkbenchIdealState['visiblePanels'],
+      fallback.visiblePanels,
+    ),
     liveWorkspaceSplitRatio:
       envelope.layout.liveWorkspaceSplitRatio as number,
     relation: payload.relation as WorkbenchIdealState['relation'],
@@ -2005,9 +1996,10 @@ const rebuildLegacyPistonFile = (
     createdAt: envelope.createdAt,
     updatedAt: envelope.updatedAt,
     lastOpenedAt: envelope.lastOpenedAt ?? envelope.updatedAt,
-    visiblePanels: cloneLegacyPersistenceValue(
+    visiblePanels: normalizeWorkbenchPanelKeys(
       envelope.layout.visiblePanels,
-    ) as typeof fallback.visiblePanels,
+      fallback.visiblePanels,
+    ),
     liveWorkspaceSplitRatio:
       envelope.layout.liveWorkspaceSplitRatio as number,
     pistonOscillationSchemaVersion:
@@ -3911,8 +3903,9 @@ const restoreLegacyHeatCapacityEnvelope = (
     updatedAt: prepared.envelope.updatedAt,
     lastOpenedAt:
       prepared.envelope.lastOpenedAt ?? prepared.envelope.updatedAt,
-    visiblePanels: cloneLegacyPersistenceValue(
+    visiblePanels: normalizeWorkbenchPanelKeys(
       prepared.envelope.layout.visiblePanels,
+      fallback.visiblePanels,
     ),
     liveWorkspaceSplitRatio:
       prepared.envelope.layout.liveWorkspaceSplitRatio,

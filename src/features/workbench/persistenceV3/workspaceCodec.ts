@@ -24,18 +24,9 @@ import {
   reprojectWorkbenchPersistenceV3File,
   type WorkbenchPersistenceV3FileProjection,
 } from './projection.ts';
-
-const WORKBENCH_PANEL_KEYS = new Set<WorkbenchPanelKey>([
-  'preview',
-  'realtime',
-  'results',
-  'experimentPoints',
-  'verification',
-  'heatCapacityGuide',
-  'heatCapacityRecords',
-  'heatCapacityReview',
-  'history',
-]);
+import {
+  normalizeWorkbenchPanelKey,
+} from '../workbenchPanelCompatibility.ts';
 
 export interface WorkbenchPersistenceV3DecodedWorkspaceEntry {
   kind: 'decoded';
@@ -184,11 +175,6 @@ const isValidWorkspaceEntryShape = (
 
 const isFiniteNonNegative = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value >= 0
-);
-
-const isPanelKey = (value: unknown): value is WorkbenchPanelKey => (
-  typeof value === 'string' &&
-  WORKBENCH_PANEL_KEYS.has(value as WorkbenchPanelKey)
 );
 
 const cloneValue = <T>(value: T): T => structuredClone(value);
@@ -428,9 +414,10 @@ const readCurrentWorkspaceSource = (
     });
   }
   const fileOrder = [...manifest.fileOrder] as string[];
-  const selectedPanel = isPanelKey(manifest.selectedPanel)
-    ? manifest.selectedPanel
-    : 'preview';
+  const selectedPanel = normalizeWorkbenchPanelKey(
+    manifest.selectedPanel,
+    'preview',
+  );
   const activeFileId =
     typeof manifest.activeFileId === 'string' &&
     manifest.activeFileId.trim().length > 0 &&
@@ -580,9 +567,10 @@ export const projectWorkbenchPersistenceV3Workspace = (
     repaired = repaired || projected.status === 'repaired-cache';
   }
 
-  const selectedPanel = isPanelKey(runtime.selectedPanel)
-    ? runtime.selectedPanel
-    : 'preview';
+  const selectedPanel = normalizeWorkbenchPanelKey(
+    runtime.selectedPanel,
+    'preview',
+  );
   const activeFileId = runtime.files.some((file) => (
     file.id === runtime.activeFileId
   ))
@@ -703,9 +691,10 @@ export const encodeWorkbenchPersistenceV3WorkspaceProjection = (
     repaired = repaired || entry.sourceStatus === 'repaired-cache' ||
       encoded.status === 'repaired-cache';
   }
-  const selectedPanel = isPanelKey(projection.selectedPanel)
-    ? projection.selectedPanel
-    : 'preview';
+  const selectedPanel = normalizeWorkbenchPanelKey(
+    projection.selectedPanel,
+    'preview',
+  );
   const activeFileId = projection.activeFileId !== null &&
       projection.entries.some((entry) => entry.fileId === projection.activeFileId)
     ? projection.activeFileId
@@ -800,7 +789,10 @@ export const reprojectWorkbenchPersistenceV3Workspace = (
     {
       files,
       activeFileId,
-      selectedPanel: projection.selectedPanel,
+      selectedPanel: normalizeWorkbenchPanelKey(
+        projection.selectedPanel,
+        'preview',
+      ),
     },
     diagnostics,
   );

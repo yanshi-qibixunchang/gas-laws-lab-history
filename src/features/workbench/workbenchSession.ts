@@ -12,7 +12,10 @@ import {
   normalizeHeatCapacitySessionRuntimeStateResult,
   type HeatCapacityFreeDomainRecoveryDiagnostic,
 } from './workbenchHeatCapacitySessionRestore.ts';
-import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
+import {
+  normalizeWorkbenchPanelKey,
+  normalizeWorkbenchPanelKeys,
+} from './workbenchPanelCompatibility.ts';
 import {
   isPersistenceRecord as isRecord,
   normalizePersistenceNullableNumber as normalizeNullableNumber,
@@ -86,20 +89,36 @@ const fallbackSession = (): WorkbenchSessionState => {
   };
 };
 
+const normalizeRuntimeVisiblePanels = <File extends WorkbenchFileState>(
+  file: File,
+): File => ({
+  ...file,
+  visiblePanels: normalizeWorkbenchPanelKeys(
+    file.visiblePanels,
+    ['preview', 'realtime'],
+  ),
+}) as File;
+
 const normalizeRuntimeState = (file: WorkbenchFileState): WorkbenchFileState => {
   if (file.kind === 'heatCapacity') {
-    return normalizeHeatCapacitySessionRuntimeState(file);
+    return normalizeRuntimeVisiblePanels(
+      normalizeHeatCapacitySessionRuntimeState(file),
+    );
   }
   if (file.kind === 'heatCapacityPistonOscillation') {
-    return normalizePistonOscillationRuntimeState(file) ?? file;
+    return normalizeRuntimeVisiblePanels(
+      normalizePistonOscillationRuntimeState(file) ?? file,
+    );
   }
-  return repairMissingHardSphereEngineSnapshot({
-    ...file,
-    runState: file.runState === 'running' ? 'paused' : file.runState,
-    lastOpenedAt: normalizeLastOpenedAt(file, file.updatedAt),
-    liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
-    hardSphereEngineSnapshot: normalizeHardSphereEngineSnapshot(file.hardSphereEngineSnapshot),
-  } as Extract<WorkbenchFileState, { kind: 'standard' | 'ideal' }>);
+  return normalizeRuntimeVisiblePanels(
+    repairMissingHardSphereEngineSnapshot({
+      ...file,
+      runState: file.runState === 'running' ? 'paused' : file.runState,
+      lastOpenedAt: normalizeLastOpenedAt(file, file.updatedAt),
+      liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
+      hardSphereEngineSnapshot: normalizeHardSphereEngineSnapshot(file.hardSphereEngineSnapshot),
+    } as Extract<WorkbenchFileState, { kind: 'standard' | 'ideal' }>),
+  );
 };
 
 const createWorkbenchSessionFromValidatedFiles = (
@@ -114,9 +133,10 @@ const createWorkbenchSessionFromValidatedFiles = (
   const activeFileId = files.some((file) => file.id === activeFileIdValue)
     ? activeFileIdValue
     : files[0]!.id;
-  const restoredSelectedPanel = isWorkbenchPanelKey(selectedPanelValue)
-    ? selectedPanelValue
-    : 'preview';
+  const restoredSelectedPanel = normalizeWorkbenchPanelKey(
+    selectedPanelValue,
+    'preview',
+  );
   const activeFile = files.find((file) => file.id === activeFileId);
   const selectedPanel = (
     activeFile?.kind === 'heatCapacity' && !(
@@ -241,7 +261,7 @@ export const decodeWorkbenchSessionWithDiagnostics = (
   const session = createWorkbenchSessionFromRuntimeFiles({
     files,
     activeFileId: typeof value.activeFileId === 'string' ? value.activeFileId : '',
-    selectedPanel: isWorkbenchPanelKey(value.selectedPanel) ? value.selectedPanel : 'preview',
+    selectedPanel: normalizeWorkbenchPanelKey(value.selectedPanel, 'preview'),
   });
   return { session, diagnostics };
 };

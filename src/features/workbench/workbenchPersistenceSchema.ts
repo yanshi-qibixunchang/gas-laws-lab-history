@@ -1,12 +1,15 @@
 import type {
   WorkbenchFileKind,
-  WorkbenchPanelKey,
 } from './workbenchState.ts';
 import {
   isPersistenceFiniteNumber as isFiniteNumber,
   isPersistenceRecord as isRecord,
 } from './workbenchPersistenceValue.ts';
 import { isWorkbenchFileKind } from './workbenchFileKind.ts';
+import {
+  isRestorableWorkbenchPanelKey,
+  type RestorableWorkbenchPanelKey,
+} from './workbenchPanelCompatibility.ts';
 
 export const WORKBENCH_SESSION_SCHEMA_FAMILY = 'hard-sphere-lab.workbench-session' as const;
 export const WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY = 'hard-sphere-lab.experiment-file' as const;
@@ -45,7 +48,7 @@ export interface WorkbenchSessionEnvelopeV2 {
   appVersion: string;
   savedAt: number;
   activeFileId: string | null;
-  selectedPanel: WorkbenchPanelKey;
+  selectedPanel: RestorableWorkbenchPanelKey;
   files: WorkbenchExperimentFileEnvelopeV1[];
   heatCapacityGuideSession?: {
     fileId: string | null;
@@ -87,7 +90,7 @@ export const isWorkbenchSessionEnvelope = (
   typeof value.appVersion === 'string' &&
   isFiniteNumber(value.savedAt) &&
     (typeof value.activeFileId === 'string' || value.activeFileId === null) &&
-    typeof value.selectedPanel === 'string' &&
+    isRestorableWorkbenchPanelKey(value.selectedPanel) &&
     Array.isArray(value.files) &&
     value.files.every(isWorkbenchExperimentFileEnvelope) &&
     (

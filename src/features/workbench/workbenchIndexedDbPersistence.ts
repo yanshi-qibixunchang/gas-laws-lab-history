@@ -65,6 +65,7 @@ import {
 } from './workbenchState.ts';
 import { assertUniqueWorkbenchFileCollections } from './workbenchFileIdentity.ts';
 import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
+import { normalizeWorkbenchPanelKey } from './workbenchPanelCompatibility.ts';
 import { clonePersistenceValue, isPersistenceRecord } from './workbenchPersistenceValue.ts';
 import {
   areCanonicalPersistenceValuesEqual,
@@ -1279,7 +1280,7 @@ export const normalizeWorkbenchWorkspaceMetaRecord = (value: unknown): Workspace
   return {
     ...value,
     activeFileId,
-    selectedPanel: isWorkbenchPanelKey(value.selectedPanel) ? value.selectedPanel : 'preview',
+    selectedPanel: normalizeWorkbenchPanelKey(value.selectedPanel, 'preview'),
     openFileIds,
     closedFileIds,
     refreshMetadata,
@@ -2867,9 +2868,10 @@ const salvageLegacyV2WorkspaceIntoV3 = async (
       !closedIds.has(file.id) && !hintedOpenIds.includes(file.id)
     )),
   ];
-  const selectedPanel = isWorkbenchPanelKey(metaHint?.selectedPanel)
-    ? metaHint.selectedPanel
-    : 'preview';
+  const selectedPanel = normalizeWorkbenchPanelKey(
+    metaHint?.selectedPanel,
+    'preview',
+  );
   const hintedActiveFileId = typeof metaHint?.activeFileId === 'string'
     ? metaHint.activeFileId
     : '';

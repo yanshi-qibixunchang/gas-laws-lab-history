@@ -341,8 +341,7 @@ export type WorkbenchPanelKey =
   | 'verification'
   | 'heatCapacityGuide'
   | 'heatCapacityRecords'
-  | 'heatCapacityReview'
-  | 'history';
+  | 'heatCapacityReview';
 export type WorkbenchIdealResultWindowKey = 'experimentPoints' | 'verification';
 export type WorkbenchStandardResultsTab = 'summary' | 'dataTable' | 'figures';
 export type WorkbenchHeatCapacityPanelKey =

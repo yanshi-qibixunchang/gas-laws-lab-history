@@ -13,6 +13,7 @@ import {
   isWorkbenchSessionEnvelope,
 } from '../../src/features/workbench/workbenchPersistenceSchema.ts';
 import * as persistenceValueModule from '../../src/features/workbench/workbenchPersistenceValue.ts';
+import * as panelCompatibilityModule from '../../src/features/workbench/workbenchPanelCompatibility.ts';
 import * as panelRegistryModule from '../../src/features/workbench/workbenchPanelRegistry.ts';
 
 const baseFileEnvelope = {
@@ -136,16 +137,20 @@ assert.deepEqual(panelRegistryModule.WORKBENCH_PANEL_KEYS, [
   'heatCapacityGuide',
   'heatCapacityRecords',
   'heatCapacityReview',
-  'history',
 ]);
 assert.equal(panelRegistryModule.isWorkbenchPanelKey('preview'), true);
+assert.equal(panelRegistryModule.isWorkbenchPanelKey('history'), false);
 assert.equal(panelRegistryModule.isWorkbenchPanelKey('unknown-panel'), false);
+assert.equal(panelCompatibilityModule.isRestorableWorkbenchPanelKey('history'), true);
 assert.deepEqual(
-  panelRegistryModule.normalizeWorkbenchPanelKeys(['preview', 'unknown-panel', 'history'], ['realtime']),
-  ['preview', 'history'],
+  panelCompatibilityModule.normalizeWorkbenchPanelKeys(
+    ['preview', 'unknown-panel', 'history'],
+    ['realtime'],
+  ),
+  ['preview', 'verification'],
 );
 assert.deepEqual(
-  panelRegistryModule.normalizeWorkbenchPanelKeys(null, ['realtime']),
+  panelCompatibilityModule.normalizeWorkbenchPanelKeys(null, ['realtime']),
   ['realtime'],
 );
 
@@ -223,7 +228,7 @@ assert.doesNotMatch(
 for (const [sourceName, source, dependency] of [
   ['standard persistence', standardPersistenceSource, 'workbenchRuntimePersistence'],
   ['ideal-gas persistence', idealGasPersistenceSource, 'workbenchRuntimePersistence'],
-  ['session restore', sessionSource, 'workbenchPanelRegistry'],
+  ['session restore', sessionSource, 'workbenchPanelCompatibility'],
 ] as const) {
   assert.match(
     source,
@@ -238,8 +243,8 @@ for (const [sourceName, source, dependency] of [
 }
 assert.match(
   runtimePersistenceSource,
-  /from '\.\/workbenchPanelRegistry\.ts'/,
-  'shared runtime persistence should own panel registry normalization',
+  /from '\.\/workbenchPanelCompatibility\.ts'/,
+  'shared runtime persistence should normalize historical panel keys at its read boundary',
 );
 assert.match(
   heatCapacitySessionRestoreSource,

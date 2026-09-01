@@ -122,8 +122,6 @@ for (const expression of [
   'workbenchCopy.results.pointsMetric',
   'workbenchCopy.results.pointsShort',
   'workbenchCopy.results.failureReason',
-  'workbenchCopy.results.currentVerification',
-  'workbenchCopy.results.currentVerdictRecommendation',
   'workbenchCopy.results.measuredLegend',
   'workbenchCopy.results.phaseStates[activeFile.stats.phase]',
   'workbenchCopy.results.probabilityDensity',
