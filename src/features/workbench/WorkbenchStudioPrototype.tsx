@@ -610,6 +610,15 @@ import {
   isHeatCapacityPanelKey,
 } from './workbenchHeatCapacityTabRegistry.ts';
 import {
+  closeHeatCapacityMaterialsWindow as closeHeatCapacityMaterialsWindowState,
+  createHeatCapacityMaterialsOpenAllPlan,
+  createHeatCapacityMaterialsTabActivationPlan,
+  createHeatCapacityMaterialsTabClosePlan,
+  createHeatCapacityMaterialsTabOpenPlan,
+  getHeatCapacityMaterialsTabState,
+  getHeatCapacityMaterialsWindowState,
+} from './workbenchHeatCapacityMaterialsWindowCoordinator.ts';
+import {
   createWorkbenchHeatCapacityRefreshSession,
   loadWorkbenchHeatCapacityRefreshSession,
   resolveWorkbenchHeatCapacityPressureAlertRefreshProjection,
@@ -17882,108 +17891,70 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const getHeatCapacityTabState = (tabId: WorkbenchHeatCapacityTabId) => {
-    if (activeFile.kind !== 'heatCapacity') return 'off';
-    if (activeFile.activeHeatCapacityTabId === tabId && activeFile.openHeatCapacityTabs.includes(tabId)) return 'active';
-    return activeFile.openHeatCapacityTabs.includes(tabId) ? 'open' : 'off';
+    return getHeatCapacityMaterialsTabState(activeFile, tabId);
   };
 
   const activateHeatCapacityTab = (requestedTabId: WorkbenchHeatCapacityTabId) => {
-    const tabId = requestedTabId;
-    if (activeFile.kind !== 'heatCapacity' || !activeFile.openHeatCapacityTabs.includes(tabId)) return;
-    const panelKey = heatCapacityTabIdToPanelKey(tabId);
-    setSelectedPanel(panelKey);
-    updateActiveFile((file) => (
-      file.kind === 'heatCapacity'
-        ? { ...file, activeHeatCapacityTabId: tabId, updatedAt: Date.now() }
-        : file
-    ));
+    const activationPlan = createHeatCapacityMaterialsTabActivationPlan(activeFile, requestedTabId);
+    if (activationPlan.kind !== 'ready') return;
+    setSelectedPanel(activationPlan.selectedPanel);
+    updateActiveFile((file) => {
+      const nextPlan = createHeatCapacityMaterialsTabActivationPlan(file, requestedTabId);
+      return nextPlan.kind === 'ready' ? nextPlan.nextFile : file;
+    });
   };
 
   const openHeatCapacityTab = (requestedTabId: WorkbenchHeatCapacityTabId, recordUndo = true) => {
-    const tabId = requestedTabId;
-    if (activeFile.kind !== 'heatCapacity') return;
-    const allowedTabs = getHeatCapacityMaterialsTabOrder(activeFile);
-    if (!allowedTabs.includes(tabId)) return;
-    const panelKey = heatCapacityTabIdToPanelKey(tabId);
-    const alreadyOpen = activeFile.openHeatCapacityTabs.includes(tabId);
-    setSelectedPanel(panelKey);
-    if (recordUndo && !alreadyOpen) {
+    const openPlan = createHeatCapacityMaterialsTabOpenPlan(activeFile, requestedTabId);
+    if (openPlan.kind !== 'ready') return;
+    setSelectedPanel(openPlan.selectedPanel);
+    if (recordUndo && !openPlan.wasOpen) {
       captureUndoSnapshot(
-        `opened ${getHeatCapacityTabDefinition(tabId)?.title ?? tabId} heat-capacity tab`,
+        `opened ${getHeatCapacityTabDefinition(requestedTabId)?.title ?? requestedTabId} heat-capacity tab`,
         'presentation',
       );
     }
     updateActiveFile((file) => {
-      if (file.kind !== 'heatCapacity') return file;
-      const openHeatCapacityTabs = file.openHeatCapacityTabs.includes(tabId)
-        ? file.openHeatCapacityTabs
-        : [...file.openHeatCapacityTabs, tabId];
-      const visiblePanels = file.visiblePanels.includes(panelKey)
-        ? file.visiblePanels
-        : [...file.visiblePanels, panelKey];
-      return {
-        ...file,
-        visiblePanels,
-        openHeatCapacityTabs,
-        activeHeatCapacityTabId: tabId,
-        heatCapacityMaterialsExpanded: true,
-        updatedAt: Date.now(),
-      };
+      const nextPlan = createHeatCapacityMaterialsTabOpenPlan(file, requestedTabId);
+      return nextPlan.kind === 'ready' ? nextPlan.nextFile : file;
     });
   };
 
   const openAllHeatCapacityMaterialsTabs = () => {
-    if (activeFile.kind !== 'heatCapacity') return;
-    const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder(activeFile);
-    const firstTabId = heatCapacityTabOrder[0];
-    if (!firstTabId) return;
-    const firstPanelKey = heatCapacityTabIdToPanelKey(firstTabId);
+    const openPlan = createHeatCapacityMaterialsOpenAllPlan(activeFile);
+    if (openPlan.kind !== 'ready') return;
     captureUndoSnapshot('opened heat-capacity materials tabs', 'presentation');
-    setSelectedPanel(firstPanelKey);
+    setSelectedPanel(openPlan.selectedPanel);
     updateActiveFile((file) => {
-      if (file.kind !== 'heatCapacity') return file;
-      const materialTabOrder = getHeatCapacityMaterialsTabOrder(file);
-      if (materialTabOrder.length === 0) return file;
-      const panelKeys = materialTabOrder.map(heatCapacityTabIdToPanelKey);
-      const activeTabId = materialTabOrder[0]!;
-      return {
-        ...file,
-        visiblePanels: Array.from(new Set([...file.visiblePanels, ...panelKeys])),
-        openHeatCapacityTabs: [...materialTabOrder],
-        activeHeatCapacityTabId: activeTabId,
-        heatCapacityMaterialsExpanded: true,
-        updatedAt: Date.now(),
-      };
+      const nextPlan = createHeatCapacityMaterialsOpenAllPlan(file);
+      return nextPlan.kind === 'ready' ? nextPlan.nextFile : file;
     });
   };
 
   const closeHeatCapacityTab = (requestedTabId: WorkbenchHeatCapacityTabId, recordUndo = true) => {
-    const tabId = requestedTabId;
-    if (activeFile.kind !== 'heatCapacity' || !activeFile.openHeatCapacityTabs.includes(tabId)) return;
-    const tabIndex = activeFile.openHeatCapacityTabs.indexOf(tabId);
-    const nextOpenTabs = activeFile.openHeatCapacityTabs.filter((tab) => tab !== tabId);
-    const nextActiveTab = activeFile.activeHeatCapacityTabId === tabId
-      ? nextOpenTabs[tabIndex] ?? nextOpenTabs[tabIndex - 1] ?? null
-      : activeFile.activeHeatCapacityTabId;
-    const nextSelectedPanel = nextActiveTab ? heatCapacityTabIdToPanelKey(nextActiveTab) : 'preview';
+    const closePlan = createHeatCapacityMaterialsTabClosePlan(activeFile, requestedTabId);
+    if (closePlan.kind !== 'ready') return;
     if (recordUndo) {
       captureUndoSnapshot(
-        `closed ${getHeatCapacityTabDefinition(tabId)?.title ?? tabId} heat-capacity tab`,
+        `closed ${getHeatCapacityTabDefinition(requestedTabId)?.title ?? requestedTabId} heat-capacity tab`,
         'presentation',
       );
     }
-    setSelectedPanel(nextSelectedPanel);
+    setSelectedPanel(closePlan.selectedPanel);
     updateActiveFile((file) => {
-      if (file.kind !== 'heatCapacity') return file;
-      const panelKey = heatCapacityTabIdToPanelKey(tabId);
-      return {
-        ...file,
-        visiblePanels: file.visiblePanels.filter((panel) => panel !== panelKey),
-        openHeatCapacityTabs: file.openHeatCapacityTabs.filter((tab) => tab !== tabId),
-        activeHeatCapacityTabId: nextActiveTab,
-        updatedAt: Date.now(),
-      };
+      const nextPlan = createHeatCapacityMaterialsTabClosePlan(file, requestedTabId);
+      return nextPlan.kind === 'ready' ? nextPlan.nextFile : file;
     });
+  };
+
+  const closeHeatCapacityMaterialsWindow = () => {
+    if (activeFile.kind !== 'heatCapacity' || activeFile.openHeatCapacityTabs.length === 0) return;
+    setSelectedPanel('preview');
+    updateActiveFile((file) => (
+      file.kind === 'heatCapacity'
+        ? closeHeatCapacityMaterialsWindowState(file)
+        : file
+    ));
   };
 
   const toggleWindowHeatCapacityTab = (tabId: WorkbenchHeatCapacityTabId) => {
@@ -24281,19 +24252,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const renderHeatCapacityMaterialsWindow = () => {
-    if (activeFile.kind !== 'heatCapacity' || activeFile.openHeatCapacityTabs.length === 0) return null;
-    const materialTabOrder = getHeatCapacityMaterialsTabOrder(activeFile);
-    const openTabs = activeFile.openHeatCapacityTabs
-      .filter((tabId) => materialTabOrder.includes(tabId))
+    if (activeFile.kind !== 'heatCapacity') return null;
+    const windowState = getHeatCapacityMaterialsWindowState(activeFile);
+    if (!windowState) return null;
+    const openTabs = windowState.openTabs
       .map((tabId) => {
         const panel = getHeatCapacityTabDefinition(tabId);
         return panel ? { tabId, panel } : null;
       })
       .filter((item): item is { tabId: WorkbenchHeatCapacityTabId; panel: PanelDefinition } => item !== null);
     if (openTabs.length === 0) return null;
-    const activeTabId = activeFile.activeHeatCapacityTabId && openTabs.some((item) => item.tabId === activeFile.activeHeatCapacityTabId)
-      ? activeFile.activeHeatCapacityTabId
-      : openTabs[0].tabId;
+    const activeTabId = windowState.activeTabId;
     const activePanel = openTabs.find((item) => item.tabId === activeTabId)?.panel ?? openTabs[0].panel;
     const materialsMaxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio();
     const materialsHeightRatio = clamp(
@@ -24326,18 +24295,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 aria-label={heatCapacityRealtimeCopy.closeMaterialsAria}
                 onClick={(event) => {
                   event.stopPropagation();
-                  setSelectedPanel('preview');
-                  updateActiveFile((file) => (
-                    file.kind === 'heatCapacity'
-                      ? {
-                          ...file,
-                          visiblePanels: file.visiblePanels.filter((panel) => !isHeatCapacityPanelKey(panel)),
-                          openHeatCapacityTabs: [],
-                          activeHeatCapacityTabId: null,
-                          updatedAt: Date.now(),
-                        }
-                      : file
-                  ));
+                  closeHeatCapacityMaterialsWindow();
                 }}
               >
                 <X size={14} />

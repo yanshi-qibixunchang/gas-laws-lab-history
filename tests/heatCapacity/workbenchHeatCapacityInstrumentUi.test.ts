@@ -30,6 +30,7 @@ const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'Workb
 const workbenchCopyPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchStudioCopy.ts');
 const heatCapacityRealtimeCopyPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityRealtimeCopy.ts');
 const heatCapacityUiCheckpointPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityUiCheckpoint.ts');
+const heatCapacityMaterialsWindowCoordinatorPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityMaterialsWindowCoordinator.ts');
 const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
@@ -103,6 +104,7 @@ const heatCapacityPersistenceContractSource = readFileSync(heatCapacityPersisten
 const parameterDialogsSource = readFileSync(parameterDialogsPath, 'utf8');
 const heatCapacityTabRegistryPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityTabRegistry.ts');
 const heatCapacityTabRegistrySource = readFileSync(heatCapacityTabRegistryPath, 'utf8');
+const heatCapacityMaterialsWindowCoordinatorSource = readFileSync(heatCapacityMaterialsWindowCoordinatorPath, 'utf8');
 const workbenchGeneralSettingsPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchGeneralSettings.ts');
 const workbenchGeneralSettingsSource = readFileSync(workbenchGeneralSettingsPath, 'utf8');
 const workbenchGeneralSettingsWindowPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchGeneralSettingsWindow.tsx');
@@ -1893,7 +1895,7 @@ assert.doesNotMatch(workbenchSource, /bezierCurveTo|quadraticCurveTo|studio-heat
 assert.equal(existsSync(join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityTraceChart.tsx')), false, 'this stable-version optimization should not add the later standalone trace chart component');
 assert.match(workbenchSource, /renderHeatCapacityMaterialsWindow/, 'Heat Capacity should have a browser-style materials/results window');
 assert.match(workbenchSource, /openAllHeatCapacityMaterialsTabs/, 'double-clicking the Heat Capacity materials group should open all child tabs');
-assert.match(workbenchSource, /const heatCapacityTabOrder = getHeatCapacityMaterialsTabOrder\(activeFile\);[\s\S]*if \(!firstTabId\) return;/, 'an unavailable mode-specific materials group must not open a fallback tab');
+assert.match(heatCapacityMaterialsWindowCoordinatorSource, /const activeHeatCapacityTabId = openHeatCapacityTabs\[0\];[\s\S]*if \(!activeHeatCapacityTabId\) return \{ kind: 'ignored' \};/, 'an unavailable mode-specific materials group must not open a fallback tab');
 assert.match(workbenchSource, /materialPanels\.length > 0[\s\S]*studio-heat-materials-group/, 'the Heat Capacity materials group should only render when the active mode has available children');
 assert.doesNotMatch(workbenchSource, /filter\(\(tabId\) => tabId !== 'records'/, 'the data/results tab should stay reachable independently from the mandatory calculation window');
 assert.doesNotMatch(workbenchSource, /tabId === 'review'[\s\S]{0,180}activeHeatCapacityCalculationSession\?\.status !== 'completed'/, 'process review should open for a new group and render its empty current-group state');
