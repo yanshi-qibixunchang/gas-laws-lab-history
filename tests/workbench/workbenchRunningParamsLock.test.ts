@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const pistonParameterPanelSource = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationParameterPanel.tsx', import.meta.url),
@@ -59,7 +60,7 @@ assert.match(
   'right parameter sidebar should receive a locked class from the current file lock policy',
 );
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /locked until stopped or finished/,
   'right parameter sidebar should explain that pause does not unlock parameters',
 );

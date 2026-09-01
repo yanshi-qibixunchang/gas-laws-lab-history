@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
@@ -35,10 +36,10 @@ for (const expectedCopy of [
   "pointsTitle: 'Experiment Data'",
   "verificationTitle: 'Relation Verification'",
 ]) {
-  assert.ok(source.includes(expectedCopy), `ideal Results child window label should use ${expectedCopy}`);
+  assert.ok(workbenchStudioCopySource.includes(expectedCopy), `ideal Results child window label should use ${expectedCopy}`);
 }
 assert.doesNotMatch(
-  source,
+  workbenchStudioCopySource,
   /pointsTitle:\s*'点|pointsTitle:\s*'點|pointsTitle:\s*'Points'|verificationTitle:\s*'验证'|verificationTitle:\s*'驗證'|verificationTitle:\s*'Verification'/,
   'ideal Results child window labels should use experiment-style names instead of casual one-word labels',
 );

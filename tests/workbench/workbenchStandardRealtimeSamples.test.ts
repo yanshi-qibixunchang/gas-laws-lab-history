@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 
 const workbenchSource = fs.readFileSync('src/features/workbench/WorkbenchStudioPrototype.tsx', 'utf8');
+const workbenchStudioCopySource = fs.readFileSync('src/features/workbench/workbenchStudioCopy.ts', 'utf8');
 const engineSource = fs.readFileSync('src/domain/hardSphere/PhysicsEngine.ts', 'utf8');
 
 assert.match(
@@ -53,11 +54,10 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  workbenchSource,
+  workbenchStudioCopySource,
   /sampleWindows:\s*\(count: number\)\s*=>/,
   'standard realtime chart copy should label counts as sampling windows instead of particle samples.',
 );
 
 console.log('workbenchStandardRealtimeSamples tests passed');
-
 

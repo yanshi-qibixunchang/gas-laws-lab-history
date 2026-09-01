@@ -5,6 +5,7 @@ const electronMainSource = readFileSync(new URL('../../electron/main.cjs', impor
 const electronPreloadSource = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 const electronTypesSource = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const heatCapacityUiCheckpointSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatCapacityUiCheckpoint.ts', import.meta.url), 'utf8');
 const windowControlsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchWindowControls.tsx', import.meta.url), 'utf8');
 const workbenchCssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
@@ -176,14 +177,24 @@ assert.match(
   'a completion toast captured exactly at expiry must schedule its zero-delay terminal cleanup after restart',
 );
 assert.match(
-  workbenchSource,
-  /const normalizeHeatCapacityRecordSuccessTimerPlan =[\s\S]*expectedMode !== 'guide'[\s\S]*followUpMessage\.trim\(\)\.length === 0[\s\S]*followUpRemainingMs > releaseRemainingMs[\s\S]*recordSuccessSequence,[\s\S]*const restoredRecordSuccess =[\s\S]*scheduleHeatCapacityRecordSuccessToastTimers\(/,
-  'record-success restart state must be Guide-owned, strictly ordered, persisted, and rescheduled',
+  heatCapacityUiCheckpointSource,
+  /export const normalizeHeatCapacityRecordSuccessTimerPlan =[\s\S]*expectedMode !== 'guide'[\s\S]*followUpMessage\.trim\(\)\.length === 0[\s\S]*followUpRemainingMs > releaseRemainingMs/,
+  'record-success restart state must be Guide-owned and strictly ordered at the checkpoint boundary',
 );
 assert.match(
   workbenchSource,
-  /const normalizeHeatCapacityLessonCloseTimerPlan =[\s\S]*!lessonDialogPresent[\s\S]*value\.shouldResumeAutoDemo && expectedMode !== 'demo'[\s\S]*lessonCloseSequence,[\s\S]*const restoredLessonClose =[\s\S]*scheduleHeatCapacityGuideLessonClose\(/,
-  'lesson-close restart state must retain its owner and deferred Demo resume without creating a ghost dialog',
+  /recordSuccessSequence,[\s\S]*const restoredRecordSuccess =[\s\S]*scheduleHeatCapacityRecordSuccessToastTimers\(/,
+  'the Workbench coordinator must persist and reschedule the validated record-success plan',
+);
+assert.match(
+  heatCapacityUiCheckpointSource,
+  /export const normalizeHeatCapacityLessonCloseTimerPlan =[\s\S]*!lessonDialogPresent[\s\S]*value\.shouldResumeAutoDemo && expectedMode !== 'demo'/,
+  'lesson-close restart state must retain its owner and reject a deferred Demo resume outside Demo mode',
+);
+assert.match(
+  workbenchSource,
+  /lessonCloseSequence,[\s\S]*const restoredLessonClose =[\s\S]*scheduleHeatCapacityGuideLessonClose\(/,
+  'the Workbench coordinator must persist and reschedule only a validated lesson-close plan',
 );
 assert.match(
   workbenchSource,

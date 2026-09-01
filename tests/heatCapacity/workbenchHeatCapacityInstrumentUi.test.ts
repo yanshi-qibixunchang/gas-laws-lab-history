@@ -27,6 +27,9 @@ const modeTypesPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heat
 const modeControlModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityModeControlModel.ts');
 const defaultConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityDefaultConfig.ts');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
+const workbenchCopyPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchStudioCopy.ts');
+const heatCapacityRealtimeCopyPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityRealtimeCopy.ts');
+const heatCapacityUiCheckpointPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityUiCheckpoint.ts');
 const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
@@ -114,6 +117,9 @@ const promptFeedbackPolicySource = readFileSync(
   'utf8',
 );
 const workbenchSource = readFileSync(workbenchPath, 'utf8');
+const workbenchCopySource = readFileSync(workbenchCopyPath, 'utf8');
+const heatCapacityRealtimeCopySource = readFileSync(heatCapacityRealtimeCopyPath, 'utf8');
+const heatCapacityUiCheckpointSource = readFileSync(heatCapacityUiCheckpointPath, 'utf8');
 const waitControllerSource = readFileSync(waitControllerPath, 'utf8');
 const waitControllerStyleSource = readFileSync(waitControllerStylePath, 'utf8');
 const emptyWorkspaceSource = readFileSync(emptyWorkspacePath, 'utf8');
@@ -170,9 +176,9 @@ assert.match(
   'Recording free heat-capacity readings should collapse the parameter sidebar',
 );
 assert.match(
-  workbenchSource,
-  /type HeatCapacityFocusSession = [\s\S]*?parametersCollapsedBeforeFocus[\s\S]*?nonReversibleAction/,
-  'Workbench should keep a heat-capacity focus session snapshot for exit-time sidebar recovery',
+  heatCapacityUiCheckpointSource,
+  /export interface HeatCapacityFocusSession [\s\S]*?parametersCollapsedBeforeFocus[\s\S]*?nonReversibleAction/,
+  'the Heat Capacity checkpoint boundary should keep a focus-session snapshot for exit-time sidebar recovery',
 );
 assert.match(
   workbenchSource,
@@ -312,7 +318,7 @@ assert.match(
   'the visible scoring details should explain the 75/25 split and calculation answer credit',
 );
 assert.match(
-  workbenchSource,
+  heatCapacityRealtimeCopySource,
   /demoProgressLabel:\s*'推进标准'/,
   'auto demo step panel should label the real-world progress criterion separately from the target control',
 );
@@ -327,17 +333,17 @@ assert.match(
   'auto demo step panel should render the progress criterion row',
 );
 assert.match(
-  workbenchSource,
+  heatCapacityRealtimeCopySource,
   /pumping:\s*'连续打气至 Uₚ ≥ 120 mV，达到后停止加压。'/,
   'realtime pumping hint should teach the 120 mV progress standard',
 );
 assert.match(
-  workbenchSource,
+  heatCapacityRealtimeCopySource,
   /sealedStabilizing:\s*'真实实验需封闭等待 5 min，稳定后记录 U₁。'/,
   'realtime sealed-stabilizing hint should teach the 5 min U1 wait',
 );
 assert.match(
-  workbenchSource,
+  heatCapacityRealtimeCopySource,
   /recovering:\s*'关闭玻璃旋塞后等待 5 min，回温稳定后记录 U₂。'/,
   'realtime recovery hint should teach the 5 min U2 wait',
 );
@@ -507,13 +513,13 @@ assert.match(workbenchSource, /heatCapacityWaitTimer\?\.stage === 'u1-ready'[\s\
 assert.match(workbenchSource, /speedOptionsDisabled=\{heatCapacitySpeedOptionsDisabled\}/, 'shared wait timer should disable speed controls for Demo and ready-state Guide waits');
 assert.match(waitControllerSource, /d="M 74 50 L 92 76 H 179 C 191 76 200 74 210 68 C 218 62 224 55 225 49 L 74 50 Z"/, 'independent timer should preserve the approved cabin geometry');
 assert.match(workbenchSource, /freeWaitTimerLabel/, 'Free wait timer should use localized stage labels');
-assert.match(workbenchSource, /freeSpeedLabelCode:\s*'WAIT RATE'/, 'Free wait speed control should localize its engineering code label through Heat Capacity copy');
-assert.match(workbenchSource, /zh-CN[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S]*zh-TW[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S]*en[\s\S]*freeSpeedLabel:\s*'Wait speed'/, 'Free wait speed control should include zh-CN, zh-TW, and English labels');
+assert.match(heatCapacityRealtimeCopySource, /freeSpeedLabelCode:\s*'WAIT RATE'/, 'Free wait speed control should localize its engineering code label through Heat Capacity copy');
+assert.match(heatCapacityRealtimeCopySource, /zh-CN[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S]*zh-TW[\s\S]*freeSpeedLabel:\s*'等待倍速'[\s\S]*en[\s\S]*freeSpeedLabel:\s*'Wait speed'/, 'Free wait speed control should include zh-CN, zh-TW, and English labels');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-free-speed-control|studio-heat-free-speed-control|heatCapacityFreeEquilibriumSpeedHintShown/, 'old speed-only UI and compatibility state must be physically absent');
 assert.doesNotMatch(styleSource, /\.studio-heat-free-speed-|\.studio-heat-free-wait-/, 'old speed-only and attached timer styles must be deleted');
 assert.doesNotMatch(workbenchSource, /getLocalizedHeatCapacityFreeProcessingMessage/, 'Free Mode should not keep the removed standalone processing log helper');
 assert.match(workbenchSource, /freeModeActiveLog/, 'Free Mode activation logs should use Heat Capacity localized copy');
-assert.doesNotMatch(workbenchSource, /freeRunResetLog|resetFreeMode/, 'the removed ambiguous Free Mode reset copy should not remain');
+assert.doesNotMatch(`${workbenchSource}\n${heatCapacityRealtimeCopySource}`, /freeRunResetLog|resetFreeMode/, 'the removed ambiguous Free Mode reset copy should not remain');
 assert.doesNotMatch(workbenchSource, /heat-capacity free mode active|heat-capacity free run reset|Free Mode 已记录 U[₀₁₂] 显示值/, 'Free Mode console logs should not contain hard-coded mixed-language strings');
 assert.match(workbenchSource, /speedAriaLabel=\{heatCapacityRealtimeCopy\.freeSpeedAria\}/, 'Free wait speed radiogroup should localize its accessibility label');
 assert.match(workbenchSource, /heatCapacityRealtimeCopy\.freeSpeedLabelCode[\s\S]*heatCapacityRealtimeCopy\.freeSpeedLabel/, 'Free wait speed label should render localized copy instead of hard-coded text');
@@ -540,7 +546,7 @@ assert.match(workbenchSource, /phase=\{heatCapacityDisplayPhase\}/, '3D instrume
 assert.match(workbenchSource, /getHeatCapacityPhaseLabel\(heatCapacityDisplayPhase\)/, 'realtime phase badges should use the same workflow-aware heat-capacity display phase');
 assert.match(workbenchSource, /data-heat-capacity-guided-record=\{stepRecordKind\}/, 'Guided record button should expose the active U0/U1/U2 kind from the current checklist row for browser automation');
 assert.match(workbenchSource, /applyHeatCapacityFreeRecordWorkbenchState/, 'Free Mode record buttons should use one synchronous record-attempt helper');
-assert.match(workbenchSource, /'zero-not-ready': '请先打开电源并打开玻璃旋塞，再记录 U₀。'/, 'Free Mode U0 reject copy should state only the minimum physical record prerequisites');
+assert.match(heatCapacityRealtimeCopySource, /'zero-not-ready': '请先打开电源并打开玻璃旋塞，再记录 U₀。'/, 'Free Mode U0 reject copy should state only the minimum physical record prerequisites');
 assert.doesNotMatch(workbenchSource, /完成调零，待 Uₚ 稳定接近 0 后再记录 U₀|finish zeroing, and wait until Uₚ is stable near 0 before recording U₀/, 'Free Mode U0 reject copy should not imply strict zeroing and stability gates');
 assert.match(stateSource, /recordHeatCapacityFreeTraceEventWithReference/, 'Free Mode official records should capture hidden trace references before saving U0/U1/U2');
 assert.match(processReviewStageScaleSource, /MIN_COMPRESSED_STAGE_DURATION_BY_ID/, 'process review timeline should keep each experiment stage readable even after long idle waits');
@@ -822,7 +828,7 @@ assert.match(leftPanelSource, /const shouldShowSingleTrialResult =[\s\S]*file\.h
 assert.match(leftPanelSource, /file\.heatCapacityMode === 'free' && !shouldShowSingleTrialResult[\s\S]*renderFreeDataAndResultsTab/, 'ordinary Free Mode panels should route to the merged Data & Results page');
 assert.match(leftPanelSource, /data-heat-capacity-record-source=\{file\.heatCapacityMode\}/, 'recording panel should expose the active record source');
 assert.match(leftPanelSource, /automaticU0/, 'Free record table should show automatic U0 status');
-assert.match(workbenchSource, /dataResultsTitle:\s*'数据与结果'/, 'Free Mode materials should expose a localized merged Data & Results title');
+assert.match(heatCapacityRealtimeCopySource, /dataResultsTitle:\s*'数据与结果'/, 'Free Mode materials should expose a localized merged Data & Results title');
 assert.match(heatCapacityTabRegistrySource, /HEAT_CAPACITY_TAB_IDS = \[[\s\S]*?'guide'[\s\S]*?'records'[\s\S]*?'review'/, 'Heat Capacity materials should expose the fixed guide / records / review tab order');
 assert.match(heatCapacityTabRegistrySource, /getHeatCapacityMaterialsTabOrder[\s\S]*?heatCapacityMode === 'guide'[\s\S]*?\['guide', 'records'\][\s\S]*?heatCapacityMode === 'free'[\s\S]*?\[\.\.\.HEAT_CAPACITY_TAB_IDS\]/, 'Heat Capacity materials should follow the Guide / Free mode matrix');
 assert.match(workbenchSource, /getHeatCapacityMaterialsTabOrder\(activeFile\)/, 'Heat Capacity material tree/window should use the shared mode-aware tab order');
@@ -891,7 +897,7 @@ assert.doesNotMatch(leftPanelSource, asciiSubscriptPattern, 'heat-capacity guide
 assert.doesNotMatch(workbenchSource, /heatRealtimeHint:\s*'[^']*U_/, 'heat-capacity realtime hint should not expose underscore subscripts');
 assert.doesNotMatch(`${hardSphereToggleSource}\n${freeParameterPanelModelSource}`, asciiSubscriptPattern, 'current hard-sphere teaching copy should not expose underscore subscripts');
 assert.doesNotMatch(workbenchSource, /(recordDialogPressure|recordDialogTemperature|readyToZero|sealedStabilizing|recovering|delta):\s*'[^']*U_/, 'heat-capacity status and dialog copy should not expose underscore subscripts');
-assert.match(workbenchSource, /heatRealtimeHint:\s*'Uₜ \/ Uₚ、压强和过程采样'/, 'Simplified Chinese realtime hint should use real subscripts');
+assert.match(workbenchCopySource, /heatRealtimeHint:\s*'Uₜ \/ Uₚ、压强和过程采样'/, 'Simplified Chinese realtime hint should use real subscripts');
 assert.doesNotMatch(sceneSource, /<Html[\s\S]*(TemperatureDisplay|PressureDisplay|FD-NCD-C|INPUT|PRESS IN)/, 'instrument panel labels should not use camera-facing Html overlays');
 assert.match(sceneSource, /CanvasTexture/, 'instrument panel labels should use 3D canvas textures attached to the instrument face');
 assert.match(sceneSource, /new THREE\.CanvasTexture\(canvas\)[\s\S]*\}, \[\]\)/, 'instrument panel text should create one stable CanvasTexture instead of recreating it for every readout change');
@@ -1529,7 +1535,7 @@ assert.doesNotMatch(workbenchSource, /data-heat-capacity-mode-action="next-trial
 assert.match(workbenchSource, /className="studio-heat-mode-actions studio-heat-mode-actions-demo"[\s\S]*heatCapacityModeControlState\.demo\.actions\.map\(renderHeatCapacityModeAction\)/, 'demo actions should be rendered from the dedicated mode-control model inside the demo segment');
 assert.match(workbenchSource, /className="studio-heat-mode-actions studio-heat-mode-actions-guide"[\s\S]*heatCapacityModeControlState\.guide\.actions\.map\(renderHeatCapacityModeAction\)/, 'guide actions should be rendered from the dedicated mode-control model inside the guide segment');
 assert.doesNotMatch(workbenchSource, /HEAT_CAPACITY_GUIDE_NEXT_TRIAL_DELAY_MS/, 'next-trial reveal delay should be removed with guide multi-trial flow');
-assert.match(workbenchSource, /真实实验中需要等待系统稳定；程序已省略该等待过程。/, 'guide mode should show the confirmed omitted-stability-wait notice');
+assert.match(heatCapacityRealtimeCopySource, /真实实验中需要等待系统稳定；程序已省略该等待过程。/, 'guide mode should show the confirmed omitted-stability-wait notice');
 assert.doesNotMatch(workbenchSource, /setHeatCapacityGuideNextTrialReadyKey|nextTrialKey/, 'next-trial reveal key should be removed');
 assert.match(workbenchSource, /data-heat-capacity-trial-badge=\{badge\.key === 'trial' \? 'true' : undefined\}/, 'current guide trial should move to a right-sidebar badge');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-manual-reset="true"/, 'old bottom-right guide start button should be removed');
@@ -1642,22 +1648,22 @@ assert.match(workbenchSource, /pressureSafetyThresholdKPa=\{activeFile\.pressure
 assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit\}/, 'workbench should pass pressure over-limit state into the 3D pressure gauge');
 assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
 assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
-assert.match(workbenchSource, /pressureAlarmTitle:\s*'报警'/, 'center alarm title should be alarm, not generic danger warning');
+assert.match(heatCapacityRealtimeCopySource, /pressureAlarmTitle:\s*'报警'/, 'center alarm title should be alarm, not generic danger warning');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'interactive pumping should consider 90 mV sufficient instead of the old 100 mV gate');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
 assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
 assert.match(defaultConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV in the shared default config');
 assert.match(stateSource, /压强已达到建议打气范围，请停止打气并等待回温。/, 'pressure warning copy should use ordinary suggested-stop wording');
 assert.match(freeParameterPanelModelSource, /label:\s*\{ 'zh-CN': '建议停止阈值'[\s\S]*en: 'Suggested-stop threshold' \}/, 'pressure warning parameter label should use suggested-stop wording instead of error-like warning wording');
-assert.match(workbenchSource, /warning:\s*'建议停止'[\s\S]*warningNote:\s*'等待回温'/, 'warning safety status should read as a normal suggested-stop state');
+assert.match(heatCapacityRealtimeCopySource, /warning:\s*'建议停止'[\s\S]*warningNote:\s*'等待回温'/, 'warning safety status should read as a normal suggested-stop state');
 assert.doesNotMatch(workbenchSource, /压力警告阈值|壓力警告閾值|Pressure warning threshold|warning:\s*'接近阈值'|warningNote:\s*'准备停止打气'/, 'old warning-like suggested-stop labels should be removed');
 assert.match(stateSource, /压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
 assert.doesNotMatch(stateSource, /压强接近预警值，请注意|压强接近安全阈值，请准备停止打气|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
 assert.doesNotMatch(workbenchSource, /危险：压强超过阈值/, 'center alarm title should not keep the older threshold wording');
 assert.match(workbenchSource, /HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS = 2000/, 'center alarm should stay visible for two seconds');
 assert.match(workbenchSource, /HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS = 220/, 'close-valve reminder should wait until after the center alarm has been cleared');
-assert.match(workbenchSource, /closePumpValveReminder:\s*'请关闭打气阀门。'/, 'alarm follow-up should ask the user to close the pump valve through localized copy');
-assert.match(workbenchSource, /closePumpValveReminder:\s*'Close the pump valve\.'/, 'alarm follow-up should have English localized copy');
+assert.match(heatCapacityRealtimeCopySource, /closePumpValveReminder:\s*'请关闭打气阀门。'/, 'alarm follow-up should ask the user to close the pump valve through localized copy');
+assert.match(heatCapacityRealtimeCopySource, /closePumpValveReminder:\s*'Close the pump valve\.'/, 'alarm follow-up should have English localized copy');
 assert.match(workbenchSource, /heatCapacityPressureAlarmVisible/, 'center pressure alarm should be controlled by a transient visible state instead of staying mounted while over limit');
 assert.match(workbenchSource, /const effectivePressureSafetyStatus = activeHeatCapacityPressureAlarmVisible \? 'danger' : activeFile\.pressureSafetyStatus/, 'right-side safety card should show danger only while the active file owns the center alarm');
 assert.match(workbenchSource, /studio-heat-safety-\$\{effectivePressureSafetyStatus\}/, 'right-side safety card color should follow the effective visible alarm status');
@@ -1772,8 +1778,8 @@ assert.match(workbenchSource, /pumpFrequencyStatus/);
 assert.match(workbenchSource, /createHeatCapacityAutoDemoSteps/, 'workbench should wire the one-shot heat capacity auto demo script');
 assert.match(workbenchSource, /getHeatCapacityAutoDemoTimeline/, 'workbench should schedule semantic auto demo highlight/action/observe stages');
 assert.match(workbenchSource, /HEAT_CAPACITY_AUTO_DEMO_RESET_MS/, 'heat capacity auto demo should reserve a reset phase before step 1 starts');
-assert.match(workbenchSource, /Initializing auto demo|初始化自动演示|初始化自動演示/, 'auto demo start should show a centered automatic initialization message before running');
-assert.match(workbenchSource, /resetting controls|自动复位控件|自動復位控制項/, 'auto demo start should describe automatic reset instead of asking the user to reset controls');
+assert.match(heatCapacityRealtimeCopySource, /Initializing auto demo|初始化自动演示|初始化自動演示/, 'auto demo start should show a centered automatic initialization message before running');
+assert.match(heatCapacityRealtimeCopySource, /resetting controls|自动复位控件|自動復位控制項/, 'auto demo start should describe automatic reset instead of asking the user to reset controls');
 assert.match(workbenchSource, /setAutoDemoStepTitle\(heatCapacityRealtimeCopy\.autoDemoPreparingTitle\)/, 'auto demo reset phase should not show stale completion copy in the step panel');
 assert.match(workbenchSource, /heatCapacityAutoDemoExecutedItemKeysRef\.current\.has\(timelineItemKey\)/, 'auto demo refresh should skip only timeline items whose exact action keys were committed to the checkpoint');
 assert.match(workbenchSource, /if \(applyHeatCapacityAutoDemoAction\(fileId, 'captureSample', 'zeroedSample', onDeferredComplete\)\) \{[\s\S]*onDeferredComplete\?\.\(\);/, 'a deferred zero-sample action should enter the refresh ledger only after its retry really completes');
@@ -1787,9 +1793,9 @@ assert.match(workbenchSource, /terminateHeatCapacityAutoDemo/, 'heat capacity st
 assert.match(workbenchSource, /const terminateHeatCapacityAutoDemo = \(\) => \{[\s\S]*exitHeatCapacityTeachingModeToExplore\('demo'\)/, 'terminating heat capacity auto demo should discard Demo progress and return to Explore');
 assert.doesNotMatch(workbenchSource, /future batch|后续批次|後續批次/, 'heat capacity pause and stop controls should now have real behavior');
 assert.match(workbenchSource, /showHeatCapacityAutoDemoLockedToast/, 'workbench should show a single locked-interaction toast');
-assert.match(workbenchSource, /Cannot operate during demo|演示中无法操作|演示中無法操作/, 'locked heat capacity preview clicks should show the required toast text');
+assert.match(heatCapacityRealtimeCopySource, /Cannot operate during (?:the )?demo|演示中无法操作|演示中無法操作/, 'locked heat capacity preview clicks should show the required toast text');
 assert.match(workbenchSource, /studio-heat-toast-kicker/, 'toast markup should include engineering status kicker labels');
-assert.match(workbenchSource, /Demo complete|演示完成|演示完成/, 'normal heat capacity demo completion should show a centered completion message');
+assert.match(heatCapacityRealtimeCopySource, /Demo complete|演示完成|演示完成/, 'normal heat capacity demo completion should show a centered completion message');
 assert.match(workbenchSource, /onFocusModeChange=\{updateHeatCapacityFocusMode\}/, 'workbench should route heat-capacity focus changes through the focus-session policy');
 assert.match(workbenchSource, /setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null/, 'auto demo should reset the heat scene to the default view before starting');
 assert.match(workbenchSource, /setAutoDemoStepCount\(steps\.length\)/, 'auto demo should prepare the current step count before the reset phase');
@@ -1865,7 +1871,7 @@ assert.match(styleSource, /\.studio-realtime-panel-heat \{[\s\S]*grid-template-r
 assert.doesNotMatch(getCssBlock('.studio-heat-reading-card-primary'), /inset\s+\d+px\s+0\s+0|56,\s*189,\s*248/, 'heat realtime primary reading cards should not use a decorative blue left rail');
 assert.match(getCssBlock('.studio-heat-reading-card-primary'), /border-width:\s*0\.5px;/, 'heat realtime primary reading cards should use the thin annotated border width');
 assert.match(getRootCssBlock('.studio-heat-current-hint strong'), /font-weight:\s*400;/, 'heat current hint highlight should use regular annotated weight');
-assert.match(workbenchSource, /Air Heat Capacity Ratio Experiment|空气比热容比实验|空氣比熱容比實驗/);
+assert.match(heatCapacityRealtimeCopySource, /Air Heat Capacity Ratio Experiment|空气比热容比实验|空氣比熱容比實驗/);
 assert.match(workbenchSource, /pressureStatus|Pressure status|压力状态|壓力狀態/);
 assert.match(workbenchSource, /pumpValve|Pump valve|打气阀门|打氣閥門/);
 assert.match(workbenchSource, /glassStopcock|Glass stopcock|玻璃旋塞/);
@@ -1900,18 +1906,18 @@ assert.match(workbenchSource, /if \(action === 'completeTeachingMode'\)[\s\S]*co
 assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-teaching"/, 'completed Demo and Guide modes should replace stop controls with one explicit exit action');
 assert.match(leftPanelSource, /formalExperimentMultiTrialNotice:\s*'正式实验需要进行多次测量，并对各次实验的 γᵢ 取平均值。'/, 'demo Data & Results page should teach that formal experiments require multiple averaged trials');
 assert.match(leftPanelSource, /thinkingMeanTitle:\s*'为什么多次实验应先分别计算 γᵢ，再对结果取平均？'/, 'demo Data & Results page should keep the multi-trial averaging thinking prompt as teaching content');
-assert.match(workbenchSource, /startGuideExperiment:\s*'引导模式'/, 'auto-demo completion should expose a Simplified Chinese guide-mode action');
-assert.match(workbenchSource, /startGuideExperiment:\s*'引導模式'/, 'auto-demo completion should expose a Traditional Chinese guide-mode action');
-assert.match(workbenchSource, /startGuideExperiment:\s*'Guide mode'/, 'auto-demo completion should expose an English guide-mode action');
+assert.match(heatCapacityRealtimeCopySource, /startGuideExperiment:\s*'引导模式'/, 'auto-demo completion should expose a Simplified Chinese guide-mode action');
+assert.match(heatCapacityRealtimeCopySource, /startGuideExperiment:\s*'引導模式'/, 'auto-demo completion should expose a Traditional Chinese guide-mode action');
+assert.match(heatCapacityRealtimeCopySource, /startGuideExperiment:\s*'Guide mode'/, 'auto-demo completion should expose an English guide-mode action');
 assert.match(workbenchSource, /data-heat-capacity-mode="guide"/, 'preview header should render guide mode in the unified mode bar');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-manual-reset="true"/, 'preview should not keep the old guide-experiment reset button');
 assert.doesNotMatch(workbenchSource, /resetHeatCapacityForGuideExperiment/, 'Workbench should not route normal Heat Capacity UI resets through the old Guide reset helper');
 assert.match(guideStepModelSource, /export const isHeatCapacityGuideRecordStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'record-ready guide steps should be classified separately from waiting-for-good-data steps');
-assert.match(workbenchSource, /recordU0SuccessToast:\s*'U₀ 记录成功。'/, 'U0 record success should have the confirmed Simplified Chinese success toast copy');
-assert.match(workbenchSource, /recordU1SuccessToast:\s*'U₁ 和 Uₜ 记录成功。'/, 'U1 record success should have the confirmed Simplified Chinese success toast copy');
-assert.match(workbenchSource, /recordU2SuccessToast:\s*'U₂ 和 Uₜ 记录成功。'/, 'U2 record success should have the confirmed Simplified Chinese success toast copy');
-assert.doesNotMatch(workbenchSource, /trialCompleteToast/, 'single guide mode should not keep the old completed-group toast copy');
-assert.match(workbenchSource, /finalTrialCompleteToast:\s*'本次实验已完成。'/, 'the final heat-capacity trial should use the confirmed final-completion copy');
+assert.match(heatCapacityRealtimeCopySource, /recordU0SuccessToast:\s*'U₀ 记录成功。'/, 'U0 record success should have the confirmed Simplified Chinese success toast copy');
+assert.match(heatCapacityRealtimeCopySource, /recordU1SuccessToast:\s*'U₁ 和 Uₜ 记录成功。'/, 'U1 record success should have the confirmed Simplified Chinese success toast copy');
+assert.match(heatCapacityRealtimeCopySource, /recordU2SuccessToast:\s*'U₂ 和 Uₜ 记录成功。'/, 'U2 record success should have the confirmed Simplified Chinese success toast copy');
+assert.doesNotMatch(`${workbenchSource}\n${heatCapacityRealtimeCopySource}`, /trialCompleteToast/, 'single guide mode should not keep the old completed-group toast copy');
+assert.match(heatCapacityRealtimeCopySource, /finalTrialCompleteToast:\s*'本次实验已完成。'/, 'the final heat-capacity trial should use the confirmed final-completion copy');
 assert.match(workbenchSource, /showHeatCapacityRecordSuccessSequence\(\{[\s\S]*recordMessage:\s*message[\s\S]*trialCompleteMessage:\s*null[\s\S]*\}\);/, 'successful records should only display the record-success toast; final guide completion belongs to the power-off step');
 assert.doesNotMatch(workbenchSource, /recordHeatCapacityGuideSample[\s\S]*trialCompleteMessage:\s*kind === 'u2'/, 'U2 recording must not announce final completion before the user turns off the power');
 assert.match(workbenchSource, /const shouldShowGuidePowerOffCompletionToast = [\s\S]*heatCapacityGuideWorkflow\.step === 'closePowerRequired'[\s\S]*guardedPowerOn === false[\s\S]*showHeatCapacityGuidePowerOffCompletionToast\(\)/, 'guide completion toast should be triggered by the final guided power-off action');
@@ -1938,7 +1944,7 @@ assert.match(workbenchSource, /GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10
 assert.match(workbenchSource, /HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 \* 60 \* 1000/, 'guide mode U1 and U2 waits should use the real five-minute teaching wait');
 assert.doesNotMatch(workbenchSource, /HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS|350\s*\/\s*1000/, 'guide mode should not auto-close or block closing around the removed 0.35-second target');
 assert.match(workbenchSource, /HEAT_CAPACITY_RELEASE_TIMING/, 'guide and demo UI should reference the shared release timing configuration');
-assert.doesNotMatch(workbenchSource, /放气时间到了|放氣時間到了|Release time has elapsed/, 'guide copy should not imply that a fixed release deadline controls closing');
+assert.doesNotMatch(`${workbenchSource}\n${heatCapacityRealtimeCopySource}`, /放气时间到了|放氣時間到了|Release time has elapsed/, 'guide copy should not imply that a fixed release deadline controls closing');
 assert.match(workbenchSource, /等待“咻”声结束，气体释放完毕，请立即关闭玻璃旋塞。/, 'guide checklist should state the concise sound-based closing criterion');
 assert.match(workbenchSource, /GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000/, 'guide mode should pulse the current target every four seconds before strong reminder escalation');
 const guidePauseStepSection = guideStepModelSource.match(/export const isGuideHeatCapacityPauseStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*?\);/)?.[0] ?? '';
@@ -1969,14 +1975,14 @@ assert.match(workbenchSource, /id:\s*'wait-u2'[\s\S]*title:\s*\{\s*'zh-CN':\s*'�
 assert.match(workbenchSource, /data-heat-capacity-guide-step-panel="true"[\s\S]*data-heat-capacity-guide-step-list="true"[\s\S]*data-heat-capacity-guide-step-row=\{step\.id\}/, 'ordinary guided process guidance should render as a right-top checklist panel');
 assert.match(workbenchSource, /const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;[\s\S]*returnHeatCapacityGuideChecklistToCurrentStep\(\);[\s\S]*HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS/, 'guided checklist should wait five seconds after the last wheel input before returning to the current step');
 assert.match(workbenchSource, /const stepRecordKind = step\.status === 'current' && isCentered[\s\S]*data-heat-capacity-guide-step-record-action="true"[\s\S]*recordHeatCapacityGuideSample\(stepRecordKind\)/, 'current guided checklist rows should own the U0/U1/U2 record button instead of a separate floating action');
-assert.doesNotMatch(workbenchSource, /waitU1Ready:\s*'[^']*请点击按键|waitU2Ready:\s*'[^']*请点击按键|waitU1Ready:\s*'[^']*請點擊按鍵|waitU2Ready:\s*'[^']*請點擊按鍵|Click the button to record U[₁₂]/, 'U1 and U2 ready checklist copy should remove the click-the-button phrase so the in-row record button has room');
+assert.doesNotMatch(heatCapacityRealtimeCopySource, /waitU1Ready:\s*'[^']*请点击按键|waitU2Ready:\s*'[^']*请点击按键|waitU1Ready:\s*'[^']*請點擊按鍵|waitU2Ready:\s*'[^']*請點擊按鍵|Click the button to record U[₁₂]/, 'U1 and U2 ready checklist copy should remove the click-the-button phrase so the in-row record button has room');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-guide-process-prompt="true"/, 'ordinary guided process guidance should no longer render in the bottom-center prompt slot');
-assert.match(workbenchSource, /guideLessonButtonLabel:\s*'实验说明'[\s\S]*guideLessonContinueHint:\s*'点击空白区域来继续'[\s\S]*guideLessonIntroPages:\s*\[[\s\S]*本实验通过一次“加压、快速放气、回温”的过程[\s\S]*默认换算系数为 20 mV\/kPa[\s\S]*重新查看刚刚的实验说明[\s\S]*guideLessonButtonLabel:\s*'實驗說明'[\s\S]*guideLessonContinueHint:\s*'點擊空白區域繼續'[\s\S]*guideLessonButtonLabel:\s*'Experiment notes'[\s\S]*guideLessonContinueHint:\s*'Click blank area to continue'/, 'heat-capacity lesson intro copy should localize the button, continue hint, and reusable intro pages for all supported languages');
-assert.match(workbenchSource, /guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:[\s\S]*压强差调零才有明确基准[\s\S]*sealedInitialState:[\s\S]*气瓶与外界隔离[\s\S]*pressureTarget:[\s\S]*120 mV[\s\S]*preReleaseStability:[\s\S]*U₁ 代表放气前稳定高压状态[\s\S]*quickReleaseState:[\s\S]*近似绝热过程[\s\S]*thermalRecovery:[\s\S]*U₂[\s\S]*guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:[\s\S]*guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:/, 'guided lesson step explanations should cover the six completed-step explanations in zh-CN, zh-TW, and English');
-assert.match(workbenchSource, /Each experiment step supports reliable values/, 'English heat-capacity intro should describe experiment steps, not Guide-only operations');
-assert.doesNotMatch(workbenchSource, /Each guided operation supports reliable values/, 'English heat-capacity intro should not keep the old Guide-only wording');
-assert.equal((workbenchSource.match(/guideChecklistLabel:/g) ?? []).length, 3, 'Guide checklist title should have one localized copy key per supported language');
-assert.equal((workbenchSource.match(/guideStepLabel:/g) ?? []).length, 3, 'Guide step label should have one localized copy key per supported language');
+assert.match(heatCapacityRealtimeCopySource, /guideLessonButtonLabel:\s*'实验说明'[\s\S]*guideLessonContinueHint:\s*'点击空白区域来继续'[\s\S]*guideLessonIntroPages:\s*\[[\s\S]*本实验通过一次“加压、快速放气、回温”的过程[\s\S]*默认换算系数为 20 mV\/kPa[\s\S]*重新查看刚刚的实验说明[\s\S]*guideLessonButtonLabel:\s*'實驗說明'[\s\S]*guideLessonContinueHint:\s*'點擊空白區域繼續'[\s\S]*guideLessonButtonLabel:\s*'Experiment notes'[\s\S]*guideLessonContinueHint:\s*'Click blank area to continue'/, 'heat-capacity lesson intro copy should localize the button, continue hint, and reusable intro pages for all supported languages');
+assert.match(heatCapacityRealtimeCopySource, /guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:[\s\S]*压强差调零才有明确基准[\s\S]*sealedInitialState:[\s\S]*气瓶与外界隔离[\s\S]*pressureTarget:[\s\S]*120 mV[\s\S]*preReleaseStability:[\s\S]*U₁ 代表放气前稳定高压状态[\s\S]*quickReleaseState:[\s\S]*近似绝热过程[\s\S]*thermalRecovery:[\s\S]*U₂[\s\S]*guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:[\s\S]*guideLessonStepExplanations:\s*\{[\s\S]*pressureZeroBaseline:/, 'guided lesson step explanations should cover the six completed-step explanations in zh-CN, zh-TW, and English');
+assert.match(heatCapacityRealtimeCopySource, /Each experiment step supports reliable values/, 'English heat-capacity intro should describe experiment steps, not Guide-only operations');
+assert.doesNotMatch(heatCapacityRealtimeCopySource, /Each guided operation supports reliable values/, 'English heat-capacity intro should not keep the old Guide-only wording');
+assert.equal((heatCapacityRealtimeCopySource.match(/guideChecklistLabel:/g) ?? []).length, 3, 'Guide checklist title should have one localized copy key per supported language');
+assert.equal((heatCapacityRealtimeCopySource.match(/guideStepLabel:/g) ?? []).length, 3, 'Guide step label should have one localized copy key per supported language');
 assert.doesNotMatch(workbenchSource, /settingsLanguagePreference === 'en' \? 'Guide checklist'/, 'Guide checklist UI should not hard-code language ternaries in render');
 assert.match(workbenchSource, /const HEAT_CAPACITY_GUIDE_LESSON_TRIGGER_BY_COMPLETED_STEP:[\s\S]*openStopcockForZeroRequired:\s*'pressureZeroBaseline'[\s\S]*closeStopcockRequired:\s*'sealedInitialState'[\s\S]*pumpRequired:\s*'pressureTarget'[\s\S]*stabilizeBeforeReleaseRequired:\s*'preReleaseStability'[\s\S]*closeStopcockAfterReleaseRequired:\s*'quickReleaseState'[\s\S]*recoverRequired:\s*'thermalRecovery'/, 'guided lesson step modals should map explanations to the guide step that has just been completed');
 assert.match(workbenchSource, /const \[heatCapacityGuideLessonDialog,\s*setHeatCapacityGuideLessonDialog\]/, 'guided lesson dialog should keep explicit React state instead of piggybacking on transient toasts');
@@ -2026,18 +2032,18 @@ assert.match(workbenchSource, /const exitHeatCapacityGuideMode = \(\) => \{[\s\S
 assert.match(workbenchSource, /const resetHeatCapacityGuideExperiment = \(\) => \{[\s\S]*startHeatCapacityGuideWorkbenchState\([\s\S]*clearHeatCapacityModeSession\(activeFile, 'guide'\)[\s\S]*applyHeatCapacityModeUiProjection\(resetFile, null\)/, 'Guide reset should clear the previous checkpoint and initialize a clean Guide workflow through the shared mode UI projection path');
 assert.match(workbenchSource, /guideHeatCapacityPendingStrongReminderTimerRef/, 'wrong-click escalation should keep a separate pending-strong timer so the reason toast can fade first');
 assert.match(workbenchSource, /scheduleGuideHeatCapacityStrongReminderAfterToast[\s\S]*HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS[\s\S]*activateGuideHeatCapacityStrongReminder/, 'second guided miss should wait for the reason toast display duration before opening the strong mask');
-assert.match(workbenchSource, /guideStrongReminder:\s*'请点击目标控件，继续实验。'/, 'strong reminder copy should use the confirmed single Simplified Chinese sentence');
-assert.match(workbenchSource, /guideStrongReminderPressureZero:\s*'请调节压强调零旋钮，继续实验。'/, 'pressure-zero strong reminder should use adjustment wording instead of click wording');
-assert.match(workbenchSource, /guidePumpInsufficientReminder:\s*'Uₚ 未达到 120 mV，请继续打气。'[\s\S]*guidePumpInsufficientReminder:\s*'Uₚ 未達到 120 mV，請繼續打氣。'[\s\S]*guidePumpInsufficientReminder:\s*'Uₚ has not reached 120 mV\. Continue pumping\.'/, 'guide insufficient-pumping feedback should name the 120 mV displayed target in all supported languages');
+assert.match(heatCapacityRealtimeCopySource, /guideStrongReminder:\s*'请点击目标控件，继续实验。'/, 'strong reminder copy should use the confirmed single Simplified Chinese sentence');
+assert.match(heatCapacityRealtimeCopySource, /guideStrongReminderPressureZero:\s*'请调节压强调零旋钮，继续实验。'/, 'pressure-zero strong reminder should use adjustment wording instead of click wording');
+assert.match(heatCapacityRealtimeCopySource, /guidePumpInsufficientReminder:\s*'Uₚ 未达到 120 mV，请继续打气。'[\s\S]*guidePumpInsufficientReminder:\s*'Uₚ 未達到 120 mV，請繼續打氣。'[\s\S]*guidePumpInsufficientReminder:\s*'Uₚ has not reached 120 mV\. Continue pumping\.'/, 'guide insufficient-pumping feedback should name the 120 mV displayed target in all supported languages');
 assert.doesNotMatch(workbenchSource, /expectedMessage:\s*'充气不足，请继续打气/, 'guide insufficient-pumping feedback should not be hardcoded as Simplified Chinese at the call site');
-assert.match(workbenchSource, /guideRecordBlockedMessages:\s*\{[\s\S]*u0NeedZero:\s*'当前还不能记录 U₀。请先完成压力调零。'[\s\S]*u1NeedWait:\s*'当前还不能记录 U₁。请等待计时达到 5 min。'[\s\S]*u2NeedWait:\s*'当前还不能记录 U₂。请等待计时达到 5 min。'/, 'premature record feedback should name the single missing guided condition');
-assert.match(workbenchSource, /guideUsageHints:\s*\{[\s\S]*zeroFocus:\s*'请双击仪表进入聚焦模式，开始压力调零。'[\s\S]*zeroAdjust:\s*'拖拽旋钮进行粗调，使用滚轮进行细调。'[\s\S]*pumpValve:\s*'请打开打气阀门。'[\s\S]*pumpFocus:\s*'请双击打气球进入聚焦模式。'/, 'guide mode should include distinct hints for opening the pump valve and then focusing the pump bulb');
+assert.match(heatCapacityRealtimeCopySource, /guideRecordBlockedMessages:\s*\{[\s\S]*u0NeedZero:\s*'当前还不能记录 U₀。请先完成压力调零。'[\s\S]*u1NeedWait:\s*'当前还不能记录 U₁。请等待计时达到 5 min。'[\s\S]*u2NeedWait:\s*'当前还不能记录 U₂。请等待计时达到 5 min。'/, 'premature record feedback should name the single missing guided condition');
+assert.match(heatCapacityRealtimeCopySource, /guideUsageHints:\s*\{[\s\S]*zeroFocus:\s*'请双击仪表进入聚焦模式，开始压力调零。'[\s\S]*zeroAdjust:\s*'拖拽旋钮进行粗调，使用滚轮进行细调。'[\s\S]*pumpValve:\s*'请打开打气阀门。'[\s\S]*pumpFocus:\s*'请双击打气球进入聚焦模式。'/, 'guide mode should include distinct hints for opening the pump valve and then focusing the pump bulb');
 assert.match(workbenchSource, /openPumpValveRequired:\s*heatCapacityRealtimeCopy\.guideUsageHints\.pumpValve/, 'opening the pump-valve step should not show the pump-bulb focus instruction');
 assert.doesNotMatch(workbenchSource, /nextFile\.heatCapacityMode === 'guide'[\s\S]*captureHeatCapacityWorkbenchSample\([^)]*,\s*'afterPumpSample'/, 'Guide pumping should not write old teaching process samples after the independent Guide runtime is introduced');
 assert.match(workbenchSource, /registerHeatCapacityPumpStroke\(fileBeforePump,\s*now\)/, 'Guide pumping should route through the workbench state pump action, which owns Guide workflow transitions');
 assert.match(workbenchSource, /const getGuideHeatCapacityMinimumU1PlatformMv = \([\s\S]*HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV[\s\S]*const hasGuideHeatCapacityReachedPumpTarget = \(/, 'guided pumping should require reaching the 120 mV suggested-stop target before the user can leave the pump stage');
 assert.match(workbenchSource, /const pumpTargetReached = hasGuideHeatCapacityReachedPumpTarget\(file\);[\s\S]*file\.pumpValveOpen && !pumpTargetReached[\s\S]*return 'pumpRequired'/, 'guide mode should keep asking for rapid pumping until the 120 mV target has been reached');
-assert.match(workbenchSource, /pumpAction:\s*'双击聚焦打气球，快速点按打气球，按压至 Uₚ ≥ 120 mV 后自动退出。'/, 'Simplified Chinese guide pump instruction should tell users to focus the pump bulb, use rapid clicks, and stop at the displayed target');
+assert.match(heatCapacityRealtimeCopySource, /pumpAction:\s*'双击聚焦打气球，快速点按打气球，按压至 Uₚ ≥ 120 mV 后自动退出。'/, 'Simplified Chinese guide pump instruction should tell users to focus the pump bulb, use rapid clicks, and stop at the displayed target');
 assert.doesNotMatch(workbenchSource, /guidePumpInputLockedRef/, 'the removed guide pump synchronization lock must not leave a second rejection path beside focus and guide guards');
 assert.match(workbenchSource, /const guidePumpTargetReached = [\s\S]*getGuideHeatCapacityDisplayedPressureMv\(nextHeatCapacityFile\)[\s\S]*HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV/, 'Guide pump-target decisions should use the same one-decimal displayed pressure that the user sees');
 assert.match(workbenchSource, /showGuideHeatCapacityGuidance\([\s\S]*getGuideStepGuidance\('closePumpValveRequired'[\s\S]*'pumpValve'[\s\S]*'guide'/, 'Guide should immediately show the close-pump-valve prompt after auto-exiting pump focus');
@@ -2092,7 +2098,7 @@ assert.match(workbenchSource, /guideFocusKey=\{guideHeatCapacityStrongReminderFo
 assert.match(sceneSource, /demoCameraFocusMode\?: HeatCapacityFocusMode \| null;/, 'Heat Capacity scene should accept demo-driven camera focus without enabling guide UI');
 assert.match(sceneSource, /props\.demoCameraFocusMode !== undefined && props\.demoCameraFocusMode !== null[\s\S]*kind: 'script'[\s\S]*focusMode: props\.demoCameraFocusMode[\s\S]*props\.demoCameraFocusKey/, 'scene should submit scripted demo camera focus through the prioritized command reducer');
 assert.match(workbenchSource, /const \[demoCameraFocusMode, setDemoCameraFocusMode\] = useState<Exclude<HeatCapacityFocusMode, 'none'> \| null>\([\s\S]*?initialHeatCapacityRefreshSession\?\.demo\.cameraMode \?\? null/, 'Workbench should keep demo camera focus independent from guide strong reminders and restore it on refresh');
-assert.match(workbenchSource, /const mapHeatCapacityAutoDemoCameraFocusMode = \([\s\S]*HeatCapacityAutoDemoTimelineItem\['cameraFocusMode'\][\s\S]*Exclude<HeatCapacityFocusMode, 'none'> \| null/, 'Workbench should map auto-demo timeline camera modes to scene focus modes explicitly');
+assert.match(heatCapacityUiCheckpointSource, /export const mapHeatCapacityAutoDemoCameraFocusMode = \([\s\S]*HeatCapacityAutoDemoTimelineItem\['cameraFocusMode'\][\s\S]*Exclude<HeatCapacityFocusMode, 'none'> \| null/, 'the checkpoint boundary should map auto-demo timeline camera modes to scene focus modes explicitly');
 assert.match(workbenchSource, /if \(stage === 'highlight' \|\| stage === 'action'\) \{[\s\S]*const nextDemoCameraFocusMode = mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\);[\s\S]*if \(nextDemoCameraFocusMode\) \{[\s\S]*setHeatCapacityAutoDemoCameraFocus\(nextDemoCameraFocusMode\);[\s\S]*\}/, 'auto demo highlight and action stages should move the camera without forcing preview gaps back to the default view');
 assert.doesNotMatch(workbenchSource, /setHeatCapacityAutoDemoCameraFocus\(\(stage === 'highlight' \|\| stage === 'action'\) \? mapHeatCapacityAutoDemoCameraFocusMode\(cameraFocusMode\) : null\);/, 'auto demo preview and observe gaps should not reset an active scripted camera view');
 const pauseAutoDemoBlock = workbenchSource.match(/const pauseHeatCapacityAutoDemo = \(\) => \{[\s\S]*?pushLog\([\s\S]*?getHeatCapacityRealtimeCopy\(language\)\.autoDemoPausedLog\(activeFile\.name\)[\s\S]*?'warning'[\s\S]*?\);\s*\};/)?.[0] ?? '';
@@ -2145,9 +2151,9 @@ assert.doesNotMatch(viewportFeedbackStyleSource, /\.prompt-viewport-feedback\s*\
 assert.doesNotMatch(styleSource, /\.studio-heat-valve-focus-button/, 'removed valve focus buttons should not keep stable-height styles');
 assert.match(workbenchSource, /temperatureSignalValue/, 'fixed realtime window should still expose the live temperature signal');
 assert.match(workbenchSource, /pressureSignalValue/, 'fixed realtime window should still expose the live pressure signal');
-assert.match(workbenchSource, /realtimePanelTitle: '实时数据'/, 'Heat Capacity fixed panel title should not mention charts in Simplified Chinese');
-assert.match(workbenchSource, /realtimePanelTitle: '即時資料'/, 'Heat Capacity fixed panel title should not mention charts in Traditional Chinese');
-assert.match(workbenchSource, /realtimePanelTitle: 'Realtime Data'/, 'Heat Capacity fixed panel title should not mention charts in English');
+assert.match(heatCapacityRealtimeCopySource, /realtimePanelTitle: '实时数据'/, 'Heat Capacity fixed panel title should not mention charts in Simplified Chinese');
+assert.match(heatCapacityRealtimeCopySource, /realtimePanelTitle: '即時資料'/, 'Heat Capacity fixed panel title should not mention charts in Traditional Chinese');
+assert.match(heatCapacityRealtimeCopySource, /realtimePanelTitle: 'Realtime Data'/, 'Heat Capacity fixed panel title should not mention charts in English');
 assert.match(workbenchSource, /heatRealtimeTitle/, 'Heat Capacity left panel should have a dedicated realtime title without chart wording');
 assert.match(workbenchSource, /renderScientificText\(panel\.hint\)/, 'dock headers should render Uₜ and Uₚ with real subscripts');
 assert.match(workbenchSource, /renderScientificText\(heatCapacityRealtimeCopy\.realtimeSubtitle\)/, 'right Heat Capacity panel subtitle should render Uₜ and Uₚ with real subscripts');
@@ -2158,12 +2164,12 @@ assert.match(workbenchGeneralSettingsSource, /performanceMode:\s*DEFAULT_HEAT_CA
 assert.match(workbenchGeneralSettingsSource, /type WorkbenchPerformanceMode = HeatCapacityQualityMode/, 'performance mode should use the clear quality-mode type');
 assert.match(workbenchGeneralSettingsSource, /isWorkbenchPerformanceMode/, 'general settings should validate the current quality setting');
 assert.match(workbenchSource, /updateSettingsPerformanceMode/, 'general settings should expose a persistent performance mode updater');
-assert.match(workbenchSource, /performanceMode:\s*'3D 性能模式'/, 'performance setting should use performance-mode wording in Simplified Chinese');
-assert.match(workbenchSource, /performanceModeSummary:\s*\{\s*lowLoad:\s*'低负载',\s*balanced:\s*'均衡',\s*highPerformance:\s*'高性能',\s*ultra:\s*'极致画质'\s*\}/, 'Simplified Chinese performance summaries should match the four mode names');
-assert.match(workbenchSource, /performanceMode:\s*'3D 效能模式'/, 'performance setting should use performance-mode wording in Traditional Chinese');
-assert.match(workbenchSource, /performanceModeSummary:\s*\{\s*lowLoad:\s*'低負載',\s*balanced:\s*'均衡',\s*highPerformance:\s*'高效能',\s*ultra:\s*'極致畫質'\s*\}/, 'Traditional Chinese performance summaries should match the four mode names');
-assert.match(workbenchSource, /performanceMode:\s*'3D performance mode'/, 'performance setting should use performance-mode wording in English settings');
-assert.match(workbenchSource, /performanceModeSummary:\s*\{\s*lowLoad:\s*'Low load',\s*balanced:\s*'Balanced',\s*highPerformance:\s*'High performance',\s*ultra:\s*'Ultra'\s*\}/, 'English performance summaries should match the four mode names');
+assert.match(workbenchCopySource, /performanceMode:\s*'3D 性能模式'/, 'performance setting should use performance-mode wording in Simplified Chinese');
+assert.match(workbenchCopySource, /performanceModeSummary:\s*\{\s*lowLoad:\s*'低负载',\s*balanced:\s*'均衡',\s*highPerformance:\s*'高性能',\s*ultra:\s*'极致画质'\s*\}/, 'Simplified Chinese performance summaries should match the four mode names');
+assert.match(workbenchCopySource, /performanceMode:\s*'3D 效能模式'/, 'performance setting should use performance-mode wording in Traditional Chinese');
+assert.match(workbenchCopySource, /performanceModeSummary:\s*\{\s*lowLoad:\s*'低負載',\s*balanced:\s*'均衡',\s*highPerformance:\s*'高效能',\s*ultra:\s*'極致畫質'\s*\}/, 'Traditional Chinese performance summaries should match the four mode names');
+assert.match(workbenchCopySource, /performanceMode:\s*'3D performance mode'/, 'performance setting should use performance-mode wording in English settings');
+assert.match(workbenchCopySource, /performanceModeSummary:\s*\{\s*lowLoad:\s*'Low load',\s*balanced:\s*'Balanced',\s*highPerformance:\s*'High performance',\s*ultra:\s*'Ultra'\s*\}/, 'English performance summaries should match the four mode names');
 assert.doesNotMatch(workbenchSource, /performanceModeOff|performanceModeOn|performanceModeBalanced|performanceModeUltra/, 'general settings copy should delete old binary performance labels');
 assert.doesNotMatch(workbenchSource, /高清模式|低负载模式|高清|高畫質|Sharp mode|Low-load mode|性能优先|效能優先|Performance first/, 'settings copy should not keep old clarity or performance-first wording');
 assert.match(workbenchGeneralSettingsWindowSource, /HEAT_CAPACITY_QUALITY_MODE_ORDER\.map/, 'general settings should render performance mode as a segmented control');
@@ -2216,7 +2222,7 @@ assert.doesNotMatch(leftPanelSource, /HEAT_CAPACITY_FORMULA_RESULT_PREVIEW_LIMIT
 assert.match(leftPanelSource, /引导模式数据与结果[\s\S]*数据来源：引导模式固定标准流程/, 'recording page should rename guide mode to guide mode');
 assert.doesNotMatch(leftPanelSource, /手动模式需在正确阶段使用 3D 预览中的记录按钮/, 'recording page should not keep the old pre-guide label');
 assert.doesNotMatch(leftPanelSource, /本组已完成；提示结束后可在上方模式栏点击“下一组实验”。/, 'single guide mode should not keep old next-trial continuation copy');
-assert.match(workbenchSource, /真实实验中需要等待系统稳定；程序已省略该等待过程。/, 'U2 success guidance should use the confirmed two-second stability-wait notice');
+assert.match(heatCapacityRealtimeCopySource, /真实实验中需要等待系统稳定；程序已省略该等待过程。/, 'U2 success guidance should use the confirmed two-second stability-wait notice');
 assert.doesNotMatch(workbenchSource, /可立即进入下一组实验。/, 'old immediate next-trial wait-skip copy should be removed');
 assert.doesNotMatch(workbenchSource, /showGuideHeatCapacityGuidance\(heatCapacityRealtimeCopy\.skipRecoveryWait,\s*'startNextTrial'/, 'U2 success should no longer reveal the next-trial control immediately');
 assert.doesNotMatch(leftPanelSource, /铻東绾瑋钄殀鑴硘鐎箌鐠亅缁寍閻榺鈧琝?/, 'Heat Capacity left panel source should not contain mojibake or corrupted scientific symbols');
@@ -2245,14 +2251,14 @@ assert.match(freeParameterPanelModelSource, /heatCapacityFreeParameterLockText[\
 assert.doesNotMatch(workbenchSource, /HEAT_CAPACITY_FREE_PARAMETER_SIDEBAR_BLOCK_FALLBACK/, 'Workbench should not consume a single-language parameter-sidebar fallback string');
 assert.match(workbenchSource, /const blockReason = getHeatCapacityParameterSidebarBlockReason\(activeFile\);[\s\S]*?getHeatCapacityFreeParameterLockMessage\(blockReason, language\)/,
   'blocked Heat Capacity parameter rail clicks should localize the configured lock reason id');
-assert.match(workbenchSource, /pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'打气阀门已打开'[\s\S]*pumpValveClosed:\s*'打气阀门已关闭'[\s\S]*observeInitialPressure:\s*'观察初始压强差示数是否为零'[\s\S]*pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'打氣閥門已打開'[\s\S]*pumpValveClosed:\s*'打氣閥門已關閉'[\s\S]*observeInitialPressure:\s*'觀察初始壓強差示數是否為零'[\s\S]*pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'Pump valve is open'[\s\S]*pumpValveClosed:\s*'Pump valve is closed'[\s\S]*observeInitialPressure:\s*'Observe whether the initial pressure-difference reading is zero'/,
+assert.match(heatCapacityRealtimeCopySource, /pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'打气阀门已打开'[\s\S]*pumpValveClosed:\s*'打气阀门已关闭'[\s\S]*observeInitialPressure:\s*'观察初始压强差示数是否为零'[\s\S]*pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'打氣閥門已打開'[\s\S]*pumpValveClosed:\s*'打氣閥門已關閉'[\s\S]*observeInitialPressure:\s*'觀察初始壓強差示數是否為零'[\s\S]*pumpHints:\s*\{[\s\S]*pumpValveOpen:\s*'Pump valve is open'[\s\S]*pumpValveClosed:\s*'Pump valve is closed'[\s\S]*observeInitialPressure:\s*'Observe whether the initial pressure-difference reading is zero'/,
   'Heat Capacity pump-status hints should be localized for zh-CN, zh-TW, and en');
-assert.match(workbenchSource, /const getLocalizedHeatCapacityPumpHint = \(/, 'Heat Capacity pump hints stored in runtime state should be localized at display time');
+assert.match(heatCapacityRealtimeCopySource, /export const getLocalizedHeatCapacityPumpHint = \(/, 'Heat Capacity pump hints stored in runtime state should be localized at display time');
 assert.match(workbenchSource, /pumpHint=\{localizedHeatCapacityPumpHint\}/, '3D Heat Capacity scene should receive the localized pump hint');
 assert.doesNotMatch(workbenchSource, /pumpHint=\{activeFile\.pumpHint\}/, '3D Heat Capacity scene should not render raw state pump hints');
 assert.doesNotMatch(workbenchSource, /return activeFile\.pumpHint \|\| heatCapacityRealtimeCopy\.hints\.fallback/, 'Realtime hint fallback should localize raw state pump hints before display');
 assert.doesNotMatch(workbenchSource, /pumpHint:\s*'(?:打气阀门已打开|打气阀门已关闭|观察初始压强差示数是否为零)'/, 'Workbench event handlers should not write new single-language pump hints directly');
-assert.match(workbenchSource, /usageHintAria:\s*'文件树操作提示'[\s\S]*clickSelectHint:\s*'单击选中'[\s\S]*doubleClickOpenHint:\s*'双击打开'[\s\S]*usageHintAria:\s*'檔案樹操作提示'[\s\S]*clickSelectHint:\s*'單擊選取'[\s\S]*doubleClickOpenHint:\s*'雙擊開啟'[\s\S]*usageHintAria:\s*'File tree usage hint'[\s\S]*clickSelectHint:\s*'Click to select'[\s\S]*doubleClickOpenHint:\s*'Double-click to open'/,
+assert.match(workbenchCopySource, /usageHintAria:\s*'文件树操作提示'[\s\S]*clickSelectHint:\s*'单击选中'[\s\S]*doubleClickOpenHint:\s*'双击打开'[\s\S]*usageHintAria:\s*'檔案樹操作提示'[\s\S]*clickSelectHint:\s*'單擊選取'[\s\S]*doubleClickOpenHint:\s*'雙擊開啟'[\s\S]*usageHintAria:\s*'File tree usage hint'[\s\S]*clickSelectHint:\s*'Click to select'[\s\S]*doubleClickOpenHint:\s*'Double-click to open'/,
   'left sidebar usage hints should be localized for all three languages');
 assert.doesNotMatch(workbenchSource, /aria-label="文件树操作提示"|<span>单击选中<\/span>|<span>双击打开<\/span>/, 'left sidebar usage hints should not render hard-coded Simplified Chinese text');
 assert.match(styleSource, /\.studio-workspace-shell\.studio-params-collapsed\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*0;/, 'collapsed parameter sidebars should keep winning over responsive workspace grid rules');
@@ -2700,7 +2706,7 @@ assert.match(
   'Workbench should restore all scene-internal transition checkpoints and explicitly acknowledge the committed parent state',
 );
 assert.match(
-  workbenchSource,
+  heatCapacityRealtimeCopySource,
   /guideLessonIntroPages:\s*\[[\s\S]*重新查看刚刚的实验说明[\s\S]*重新查看剛剛的實驗說明[\s\S]*rewatch these experiment notes/,
   'The intro lesson should include a third localized page that tells users where to reopen it with the upper-right wrench',
 );

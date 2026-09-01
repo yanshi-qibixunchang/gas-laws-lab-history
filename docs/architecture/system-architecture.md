@@ -28,6 +28,8 @@ React 入口与启动门禁
 | --- | --- | --- | --- |
 | 应用启动 | `src/app/App.tsx` | 启动页、存储初始化、首次运行门禁、全局设置装配 | 实验物理计算、文件迁移细节 |
 | 工作台 UI | `src/features/workbench/WorkbenchStudioPrototype.tsx` | 窗口、菜单、文件选择、界面事件和跨功能协调 | 新增可独立验证的物理公式或持久化格式判断 |
+| 工作台文案 | `workbenchStudioCopy.ts`、`workbenchHeatCapacityRealtimeCopy.ts` 及同目录专用文案模块 | 本地化文案合同、静态文案表和不依赖 React 的文案选择 | 界面状态、副作用、计时器或领域状态修改 |
+| 工作台 UI 检查点 | `workbenchHeatCapacityUiCheckpoint.ts` 及同目录专用检查点模块 | 校验并归一化可恢复的纯 UI 状态、计时计划和镜头状态 | 安排计时器、操作 DOM 或直接修改工作台文件 |
 | 工作台状态适配 | `src/features/workbench/workbenchState.ts` 及同目录专用模块 | 把文件状态、领域模型和 UI 操作连接起来；维持兼容入口 | 复制已经存在于领域对象中的权威状态 |
 | 领域层 | `src/domain/` | 硬球、理想气体、绝热膨胀、活塞振荡、评分和计算的确定性规则 | 浏览器存储、窗口、文件选择和界面副作用 |
 | 持久化 | `src/features/workbench/persistenceV3/` | 权威字段投影、版本化编码、诊断、保留未知数据、恢复 | 把可重算显示值重新定义成权威事实 |
@@ -35,7 +37,7 @@ React 入口与启动门禁
 | 桌面边界 | `electron/preload.cjs`、`electron/main.cjs` | 白名单 IPC、窗口、退出、更新、本地导出 | 向渲染器暴露 Node.js 或不受控文件系统能力 |
 | 导出器 | `tools/exporter/` | 从经过验证的输入生成报告、图表和数据文件 | 回写工作台业务状态 |
 
-`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。新增逻辑时应优先进入现有专用模块；只有确属跨模块编排的代码才留在这两个入口中。
+`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。第一批拆分已经把通用工作台文案、绝热膨胀法实时文案和 UI 检查点归一化移入上述专用模块；主组件只负责消费结果、安排副作用和协调界面。后续继续按“纯合同与选择器 → 单一交互协调器 → 独立渲染区域”的顺序小批拆分，避免一次性重写。新增逻辑时应优先进入现有专用模块；只有确属跨模块编排的代码才留在这两个入口中。
 
 ## 3. 状态权威规则
 

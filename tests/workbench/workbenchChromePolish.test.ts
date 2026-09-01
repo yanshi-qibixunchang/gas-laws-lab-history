@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
@@ -28,19 +29,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /heat: '热容'/,
   'Simplified Chinese heat-capacity file kind suffix should be localized instead of showing HEAT',
 );
 
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /heat: '熱容'/,
   'Traditional Chinese heat-capacity file kind suffix should be localized instead of showing HEAT',
 );
 
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /heat: 'Heat'/,
   'English heat-capacity file kind suffix should use a readable localized label',
 );
@@ -142,19 +143,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /newWindow: '新窗口'/,
   'Simplified Chinese Experiment Files menu should include a localized New Window command',
 );
 
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /newWindow: '新視窗'/,
   'Traditional Chinese Experiment Files menu should include a localized New Window command',
 );
 
 assert.match(
-  source,
+  workbenchStudioCopySource,
   /newWindow: 'New Window'/,
   'English Experiment Files menu should include a localized New Window command',
 );

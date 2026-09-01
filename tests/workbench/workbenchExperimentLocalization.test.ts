@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const copySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const renderSource = source.slice(source.indexOf('const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps>'));
 
 for (const copyField of [
@@ -48,7 +49,7 @@ for (const copyField of [
   'formatPositiveInteger: string;',
   'formatDecimalNumber: string;',
 ]) {
-  assert.ok(source.includes(copyField), `WorkbenchCopy.logs should define localized ${copyField}`);
+  assert.ok(copySource.includes(copyField), `WorkbenchCopy should define localized ${copyField}`);
 }
 
 for (const requiredCall of [

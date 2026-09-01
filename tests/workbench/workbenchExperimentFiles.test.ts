@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
@@ -14,11 +15,11 @@ const indexOfOrFail = (haystack: string, needle: string, message: string) => {
   return index;
 };
 
-assert.ok(source.includes('experimentFiles: string;'), 'menu copy should expose an Experiment Files top-level label');
-assert.ok(source.includes('newExperiment: string;'), 'menu copy should expose a New Experiment submenu label');
-assert.ok(source.includes('openExperiment: string;'), 'menu copy should expose an Open Experiment submenu label');
-assert.ok(source.includes('noCachedExperiments: string;'), 'menu copy should expose an empty cached-experiment state');
-assert.ok(source.includes('closeExperiment: string;'), 'file menu copy should expose Close Experiment');
+assert.ok(workbenchStudioCopySource.includes('experimentFiles: string;'), 'menu copy should expose an Experiment Files top-level label');
+assert.ok(workbenchStudioCopySource.includes('newExperiment: string;'), 'menu copy should expose a New Experiment submenu label');
+assert.ok(workbenchStudioCopySource.includes('openExperiment: string;'), 'menu copy should expose an Open Experiment submenu label');
+assert.ok(workbenchStudioCopySource.includes('noCachedExperiments: string;'), 'menu copy should expose an empty cached-experiment state');
+assert.ok(workbenchStudioCopySource.includes('closeExperiment: string;'), 'file menu copy should expose Close Experiment');
 assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) => WorkbenchConfirmationCopy;'), 'prompt copy should provide a running-close confirmation');
 
 assert.match(

@@ -2,28 +2,28 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const copySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const uiSource = `${source}\n${generalSettingsWindowSource}\n${topCommandsSource}`;
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  source,
-  /interface WorkbenchCopy \{/,
+  copySource,
+  /export interface WorkbenchCopy \{/,
   'Workbench should define a dedicated copy contract for localized UI text',
 );
 
 assert.match(
-  source,
-  /const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = \{[\s\S]*?'zh-CN':[\s\S]*?'zh-TW':[\s\S]*?en:/,
+  copySource,
+  /export const workbenchCopies: Record<WorkbenchLanguagePreference, WorkbenchCopy> = \{[\s\S]*?'zh-CN':[\s\S]*?'zh-TW':[\s\S]*?en:/,
   'Workbench should provide copy tables for zh-CN, zh-TW, and en',
 );
 
-const workbenchCopiesStart = source.indexOf('const workbenchCopies:');
-const workbenchCopiesEnd = source.indexOf('const heatCapacityRealtimeCopies', workbenchCopiesStart);
+const workbenchCopiesStart = copySource.indexOf('export const workbenchCopies:');
+const workbenchCopiesEnd = copySource.length;
 assert.notEqual(workbenchCopiesStart, -1, 'workbenchCopies table should exist');
-assert.notEqual(workbenchCopiesEnd, -1, 'workbenchCopies table should end before heatCapacityRealtimeCopies');
-const workbenchCopiesSource = source.slice(workbenchCopiesStart, workbenchCopiesEnd);
+const workbenchCopiesSource = copySource.slice(workbenchCopiesStart, workbenchCopiesEnd);
 const copyKeys = [...workbenchCopiesSource.matchAll(/^\s{2}('zh-CN'|'zh-TW'|en): \{/gm)].map((match) => match[1].replace(/'/g, ''));
 assert.deepEqual(copyKeys, ['zh-CN', 'zh-TW', 'en'], 'copy table language keys should stay complete and ordered');
 
@@ -152,29 +152,29 @@ for (const copyMember of [
   'samplingPresets: Record',
   'samplingDuration: (equilibriumTime: number, statsDuration: number) => string;',
 ]) {
-  assert.ok(source.includes(copyMember), `WorkbenchCopy should include ${copyMember}`);
+  assert.ok(copySource.includes(copyMember), `WorkbenchCopy should include ${copyMember}`);
 }
 
 assert.match(
-  source,
+  copySource,
   /pointsTitle: \(relation\) =>/,
   'Interpolated result labels should use copy functions instead of string concatenation at call sites',
 );
 
 assert.match(
-  source,
+  copySource,
   /samplingDuration: \(equilibriumTime, statsDuration\) =>/,
   'Sampling duration copy should use a function so each language controls word order',
 );
 
 assert.match(
-  source,
+  copySource,
   /activeFile: \(name\) =>/,
   'Bottom status active-file text should use a copy function',
 );
 
 assert.match(
-  source,
+  copySource,
   /idealRuntime: \(relation, verdict\) =>/,
   'Runtime status text should use a copy function for relation and verdict interpolation',
 );

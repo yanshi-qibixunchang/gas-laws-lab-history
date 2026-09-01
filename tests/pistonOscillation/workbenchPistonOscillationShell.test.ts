@@ -5,6 +5,10 @@ const workbenchSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
 );
+const workbenchStudioCopySource = readFileSync(
+  new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url),
+  'utf8',
+);
 const topCommandsSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url),
   'utf8',
@@ -82,8 +86,8 @@ assert.match(
   emptyWorkspaceSource,
   /data-workbench-create-experiment="heatCapacityPistonOscillation"[\s\S]*onCreateFile\('heatCapacityPistonOscillation'\)/,
 );
-assert.match(workbenchSource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
-assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
+assert.match(workbenchStudioCopySource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
+assert.match(workbenchStudioCopySource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
 assert.match(
   workbenchSource,
   /const handlePistonOscillationFreeInstrumentSnapshot = \([\s\S]*if \(snapshot\.pistonPhase !== 'idle'\) return;[\s\S]*updateRuntimeFileById/,

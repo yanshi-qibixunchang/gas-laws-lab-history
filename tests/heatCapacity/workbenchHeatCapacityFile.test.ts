@@ -167,11 +167,15 @@ const workbenchSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'),
   'utf8',
 );
+const workbenchStudioCopySource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchStudioCopy.ts'),
+  'utf8',
+);
 
-assert.match(workbenchSource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
-assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
-assert.match(workbenchSource, /heatCapacityStudy:\s*'Heat Capacity Ratio \(Adiabatic\)'/);
-assert.match(workbenchSource, /heatCapacityPistonOscillationStudy:\s*'Heat Capacity Ratio \(Piston\)'/);
+assert.match(workbenchStudioCopySource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
+assert.match(workbenchStudioCopySource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
+assert.match(workbenchStudioCopySource, /heatCapacityStudy:\s*'Heat Capacity Ratio \(Adiabatic\)'/);
+assert.match(workbenchStudioCopySource, /heatCapacityPistonOscillationStudy:\s*'Heat Capacity Ratio \(Piston\)'/);
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-air-result/, 'this batch must not render a formal heat capacity result panel');
 assert.match(workbenchSource, /createHeatCapacityPanels/);
 assert.match(

@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
 const brandSource = readFileSync(new URL('../../src/features/workbench/workbenchBrand.ts', import.meta.url), 'utf8');
 const aboutSource = readFileSync(new URL('../../src/features/workbench/WorkbenchAboutWindow.tsx', import.meta.url), 'utf8');
@@ -9,7 +10,7 @@ const buildNoticeSource = readFileSync(new URL('../../src/features/workbench/Wor
 const buildNoticeContractSource = readFileSync(new URL('../../src/features/workbench/workbenchBuildNoticeContract.ts', import.meta.url), 'utf8');
 const buildNoticeContentSource = readFileSync(new URL('../../src/features/workbench/workbenchBuildNoticeContent.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
-const source = `${workbenchSource}\n${aboutSource}\n${buildNoticeSource}\n${buildNoticeContractSource}\n${buildNoticeContentSource}\n${topCommandsSource}`;
+const source = `${workbenchSource}\n${workbenchStudioCopySource}\n${aboutSource}\n${buildNoticeSource}\n${buildNoticeContractSource}\n${buildNoticeContentSource}\n${topCommandsSource}`;
 const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const promptShellStyles = readFileSync(new URL('../../src/components/prompts/PromptDialogShell.css', import.meta.url), 'utf8');
