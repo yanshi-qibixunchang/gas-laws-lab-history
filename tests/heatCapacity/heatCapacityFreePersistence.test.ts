@@ -59,6 +59,10 @@ import {
 import {
   createCompleteProcessReviewFixtureParts,
 } from './helpers/heatCapacityProcessReviewTestFactory.ts';
+import {
+  createEmptyHeatCapacityFreeExperimentGroupCollection,
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
+} from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 
 const aggregateCodecPath = join(
   process.cwd(),
@@ -380,13 +384,14 @@ const durableCompletedBatchSource = {
     },
   },
 };
-assert.throws(
-  () => createHeatCapacityPersistencePayload(
-    durableCompletedBatchSource,
-    20_001,
-  ),
-  /batch authority does not match its durable domain/i,
-  'writer capture must not replace durable same-batch lifecycle authority',
+const repairedCompletedBatchPayload = createHeatCapacityPersistencePayload(
+  durableCompletedBatchSource,
+  20_001,
+);
+assert.equal(
+  repairedCompletedBatchPayload.free?.real.batch.experimentCompletedAtMs,
+  null,
+  'writer capture must rebuild stale lifecycle mirrors from experiment-group authority',
 );
 
 const traceAuthorityId =
@@ -406,14 +411,15 @@ const durableTraceAuthoritySource = storeHeatCapacityFreeRuntimeFieldsInDomain({
   ...traceHighWaterSource,
   heatCapacityFreeTraceStore: archivedTraceAuthority.store,
 }, 'real');
-assert.throws(
-  () => createHeatCapacityPersistencePayload({
+const repairedTraceAuthorityPayload = createHeatCapacityPersistencePayload({
     ...durableTraceAuthoritySource,
     heatCapacityFreeTraceStore:
       traceHighWaterSource.heatCapacityFreeTraceStore,
-  }, 12_352),
-  /rewrite or remove durable trial, trace, or attempt authority/i,
-  'writer capture must not remove branches from an existing durable trace trial',
+  }, 12_352);
+assert.equal(
+  repairedTraceAuthorityPayload.free?.traceStore.traceTrials[0]?.branches.length,
+  archivedTraceAuthority.store.traceTrials[0]?.branches.length,
+  'writer capture must rebuild a stale trace mirror without removing archived branches',
 );
 
 const durableTraceSampleSource =
@@ -429,13 +435,16 @@ if (rewrittenTraceSample === undefined) {
   throw new Error('Expected the trace-authority fixture to contain a sample.');
 }
 rewrittenTraceSample.sensor.displayPressureMv += 1;
-assert.throws(
-  () => createHeatCapacityPersistencePayload(
-    rewrittenTraceSampleSource,
-    12_352,
-  ),
-  /rewrite or remove durable trial, trace, or attempt authority/i,
-  'writer capture must not rewrite samples inside an existing durable trace branch',
+const repairedTraceSamplePayload = createHeatCapacityPersistencePayload(
+  rewrittenTraceSampleSource,
+  12_352,
+);
+assert.equal(
+  repairedTraceSamplePayload.free?.traceStore.traceTrials[0]
+    ?.branches[0]?.samples[0]?.sensor.displayPressureMv,
+  durableTraceSampleSource.heatCapacityFreeTraceStore.traceTrials[0]
+    ?.branches[0]?.samples[0]?.sensor.displayPressureMv,
+  'writer capture must rebuild rewritten trace samples from experiment-group authority',
 );
 
 const firstOrderedTraceTrial = structuredClone(
@@ -470,25 +479,27 @@ reorderedTraceSource.heatCapacityFreeTraceStore = {
     structuredClone(firstOrderedTraceTrial),
   ],
 };
-assert.throws(
-  () => createHeatCapacityPersistencePayload(
-    reorderedTraceSource,
-    12_352,
-  ),
-  /rewrite or remove durable trial, trace, or attempt authority/i,
-  'writer capture must preserve durable trace-trial order',
+const repairedTraceOrderPayload = createHeatCapacityPersistencePayload(
+  reorderedTraceSource,
+  12_352,
+);
+assert.deepEqual(
+  repairedTraceOrderPayload.free?.traceStore.traceTrials.map((trial) => trial.id),
+  orderedTraceStore.traceTrials.map((trial) => trial.id),
+  'writer capture must rebuild trace-trial order from experiment-group authority',
 );
 
-assert.throws(
-  () => createHeatCapacityPersistencePayload({
+const repairedGhostTracePayload = createHeatCapacityPersistencePayload({
     ...durableHighWaterStarted,
     heatCapacityFreeTraceStore: {
       ...durableHighWaterStarted.heatCapacityFreeTraceStore,
       activeTraceTrialId: 'ghost-trace',
     },
-  }, 12_353),
-  /active trial reference is invalid/i,
-  'writer capture must reject a trace store it cannot restore',
+  }, 12_353);
+assert.notEqual(
+  repairedGhostTracePayload.free?.traceStore.activeTraceTrialId,
+  'ghost-trace',
+  'writer capture must discard an invalid active-trace mirror',
 );
 
 const opaqueBatchWriterSource = structuredClone(durableHighWaterStarted);
@@ -518,6 +529,8 @@ const legacyWriterBatch = {
 };
 const legacyWriterSource = {
   ...durableHighWaterStarted,
+  heatCapacityFreeExperimentGroups:
+    createEmptyHeatCapacityFreeExperimentGroupCollection('real'),
   heatCapacityFreeBatch: legacyWriterBatch,
   heatCapacityFreeTraceStore: {
     ...durableHighWaterStarted.heatCapacityFreeTraceStore,
@@ -800,26 +813,44 @@ const recordedBatch = {
   ...recordedBatchFile.heatCapacityFreeBatch,
   nextTrialSequence: 2,
 };
+const recordedCurrentGroup =
+  recordedBatchFile.heatCapacityFreeExperimentGroups.groups.find((group) => (
+    group.id === recordedBatchFile.heatCapacityFreeExperimentGroups.currentGroupId
+  ));
+if (!recordedCurrentGroup) {
+  throw new Error('Expected a current recorded-trial experiment group.');
+}
+const recordedExperimentGroups =
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    recordedBatchFile.heatCapacityFreeExperimentGroups,
+    {
+      ...recordedCurrentGroup.runSeries,
+      batch: recordedBatch,
+      trials: [recordedTrial],
+    },
+  );
 const recordedFile = {
   ...recordedBatchFile,
   heatCapacityFreeBatch: recordedBatch,
   heatCapacityFreeTrials: [recordedTrial],
+  heatCapacityFreeExperimentGroups: recordedExperimentGroups,
   heatCapacityFreeRealDomain: {
     ...recordedBatchFile.heatCapacityFreeRealDomain,
     batch: recordedBatch,
     trials: [recordedTrial],
   },
 };
-assert.throws(
-  () => createHeatCapacityPersistencePayload({
+const repairedRecordedTrialPayload = createHeatCapacityPersistencePayload({
     ...recordedFile,
     heatCapacityFreeTrials: [{
       ...recordedTrial,
       preheatOutcome: 'omitted',
     }],
-  }, 554),
-  /rewrite or remove durable trial, trace, or attempt authority/i,
-  'writer capture must not replace established fields inside a durable trial',
+  }, 554);
+assert.equal(
+  repairedRecordedTrialPayload.free?.trials[0]?.preheatOutcome,
+  'completed',
+  'writer capture must rebuild stale trial mirrors from experiment-group authority',
 );
 const recordedPayload = createHeatCapacityPersistencePayload({
   ...recordedFile,
@@ -833,9 +864,20 @@ assert.equal(recordedPayload.free?.trials[0].completedAtMs, null);
 assert.equal(recordedPayload.free?.trials[0].parameterScheme, 'real');
 assert.equal(recordedPayload.free?.real?.trials[0].parameterScheme, 'real');
 const opaqueMembershipWriterSource = structuredClone(recordedFile);
+const opaqueMembershipCurrentGroup =
+  opaqueMembershipWriterSource.heatCapacityFreeExperimentGroups.groups.find(
+    (group) => (
+      group.id ===
+        opaqueMembershipWriterSource.heatCapacityFreeExperimentGroups.currentGroupId
+    ),
+  );
+if (!opaqueMembershipCurrentGroup) {
+  throw new Error('Expected a current opaque-membership experiment group.');
+}
 for (const trial of [
   opaqueMembershipWriterSource.heatCapacityFreeTrials[0],
   opaqueMembershipWriterSource.heatCapacityFreeRealDomain.trials[0],
+  opaqueMembershipCurrentGroup.runSeries.trials[0],
 ]) {
   (
     trial.batchMembership as unknown as Record<string, unknown>
@@ -895,6 +937,15 @@ assumedZeroPayload.free!.trials[0].correctedSignals!.u0Source = 'assumed-zero';
 assumedZeroPayload.free!.real.trials[0].u0 = null;
 assumedZeroPayload.free!.real.trials[0].correctedSignals!.U0DisplayMv = 0;
 assumedZeroPayload.free!.real.trials[0].correctedSignals!.u0Source = 'assumed-zero';
+const assumedZeroGroup = assumedZeroPayload.free!.experimentGroups.groups.find(
+  (group) => group.id === assumedZeroPayload.free!.experimentGroups.currentGroupId,
+);
+if (!assumedZeroGroup) {
+  throw new Error('Expected an assumed-zero experiment-group authority.');
+}
+assumedZeroGroup.runSeries.trials[0].u0 = null;
+assumedZeroGroup.runSeries.trials[0].correctedSignals!.U0DisplayMv = 0;
+assumedZeroGroup.runSeries.trials[0].correctedSignals!.u0Source = 'assumed-zero';
 const assumedZeroRestored = restoreHeatCapacityFileFromPersistencePayload({
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
@@ -924,6 +975,15 @@ contaminatedStandardReference.operationUpperBound.gamma = 1.154;
 const contaminatedSnapshotPayload = structuredClone(recordedPayload);
 contaminatedSnapshotPayload.free!.trials[0].standardReferenceSnapshot = contaminatedStandardReference;
 contaminatedSnapshotPayload.free!.real.trials[0].standardReferenceSnapshot = contaminatedStandardReference;
+const contaminatedSnapshotGroup =
+  contaminatedSnapshotPayload.free!.experimentGroups.groups.find((group) => (
+    group.id === contaminatedSnapshotPayload.free!.experimentGroups.currentGroupId
+  ));
+if (!contaminatedSnapshotGroup) {
+  throw new Error('Expected a contaminated-snapshot experiment-group authority.');
+}
+contaminatedSnapshotGroup.runSeries.trials[0].standardReferenceSnapshot =
+  contaminatedStandardReference;
 const contaminatedSnapshotRestored = restoreHeatCapacityFileFromPersistencePayload({
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
@@ -967,10 +1027,27 @@ const idealPersistedBatch = {
   ...idealBatchFile.heatCapacityFreeBatch,
   nextTrialSequence: 2,
 };
+const idealPersistedCurrentGroup =
+  idealBatchFile.heatCapacityFreeExperimentGroups.groups.find((group) => (
+    group.id === idealBatchFile.heatCapacityFreeExperimentGroups.currentGroupId
+  ));
+if (!idealPersistedCurrentGroup) {
+  throw new Error('Expected a current ideal experiment group.');
+}
+const idealPersistedExperimentGroups =
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    idealBatchFile.heatCapacityFreeExperimentGroups,
+    {
+      ...idealPersistedCurrentGroup.runSeries,
+      batch: idealPersistedBatch,
+      trials: [idealPersistedTrial],
+    },
+  );
 const idealPersistedFile = {
   ...idealBatchFile,
   heatCapacityFreeBatch: idealPersistedBatch,
   heatCapacityFreeTrials: [idealPersistedTrial],
+  heatCapacityFreeExperimentGroups: idealPersistedExperimentGroups,
   heatCapacityFreeIdealDomain: {
     ...idealBatchFile.heatCapacityFreeIdealDomain,
     batch: idealPersistedBatch,

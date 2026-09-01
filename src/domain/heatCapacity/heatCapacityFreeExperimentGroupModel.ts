@@ -440,6 +440,46 @@ export const updateCurrentHeatCapacityFreeExperimentGroupRunSeries = (
   });
 };
 
+export const raiseCurrentHeatCapacityFreeExperimentGroupHighWaterMarks = (
+  collection: HeatCapacityFreeExperimentGroupCollection,
+  highWaterMarks: {
+    nextTrialSequence: number;
+    nextTraceTrialIndex: number;
+  },
+): HeatCapacityFreeExperimentGroupCollection => {
+  const group = selectCurrentHeatCapacityFreeExperimentGroup(collection);
+  if (!group || group.runSeries.batch.id === null) return collection;
+  const nextTraceTrialIndex = Math.max(
+    group.runSeries.traceStore.nextTraceTrialIndex,
+    highWaterMarks.nextTraceTrialIndex,
+  );
+  const nextTrialSequence = Math.max(
+    group.runSeries.batch.nextTrialSequence,
+    highWaterMarks.nextTrialSequence,
+    nextTraceTrialIndex,
+  );
+  if (
+    nextTraceTrialIndex === group.runSeries.traceStore.nextTraceTrialIndex &&
+    nextTrialSequence === group.runSeries.batch.nextTrialSequence
+  ) {
+    return collection;
+  }
+  return replaceGroup(collection, {
+    ...group,
+    runSeries: {
+      ...group.runSeries,
+      batch: {
+        ...group.runSeries.batch,
+        nextTrialSequence,
+      },
+      traceStore: {
+        ...group.runSeries.traceStore,
+        nextTraceTrialIndex,
+      },
+    },
+  });
+};
+
 export const updateCurrentHeatCapacityFreeRealCalculationSession = (
   collection: HeatCapacityFreeExperimentGroupCollection,
   session: HeatCapacityCalculationWorkflowSession,

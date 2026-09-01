@@ -33,7 +33,7 @@ const releaseMetadataScript = readFileSync(new URL('../../scripts/writeReleaseMe
 const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
 const readmeZhCn = readFileSync(new URL('../../README.zh-CN.md', import.meta.url), 'utf8');
 const readmeZhTw = readFileSync(new URL('../../README.zh-TW.md', import.meta.url), 'utf8');
-const buildNoticeZhCn = readFileSync(new URL('../../docs/build-notice-zh-CN.md', import.meta.url), 'utf8');
+const buildNoticeZhCn = readFileSync(new URL('../../docs/legal/build-notice-zh-CN.md', import.meta.url), 'utf8');
 
 const {
   getReleaseMetadataForVersion,

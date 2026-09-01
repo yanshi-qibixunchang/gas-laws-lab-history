@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -6,6 +7,7 @@ const scenePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCa
 const ultraModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityUltraInstrumentModel.tsx');
 const hardSphereLayerPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityHardSphereLayer.tsx');
 const runtimeGlbPath = join(process.cwd(), 'public', 'models', 'heat-capacity', 'fd-ncd-c-ultra.glb');
+const runtimeGlbProvenancePath = join(process.cwd(), 'public', 'models', 'heat-capacity', 'model-provenance.json');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
 
 assert.equal(existsSync(runtimeGlbPath), true, 'Ultra GLB runtime asset should be available under public/models');
@@ -19,6 +21,21 @@ const ultraRuntimeModelSource = ultraModelSource.slice(
   ultraModelSource.indexOf('function HeatCapacityUltraInstrumentModel'),
 );
 const runtimeGlbBinary = readFileSync(runtimeGlbPath);
+const runtimeGlbProvenance = JSON.parse(readFileSync(runtimeGlbProvenancePath, 'utf8')) as {
+  asset: string;
+  bytes: number;
+  sha256: string;
+  origin?: { status?: string; externalModelSource?: string | null };
+};
+assert.equal(runtimeGlbProvenance.asset, 'fd-ncd-c-ultra.glb');
+assert.equal(runtimeGlbProvenance.bytes, runtimeGlbBinary.length);
+assert.equal(
+  runtimeGlbProvenance.sha256,
+  createHash('sha256').update(runtimeGlbBinary).digest('hex').toUpperCase(),
+  'the heat-capacity GLB provenance must identify the exact runtime asset',
+);
+assert.match(runtimeGlbProvenance.origin?.status ?? '', /Project-original/);
+assert.equal(runtimeGlbProvenance.origin?.externalModelSource, null);
 const readGlbJsonChunk = (binary: Buffer) => {
   assert.equal(binary.toString('utf8', 0, 4), 'glTF', 'runtime GLB should use the binary glTF container format');
   let offset = 12;

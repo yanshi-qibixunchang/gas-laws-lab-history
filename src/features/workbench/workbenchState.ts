@@ -159,6 +159,7 @@ import {
   isHeatCapacityFreeExperimentGroupExecutableUnfinished,
   restartCurrentHeatCapacityFreeExperimentGroup,
   selectCurrentHeatCapacityFreeExperimentGroup,
+  selectViewedHeatCapacityFreeExperimentGroup,
   selectHeatCapacityFreeViewedExperimentGroup,
   selectHeatCapacityFreeViewedTrial,
   setHeatCapacityFreeExperimentGroupDraftScheme,
@@ -168,6 +169,7 @@ import {
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
   updateCurrentHeatCapacityFreeRealCalculationSession,
   type HeatCapacityFreeExperimentGroupCollection,
+  type HeatCapacityFreeExperimentGroupRecord,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
   selectHeatCapacityFreeProcessReview,
@@ -1084,6 +1086,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityLessonIntroAutoShown: boolean;
   heatCapacityFreePreheatCompleted: boolean;
   heatCapacityFreeRuntimeVersion: number;
+  /** Current instrument-site projection; experiment-group history is authoritative. */
   heatCapacityFreeBatch: HeatCapacityFreeBatchState;
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeGasType: HeatCapacityFreeGasType;
@@ -1092,7 +1095,9 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeFileAcknowledgements: HeatCapacityFreeFileAcknowledgements;
   heatCapacityFreeParameterScheme: HeatCapacityFreeParameterScheme;
   heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme;
+  /** Sole authority for Free experiment-group history, progress, calculation, and results. */
   heatCapacityFreeExperimentGroups: HeatCapacityFreeExperimentGroupCollection;
+  /** Parameter/instrument domains; group-bound batch, trial, and trace members are mirrors. */
   heatCapacityFreeRealDomain: HeatCapacityFreeExperimentDomainState;
   heatCapacityFreeIdealDomain: HeatCapacityFreeExperimentDomainState;
   heatCapacityFreeRecordConfig: HeatCapacityFreeRecordConfig;
@@ -1108,6 +1113,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeEquilibriumSpeedMultiplier: WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier;
   heatCapacityFreeRollbackSnapshots: HeatCapacityFreeRollbackSnapshots;
   heatCapacityFreeTraceVersion: number;
+  /** Current instrument-site projections rebuilt from the current experiment group. */
   heatCapacityFreeTraceStore: HeatCapacityFreeTraceStore;
   heatCapacityFreeTrials: HeatCapacityFreeTrial[];
   heatCapacityFreeActiveAttempt: HeatCapacityFreeAttempt | null;
@@ -1195,8 +1201,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityProcessSamples: HeatCapacityProcessSamples;
   theoreticalGamma: number;
 }
-
-export type WorkbenchHeatCapacityAdiabaticExpansionState = WorkbenchHeatCapacityState;
 
 export interface WorkbenchHeatCapacityPistonOscillationState extends WorkbenchFileBase {
   kind: 'heatCapacityPistonOscillation';
@@ -1493,6 +1497,15 @@ export const getHeatCapacityFreeParameterLockReason = (
   }
   if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(file)) {
     return 'powerOffBeforeNextGroup';
+  }
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  if (
+    currentGroup?.status === 'collecting' &&
+    currentGroup.runSeries.trials.length === 0
+  ) {
+    return 'groupStarted';
   }
   if (isHeatCapacityFreeBatchLocked(selectActiveHeatCapacityFreeDomain(file).batch)) {
     return 'batchStarted';
@@ -5517,6 +5530,29 @@ const withHeatCapacityFreeTrialsParameterScheme = (
   scheme: HeatCapacityFreeParameterScheme,
 ) => trials.map((trial) => withHeatCapacityFreeTrialParameterScheme(trial, scheme));
 
+export const projectHeatCapacityFreeExperimentGroupToDomain = (
+  domain: HeatCapacityFreeExperimentDomainState,
+  group: HeatCapacityFreeExperimentGroupRecord,
+): HeatCapacityFreeExperimentDomainState => {
+  if (group.scheme !== domain.scheme) return domain;
+  return {
+    ...domain,
+    gasType: group.gasType,
+    batch: group.runSeries.batch,
+    experimentGroupStatus: group.status === 'draft'
+      ? 'draft'
+      : group.status === 'collecting'
+        ? domain.experimentGroupStatus
+        : 'completed',
+    activeRunConfigSnapshot: group.parameterSnapshot,
+    traceStore: group.runSeries.traceStore,
+    trials: withHeatCapacityFreeTrialsParameterScheme(
+      group.runSeries.trials,
+      group.scheme,
+    ),
+  };
+};
+
 export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   file: WorkbenchHeatCapacityState,
   scheme: HeatCapacityFreeParameterScheme,
@@ -5545,11 +5581,17 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
 export const selectHeatCapacityFreeDomain = (
   file: WorkbenchHeatCapacityState,
   scheme: HeatCapacityFreeParameterScheme,
-): HeatCapacityFreeExperimentDomainState => (
-  scheme === 'ideal'
+): HeatCapacityFreeExperimentDomainState => {
+  const domain = scheme === 'ideal'
     ? normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeIdealDomain, 'ideal')
-    : normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeRealDomain, 'real')
-);
+    : normalizeHeatCapacityFreeExperimentDomainBoundary(file.heatCapacityFreeRealDomain, 'real');
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  return currentGroup?.scheme === scheme
+    ? projectHeatCapacityFreeExperimentGroupToDomain(domain, currentGroup)
+    : domain;
+};
 
 export const selectActiveHeatCapacityFreeDomain = (
   file: WorkbenchHeatCapacityState,
@@ -5560,7 +5602,22 @@ export const selectActiveHeatCapacityFreeDomain = (
 export const selectDisplayedHeatCapacityFreeDomain = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityFreeExperimentDomainState => {
-  const domain = selectHeatCapacityFreeDomain(file, file.heatCapacityFreeDisplayScheme);
+  const selectedDomain = selectHeatCapacityFreeDomain(
+    file,
+    file.heatCapacityFreeDisplayScheme,
+  );
+  const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  const domain = viewedGroup?.scheme === file.heatCapacityFreeDisplayScheme
+    ? {
+        ...projectHeatCapacityFreeExperimentGroupToDomain(
+          selectedDomain,
+          viewedGroup,
+        ),
+        activeAttempt: null,
+      }
+    : selectedDomain;
   if (domain.activeAttempt?.status !== 'invalid') return domain;
   return {
     ...domain,
@@ -5573,11 +5630,16 @@ export const selectDisplayedHeatCapacityFreeDomain = (
 export const getHeatCapacityFreeDisplayTheoreticalGamma = (
   file: WorkbenchHeatCapacityState,
   scheme: HeatCapacityFreeDisplayScheme = file.heatCapacityFreeDisplayScheme,
-) => (
-  scheme === 'ideal'
-    ? getHeatCapacityFreeIdealTheoreticalGamma()
-    : getHeatCapacityFreeGasTypeGamma(selectHeatCapacityFreeDomain(file, 'real').gasType)
-);
+) => {
+  if (scheme === 'ideal') return getHeatCapacityFreeIdealTheoreticalGamma();
+  const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  const gasType = viewedGroup?.scheme === 'real'
+    ? viewedGroup.gasType
+    : selectHeatCapacityFreeDomain(file, 'real').gasType;
+  return getHeatCapacityFreeGasTypeGamma(gasType);
+};
 
 const REAL_DOMAIN_IDEAL_THERMAL_CONTAMINATION_THRESHOLD_W_PER_K = 4;
 
@@ -5907,7 +5969,10 @@ export const getHeatCapacityFreeBatchProgress = (
   const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
     file.heatCapacityFreeExperimentGroups,
   );
-  if (scheme === file.heatCapacityFreeParameterScheme && currentGroup) {
+  if (
+    scheme === file.heatCapacityFreeParameterScheme &&
+    currentGroup?.scheme === scheme
+  ) {
     return deriveHeatCapacityFreeBatchProgress(
       currentGroup.runSeries.batch,
       currentGroup.runSeries.trials,
@@ -5921,7 +5986,17 @@ export const getHeatCapacityCalculationSession = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityCalculationWorkflowSession | null => (
   file.heatCapacityMode === 'free'
-    ? selectActiveHeatCapacityFreeDomain(file).batch.calculationSession
+    ? (() => {
+        const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+          file.heatCapacityFreeExperimentGroups,
+        );
+        if (currentGroup?.scheme === file.heatCapacityFreeParameterScheme) {
+          return currentGroup.calculation?.kind === 'real-interactive'
+            ? currentGroup.calculation.session
+            : currentGroup.runSeries.batch.calculationSession;
+        }
+        return selectActiveHeatCapacityFreeDomain(file).batch.calculationSession;
+      })()
     : file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide'
       ? file.heatCapacityGuideCalculationSession
       : null

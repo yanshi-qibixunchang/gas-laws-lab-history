@@ -31,6 +31,10 @@ const packageJson = JSON.parse(readFileSync(new URL('../../package.json', import
   };
 };
 const electronMain = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
+const exporterProcessRunner = readFileSync(
+  new URL('../../electron/exporterProcessRunner.cjs', import.meta.url),
+  'utf8',
+);
 const legacyUserDataPathSource = readFileSync(new URL('../../electron/legacyUserDataPath.cjs', import.meta.url), 'utf8');
 const electronPreload = readFileSync(new URL('../../electron/preload.cjs', import.meta.url), 'utf8');
 const electronTypes = readFileSync(new URL('../../electron.d.ts', import.meta.url), 'utf8');
@@ -194,8 +198,13 @@ assert.ok(electronMain.includes("rootDir.includes('.asar')"), 'desktop exporter 
 assert.ok(electronMain.includes("fsSync.statSync(rootDir).isDirectory()"), 'desktop exporter should avoid using app.asar as a cwd');
 assert.match(
   electronMain,
-  /spawn\(command, args, \{\s*cwd: getRuntimeWorkingDirectory\(\),\s*windowsHide: true,/,
-  'desktop exporter child processes should run from the real runtime directory',
+  /runBoundedCommand\(command, args, \{\s*cwd: getRuntimeWorkingDirectory\(\),/,
+  'desktop exporter should pass the real runtime directory into the bounded process runner',
+);
+assert.match(
+  exporterProcessRunner,
+  /spawnImpl\(command, args, \{[\s\S]*windowsHide: true,[\s\S]*shell: false,/,
+  'desktop exporter child processes should start without a visible shell window or shell parsing',
 );
 assert.ok(electronMain.includes("ipcMain.handle('hsl-legal:open-file'"), 'desktop main process should expose a legal-file open handler');
 assert.ok(electronMain.includes("ipcMain.handle('hsl-legal:read-file'"), 'desktop main process should expose a legal-file read handler for embedded previews');

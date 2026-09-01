@@ -19,12 +19,14 @@ import {
   createDefaultHeatCapacityFreeExperimentDomainState,
   createDefaultHeatCapacityFreeRuntimeFields,
   applyHeatCapacityFreeDomainToRuntimeFields,
+  applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   getHeatCapacityGaugePressureState,
   getHeatCapacityStopcockTargetAngle,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   normalizeHeatCapacityFileName,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
+  projectHeatCapacityFreeExperimentGroupToDomain,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
@@ -62,8 +64,15 @@ import {
   calculateHeatCapacityFreeCalculationReference,
   calculateHeatCapacityGuideCalculationReference,
   normalizeHeatCapacityCalculationWorkflowSessionForTrials,
+  normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence,
   normalizeHeatCapacityModeSessionStore,
 } from './workbenchHeatCapacityModeSession.ts';
+import {
+  selectCurrentHeatCapacityFreeExperimentGroup,
+} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
+  migrateLegacyHeatCapacityFreeExperimentGroups,
+} from './workbenchHeatCapacityExperimentGroupMigration.ts';
 
 const normalizeLastOpenedAt = (file: WorkbenchHeatCapacityState, fallback: number) => (
   normalizeNullableNumber(file.lastOpenedAt) ??
@@ -374,9 +383,28 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
   } else {
     heatCapacityFreeIdealDomain = idealDomainResult.value;
   }
-  const activeFreeDomainBase = savedFreeParameterScheme === 'ideal'
+  const selectedDomainBeforeGroupProjection = savedFreeParameterScheme === 'ideal'
     ? heatCapacityFreeIdealDomain
     : heatCapacityFreeRealDomain;
+  const normalizedExperimentGroups =
+    normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+      file.heatCapacityFreeExperimentGroups,
+    ) ?? migrateLegacyHeatCapacityFreeExperimentGroups({
+      fileId: file.id,
+      selectedScheme: savedFreeParameterScheme,
+      real: heatCapacityFreeRealDomain,
+      ideal: heatCapacityFreeIdealDomain,
+      fallbackCreatedAtMs: file.createdAt,
+    });
+  const currentExperimentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    normalizedExperimentGroups,
+  );
+  const activeFreeDomainBase = currentExperimentGroup?.scheme === savedFreeParameterScheme
+    ? projectHeatCapacityFreeExperimentGroupToDomain(
+        selectedDomainBeforeGroupProjection,
+        currentExperimentGroup,
+      )
+    : selectedDomainBeforeGroupProjection;
   const completedFreeTrials = activeFreeDomainBase.trials
     .filter((trial) => (
       trial.completedAtMs !== null &&
@@ -459,8 +487,13 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     ...normalizedFreeRuntimeFields,
     heatCapacityFreeParameterScheme: savedFreeParameterScheme,
     heatCapacityFreeDisplayScheme: savedFreeDisplayScheme,
-    heatCapacityFreeRealDomain,
-    heatCapacityFreeIdealDomain,
+    heatCapacityFreeRealDomain: savedFreeParameterScheme === 'real'
+      ? activeFreeDomain
+      : heatCapacityFreeRealDomain,
+    heatCapacityFreeIdealDomain: savedFreeParameterScheme === 'ideal'
+      ? activeFreeDomain
+      : heatCapacityFreeIdealDomain,
+    heatCapacityFreeExperimentGroups: normalizedExperimentGroups,
     heatCapacityFreeBatch: activeFreeDomain.batch,
     heatCapacityFreeActiveAttempt: activeFreeDomain.activeAttempt,
     heatCapacityFreeRollbackSnapshots,
@@ -601,10 +634,13 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
       ...normalizeHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
     },
   };
-  const fileWithMigratedActiveProjection = applyHeatCapacityFreeDomainToRuntimeFields(
-    normalizedHeatCapacityFile,
-    activeFreeDomain,
-  );
+  const fileWithMigratedActiveProjection =
+    applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
+      applyHeatCapacityFreeDomainToRuntimeFields(
+        normalizedHeatCapacityFile,
+        activeFreeDomain,
+      ),
+    );
   const value = normalizedHeatCapacityMode === 'free'
     ? fileWithMigratedActiveProjection
     : {

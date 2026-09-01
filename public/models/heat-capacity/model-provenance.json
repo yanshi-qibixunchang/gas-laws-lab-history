@@ -1,0 +1,33 @@
+{
+  "asset": "fd-ncd-c-ultra.glb",
+  "purpose": "Adiabatic-expansion heat-capacity-ratio instrument and laboratory presentation scene",
+  "sha256": "D594BC0E57798AD305BAC5B282A4EA88F0B2763E427EFA0F170B95964E78D664",
+  "bytes": 4344656,
+  "format": "glTF 2.0 binary",
+  "generator": "Khronos glTF Blender I/O v5.1.19",
+  "origin": {
+    "status": "Project-original model asset created and refined by the project team",
+    "method": "Internal Blender/glTF authoring and repository-tracked refinement",
+    "firstIntegratedCommit": "761494a",
+    "firstIntegratedDate": "2026-06-02",
+    "externalModelSource": null
+  },
+  "composition": {
+    "nodeCount": 289,
+    "meshCount": 153,
+    "materialCount": 66,
+    "animationCount": 5,
+    "runtimeAdapter": "src/features/heatCapacity/HeatCapacityUltraInstrumentModel.tsx"
+  },
+  "derivatives": [
+    {
+      "asset": "../shared/unified-light-lab-bench.glb",
+      "method": "Deterministic extraction of clean_lab_bench and HSL_LabBench_Backstop_LowLip",
+      "provenance": "../shared/unified-light-lab-bench.provenance.json"
+    }
+  ],
+  "rights": {
+    "status": "Project-original asset; no third-party 3D model source or separate open-source model license is claimed",
+    "distributionNote": "Distribution is authorized as part of Gas Laws Lab. Blender and Three.js/glTF tooling are authoring or runtime tools and do not transfer ownership of this model asset. Instrument references document factual and visual research separately from asset authorship."
+  }
+}

@@ -633,9 +633,14 @@ assert.deepEqual(
 );
 assert.deepEqual(
   normalizedRuntime.heatCapacityFreeTraceStore,
-  normalizedRuntime.heatCapacityFreeRealDomain.traceStore,
-  'the active top-level projection must be rebuilt from one migrated domain',
+  normalizedRuntime.heatCapacityFreeExperimentGroups.groups[0]?.runSeries.traceStore,
+  'the active top-level projection must be rebuilt from the current experiment group',
 );
-assert.equal(normalizedRuntime.heatCapacityFreeBatch.nextTrialSequence, 4);
+assert.equal(
+  normalizedRuntime.heatCapacityFreeBatch.nextTrialSequence,
+  startedFile.heatCapacityFreeExperimentGroups.groups[0]?.runSeries.batch.nextTrialSequence,
+  'a stale legacy domain high-water must not overwrite the current experiment-group authority',
+);
+assert.equal(normalizedRuntime.heatCapacityFreeBatch.nextTrialSequence, 1);
 
 console.log('workbenchHeatCapacityFreeAggregateMigration tests passed');

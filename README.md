@@ -55,7 +55,7 @@ The latest published desktop release is `v6.4.0`. The `main` branch may contain 
 - `scripts/` and `build/`: build, validation, packaging, and installer helpers.
 - `public/`: runtime models, fonts, icons, mockups, and generated legal notices.
 - `resources/`: desktop icons and generated exporter resources.
-- `docs/`: release notes, theory, instrument-modeling references, and internal design records.
+- `docs/`: current documentation map, release notes, theory, instrument-modeling references, active backlog, and clearly separated historical archives; start with `docs/README.md`.
 
 Generated dependencies and outputs such as `node_modules/`, `dist/`, `release/`, `output/`, and `tmp/` are intentionally ignored.
 
@@ -124,7 +124,7 @@ The piston-oscillation apparatus follows the same software-owned-state rule. Run
 The Blender integration contract is documented at:
 
 ```text
-docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md
+docs/instrument-modeling/adiabatic-expansion/references/instrument/Blender模型接入规则-v4.0.1.md
 ```
 
 ## Licensing

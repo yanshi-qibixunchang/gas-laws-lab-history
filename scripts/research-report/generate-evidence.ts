@@ -85,10 +85,10 @@ import {
   type HeatCapacityFreeParameterAcceptanceScenarioInput,
 } from '../../tests/heatCapacity/heatCapacityFreeParameterAcceptance.ts';
 
-const SCRIPT_VERSION = 'research-report-evidence-v2';
+const SCRIPT_VERSION = 'validation-evidence-v3';
 const RNG_VERSION = 'fnv1a32-mulberry32-v1';
 const ROOT_DIR = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const DEFAULT_OUTPUT_DIR = join(ROOT_DIR, 'docs/research-report/evidence/generated');
+const DEFAULT_OUTPUT_DIR = join(ROOT_DIR, 'docs/validation/generated');
 const UTF8_BOM = '\uFEFF';
 
 type CsvValue = string | number | boolean | null | undefined;
@@ -1989,6 +1989,9 @@ export const generateResearchReportEvidence = (outputDir = DEFAULT_OUTPUT_DIR) =
   };
   const startedAt = new Date().toISOString();
   const gitStatusAtStart = getGitOutput(['status', '--porcelain=v1']);
+  const gitStatusEntryCountAtStart = gitStatusAtStart
+    ? gitStatusAtStart.split(/\r?\n/).length
+    : 0;
   const gitCommit = getGitOutput(['rev-parse', 'HEAD']);
 
   const heat = runHeatCapacityEvidence(resolvedOutputDir);
@@ -2063,12 +2066,12 @@ export const generateResearchReportEvidence = (outputDir = DEFAULT_OUTPUT_DIR) =
     finishedAt: new Date().toISOString(),
     command: 'node scripts/research-report/generate-evidence.ts',
     repository: {
-      root: ROOT_DIR,
+      root: '.',
       packageName: packageJson.name ?? null,
       packageVersion: packageJson.version ?? null,
       gitCommit: gitCommit || null,
-      dirtyAtStart: gitStatusAtStart.length > 0,
-      statusAtStart: gitStatusAtStart ? gitStatusAtStart.split(/\r?\n/) : [],
+      dirtyAtStart: gitStatusEntryCountAtStart > 0,
+      dirtyEntryCountAtStart: gitStatusEntryCountAtStart,
     },
     runtime: {
       node: process.version,

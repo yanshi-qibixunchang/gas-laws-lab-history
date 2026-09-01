@@ -35,11 +35,8 @@ output-*.jpg
 output-*.jpeg
 output-*.webm
 output-*.mp4
-docs/research-report/source-materials/videos/**/*.mp4
-docs/research-report/working/
-docs/research-report/figures/candidates/
-docs/research-report/source-materials/
-docs/research-report/qa/
+docs/local-materials/*
+!docs/local-materials/README.md
 tmp/
 .tmp*/
 install-test/
@@ -48,14 +45,6 @@ build-exporter/
 dist-exporter/
 resources/exporter/hsl-exporter.exe
 resources/exporter/*.spec
-docs/superpowers/plans/2026-05-25-workbench-cleanup-ui-v415-execution.md
-docs/superpowers/plans/2026-05-26-heat-capacity-ideal-reference-line.md
-docs/superpowers/plans/2026-05-26-heat-capacity-process-review-stage-axis.md
-docs/superpowers/plans/2026-05-27-workbench-final-polish-cleanup-audit.md
-docs/superpowers/plans/2026-05-27-release-repository-split-migration.md
-docs/instrument-modeling/heat-capacity-control-map-annotated.png
-docs/instrument-modeling/heat-capacity-new-member-brief-draft.md
-
 # Binary package outputs
 *.apk
 *.aar

@@ -4,11 +4,11 @@ import { dirname, resolve } from "node:path";
 const repoRoot = resolve(import.meta.dirname, "..", "..");
 const sweepPath = resolve(
   repoRoot,
-  "docs/instrument-modeling/analysis/piston-oscillation-dissipation-sweep-2026-08-25.json",
+  "docs/instrument-modeling/piston-oscillation/validation/piston-oscillation-dissipation-sweep-2026-08-25.json",
 );
 const outputPath = resolve(
   repoRoot,
-  "docs/instrument-modeling/analysis/piston-oscillation-checkpoint-2-parameter-identification-report-2026-08-25/artifact.json",
+  "docs/instrument-modeling/piston-oscillation/validation/piston-oscillation-checkpoint-2-parameter-identification-report-2026-08-25/artifact.json",
 );
 const sweep = JSON.parse(readFileSync(sweepPath, "utf8"));
 
@@ -171,12 +171,12 @@ const headlineRows = [
 ];
 
 const sourcePath =
-  "docs/instrument-modeling/reference/piston-oscillation-real-data/capstone-piston-oscillation-4runs-1000hz.csv";
+  "docs/instrument-modeling/piston-oscillation/references/real-data/capstone-piston-oscillation-4runs-1000hz.csv";
 const sweepScriptPath = "scripts/analysis/pistonOscillationDissipationSweep.mjs";
 const sweepOutputPath =
-  "docs/instrument-modeling/analysis/piston-oscillation-dissipation-sweep-2026-08-25.json";
+  "docs/instrument-modeling/piston-oscillation/validation/piston-oscillation-dissipation-sweep-2026-08-25.json";
 const reviewedDatasetPath =
-  "docs/instrument-modeling/analysis/piston-oscillation-checkpoint-2-parameter-identification-report-2026-08-25/reviewed-report-datasets.json";
+  "docs/instrument-modeling/piston-oscillation/validation/piston-oscillation-checkpoint-2-parameter-identification-report-2026-08-25/reviewed-report-datasets.json";
 
 const datasetSource = (id, label, dataset, tablesUsed, description) => ({
   id,
@@ -513,7 +513,7 @@ const artifact = {
   package_info: {
     root: "repository",
     manifestPath:
-      "docs/instrument-modeling/analysis/piston-oscillation-checkpoint-2-parameter-identification-report-2026-08-25/artifact.json",
+      "docs/instrument-modeling/piston-oscillation/validation/piston-oscillation-checkpoint-2-parameter-identification-report-2026-08-25/artifact.json",
     snapshotPath: sweepOutputPath,
   },
 };

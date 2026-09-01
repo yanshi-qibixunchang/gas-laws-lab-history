@@ -4,9 +4,7 @@ The production sound effects listed below use materials downloaded from Freesoun
 
 ## Heat-capacity experiment
 
-These source files were downloaded on 2026-07-12. The unmodified originals are retained outside the repository at:
-
-`D:\downloads\codex\hard-sphere-lab-audio\heat-capacity\sources\`
+These source files were downloaded on 2026-07-12. The unmodified originals are retained in the project team's external source archive and are identified below by original file name and SHA-256; the archive's machine-specific location is intentionally not part of this repository contract.
 
 ### Source records
 
@@ -38,9 +36,7 @@ Per-file output hashes, durations, filter settings, fades, and peak levels are r
 
 ## Piston-oscillation experiment
 
-The Freesound HQ preview files and the user-approved vibration audition derivative were downloaded or prepared on 2026-08-29. They are retained outside the repository at:
-
-`D:\downloads\codex\hard-sphere-lab-audio\piston-oscillation\`
+The Freesound HQ preview files and the user-approved vibration audition derivative were downloaded or prepared on 2026-08-29. They are retained in the project team's external source archive and are identified below by original file name and SHA-256; the archive's machine-specific location is intentionally not part of this repository contract.
 
 ### Source records
 

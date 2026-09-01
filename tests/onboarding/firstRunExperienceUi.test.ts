@@ -21,6 +21,10 @@ const copySource = readFileSync(new URL('../../src/features/onboarding/firstRunC
 const cssSource = readFileSync(new URL('../../src/features/onboarding/FirstRunExperience.css', import.meta.url), 'utf8');
 const settingsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const productIntroReplaySource = workbenchSource.slice(
+  workbenchSource.indexOf('const openProductIntroReplay'),
+  workbenchSource.indexOf('const openLearningNeedsReselect'),
+);
 
 assert.match(appSource, /resolveFirstRunEntryMode\(initialExperienceProfileLoad\)/);
 assert.match(appSource, /entryMode === 'workbench'/);
@@ -284,6 +288,12 @@ assert.match(cssSource, /max-height: min\(742px, calc\(100% - 48px\)\);/);
 assert.doesNotMatch(cssSource, /linear-gradient/);
 
 assert.match(settingsSource, /onReplayProductIntro/);
+assert.match(productIntroReplaySource, /setProductIntroReplayPhase\('welcome'\)/);
+assert.doesNotMatch(
+  productIntroReplaySource,
+  /persistAppExperienceProfile|commitFirstRunExperienceProfile|acceptedLegalVersion|learning\s*:/,
+  'replaying the product introduction must not rewrite consent or learning progress',
+);
 assert.match(workbenchSource, /data-first-run-language=\{settingsLanguagePreference\}[\s\S]*data-learning-overlay="product-intro"/);
 assert.match(settingsSource, /onReselectLearningNeeds/);
 assert.match(settingsSource, /showSimulateFirstRun \?/);

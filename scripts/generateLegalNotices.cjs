@@ -12,6 +12,13 @@ const packageJsonPath = path.join(rootDir, 'package.json');
 const packageLockPath = path.join(rootDir, 'package-lock.json');
 const nodeModulesDir = path.join(rootDir, 'node_modules');
 const audioRootManifestPath = path.join(rootDir, 'public', 'audio', 'manifest.json');
+const heatCapacityModelProvenancePath = path.join(
+  rootDir,
+  'public',
+  'models',
+  'heat-capacity',
+  'model-provenance.json',
+);
 const pistonModelProvenancePath = path.join(
   rootDir,
   'public',
@@ -219,6 +226,7 @@ const getLegalNoticeInputFingerprint = (records) => {
   appendFile(path.join(rootDir, 'public', 'fonts', 'LICENSES.txt'));
   appendFile(audioRootManifestPath);
   for (const audioManifestPath of getExperimentAudioManifestPaths()) appendFile(audioManifestPath);
+  appendFile(heatCapacityModelProvenancePath);
   appendFile(pistonModelProvenancePath);
   appendFile(sharedBenchProvenancePath);
   appendFile(exporterLegalInventoryPath);
@@ -306,7 +314,12 @@ ${body}
 </html>
 `;
 
-const writeDependenciesHtml = (records, pistonModelProvenance, sharedBenchProvenance) => {
+const writeDependenciesHtml = (
+  records,
+  heatCapacityModelProvenance,
+  pistonModelProvenance,
+  sharedBenchProvenance,
+) => {
   const rows = records.map((record) => {
     const installLocation = record.paths.length === 1
       ? normalizePathForHtml(record.paths[0])
@@ -323,6 +336,8 @@ const writeDependenciesHtml = (records, pistonModelProvenance, sharedBenchProven
 
   const modelSource = pistonModelProvenance.interfaceRefinementSource || {};
   const modelRights = pistonModelProvenance.rights || {};
+  const heatCapacityModelOrigin = heatCapacityModelProvenance.origin || {};
+  const heatCapacityModelRights = heatCapacityModelProvenance.rights || {};
   const sharedBenchSource = sharedBenchProvenance.derivedFrom || {};
   const html = createHtmlDocument({
     title: 'Third-Party Dependency List',
@@ -354,6 +369,12 @@ const writeDependenciesHtml = (records, pistonModelProvenance, sharedBenchProven
           </tr>
         </thead>
         <tbody>
+          <tr>
+            <td><code>public/models/heat-capacity/${escapeHtml(heatCapacityModelProvenance.asset)}</code></td>
+            <td><code>${escapeHtml(heatCapacityModelProvenance.sha256)}</code></td>
+            <td>${escapeHtml(heatCapacityModelOrigin.method || 'Project-internal authoring')}; exact origin and derivative records are stored in <code>model-provenance.json</code>.</td>
+            <td>${escapeHtml(heatCapacityModelRights.status || 'Project-original asset; consult provenance record')}</td>
+          </tr>
           <tr>
             <td><code>public/models/piston-oscillation/${escapeHtml(pistonModelProvenance.asset)}</code></td>
             <td><code>${escapeHtml(pistonModelProvenance.sha256)}</code></td>
@@ -611,6 +632,7 @@ if (
 }
 writeDependenciesHtml(
   records,
+  readJson(heatCapacityModelProvenancePath),
   readJson(pistonModelProvenancePath),
   readJson(sharedBenchProvenancePath),
 );

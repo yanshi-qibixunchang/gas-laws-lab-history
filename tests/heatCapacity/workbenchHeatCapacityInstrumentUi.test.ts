@@ -36,7 +36,14 @@ const heatCapacitySessionRestorePath = join(process.cwd(), 'src', 'features', 'w
 const stylePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.css');
 const waitControllerPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityWaitController.tsx');
 const waitControllerStylePath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'HeatCapacityWaitController.css');
-const pressureGaugeContractPath = join(process.cwd(), 'docs', 'instrument-modeling', 'heat-capacity-pressure-gauge-contract.md');
+const pressureGaugeContractPath = join(
+  process.cwd(),
+  'docs',
+  'instrument-modeling',
+  'adiabatic-expansion',
+  'controls',
+  'heat-capacity-pressure-gauge-contract.md',
+);
 
 assert.equal(existsSync(componentPath), true, 'heatCapacity instrument scene component should exist');
 assert.equal(existsSync(pressureGaugeContractPath), true, 'shared Heat Capacity pressure gauge contract should exist');

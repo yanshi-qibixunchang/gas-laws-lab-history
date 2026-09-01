@@ -7,7 +7,6 @@ const fsSync = require('node:fs');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
-const { spawn } = require('node:child_process');
 const {
   MAX_DOWNLOAD_ATTEMPTS,
   getManualRecoveryTargetUrl,
@@ -23,6 +22,11 @@ const {
 } = require('./updaterStateMachine.cjs');
 const { createExitPersistenceCoordinator } = require('./exitPersistenceCoordinator.cjs');
 const { validateExporterOutputManifest } = require('./exporterOutputPolicy.cjs');
+const {
+  EXPORTER_JOB_TIMEOUT_MS,
+  EXPORTER_SELF_CHECK_TIMEOUT_MS,
+  runBoundedCommand,
+} = require('./exporterProcessRunner.cjs');
 const {
   createPersistentWorkbenchWindowNamespace,
   createWorkbenchWindowRegistry,
@@ -370,36 +374,12 @@ const getRuntimeWorkingDirectory = () => {
   return process.resourcesPath || app.getPath('temp');
 };
 
-const runCommand = (command, args) => new Promise((resolve) => {
-  const child = spawn(command, args, {
+const runCommand = (command, args, options = {}) => (
+  runBoundedCommand(command, args, {
     cwd: getRuntimeWorkingDirectory(),
-    windowsHide: true,
-  });
-  let stdout = '';
-  let stderr = '';
-
-  child.stdout.on('data', (chunk) => {
-    stdout += chunk.toString();
-  });
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
-  child.on('error', (error) => {
-    resolve({
-      code: -1,
-      stdout,
-      stderr: `${stderr}${error.message}`,
-      error,
-    });
-  });
-  child.on('close', (code) => {
-    resolve({
-      code: code ?? 1,
-      stdout,
-      stderr,
-    });
-  });
-});
+    timeoutMs: options.timeoutMs ?? EXPORTER_JOB_TIMEOUT_MS,
+  })
+);
 
 const getSystemRuntime = async () => {
   for (const candidate of getSystemExporterCandidates()) {
@@ -433,8 +413,8 @@ const getBundledRuntime = async () => {
   return null;
 };
 
-const runExporter = (runtime, args) => (
-  runCommand(runtime.command, [...runtime.baseArgs, ...args])
+const runExporter = (runtime, args, options = {}) => (
+  runCommand(runtime.command, [...runtime.baseArgs, ...args], options)
 );
 
 const parseJson = (value) => {
@@ -538,7 +518,11 @@ const replaceFileAtomically = async (source, target) => {
 const resolveBundledExporterRuntime = async () => {
   const bundledRuntime = await getBundledRuntime();
   if (bundledRuntime) {
-    const bundledResult = await runExporter(bundledRuntime, ['--self-check']);
+    const bundledResult = await runExporter(
+      bundledRuntime,
+      ['--self-check'],
+      { timeoutMs: EXPORTER_SELF_CHECK_TIMEOUT_MS },
+    );
     if (bundledResult.code === 0) {
       const details = parseJson(bundledResult.stdout);
       return {
@@ -581,7 +565,11 @@ const resolveExporterRuntime = async () => {
 
   const systemRuntime = await getSystemRuntime();
   if (systemRuntime) {
-    const systemResult = await runExporter(systemRuntime, ['--self-check']);
+    const systemResult = await runExporter(
+      systemRuntime,
+      ['--self-check'],
+      { timeoutMs: EXPORTER_SELF_CHECK_TIMEOUT_MS },
+    );
     if (systemResult.code === 0) {
       const details = parseJson(systemResult.stdout);
       return {

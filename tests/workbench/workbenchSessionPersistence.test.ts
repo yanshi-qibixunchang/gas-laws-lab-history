@@ -87,6 +87,9 @@ import {
   createHeatCapacityAutoDemoProfile,
 } from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
+} from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
   normalizeHeatCapacityModeSessionStore,
   restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
@@ -1127,6 +1130,45 @@ const legacyClosedAfterReleaseRollback = {
     quickToggle: false,
   },
 };
+const legacyMigrationBatch = {
+  ...legacyMigrationBase.heatCapacityFreeBatch,
+  nextTrialSequence: 3,
+};
+const legacyMigrationTrials = [
+  {
+    ...legacyReferenceTrial,
+    batchMembership: {
+      version: 1 as const,
+      batchId: legacyMigrationBatchId,
+      sequence: 1,
+    },
+  },
+  {
+    ...legacyBlockedTrial,
+    batchMembership: {
+      version: 1 as const,
+      batchId: legacyMigrationBatchId,
+      sequence: 2,
+    },
+  },
+];
+const legacyMigrationCurrentGroup =
+  legacyMigrationBase.heatCapacityFreeExperimentGroups.groups.find((group) => (
+    group.id === legacyMigrationBase.heatCapacityFreeExperimentGroups.currentGroupId
+  ));
+if (!legacyMigrationCurrentGroup) {
+  throw new Error('Expected a current legacy-migration experiment group.');
+}
+const legacyMigrationExperimentGroups =
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    legacyMigrationBase.heatCapacityFreeExperimentGroups,
+    {
+      ...legacyMigrationCurrentGroup.runSeries,
+      batch: legacyMigrationBatch,
+      traceStore: legacyReferenceParts.traceStore,
+      trials: legacyMigrationTrials,
+    },
+  );
 const legacyMigrationSource = {
   ...legacyMigrationBase,
   heatCapacityMode: 'free' as const,
@@ -1220,29 +1262,10 @@ const legacyMigrationSource = {
     beforePump: legacyReleasingRollback,
     beforeRelease: legacyClosedAfterReleaseRollback,
   },
-  heatCapacityFreeBatch: {
-    ...legacyMigrationBase.heatCapacityFreeBatch,
-    nextTrialSequence: 3,
-  },
+  heatCapacityFreeBatch: legacyMigrationBatch,
   heatCapacityFreeTraceStore: legacyReferenceParts.traceStore,
-  heatCapacityFreeTrials: [
-    {
-      ...legacyReferenceTrial,
-      batchMembership: {
-        version: 1 as const,
-        batchId: legacyMigrationBatchId,
-        sequence: 1,
-      },
-    },
-    {
-      ...legacyBlockedTrial,
-      batchMembership: {
-        version: 1 as const,
-        batchId: legacyMigrationBatchId,
-        sequence: 2,
-      },
-    },
-  ],
+  heatCapacityFreeTrials: legacyMigrationTrials,
+  heatCapacityFreeExperimentGroups: legacyMigrationExperimentGroups,
   heatCapacityGuidePhysicsState: {
     ...legacyMigrationBase.heatCapacityGuidePhysicsState,
     simulationTimeS: 650,

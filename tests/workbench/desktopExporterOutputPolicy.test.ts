@@ -61,6 +61,11 @@ assert.match(
   /const resolveExporterRuntime = async \(\) => \{\s*if \(app\.isPackaged\) \{\s*const packagedBundledResult = await resolveBundledExporterRuntime\(\);[\s\S]*\}\s*\n\s*const systemRuntime = await getSystemRuntime\(\);/,
   'packaged applications must resolve the bundled frozen exporter without probing system Python first',
 );
+assert.match(
+  mainSource,
+  /require\('\.\/exporterProcessRunner\.cjs'\)/,
+  'desktop exports should use the bounded child-process runner',
+);
 
 const directory = await fs.mkdtemp(join(tmpdir(), 'hsl-exporter-output-policy-'));
 try {

@@ -1,5 +1,9 @@
 import assert from 'node:assert/strict';
-import { createCommittedFirstRunProfile } from '../../src/features/onboarding/firstRunExperienceModel.ts';
+import {
+  acceptCurrentLegalVersion,
+  createCommittedFirstRunProfile,
+  resolveFirstRunEntryMode,
+} from '../../src/features/onboarding/firstRunExperienceModel.ts';
 import { commitFirstRunExperienceProfile } from '../../src/features/onboarding/firstRunExperienceStore.ts';
 import {
   APP_EXPERIENCE_PROFILE_STORAGE_KEY,
@@ -24,6 +28,28 @@ assert.deepEqual(loadAppExperienceProfile(storage), {
   persisted: true,
 });
 assert.ok(storage.getItem(APP_EXPERIENCE_PROFILE_STORAGE_KEY));
+const restarted = loadAppExperienceProfile(storage);
+assert.equal(resolveFirstRunEntryMode(restarted), 'workbench', 'a normal restart should keep the completed first-run profile');
+
+const priorLegalProfile = {
+  ...profile,
+  acceptedLegalVersion: 'previous-legal-version',
+};
+assert.equal(commitFirstRunExperienceProfile(priorLegalProfile, storage).ok, true);
+const afterLegalRevision = loadAppExperienceProfile(storage);
+assert.equal(resolveFirstRunEntryMode(afterLegalRevision), 'legal-only', 'a legal revision should request consent without replaying full onboarding');
+assert.equal(afterLegalRevision.profile.committedLanguage, profile.committedLanguage);
+assert.deepEqual(afterLegalRevision.profile.learning, profile.learning);
+assert.deepEqual(afterLegalRevision.profile.needs, profile.needs);
+
+const renewedProfile = acceptCurrentLegalVersion(afterLegalRevision.profile);
+assert.equal(commitFirstRunExperienceProfile(renewedProfile, storage).ok, true);
+const afterRenewalRestart = loadAppExperienceProfile(storage);
+assert.equal(resolveFirstRunEntryMode(afterRenewalRestart), 'workbench');
+assert.equal(afterRenewalRestart.profile.acceptedLegalVersion, renewedProfile.acceptedLegalVersion);
+assert.equal(afterRenewalRestart.profile.committedLanguage, profile.committedLanguage);
+assert.deepEqual(afterRenewalRestart.profile.learning, profile.learning);
+assert.deepEqual(afterRenewalRestart.profile.needs, profile.needs);
 
 const failingStorage = new MemoryStorage();
 failingStorage.setItem = () => { throw new Error('storage blocked'); };

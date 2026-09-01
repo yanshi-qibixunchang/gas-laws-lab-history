@@ -5,7 +5,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-const evidenceDir = join(rootDir, 'docs/research-report/evidence/generated');
+const evidenceDir = join(rootDir, 'docs/validation/generated');
 const summary = JSON.parse(readFileSync(join(evidenceDir, 'evidence-summary.json'), 'utf8')) as {
   rapidRelease: {
     scenarioSummary: Array<Record<string, unknown>>;
@@ -27,9 +27,21 @@ const summary = JSON.parse(readFileSync(join(evidenceDir, 'evidence-summary.json
   };
 };
 const metadata = JSON.parse(readFileSync(join(evidenceDir, 'evidence-metadata.json'), 'utf8')) as {
+  repository: {
+    root: string;
+    dirtyAtStart: boolean;
+    dirtyEntryCountAtStart: number;
+    statusAtStart?: unknown;
+  };
   sourceFiles: Array<{ path: string; bytes: number; sha256: string }>;
   generatedFiles: Array<{ path: string; bytes: number; sha256: string }>;
 };
+
+assert.equal(metadata.repository.root, '.');
+assert.equal(Number.isInteger(metadata.repository.dirtyEntryCountAtStart), true);
+assert.equal(metadata.repository.dirtyEntryCountAtStart >= 0, true);
+assert.equal(metadata.repository.dirtyAtStart, metadata.repository.dirtyEntryCountAtStart > 0);
+assert.equal('statusAtStart' in metadata.repository, false);
 
 const standardHeat = summary.rapidRelease.scenarioSummary.find((row) => (
   row.scenario_id === 'standard-realistic'

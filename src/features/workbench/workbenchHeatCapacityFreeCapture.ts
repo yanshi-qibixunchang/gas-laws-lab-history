@@ -10,6 +10,7 @@ import {
   createDefaultHeatCapacityFile,
   createHeatCapacityFreeExperimentDomainStateFromFile,
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
+  projectHeatCapacityFreeExperimentGroupToDomain,
   type HeatCapacityFreeExperimentDomainState,
   type HeatCapacityFreeParameterScheme,
   type WorkbenchHeatCapacityState,
@@ -23,6 +24,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   isHeatCapacityFreeExperimentGroupExecutableUnfinished,
+  raiseCurrentHeatCapacityFreeExperimentGroupHighWaterMarks,
   selectCurrentHeatCapacityFreeExperimentGroup,
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
   updateCurrentHeatCapacityFreeRealCalculationSession,
@@ -114,6 +116,13 @@ const preservesEstablishedValue = (
   required: unknown,
 ) => required === null ||
   areHeatCapacityPersistenceValuesEqual(candidate, required);
+
+const selectPositiveSafeHighWater = (...values: unknown[]) => Math.max(
+  1,
+  ...values.filter((value): value is number => (
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 1
+  )),
+);
 
 const hasCompleteBatchTrialAuthority = (
   domain: HeatCapacityFreeExperimentDomainState,
@@ -332,12 +341,143 @@ export const prepareHeatCapacityFreeCapture = (
   );
   if (ideal.ok === false) return ideal;
 
+  let experimentGroups = file.heatCapacityFreeExperimentGroups.groups.length === 0
+    ? migrateLegacyHeatCapacityFreeExperimentGroups({
+        fileId: file.id,
+        selectedScheme: file.heatCapacityFreeParameterScheme,
+        real: real.value,
+        ideal: ideal.value,
+        fallbackCreatedAtMs: file.createdAt,
+      })
+    : file.heatCapacityFreeExperimentGroups;
   let capturedReal = real;
   let capturedIdeal = ideal;
   let dormantProjectionRepaired = false;
+  let groupAuthorityRepaired = false;
+  let authoritativeCurrentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    experimentGroups,
+  );
+  if (authoritativeCurrentGroup !== null) {
+    const storedGroupDomain = authoritativeCurrentGroup.scheme === 'ideal'
+      ? ideal.value
+      : real.value;
+    const repairedGroupTrials = authoritativeCurrentGroup.runSeries.trials.map(
+      (trial, index) => {
+        const canonicalTrial = storedGroupDomain.trials[index];
+        return canonicalTrial?.id === trial.id
+          ? {
+              ...trial,
+              correctedSignals: canonicalTrial.correctedSignals,
+            }
+          : trial;
+      },
+    );
+    if (
+      areHeatCapacityPersistenceValuesEqual(
+        repairedGroupTrials,
+        storedGroupDomain.trials,
+      ) &&
+      !areHeatCapacityPersistenceValuesEqual(
+        repairedGroupTrials,
+        authoritativeCurrentGroup.runSeries.trials,
+      )
+    ) {
+      const repairedGroupId = authoritativeCurrentGroup.id;
+      experimentGroups = {
+        ...experimentGroups,
+        groups: experimentGroups.groups.map((group) => (
+          group.id === repairedGroupId
+            ? {
+                ...group,
+                runSeries: {
+                  ...group.runSeries,
+                  trials: repairedGroupTrials,
+                },
+              }
+            : group
+        )),
+      };
+      groupAuthorityRepaired = true;
+      authoritativeCurrentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+        experimentGroups,
+      );
+    }
+  }
+  if (authoritativeCurrentGroup !== null) {
+    const storedGroupDomain = authoritativeCurrentGroup.scheme === 'ideal'
+      ? ideal.value
+      : real.value;
+    const flatRuntimeMatchesGroup =
+      file.heatCapacityFreeParameterScheme === authoritativeCurrentGroup.scheme;
+    const repairedGroups = raiseCurrentHeatCapacityFreeExperimentGroupHighWaterMarks(
+      experimentGroups,
+      {
+        nextTrialSequence: selectPositiveSafeHighWater(
+          storedGroupDomain.batch.nextTrialSequence,
+          flatRuntimeMatchesGroup
+            ? file.heatCapacityFreeBatch.nextTrialSequence
+            : undefined,
+        ),
+        nextTraceTrialIndex: selectPositiveSafeHighWater(
+          storedGroupDomain.traceStore.nextTraceTrialIndex,
+          flatRuntimeMatchesGroup
+            ? file.heatCapacityFreeTraceStore.nextTraceTrialIndex
+            : undefined,
+        ),
+      },
+    );
+    if (repairedGroups !== experimentGroups) {
+      experimentGroups = repairedGroups;
+      groupAuthorityRepaired = true;
+      authoritativeCurrentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+        experimentGroups,
+      );
+    }
+  }
+  if (authoritativeCurrentGroup !== null) {
+    const source = authoritativeCurrentGroup.scheme === 'ideal'
+      ? capturedIdeal
+      : capturedReal;
+    const projectedValue = projectHeatCapacityFreeExperimentGroupToDomain(
+      source.value,
+      authoritativeCurrentGroup,
+    );
+    if (!areHeatCapacityPersistenceValuesEqual(source.value, projectedValue)) {
+      const projected = {
+        ...source,
+        status: 'repaired-cache' as const,
+        value: projectedValue,
+      };
+      if (authoritativeCurrentGroup.scheme === 'ideal') {
+        capturedIdeal = projected;
+      } else {
+        capturedReal = projected;
+      }
+      groupAuthorityRepaired = true;
+    }
+  }
   if (captureActiveRuntime) {
     const scheme = file.heatCapacityFreeParameterScheme;
-    const storedActive = scheme === 'ideal' ? ideal : real;
+    const storedActiveSource = scheme === 'ideal' ? capturedIdeal : capturedReal;
+    const storedActiveValue = authoritativeCurrentGroup?.scheme === scheme
+      ? projectHeatCapacityFreeExperimentGroupToDomain(
+          storedActiveSource.value,
+          authoritativeCurrentGroup,
+        )
+      : storedActiveSource.value;
+    const storedAuthorityChanged = authoritativeCurrentGroup?.scheme === scheme &&
+      !areHeatCapacityPersistenceValuesEqual(
+        storedActiveSource.value,
+        storedActiveValue,
+      );
+    const storedActive = storedAuthorityChanged
+      ? {
+          ...storedActiveSource,
+          status: 'repaired-cache' as const,
+          value: storedActiveValue,
+        }
+      : storedActiveSource;
+    groupAuthorityRepaired = groupAuthorityRepaired || storedAuthorityChanged;
     const useStoredActive =
       scheme === 'real' &&
       hasHeatCapacityFreeIdealThermalBoundaryContamination(
@@ -351,12 +491,22 @@ export const prepareHeatCapacityFreeCapture = (
             ...storedActive.value.releaseState,
           },
         };
-    const rawRuntime = useStoredActive
+    const rawRuntimeSource = useStoredActive
       ? storedActive.value
       : createHeatCapacityFreeExperimentDomainStateFromFile(
           runtimeSourceFile,
           scheme,
         );
+    const rawRuntime = authoritativeCurrentGroup?.scheme === scheme
+      ? projectHeatCapacityFreeExperimentGroupToDomain(
+          rawRuntimeSource,
+          authoritativeCurrentGroup,
+        )
+      : rawRuntimeSource;
+    groupAuthorityRepaired = groupAuthorityRepaired || (
+      authoritativeCurrentGroup?.scheme === scheme &&
+      !areHeatCapacityPersistenceValuesEqual(rawRuntimeSource, rawRuntime)
+    );
     const runtime = decodeCanonicalDomain(
       rawRuntime,
       scheme,
@@ -389,7 +539,7 @@ export const prepareHeatCapacityFreeCapture = (
     }
   } else {
     const scheme = file.heatCapacityFreeParameterScheme;
-    const storedActive = scheme === 'ideal' ? ideal : real;
+    const storedActive = scheme === 'ideal' ? capturedIdeal : capturedReal;
     const dormantProjection = decodeCanonicalDomain(
       {
         ...storedActive.value,
@@ -414,15 +564,6 @@ export const prepareHeatCapacityFreeCapture = (
       );
   }
 
-  let experimentGroups = file.heatCapacityFreeExperimentGroups.groups.length === 0
-    ? migrateLegacyHeatCapacityFreeExperimentGroups({
-        fileId: file.id,
-        selectedScheme: file.heatCapacityFreeParameterScheme,
-        real: capturedReal.value,
-        ideal: capturedIdeal.value,
-        fallbackCreatedAtMs: file.createdAt,
-      })
-    : file.heatCapacityFreeExperimentGroups;
   const capturedActiveDomain = file.heatCapacityFreeParameterScheme === 'ideal'
     ? capturedIdeal.value
     : capturedReal.value;
@@ -474,7 +615,8 @@ export const prepareHeatCapacityFreeCapture = (
         ? 'migrated'
         : capturedReal.status === 'repaired-cache' ||
             capturedIdeal.status === 'repaired-cache' ||
-            dormantProjectionRepaired
+            dormantProjectionRepaired ||
+            groupAuthorityRepaired
           ? 'repaired-cache'
           : 'exact',
     file: capturedFile,

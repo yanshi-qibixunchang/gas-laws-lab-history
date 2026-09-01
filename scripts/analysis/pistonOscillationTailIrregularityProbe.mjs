@@ -1289,7 +1289,7 @@ const runProbe = () => {
     status: 'analysis-only-not-integrated',
     source: {
       realDataPath:
-        'docs/instrument-modeling/reference/piston-oscillation-real-data/capstone-piston-oscillation-4runs-1000hz.csv',
+        'docs/instrument-modeling/piston-oscillation/references/real-data/capstone-piston-oscillation-4runs-1000hz.csv',
       runCount: realRuns.length,
       samplesPerRun: realRuns[0].samples.length,
       sampleRateHz: SAMPLE_RATE_HZ,

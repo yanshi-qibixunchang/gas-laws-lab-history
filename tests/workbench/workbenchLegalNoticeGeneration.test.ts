@@ -66,10 +66,12 @@ assert.match(
   'every registered experiment audio manifest should invalidate generated legal output',
 );
 assert.match(generatorSource, /appendFile\(pistonModelProvenancePath\)/, 'piston model provenance should invalidate stale legal output');
+assert.match(generatorSource, /appendFile\(heatCapacityModelProvenancePath\)/, 'heat-capacity model provenance should invalidate stale legal output');
 assert.match(generatorSource, /appendFile\(sharedBenchProvenancePath\)/, 'shared bench provenance should invalidate stale legal output');
 assert.match(generatorSource, /appendFile\(exporterLegalInventoryPath\)/, 'actual exporter inventory should invalidate stale legal output');
 assert.match(before['third-party-dependencies.html'], /Packaged 3D model assets/, 'packaged legal materials should cover project-provided 3D assets');
 assert.match(before['third-party-dependencies.html'], /A72C2609713B2CD7B2624A5343CA8073A547153C2ECD14CC18E83D2AD007CDBC/, 'packaged legal materials should pin the approved piston model digest');
+assert.match(before['third-party-dependencies.html'], /D594BC0E57798AD305BAC5B282A4EA88F0B2763E427EFA0F170B95964E78D664/, 'packaged legal materials should pin the project-original heat-capacity model digest');
 assert.match(generatorSource, /assertExporterLegalInventory/, 'legal generation should reject incomplete exporter inventory');
 assert.match(
   generatorSource,

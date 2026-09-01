@@ -52,6 +52,7 @@ import {
   isPersistenceRecord as isRecord,
 } from './workbenchPersistenceValue.ts';
 import {
+  areHeatCapacityPersistenceValuesEqual,
   heatCapacityRestoreFiniteOrDefault as finiteOrDefault,
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
   normalizeHeatCapacityFreeRestoreDisplayScheme,
@@ -110,6 +111,51 @@ import {
 import {
   prepareHeatCapacityFreeCapture,
 } from './workbenchHeatCapacityFreeCapture.ts';
+
+const repairHeatCapacityExperimentGroupDerivedTrialCaches = (
+  value: unknown,
+): unknown => {
+  if (!isRecord(value) || !Array.isArray(value.groups)) return value;
+  const candidate = clonePersistenceValue(value);
+  if (!isRecord(candidate) || !Array.isArray(candidate.groups)) return value;
+  let repaired = false;
+  for (const group of candidate.groups) {
+    if (
+      !isRecord(group) ||
+      !isRecord(group.runSeries) ||
+      !Array.isArray(group.runSeries.trials)
+    ) {
+      continue;
+    }
+    const fallbackSnapshot = normalizeHeatCapacityFreeRestoreConfigSnapshot(
+      group.parameterSnapshot,
+    );
+    group.runSeries.trials = group.runSeries.trials.map((trial) => {
+      if (!isRecord(trial)) return trial;
+      const normalized = normalizeHeatCapacityFreeRestoreTrial(
+        trial,
+        fallbackSnapshot,
+      );
+      if (normalized === null) return trial;
+      const repairedTrial = {
+        ...trial,
+        correctedSignals: clonePersistenceValue(normalized.correctedSignals),
+        standardReferenceSnapshot: clonePersistenceValue(
+          normalized.standardReferenceSnapshot,
+        ),
+      };
+      if (
+        !areHeatCapacityPersistenceValuesEqual(repairedTrial, normalized) ||
+        areHeatCapacityPersistenceValuesEqual(repairedTrial, trial)
+      ) {
+        return trial;
+      }
+      repaired = true;
+      return repairedTrial;
+    });
+  }
+  return repaired ? candidate : value;
+};
 
 export {
   HEAT_CAPACITY_PROCESS_SCORING_VERSION,
@@ -424,9 +470,12 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   );
   const restoredRealDomainWithGasType = restoredRealDomain;
   const restoredIdealDomainWithGasType = restoredIdealDomain;
-  const persistedExperimentGroups = normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
-    free?.experimentGroups,
-  );
+  const persistedExperimentGroups =
+    normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
+      repairHeatCapacityExperimentGroupDerivedTrialCaches(
+        free?.experimentGroups,
+      ),
+    );
   if (
     heatPayload.heatCapacitySchemaVersion === HEAT_CAPACITY_SCHEMA_VERSION &&
     free !== null &&

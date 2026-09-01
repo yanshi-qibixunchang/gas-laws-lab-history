@@ -60,6 +60,9 @@ import {
   createHeatCapacityAutoDemoProfile,
 } from '../../src/domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
+} from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import {
   advancePistonOscillationPeriodRun,
   createPistonOscillationRawMeasurementRecord,
   createPistonOscillationDataProcessingSession,
@@ -548,12 +551,22 @@ const invalidBatchCompletion = projectWorkbenchPersistenceV3File(
   invalidBatchCompletionFile,
   8,
 );
-assert.equal(invalidBatchCompletion.ok, false);
-if (invalidBatchCompletion.ok) {
-  throw new Error('Expected zero-of-three batch completion quarantine.');
+if (!invalidBatchCompletion.ok) {
+  throw new Error(invalidBatchCompletion.diagnostics[0].message);
 }
-assert.equal(invalidBatchCompletion.status, 'quarantined');
-assert.deepEqual(invalidBatchCompletion.raw, invalidBatchCompletionFile);
+assert.equal(
+  invalidBatchCompletion.status,
+  'repaired-cache',
+  'an impossible completion timestamp in the flat cache must be rebuilt from the experiment group',
+);
+assert.equal(
+  (
+    invalidBatchCompletion.value.fields.authoritative.freeDomains as {
+      real: { batch: { experimentCompletedAtMs: number | null } };
+    }
+  ).real.batch.experimentCompletedAtMs,
+  null,
+);
 
 const durableTrialBatchId = durableHighWaterStarted.heatCapacityFreeBatch.id;
 if (durableTrialBatchId === null) {
@@ -600,10 +613,30 @@ const futureCorrectedSignalBatch = {
   ...durableHighWaterStarted.heatCapacityFreeBatch,
   nextTrialSequence: 2,
 };
+const durableCurrentGroup =
+  durableHighWaterStarted.heatCapacityFreeExperimentGroups.groups.find(
+    (group) => (
+      group.id ===
+        durableHighWaterStarted.heatCapacityFreeExperimentGroups.currentGroupId
+    ),
+  );
+if (!durableCurrentGroup) {
+  throw new Error('Expected a current experiment-group authority fixture.');
+}
+const futureCorrectedSignalGroups =
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    durableHighWaterStarted.heatCapacityFreeExperimentGroups,
+    {
+      ...durableCurrentGroup.runSeries,
+      batch: futureCorrectedSignalBatch,
+      trials: [structuredClone(futureCorrectedSignalTrial)],
+    },
+  );
 const futureCorrectedSignalFile = {
   ...durableHighWaterStarted,
   heatCapacityFreeBatch: futureCorrectedSignalBatch,
   heatCapacityFreeTrials: [futureCorrectedSignalTrial],
+  heatCapacityFreeExperimentGroups: futureCorrectedSignalGroups,
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
     batch: futureCorrectedSignalBatch,
@@ -750,6 +783,15 @@ const trialAuthorityBatch = {
   ...durableHighWaterStarted.heatCapacityFreeBatch,
   nextTrialSequence: 2,
 };
+const trialAuthorityGroups =
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    durableHighWaterStarted.heatCapacityFreeExperimentGroups,
+    {
+      ...durableCurrentGroup.runSeries,
+      batch: trialAuthorityBatch,
+      trials: [durableTrialAuthority],
+    },
+  );
 const regressingTrialAuthorityFile = {
   ...durableHighWaterStarted,
   heatCapacityFreeBatch: trialAuthorityBatch,
@@ -757,6 +799,7 @@ const regressingTrialAuthorityFile = {
     ...durableTrialAuthority,
     preheatOutcome: 'omitted' as const,
   }],
+  heatCapacityFreeExperimentGroups: trialAuthorityGroups,
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
     batch: trialAuthorityBatch,
@@ -767,14 +810,18 @@ const regressingTrialAuthority = projectWorkbenchPersistenceV3File(
   regressingTrialAuthorityFile,
   8,
 );
-assert.equal(regressingTrialAuthority.ok, false);
-if (regressingTrialAuthority.ok) {
-  throw new Error('Expected same-id durable trial authority quarantine.');
+if (!regressingTrialAuthority.ok) {
+  throw new Error(regressingTrialAuthority.diagnostics[0].message);
 }
-assert.equal(regressingTrialAuthority.status, 'quarantined');
-assert.deepEqual(
-  regressingTrialAuthority.raw,
-  regressingTrialAuthorityFile,
+assert.equal(regressingTrialAuthority.status, 'repaired-cache');
+assert.equal(
+  (
+    regressingTrialAuthority.value.fields.authoritative.freeDomains as {
+      real: { trials: Array<{ preheatOutcome: string }> };
+    }
+  ).real.trials[0]?.preheatOutcome,
+  'completed',
+  'a stale same-id runtime trial must be rebuilt from experiment-group authority',
 );
 
 const secondDurableTrialAuthority = {
@@ -794,6 +841,15 @@ const orderedTrialBatch = {
   ...trialAuthorityBatch,
   nextTrialSequence: 3,
 };
+const orderedTrialGroups =
+  updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+    durableHighWaterStarted.heatCapacityFreeExperimentGroups,
+    {
+      ...durableCurrentGroup.runSeries,
+      batch: orderedTrialBatch,
+      trials: [durableTrialAuthority, secondDurableTrialAuthority],
+    },
+  );
 const reorderedTrialAuthorityFile = {
   ...durableHighWaterStarted,
   heatCapacityFreeBatch: orderedTrialBatch,
@@ -801,6 +857,7 @@ const reorderedTrialAuthorityFile = {
     secondDurableTrialAuthority,
     durableTrialAuthority,
   ],
+  heatCapacityFreeExperimentGroups: orderedTrialGroups,
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
     batch: orderedTrialBatch,
@@ -814,14 +871,18 @@ const reorderedTrialAuthority = projectWorkbenchPersistenceV3File(
   reorderedTrialAuthorityFile,
   8,
 );
-assert.equal(reorderedTrialAuthority.ok, false);
-if (reorderedTrialAuthority.ok) {
-  throw new Error('Expected durable trial order quarantine.');
+if (!reorderedTrialAuthority.ok) {
+  throw new Error(reorderedTrialAuthority.diagnostics[0].message);
 }
-assert.equal(reorderedTrialAuthority.status, 'quarantined');
+assert.equal(reorderedTrialAuthority.status, 'repaired-cache');
 assert.deepEqual(
-  reorderedTrialAuthority.raw,
-  reorderedTrialAuthorityFile,
+  (
+    reorderedTrialAuthority.value.fields.authoritative.freeDomains as {
+      real: { trials: Array<{ id: string }> };
+    }
+  ).real.trials.map((trial) => trial.id),
+  ['trial-authority-1', 'trial-authority-2'],
+  'a stale runtime order must be rebuilt from experiment-group authority',
 );
 
 const completeTrialParts = createCompleteProcessReviewFixtureParts();
@@ -893,14 +954,13 @@ const nullTimestampCompletion = projectWorkbenchPersistenceV3File(
   nullTimestampCompletionFile,
   8,
 );
-assert.equal(nullTimestampCompletion.ok, false);
-if (nullTimestampCompletion.ok) {
-  throw new Error('Expected incomplete trial timestamp quarantine.');
+if (!nullTimestampCompletion.ok) {
+  throw new Error(nullTimestampCompletion.diagnostics[0].message);
 }
-assert.equal(nullTimestampCompletion.status, 'quarantined');
-assert.deepEqual(
-  nullTimestampCompletion.raw,
-  nullTimestampCompletionFile,
+assert.equal(
+  nullTimestampCompletion.status,
+  'repaired-cache',
+  'invalid completion data in retired mirrors must be discarded',
 );
 const legalBatchCompletionFile = {
   ...durableHighWaterStarted,
@@ -931,8 +991,8 @@ assert.equal(
       };
     }
   ).freeDomains.real.batch.experimentCompletedAtMs,
-  invalidCompletionStartedAt + 5,
-  'a completed target-sized batch with monotonic identity gaps may advance its completion timestamp',
+  null,
+  'cache-only completion data must not advance experiment-group lifecycle authority',
 );
 
 const opaqueBatchCaptureFile = structuredClone(durableHighWaterStarted);
@@ -1432,10 +1492,29 @@ const membershipBatch = {
   ...heatStartedForMigration.heatCapacityFreeBatch,
   nextTrialSequence: 2,
 };
+const membershipCurrentGroup =
+  heatStartedForMigration.heatCapacityFreeExperimentGroups.groups.find(
+    (group) => (
+      group.id ===
+        heatStartedForMigration.heatCapacityFreeExperimentGroups.currentGroupId
+    ),
+  );
+if (!membershipCurrentGroup) {
+  throw new Error('Expected a current membership experiment group.');
+}
+const membershipGroups = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
+  heatStartedForMigration.heatCapacityFreeExperimentGroups,
+  {
+    ...membershipCurrentGroup.runSeries,
+    batch: membershipBatch,
+    trials: [membershipTrial],
+  },
+);
 const membershipFile = {
   ...heatStartedForMigration,
   heatCapacityFreeBatch: membershipBatch,
   heatCapacityFreeTrials: [membershipTrial],
+  heatCapacityFreeExperimentGroups: membershipGroups,
   heatCapacityFreeRealDomain: {
     ...heatStartedForMigration.heatCapacityFreeRealDomain,
     batch: membershipBatch,
@@ -1450,9 +1529,20 @@ if (!membershipProjection.ok) {
   throw new Error(membershipProjection.diagnostics[0].message);
 }
 const extraCurrentMembershipCaptureFile = structuredClone(membershipFile);
+const extraCurrentMembershipGroup =
+  extraCurrentMembershipCaptureFile.heatCapacityFreeExperimentGroups.groups.find(
+    (group) => (
+      group.id ===
+        extraCurrentMembershipCaptureFile.heatCapacityFreeExperimentGroups.currentGroupId
+    ),
+  );
+if (!extraCurrentMembershipGroup) {
+  throw new Error('Expected a cloned current membership experiment group.');
+}
 for (const trial of [
   extraCurrentMembershipCaptureFile.heatCapacityFreeTrials[0],
   extraCurrentMembershipCaptureFile.heatCapacityFreeRealDomain.trials[0],
+  extraCurrentMembershipGroup.runSeries.trials[0],
 ]) {
   (
     trial.batchMembership as unknown as Record<string, unknown>

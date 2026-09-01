@@ -55,7 +55,7 @@
 - `scripts/`、`build/`：构建、校验、打包和安装器辅助脚本。
 - `public/`：运行时模型、字体、图标、界面素材和生成的第三方许可说明。
 - `resources/`：桌面图标和生成的导出器资源。
-- `docs/`：发布说明、理论资料、仪器建模参考和内部设计记录。
+- `docs/`：统一文档地图、发布说明、理论资料、仪器建模参考、当前待办和独立历史归档；阅读从 `docs/README.md` 开始。
 
 `node_modules/`、`dist/`、`release/`、`output/`、`tmp/` 等依赖或生成目录均被 Git 忽略。
 
@@ -124,7 +124,7 @@ npm.cmd run desktop:dev
 Blender 接入规则位于：
 
 ```text
-docs/instrument-modeling/reference/Blender模型接入规则-v4.0.1.md
+docs/instrument-modeling/adiabatic-expansion/references/instrument/Blender模型接入规则-v4.0.1.md
 ```
 
 ## 许可说明
