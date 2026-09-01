@@ -399,7 +399,6 @@ import {
   IDEAL_RESULT_MAX_HEIGHT_RATIO,
   IDEAL_RESULT_MIN_HEIGHT_RATIO,
   clampIdealResultHeightRatio,
-  idealResultWindowKeys,
   isWorkbenchFileLayoutDefault,
   isIdealResultWindowKey,
   loadWorkbenchLayoutDefaults,
@@ -408,9 +407,19 @@ import {
   persistWorkbenchLayoutDefaults,
   sanitizeWorkbenchLayoutDefaultState,
   sanitizeWorkbenchLayoutDefaults,
-  standardResultsTabKeys,
   type WorkbenchLayoutDefaults,
 } from './workbenchLayoutCompatibility.ts';
+import {
+  activateIdealResultsTab,
+  activateStandardResultsTab,
+  closeIdealResultsWindowLayout,
+  createIdealResultsTabClosePlan,
+  createIdealResultsTabOpenPlan,
+  createStandardResultsTabClosePlan,
+  createStandardResultsTabOpenPlan,
+  getIdealResultsTabState as selectIdealResultsTabState,
+  getStandardResultsTabState as selectStandardResultsTabState,
+} from './workbenchResultsWindowCoordinator.ts';
 import {
   createIdealGasExperimentPoint,
   getIdealFailureReasonText,
@@ -2531,12 +2540,6 @@ const getLocalizedWorkbenchEditLabel = (
   if (language === 'zh-CN') return '工作台操作';
   if (language === 'zh-TW') return '工作台操作';
   return label;
-};
-
-const pickNextOpenTab = <T extends string>(tabs: T[], closingTab: T) => {
-  const closingIndex = tabs.indexOf(closingTab);
-  if (closingIndex < 0) return tabs[0] ?? null;
-  return tabs[closingIndex + 1] ?? tabs[closingIndex - 1] ?? null;
 };
 
 const formatTime = () => new Date().toLocaleTimeString('en-GB', { hour12: false });
@@ -17689,53 +17692,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const normalizeIdealResultLayout = (
-    file: WorkbenchIdealState,
-    visible: boolean,
-    tab: WorkbenchIdealResultWindowKey = file.idealWindowLayout.activeIdealResultTab,
-    openAllTabs = false,
-    replaceOpenTabs = false,
-    defaults = workbenchLayoutDefaults.ideal,
-  ): WorkbenchIdealState => {
-    const currentLayout = normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults);
-    const openTabs = openAllTabs
-      ? idealResultWindowKeys
-      : replaceOpenTabs
-        ? [tab]
-        : currentLayout.openTabs.includes(tab)
-        ? currentLayout.openTabs
-        : [...currentLayout.openTabs, tab];
-    return {
-      ...file,
-      visiblePanels: visible
-        ? [
-            ...file.visiblePanels.filter((panel) => !isIdealResultWindowKey(panel) && panel !== 'results'),
-            'results',
-          ]
-        : file.visiblePanels.filter((panel) => !isIdealResultWindowKey(panel) && panel !== 'results'),
-      idealWindowLayout: {
-        ...currentLayout,
-        openTabs,
-        activeIdealResultTab: tab,
-        heightRatio: clampIdealResultHeightRatio(currentLayout.heightRatio),
-      },
-      updatedAt: Date.now(),
-    };
-  };
-
   const setActiveIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
     if (activeFile.kind !== 'ideal') return;
     setSelectedPanel(tab);
     updateActiveFile((file) => {
       if (file.kind !== 'ideal') return file;
-      return {
-        ...file,
-        idealWindowLayout: {
-          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, workbenchLayoutDefaults.ideal),
-          activeIdealResultTab: tab,
-        },
-        updatedAt: Date.now(),
-      };
+      return activateIdealResultsTab(file, tab, workbenchLayoutDefaults.ideal);
     });
   };
 
@@ -17744,19 +17706,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setResultsChildrenCollapsed(false);
     setSelectedPanel(tab);
 
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
-    const nextOpenTabs = options.openAllTabs
-      ? idealResultWindowKeys
-      : options.replaceOpenTabs
-        ? [tab]
-        : layout.openTabs.includes(tab)
-        ? layout.openTabs
-        : [...layout.openTabs, tab];
-    const isLayoutChange = !activeFile.visiblePanels.includes('results')
-      || nextOpenTabs.length !== layout.openTabs.length
-      || nextOpenTabs.some((item) => !layout.openTabs.includes(item));
+    const openPlan = createIdealResultsTabOpenPlan(
+      activeFile,
+      tab,
+      options,
+      workbenchLayoutDefaults.ideal,
+    );
 
-    if (!isLayoutChange) {
+    if (!openPlan.layoutChanged) {
       setActiveIdealResultTab(tab);
       return;
     }
@@ -17767,7 +17724,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
     updateActiveFile((file) => {
       if (file.kind !== 'ideal') return file;
-      return normalizeIdealResultLayout(file, true, tab, Boolean(options.openAllTabs), Boolean(options.replaceOpenTabs));
+      return createIdealResultsTabOpenPlan(
+        file,
+        tab,
+        options,
+        workbenchLayoutDefaults.ideal,
+      ).nextFile;
     });
     pushLog(
       (language) => workbenchCopies[language].logs.idealResultsOpened(
@@ -17793,7 +17755,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (recordUndo) captureUndoSnapshot('closed ideal Results window', 'presentation');
     updateActiveFile((file) => {
       if (file.kind !== 'ideal') return file;
-      return normalizeIdealResultLayout(file, false);
+      return closeIdealResultsWindowLayout(file, workbenchLayoutDefaults.ideal);
     });
     if (isIdealResultWindowKey(selectedPanel)) setSelectedPanel('preview');
     pushLog(
@@ -17803,34 +17765,31 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const closeIdealResultTab = (tab: WorkbenchIdealResultWindowKey) => {
     if (activeFile.kind !== 'ideal') return;
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
-    if (!layout.openTabs.includes(tab)) return;
+    const closePlan = createIdealResultsTabClosePlan(
+      activeFile,
+      tab,
+      workbenchLayoutDefaults.ideal,
+    );
+    if (closePlan.kind === 'ignored') return;
 
     captureUndoSnapshot(
       `closed ${idealResultWindowPanels.find((panel) => panel.key === tab)?.title ?? tab} tab`,
       'presentation',
     );
-    if (layout.openTabs.length <= 1) {
+    if (closePlan.kind === 'close-window') {
       closeIdealResultsWindow(false);
       return;
     }
 
-    const nextOpenTabs = layout.openTabs.filter((item) => item !== tab);
-    const nextActiveTab = layout.activeIdealResultTab === tab
-      ? pickNextOpenTab(layout.openTabs, tab) ?? nextOpenTabs[0]
-      : layout.activeIdealResultTab;
-    setSelectedPanel(nextActiveTab);
+    setSelectedPanel(closePlan.activeTab);
     updateActiveFile((file) => {
       if (file.kind !== 'ideal') return file;
-      return {
-        ...file,
-        idealWindowLayout: {
-          ...normalizeIdealWindowLayoutState(file.idealWindowLayout, workbenchLayoutDefaults.ideal),
-          openTabs: nextOpenTabs,
-          activeIdealResultTab: nextActiveTab,
-        },
-        updatedAt: Date.now(),
-      };
+      const nextPlan = createIdealResultsTabClosePlan(
+        file,
+        tab,
+        workbenchLayoutDefaults.ideal,
+      );
+      return nextPlan.kind === 'close-tab' ? nextPlan.nextFile : file;
     });
   };
 
@@ -17839,14 +17798,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setSelectedPanel('results');
     updateActiveFile((file) => {
       if (file.kind !== 'standard') return file;
-      return {
-        ...file,
-        standardResultsLayout: {
-          ...normalizeStandardResultsLayout(file.standardResultsLayout),
-          activeTab: tab,
-        },
-        updatedAt: Date.now(),
-      };
+      return activateStandardResultsTab(file, tab);
     });
   };
 
@@ -17855,19 +17807,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setResultsChildrenCollapsed(false);
     setSelectedPanel('results');
 
-    const layout = normalizeStandardResultsLayout(activeFile.standardResultsLayout);
-    const nextOpenTabs = openAllTabs
-      ? standardResultsTabKeys
-      : replaceOpenTabs
-        ? [tab]
-        : layout.openTabs.includes(tab)
-        ? layout.openTabs
-        : [...layout.openTabs, tab];
-    const isLayoutChange = !activeFile.visiblePanels.includes('results')
-      || nextOpenTabs.length !== layout.openTabs.length
-      || nextOpenTabs.some((item) => !layout.openTabs.includes(item));
+    const options = { openAllTabs, replaceOpenTabs };
+    const openPlan = createStandardResultsTabOpenPlan(activeFile, tab, options);
 
-    if (!isLayoutChange) {
+    if (!openPlan.layoutChanged) {
       setActiveStandardResultsTab(tab);
       return;
     }
@@ -17878,16 +17821,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
     updateActiveFile((file) => {
       if (file.kind !== 'standard') return file;
-      return {
-        ...file,
-        visiblePanels: file.visiblePanels.includes('results') ? file.visiblePanels : [...file.visiblePanels, 'results'],
-        standardResultsLayout: {
-          ...normalizeStandardResultsLayout(file.standardResultsLayout),
-          openTabs: nextOpenTabs,
-          activeTab: tab,
-        },
-        updatedAt: Date.now(),
-      };
+      return createStandardResultsTabOpenPlan(file, tab, options).nextFile;
     });
     pushLog(
       (language) => workbenchCopies[language].logs.standardResultsOpened(
@@ -17899,33 +17833,22 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const closeStandardResultsTab = (tab: WorkbenchStandardResultsTab) => {
     if (activeFile.kind !== 'standard') return;
-    const layout = normalizeStandardResultsLayout(activeFile.standardResultsLayout);
-    if (!layout.openTabs.includes(tab)) return;
+    const closePlan = createStandardResultsTabClosePlan(activeFile, tab);
+    if (closePlan.kind === 'ignored') return;
 
     captureUndoSnapshot(
       `closed ${resultsSections.find((section) => section.key === tab)?.title ?? tab} tab`,
       'presentation',
     );
-    if (layout.openTabs.length <= 1) {
+    if (closePlan.kind === 'close-window') {
       closePanel('results', false);
       return;
     }
 
-    const nextOpenTabs = layout.openTabs.filter((item) => item !== tab);
-    const nextActiveTab = layout.activeTab === tab
-      ? pickNextOpenTab(layout.openTabs, tab) ?? nextOpenTabs[0]
-      : layout.activeTab;
     updateActiveFile((file) => {
       if (file.kind !== 'standard') return file;
-      return {
-        ...file,
-        standardResultsLayout: {
-          ...normalizeStandardResultsLayout(file.standardResultsLayout),
-          openTabs: nextOpenTabs,
-          activeTab: nextActiveTab,
-        },
-        updatedAt: Date.now(),
-      };
+      const nextPlan = createStandardResultsTabClosePlan(file, tab);
+      return nextPlan.kind === 'close-tab' ? nextPlan.nextFile : file;
     });
   };
 
@@ -18289,17 +18212,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const getIdealResultTabState = (tab: WorkbenchIdealResultWindowKey) => {
-    if (activeFile.kind !== 'ideal' || !activeFile.visiblePanels.includes('results')) return 'off';
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
-    if (layout.activeIdealResultTab === tab) return 'active';
-    return layout.openTabs.includes(tab) ? 'open' : 'off';
+    if (activeFile.kind !== 'ideal') return 'off';
+    return selectIdealResultsTabState(activeFile, tab, workbenchLayoutDefaults.ideal);
   };
 
   const getStandardResultsTabState = (tab: WorkbenchStandardResultsTab) => {
-    if (activeFile.kind !== 'standard' || !activeFile.visiblePanels.includes('results')) return 'off';
-    const layout = normalizeStandardResultsLayout(activeFile.standardResultsLayout);
-    if (layout.activeTab === tab) return 'active';
-    return layout.openTabs.includes(tab) ? 'open' : 'off';
+    if (activeFile.kind !== 'standard') return 'off';
+    return selectStandardResultsTabState(activeFile, tab);
   };
 
   const getLocalizedTreeState = (state: 'locked' | 'shown' | 'open' | 'active' | 'off') => workbenchCopy.files[state];

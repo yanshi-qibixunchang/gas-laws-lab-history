@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
@@ -37,8 +38,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const pickNextOpenTab = <T extends string>\(tabs: T\[], closingTab: T\)/,
+  coordinatorSource,
+  /const pickNextOpenTab = <TTab extends string>\(tabs: TTab\[], closingTab: TTab\)/,
   'closing an active Results tab should use shared right-side-first tab selection',
 );
 
@@ -84,8 +85,8 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /replaceOpenTabs\s*\?\s*\[tab\]\s*:/,
+  coordinatorSource,
+  /options\.replaceOpenTabs\s*\?\s*\[requestedTab\]\s*:/,
   'standard Results single-child open should replace default open tabs with only the selected tab',
 );
 
@@ -96,4 +97,3 @@ assert.match(
 );
 
 console.log('workbenchStandardResultsClosableTabs tests passed');
-
