@@ -2,9 +2,14 @@
 import assert from 'node:assert/strict';
 
 const workbenchSource = fs.readFileSync('src/features/workbench/WorkbenchStudioPrototype.tsx', 'utf8');
+const realtimePanelSource = fs.readFileSync(
+  'src/features/workbench/WorkbenchSimulationRealtimePanel.tsx',
+  'utf8',
+);
+const displaySource = `${workbenchSource}\n${realtimePanelSource}`;
 
 assert.doesNotMatch(
-  workbenchSource,
+  displaySource,
   /relativeGap\s*\*\s*100/,
   'Workbench ideal-gas relativeGap is already stored as percentage points and must not be multiplied by 100 for display.',
 );
@@ -15,11 +20,10 @@ assert.doesNotMatch(
   'formatMetric(point.relativeGap, 2)',
 ].forEach((displayExpression) => {
   assert.ok(
-    workbenchSource.includes(displayExpression),
+    displaySource.includes(displayExpression),
     `Workbench ideal-gas relativeGap should be displayed directly: ${displayExpression}`,
   );
 });
 
 console.log('workbenchIdealRelativeGapDisplay tests passed');
-
 

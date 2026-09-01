@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
 const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
@@ -197,7 +198,7 @@ assert.doesNotMatch(
   'ideal Results should no longer render a front result layer',
 );
 assert.match(
-  source,
+  realtimePanelSource,
   /studio-realtime-summary-ideal/,
   'ideal realtime summary should use an ideal-only layout class',
 );
@@ -207,7 +208,7 @@ assert.match(
   'ideal realtime summary should use a 3-column grid instead of the standard 6-column strip',
 );
 assert.match(
-  source,
+  realtimePanelSource,
   /studio-realtime-summary-standard/,
   'standard realtime summary should also use a dedicated comfortable layout class',
 );
@@ -217,7 +218,7 @@ assert.match(
   'standard realtime summary should use a 3-column grid instead of truncating six metrics in one row',
 );
 assert.match(
-  source,
+  realtimePanelSource,
   /studio-ideal-point-strip/,
   'ideal realtime current point summary should render as a compact strip',
 );

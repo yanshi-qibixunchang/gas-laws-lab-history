@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const copySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
-const renderSource = source.slice(source.indexOf('const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps>'));
+const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
+const renderSource = `${source.slice(source.indexOf('const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps>'))}\n${realtimePanelSource}`;
 
 for (const copyField of [
   'standardRealtimeEmpty: string;',

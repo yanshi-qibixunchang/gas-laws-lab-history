@@ -2,6 +2,10 @@
 import assert from 'node:assert/strict';
 
 const workbenchSource = fs.readFileSync('src/features/workbench/WorkbenchStudioPrototype.tsx', 'utf8');
+const realtimePanelSource = fs.readFileSync(
+  'src/features/workbench/WorkbenchSimulationRealtimePanel.tsx',
+  'utf8',
+);
 const workbenchStudioCopySource = fs.readFileSync('src/features/workbench/workbenchStudioCopy.ts', 'utf8');
 const engineSource = fs.readFileSync('src/domain/hardSphere/PhysicsEngine.ts', 'utf8');
 
@@ -43,12 +47,18 @@ assert.match(
 
 assert.match(
   workbenchSource,
-  /sampleCount\s*=\s*activeFile\.kind\s*===\s*'standard'\s*\?\s*runtime\?\.engine\.getCollectedSampleCount\(\)/,
+  /standardSampleCount=\{[\s\S]*?activeFile\.kind\s*===\s*'standard'[\s\S]*?standardRuntimeRef\.current\[activeFile\.id\]\?\.engine\.getCollectedSampleCount\(\)/,
   'standard realtime charts should use accumulated collected samples, not current histogram particle counts.',
 );
 
+assert.match(
+  realtimePanelSource,
+  /standardSampleCount\s*>\s*0[\s\S]*?sampleWindows\(standardSampleCount\)/,
+  'the realtime panel should display the accumulated sampling-window count supplied by the workbench.',
+);
+
 assert.doesNotMatch(
-  workbenchSource,
+  `${workbenchSource}\n${realtimePanelSource}`,
   /const\s+sampleCount\s*=\s*getHistogramSampleCount\(bins\)/,
   'standard realtime chart sample count should not be derived from the current frame histogram bins.',
 );
@@ -60,4 +70,3 @@ assert.match(
 );
 
 console.log('workbenchStandardRealtimeSamples tests passed');
-
