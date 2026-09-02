@@ -414,13 +414,13 @@ export const prepareHeatCapacityFreeCapture = (
         nextTrialSequence: selectPositiveSafeHighWater(
           storedGroupDomain.batch.nextTrialSequence,
           flatRuntimeMatchesGroup
-            ? file.heatCapacityFreeBatch.nextTrialSequence
+            ? file.heatCapacityFreeRunWorkspace.batch.nextTrialSequence
             : undefined,
         ),
         nextTraceTrialIndex: selectPositiveSafeHighWater(
           storedGroupDomain.traceStore.nextTraceTrialIndex,
           flatRuntimeMatchesGroup
-            ? file.heatCapacityFreeTraceStore.nextTraceTrialIndex
+            ? file.heatCapacityFreeRunWorkspace.traceStore.nextTraceTrialIndex
             : undefined,
         ),
       },
@@ -542,10 +542,10 @@ export const prepareHeatCapacityFreeCapture = (
     const dormantProjection = decodeCanonicalDomain(
       {
         ...storedActive.value,
-        batch: file.heatCapacityFreeBatch,
-        traceStore: file.heatCapacityFreeTraceStore,
-        trials: file.heatCapacityFreeTrials,
-        activeAttempt: file.heatCapacityFreeActiveAttempt,
+        batch: file.heatCapacityFreeRunWorkspace.batch,
+        traceStore: file.heatCapacityFreeRunWorkspace.traceStore,
+        trials: file.heatCapacityFreeRunWorkspace.trials,
+        activeAttempt: file.heatCapacityFreeRunWorkspace.activeAttempt,
       },
       scheme,
       scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,

@@ -52,8 +52,8 @@ assert.equal(pumpedOffAdvanced.temperatureSignalMv, null);
 assert.ok(pumpedOffAdvanced.heatCapacityFreePhysicsState.gasAmountRatio > 1);
 assert.ok(pumpedOffAdvanced.pressureDeltaKPa > 0);
 assert.ok(pumpedOffAdvanced.pressureGaugeDisplayValue > 0, 'mechanical gauge must respond while power is off');
-assert.equal(pumpedOffAdvanced.heatCapacityFreeActiveAttempt?.startReason, 'effective-pump');
-assert.equal(pumpedOffAdvanced.heatCapacityFreeActiveAttempt?.preheatOutcome, 'omitted');
+assert.equal(pumpedOffAdvanced.heatCapacityFreeRunWorkspace.activeAttempt?.startReason, 'effective-pump');
+assert.equal(pumpedOffAdvanced.heatCapacityFreeRunWorkspace.activeAttempt?.preheatOutcome, 'omitted');
 assert.equal(pumpedOffAdvanced.heatCapacityFreePreheatCompleted, false);
 
 const poweredAfterOmission = powerHeatCapacityWorkbenchFile(pumpedOffAdvanced, true, 1_200);
@@ -64,7 +64,7 @@ assert.equal(
 );
 
 const resetOmitted = resetHeatCapacityFreeRunWorkbenchState(poweredAfterOmission, 1_300);
-assert.equal(resetOmitted.heatCapacityFreeActiveAttempt, null);
+assert.equal(resetOmitted.heatCapacityFreeRunWorkspace.activeAttempt, null);
 assert.equal(resetOmitted.heatCapacityFreePreheatCompleted, false);
 assert.equal(resetOmitted.heatCapacityFreeSensorState.pressureInitialBiasMv, initialBias);
 const nextPowerOn = powerHeatCapacityWorkbenchFile(resetOmitted, true, 1_400);
@@ -83,8 +83,8 @@ const createWaitingAttempt = () => {
 };
 
 const invalidByReopen = setHeatCapacityFreePumpValveOpen(createWaitingAttempt(), true, 6_530);
-assert.equal(invalidByReopen.heatCapacityFreeActiveAttempt?.status, 'invalid');
-assert.equal(invalidByReopen.heatCapacityFreeActiveAttempt?.invalidReason, 'reopen-pump-valve-during-u1');
+assert.equal(invalidByReopen.heatCapacityFreeRunWorkspace.activeAttempt?.status, 'invalid');
+assert.equal(invalidByReopen.heatCapacityFreeRunWorkspace.activeAttempt?.invalidReason, 'reopen-pump-valve-during-u1');
 
 const invalidByZero = setHeatCapacityPressureZeroOffset(
   createWaitingAttempt(),
@@ -93,17 +93,17 @@ const invalidByZero = setHeatCapacityPressureZeroOffset(
   90,
   6_531,
 );
-assert.equal(invalidByZero.heatCapacityFreeActiveAttempt?.invalidReason, 'zero-after-effective-pump');
+assert.equal(invalidByZero.heatCapacityFreeRunWorkspace.activeAttempt?.invalidReason, 'zero-after-effective-pump');
 
 let invalidByEarlyRelease = setHeatCapacityFreeStopcockOpen(createWaitingAttempt(), true, 6_532);
 invalidByEarlyRelease = stepHeatCapacityWorkbenchFile(invalidByEarlyRelease, 7_032);
-assert.equal(invalidByEarlyRelease.heatCapacityFreeActiveAttempt?.invalidReason, 'release-before-u1');
+assert.equal(invalidByEarlyRelease.heatCapacityFreeRunWorkspace.activeAttempt?.invalidReason, 'release-before-u1');
 assert.equal(getHeatCapacityFreeRecordButtonState(invalidByEarlyRelease, 'u1').visible, false);
 assert.equal(deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(invalidByEarlyRelease).stage, 'idle');
 
 const powerOffWaiting = powerHeatCapacityWorkbenchFile(createWaitingAttempt(), false, 6_540);
 const invalidByPowerOff = evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState(powerOffWaiting, 66_540);
-assert.equal(invalidByPowerOff.heatCapacityFreeActiveAttempt?.invalidReason, 'power-off-timeout');
+assert.equal(invalidByPowerOff.heatCapacityFreeRunWorkspace.activeAttempt?.invalidReason, 'power-off-timeout');
 
 const delayedPowerToggleSource = createWaitingAttempt();
 const beforeDelayedPowerToggleS = delayedPowerToggleSource.heatCapacityFreePhysicsState.simulationTimeS;
@@ -130,7 +130,7 @@ let normal = setHeatCapacityFreePumpValveOpen(preheated, true, 6_410);
 normal = registerHeatCapacityPumpStroke(normal, 6_420);
 normal = stepHeatCapacityWorkbenchFile(normal, 6_540);
 normal = setHeatCapacityFreePumpValveOpen(normal, false, 6_550);
-assert.equal(normal.heatCapacityFreeActiveAttempt?.stage, 'waiting-u1');
+assert.equal(normal.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'waiting-u1');
 assert.equal(deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(normal).stage, 'u1-wait');
 assert.deepEqual(
   getHeatCapacityFreeRecordButtonState(normal, 'u1'),
@@ -139,28 +139,28 @@ assert.deepEqual(
 
 const u1 = applyHeatCapacityFreeRecordWorkbenchState(normal, 'u1', 6_560);
 assert.equal(u1.accepted, true);
-assert.equal(u1.file.heatCapacityFreeTrials[0]?.u0, null);
-assert.notEqual(u1.file.heatCapacityFreeTrials[0]?.u1, null);
+assert.equal(u1.file.heatCapacityFreeRunWorkspace.trials[0]?.u0, null);
+assert.notEqual(u1.file.heatCapacityFreeRunWorkspace.trials[0]?.u1, null);
 
 normal = setHeatCapacityFreeStopcockOpen(u1.file, true, 6_570);
 normal = stepHeatCapacityWorkbenchFile(normal, 7_070);
-assert.equal(normal.heatCapacityFreeActiveAttempt?.stage, 'releasing');
+assert.equal(normal.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'releasing');
 normal = stepHeatCapacityWorkbenchFile(normal, 7_320);
 normal = setHeatCapacityFreeStopcockOpen(normal, false, 7_320);
 normal = stepHeatCapacityWorkbenchFile(normal, 7_820);
-assert.equal(normal.heatCapacityFreeActiveAttempt?.stage, 'waiting-u2');
+assert.equal(normal.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'waiting-u2');
 assert.equal(deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(normal).stage, 'u2-wait');
 
 normal = setHeatCapacityFreeEquilibriumSpeedMultiplier(normal, 16, 7_830);
 normal = stepHeatCapacityWorkbenchFile(normal, 27_830);
 const u2 = applyHeatCapacityFreeRecordWorkbenchState(normal, 'u2', 27_840);
 assert.equal(u2.accepted, true);
-assert.equal(u2.file.heatCapacityFreeTrials[0]?.correctedSignals?.u0Source, 'assumed-zero');
-assert.equal(u2.file.heatCapacityFreeTrials[0]?.correctedSignals?.U0DisplayMv, 0);
-assert.equal(u2.file.heatCapacityFreeTrials[0]?.preheatOutcome, 'completed');
+assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.correctedSignals?.U0DisplayMv, 0);
+assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.preheatOutcome, 'completed');
 
 const completed = powerHeatCapacityWorkbenchFile(u2.file, false, 27_850);
-assert.equal(completed.heatCapacityFreeActiveAttempt, null);
-assert.notEqual(completed.heatCapacityFreeTrials[0]?.completedAtMs, null);
+assert.equal(completed.heatCapacityFreeRunWorkspace.activeAttempt, null);
+assert.notEqual(completed.heatCapacityFreeRunWorkspace.trials[0]?.completedAtMs, null);
 
 console.log('workbenchHeatCapacityFreeAttemptIntegration tests passed');

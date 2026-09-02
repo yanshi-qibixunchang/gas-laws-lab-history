@@ -154,7 +154,7 @@ const completeNaturalFreeGroup = (
   );
   assert.equal(u2.accepted, true);
   file = powerHeatCapacityWorkbenchFile(u2.file, false, advanceClock(clock, 100));
-  assert.notEqual(file.heatCapacityFreeTrials.at(-1)?.completedAtMs, null);
+  assert.notEqual(file.heatCapacityFreeRunWorkspace.trials.at(-1)?.completedAtMs, null);
   return file;
 };
 
@@ -189,7 +189,7 @@ for (let groupIndex = 0; groupIndex < 3; groupIndex += 1) {
   }
 }
 assert.deepEqual(
-  replacement.heatCapacityFreeTrials.map((trial) => trial.batchMembership?.sequence),
+  replacement.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.batchMembership?.sequence),
   [1, 2, 3],
 );
 replacement = removeHeatCapacityFreeTrialRecordWorkbenchState(
@@ -199,7 +199,7 @@ replacement = removeHeatCapacityFreeTrialRecordWorkbenchState(
   advanceClock(replacementClock, 100),
 );
 assert.deepEqual(
-  replacement.heatCapacityFreeTrials.map((trial) => trial.batchMembership?.sequence),
+  replacement.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.batchMembership?.sequence),
   [1, 3],
 );
 assertFreeModeSessionPersistable(
@@ -236,12 +236,12 @@ const replacementU0 = applyHeatCapacityFreeRecordWorkbenchState(
 );
 assert.equal(replacementU0.accepted, true);
 assert.equal(
-  new Set(replacementU0.file.heatCapacityFreeTrials.map((trial) => trial.id)).size,
-  replacementU0.file.heatCapacityFreeTrials.length,
+  new Set(replacementU0.file.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.id)).size,
+  replacementU0.file.heatCapacityFreeRunWorkspace.trials.length,
   'a replacement group must receive a stable internal identity that was never reused',
 );
 assert.deepEqual(
-  replacementU0.file.heatCapacityFreeTrials.map(
+  replacementU0.file.heatCapacityFreeRunWorkspace.trials.map(
     (trial) => trial.batchMembership?.sequence,
   ),
   [1, 3, 4],

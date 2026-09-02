@@ -629,7 +629,12 @@ const renderFreeDataAndResultsTab = (
     result.trialResults.map((trial) => [trial.trialId, trial]),
   );
   const displayTrialSource = {
-    heatCapacityFreeTrials: displayedTrials,
+    heatCapacityFreeRunWorkspace: {
+      batch: displayedDomain.batch,
+      traceStore: displayedDomain.traceStore,
+      trials: displayedTrials,
+      activeAttempt: displayedDomain.activeAttempt,
+    },
     powerOn: displayMatchesActiveDomain ? file.powerOn : false,
     heatCapacityFreeExperimentGroupStatus: viewedGroup?.status === 'draft'
       ? 'draft' as const
@@ -698,7 +703,9 @@ const renderFreeDataAndResultsTab = (
   const renderCurrentFreeRecordRow = (
     key: string,
     label: string,
-    record: NonNullable<WorkbenchHeatCapacityState['heatCapacityFreeTrials'][number]['u0']> | null,
+    record: NonNullable<
+      WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['trials'][number]['u0']
+    > | null,
     action: React.ReactNode,
   ) => (
     <div className="studio-heat-sample-row" key={key}>

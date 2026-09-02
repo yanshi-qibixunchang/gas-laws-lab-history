@@ -63,7 +63,14 @@ const createStableFreeU1File = (): WorkbenchHeatCapacityState => {
     pumpStrokeCount: 9,
     pressureSafetyStatus: 'normal',
     heatCapacityFreeExperimentGroupStatus: 'running',
-    heatCapacityFreeActiveAttempt: createWaitingU1Attempt(),
+    heatCapacityFreeRunWorkspace: {
+      ...base.heatCapacityFreeRunWorkspace,
+      activeAttempt: createWaitingU1Attempt(),
+      trials: [{
+        ...createHeatCapacityFreeTrial('free-trial-1'),
+        u0,
+      }],
+    },
     heatCapacityFreePhysicsState: {
       ...base.heatCapacityFreePhysicsState,
       simulationTimeS: 60,
@@ -94,10 +101,6 @@ const createStableFreeU1File = (): WorkbenchHeatCapacityState => {
       }],
       automaticU0: null,
     },
-    heatCapacityFreeTrials: [{
-      ...createHeatCapacityFreeTrial('free-trial-1'),
-      u0,
-    }],
   };
 };
 
@@ -172,7 +175,10 @@ const createNoisyFreeU0File = (): WorkbenchHeatCapacityState => {
       { atMs: 18_200, valueMv: -0.2 },
       { atMs: 18_300, valueMv: 0.1 },
     ],
-    heatCapacityFreeTrials: [createHeatCapacityFreeTrial('free-trial-1')],
+    heatCapacityFreeRunWorkspace: {
+      ...base.heatCapacityFreeRunWorkspace,
+      trials: [createHeatCapacityFreeTrial('free-trial-1')],
+    },
   };
 };
 
@@ -219,7 +225,7 @@ const createReleasedAfterU1File = (): WorkbenchHeatCapacityState => {
     20_000,
   ).file;
   const releasingAttempt = transitionHeatCapacityFreeAttempt(
-    u1File.heatCapacityFreeActiveAttempt!,
+    u1File.heatCapacityFreeRunWorkspace.activeAttempt!,
     attemptEvent('release-started', 65),
   );
   const waitingU2Attempt = transitionHeatCapacityFreeAttempt(
@@ -228,7 +234,10 @@ const createReleasedAfterU1File = (): WorkbenchHeatCapacityState => {
   );
   return {
     ...u1File,
-    heatCapacityFreeActiveAttempt: waitingU2Attempt,
+    heatCapacityFreeRunWorkspace: {
+      ...u1File.heatCapacityFreeRunWorkspace,
+      activeAttempt: waitingU2Attempt,
+    },
     heatCapacityPhase: 'recovering',
     heatCapacityFreePhysicsState: {
       ...u1File.heatCapacityFreePhysicsState,
@@ -262,12 +271,12 @@ const u1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
 assert.equal(u1Attempt.accepted, true);
 assert.equal(u1Attempt.reason, 'accepted');
 assert.equal(u1Attempt.trialIndex, 0);
-assert.equal(u1Attempt.file.heatCapacityFreeTrials.length, 1);
-assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u0?.zeroEventId, 'zero-1');
-assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 91.1);
-assert.equal(u1Attempt.file.heatCapacityFreeTrials[0].u1?.zeroEventId, 'zero-1');
+assert.equal(u1Attempt.file.heatCapacityFreeRunWorkspace.trials.length, 1);
+assert.equal(u1Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u0?.zeroEventId, 'zero-1');
+assert.equal(u1Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u1?.displayPressureMv, 91.1);
+assert.equal(u1Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u1?.zeroEventId, 'zero-1');
 assert.equal(
-  u1Attempt.file.heatCapacityFreeTraceStore.traceTrials.length,
+  u1Attempt.file.heatCapacityFreeRunWorkspace.traceStore.traceTrials.length,
   1,
   'accepted U1 should attach a trace event without requiring React updater side effects',
 );
@@ -306,7 +315,7 @@ assert.equal(
 );
 assert.equal(repeatedU0AfterEnteringU1Attempt.reason, 'invalid-sequence');
 assert.equal(
-  repeatedU0AfterEnteringU1Attempt.file.heatCapacityFreeTrials[0].u0?.displayPressureMv,
+  repeatedU0AfterEnteringU1Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u0?.displayPressureMv,
   0,
   'blocked repeated U0 should keep the original U0 value',
 );
@@ -328,8 +337,8 @@ assert.equal(
   true,
   'U1 should be overwritable while the experiment is still before release',
 );
-assert.equal(repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 92.3);
-assert.equal(repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeTrials[0].u2, null);
+assert.equal(repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeRunWorkspace.trials[0].u1?.displayPressureMv, 92.3);
+assert.equal(repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeRunWorkspace.trials[0].u2, null);
 
 const u2BeforeReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
   repeatedU1BeforeReleaseAttempt.file,
@@ -345,10 +354,13 @@ assert.equal(u2BeforeReleaseAttempt.reason, 'release-not-started');
 
 const staleU1DuringFreshZeroingFile: WorkbenchHeatCapacityState = {
   ...repeatedU1BeforeReleaseAttempt.file,
-  heatCapacityFreeActiveAttempt: transitionHeatCapacityFreeAttempt(
-    repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeActiveAttempt!,
-    attemptEvent('zero-adjusted', 61),
-  ),
+  heatCapacityFreeRunWorkspace: {
+    ...repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeRunWorkspace,
+    activeAttempt: transitionHeatCapacityFreeAttempt(
+      repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeRunWorkspace.activeAttempt!,
+      attemptEvent('zero-adjusted', 61),
+    ),
+  },
   heatCapacityPhase: 'readyToZero',
   pressureZeroed: false,
   pressureZeroAdjusted: true,
@@ -420,10 +432,13 @@ assert.deepEqual(
 
 const releaseFlowStillOpenFile: WorkbenchHeatCapacityState = {
   ...visualReleaseOpeningAfterU1File,
-  heatCapacityFreeActiveAttempt: transitionHeatCapacityFreeAttempt(
-    visualReleaseOpeningAfterU1File.heatCapacityFreeActiveAttempt!,
-    attemptEvent('release-started', 60.42),
-  ),
+  heatCapacityFreeRunWorkspace: {
+    ...visualReleaseOpeningAfterU1File.heatCapacityFreeRunWorkspace,
+    activeAttempt: transitionHeatCapacityFreeAttempt(
+      visualReleaseOpeningAfterU1File.heatCapacityFreeRunWorkspace.activeAttempt!,
+      attemptEvent('release-started', 60.42),
+    ),
+  },
   heatCapacityPhase: 'releasing',
   heatCapacityReleaseState: {
     ...visualReleaseOpeningAfterU1File.heatCapacityReleaseState,
@@ -476,7 +491,7 @@ const u2AfterReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
   20_500,
 );
 assert.equal(u2AfterReleaseAttempt.accepted, true);
-assert.equal(u2AfterReleaseAttempt.file.heatCapacityFreeTrials[0].u2?.displayPressureMv, 25.4);
+assert.equal(u2AfterReleaseAttempt.file.heatCapacityFreeRunWorkspace.trials[0].u2?.displayPressureMv, 25.4);
 
 const repeatedU2AfterReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
   {
@@ -495,7 +510,7 @@ assert.equal(
   true,
   'U2 should stay overwritable after release while the U2 record condition is satisfied',
 );
-assert.equal(repeatedU2AfterReleaseAttempt.file.heatCapacityFreeTrials[0].u2?.displayPressureMv, 27.8);
+assert.equal(repeatedU2AfterReleaseAttempt.file.heatCapacityFreeRunWorkspace.trials[0].u2?.displayPressureMv, 27.8);
 
 const overAlarmU1Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createStableOverAlarmFreeU1File(),
@@ -508,7 +523,7 @@ assert.equal(
   'a stable over-alarm Free U1 should be recordable because the alarm only blocks further pumping',
 );
 assert.equal(overAlarmU1Attempt.reason, 'accepted');
-assert.equal(overAlarmU1Attempt.file.heatCapacityFreeTrials[0].u1?.displayPressureMv, 151.9);
+assert.equal(overAlarmU1Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u1?.displayPressureMv, 151.9);
 
 const noisyU0Attempt = applyHeatCapacityFreeRecordWorkbenchState(
   createNoisyFreeU0File(),
@@ -520,8 +535,8 @@ assert.equal(
   true,
   'Free Mode U0 should keep only the U0/U1/U2 order gate and should not require the strict zeroed sample window',
 );
-assert.equal(noisyU0Attempt.file.heatCapacityFreeTrials[0].u0?.displayPressureMv, 0.1);
-assert.equal(noisyU0Attempt.file.heatCapacityFreeTrials[0].u0?.displayTemperatureMv, 1499);
+assert.equal(noisyU0Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u0?.displayPressureMv, 0.1);
+assert.equal(noisyU0Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u0?.displayTemperatureMv, 1499);
 assert.equal(
   deriveHeatCapacityFreeWorkflowStage(noisyU0Attempt.file),
   'zeroing',
@@ -552,7 +567,7 @@ assert.equal(
   true,
   'U0 should be overwritable before the user closes the glass stopcock',
 );
-assert.equal(repeatedU0WhileZeroingAttempt.file.heatCapacityFreeTrials[0].u0?.displayPressureMv, 0.3);
+assert.equal(repeatedU0WhileZeroingAttempt.file.heatCapacityFreeRunWorkspace.trials[0].u0?.displayPressureMv, 0.3);
 const closedAfterU0File = {
   ...repeatedU0WhileZeroingAttempt.file,
   stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
@@ -604,9 +619,9 @@ assert.equal(
   true,
   'Free Mode U0 should not require a zero-calibration event when strict readiness is disabled',
 );
-assert.equal(unzeroedU0Attempt.file.heatCapacityFreeTrials[0].u0?.zeroEventId, 'free-unzeroed-0');
-const unzeroedU0Record = unzeroedU0Attempt.file.heatCapacityFreeTrials[0].u0;
-const unzeroedTraceTrial = unzeroedU0Attempt.file.heatCapacityFreeTraceStore.traceTrials.find(
+assert.equal(unzeroedU0Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u0?.zeroEventId, 'free-unzeroed-0');
+const unzeroedU0Record = unzeroedU0Attempt.file.heatCapacityFreeRunWorkspace.trials[0].u0;
+const unzeroedTraceTrial = unzeroedU0Attempt.file.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find(
   (trial) => trial.id === unzeroedU0Record?.traceTrialId,
 );
 const unzeroedTraceBranch = unzeroedTraceTrial?.branches.find(
@@ -695,9 +710,9 @@ const removeU2Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
   'u2',
   22_000,
 );
-assert.equal(removeU2Rollback.heatCapacityFreeTrials[0].u0 !== null, true);
-assert.equal(removeU2Rollback.heatCapacityFreeTrials[0].u1 !== null, true);
-assert.equal(removeU2Rollback.heatCapacityFreeTrials[0].u2, null);
+assert.equal(removeU2Rollback.heatCapacityFreeRunWorkspace.trials[0].u0 !== null, true);
+assert.equal(removeU2Rollback.heatCapacityFreeRunWorkspace.trials[0].u1 !== null, true);
+assert.equal(removeU2Rollback.heatCapacityFreeRunWorkspace.trials[0].u2, null);
 assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU2Rollback), 'beforeRelease');
 assert.equal(
   removeU2Rollback.heatCapacityFreePhysicsState.releaseStarted,
@@ -711,9 +726,9 @@ const removeU1Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
   'u1',
   22_100,
 );
-assert.equal(removeU1Rollback.heatCapacityFreeTrials[0].u0 !== null, true);
-assert.equal(removeU1Rollback.heatCapacityFreeTrials[0].u1, null);
-assert.equal(removeU1Rollback.heatCapacityFreeTrials[0].u2, null);
+assert.equal(removeU1Rollback.heatCapacityFreeRunWorkspace.trials[0].u0 !== null, true);
+assert.equal(removeU1Rollback.heatCapacityFreeRunWorkspace.trials[0].u1, null);
+assert.equal(removeU1Rollback.heatCapacityFreeRunWorkspace.trials[0].u2, null);
 assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU1Rollback), 'beforePump');
 assert.equal(removeU1Rollback.pumpValveOpen, true);
 assert.equal(removeU1Rollback.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
@@ -724,9 +739,9 @@ const removeU0Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
   'u0',
   22_200,
 );
-assert.equal(removeU0Rollback.heatCapacityFreeTrials[0].u0, null);
-assert.notEqual(removeU0Rollback.heatCapacityFreeTrials[0].u1, null);
-assert.notEqual(removeU0Rollback.heatCapacityFreeTrials[0].u2, null);
+assert.equal(removeU0Rollback.heatCapacityFreeRunWorkspace.trials[0].u0, null);
+assert.notEqual(removeU0Rollback.heatCapacityFreeRunWorkspace.trials[0].u1, null);
+assert.notEqual(removeU0Rollback.heatCapacityFreeRunWorkspace.trials[0].u2, null);
 assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU0Rollback), 'beforePowerOff');
 assert.equal(removeU0Rollback.powerOn, true);
 assert.equal(getHeatCapacityFreeRecordBlockReason(removeU0Rollback, 'u0'), 'invalid-sequence');
@@ -736,7 +751,10 @@ const realAverageTrial = createHeatCapacityFreeTrial('real-domain-trial', null, 
 const idealAverageTrial = createHeatCapacityFreeTrial('ideal-domain-trial', null, 'ideal');
 const mixedDomainFile: WorkbenchHeatCapacityState = {
   ...createDefaultHeatCapacityFile(5),
-  heatCapacityFreeTrials: [realAverageTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...createDefaultHeatCapacityFile(5).heatCapacityFreeRunWorkspace,
+    trials: [realAverageTrial],
+  },
   heatCapacityFreeRealDomain: {
     ...createDefaultHeatCapacityFile(5).heatCapacityFreeRealDomain,
     trials: [realAverageTrial],
@@ -760,7 +778,10 @@ const idealSelectedFile = setHeatCapacityFreeParameterSchemeWorkbenchState(
 assert.equal(selectActiveHeatCapacityFreeDomain(idealSelectedFile).scheme, 'ideal');
 const idealFileWithUnmarkedTrial: WorkbenchHeatCapacityState = {
   ...idealSelectedFile,
-  heatCapacityFreeTrials: [createHeatCapacityFreeTrial('ideal-runtime-unmarked')],
+  heatCapacityFreeRunWorkspace: {
+    ...idealSelectedFile.heatCapacityFreeRunWorkspace,
+    trials: [createHeatCapacityFreeTrial('ideal-runtime-unmarked')],
+  },
 };
 const idealResetFile = resetHeatCapacityFreeRunWorkbenchState(idealFileWithUnmarkedTrial, 31_500);
 assert.equal(
@@ -774,12 +795,12 @@ assert.equal(
   'resetting an ideal Free run should keep the display on the ideal domain',
 );
 assert.equal(
-  idealResetFile.heatCapacityFreeTrials.every((trial) => trial.parameterScheme === 'ideal'),
+  idealResetFile.heatCapacityFreeRunWorkspace.trials.every((trial) => trial.parameterScheme === 'ideal'),
   true,
   'runtime trials should be stamped with the active ideal domain when stored',
 );
 
-const completedTrialTemplate = completedWithRollbackSnapshots.heatCapacityFreeTrials[0];
+const completedTrialTemplate = completedWithRollbackSnapshots.heatCapacityFreeRunWorkspace.trials[0];
 assert.notEqual(completedTrialTemplate, undefined);
 const idealTrialA = {
   ...completedTrialTemplate!,
@@ -797,7 +818,10 @@ const idealTrialB = {
 };
 const idealFileWithTwoTrials: WorkbenchHeatCapacityState = {
   ...idealSelectedFile,
-  heatCapacityFreeTrials: [idealTrialA, idealTrialB],
+  heatCapacityFreeRunWorkspace: {
+    ...idealSelectedFile.heatCapacityFreeRunWorkspace,
+    trials: [idealTrialA, idealTrialB],
+  },
   heatCapacityFreeIdealDomain: {
     ...idealSelectedFile.heatCapacityFreeIdealDomain,
     trials: [idealTrialA, idealTrialB],
@@ -815,7 +839,7 @@ assert.deepEqual(
   'deleting an ideal Free group should remove it from the active ideal domain, not only the transient runtime list',
 );
 assert.deepEqual(
-  idealAfterDeleteTrial.heatCapacityFreeTrials.map((trial) => trial.id),
+  idealAfterDeleteTrial.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.id),
   ['ideal-delete-b'],
   'deleting an ideal Free group should keep the top-level runtime list synchronized with the active domain',
 );
@@ -825,7 +849,10 @@ const displayedIdealDeleteFile: WorkbenchHeatCapacityState = {
   ...createDefaultHeatCapacityFile(7),
   heatCapacityFreeParameterScheme: 'real',
   heatCapacityFreeDisplayScheme: 'ideal',
-  heatCapacityFreeTrials: [realTrialForDisplayedDelete],
+  heatCapacityFreeRunWorkspace: {
+    ...createDefaultHeatCapacityFile(7).heatCapacityFreeRunWorkspace,
+    trials: [realTrialForDisplayedDelete],
+  },
   heatCapacityFreeRealDomain: {
     ...createDefaultHeatCapacityFile(7).heatCapacityFreeRealDomain,
     trials: [realTrialForDisplayedDelete],
@@ -853,7 +880,7 @@ assert.deepEqual(
   'deleting a displayed ideal group should not remove records from the active real domain',
 );
 assert.deepEqual(
-  displayedIdealAfterDeleteTrial.heatCapacityFreeTrials.map((trial) => trial.id),
+  displayedIdealAfterDeleteTrial.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.id),
   ['real-delete-control'],
   'deleting a displayed ideal group should leave the top-level runtime fields on the active real domain',
 );

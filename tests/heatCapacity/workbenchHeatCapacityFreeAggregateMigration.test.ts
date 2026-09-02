@@ -47,14 +47,14 @@ const configuredFile = configureHeatCapacityFreeBatchWorkbenchState(
   100,
 );
 const startedFile = freezeHeatCapacityFreeParametersForCurrentGroup(configuredFile);
-assert.notEqual(startedFile.heatCapacityFreeBatch.startedAtMs, null);
-assert.notEqual(startedFile.heatCapacityFreeBatch.frozenConfigSnapshot, null);
+assert.notEqual(startedFile.heatCapacityFreeRunWorkspace.batch.startedAtMs, null);
+assert.notEqual(startedFile.heatCapacityFreeRunWorkspace.batch.frozenConfigSnapshot, null);
 
 const {
   nextTrialSequence: discardedSequence,
   scoringVersion: discardedScoringVersion,
   ...startedLegacyBatchFields
-} = startedFile.heatCapacityFreeBatch;
+} = startedFile.heatCapacityFreeRunWorkspace.batch;
 void discardedSequence;
 void discardedScoringVersion;
 const startedLegacyBatch = {
@@ -115,7 +115,7 @@ assert.equal(missingBatchHighWater.value.traceStore.nextTraceTrialIndex, 7);
 
 const orphanTrace = createFreeTraceTrial(
   createDefaultFreeTraceStore(),
-  startedFile.heatCapacityFreeBatch.frozenConfigSnapshot!,
+  startedFile.heatCapacityFreeRunWorkspace.batch.frozenConfigSnapshot!,
 );
 const missingBatchTraceAuthorityDomain = {
   ...fallbackDomain(),
@@ -616,31 +616,34 @@ assert.deepEqual(
 const runtimeWithLegacyActiveDomain = {
   ...startedFile,
   heatCapacityFreeRealDomain: startedLegacyDomain,
-  heatCapacityFreeBatch: createEmptyHeatCapacityFreeBatchState(),
-  heatCapacityFreeTrials: [],
-  heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
+  heatCapacityFreeRunWorkspace: {
+    ...startedFile.heatCapacityFreeRunWorkspace,
+    batch: createEmptyHeatCapacityFreeBatchState(),
+    trials: [],
+    traceStore: createDefaultFreeTraceStore(),
+  },
 };
 const normalizedRuntime = normalizeHeatCapacitySessionRuntimeState(
   runtimeWithLegacyActiveDomain as unknown as typeof startedFile,
 );
 assert.deepEqual(
-  normalizedRuntime.heatCapacityFreeBatch,
+  normalizedRuntime.heatCapacityFreeRunWorkspace.batch,
   normalizedRuntime.heatCapacityFreeRealDomain.batch,
 );
 assert.deepEqual(
-  normalizedRuntime.heatCapacityFreeTrials,
+  normalizedRuntime.heatCapacityFreeRunWorkspace.trials,
   normalizedRuntime.heatCapacityFreeRealDomain.trials,
 );
 assert.deepEqual(
-  normalizedRuntime.heatCapacityFreeTraceStore,
+  normalizedRuntime.heatCapacityFreeRunWorkspace.traceStore,
   normalizedRuntime.heatCapacityFreeExperimentGroups.groups[0]?.runSeries.traceStore,
   'the active top-level projection must be rebuilt from the current experiment group',
 );
 assert.equal(
-  normalizedRuntime.heatCapacityFreeBatch.nextTrialSequence,
+  normalizedRuntime.heatCapacityFreeRunWorkspace.batch.nextTrialSequence,
   startedFile.heatCapacityFreeExperimentGroups.groups[0]?.runSeries.batch.nextTrialSequence,
   'a stale legacy domain high-water must not overwrite the current experiment-group authority',
 );
-assert.equal(normalizedRuntime.heatCapacityFreeBatch.nextTrialSequence, 1);
+assert.equal(normalizedRuntime.heatCapacityFreeRunWorkspace.batch.nextTrialSequence, 1);
 
 console.log('workbenchHeatCapacityFreeAggregateMigration tests passed');

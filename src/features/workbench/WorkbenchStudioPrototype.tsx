@@ -9778,8 +9778,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const activeHeatCapacityPreheatLocked = activeHeatCapacityPreheatMode !== null;
   const activeHeatCapacityInvalidAttemptPrompt = activeFile.kind === 'heatCapacity' &&
     activeFile.heatCapacityMode === 'free' &&
-    activeFile.heatCapacityFreeActiveAttempt?.status === 'invalid' &&
-    !activeFile.heatCapacityFreeActiveAttempt.invalidPromptDismissed;
+    activeFile.heatCapacityFreeRunWorkspace.activeAttempt?.status === 'invalid' &&
+    !activeFile.heatCapacityFreeRunWorkspace.activeAttempt.invalidPromptDismissed;
   const activeHeatCapacityModalLocked = activeHeatCapacityPreheatLocked ||
     activeHeatCapacityInvalidAttemptPrompt ||
     heatCapacityBatchSetupOpen ||
@@ -21015,7 +21015,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 ? getActiveHeatCapacityFreeTrialIndex(activeFile)
                 : -1;
               const heatCapacityFreeActiveTrial = heatCapacityFreeActiveTrialIndex >= 0
-                ? activeFile.heatCapacityFreeTrials[heatCapacityFreeActiveTrialIndex] ?? null
+                ? activeFile.heatCapacityFreeRunWorkspace.trials[heatCapacityFreeActiveTrialIndex] ?? null
                 : null;
               const heatCapacityAutoDemoElapsedMs = activeFile.heatCapacityMode === 'demo'
                 ? autoDemoRunning

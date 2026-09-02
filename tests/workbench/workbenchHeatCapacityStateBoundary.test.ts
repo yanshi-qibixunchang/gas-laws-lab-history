@@ -80,6 +80,23 @@ assert.doesNotMatch(
   /heatCapacityFreeActiveRunConfigSnapshot:/,
   'the retired active-config mirror must stay out of current workbench state',
 );
+for (const retiredRuntimeField of [
+  'heatCapacityFreeBatch',
+  'heatCapacityFreeTraceStore',
+  'heatCapacityFreeTrials',
+  'heatCapacityFreeActiveAttempt',
+]) {
+  assert.doesNotMatch(
+    stateTypesSource,
+    new RegExp(`^\\s*${retiredRuntimeField}:`, 'm'),
+    `${retiredRuntimeField} must stay out of current workbench state`,
+  );
+}
+assert.match(
+  stateTypesSource,
+  /interface HeatCapacityFreeRunWorkspace[\s\S]*batch:[\s\S]*traceStore:[\s\S]*trials:[\s\S]*activeAttempt:/,
+  'the active Free runtime projections should remain grouped in one workspace',
+);
 assert.match(
   stateTypesSource,
   /Sole authority for Free experiment-group history, progress, calculation, and results/,
@@ -92,7 +109,7 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /下一大改动断点是继续删除批次、试次、轨迹和当前尝试等高频运行镜像/,
+  /高频运行镜像已完成一次性工作区迁移[\s\S]*下一大改动断点是评估其余顶层 Free 参数、物理、传感器与校准字段/,
   'the authority table should preserve the next high-risk persistence breakpoint',
 );
 

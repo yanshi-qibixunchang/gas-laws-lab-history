@@ -44,7 +44,7 @@ assert.deepEqual(validateHeatCapacityPersistencePayload(legacyExplorePayload).er
 const resumedFree = restoreHeatCapacityModeSession(opened, 'free', 3_000);
 assert.ok(resumedFree);
 assert.equal(resumedFree.heatCapacityMode, 'free');
-assert.equal(resumedFree.heatCapacityFreeBatch.targetGroupCount, 3);
+assert.equal(resumedFree.heatCapacityFreeRunWorkspace.batch.targetGroupCount, 3);
 assert.equal(resumedFree.pumpValveOpen, true);
 
 const explore = enterHeatCapacityExploreModeWorkbenchState(
@@ -59,7 +59,7 @@ const poweredExplore = powerHeatCapacityWorkbenchFile(explore, true, 4_100);
 assert.equal(poweredExplore.powerOn, true, 'Explore keeps the physical instrument interactive');
 const openedStopcock = setHeatCapacityScriptedStopcockOpen(poweredExplore, true, 4_200);
 assert.equal(openedStopcock.glassPistonState, 'open');
-assert.equal(openedStopcock.heatCapacityFreeTrials.length, 0, 'Explore does not create formal Free records');
+assert.equal(openedStopcock.heatCapacityFreeRunWorkspace.trials.length, 0, 'Explore does not create formal Free records');
 const pumpedExplore = registerHeatCapacityPumpStroke({
   ...poweredExplore,
   pumpValveOpen: true,
@@ -67,7 +67,7 @@ const pumpedExplore = registerHeatCapacityPumpStroke({
 }, 4_300);
 assert.equal(pumpedExplore.pumpStrokeCount, 1, 'Explore keeps the physical pump interactive');
 assert.deepEqual(pumpedExplore.heatCapacityProcessSamples, {});
-assert.equal(pumpedExplore.heatCapacityFreeTrials.length, 0);
+assert.equal(pumpedExplore.heatCapacityFreeRunWorkspace.trials.length, 0);
 
 const projectedExplore = projectWorkbenchPersistenceV3File(opened, 1);
 if (!projectedExplore.ok) throw new Error(projectedExplore.diagnostics[0].message);
@@ -84,7 +84,7 @@ const reopenedExplore = prepareHeatCapacityFileForExploreOnOpen(
 );
 assert.equal(reopenedExplore.heatCapacityMode, null);
 assert.equal(
-  restoreHeatCapacityModeSession(reopenedExplore, 'free', 6_000)?.heatCapacityFreeBatch.targetGroupCount,
+  restoreHeatCapacityModeSession(reopenedExplore, 'free', 6_000)?.heatCapacityFreeRunWorkspace.batch.targetGroupCount,
   3,
   'the persisted Free session remains resumable after Explore normalization',
 );

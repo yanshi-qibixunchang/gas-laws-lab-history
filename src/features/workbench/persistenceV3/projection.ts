@@ -1524,6 +1524,7 @@ const HEAT_CAPACITY_DERIVED_KEYS = new Set([
 ]);
 
 const HEAT_CAPACITY_ACTIVE_FREE_PROJECTION_KEYS = new Set([
+  'heatCapacityFreeRunWorkspace',
   'heatCapacityFreeBatch',
   'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeGasType',
@@ -1745,7 +1746,7 @@ const projectHeatCapacityFile = (
     unknown,
     string,
   ]> = [
-    [file.heatCapacityFreeBatch, 'heatCapacityFreeBatch'],
+    [file.heatCapacityFreeRunWorkspace.batch, 'heatCapacityFreeBatch'],
   ];
   for (const [batch, fieldPath] of batchCandidates) {
     if (
@@ -1807,11 +1808,11 @@ const projectHeatCapacityFile = (
   }
   const runtimeAggregate = {
     ...activeDomain,
-    batch: file.heatCapacityFreeBatch,
+    batch: file.heatCapacityFreeRunWorkspace.batch,
     activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
-    trials: file.heatCapacityFreeTrials,
-    traceStore: file.heatCapacityFreeTraceStore,
-    activeAttempt: file.heatCapacityFreeActiveAttempt,
+    trials: file.heatCapacityFreeRunWorkspace.trials,
+    traceStore: file.heatCapacityFreeRunWorkspace.traceStore,
+    activeAttempt: file.heatCapacityFreeRunWorkspace.activeAttempt,
   };
   const runtimeFuture = findFutureHeatCapacityDomainVersion(
     runtimeAggregate,

@@ -155,8 +155,8 @@ const warmConfiguredBatch = applyHeatCapacityFreeParameterDraftWorkbenchState(
   },
   901,
 );
-assert.equal(warmConfiguredBatch.heatCapacityFreeBatch.targetGroupCount, 3);
-assert.equal(warmConfiguredBatch.heatCapacityFreeBatch.startedAtMs, null);
+assert.equal(warmConfiguredBatch.heatCapacityFreeRunWorkspace.batch.targetGroupCount, 3);
+assert.equal(warmConfiguredBatch.heatCapacityFreeRunWorkspace.batch.startedAtMs, null);
 assert.equal(warmConfiguredBatch.heatCapacityFreePhysicsState.gasTemperatureK, 303.15);
 assert.equal(warmConfiguredBatch.heatCapacityFreeSensorState.sensorTemperatureK, 303.15);
 assert.equal(
@@ -207,7 +207,7 @@ const completedFreeTrial = {
   correctedSignals: { gamma: 1.4 },
   configSnapshot: frozenConfigSnapshot,
 } as any;
-const activeBatchId = frozenFile.heatCapacityFreeBatch.id;
+const activeBatchId = frozenFile.heatCapacityFreeRunWorkspace.batch.id;
 assert.notEqual(activeBatchId, null);
 const completedExperimentBeforeRestart = {
   ...completedFreeTrial,
@@ -236,12 +236,15 @@ const currentGroupIdBeforeExperimentRestart = frozenFile.heatCapacityFreeExperim
 const restartedCurrentExperiment = restartCurrentHeatCapacityFreeExperimentWorkbenchState({
   ...frozenFile,
   powerOn: true,
-  heatCapacityFreeBatch: {
-    ...frozenFile.heatCapacityFreeBatch,
-    nextTrialSequence: 3,
-  },
   heatCapacityFreeExperimentGroupStatus: 'running',
-  heatCapacityFreeTrials: [completedExperimentBeforeRestart, partialCurrentExperiment],
+  heatCapacityFreeRunWorkspace: {
+    ...frozenFile.heatCapacityFreeRunWorkspace,
+    batch: {
+      ...frozenFile.heatCapacityFreeRunWorkspace.batch,
+      nextTrialSequence: 3,
+    },
+    trials: [completedExperimentBeforeRestart, partialCurrentExperiment],
+  },
 }, 1_600);
 assert.equal(restartedCurrentExperiment.powerOn, false);
 assert.equal(restartedCurrentExperiment.heatCapacityFreeExperimentGroupStatus, 'draft');
@@ -251,12 +254,12 @@ assert.equal(
   'current-experiment restart must not detach the active experiment group',
 );
 assert.deepEqual(
-  restartedCurrentExperiment.heatCapacityFreeTrials.map((trial) => trial.id),
+  restartedCurrentExperiment.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.id),
   [completedExperimentBeforeRestart.id],
   'current-experiment restart must remove only the unfinished experiment',
 );
 assert.equal(
-  restartedCurrentExperiment.heatCapacityFreeBatch.nextTrialSequence,
+  restartedCurrentExperiment.heatCapacityFreeRunWorkspace.batch.nextTrialSequence,
   3,
   'current-experiment restart must retain the monotonic trial identity sequence',
 );
@@ -273,7 +276,10 @@ const completedGroupPowerOnFile = {
   powerOn: true,
   runState: 'idle' as const,
   heatCapacityFreeExperimentGroupStatus: 'completed' as const,
-  heatCapacityFreeTrials: [completedFreeTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...frozenFile.heatCapacityFreeRunWorkspace,
+    trials: [completedFreeTrial],
+  },
 };
 assert.equal(hasCompletedHeatCapacityFreeRecordSet(completedGroupPowerOnFile), true);
 assert.equal(isHeatCapacityFreeExperimentGroupComplete(completedGroupPowerOnFile), false);
@@ -287,7 +293,10 @@ assert.equal(
 const incompleteGroupPowerOnFile = {
   ...completedGroupPowerOnFile,
   heatCapacityFreeExperimentGroupStatus: 'running' as const,
-  heatCapacityFreeTrials: [{ ...completedFreeTrial, u2: null }],
+  heatCapacityFreeRunWorkspace: {
+    ...completedGroupPowerOnFile.heatCapacityFreeRunWorkspace,
+    trials: [{ ...completedFreeTrial, u2: null }],
+  },
 };
 assert.equal(hasCompletedHeatCapacityFreeRecordSet(incompleteGroupPowerOnFile), false);
 assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(incompleteGroupPowerOnFile), false);
@@ -316,12 +325,15 @@ const completedFileForStandardReferenceSnapshot = {
     ...defaultFile.heatCapacityFreeRealDomain,
     activeRunConfigSnapshot: snapshotParts.traceTrial.configSnapshot,
   },
-  heatCapacityFreeTraceStore: snapshotParts.traceStore,
-  heatCapacityFreeTrials: [{
-    ...snapshotParts.trial,
-    completedAtMs: null,
-    standardReferenceSnapshot: null,
-  }],
+  heatCapacityFreeRunWorkspace: {
+    ...defaultFile.heatCapacityFreeRunWorkspace,
+    traceStore: snapshotParts.traceStore,
+    trials: [{
+      ...snapshotParts.trial,
+      completedAtMs: null,
+      standardReferenceSnapshot: null,
+    }],
+  },
 };
 const finalizedFileWithStandardReferenceSnapshot = powerHeatCapacityWorkbenchFile(
   completedFileForStandardReferenceSnapshot,
@@ -329,7 +341,7 @@ const finalizedFileWithStandardReferenceSnapshot = powerHeatCapacityWorkbenchFil
   2400,
 );
 const persistedStandardReferenceSnapshot =
-  finalizedFileWithStandardReferenceSnapshot.heatCapacityFreeTrials[0]?.standardReferenceSnapshot ?? null;
+  finalizedFileWithStandardReferenceSnapshot.heatCapacityFreeRunWorkspace.trials[0]?.standardReferenceSnapshot ?? null;
 assert.notEqual(
   persistedStandardReferenceSnapshot,
   null,
@@ -352,8 +364,8 @@ assert.equal(
   'restarting the current experiment must preserve the owning experiment group',
 );
 assert.equal(
-  restartedBlankNextExperiment.heatCapacityFreeTrials.length,
-  preparedAfterPowerOff.heatCapacityFreeTrials.length,
+  restartedBlankNextExperiment.heatCapacityFreeRunWorkspace.trials.length,
+  preparedAfterPowerOff.heatCapacityFreeRunWorkspace.trials.length,
   'restarting a blank next experiment must preserve already completed experiments',
 );
 assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(restartedBlankNextExperiment), null);
@@ -410,14 +422,17 @@ const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState
   ...gasTypeFrozenFile,
   powerOn: false,
   heatCapacityFreeExperimentGroupStatus: 'completed',
-  heatCapacityFreeTrials: [
-    {
-      ...completedFreeTrial,
-      id: 'completed-gas-type-lock-marker',
-      configSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(gasTypeFrozenFile),
-      completedAtMs: 3000,
-    },
-  ],
+  heatCapacityFreeRunWorkspace: {
+    ...gasTypeFrozenFile.heatCapacityFreeRunWorkspace,
+    trials: [
+      {
+        ...completedFreeTrial,
+        id: 'completed-gas-type-lock-marker',
+        configSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(gasTypeFrozenFile),
+        completedAtMs: 3000,
+      },
+    ],
+  },
 });
 const gasTypeLockedEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(gasTypeNextGroupFile, {
   ...gasTypeNextGroupFile.heatCapacityFreeParameterDraft,
@@ -441,7 +456,7 @@ const resetGasTypeEdit = applyHeatCapacityFreeParameterDraftWorkbenchState(reset
   ...resetGasTypeFile.heatCapacityFreeParameterDraft,
   gasType: 'air',
 });
-assert.equal(resetGasTypeEdit.heatCapacityFreeTrials.length, 0);
+assert.equal(resetGasTypeEdit.heatCapacityFreeRunWorkspace.trials.length, 0);
 assert.equal(resetGasTypeEdit.heatCapacityFreeGasType, 'helium');
 assert.equal(resetGasTypeEdit.heatCapacityFreeParameterDraft.gasType, 'helium');
 assert.equal(resetGasTypeEdit.theoreticalGamma, 5 / 3);

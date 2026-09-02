@@ -3811,7 +3811,7 @@ const restoreLegacyHeatCapacityEnvelope = (
       batch: createEmptyHeatCapacityFreeBatchState(),
       traceStore: cloneLegacyPersistenceValue(
         free.traceStore,
-      ) as WorkbenchHeatCapacityState['heatCapacityFreeTraceStore'],
+      ) as WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['traceStore'],
     };
   }
 
@@ -4004,20 +4004,6 @@ const restoreLegacyHeatCapacityEnvelope = (
       ? {
           heatCapacityFreeRollbackSnapshots:
             cloneLegacyPersistenceValue(free.rollbackSnapshots),
-        }
-      : {}),
-    ...(free !== null &&
-        Object.prototype.hasOwnProperty.call(free, 'traceStore')
-      ? {
-          heatCapacityFreeTraceStore:
-            cloneLegacyPersistenceValue(free.traceStore),
-        }
-      : {}),
-    ...(free !== null &&
-        Object.prototype.hasOwnProperty.call(free, 'trials')
-      ? {
-          heatCapacityFreeTrials:
-            cloneLegacyPersistenceValue(free.trials),
         }
       : {}),
     powerOn: controls.powerOn === true,

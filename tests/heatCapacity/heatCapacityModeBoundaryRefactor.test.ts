@@ -61,7 +61,7 @@ const stabilizeGuidePressureZero = (
 
   assert.equal(demo.heatCapacityMode, 'demo');
   assert.notEqual(demo.heatCapacityExperimentProfile, null);
-  assert.deepEqual(demo.heatCapacityFreeTrials, []);
+  assert.deepEqual(demo.heatCapacityFreeRunWorkspace.trials, []);
   assert.equal(demo.heatCapacityGuideTrial, null);
 }
 
@@ -70,7 +70,7 @@ const stabilizeGuidePressureZero = (
 
   assert.equal(free.heatCapacityMode, 'free');
   assert.equal(free.heatCapacityExperimentProfile, null);
-  assert.deepEqual(free.heatCapacityFreeTrials, []);
+  assert.deepEqual(free.heatCapacityFreeRunWorkspace.trials, []);
   assert.equal(free.heatCapacityGuideTrial, null);
 }
 
@@ -78,7 +78,7 @@ const stabilizeGuidePressureZero = (
   const guide = startHeatCapacityGuideWorkbenchState(createBaseFile(), 10_000);
 
   assert.equal(guide.heatCapacityMode, 'guide');
-  assert.deepEqual(guide.heatCapacityFreeTrials, []);
+  assert.deepEqual(guide.heatCapacityFreeRunWorkspace.trials, []);
   assert.equal(guide.heatCapacityExperimentProfile, null);
   assert.notEqual(guide.heatCapacityGuideTrial, null);
   assert.equal(guide.heatCapacityGuideTrial?.source, 'guide');
@@ -91,7 +91,7 @@ const stabilizeGuidePressureZero = (
 
   assert.equal(aborted.heatCapacityMode, 'free');
   assert.equal(aborted.heatCapacityGuideTrial, null);
-  assert.deepEqual(aborted.heatCapacityFreeTrials, []);
+  assert.deepEqual(aborted.heatCapacityFreeRunWorkspace.trials, []);
 }
 
 {
@@ -341,7 +341,7 @@ const stabilizeGuidePressureZero = (
   guide = u2Attempt.file;
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'closePowerRequired');
   assert.notEqual(guide.heatCapacityGuideTrial?.correctedSignals, null);
-  assert.equal(guide.heatCapacityFreeTrials.length, 0);
+  assert.equal(guide.heatCapacityFreeRunWorkspace.trials.length, 0);
 
   guide = powerHeatCapacityWorkbenchFile(guide, false, now += 100);
   assert.equal(guide.heatCapacityMode, 'guide');
@@ -351,7 +351,7 @@ const stabilizeGuidePressureZero = (
   assert.equal(guide.powerOn, false);
   assert.notEqual(guide.heatCapacityGuideTrial, null);
   assert.notEqual(guide.heatCapacityGuideTrial?.correctedSignals, null);
-  assert.equal(guide.heatCapacityFreeTrials.length, 0);
+  assert.equal(guide.heatCapacityFreeRunWorkspace.trials.length, 0);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'completed');
 
   const exitedGuide = exitHeatCapacityTeachingModeWorkbenchState(guide, now += 100);

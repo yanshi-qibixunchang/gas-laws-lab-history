@@ -27,12 +27,15 @@ assert.ok(currentGroup);
 assert.equal(currentGroup.runSeries.batch.targetGroupCount, 3);
 
 const staleBatchCache = {
-  ...started.heatCapacityFreeBatch,
+  ...started.heatCapacityFreeRunWorkspace.batch,
   targetGroupCount: 7 as const,
 };
 const staleCaches = {
   ...started,
-  heatCapacityFreeBatch: staleBatchCache,
+  heatCapacityFreeRunWorkspace: {
+    ...started.heatCapacityFreeRunWorkspace,
+    batch: staleBatchCache,
+  },
   heatCapacityFreeRealDomain: {
     ...started.heatCapacityFreeRealDomain,
     batch: staleBatchCache,
@@ -72,7 +75,7 @@ if (restored.value.kind !== 'heatCapacity') {
   throw new Error('Expected a heat-capacity workbench file.');
 }
 const restoredHeatFile = restored.value;
-assert.equal(restoredHeatFile.heatCapacityFreeBatch.targetGroupCount, 3);
+assert.equal(restoredHeatFile.heatCapacityFreeRunWorkspace.batch.targetGroupCount, 3);
 assert.equal(restoredHeatFile.heatCapacityFreeRealDomain.batch.targetGroupCount, 3);
 assert.equal(
   restoredHeatFile.heatCapacityFreeExperimentGroups.groups.find(

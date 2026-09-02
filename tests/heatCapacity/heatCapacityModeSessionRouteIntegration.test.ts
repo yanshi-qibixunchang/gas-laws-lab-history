@@ -201,7 +201,7 @@ const advanceFreeToPumpReady = (
   file = setHeatCapacityFreeStopcockOpen(u0Attempt.file, false, nextTime(clock, 100));
   file = stepHeatCapacityWorkbenchFile(file, nextTime(clock, HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs));
   file = setHeatCapacityFreePumpValveOpen(file, true, nextTime(clock, 100));
-  assert.equal(file.heatCapacityFreeActiveAttempt?.stage, 'preparing');
+  assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'preparing');
   return file;
 };
 
@@ -364,7 +364,7 @@ const advanceFreePumpReadyToU2Midpoint = (
 ) => {
   let file = pumpFreeStandardSequence(source, clock);
   file = setHeatCapacityFreePumpValveOpen(file, false, nextTime(clock, 100));
-  assert.equal(file.heatCapacityFreeActiveAttempt?.stage, 'waiting-u1');
+  assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'waiting-u1');
   file = setHeatCapacityFreeEquilibriumSpeedMultiplier(file, 16, nextTime(clock, 100));
   file = advanceFreeWaitToElapsed(file, HEAT_CAPACITY_STANDARD_OPERATION.waitAfterPumpS, clock);
   const u1Attempt = applyHeatCapacityFreeRecordWorkbenchState(file, 'u1', nextTime(clock, 1));
@@ -383,7 +383,7 @@ const advanceFreePumpReadyToU2Midpoint = (
     file,
     nextTime(clock, HEAT_CAPACITY_RELEASE_TIMING.closingAnimationDurationMs),
   );
-  assert.equal(file.heatCapacityFreeActiveAttempt?.stage, 'waiting-u2');
+  assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'waiting-u2');
   file = setHeatCapacityFreeEquilibriumSpeedMultiplier(file, 16, nextTime(clock, 1));
   file = advanceFreeWaitToElapsed(file, HEAT_CAPACITY_STANDARD_OPERATION.waitAfterReleaseS / 2, clock);
   const timer = deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(file);
@@ -441,8 +441,8 @@ const completeFreeFromBreakpoint = (
   const u2Attempt = applyHeatCapacityFreeRecordWorkbenchState(file, 'u2', nextTime(clock, 1));
   assert.equal(u2Attempt.accepted, true);
   file = powerHeatCapacityWorkbenchFile(u2Attempt.file, false, nextTime(clock, 100));
-  assert.equal(file.heatCapacityFreeActiveAttempt, null);
-  assert.notEqual(file.heatCapacityFreeTrials.at(-1)?.completedAtMs, null);
+  assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt, null);
+  assert.notEqual(file.heatCapacityFreeRunWorkspace.trials.at(-1)?.completedAtMs, null);
   return file;
 };
 
@@ -629,15 +629,15 @@ const assertRestoredSnapshot = (
 
 function selectCompletedModeResult(file: WorkbenchHeatCapacityState) {
   if (file.heatCapacityMode === 'free') {
-    const trial = file.heatCapacityFreeTrials.at(-1);
+    const trial = file.heatCapacityFreeRunWorkspace.trials.at(-1);
     assert.notEqual(trial, undefined);
     assert.notEqual(trial?.u0, null);
     assert.notEqual(trial?.u1, null);
     assert.notEqual(trial?.u2, null);
     assert.notEqual(trial?.correctedSignals, null);
     const review = selectHeatCapacityFreeProcessReview({
-      trials: file.heatCapacityFreeTrials,
-      traceStore: file.heatCapacityFreeTraceStore,
+      trials: file.heatCapacityFreeRunWorkspace.trials,
+      traceStore: file.heatCapacityFreeRunWorkspace.traceStore,
       theoreticalGamma: file.theoreticalGamma,
       selectedTrialId: trial?.id,
     });

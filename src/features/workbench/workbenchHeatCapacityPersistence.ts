@@ -243,8 +243,10 @@ export const createHeatCapacityPersistencePayload = (
       sensor: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeSensorState),
       calibration: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeCalibrationState),
       rollbackSnapshots: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRollbackSnapshots),
-      traceStore: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeTraceStore),
-      trials: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeTrials),
+      traceStore: clonePersistenceValue(
+        fileWithCurrentDomain.heatCapacityFreeRunWorkspace.traceStore,
+      ),
+      trials: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRunWorkspace.trials),
       uiReplay: createHeatCapacityFreeUiReplay(fileWithCurrentDomain),
     },
     guided: createHeatCapacityGuidePersistenceData(file),
@@ -296,7 +298,12 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
   );
   const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
-    heatCapacityFreeBatch: domain.batch,
+    heatCapacityFreeRunWorkspace: {
+      batch: domain.batch,
+      traceStore: domain.traceStore,
+      trials: domain.trials,
+      activeAttempt: domain.activeAttempt,
+    },
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
@@ -314,9 +321,6 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     heatCapacityFreeCalibrationState: domain.calibrationState,
     heatCapacityReleaseState: { ...domain.releaseState },
     heatCapacityFreeRollbackSnapshots: domain.rollbackSnapshots,
-    heatCapacityFreeTraceStore: domain.traceStore,
-    heatCapacityFreeTrials: domain.trials,
-    heatCapacityFreeActiveAttempt: domain.activeAttempt,
     theoreticalGamma: gasTypeGamma,
   };
 };
@@ -439,7 +443,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     ? free!.trials
         .map((trial) => normalizeHeatCapacityFreeRestoreTrial(trial))
         .filter((trial): trial is HeatCapacityFreeTrial => trial !== null)
-    : fallback.heatCapacityFreeTrials;
+    : fallback.heatCapacityFreeRunWorkspace.trials;
   const restoredParameterScheme = normalizeHeatCapacityFreeRestoreParameterScheme(
     free?.parameterScheme,
     fallback.heatCapacityFreeParameterScheme,
@@ -589,8 +593,11 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeSensorState: free?.sensor ?? fallback.heatCapacityFreeSensorState,
     heatCapacityFreeCalibrationState: free?.calibration ?? fallback.heatCapacityFreeCalibrationState,
     heatCapacityFreeRollbackSnapshots: free?.rollbackSnapshots ?? fallback.heatCapacityFreeRollbackSnapshots,
-    heatCapacityFreeTraceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
-    heatCapacityFreeTrials: restoredFreeTrials,
+    heatCapacityFreeRunWorkspace: {
+      ...fallback.heatCapacityFreeRunWorkspace,
+      traceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
+      trials: restoredFreeTrials,
+    },
     ...(restoredActiveDomainRuntimeFields ?? {}),
     ...uiReplay,
     heatCapacityMaterialsExpanded: typeof common.materialsExpanded === 'boolean'

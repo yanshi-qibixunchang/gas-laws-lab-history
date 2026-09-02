@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -142,19 +142,22 @@ const outdatedTraceRestored = decodeWorkbenchSession({
   files: [{
     ...heatOne,
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION - 1,
-    heatCapacityFreeTraceStore: {
-      activeTraceTrialId: 'old-trace',
-      nextTraceTrialIndex: 99,
-      traceTrials: [{ id: 'old-trace' }],
-    } as unknown as typeof heatOne.heatCapacityFreeTraceStore,
+    heatCapacityFreeRunWorkspace: {
+      ...heatOne.heatCapacityFreeRunWorkspace,
+      traceStore: {
+        activeTraceTrialId: 'old-trace',
+        nextTraceTrialIndex: 99,
+        traceTrials: [{ id: 'old-trace' }],
+      } as unknown as typeof heatOne.heatCapacityFreeRunWorkspace.traceStore,
+    },
   }],
 });
 const outdatedTraceHeatFile = outdatedTraceRestored.files[0];
 assert.equal(outdatedTraceHeatFile.kind, 'heatCapacity');
 if (outdatedTraceHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
 assert.equal(outdatedTraceHeatFile.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
-assert.deepEqual(outdatedTraceHeatFile.heatCapacityFreeTraceStore.traceTrials, []);
-assert.equal(outdatedTraceHeatFile.heatCapacityFreeTraceStore.activeTraceTrialId, null);
+assert.deepEqual(outdatedTraceHeatFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials, []);
+assert.equal(outdatedTraceHeatFile.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId, null);
 
 const standard = createDefaultStandardFile(1);
 const ideal = createDefaultIdealFile(1);

@@ -200,6 +200,10 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     heatCapacityFreeStopcockPendingOpenAtMs: discardedLegacyPendingOpen,
     heatCapacityFreeStopcockFlowPurpose: discardedLegacyFlowPurpose,
     heatCapacityFreeActiveRunConfigSnapshot: discardedLegacyActiveRunConfigSnapshot,
+    heatCapacityFreeBatch: discardedLegacyBatch,
+    heatCapacityFreeTraceStore: discardedLegacyTraceStore,
+    heatCapacityFreeTrials: discardedLegacyTrials,
+    heatCapacityFreeActiveAttempt: discardedLegacyActiveAttempt,
     ...fileWithoutLegacySelectedPanel
   } = file as WorkbenchHeatCapacityState & {
     selectedHeatCapacityPanel?: unknown;
@@ -207,12 +211,20 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     heatCapacityFreeStopcockPendingOpenAtMs?: unknown;
     heatCapacityFreeStopcockFlowPurpose?: unknown;
     heatCapacityFreeActiveRunConfigSnapshot?: unknown;
+    heatCapacityFreeBatch?: unknown;
+    heatCapacityFreeTraceStore?: unknown;
+    heatCapacityFreeTrials?: unknown;
+    heatCapacityFreeActiveAttempt?: unknown;
   };
   void discardedLegacySelectedPanel;
   void discardedLegacyFlowOpen;
   void discardedLegacyPendingOpen;
   void discardedLegacyFlowPurpose;
   void discardedLegacyActiveRunConfigSnapshot;
+  void discardedLegacyBatch;
+  void discardedLegacyTraceStore;
+  void discardedLegacyTrials;
+  void discardedLegacyActiveAttempt;
   const fallback = createDefaultHeatCapacityFile(1);
   const heatCapacityVisiblePanels = file.visiblePanels.filter((panel) => (
     panel === 'preview' ||
@@ -497,8 +509,12 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
       ? activeFreeDomain
       : heatCapacityFreeIdealDomain,
     heatCapacityFreeExperimentGroups: normalizedExperimentGroups,
-    heatCapacityFreeBatch: activeFreeDomain.batch,
-    heatCapacityFreeActiveAttempt: activeFreeDomain.activeAttempt,
+    heatCapacityFreeRunWorkspace: {
+      batch: activeFreeDomain.batch,
+      traceStore: activeFreeDomain.traceStore,
+      trials: activeFreeDomain.trials,
+      activeAttempt: activeFreeDomain.activeAttempt,
+    },
     heatCapacityFreeRollbackSnapshots,
     name: normalizeHeatCapacityFileName(file.name),
     lastOpenedAt: normalizeLastOpenedAt(file, fallback.lastOpenedAt),
@@ -545,9 +561,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
       : true,
     heatCapacityPhase: normalizeHeatCapacityRuntimePhase(file.heatCapacityPhase, fallback.heatCapacityPhase),
     powerOn: normalizedPowerOn,
-    heatCapacityFreeTrials: activeFreeDomain.trials,
     heatCapacityFreeTraceVersion: HEAT_CAPACITY_FREE_TRACE_VERSION,
-    heatCapacityFreeTraceStore: activeFreeDomain.traceStore,
     heatCapacityReleaseState: normalizedReleaseState,
     stopcockAngleDeg: getHeatCapacityStopcockTargetAngle(normalizedStopcockOpen),
     glassPistonState: normalizedStopcockOpen ? 'open' : 'closed',

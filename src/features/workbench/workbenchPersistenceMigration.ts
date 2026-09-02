@@ -2556,8 +2556,8 @@ const hasHeatCapacityCollectionParity = (
       : null,
   };
   const restoredCollections = {
-    trace: restored.heatCapacityFreeTraceStore.traceTrials.map((trial) => trial.id),
-    trials: restored.heatCapacityFreeTrials.map((trial) => trial.id),
+    trace: restored.heatCapacityFreeRunWorkspace.traceStore.traceTrials.map((trial) => trial.id),
+    trials: restored.heatCapacityFreeRunWorkspace.trials.map((trial) => trial.id),
     realTrials: restored.heatCapacityFreeRealDomain.trials.map((trial) => trial.id),
     idealTrials: restored.heatCapacityFreeIdealDomain.trials.map((trial) => trial.id),
     guideTrial: restored.heatCapacityGuideTrial?.id ?? null,

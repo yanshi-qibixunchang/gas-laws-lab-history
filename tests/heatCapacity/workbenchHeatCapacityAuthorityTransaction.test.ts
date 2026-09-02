@@ -36,10 +36,10 @@ const assertActiveAuthoritySynchronized = (
   assert.deepEqual(domain.batch, group.runSeries.batch, `${message}: domain batch`);
   assert.deepEqual(domain.trials, group.runSeries.trials, `${message}: domain trials`);
   assert.deepEqual(domain.traceStore, group.runSeries.traceStore, `${message}: domain trace`);
-  assert.deepEqual(file.heatCapacityFreeBatch, group.runSeries.batch, `${message}: runtime batch`);
-  assert.deepEqual(file.heatCapacityFreeTrials, group.runSeries.trials, `${message}: runtime trials`);
+  assert.deepEqual(file.heatCapacityFreeRunWorkspace.batch, group.runSeries.batch, `${message}: runtime batch`);
+  assert.deepEqual(file.heatCapacityFreeRunWorkspace.trials, group.runSeries.trials, `${message}: runtime trials`);
   assert.deepEqual(
-    file.heatCapacityFreeTraceStore,
+    file.heatCapacityFreeRunWorkspace.traceStore,
     group.runSeries.traceStore,
     `${message}: runtime trace`,
   );
@@ -53,13 +53,16 @@ const configured = configureHeatCapacityFreeBatchWorkbenchState(
 assertActiveAuthoritySynchronized(configured, 'configure');
 
 const staleBatch = {
-  ...configured.heatCapacityFreeBatch,
+  ...configured.heatCapacityFreeRunWorkspace.batch,
   targetGroupCount: 7 as const,
 };
 const repaired = transactHeatCapacityFreeAuthority(
   {
     ...configured,
-    heatCapacityFreeBatch: staleBatch,
+    heatCapacityFreeRunWorkspace: {
+      ...configured.heatCapacityFreeRunWorkspace,
+      batch: staleBatch,
+    },
     heatCapacityFreeRealDomain: {
       ...configured.heatCapacityFreeRealDomain,
       batch: staleBatch,
@@ -67,7 +70,7 @@ const repaired = transactHeatCapacityFreeAuthority(
   },
   (authority) => authority,
 );
-assert.equal(repaired.heatCapacityFreeBatch.targetGroupCount, 3);
+assert.equal(repaired.heatCapacityFreeRunWorkspace.batch.targetGroupCount, 3);
 assertActiveAuthoritySynchronized(repaired, 'repair stale mirrors');
 
 const idealDraft = setHeatCapacityFreeParameterSchemeWorkbenchState(
@@ -104,9 +107,9 @@ const abandoned = abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState(
   150,
 );
 assert.equal(abandoned.heatCapacityFreeExperimentGroups.currentGroupId, null);
-assert.equal(abandoned.heatCapacityFreeBatch.targetGroupCount, null);
-assert.deepEqual(abandoned.heatCapacityFreeTrials, []);
-assert.deepEqual(abandoned.heatCapacityFreeTraceStore.traceTrials, []);
-assert.deepEqual(abandoned.heatCapacityFreeRealDomain.batch, abandoned.heatCapacityFreeBatch);
+assert.equal(abandoned.heatCapacityFreeRunWorkspace.batch.targetGroupCount, null);
+assert.deepEqual(abandoned.heatCapacityFreeRunWorkspace.trials, []);
+assert.deepEqual(abandoned.heatCapacityFreeRunWorkspace.traceStore.traceTrials, []);
+assert.deepEqual(abandoned.heatCapacityFreeRealDomain.batch, abandoned.heatCapacityFreeRunWorkspace.batch);
 
 console.log('workbenchHeatCapacityAuthorityTransaction tests passed');

@@ -320,9 +320,9 @@ const traceHighWaterSource = powerHeatCapacityWorkbenchFile(
   true,
   12_346,
 );
-assert.equal(traceHighWaterSource.heatCapacityFreeBatch.nextTrialSequence, 1);
+assert.equal(traceHighWaterSource.heatCapacityFreeRunWorkspace.batch.nextTrialSequence, 1);
 assert.equal(
-  traceHighWaterSource.heatCapacityFreeTraceStore.nextTraceTrialIndex,
+  traceHighWaterSource.heatCapacityFreeRunWorkspace.traceStore.nextTraceTrialIndex,
   2,
 );
 const traceHighWaterPayload = createHeatCapacityPersistencePayload(
@@ -344,13 +344,16 @@ const durableHighWaterStarted = storeHeatCapacityFreeRuntimeFieldsInDomain(
 );
 const durableHighWaterSource = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: {
-    ...durableHighWaterStarted.heatCapacityFreeBatch,
-    nextTrialSequence: 1,
-  },
-  heatCapacityFreeTraceStore: {
-    ...durableHighWaterStarted.heatCapacityFreeTraceStore,
-    nextTraceTrialIndex: 1,
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch,
+      nextTrialSequence: 1,
+    },
+    traceStore: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.traceStore,
+      nextTraceTrialIndex: 1,
+    },
   },
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
@@ -400,13 +403,13 @@ assert.equal(
 );
 
 const traceAuthorityId =
-  traceHighWaterSource.heatCapacityFreeTraceStore.activeTraceTrialId;
+  traceHighWaterSource.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId;
 if (traceAuthorityId === null) {
   throw new Error('Expected the trace-authority fixture to have an active trace.');
 }
 const archivedTraceAuthority =
   archiveCurrentFreeTraceBranchForRecordInvalidation(
-    traceHighWaterSource.heatCapacityFreeTraceStore,
+    traceHighWaterSource.heatCapacityFreeRunWorkspace.traceStore,
     traceAuthorityId,
   );
 if (archivedTraceAuthority.newBranchId === null) {
@@ -414,12 +417,17 @@ if (archivedTraceAuthority.newBranchId === null) {
 }
 const durableTraceAuthoritySource = storeHeatCapacityFreeRuntimeFieldsInDomain({
   ...traceHighWaterSource,
-  heatCapacityFreeTraceStore: archivedTraceAuthority.store,
+  heatCapacityFreeRunWorkspace: {
+    ...traceHighWaterSource.heatCapacityFreeRunWorkspace,
+    traceStore: archivedTraceAuthority.store,
+  },
 }, 'real');
 const repairedTraceAuthorityPayload = createHeatCapacityPersistencePayload({
     ...durableTraceAuthoritySource,
-    heatCapacityFreeTraceStore:
-      traceHighWaterSource.heatCapacityFreeTraceStore,
+    heatCapacityFreeRunWorkspace: {
+      ...durableTraceAuthoritySource.heatCapacityFreeRunWorkspace,
+      traceStore: traceHighWaterSource.heatCapacityFreeRunWorkspace.traceStore,
+    },
   }, 12_352);
 assert.equal(
   repairedTraceAuthorityPayload.free?.traceStore.traceTrials[0]?.branches.length,
@@ -430,11 +438,11 @@ assert.equal(
 const durableTraceSampleSource =
   storeHeatCapacityFreeRuntimeFieldsInDomain(traceHighWaterSource, 'real');
 const rewrittenTraceSampleSource = structuredClone(durableTraceSampleSource);
-rewrittenTraceSampleSource.heatCapacityFreeTraceStore = structuredClone(
-  rewrittenTraceSampleSource.heatCapacityFreeTraceStore,
+rewrittenTraceSampleSource.heatCapacityFreeRunWorkspace.traceStore = structuredClone(
+  rewrittenTraceSampleSource.heatCapacityFreeRunWorkspace.traceStore,
 );
 const rewrittenTraceSample =
-  rewrittenTraceSampleSource.heatCapacityFreeTraceStore
+  rewrittenTraceSampleSource.heatCapacityFreeRunWorkspace.traceStore
     .traceTrials[0]?.branches[0]?.samples[0];
 if (rewrittenTraceSample === undefined) {
   throw new Error('Expected the trace-authority fixture to contain a sample.');
@@ -447,13 +455,13 @@ const repairedTraceSamplePayload = createHeatCapacityPersistencePayload(
 assert.equal(
   repairedTraceSamplePayload.free?.traceStore.traceTrials[0]
     ?.branches[0]?.samples[0]?.sensor.displayPressureMv,
-  durableTraceSampleSource.heatCapacityFreeTraceStore.traceTrials[0]
+  durableTraceSampleSource.heatCapacityFreeRunWorkspace.traceStore.traceTrials[0]
     ?.branches[0]?.samples[0]?.sensor.displayPressureMv,
   'writer capture must rebuild rewritten trace samples from experiment-group authority',
 );
 
 const firstOrderedTraceTrial = structuredClone(
-  traceHighWaterSource.heatCapacityFreeTraceStore.traceTrials[0],
+  traceHighWaterSource.heatCapacityFreeRunWorkspace.traceStore.traceTrials[0],
 );
 firstOrderedTraceTrial.status = 'completed';
 const secondOrderedTraceTrial = {
@@ -467,18 +475,21 @@ const orderedTraceStore = {
   traceTrials: [firstOrderedTraceTrial, secondOrderedTraceTrial],
 };
 const orderedTraceBatch = {
-  ...traceHighWaterSource.heatCapacityFreeBatch,
+  ...traceHighWaterSource.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 3,
 };
 const durableOrderedTraceSource =
   storeHeatCapacityFreeRuntimeFieldsInDomain({
     ...traceHighWaterSource,
-    heatCapacityFreeBatch: orderedTraceBatch,
-    heatCapacityFreeTraceStore: orderedTraceStore,
+    heatCapacityFreeRunWorkspace: {
+      ...traceHighWaterSource.heatCapacityFreeRunWorkspace,
+      batch: orderedTraceBatch,
+      traceStore: orderedTraceStore,
+    },
   }, 'real');
 const reorderedTraceSource = structuredClone(durableOrderedTraceSource);
-reorderedTraceSource.heatCapacityFreeTraceStore = {
-  ...structuredClone(reorderedTraceSource.heatCapacityFreeTraceStore),
+reorderedTraceSource.heatCapacityFreeRunWorkspace.traceStore = {
+  ...structuredClone(reorderedTraceSource.heatCapacityFreeRunWorkspace.traceStore),
   traceTrials: [
     structuredClone(secondOrderedTraceTrial),
     structuredClone(firstOrderedTraceTrial),
@@ -496,9 +507,12 @@ assert.deepEqual(
 
 const repairedGhostTracePayload = createHeatCapacityPersistencePayload({
     ...durableHighWaterStarted,
-    heatCapacityFreeTraceStore: {
-      ...durableHighWaterStarted.heatCapacityFreeTraceStore,
-      activeTraceTrialId: 'ghost-trace',
+    heatCapacityFreeRunWorkspace: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+      traceStore: {
+        ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.traceStore,
+        activeTraceTrialId: 'ghost-trace',
+      },
     },
   }, 12_353);
 assert.notEqual(
@@ -525,7 +539,7 @@ const {
   nextTrialSequence: discardedLegacyWriterSequence,
   scoringVersion: discardedLegacyWriterScoringVersion,
   ...legacyWriterBatchFields
-} = durableHighWaterStarted.heatCapacityFreeBatch;
+} = durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch;
 void discardedLegacyWriterSequence;
 void discardedLegacyWriterScoringVersion;
 const legacyWriterBatch = {
@@ -536,10 +550,13 @@ const legacyWriterSource = {
   ...durableHighWaterStarted,
   heatCapacityFreeExperimentGroups:
     createEmptyHeatCapacityFreeExperimentGroupCollection('real'),
-  heatCapacityFreeBatch: legacyWriterBatch,
-  heatCapacityFreeTraceStore: {
-    ...durableHighWaterStarted.heatCapacityFreeTraceStore,
-    nextTraceTrialIndex: 4,
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: legacyWriterBatch,
+    traceStore: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.traceStore,
+      nextTraceTrialIndex: 4,
+    },
   },
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
@@ -578,7 +595,10 @@ const inFlightBatchFile = freezeHeatCapacityFreeParametersForCurrentGroup(
 const inFlightPayload = createHeatCapacityPersistencePayload(
   storeHeatCapacityFreeRuntimeFieldsInDomain({
     ...inFlightBatchFile,
-    heatCapacityFreeActiveAttempt: inFlightAttempt,
+    heatCapacityFreeRunWorkspace: {
+      ...inFlightBatchFile.heatCapacityFreeRunWorkspace,
+      activeAttempt: inFlightAttempt,
+    },
   }, 'real'),
   12_348,
 );
@@ -594,7 +614,7 @@ const restoredInFlight = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: inFlightPayload as unknown as Record<string, unknown>,
 }, inFlightPayload, 2);
-assert.deepEqual(restoredInFlight.heatCapacityFreeActiveAttempt, inFlightAttempt);
+assert.deepEqual(restoredInFlight.heatCapacityFreeRunWorkspace.activeAttempt, inFlightAttempt);
 
 const noiseDisabledFile = {
   ...file,
@@ -743,7 +763,7 @@ const tracedFile = recordHeatCapacityFreeTraceEvent({
     formedRelease: true,
   },
 }, 'pump-stroke', 123);
-const tracedTrial = tracedFile.heatCapacityFreeTraceStore.traceTrials[0];
+const tracedTrial = tracedFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials[0];
 const tracedSample = tracedTrial.branches[0].samples[0];
 assert.equal(tracedSample.controls.stopcockOpen, true);
 assert.equal(tracedSample.controls.releaseFlowOpen, true);
@@ -753,7 +773,7 @@ const recordedBatchFile =
   freezeHeatCapacityFreeParametersForCurrentGroup(
     configureHeatCapacityFreeBatchWorkbenchState(file, 3, 12_344),
   );
-const recordedBatchId = recordedBatchFile.heatCapacityFreeBatch.id;
+const recordedBatchId = recordedBatchFile.heatCapacityFreeRunWorkspace.batch.id;
 if (recordedBatchId === null) {
   throw new Error('Expected the recorded-trial fixture batch to have an identity.');
 }
@@ -815,7 +835,7 @@ const recordedTrial = {
   },
 };
 const recordedBatch = {
-  ...recordedBatchFile.heatCapacityFreeBatch,
+  ...recordedBatchFile.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 2,
 };
 const recordedCurrentGroup =
@@ -836,8 +856,11 @@ const recordedExperimentGroups =
   );
 const recordedFile = {
   ...recordedBatchFile,
-  heatCapacityFreeBatch: recordedBatch,
-  heatCapacityFreeTrials: [recordedTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...recordedBatchFile.heatCapacityFreeRunWorkspace,
+    batch: recordedBatch,
+    trials: [recordedTrial],
+  },
   heatCapacityFreeExperimentGroups: recordedExperimentGroups,
   heatCapacityFreeRealDomain: {
     ...recordedBatchFile.heatCapacityFreeRealDomain,
@@ -847,10 +870,13 @@ const recordedFile = {
 };
 const repairedRecordedTrialPayload = createHeatCapacityPersistencePayload({
     ...recordedFile,
-    heatCapacityFreeTrials: [{
-      ...recordedTrial,
-      preheatOutcome: 'omitted',
-    }],
+    heatCapacityFreeRunWorkspace: {
+      ...recordedFile.heatCapacityFreeRunWorkspace,
+      trials: [{
+        ...recordedTrial,
+        preheatOutcome: 'omitted',
+      }],
+    },
   }, 554);
 assert.equal(
   repairedRecordedTrialPayload.free?.trials[0]?.preheatOutcome,
@@ -880,7 +906,7 @@ if (!opaqueMembershipCurrentGroup) {
   throw new Error('Expected a current opaque-membership experiment group.');
 }
 for (const trial of [
-  opaqueMembershipWriterSource.heatCapacityFreeTrials[0],
+  opaqueMembershipWriterSource.heatCapacityFreeRunWorkspace.trials[0],
   opaqueMembershipWriterSource.heatCapacityFreeRealDomain.trials[0],
   opaqueMembershipCurrentGroup.runSeries.trials[0],
 ]) {
@@ -917,23 +943,23 @@ const recordedPayloadRestored = restoreHeatCapacityFileFromPersistencePayload({
   payload: staleRecordedPayload as unknown as Record<string, unknown>,
 }, staleRecordedPayload, 2);
 assert.equal(
-  recordedPayloadRestored.heatCapacityFreeTrials[0].completedAtMs,
+  recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].completedAtMs,
   null,
   'restore must not preserve a finalized timestamp without a matching standard reference snapshot',
 );
-assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
-assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].preheatOutcome, 'completed');
-assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'recorded');
+assert.equal(recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].parameterScheme, 'real');
+assert.equal(recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].preheatOutcome, 'completed');
+assert.equal(recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.u0Source, 'recorded');
 assert.equal(
-  recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.formulaGamma,
+  recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.formulaGamma,
   expectedRecordedFormulaGamma,
   'restore must recompute the formula result from the normalized records instead of trusting stale cached inputs',
 );
 assert.equal(
-  recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.gamma,
+  recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.gamma,
   expectedRecordedFormulaGamma,
 );
-assert.equal(recordedPayloadRestored.heatCapacityFreeTrials[0].correctedSignals?.preheatBiasGamma, 0);
+assert.equal(recordedPayloadRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.preheatBiasGamma, 0);
 
 const assumedZeroPayload = structuredClone(recordedPayload);
 assumedZeroPayload.free!.trials[0].u0 = null;
@@ -962,10 +988,10 @@ const assumedZeroRestored = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: assumedZeroPayload as unknown as Record<string, unknown>,
 }, assumedZeroPayload, 2);
-assert.equal(assumedZeroRestored.heatCapacityFreeTrials[0].u0, null);
-assert.notEqual(assumedZeroRestored.heatCapacityFreeTrials[0].u1, null);
-assert.notEqual(assumedZeroRestored.heatCapacityFreeTrials[0].u2, null);
-assert.equal(assumedZeroRestored.heatCapacityFreeTrials[0].correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].u0, null);
+assert.notEqual(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].u1, null);
+assert.notEqual(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].u2, null);
+assert.equal(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.u0Source, 'assumed-zero');
 
 const standardReferenceFixture = createCompleteProcessReviewFixtureParts();
 const contaminatedStandardReference = createHeatCapacityFreeStandardReference({
@@ -1001,7 +1027,7 @@ const contaminatedSnapshotRestored = restoreHeatCapacityFileFromPersistencePaylo
   payload: contaminatedSnapshotPayload as unknown as Record<string, unknown>,
 }, contaminatedSnapshotPayload, 8);
 assert.equal(
-  contaminatedSnapshotRestored.heatCapacityFreeTrials[0].standardReferenceSnapshot,
+  contaminatedSnapshotRestored.heatCapacityFreeRunWorkspace.trials[0].standardReferenceSnapshot,
   null,
   'restoring Free Mode trials should drop standard reference snapshots generated from contaminated ideal thermal parameters',
 );
@@ -1014,7 +1040,7 @@ const idealBatchFile =
       556,
     ),
   );
-const idealBatchId = idealBatchFile.heatCapacityFreeBatch.id;
+const idealBatchId = idealBatchFile.heatCapacityFreeRunWorkspace.batch.id;
 if (idealBatchId === null) {
   throw new Error('Expected the ideal persisted-trial batch to have an identity.');
 }
@@ -1029,7 +1055,7 @@ const idealPersistedTrial = createHeatCapacityFreeTrial(
   },
 );
 const idealPersistedBatch = {
-  ...idealBatchFile.heatCapacityFreeBatch,
+  ...idealBatchFile.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 2,
 };
 const idealPersistedCurrentGroup =
@@ -1050,8 +1076,11 @@ const idealPersistedExperimentGroups =
   );
 const idealPersistedFile = {
   ...idealBatchFile,
-  heatCapacityFreeBatch: idealPersistedBatch,
-  heatCapacityFreeTrials: [idealPersistedTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...idealBatchFile.heatCapacityFreeRunWorkspace,
+    batch: idealPersistedBatch,
+    trials: [idealPersistedTrial],
+  },
   heatCapacityFreeExperimentGroups: idealPersistedExperimentGroups,
   heatCapacityFreeIdealDomain: {
     ...idealBatchFile.heatCapacityFreeIdealDomain,
@@ -1074,7 +1103,7 @@ const idealPersistedRestored = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: idealPersistedPayload as unknown as Record<string, unknown>,
 }, idealPersistedPayload, 2);
-assert.equal(idealPersistedRestored.heatCapacityFreeTrials[0].parameterScheme, 'ideal');
+assert.equal(idealPersistedRestored.heatCapacityFreeRunWorkspace.trials[0].parameterScheme, 'ideal');
 assert.deepEqual(
   selectHeatCapacityFreeDomain(idealPersistedRestored, 'real').trials,
   [],
@@ -1613,7 +1642,7 @@ assert.equal(contaminatedRealDomainRestored.heatCapacityFreeRealDomain.scheme, '
 assert.equal(contaminatedRealDomainRestored.heatCapacityFreeIdealDomain.scheme, 'ideal');
 assert.equal(contaminatedRealDomainRestored.heatCapacityFreeRealDomain.trials[0].parameterScheme, 'real');
 assert.equal(contaminatedRealDomainRestored.heatCapacityFreeIdealDomain.trials[0].parameterScheme, 'ideal');
-assert.equal(contaminatedRealDomainRestored.heatCapacityFreeTrials[0].parameterScheme, 'real');
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeRunWorkspace.trials[0].parameterScheme, 'real');
 
 const incompletePayload = structuredClone(editedPayload);
 delete incompletePayload.free!.parameterDraft;

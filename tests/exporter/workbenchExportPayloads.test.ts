@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import {
   createDefaultHeatCapacityFile,
   createDefaultIdealFile,
@@ -94,7 +94,7 @@ const heatCapacityWithTrace = recordHeatCapacityFreeTraceEventWithReference(
   'power-on',
   timestamp,
 ).file;
-assert.equal(heatCapacityWithTrace.heatCapacityFreeTraceStore.traceTrials.length, 1);
+assert.equal(heatCapacityWithTrace.heatCapacityFreeRunWorkspace.traceStore.traceTrials.length, 1);
 const heatCapacityReport = createWorkbenchExportPayload(heatCapacityWithTrace, 'report');
 assert.equal(heatCapacityReport.kind, 'json');
 assert.equal(heatCapacityReport.mode, 'report');

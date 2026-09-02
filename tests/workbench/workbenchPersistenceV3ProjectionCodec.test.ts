@@ -158,8 +158,8 @@ assert.equal(
 );
 const futureDormantHeatFile = createDefaultHeatCapacityFile(9);
 futureDormantHeatFile.heatCapacityMode = 'guide';
-futureDormantHeatFile.heatCapacityFreeBatch = {
-  ...futureDormantHeatFile.heatCapacityFreeBatch,
+futureDormantHeatFile.heatCapacityFreeRunWorkspace.batch = {
+  ...futureDormantHeatFile.heatCapacityFreeRunWorkspace.batch,
   version: HEAT_CAPACITY_FREE_BATCH_VERSION + 1,
 } as never;
 const futureDormantHeatProjection =
@@ -340,7 +340,7 @@ const futureCalculationSessionAuthority = {
   version: HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION + 1,
   futureOnly: true,
 };
-futureCalculationSessionFile.heatCapacityFreeBatch.calculationSession =
+futureCalculationSessionFile.heatCapacityFreeRunWorkspace.batch.calculationSession =
   futureCalculationSessionAuthority as never;
 futureCalculationSessionFile.heatCapacityFreeRealDomain.batch
   .calculationSession = structuredClone(
@@ -402,14 +402,22 @@ for (const [key, supportedVersion] of [
     futureRuntimeProjection,
   );
 }
-assert.equal(
-  Object.prototype.hasOwnProperty.call(
-    heatAuthority.activeRuntime,
-    'heatCapacityFreeBatch',
-  ),
-  false,
-  'the rebuildable active Free batch projection must not be encoded twice',
-);
+for (const rebuildableRuntimeField of [
+  'heatCapacityFreeRunWorkspace',
+  'heatCapacityFreeBatch',
+  'heatCapacityFreeTraceStore',
+  'heatCapacityFreeTrials',
+  'heatCapacityFreeActiveAttempt',
+]) {
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      heatAuthority.activeRuntime,
+      rebuildableRuntimeField,
+    ),
+    false,
+    `${rebuildableRuntimeField} must not be encoded as duplicate active Free authority`,
+  );
+}
 
 const heatStartedForMigration =
   freezeHeatCapacityFreeParametersForCurrentGroup(
@@ -463,13 +471,16 @@ const durableHighWaterStarted = storeHeatCapacityFreeRuntimeFieldsInDomain(
 );
 const durableHighWaterFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: {
-    ...durableHighWaterStarted.heatCapacityFreeBatch,
-    nextTrialSequence: 1,
-  },
-  heatCapacityFreeTraceStore: {
-    ...durableHighWaterStarted.heatCapacityFreeTraceStore,
-    nextTraceTrialIndex: 1,
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch,
+      nextTrialSequence: 1,
+    },
+    traceStore: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.traceStore,
+      nextTraceTrialIndex: 1,
+    },
   },
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
@@ -539,15 +550,18 @@ assert.equal(
 );
 
 const invalidCompletionStartedAt =
-  durableHighWaterStarted.heatCapacityFreeBatch.startedAtMs;
+  durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch.startedAtMs;
 if (invalidCompletionStartedAt === null) {
   throw new Error('Expected the batch-completion fixture to be started.');
 }
 const invalidBatchCompletionFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: {
-    ...durableHighWaterStarted.heatCapacityFreeBatch,
-    experimentCompletedAtMs: invalidCompletionStartedAt + 1,
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: {
+      ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch,
+      experimentCompletedAtMs: invalidCompletionStartedAt + 1,
+    },
   },
 };
 const invalidBatchCompletion = projectWorkbenchPersistenceV3File(
@@ -571,7 +585,7 @@ assert.equal(
   null,
 );
 
-const durableTrialBatchId = durableHighWaterStarted.heatCapacityFreeBatch.id;
+const durableTrialBatchId = durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch.id;
 if (durableTrialBatchId === null) {
   throw new Error('Expected the durable trial-authority fixture to have a batch id.');
 }
@@ -613,7 +627,7 @@ if (futureCorrectedSignalTrial.correctedSignals === null) {
 futureCorrectedSignalTrial.correctedSignals.calculationVersion =
   'log-pressure-v99' as never;
 const futureCorrectedSignalBatch = {
-  ...durableHighWaterStarted.heatCapacityFreeBatch,
+  ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 2,
 };
 const durableCurrentGroup =
@@ -637,8 +651,11 @@ const futureCorrectedSignalGroups =
   );
 const futureCorrectedSignalFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: futureCorrectedSignalBatch,
-  heatCapacityFreeTrials: [futureCorrectedSignalTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: futureCorrectedSignalBatch,
+    trials: [futureCorrectedSignalTrial],
+  },
   heatCapacityFreeExperimentGroups: futureCorrectedSignalGroups,
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
@@ -764,7 +781,7 @@ const opaqueCorrectedSignalFile = structuredClone(
   futureCorrectedSignalFile,
 );
 for (const trial of [
-  opaqueCorrectedSignalFile.heatCapacityFreeTrials[0],
+  opaqueCorrectedSignalFile.heatCapacityFreeRunWorkspace.trials[0],
   opaqueCorrectedSignalFile.heatCapacityFreeRealDomain.trials[0],
 ]) {
   (
@@ -783,7 +800,7 @@ assert.deepEqual(
   opaqueCorrectedSignalFile,
 );
 const trialAuthorityBatch = {
-  ...durableHighWaterStarted.heatCapacityFreeBatch,
+  ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 2,
 };
 const trialAuthorityGroups =
@@ -797,11 +814,14 @@ const trialAuthorityGroups =
   );
 const regressingTrialAuthorityFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: trialAuthorityBatch,
-  heatCapacityFreeTrials: [{
-    ...durableTrialAuthority,
-    preheatOutcome: 'omitted' as const,
-  }],
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: trialAuthorityBatch,
+    trials: [{
+      ...durableTrialAuthority,
+      preheatOutcome: 'omitted' as const,
+    }],
+  },
   heatCapacityFreeExperimentGroups: trialAuthorityGroups,
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
@@ -855,11 +875,14 @@ const orderedTrialGroups =
   );
 const reorderedTrialAuthorityFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: orderedTrialBatch,
-  heatCapacityFreeTrials: [
-    secondDurableTrialAuthority,
-    durableTrialAuthority,
-  ],
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: orderedTrialBatch,
+    trials: [
+      secondDurableTrialAuthority,
+      durableTrialAuthority,
+    ],
+  },
   heatCapacityFreeExperimentGroups: orderedTrialGroups,
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
@@ -928,7 +951,7 @@ const completeBatchTrials = [1, 3, 4].map((sequence) => ({
   completedAtMs: invalidCompletionStartedAt + sequence,
 }));
 const completeBatchBeforeCompletion = {
-  ...durableHighWaterStarted.heatCapacityFreeBatch,
+  ...durableHighWaterStarted.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 5,
 };
 const completeBatchAfterCompletion = {
@@ -937,12 +960,15 @@ const completeBatchAfterCompletion = {
 };
 const nullTimestampCompletionFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: completeBatchAfterCompletion,
   heatCapacityFreeExperimentGroupStatus: 'completed' as const,
-  heatCapacityFreeTrials: completeBatchTrials.map((trial) => ({
-    ...trial,
-    completedAtMs: null,
-  })),
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: completeBatchAfterCompletion,
+    trials: completeBatchTrials.map((trial) => ({
+      ...trial,
+      completedAtMs: null,
+    })),
+  },
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
     batch: completeBatchBeforeCompletion,
@@ -963,13 +989,16 @@ if (!nullTimestampCompletion.ok) {
 assert.equal(
   nullTimestampCompletion.status,
   'repaired-cache',
-  'invalid completion data in retired mirrors must be discarded',
+  'invalid completion data in the runtime workspace cache must be discarded',
 );
 const legalBatchCompletionFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeBatch: completeBatchAfterCompletion,
   heatCapacityFreeExperimentGroupStatus: 'completed' as const,
-  heatCapacityFreeTrials: completeBatchTrials,
+  heatCapacityFreeRunWorkspace: {
+    ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    batch: completeBatchAfterCompletion,
+    trials: completeBatchTrials,
+  },
   heatCapacityFreeRealDomain: {
     ...durableHighWaterStarted.heatCapacityFreeRealDomain,
     batch: completeBatchBeforeCompletion,
@@ -1504,7 +1533,7 @@ assert.equal(
 );
 
 const membershipBatchId =
-  heatStartedForMigration.heatCapacityFreeBatch.id;
+  heatStartedForMigration.heatCapacityFreeRunWorkspace.batch.id;
 if (membershipBatchId === null) {
   throw new Error('Expected the V3 membership fixture batch to have an ID.');
 }
@@ -1519,7 +1548,7 @@ const membershipTrial = createHeatCapacityFreeTrial(
   },
 );
 const membershipBatch = {
-  ...heatStartedForMigration.heatCapacityFreeBatch,
+  ...heatStartedForMigration.heatCapacityFreeRunWorkspace.batch,
   nextTrialSequence: 2,
 };
 const membershipCurrentGroup =
@@ -1542,8 +1571,11 @@ const membershipGroups = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
 );
 const membershipFile = {
   ...heatStartedForMigration,
-  heatCapacityFreeBatch: membershipBatch,
-  heatCapacityFreeTrials: [membershipTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...heatStartedForMigration.heatCapacityFreeRunWorkspace,
+    batch: membershipBatch,
+    trials: [membershipTrial],
+  },
   heatCapacityFreeExperimentGroups: membershipGroups,
   heatCapacityFreeRealDomain: {
     ...heatStartedForMigration.heatCapacityFreeRealDomain,
@@ -1570,7 +1602,7 @@ if (!extraCurrentMembershipGroup) {
   throw new Error('Expected a cloned current membership experiment group.');
 }
 for (const trial of [
-  extraCurrentMembershipCaptureFile.heatCapacityFreeTrials[0],
+  extraCurrentMembershipCaptureFile.heatCapacityFreeRunWorkspace.trials[0],
   extraCurrentMembershipCaptureFile.heatCapacityFreeRealDomain.trials[0],
   extraCurrentMembershipGroup.runSeries.trials[0],
 ]) {

@@ -172,7 +172,7 @@ assert.equal(
   defaultFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
 );
 assert.equal(defaultFile.heatCapacityFreeCalibrationState.calibrationVersion, 0);
-assert.deepEqual(defaultFile.heatCapacityFreeTrials, []);
+assert.deepEqual(defaultFile.heatCapacityFreeRunWorkspace.trials, []);
 assert.equal(defaultFile.heatCapacityFreeRealDomain.trials.length, 0);
 assert.equal(defaultFile.heatCapacityFreeIdealDomain.trials.length, 0);
 assert.equal(selectHeatCapacityFreeDomain(defaultFile, 'real').scheme, 'real');
@@ -295,7 +295,10 @@ const idealReleaseOpen = stepHeatCapacityWorkbenchFile({
     openingCompletedAtS: idealReleaseStartState.simulationTimeS,
     formedRelease: true,
   },
-  heatCapacityFreeTrials: [idealReleaseTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...poweredIdeal.heatCapacityFreeRunWorkspace,
+    trials: [idealReleaseTrial],
+  },
   heatCapacityFreeIdealDomain: {
     ...poweredIdeal.heatCapacityFreeIdealDomain,
     physicsState: idealReleaseStartState,
@@ -451,7 +454,10 @@ const enteredFree = enterHeatCapacityFreeModeWorkbenchState({
   ...defaultFile,
   heatCapacityMode: 'guide',
   heatCapacityGuideTrial: startHeatCapacityGuideWorkbenchState(defaultFile, 1_000).heatCapacityGuideTrial,
-  heatCapacityFreeTrials: [freeTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...defaultFile.heatCapacityFreeRunWorkspace,
+    trials: [freeTrial],
+  },
   heatCapacityFreePhysicsState: {
     ...defaultFile.heatCapacityFreePhysicsState,
     gasAmountRatio: 1.2,
@@ -466,7 +472,7 @@ const enteredFree = enterHeatCapacityFreeModeWorkbenchState({
 assert.equal(enteredFree.heatCapacityMode, 'free');
 assert.equal(enteredFree.heatCapacityFreePhysicsState.gasAmountRatio, 1, 'entering Free should reset physical runtime');
 assert.equal(enteredFree.heatCapacityFreeCalibrationState.calibrationVersion, 0, 'entering Free should reset calibration runtime');
-assert.deepEqual(enteredFree.heatCapacityFreeTrials, [freeTrial], 'entering Free must preserve existing Free trials');
+assert.deepEqual(enteredFree.heatCapacityFreeRunWorkspace.trials, [freeTrial], 'entering Free must preserve existing Free trials');
 assert.equal(enteredFree.powerOn, false);
 assert.equal(enteredFree.runState, 'idle');
 assert.equal(enteredFree.heatCapacityPhase, 'powerOff');
@@ -501,7 +507,10 @@ const resetFreeRun = resetHeatCapacityFreeRunWorkbenchState({
     openingStartedAtS: 1,
   },
   heatCapacityFreeEquilibriumSpeedMultiplier: 8,
-  heatCapacityFreeTrials: [freeTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...enteredFree.heatCapacityFreeRunWorkspace,
+    trials: [freeTrial],
+  },
 }, 3_000);
 assert.equal(resetFreeRun.powerOn, false, 'Free reset should turn the instrument power off');
 assert.equal(resetFreeRun.runState, 'idle');
@@ -530,9 +539,9 @@ assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
   enabled: true,
   ratePerS: 0.00005,
 });
-assert.deepEqual(resetFreeRun.heatCapacityFreeTrials, []);
+assert.deepEqual(resetFreeRun.heatCapacityFreeRunWorkspace.trials, []);
 assert.deepEqual(
-  resetFreeRun.heatCapacityFreeTraceStore.traceTrials,
+  resetFreeRun.heatCapacityFreeRunWorkspace.traceStore.traceTrials,
   [],
   'Free reset should discard the current incomplete trace when no official group was completed',
 );
@@ -632,7 +641,7 @@ assert.equal(
   'guide mode must not advance Free runtime',
 );
 assert.equal(
-  guideModeStep.heatCapacityFreeTraceStore.activeTraceTrialId,
+  guideModeStep.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId,
   null,
   'guide mode should not create Free trace artifacts while stepping Guide runtime',
 );
@@ -644,8 +653,8 @@ const freePowered = powerHeatCapacityWorkbenchFile(
 const getFreeTraceEventTypes = (
   file: WorkbenchHeatCapacityState,
 ): HeatCapacityFreeEventType[] => {
-  const activeTrace = file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
-    traceTrial.id === file.heatCapacityFreeTraceStore.activeTraceTrialId
+  const activeTrace = file.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
+    traceTrial.id === file.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId
   ));
   const activeBranch = activeTrace?.branches.find((branch) => branch.id === activeTrace.activeBranchId);
   assert.notEqual(activeBranch, undefined, 'Free trace should have an active branch');
@@ -660,8 +669,8 @@ const getFreeTraceEventTypes = (
   return activeBranch!.events.map((event) => event.type);
 };
 const getActiveFreeTraceSampleCount = (file: WorkbenchHeatCapacityState) => {
-  const activeTrace = file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
-    traceTrial.id === file.heatCapacityFreeTraceStore.activeTraceTrialId
+  const activeTrace = file.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
+    traceTrial.id === file.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId
   ));
   const activeBranch = activeTrace?.branches.find((branch) => branch.id === activeTrace.activeBranchId);
   return activeBranch?.samples.length ?? 0;
@@ -740,7 +749,7 @@ assert.notEqual(freeRecordTraceEvent.reference.traceTrialId, null);
 assert.notEqual(freeRecordTraceEvent.reference.traceBranchId, null);
 assert.notEqual(freeRecordTraceEvent.reference.traceSampleId, null);
 assert.notEqual(freeRecordTraceEvent.reference.eventId, null);
-const freeRecordTraceTrial = freeRecordTraceEvent.file.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+const freeRecordTraceTrial = freeRecordTraceEvent.file.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
   traceTrial.id === freeRecordTraceEvent.reference.traceTrialId
 ));
 assert.notEqual(freeRecordTraceTrial, undefined);
@@ -757,7 +766,7 @@ assert.equal(
   true,
   'official Free record trace references should point to the saved event sample',
 );
-const traceTrialIdForBranchTest = freePumped.heatCapacityFreeTraceStore.activeTraceTrialId;
+const traceTrialIdForBranchTest = freePumped.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId;
 assert.notEqual(traceTrialIdForBranchTest, null, 'branch rollback fixture requires an active trace trial');
 const traceLinkedCompleteTrial = {
   ...createHeatCapacityFreeTrial('free-branch-trial'),
@@ -819,13 +828,16 @@ const traceLinkedCompleteTrial = {
 };
 const branchRollbackFile = removeHeatCapacityFreeTrialRecordWorkbenchState({
   ...freePumped,
-  heatCapacityFreeTrials: [traceLinkedCompleteTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...freePumped.heatCapacityFreeRunWorkspace,
+    trials: [traceLinkedCompleteTrial],
+  },
 }, 0, 'u1', 1_500);
-assert.notEqual(branchRollbackFile.heatCapacityFreeTrials[0].u0, null);
-assert.equal(branchRollbackFile.heatCapacityFreeTrials[0].u1, null);
-assert.equal(branchRollbackFile.heatCapacityFreeTrials[0].u2, null);
-assert.equal(branchRollbackFile.heatCapacityFreeTrials[0].branchCount, 2);
-const branchRollbackTrace = branchRollbackFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
+assert.notEqual(branchRollbackFile.heatCapacityFreeRunWorkspace.trials[0].u0, null);
+assert.equal(branchRollbackFile.heatCapacityFreeRunWorkspace.trials[0].u1, null);
+assert.equal(branchRollbackFile.heatCapacityFreeRunWorkspace.trials[0].u2, null);
+assert.equal(branchRollbackFile.heatCapacityFreeRunWorkspace.trials[0].branchCount, 2);
+const branchRollbackTrace = branchRollbackFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
   traceTrial.id === traceTrialIdForBranchTest
 ));
 assert.notEqual(branchRollbackTrace, undefined);
@@ -834,43 +846,49 @@ assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'm
 const completedPowerOnReset = resetHeatCapacityFreeRunWorkbenchState({
   ...freePumped,
   heatCapacityFreeExperimentGroupStatus: 'completed',
-  heatCapacityFreeTrials: [traceLinkedCompleteTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...freePumped.heatCapacityFreeRunWorkspace,
+    trials: [traceLinkedCompleteTrial],
+  },
 }, 1_600);
 assert.equal(
-  completedPowerOnReset.heatCapacityFreeTrials.length,
+  completedPowerOnReset.heatCapacityFreeRunWorkspace.trials.length,
   0,
   'Reset before power-off should discard even a U0/U1/U2-complete Free group because it has not been ended',
 );
 assert.equal(
-  completedPowerOnReset.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  completedPowerOnReset.heatCapacityFreeRunWorkspace.traceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
   false,
   'Reset before power-off should discard the current complete-but-unended Free trace',
 );
 assert.equal(
-  completedPowerOnReset.heatCapacityFreeTraceStore.activeTraceTrialId,
+  completedPowerOnReset.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId,
   null,
   'Reset after discarding an unended Free group should leave the next group blank until the next user action',
 );
 const completedPowerOffPrepared = powerHeatCapacityWorkbenchFile({
   ...freePumped,
   heatCapacityFreeExperimentGroupStatus: 'completed',
-  heatCapacityFreeTrials: [traceLinkedCompleteTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...freePumped.heatCapacityFreeRunWorkspace,
+    trials: [traceLinkedCompleteTrial],
+  },
 }, false, 1_650);
 assert.equal(completedPowerOffPrepared.powerOn, false);
 assert.equal(completedPowerOffPrepared.heatCapacityFreeExperimentGroupStatus, 'completed');
-assert.equal(completedPowerOffPrepared.heatCapacityFreeTrials.length, 1);
-assert.equal(completedPowerOffPrepared.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
+assert.equal(completedPowerOffPrepared.heatCapacityFreeRunWorkspace.trials.length, 1);
+assert.equal(completedPowerOffPrepared.heatCapacityFreeRunWorkspace.trials[0].id, traceLinkedCompleteTrial.id);
 assert.equal(
-  completedPowerOffPrepared.heatCapacityFreeTrials[0].completedAtMs,
+  completedPowerOffPrepared.heatCapacityFreeRunWorkspace.trials[0].completedAtMs,
   1_650,
   'Powering off after U2 should stamp the saved Free group completion time',
 );
 assert.equal(
-  completedPowerOffPrepared.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  completedPowerOffPrepared.heatCapacityFreeRunWorkspace.traceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
   true,
   'Powering off after U2 should auto-save the completed Free group trace',
 );
-assert.equal(completedPowerOffPrepared.heatCapacityFreeTraceStore.activeTraceTrialId, null);
+assert.equal(completedPowerOffPrepared.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId, null);
 assert.equal(getActiveHeatCapacityFreeTrialIndex(completedPowerOffPrepared), -1);
 assert.equal(
   getHeatCapacityFreeRecordDisplayTrialIndex(completedPowerOffPrepared),
@@ -919,10 +937,10 @@ assert.equal(completedPowerOnNextSeed.stopcockAngleDeg, HEAT_CAPACITY_STOPCOCK_C
 assert.equal(completedPowerOnNextSeed.pumpValveOpen, false);
 const completedResetOnce = restartCurrentHeatCapacityFreeExperimentWorkbenchState(completedPowerOffPrepared, 1_700);
 const completedResetTwice = restartCurrentHeatCapacityFreeExperimentWorkbenchState(completedResetOnce, 1_700);
-assert.equal(completedResetTwice.heatCapacityFreeTrials.length, 1);
+assert.equal(completedResetTwice.heatCapacityFreeRunWorkspace.trials.length, 1);
 assert.equal(
-  completedResetTwice.heatCapacityFreeTraceStore.traceTrials.length,
-  completedResetOnce.heatCapacityFreeTraceStore.traceTrials.length,
+  completedResetTwice.heatCapacityFreeRunWorkspace.traceStore.traceTrials.length,
+  completedResetOnce.heatCapacityFreeRunWorkspace.traceStore.traceTrials.length,
   'Repeated Reset on a blank next group should not create or delete trace trials',
 );
 const nextIncompleteTraceFile = recordHeatCapacityFreeTraceEventWithReference(
@@ -931,7 +949,7 @@ const nextIncompleteTraceFile = recordHeatCapacityFreeTraceEventWithReference(
   1_800,
   { pumpStrokeCount: 1 },
 ).file;
-const nextIncompleteTraceTrialId = nextIncompleteTraceFile.heatCapacityFreeTraceStore.activeTraceTrialId;
+const nextIncompleteTraceTrialId = nextIncompleteTraceFile.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId;
 assert.notEqual(nextIncompleteTraceTrialId, null);
 const incompleteNextTrial = {
   ...createHeatCapacityFreeTrial('free-incomplete-after-complete'),
@@ -941,17 +959,20 @@ const incompleteNextTrial = {
 };
 const resetIncompleteNext = resetHeatCapacityFreeRunWorkbenchState({
   ...nextIncompleteTraceFile,
-  heatCapacityFreeTrials: [traceLinkedCompleteTrial, incompleteNextTrial],
+  heatCapacityFreeRunWorkspace: {
+    ...nextIncompleteTraceFile.heatCapacityFreeRunWorkspace,
+    trials: [traceLinkedCompleteTrial, incompleteNextTrial],
+  },
 }, 1_900);
-assert.equal(resetIncompleteNext.heatCapacityFreeTrials.length, 1);
-assert.equal(resetIncompleteNext.heatCapacityFreeTrials[0].id, traceLinkedCompleteTrial.id);
+assert.equal(resetIncompleteNext.heatCapacityFreeRunWorkspace.trials.length, 1);
+assert.equal(resetIncompleteNext.heatCapacityFreeRunWorkspace.trials[0].id, traceLinkedCompleteTrial.id);
 assert.equal(
-  resetIncompleteNext.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
+  resetIncompleteNext.heatCapacityFreeRunWorkspace.traceStore.traceTrials.some((traceTrial) => traceTrial.id === traceTrialIdForBranchTest),
   true,
   'Reset of an incomplete next group should preserve older completed trace data',
 );
 assert.equal(
-  resetIncompleteNext.heatCapacityFreeTraceStore.traceTrials.some((traceTrial) => traceTrial.id === nextIncompleteTraceTrialId),
+  resetIncompleteNext.heatCapacityFreeRunWorkspace.traceStore.traceTrials.some((traceTrial) => traceTrial.id === nextIncompleteTraceTrialId),
   false,
   'Reset of an incomplete next group should delete only the current incomplete trace',
 );
@@ -1206,8 +1227,8 @@ assert.equal(
 assert.equal(hotOverLimitFreeFile.pressureSafetyStatus, 'danger');
 assert.equal(hotOverLimitFreeFile.pressureBlockedPumping, true);
 assert.equal(hotOverLimitFreeFile.pressureDeltaKPa > hotOverLimitFreeFile.pressureSafetyThresholdKPa, true);
-const fiveStrokeTraceTrial = fiveStrokeFreeFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
-  traceTrial.id === fiveStrokeFreeFile.heatCapacityFreeTraceStore.activeTraceTrialId
+const fiveStrokeTraceTrial = fiveStrokeFreeFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === fiveStrokeFreeFile.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId
 ));
 const fiveStrokeBranch = fiveStrokeTraceTrial?.branches.find((branch) => (
   branch.id === fiveStrokeTraceTrial.activeBranchId
@@ -1230,8 +1251,8 @@ for (let strokeIndex = 0; strokeIndex < 5; strokeIndex += 1) {
     6_000 + strokeIndex * 100,
   );
 }
-const rapidPointOneSecondTraceTrial = rapidPointOneSecondPumpFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
-  traceTrial.id === rapidPointOneSecondPumpFile.heatCapacityFreeTraceStore.activeTraceTrialId
+const rapidPointOneSecondTraceTrial = rapidPointOneSecondPumpFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === rapidPointOneSecondPumpFile.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId
 ));
 const rapidPointOneSecondBranch = rapidPointOneSecondTraceTrial?.branches.find((branch) => (
   branch.id === rapidPointOneSecondTraceTrial.activeBranchId
@@ -1317,27 +1338,30 @@ assert.equal(
 );
 const freeReadyForRelease = {
   ...freeStepped,
-  heatCapacityFreeTrials: [
-    {
-      ...createHeatCapacityFreeTrial('free-ready-release'),
-      u0: normalizeHeatCapacityFreeRecordInput({
-        atS: 1,
-        displayPressureMv: 0,
-        displayTemperatureMv: initialTemperatureMv,
-        calibrationVersion: 1,
-        zeroEventId: 'zero-1',
-        phaseAtRecord: 'readyToPump',
-      }),
-      u1: normalizeHeatCapacityFreeRecordInput({
-        atS: 300,
-        displayPressureMv: 25,
-        displayTemperatureMv: initialTemperatureMv,
-        calibrationVersion: 1,
-        zeroEventId: 'zero-1',
-        phaseAtRecord: 'sealedStabilizing',
-      }),
-    },
-  ],
+  heatCapacityFreeRunWorkspace: {
+    ...freeStepped.heatCapacityFreeRunWorkspace,
+    trials: [
+      {
+        ...createHeatCapacityFreeTrial('free-ready-release'),
+        u0: normalizeHeatCapacityFreeRecordInput({
+          atS: 1,
+          displayPressureMv: 0,
+          displayTemperatureMv: initialTemperatureMv,
+          calibrationVersion: 1,
+          zeroEventId: 'zero-1',
+          phaseAtRecord: 'readyToPump',
+        }),
+        u1: normalizeHeatCapacityFreeRecordInput({
+          atS: 300,
+          displayPressureMv: 25,
+          displayTemperatureMv: initialTemperatureMv,
+          calibrationVersion: 1,
+          zeroEventId: 'zero-1',
+          phaseAtRecord: 'sealedStabilizing',
+        }),
+      },
+    ],
+  },
 };
 const freeReleaseOpening = setHeatCapacityFreeStopcockOpen(freeReadyForRelease, true, 2_000);
 assert.equal(freeReleaseOpening.heatCapacityReleaseState.phase, 'opening');
@@ -1574,7 +1598,7 @@ assert.equal(poweredFile.powerOn, true);
 assert.equal(poweredFile.heatCapacityMode, 'guide');
 assert.equal(poweredFile.heatCapacityExperimentProfile, null);
 assert.equal(poweredFile.heatCapacityGuideTrial?.source, 'guide');
-assert.deepEqual(poweredFile.heatCapacityFreeTrials, []);
+assert.deepEqual(poweredFile.heatCapacityFreeRunWorkspace.trials, []);
 assert.equal(poweredFile.heatCapacityGuideWorkflow.step, 'openStopcockForZeroRequired');
 assert.equal(poweredFile.runState, 'running', 'Guide runtime should remain running after preheat completes');
 assert.equal(poweredFile.heatCapacityPhase, 'readyToZero');

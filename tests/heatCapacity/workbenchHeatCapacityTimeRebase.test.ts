@@ -23,7 +23,10 @@ const suspended = {
     ...base.heatCapacityFreeRealDomain,
     activeAttempt: attempt,
   },
-  heatCapacityFreeActiveAttempt: attempt,
+  heatCapacityFreeRunWorkspace: {
+    ...base.heatCapacityFreeRunWorkspace,
+    activeAttempt: attempt,
+  },
   heatCapacityGuideWorkflow: {
     ...base.heatCapacityGuideWorkflow,
     releaseCloseResumeAtMs: 2_000,
@@ -37,7 +40,7 @@ assert.ok(resumedAttempt);
 assert.equal(resumedAttempt.startedAtWallClockMs, 71_000);
 assert.equal(resumedAttempt.powerOffStartedAtWallClockMs, 71_000);
 assert.equal(resumedAttempt.invalidatedAtWallClockMs, 71_500);
-assert.equal(resumed.heatCapacityFreeActiveAttempt, resumedAttempt, 'the direct active-attempt projection must retain domain identity');
+assert.equal(resumed.heatCapacityFreeRunWorkspace.activeAttempt, resumedAttempt, 'the direct active-attempt projection must retain domain identity');
 assert.equal(resumed.heatCapacityGuideWorkflow.releaseCloseResumeAtMs, 72_000);
 assert.equal(
   resumedAttempt.powerOffStartedAtWallClockMs! - resumedAttempt.startedAtWallClockMs,

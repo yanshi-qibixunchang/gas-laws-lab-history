@@ -42,7 +42,7 @@ React 入口与启动门禁
 | 桌面边界 | `electron/preload.cjs`、`electron/main.cjs` | 白名单 IPC、窗口、退出、更新、本地导出 | 向渲染器暴露 Node.js 或不受控文件系统能力 |
 | 导出器 | `tools/exporter/` | 从经过验证的输入生成报告、图表和数据文件 | 回写工作台业务状态 |
 
-`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。展示拆分已经把标准/理想实验实时摘要、理想气体关系验证、标准结果和最终图表，以及 Points/Verification 子页外壳移入独立组件；主组件只提供已计算状态、语言、文案和动作回调。状态拆分已完成两层低风险边界：`workbenchFileState.ts` 承载通用文件壳、布局、标准/理想气体状态及默认构造器，`workbenchPistonOscillationState.ts` 承载活塞振荡文件状态与 Guide/Free 转换；绝热膨胀的完整类型进入 `workbenchHeatCapacityStateTypes.ts`，旋塞、打气频率、机械压力表与调零的纯计算进入 `workbenchHeatCapacityInstrumentState.ts`。主组件及纯类型调用方直接依赖这些模块，`workbenchState.ts` 通过显式重导出维持旧入口兼容，新模块不得反向依赖该兼容入口。本阶段未修改任何文件字段、版本号或持久化编码。绝热膨胀字段权威关系由 `workbench-heat-capacity-state-authority.md` 固定；下一大改动断点是为实验分组、Real/Ideal 域与顶层 Free 仪器投影建立统一原子写入事务。新增逻辑时应优先进入现有专用模块，只有确属跨模块编排或兼容转发的代码才留在两个大型入口中。
+`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。展示拆分已经把标准/理想实验实时摘要、理想气体关系验证、标准结果和最终图表，以及 Points/Verification 子页外壳移入独立组件；主组件只提供已计算状态、语言、文案和动作回调。状态拆分已完成两层低风险边界：`workbenchFileState.ts` 承载通用文件壳、布局、标准/理想气体状态及默认构造器，`workbenchPistonOscillationState.ts` 承载活塞振荡文件状态与 Guide/Free 转换；绝热膨胀的完整类型进入 `workbenchHeatCapacityStateTypes.ts`，旋塞、打气频率、机械压力表与调零的纯计算进入 `workbenchHeatCapacityInstrumentState.ts`。主组件及纯类型调用方直接依赖这些模块，`workbenchState.ts` 通过显式重导出维持旧入口兼容，新模块不得反向依赖该兼容入口。绝热膨胀字段权威关系由 `workbench-heat-capacity-state-authority.md` 固定；实验分组、Real/Ideal 域与当前 Free 运行现场已通过统一事务同步，批次、轨迹、试次和活动尝试集中在 `heatCapacityFreeRunWorkspace`，不再保留四个同名顶层副本。旧字段名只允许出现在持久化兼容边界。新增逻辑时应优先进入现有专用模块，只有确属跨模块编排或兼容转发的代码才留在两个大型入口中。
 
 ## 3. 状态权威规则
 
@@ -51,9 +51,9 @@ React 入口与启动门禁
 3. UI 展开状态、活动标签和镜头等只在确有恢复价值时作为 `ui-checkpoint` 保存；瞬时动画、悬停和临时提示不持久化。
 4. 首次运行、法律同意和学习进度以 `AppExperienceProfile` 的一次写入为权威；通用设置只能镜像已提交语言，不能单独标记同意完成。
 5. 绝热膨胀法多组 Free 实验以 `heatCapacityFreeExperimentGroups` 为实验历史和业务决策的唯一权威：目标次数、正式编号、当前组、查看组、试次、轨迹、计算、评分、进度和结果均从实验组集合读取。
-6. 真实/理想参数域与顶层 `heatCapacityFreeBatch / Trials / TraceStore` 继续作为物理引擎所需的当前现场投影，不得反向覆盖实验组集合。受控操作先更新当前现场，再由统一适配路径提交到当前可执行实验组；保存、恢复和历史查看则从实验组重新投影这些镜像。
+6. 真实/理想参数域与 `heatCapacityFreeRunWorkspace` 共同构成物理引擎所需的当前现场投影；工作区内统一保存批次、轨迹、试次和活动尝试，不得反向覆盖实验组集合。受控操作先更新当前现场，再由统一适配路径提交到当前可执行实验组；保存、恢复和历史查看则从实验组重新投影工作区。
 7. 当前活动尝试、仪器状态、时钟和“本次 U2 已记录但尚未关机归档”等现场状态不属于历史组结果，继续由当前运行现场保存。实验组处于 `collecting` 时，运行现场的 `running / completed` 子状态不得被粗略折叠。
-8. 兼容修复只允许旧参数域或顶层镜像提高 `nextTrialSequence`、`nextTraceTrialIndex` 这两个单调递增水位，以避免编号复用；其他冲突均以实验组为准重建镜像。可重算的校正信号和失效标准参考可在严格结构相等前提下修复，未知权威字段和未来版本仍必须隔离。
+8. 兼容修复只允许旧参数域、旧持久化投影或当前运行工作区提高 `nextTrialSequence`、`nextTraceTrialIndex` 这两个单调递增水位，以避免编号复用；其他冲突均以实验组为准重建工作区。可重算的校正信号和失效标准参考可在严格结构相等前提下修复，未知权威字段和未来版本仍必须隔离。
 
 Persistence V3 的字段分类以 `src/features/workbench/persistenceV3/contract.ts` 为准：`authoritative`、`relation`、`derived`、`quality`、`ui-checkpoint`、`transient`。新增字段必须先确定所属类别。
 

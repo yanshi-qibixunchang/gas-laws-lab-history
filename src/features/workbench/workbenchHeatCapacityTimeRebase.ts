@@ -104,7 +104,10 @@ export const rebaseHeatCapacityFileAfterSuspendedWallClock = (
     heatCapacityFreeRollbackSnapshots: activeDomain.rollbackSnapshots,
     heatCapacityFreeRealDomain: realDomain,
     heatCapacityFreeIdealDomain: idealDomain,
-    heatCapacityFreeActiveAttempt: activeDomain.activeAttempt,
+    heatCapacityFreeRunWorkspace: {
+      ...file.heatCapacityFreeRunWorkspace,
+      activeAttempt: activeDomain.activeAttempt,
+    },
     heatCapacityGuideWorkflow: {
       ...file.heatCapacityGuideWorkflow,
       releaseCloseResumeAtMs: shiftTimestamp(

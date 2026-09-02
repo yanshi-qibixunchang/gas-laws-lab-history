@@ -177,8 +177,8 @@ let freeFile = configureHeatCapacityFreeBatchWorkbenchState(
   200,
 );
 freeFile = freezeHeatCapacityFreeParametersForCurrentGroup(freeFile, 201);
-const snapshot = freeFile.heatCapacityFreeBatch.frozenConfigSnapshot!;
-let allocatedBatch = freeFile.heatCapacityFreeBatch;
+const snapshot = freeFile.heatCapacityFreeRunWorkspace.batch.frozenConfigSnapshot!;
+let allocatedBatch = freeFile.heatCapacityFreeRunWorkspace.batch;
 const freeTrials = [0, 1, 2].map((index): HeatCapacityFreeTrial => {
   const allocation = allocateHeatCapacityFreeTrialIdentity(allocatedBatch);
   assert.ok(allocation);
@@ -202,11 +202,11 @@ const freeTrials = [0, 1, 2].map((index): HeatCapacityFreeTrial => {
 });
 freeFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
   ...freeFile,
-  heatCapacityFreeTrials: freeTrials,
-  heatCapacityFreeBatch: completeHeatCapacityFreeBatchExperiment(
-    allocatedBatch,
-    220,
-  ),
+  heatCapacityFreeRunWorkspace: {
+    ...freeFile.heatCapacityFreeRunWorkspace,
+    trials: freeTrials,
+    batch: completeHeatCapacityFreeBatchExperiment(allocatedBatch, 220),
+  },
 }, 'real');
 freeFile = ensureHeatCapacityCalculationSessionWorkbenchState(freeFile, 221);
 const freeSession = getHeatCapacityCalculationSession(freeFile);

@@ -355,8 +355,8 @@ assert.equal(shell.id, active.id);
 assert.equal(shell.name, active.name);
 assert.equal(shell.heatCapacityMaterialsExpanded, true);
 assert.equal(shell.heatCapacityMode, active.heatCapacityMode);
-assert.equal(shell.heatCapacityFreeTraceStore, defaults.heatCapacityFreeTraceStore);
-assert.notEqual(shell.heatCapacityFreeTraceStore, active.heatCapacityFreeTraceStore);
+assert.equal(shell.heatCapacityFreeRunWorkspace.traceStore, defaults.heatCapacityFreeRunWorkspace.traceStore);
+assert.notEqual(shell.heatCapacityFreeRunWorkspace.traceStore, active.heatCapacityFreeRunWorkspace.traceStore);
 assert.equal(shell.heatCapacityModeSessions.free.status, 'empty');
 assert.notEqual(shell.heatCapacityModeSessions, active.heatCapacityModeSessions);
 

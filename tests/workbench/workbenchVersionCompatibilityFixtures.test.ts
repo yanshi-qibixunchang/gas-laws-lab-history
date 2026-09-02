@@ -110,7 +110,7 @@ const assertFixtureFiles = (
     'completed',
     'the completed Free experiment group must survive migration',
   );
-  const trial = heatCapacity.heatCapacityFreeTrials.find((candidate) => (
+  const trial = heatCapacity.heatCapacityFreeRunWorkspace.trials.find((candidate) => (
     candidate.id === fixture.expectations.heatCapacity.trialId
   ));
   assert.ok(trial, 'the completed Free trial must survive migration');

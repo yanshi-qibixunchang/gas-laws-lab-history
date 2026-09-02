@@ -23,8 +23,8 @@ const unconfiguredPowerAttempt = powerHeatCapacityWorkbenchFile(
   101,
 );
 assert.equal(unconfiguredPowerAttempt.powerOn, false);
-assert.equal(unconfiguredPowerAttempt.heatCapacityFreeBatch.targetGroupCount, null);
-assert.equal(unconfiguredPowerAttempt.heatCapacityFreeBatch.startedAtMs, null);
+assert.equal(unconfiguredPowerAttempt.heatCapacityFreeRunWorkspace.batch.targetGroupCount, null);
+assert.equal(unconfiguredPowerAttempt.heatCapacityFreeRunWorkspace.batch.startedAtMs, null);
 assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(unconfiguredPowerAttempt), null);
 assert.equal(unconfiguredPowerAttempt.heatCapacityFreeExperimentGroupStatus, 'draft');
 
@@ -39,8 +39,8 @@ const configuredPowerAttempt = powerHeatCapacityWorkbenchFile(
   103,
 );
 assert.equal(configuredPowerAttempt.powerOn, true);
-assert.equal(configuredPowerAttempt.heatCapacityFreeBatch.targetGroupCount, 3);
-assert.equal(configuredPowerAttempt.heatCapacityFreeBatch.startedAtMs, 103);
+assert.equal(configuredPowerAttempt.heatCapacityFreeRunWorkspace.batch.targetGroupCount, 3);
+assert.equal(configuredPowerAttempt.heatCapacityFreeRunWorkspace.batch.startedAtMs, 103);
 assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(configuredPowerAttempt), null);
 
 const fileWithOpenReview = {
@@ -61,7 +61,7 @@ assert.deepEqual(restartedFile.openHeatCapacityTabs, ['guide']);
 assert.equal(restartedFile.activeHeatCapacityTabId, 'guide');
 assert.equal(restartedFile.visiblePanels.includes('heatCapacityReview'), false);
 assert.equal(
-  restartedFile.heatCapacityFreeBatch.targetGroupCount,
+  restartedFile.heatCapacityFreeRunWorkspace.batch.targetGroupCount,
   3,
   'restarting the current experiment group should preserve its configured experiment count',
 );

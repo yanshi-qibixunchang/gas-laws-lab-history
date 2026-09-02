@@ -408,8 +408,8 @@ const createCompletedFreeFixture = (
   assert.equal(u2Attempt.accepted, true);
   onRecordCheckpoint?.('u2-recorded', u2Attempt.file, clock);
   file = powerHeatCapacityWorkbenchFile(u2Attempt.file, false, advanceGuideFixtureClock(clock, 100));
-  assert.equal(file.heatCapacityFreeActiveAttempt, null);
-  assert.notEqual(file.heatCapacityFreeTrials.at(-1)?.standardReferenceSnapshot, null);
+  assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt, null);
+  assert.notEqual(file.heatCapacityFreeRunWorkspace.trials.at(-1)?.standardReferenceSnapshot, null);
   return file;
 };
 
@@ -461,7 +461,7 @@ const createFreePumpingFixture = (
       advanceGuideFixtureClock(clock, strokeIntervalMs),
     );
   }
-  assert.equal(file.heatCapacityFreeActiveAttempt?.stage, 'pumping');
+  assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'pumping');
   assert.equal(file.heatCapacityFreePhysicsState.pumpStrokeCount, 9);
   return file;
 };
@@ -756,7 +756,7 @@ const semanticFreeSource = createCompletedFreeFixture(
   createDefaultHeatCapacityFile(93),
   semanticFreeFixtureClock,
 );
-const completeFreeTrial = semanticFreeSource.heatCapacityFreeTrials.at(-1)!;
+const completeFreeTrial = semanticFreeSource.heatCapacityFreeRunWorkspace.trials.at(-1)!;
 const semanticFreeCapturedAtMs = advanceGuideFixtureClock(semanticFreeFixtureClock, 10);
 const semanticFreeSuspendedFile = suspendHeatCapacityModeSession(
   semanticFreeSource,
@@ -798,7 +798,7 @@ for (const collection of getFreeCollectionCopies(
   correctedSignals.calculationVersion = 'log-pressure-v99';
 }
 for (const trials of [
-  staleSuspendedSignalCache.heatCapacityFreeTrials,
+  staleSuspendedSignalCache.heatCapacityFreeRunWorkspace.trials,
   staleSuspendedSignalCache.heatCapacityFreeRealDomain.trials,
   ...staleSuspendedSignalCache.heatCapacityFreeExperimentGroups.groups.map(
     (group) => group.runSeries.trials,

@@ -147,6 +147,17 @@ export interface HeatCapacityFreeExperimentDomainState {
   activeAttempt: HeatCapacityFreeAttempt | null;
 }
 
+/**
+ * Mutable hot-path projection for the currently selected Free experiment.
+ * Experiment-group history remains authoritative and synchronization is atomic.
+ */
+export interface HeatCapacityFreeRunWorkspace {
+  batch: HeatCapacityFreeBatchState;
+  traceStore: HeatCapacityFreeTraceStore;
+  trials: HeatCapacityFreeTrial[];
+  activeAttempt: HeatCapacityFreeAttempt | null;
+}
+
 export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
@@ -157,8 +168,8 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityLessonIntroAutoShown: boolean;
   heatCapacityFreePreheatCompleted: boolean;
   heatCapacityFreeRuntimeVersion: number;
-  /** Current instrument-site projection; experiment-group history is authoritative. */
-  heatCapacityFreeBatch: HeatCapacityFreeBatchState;
+  /** Current instrument-site hot-path projection; experiment-group history is authoritative. */
+  heatCapacityFreeRunWorkspace: HeatCapacityFreeRunWorkspace;
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeGasType: HeatCapacityFreeGasType;
   heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
@@ -183,10 +194,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeEquilibriumSpeedMultiplier: WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier;
   heatCapacityFreeRollbackSnapshots: HeatCapacityFreeRollbackSnapshots;
   heatCapacityFreeTraceVersion: number;
-  /** Current instrument-site projections rebuilt from the current experiment group. */
-  heatCapacityFreeTraceStore: HeatCapacityFreeTraceStore;
-  heatCapacityFreeTrials: HeatCapacityFreeTrial[];
-  heatCapacityFreeActiveAttempt: HeatCapacityFreeAttempt | null;
   heatCapacityGuidePhysicsConfig: HeatCapacityGuidePhysicsConfig;
   heatCapacityGuidePhysicsState: HeatCapacityGuidePhysicsState;
   heatCapacityGuideTemperatureSensorState: HeatCapacityTemperatureSensorState;

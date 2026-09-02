@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import {
   runHeatCapacityFreeParameterAcceptance,
   HEAT_CAPACITY_FREE_PARAMETER_ACCEPTANCE_RECORD_CONFIG,
@@ -681,8 +681,8 @@ const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
     quantizationMv: 0.02,
   },
 }, 'power-on', 100).file;
-const configuredTraceTrial = tracedConfiguredFile.heatCapacityFreeTraceStore.traceTrials.find((traceTrial) => (
-  traceTrial.id === tracedConfiguredFile.heatCapacityFreeTraceStore.activeTraceTrialId
+const configuredTraceTrial = tracedConfiguredFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
+  traceTrial.id === tracedConfiguredFile.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId
 ));
 assert.notEqual(configuredTraceTrial, undefined, 'Free trace trial should exist after a traced event');
 assert.equal(configuredTraceTrial!.configSnapshot.environment.ambientPressureKPa, 100.8);
@@ -721,7 +721,7 @@ const changedAfterTrace = {
   },
 };
 assert.equal(
-  changedAfterTrace.heatCapacityFreeTraceStore.traceTrials[0].configSnapshot.environment.ambientPressureKPa,
+  changedAfterTrace.heatCapacityFreeRunWorkspace.traceStore.traceTrials[0].configSnapshot.environment.ambientPressureKPa,
   100.8,
   'Free config snapshot should be copied at trace creation instead of reading later file config changes',
 );

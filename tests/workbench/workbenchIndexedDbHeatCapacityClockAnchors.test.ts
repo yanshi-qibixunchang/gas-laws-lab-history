@@ -340,18 +340,21 @@ const restoredWithAttempt = {
     ...restoredAtOriginalAnchor.heatCapacityFreeRealDomain,
     activeAttempt: rebaseAttempt,
   },
-  heatCapacityFreeActiveAttempt: rebaseAttempt,
+  heatCapacityFreeRunWorkspace: {
+    ...restoredAtOriginalAnchor.heatCapacityFreeRunWorkspace,
+    activeAttempt: rebaseAttempt,
+  },
 };
 const readyFile = rebaseHeatCapacityFileAfterSuspendedWallClock(
   restoredWithAttempt,
   CAPTURED_AT_MS,
   SCENE_READY_AT_MS,
 );
-assert.equal(readyFile.heatCapacityFreeActiveAttempt?.startedAtWallClockMs, 71_000);
-assert.equal(readyFile.heatCapacityFreeActiveAttempt?.powerOffStartedAtWallClockMs, 71_000);
+assert.equal(readyFile.heatCapacityFreeRunWorkspace.activeAttempt?.startedAtWallClockMs, 71_000);
+assert.equal(readyFile.heatCapacityFreeRunWorkspace.activeAttempt?.powerOffStartedAtWallClockMs, 71_000);
 assert.equal(
   readyFile.heatCapacityFreeRealDomain.activeAttempt,
-  readyFile.heatCapacityFreeActiveAttempt,
+  readyFile.heatCapacityFreeRunWorkspace.activeAttempt,
   'the direct active-attempt projection must retain domain identity after the one scene-ready rebase',
 );
 assert.equal(readyFile.lastUpdateMs, SCENE_READY_AT_MS);

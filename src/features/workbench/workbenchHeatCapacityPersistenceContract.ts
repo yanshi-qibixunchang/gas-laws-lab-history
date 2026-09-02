@@ -110,8 +110,8 @@ export interface HeatCapacityFreePersistenceDataV1 {
   sensor: WorkbenchHeatCapacityState['heatCapacityFreeSensorState'];
   calibration: WorkbenchHeatCapacityState['heatCapacityFreeCalibrationState'];
   rollbackSnapshots: WorkbenchHeatCapacityState['heatCapacityFreeRollbackSnapshots'];
-  traceStore: WorkbenchHeatCapacityState['heatCapacityFreeTraceStore'];
-  trials: WorkbenchHeatCapacityState['heatCapacityFreeTrials'];
+  traceStore: WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['traceStore'];
+  trials: WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['trials'];
   uiReplay: HeatCapacityFreeUiReplayV1;
 }
 

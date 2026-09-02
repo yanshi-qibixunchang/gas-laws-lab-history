@@ -1,9 +1,30 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import path from 'node:path';
+import { createDefaultHeatCapacityFile } from '../../src/features/workbench/workbenchState.ts';
 
 const rootDir = process.cwd();
 const srcDir = path.join(rootDir, 'src');
+
+const retiredFreeRuntimeFields = [
+  'heatCapacityFreeBatch',
+  'heatCapacityFreeTraceStore',
+  'heatCapacityFreeTrials',
+  'heatCapacityFreeActiveAttempt',
+] as const;
+const defaultHeatCapacityFile = createDefaultHeatCapacityFile(1);
+for (const field of retiredFreeRuntimeFields) {
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(defaultHeatCapacityFile, field),
+    false,
+    `${field} must not return to the current heat-capacity runtime`,
+  );
+}
+assert.deepEqual(
+  Object.keys(defaultHeatCapacityFile.heatCapacityFreeRunWorkspace).sort(),
+  ['activeAttempt', 'batch', 'traceStore', 'trials'],
+  'the current Free run workspace should own the four retired runtime projections',
+);
 
 const forbiddenFields = [
   'pumpInflowTemperatureRiseK',

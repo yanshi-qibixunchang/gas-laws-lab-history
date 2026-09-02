@@ -217,10 +217,10 @@ export const HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS = [
   'theoreticalGamma',
 ] as const satisfies readonly (keyof WorkbenchHeatCapacityState)[];
 
-const HEAT_CAPACITY_FREE_SESSION_KEYS = [
+const HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS = [
   'heatCapacityFreePreheatCompleted',
   'heatCapacityFreeRuntimeVersion',
-  'heatCapacityFreeBatch',
+  'heatCapacityFreeRunWorkspace',
   'heatCapacityFreeExperimentGroups',
   'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeGasType',
@@ -242,9 +242,6 @@ const HEAT_CAPACITY_FREE_SESSION_KEYS = [
   'heatCapacityFreeEquilibriumSpeedMultiplier',
   'heatCapacityFreeRollbackSnapshots',
   'heatCapacityFreeTraceVersion',
-  'heatCapacityFreeTraceStore',
-  'heatCapacityFreeTrials',
-  'heatCapacityFreeActiveAttempt',
 ] as const satisfies readonly (keyof WorkbenchHeatCapacityState)[];
 
 export const HEAT_CAPACITY_GUIDE_SESSION_KEYS = [
@@ -258,7 +255,7 @@ export const HEAT_CAPACITY_GUIDE_SESSION_KEYS = [
 
 const HEAT_CAPACITY_MODE_OWNED_RUNTIME_KEYS = [
   ...HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS,
-  ...HEAT_CAPACITY_FREE_SESSION_KEYS,
+  ...HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS,
   ...HEAT_CAPACITY_GUIDE_SESSION_KEYS,
 ] as const;
 
@@ -267,10 +264,24 @@ export type HeatCapacityModeCommonRuntimeSnapshot = Pick<
   typeof HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS[number]
 >;
 
-export type HeatCapacityFreeModeRuntimeSnapshot = Pick<
+type HeatCapacityFreeCurrentModeRuntimeSnapshot = Pick<
   WorkbenchHeatCapacityState,
-  typeof HEAT_CAPACITY_FREE_SESSION_KEYS[number]
+  typeof HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS[number]
+>;
+
+export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
+  HeatCapacityFreeCurrentModeRuntimeSnapshot,
+  'heatCapacityFreeRunWorkspace'
 > & {
+  /** Stable compatibility projection retained in persisted mode-session snapshots. */
+  heatCapacityFreeBatch:
+    WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['batch'];
+  heatCapacityFreeTraceStore:
+    WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['traceStore'];
+  heatCapacityFreeTrials:
+    WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['trials'];
+  heatCapacityFreeActiveAttempt:
+    WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['activeAttempt'];
   /** Compatibility projection retained in persisted mode-session snapshots. */
   heatCapacityFreeActiveRunConfigSnapshot:
     HeatCapacityFreeExperimentDomainState['activeRunConfigSnapshot'];
@@ -392,7 +403,7 @@ const createFreeModeSessionDomainFromProjection = (
   return {
     scheme,
     gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
-    batch: file.heatCapacityFreeBatch,
+    batch: file.heatCapacityFreeRunWorkspace.batch,
     experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
     activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
     recordConfig: file.heatCapacityFreeRecordConfig,
@@ -406,11 +417,11 @@ const createFreeModeSessionDomainFromProjection = (
     calibrationState: file.heatCapacityFreeCalibrationState,
     releaseState: file.heatCapacityReleaseState,
     rollbackSnapshots: file.heatCapacityFreeRollbackSnapshots,
-    traceStore: file.heatCapacityFreeTraceStore,
-    trials: file.heatCapacityFreeTrials.map((trial) => (
+    traceStore: file.heatCapacityFreeRunWorkspace.traceStore,
+    trials: file.heatCapacityFreeRunWorkspace.trials.map((trial) => (
       trial.parameterScheme === scheme ? trial : { ...trial, parameterScheme: scheme }
     )),
-    activeAttempt: file.heatCapacityFreeActiveAttempt,
+    activeAttempt: file.heatCapacityFreeRunWorkspace.activeAttempt,
   };
 };
 
@@ -419,7 +430,11 @@ export const captureHeatCapacityModeRuntimeSnapshot = (
 ): HeatCapacityModeRuntimeSnapshot => {
   const common = pickHeatCapacitySessionFields(file, HEAT_CAPACITY_MODE_COMMON_RUNTIME_KEYS);
   if (file.heatCapacityMode === 'free') {
-    const free = pickHeatCapacitySessionFields(file, HEAT_CAPACITY_FREE_SESSION_KEYS);
+    const currentFree = pickHeatCapacitySessionFields(
+      file,
+      HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS,
+    );
+    const { heatCapacityFreeRunWorkspace: _runWorkspace, ...free } = currentFree;
     const activeDomain = createFreeModeSessionDomainFromProjection(file);
     return {
       schemaVersion: HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,
@@ -609,15 +624,25 @@ export const restoreHeatCapacityModeSession = (
         const activeDomain = snapshot.free.heatCapacityFreeParameterScheme === 'ideal'
           ? idealDomain
           : realDomain;
-        const restoredFreeRuntime = { ...snapshot.free };
+        const restoredFreeRuntime = {
+          ...snapshot.free,
+        } as Partial<HeatCapacityFreeModeRuntimeSnapshot>;
         delete restoredFreeRuntime.heatCapacityFreeActiveRunConfigSnapshot;
+        delete restoredFreeRuntime.heatCapacityFreeBatch;
+        delete restoredFreeRuntime.heatCapacityFreeTraceStore;
+        delete restoredFreeRuntime.heatCapacityFreeTrials;
+        delete restoredFreeRuntime.heatCapacityFreeActiveAttempt;
         return {
           ...restoredFreeRuntime,
           heatCapacityFreeRealDomain: realDomain,
           heatCapacityFreeIdealDomain: idealDomain,
-          heatCapacityFreeBatch: activeDomain.batch,
           heatCapacityFreeRollbackSnapshots: activeDomain.rollbackSnapshots,
-          heatCapacityFreeActiveAttempt: activeDomain.activeAttempt,
+          heatCapacityFreeRunWorkspace: {
+            batch: activeDomain.batch,
+            traceStore: activeDomain.traceStore,
+            trials: activeDomain.trials,
+            activeAttempt: activeDomain.activeAttempt,
+          },
         };
       })()
     : {
