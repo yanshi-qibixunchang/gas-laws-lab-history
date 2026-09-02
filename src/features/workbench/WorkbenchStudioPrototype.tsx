@@ -9025,7 +9025,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
         if (!meaningfulSession) return file;
         if (
-          file.heatCapacityFreeExperimentGroupStatus === 'draft' &&
+          file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'draft' &&
           !hasCompletedHeatCapacityFreeRecordSet(file)
         ) {
           return freezeHeatCapacityFreeParametersForCurrentGroup(file);

@@ -869,9 +869,9 @@ assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'a
 assert.equal(branchRollbackTrace!.branches.some((branch) => branch.status === 'main' && branch.parentBranchId === 'branch-1'), true);
 const completedPowerOnReset = resetHeatCapacityFreeRunWorkbenchState({
   ...freePumped,
-  heatCapacityFreeExperimentGroupStatus: 'completed',
   heatCapacityFreeRunWorkspace: {
     ...freePumped.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed',
     trials: [traceLinkedCompleteTrial],
   },
 }, 1_600);
@@ -892,14 +892,14 @@ assert.equal(
 );
 const completedPowerOffPrepared = powerHeatCapacityWorkbenchFile({
   ...freePumped,
-  heatCapacityFreeExperimentGroupStatus: 'completed',
   heatCapacityFreeRunWorkspace: {
     ...freePumped.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed',
     trials: [traceLinkedCompleteTrial],
   },
 }, false, 1_650);
 assert.equal(completedPowerOffPrepared.powerOn, false);
-assert.equal(completedPowerOffPrepared.heatCapacityFreeExperimentGroupStatus, 'completed');
+assert.equal(completedPowerOffPrepared.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'completed');
 assert.equal(completedPowerOffPrepared.heatCapacityFreeRunWorkspace.trials.length, 1);
 assert.equal(completedPowerOffPrepared.heatCapacityFreeRunWorkspace.trials[0].id, traceLinkedCompleteTrial.id);
 assert.equal(

@@ -40,7 +40,7 @@ import {
 const defaultFile = createDefaultHeatCapacityFile(1);
 
 assert.equal(defaultFile.heatCapacityMode, 'free');
-assert.equal(defaultFile.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(defaultFile.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'draft');
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 101.3);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.ambientTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasWallConductanceWPerK, 0.08);
@@ -115,7 +115,7 @@ const editedDraft = {
   pressureDangerMv: 150,
 };
 const editedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile, editedDraft);
-assert.equal(editedFile.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(editedFile.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'draft');
 assert.equal(editedFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8);
 assert.equal(editedFile.heatCapacityFreeParameterDraft.leakageEnabled, true);
 assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(editedFile), null);
@@ -171,7 +171,7 @@ assert.equal(
 const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
   configureHeatCapacityFreeBatchWorkbenchState(editedFile, 3, 1000),
 );
-assert.equal(frozenFile.heatCapacityFreeExperimentGroupStatus, 'running');
+assert.equal(frozenFile.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'running');
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(frozenFile), false);
 assert.equal(getHeatCapacityFreeParameterLockReason(frozenFile), 'groupStarted');
 const frozenConfigSnapshot = selectHeatCapacityFreeActiveRunConfigSnapshot(frozenFile);
@@ -239,9 +239,9 @@ const currentGroupIdBeforeExperimentRestart = frozenFile.heatCapacityFreeExperim
 const restartedCurrentExperiment = restartCurrentHeatCapacityFreeExperimentWorkbenchState({
   ...frozenFile,
   powerOn: true,
-  heatCapacityFreeExperimentGroupStatus: 'running',
   heatCapacityFreeRunWorkspace: {
     ...frozenFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'running',
     batch: {
       ...frozenFile.heatCapacityFreeRunWorkspace.batch,
       nextTrialSequence: 3,
@@ -250,7 +250,7 @@ const restartedCurrentExperiment = restartCurrentHeatCapacityFreeExperimentWorkb
   },
 }, 1_600);
 assert.equal(restartedCurrentExperiment.powerOn, false);
-assert.equal(restartedCurrentExperiment.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(restartedCurrentExperiment.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'draft');
 assert.equal(
   restartedCurrentExperiment.heatCapacityFreeExperimentGroups.currentGroupId,
   currentGroupIdBeforeExperimentRestart,
@@ -278,9 +278,9 @@ const completedGroupPowerOnFile = {
   ...frozenFile,
   powerOn: true,
   runState: 'idle' as const,
-  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
   heatCapacityFreeRunWorkspace: {
     ...frozenFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed' as const,
     trials: [completedFreeTrial],
   },
 };
@@ -295,9 +295,9 @@ assert.equal(
 
 const incompleteGroupPowerOnFile = {
   ...completedGroupPowerOnFile,
-  heatCapacityFreeExperimentGroupStatus: 'running' as const,
   heatCapacityFreeRunWorkspace: {
     ...completedGroupPowerOnFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'running' as const,
     trials: [{ ...completedFreeTrial, u2: null }],
   },
 };
@@ -312,7 +312,7 @@ assert.equal(isHeatCapacityFreeExperimentGroupComplete(completedGroupPowerOffFil
 assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupPowerOffFile), false);
 
 const preparedAfterPowerOff = powerHeatCapacityWorkbenchFile(completedGroupPowerOnFile, false, 2000);
-assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'completed');
+assert.equal(preparedAfterPowerOff.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'completed');
 assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(preparedAfterPowerOff), null);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), false);
 assert.equal(getHeatCapacityFreeParameterLockReason(preparedAfterPowerOff), 'batchStarted');
@@ -323,13 +323,13 @@ const completedFileForStandardReferenceSnapshot = {
   powerOn: true,
   runState: 'idle' as const,
   pressureZeroed: true,
-  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
   heatCapacityFreeRealDomain: {
     ...defaultFile.heatCapacityFreeRealDomain,
     activeRunConfigSnapshot: snapshotParts.traceTrial.configSnapshot,
   },
   heatCapacityFreeRunWorkspace: {
     ...defaultFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed' as const,
     traceStore: snapshotParts.traceStore,
     trials: [{
       ...snapshotParts.trial,
@@ -360,7 +360,7 @@ const restartedBlankNextExperiment = restartCurrentHeatCapacityFreeExperimentWor
   preparedAfterPowerOff,
   2050,
 );
-assert.equal(restartedBlankNextExperiment.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(restartedBlankNextExperiment.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'draft');
 assert.equal(
   restartedBlankNextExperiment.heatCapacityFreeExperimentGroups.currentGroupId,
   preparedAfterPowerOff.heatCapacityFreeExperimentGroups.currentGroupId,
@@ -373,7 +373,7 @@ assert.equal(
 );
 assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(restartedBlankNextExperiment), null);
 const preparedForNextGroup = prepareNextHeatCapacityFreeExperimentWorkbenchState(preparedAfterPowerOff, 2100);
-assert.equal(preparedForNextGroup.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(preparedForNextGroup.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'draft');
 assert.equal(
   preparedForNextGroup.heatCapacityFreeExperimentGroups.currentGroupId,
   preparedAfterPowerOff.heatCapacityFreeExperimentGroups.currentGroupId,
@@ -424,9 +424,9 @@ const gasTypeFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
 const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState({
   ...gasTypeFrozenFile,
   powerOn: false,
-  heatCapacityFreeExperimentGroupStatus: 'completed',
   heatCapacityFreeRunWorkspace: {
     ...gasTypeFrozenFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed',
     trials: [
       {
         ...completedFreeTrial,

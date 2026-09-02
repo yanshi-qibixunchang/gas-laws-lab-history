@@ -156,6 +156,8 @@ export interface HeatCapacityFreeRunWorkspace {
   traceStore: HeatCapacityFreeTraceStore;
   trials: HeatCapacityFreeTrial[];
   activeAttempt: HeatCapacityFreeAttempt | null;
+  /** Lifecycle of the currently active experiment attempt, not the experiment group. */
+  currentExperimentStatus: HeatCapacityFreeExperimentGroupStatus;
 }
 
 /** Low-frequency configuration for the currently selected Free instrument domain. */
@@ -187,7 +189,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeRuntimeVersion: number;
   /** Current instrument-site hot-path projection; experiment-group history is authoritative. */
   heatCapacityFreeRunWorkspace: HeatCapacityFreeRunWorkspace;
-  heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeGasType: HeatCapacityFreeGasType;
   heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
   heatCapacityFreeFileAcknowledgements: HeatCapacityFreeFileAcknowledgements;

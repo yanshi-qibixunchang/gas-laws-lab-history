@@ -960,9 +960,9 @@ const completeBatchAfterCompletion = {
 };
 const nullTimestampCompletionFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
   heatCapacityFreeRunWorkspace: {
     ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed' as const,
     batch: completeBatchAfterCompletion,
     trials: completeBatchTrials.map((trial) => ({
       ...trial,
@@ -993,9 +993,9 @@ assert.equal(
 );
 const legalBatchCompletionFile = {
   ...durableHighWaterStarted,
-  heatCapacityFreeExperimentGroupStatus: 'completed' as const,
   heatCapacityFreeRunWorkspace: {
     ...durableHighWaterStarted.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed' as const,
     batch: completeBatchAfterCompletion,
     trials: completeBatchTrials,
   },

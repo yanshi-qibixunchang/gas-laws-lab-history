@@ -220,7 +220,7 @@ export const createHeatCapacityPersistencePayload = (
       ),
       config: createHeatCapacityFreeConfigSnapshotFromFile(fileWithCurrentDomain),
       parameterDraft: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeParameterDraft),
-      experimentGroupStatus: fileWithCurrentDomain.heatCapacityFreeExperimentGroupStatus,
+      experimentGroupStatus: fileWithCurrentDomain.heatCapacityFreeRunWorkspace.currentExperimentStatus,
       activeRunConfigSnapshot: clonePersistenceValue(
         selectHeatCapacityFreeActiveRunConfigSnapshot(fileWithCurrentDomain),
       ),
@@ -303,9 +303,9 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
       traceStore: domain.traceStore,
       trials: domain.trials,
       activeAttempt: domain.activeAttempt,
+      currentExperimentStatus: domain.experimentGroupStatus,
     },
     heatCapacityFreeGasType: domain.gasType,
-    heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
     heatCapacityFreeInstrumentConfig: {
       record: domain.recordConfig,
@@ -519,6 +519,17 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const restoredActiveDomainRuntimeFields = hasPersistedActiveDomain
     ? createRuntimeFieldsFromRestoredFreeDomain(restoredActiveDomain)
     : null;
+  const restoredRunWorkspaceBase =
+    restoredActiveDomainRuntimeFields?.heatCapacityFreeRunWorkspace ?? {
+      ...fallback.heatCapacityFreeRunWorkspace,
+      traceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
+      trials: restoredFreeTrials,
+    };
+  const restoredCurrentExperimentStatus =
+    normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
+      free?.experimentGroupStatus,
+      restoredRunWorkspaceBase.currentExperimentStatus,
+    );
   const restoredReleaseState = normalizeHeatCapacityReleaseState(
     controls.releaseState,
     createClosedHeatCapacityReleaseState(
@@ -576,10 +587,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeRealDomain: restoredRealDomainWithGasType,
     heatCapacityFreeIdealDomain: restoredIdealDomainWithGasType,
     heatCapacityFreeExperimentGroups: restoredExperimentGroups,
-    heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
-      free?.experimentGroupStatus,
-      fallback.heatCapacityFreeExperimentGroupStatus,
-    ),
     heatCapacityFreeParameterDraft: parameterDraft,
     heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
       free?.acknowledgements,
@@ -601,12 +608,11 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       calibration: free?.calibration ?? fallback.heatCapacityFreeInstrumentState.calibration,
     },
     heatCapacityFreeRollbackSnapshots: free?.rollbackSnapshots ?? fallback.heatCapacityFreeRollbackSnapshots,
-    heatCapacityFreeRunWorkspace: {
-      ...fallback.heatCapacityFreeRunWorkspace,
-      traceStore: free?.traceStore ?? createDefaultFreeTraceStore(),
-      trials: restoredFreeTrials,
-    },
     ...(restoredActiveDomainRuntimeFields ?? {}),
+    heatCapacityFreeRunWorkspace: {
+      ...restoredRunWorkspaceBase,
+      currentExperimentStatus: restoredCurrentExperimentStatus,
+    },
     ...uiReplay,
     heatCapacityMaterialsExpanded: typeof common.materialsExpanded === 'boolean'
       ? common.materialsExpanded

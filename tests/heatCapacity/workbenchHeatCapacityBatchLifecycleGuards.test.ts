@@ -26,7 +26,7 @@ assert.equal(unconfiguredPowerAttempt.powerOn, false);
 assert.equal(unconfiguredPowerAttempt.heatCapacityFreeRunWorkspace.batch.targetGroupCount, null);
 assert.equal(unconfiguredPowerAttempt.heatCapacityFreeRunWorkspace.batch.startedAtMs, null);
 assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(unconfiguredPowerAttempt), null);
-assert.equal(unconfiguredPowerAttempt.heatCapacityFreeExperimentGroupStatus, 'draft');
+assert.equal(unconfiguredPowerAttempt.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'draft');
 
 const configuredFile = configureHeatCapacityFreeBatchWorkbenchState(
   unconfiguredFile,

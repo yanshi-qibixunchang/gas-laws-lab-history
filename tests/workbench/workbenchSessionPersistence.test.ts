@@ -96,6 +96,9 @@ import {
   suspendHeatCapacityModeSession,
 } from '../../src/features/workbench/workbenchHeatCapacityModeSession.ts';
 import {
+  normalizeHeatCapacitySessionRuntimeState,
+} from '../../src/features/workbench/workbenchHeatCapacitySessionRestore.ts';
+import {
   createPersistenceRecords,
 } from '../../src/features/workbench/workbenchIndexedDbPersistence.ts';
 import {
@@ -2984,7 +2987,12 @@ const customFreeRestored = decodeWorkbenchSession({
 const customFreeFile = customFreeRestored.files[0];
 assert.equal(customFreeFile.kind, 'heatCapacity');
 if (customFreeFile.kind !== 'heatCapacity') throw new Error('expected heat capacity custom session file');
-assert.equal(customFreeFile.heatCapacityFreeExperimentGroupStatus, 'running');
+assert.equal(customFreeFile.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'running');
+assert.equal(
+  Object.prototype.hasOwnProperty.call(customFreeFile, 'heatCapacityFreeExperimentGroupStatus'),
+  false,
+  'session restore must keep the retired experiment-status mirror out of current workbench state',
+);
 assert.deepEqual(customFreeFile.heatCapacityFreeFileAcknowledgements, {
   advancedParametersRisk: true,
   idealParameterProfileIntro: true,
@@ -3009,6 +3017,30 @@ assert.equal(
 assert.equal(
   selectHeatCapacityFreeActiveRunConfigSnapshot(customFreeFile)?.record.pressureDangerMv,
   152,
+);
+
+const {
+  currentExperimentStatus: discardedCurrentExperimentStatus,
+  ...legacyFreeRunWorkspace
+} = customFreeSessionFile.heatCapacityFreeRunWorkspace;
+void discardedCurrentExperimentStatus;
+const legacyTopLevelStatusRestored = normalizeHeatCapacitySessionRuntimeState({
+  ...customFreeSessionFile,
+  heatCapacityFreeRunWorkspace: legacyFreeRunWorkspace,
+  heatCapacityFreeExperimentGroupStatus: 'completed',
+} as unknown as typeof customFreeSessionFile);
+assert.equal(
+  legacyTopLevelStatusRestored.heatCapacityFreeRunWorkspace.currentExperimentStatus,
+  'running',
+  'the canonical active domain must override a conflicting legacy top-level status mirror',
+);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(
+    legacyTopLevelStatusRestored,
+    'heatCapacityFreeExperimentGroupStatus',
+  ),
+  false,
+  'legacy experiment status must not survive as a current top-level field',
 );
 
 const airModelDefaults = getHeatCapacityFreeGasTypeModelDefaults('air');

@@ -634,13 +634,13 @@ const renderFreeDataAndResultsTab = (
       traceStore: displayedDomain.traceStore,
       trials: displayedTrials,
       activeAttempt: displayedDomain.activeAttempt,
+      currentExperimentStatus: viewedGroup?.status === 'draft'
+        ? 'draft' as const
+        : viewedGroup?.status === 'collecting'
+          ? 'running' as const
+          : 'completed' as const,
     },
     powerOn: displayMatchesActiveDomain ? file.powerOn : false,
-    heatCapacityFreeExperimentGroupStatus: viewedGroup?.status === 'draft'
-      ? 'draft' as const
-      : viewedGroup?.status === 'collecting'
-        ? 'running' as const
-        : 'completed' as const,
   };
   const activeFreeTrialIndex = displayMatchesActiveDomain
     ? getActiveHeatCapacityFreeTrialIndex(displayTrialSource)

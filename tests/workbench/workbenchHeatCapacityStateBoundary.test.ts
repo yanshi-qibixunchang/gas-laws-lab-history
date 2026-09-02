@@ -103,7 +103,7 @@ for (const retiredRuntimeField of [
 }
 assert.match(
   stateTypesSource,
-  /interface HeatCapacityFreeRunWorkspace[\s\S]*batch:[\s\S]*traceStore:[\s\S]*trials:[\s\S]*activeAttempt:/,
+  /interface HeatCapacityFreeRunWorkspace[\s\S]*batch:[\s\S]*traceStore:[\s\S]*trials:[\s\S]*activeAttempt:[\s\S]*currentExperimentStatus:/,
   'the active Free runtime projections should remain grouped in one workspace',
 );
 assert.match(
@@ -125,6 +125,7 @@ for (const retiredInstrumentStateField of [
   'heatCapacityFreePhysicsState',
   'heatCapacityFreeSensorState',
   'heatCapacityFreeCalibrationState',
+  'heatCapacityFreeExperimentGroupStatus',
 ]) {
   assert.doesNotMatch(
     workbenchHeatCapacityStateDeclaration,
@@ -144,7 +145,7 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeInstrumentState[\s\S]*下一大改动断点是评估当前试验状态、气体类型和参数草稿的语义归属/,
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*下一大改动断点缩小为气体类型与参数草稿/,
   'the authority table should preserve the next semantic-ownership breakpoint',
 );
 

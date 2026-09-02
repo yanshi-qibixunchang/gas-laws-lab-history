@@ -645,7 +645,7 @@ function selectCompletedModeResult(file: WorkbenchHeatCapacityState) {
     assert.notEqual(review.score.total, null);
     return {
       mode: 'free' as const,
-      groupStatus: file.heatCapacityFreeExperimentGroupStatus,
+      groupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
       u0: trial?.u0?.displayPressureMv,
       u1: trial?.u1?.displayPressureMv,
       u2: trial?.u2?.displayPressureMv,

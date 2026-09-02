@@ -106,7 +106,7 @@ const assertFixtureFiles = (
     'the active heat-capacity mode must survive migration',
   );
   assert.equal(
-    heatCapacity.heatCapacityFreeExperimentGroupStatus,
+    heatCapacity.heatCapacityFreeRunWorkspace.currentExperimentStatus,
     'completed',
     'the completed Free experiment group must survive migration',
   );

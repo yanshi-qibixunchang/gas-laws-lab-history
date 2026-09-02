@@ -62,9 +62,9 @@ const createStableFreeU1File = (): WorkbenchHeatCapacityState => {
     glassPistonState: 'closed',
     pumpStrokeCount: 9,
     pressureSafetyStatus: 'normal',
-    heatCapacityFreeExperimentGroupStatus: 'running',
     heatCapacityFreeRunWorkspace: {
       ...base.heatCapacityFreeRunWorkspace,
+      currentExperimentStatus: 'running',
       activeAttempt: createWaitingU1Attempt(),
       trials: [{
         ...createHeatCapacityFreeTrial('free-trial-1'),

@@ -140,7 +140,7 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   scheme,
   gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
   batch: file.heatCapacityFreeRunWorkspace.batch,
-  experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
+  experimentGroupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
   activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file, scheme),
   recordConfig: file.heatCapacityFreeInstrumentConfig.record,
   pressureWarningMv: file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
@@ -285,8 +285,8 @@ export const applyHeatCapacityFreeDomainToRuntimeFields = (
         domain.scheme,
       ),
       activeAttempt: domain.activeAttempt ?? null,
+      currentExperimentStatus: domain.experimentGroupStatus,
     },
-    heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
     heatCapacityFreeInstrumentConfig: {
@@ -368,12 +368,12 @@ export const applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields = (
         currentGroup.runSeries.trials,
         currentGroup.scheme,
       ),
+      currentExperimentStatus: currentGroup.status === 'draft'
+        ? 'draft'
+        : currentGroup.status === 'collecting'
+          ? file.heatCapacityFreeRunWorkspace.currentExperimentStatus
+          : 'completed',
     },
-    heatCapacityFreeExperimentGroupStatus: currentGroup.status === 'draft'
-      ? 'draft'
-      : currentGroup.status === 'collecting'
-        ? file.heatCapacityFreeExperimentGroupStatus
-        : 'completed',
   };
 };
 

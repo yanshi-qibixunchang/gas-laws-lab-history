@@ -204,6 +204,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     heatCapacityFreeTraceStore: discardedLegacyTraceStore,
     heatCapacityFreeTrials: discardedLegacyTrials,
     heatCapacityFreeActiveAttempt: discardedLegacyActiveAttempt,
+    heatCapacityFreeExperimentGroupStatus: discardedLegacyExperimentStatus,
     ...fileWithoutLegacySelectedPanel
   } = file as WorkbenchHeatCapacityState & {
     selectedHeatCapacityPanel?: unknown;
@@ -215,6 +216,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     heatCapacityFreeTraceStore?: unknown;
     heatCapacityFreeTrials?: unknown;
     heatCapacityFreeActiveAttempt?: unknown;
+    heatCapacityFreeExperimentGroupStatus?: unknown;
   };
   void discardedLegacySelectedPanel;
   void discardedLegacyFlowOpen;
@@ -225,6 +227,12 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
   void discardedLegacyTraceStore;
   void discardedLegacyTrials;
   void discardedLegacyActiveAttempt;
+  const savedRunWorkspace: Record<string, unknown> = isRecord(file.heatCapacityFreeRunWorkspace)
+    ? file.heatCapacityFreeRunWorkspace as unknown as Record<string, unknown>
+    : {};
+  const savedFreeCurrentExperimentStatus = normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
+    savedRunWorkspace.currentExperimentStatus ?? discardedLegacyExperimentStatus,
+  );
   const fallback = createDefaultHeatCapacityFile(1);
   const heatCapacityVisiblePanels = file.visiblePanels.filter((panel) => (
     panel === 'preview' ||
@@ -325,9 +333,6 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
   const normalizedFreeRuntimeFields = savedFreeRuntimeCompatible
     ? {
         heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-        heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
-          file.heatCapacityFreeExperimentGroupStatus,
-        ),
         heatCapacityFreeGasType: savedFreeParameterDraft.gasType,
         heatCapacityFreeParameterDraft: savedFreeParameterDraft,
         heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
@@ -516,6 +521,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
       traceStore: activeFreeDomain.traceStore,
       trials: activeFreeDomain.trials,
       activeAttempt: activeFreeDomain.activeAttempt,
+      currentExperimentStatus: savedFreeCurrentExperimentStatus,
     },
     heatCapacityFreeRollbackSnapshots,
     name: normalizeHeatCapacityFileName(file.name),

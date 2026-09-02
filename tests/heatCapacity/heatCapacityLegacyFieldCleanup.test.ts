@@ -11,6 +11,7 @@ const retiredFreeRuntimeFields = [
   'heatCapacityFreeTraceStore',
   'heatCapacityFreeTrials',
   'heatCapacityFreeActiveAttempt',
+  'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeRecordConfig',
   'heatCapacityFreePressureWarningMv',
   'heatCapacityFreeInstrumentNoiseEnabled',
@@ -31,8 +32,8 @@ for (const field of retiredFreeRuntimeFields) {
 }
 assert.deepEqual(
   Object.keys(defaultHeatCapacityFile.heatCapacityFreeRunWorkspace).sort(),
-  ['activeAttempt', 'batch', 'traceStore', 'trials'],
-  'the current Free run workspace should own the four retired runtime projections',
+  ['activeAttempt', 'batch', 'currentExperimentStatus', 'traceStore', 'trials'],
+  'the current Free run workspace should own the five retired runtime projections',
 );
 assert.deepEqual(
   Object.keys(defaultHeatCapacityFile.heatCapacityFreeInstrumentConfig).sort(),

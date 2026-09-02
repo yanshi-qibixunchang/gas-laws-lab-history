@@ -222,7 +222,6 @@ const HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS = [
   'heatCapacityFreeRuntimeVersion',
   'heatCapacityFreeRunWorkspace',
   'heatCapacityFreeExperimentGroups',
-  'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeGasType',
   'heatCapacityFreeParameterDraft',
   'heatCapacityFreeFileAcknowledgements',
@@ -277,6 +276,9 @@ export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
     WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['trials'];
   heatCapacityFreeActiveAttempt:
     WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['activeAttempt'];
+  /** Stable compatibility projection retained in persisted mode-session snapshots. */
+  heatCapacityFreeExperimentGroupStatus:
+    HeatCapacityFreeExperimentDomainState['experimentGroupStatus'];
   heatCapacityFreeRecordConfig:
     WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['record'];
   heatCapacityFreePressureWarningMv:
@@ -417,7 +419,7 @@ const createFreeModeSessionDomainFromProjection = (
     scheme,
     gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
     batch: file.heatCapacityFreeRunWorkspace.batch,
-    experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
+    experimentGroupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
     activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
     recordConfig: file.heatCapacityFreeInstrumentConfig.record,
     pressureWarningMv: file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
@@ -660,6 +662,7 @@ export const restoreHeatCapacityModeSession = (
             traceStore: activeDomain.traceStore,
             trials: activeDomain.trials,
             activeAttempt: activeDomain.activeAttempt,
+            currentExperimentStatus: activeDomain.experimentGroupStatus,
           },
         };
       })()
