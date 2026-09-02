@@ -36,7 +36,6 @@ import type {
 } from './workbenchHeatCapacityStateTypes.ts';
 import {
   heatCapacityRestoreFiniteOrDefault as finiteOrDefault,
-  normalizeHeatCapacityFreeRestoreConfigSnapshot,
   normalizeHeatCapacityFreeRestoreDisplayScheme,
   normalizeHeatCapacityFreeRestoreCalibrationState,
   normalizeHeatCapacityFreeRestoreExperimentDomainResult,
@@ -200,17 +199,20 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     heatCapacityFreeStopcockFlowOpen: discardedLegacyFlowOpen,
     heatCapacityFreeStopcockPendingOpenAtMs: discardedLegacyPendingOpen,
     heatCapacityFreeStopcockFlowPurpose: discardedLegacyFlowPurpose,
+    heatCapacityFreeActiveRunConfigSnapshot: discardedLegacyActiveRunConfigSnapshot,
     ...fileWithoutLegacySelectedPanel
   } = file as WorkbenchHeatCapacityState & {
     selectedHeatCapacityPanel?: unknown;
     heatCapacityFreeStopcockFlowOpen?: unknown;
     heatCapacityFreeStopcockPendingOpenAtMs?: unknown;
     heatCapacityFreeStopcockFlowPurpose?: unknown;
+    heatCapacityFreeActiveRunConfigSnapshot?: unknown;
   };
   void discardedLegacySelectedPanel;
   void discardedLegacyFlowOpen;
   void discardedLegacyPendingOpen;
   void discardedLegacyFlowPurpose;
+  void discardedLegacyActiveRunConfigSnapshot;
   const fallback = createDefaultHeatCapacityFile(1);
   const heatCapacityVisiblePanels = file.visiblePanels.filter((panel) => (
     panel === 'preview' ||
@@ -316,9 +318,6 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
         ),
         heatCapacityFreeGasType: savedFreeParameterDraft.gasType,
         heatCapacityFreeParameterDraft: savedFreeParameterDraft,
-        heatCapacityFreeActiveRunConfigSnapshot: normalizeHeatCapacityFreeRestoreConfigSnapshot(
-          file.heatCapacityFreeActiveRunConfigSnapshot,
-        ),
         heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
           file.heatCapacityFreeFileAcknowledgements,
         ),

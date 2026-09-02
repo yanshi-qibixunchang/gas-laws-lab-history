@@ -127,6 +127,9 @@ import type {
 import {
   migrateLegacyHeatCapacityFreeExperimentGroups,
 } from './workbenchHeatCapacityExperimentGroupMigration.ts';
+import {
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
 
 export const HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION = 3 as const;
 export const HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION = 2 as const;
@@ -222,7 +225,6 @@ const HEAT_CAPACITY_FREE_SESSION_KEYS = [
   'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeGasType',
   'heatCapacityFreeParameterDraft',
-  'heatCapacityFreeActiveRunConfigSnapshot',
   'heatCapacityFreeFileAcknowledgements',
   'heatCapacityFreeParameterScheme',
   'heatCapacityFreeDisplayScheme',
@@ -268,7 +270,11 @@ export type HeatCapacityModeCommonRuntimeSnapshot = Pick<
 export type HeatCapacityFreeModeRuntimeSnapshot = Pick<
   WorkbenchHeatCapacityState,
   typeof HEAT_CAPACITY_FREE_SESSION_KEYS[number]
->;
+> & {
+  /** Compatibility projection retained in persisted mode-session snapshots. */
+  heatCapacityFreeActiveRunConfigSnapshot:
+    HeatCapacityFreeExperimentDomainState['activeRunConfigSnapshot'];
+};
 
 export type HeatCapacityGuideModeRuntimeSnapshot = Pick<
   WorkbenchHeatCapacityState,
@@ -388,7 +394,7 @@ const createFreeModeSessionDomainFromProjection = (
     gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
     batch: file.heatCapacityFreeBatch,
     experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
-    activeRunConfigSnapshot: file.heatCapacityFreeActiveRunConfigSnapshot,
+    activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
     recordConfig: file.heatCapacityFreeRecordConfig,
     pressureWarningMv: file.heatCapacityFreePressureWarningMv,
     instrumentNoiseEnabled: file.heatCapacityFreeInstrumentNoiseEnabled,
@@ -603,8 +609,10 @@ export const restoreHeatCapacityModeSession = (
         const activeDomain = snapshot.free.heatCapacityFreeParameterScheme === 'ideal'
           ? idealDomain
           : realDomain;
+        const restoredFreeRuntime = { ...snapshot.free };
+        delete restoredFreeRuntime.heatCapacityFreeActiveRunConfigSnapshot;
         return {
-          ...snapshot.free,
+          ...restoredFreeRuntime,
           heatCapacityFreeRealDomain: realDomain,
           heatCapacityFreeIdealDomain: idealDomain,
           heatCapacityFreeBatch: activeDomain.batch,
@@ -4327,7 +4335,7 @@ const HEAT_CAPACITY_FREE_RUNTIME_DECODERS = {
   heatCapacityFreeTrials: decodeArray(decodeFreeTrial),
   heatCapacityFreeActiveAttempt: decodeNullableFreeAttempt,
 } satisfies Record<
-  typeof HEAT_CAPACITY_FREE_SESSION_KEYS[number],
+  keyof HeatCapacityFreeModeRuntimeSnapshot,
   RuntimeValueDecoder
 >;
 

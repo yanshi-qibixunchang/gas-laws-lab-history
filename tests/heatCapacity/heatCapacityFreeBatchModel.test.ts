@@ -29,6 +29,7 @@ import {
   configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   freezeHeatCapacityFreeParametersForCurrentGroup,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
 } from '../../src/features/workbench/workbenchState.ts';
 
 const createCompletedTrial = (
@@ -120,7 +121,7 @@ const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
     99,
   ),
 );
-const snapshot = frozenFile.heatCapacityFreeActiveRunConfigSnapshot;
+const snapshot = selectHeatCapacityFreeActiveRunConfigSnapshot(frozenFile);
 assert.notEqual(snapshot, null);
 const started = startHeatCapacityFreeBatch(configured, snapshot!, 200);
 assert.equal(isHeatCapacityFreeBatchLocked(started), true);

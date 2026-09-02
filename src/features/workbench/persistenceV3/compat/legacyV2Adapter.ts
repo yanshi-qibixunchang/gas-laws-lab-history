@@ -3954,13 +3954,6 @@ const restoreLegacyHeatCapacityEnvelope = (
         }
       : {}),
     ...(free !== null &&
-        Object.prototype.hasOwnProperty.call(free, 'activeRunConfigSnapshot')
-      ? {
-          heatCapacityFreeActiveRunConfigSnapshot:
-            cloneLegacyPersistenceValue(free.activeRunConfigSnapshot),
-        }
-      : {}),
-    ...(free !== null &&
         Object.prototype.hasOwnProperty.call(free, 'acknowledgements')
       ? {
           heatCapacityFreeFileAcknowledgements:

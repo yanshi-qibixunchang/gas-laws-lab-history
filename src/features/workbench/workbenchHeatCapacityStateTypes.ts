@@ -162,7 +162,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeExperimentGroupStatus: HeatCapacityFreeExperimentGroupStatus;
   heatCapacityFreeGasType: HeatCapacityFreeGasType;
   heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
-  heatCapacityFreeActiveRunConfigSnapshot: HeatCapacityFreeTraceTrial['configSnapshot'] | null;
   heatCapacityFreeFileAcknowledgements: HeatCapacityFreeFileAcknowledgements;
   heatCapacityFreeParameterScheme: HeatCapacityFreeParameterScheme;
   heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme;

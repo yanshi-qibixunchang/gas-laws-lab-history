@@ -196,6 +196,7 @@ import {
   hydrateHeatCapacityFreeAuthorityProjection,
   projectHeatCapacityFreeExperimentGroupToDomain,
   selectActiveHeatCapacityFreeDomain,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   selectHeatCapacityFreeDomain,
   transactHeatCapacityFreeAuthority,
 } from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
@@ -209,6 +210,7 @@ export {
   normalizeHeatCapacityFreeExperimentDomainBoundary,
   projectHeatCapacityFreeExperimentGroupToDomain,
   selectActiveHeatCapacityFreeDomain,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   selectHeatCapacityFreeDomain,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   transactHeatCapacityFreeAuthority,
@@ -1080,7 +1082,6 @@ export const freezeHeatCapacityFreeParametersForCurrentGroup = (
       ...file,
       heatCapacityFreeBatch: configuredBatch,
       heatCapacityFreeExperimentGroupStatus: 'running',
-      heatCapacityFreeActiveRunConfigSnapshot: configuredBatch.frozenConfigSnapshot,
     }, file.heatCapacityFreeParameterScheme);
   }
   const appliedFile = applyHeatCapacityFreeParameterDraftConfigWorkbenchState(
@@ -1102,7 +1103,6 @@ export const freezeHeatCapacityFreeParametersForCurrentGroup = (
     heatCapacityFreeExperimentGroups: groups,
     heatCapacityFreeBatch: startedBatch,
     heatCapacityFreeExperimentGroupStatus: 'running',
-    heatCapacityFreeActiveRunConfigSnapshot: snapshot,
   }, appliedFile.heatCapacityFreeParameterScheme);
 };
 
@@ -2187,9 +2187,6 @@ const applyHeatCapacityFreeRemovalRollback = (
       heatCapacityFreeExperimentGroupStatus: attemptHasPhysicalProgress
         ? file.heatCapacityFreeExperimentGroupStatus
         : 'draft',
-      heatCapacityFreeActiveRunConfigSnapshot: attemptHasPhysicalProgress
-        ? file.heatCapacityFreeActiveRunConfigSnapshot
-        : null,
       updatedAt: now,
     };
   }
@@ -4760,7 +4757,6 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
     heatCapacityFreeExperimentGroupStatus: 'draft' as const,
     heatCapacityFreeGasType: parameterDraft.gasType,
     heatCapacityFreeParameterDraft: parameterDraft,
-    heatCapacityFreeActiveRunConfigSnapshot: null,
     heatCapacityFreeFileAcknowledgements: createDefaultHeatCapacityFreeFileAcknowledgements(),
     heatCapacityFreeParameterScheme: 'real' as const,
     heatCapacityFreeDisplayScheme: 'real' as const,
@@ -4812,7 +4808,7 @@ export const createDefaultHeatCapacityFreeExperimentDomainState = (
     gasType: scheme === 'ideal' ? 'air' : parameterState.gasType,
     batch: fields.heatCapacityFreeBatch,
     experimentGroupStatus: fields.heatCapacityFreeExperimentGroupStatus,
-    activeRunConfigSnapshot: fields.heatCapacityFreeActiveRunConfigSnapshot,
+    activeRunConfigSnapshot: null,
     recordConfig: fields.heatCapacityFreeRecordConfig,
     pressureWarningMv: fields.heatCapacityFreePressureWarningMv,
     instrumentNoiseEnabled: fields.heatCapacityFreeInstrumentNoiseEnabled,
@@ -5255,7 +5251,6 @@ export const configureHeatCapacityFreeBatchWorkbenchState = (
   return commitHeatCapacityFreeRuntimeAuthorityTransaction({
     ...transactedFile,
     heatCapacityFreeExperimentGroupStatus: 'draft',
-    heatCapacityFreeActiveRunConfigSnapshot: null,
     heatCapacityFreeActiveAttempt: null,
     updatedAt: now,
   }, scheme);
@@ -5344,7 +5339,6 @@ export const abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState = (
     heatCapacityFreeDisplayScheme: scheme,
     heatCapacityFreeBatch: createEmptyHeatCapacityFreeBatchState(),
     heatCapacityFreeExperimentGroupStatus: 'draft',
-    heatCapacityFreeActiveRunConfigSnapshot: null,
     heatCapacityFreeTraceStore: createDefaultFreeTraceStore(),
     heatCapacityFreeTrials: [],
     heatCapacityFreeActiveAttempt: null,
@@ -5773,8 +5767,6 @@ const resetHeatCapacityFreeExperimentWithinCurrentGroup = (
 
   const scheme = hydratedFile.heatCapacityFreeParameterScheme;
   const batch = hydratedFile.heatCapacityFreeBatch;
-  const activeRunConfigSnapshot = batch.frozenConfigSnapshot ??
-    hydratedFile.heatCapacityFreeActiveRunConfigSnapshot;
   const resetSourceFile = discardCurrentExperiment
     ? discardCurrentHeatCapacityFreeExperimentRuntime(hydratedFile)
     : hydratedFile;
@@ -5793,7 +5785,6 @@ const resetHeatCapacityFreeExperimentWithinCurrentGroup = (
       heatCapacityFreeExperimentGroups: groups,
       heatCapacityFreeBatch: batch,
       heatCapacityFreeExperimentGroupStatus: 'draft',
-      heatCapacityFreeActiveRunConfigSnapshot: activeRunConfigSnapshot,
       heatCapacityFreeParameterScheme: scheme,
       heatCapacityFreeDisplayScheme: scheme,
       heatCapacityFreeActiveAttempt: null,
@@ -5842,8 +5833,6 @@ export const restartHeatCapacityFreeBatchWorkbenchState = (
     heatCapacityFreeExperimentGroups: groups,
     heatCapacityFreeBatch: hydratedFile.heatCapacityFreeBatch,
     heatCapacityFreeExperimentGroupStatus: 'running',
-    heatCapacityFreeActiveRunConfigSnapshot:
-      hydratedFile.heatCapacityFreeActiveRunConfigSnapshot,
     heatCapacityFreeTraceStore: hydratedFile.heatCapacityFreeTraceStore,
     heatCapacityFreeTrials: hydratedFile.heatCapacityFreeTrials,
     heatCapacityFreeActiveAttempt: null,
@@ -6203,7 +6192,7 @@ const applyHeatCapacityFreeRecordWorkbenchStateCore = (
   const recordTrial = {
     ...recordResult.trial,
     configSnapshot: kind === 'u2'
-      ? acceptedSourceFile.heatCapacityFreeActiveRunConfigSnapshot
+      ? selectHeatCapacityFreeActiveRunConfigSnapshot(acceptedSourceFile)
       : recordResult.trial.configSnapshot,
     traceTrialId: recordTrace.reference.traceTrialId,
     branchCount: traceTrial

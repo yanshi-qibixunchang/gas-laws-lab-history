@@ -71,6 +71,16 @@ assert.match(
   'the extracted authority boundary should expose one transaction entrypoint',
 );
 assert.match(
+  authorityTransactionSource,
+  /export const selectHeatCapacityFreeActiveRunConfigSnapshot/,
+  'the retired top-level snapshot mirror must have one authority selector',
+);
+assert.doesNotMatch(
+  stateTypesSource,
+  /heatCapacityFreeActiveRunConfigSnapshot:/,
+  'the retired active-config mirror must stay out of current workbench state',
+);
+assert.match(
   stateTypesSource,
   /Sole authority for Free experiment-group history, progress, calculation, and results/,
   'the state type should identify the Free experiment-group authority',
@@ -82,7 +92,7 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /下一大改动断点是删除顶层镜像字段或调整 Persistence V3 投影格式/,
+  /下一大改动断点是继续删除批次、试次、轨迹和当前尝试等高频运行镜像/,
   'the authority table should preserve the next high-risk persistence breakpoint',
 );
 

@@ -63,6 +63,7 @@ import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   type HeatCapacityFreeExperimentDomainState,
@@ -1807,7 +1808,7 @@ const projectHeatCapacityFile = (
   const runtimeAggregate = {
     ...activeDomain,
     batch: file.heatCapacityFreeBatch,
-    activeRunConfigSnapshot: file.heatCapacityFreeActiveRunConfigSnapshot,
+    activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
     trials: file.heatCapacityFreeTrials,
     traceStore: file.heatCapacityFreeTraceStore,
     activeAttempt: file.heatCapacityFreeActiveAttempt,

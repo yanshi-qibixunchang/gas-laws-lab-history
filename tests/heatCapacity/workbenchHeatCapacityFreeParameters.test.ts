@@ -17,6 +17,7 @@ import {
   resetHeatCapacityFreeRunWorkbenchState,
   restartHeatCapacityFreeBatchWorkbenchState,
   prepareNextHeatCapacityFreeExperimentWorkbenchState,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   stepHeatCapacityWorkbenchFile,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -50,7 +51,12 @@ assert.equal(defaultFile.heatCapacityFreeGasType, 'air');
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasType, 'air');
 assert.equal(defaultFile.theoreticalGamma, 1.4);
 assert.equal(defaultFile.heatCapacityFreePhysicsConfig.gamma, 1.4);
-assert.equal(defaultFile.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(defaultFile), null);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(defaultFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
+  false,
+  'the current workbench state must not recreate the retired active-config mirror',
+);
 assert.deepEqual(defaultFile.heatCapacityFreeFileAcknowledgements, {
   advancedParametersRisk: false,
   idealParameterProfileIntro: false,
@@ -109,7 +115,7 @@ const editedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultFile
 assert.equal(editedFile.heatCapacityFreeExperimentGroupStatus, 'draft');
 assert.equal(editedFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8);
 assert.equal(editedFile.heatCapacityFreeParameterDraft.leakageEnabled, true);
-assert.equal(editedFile.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(editedFile), null);
 assert.equal(
   editedFile.heatCapacityFreePhysicsConfig.environment.ambientPressureKPa,
   99.8,
@@ -165,17 +171,22 @@ const frozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(
 assert.equal(frozenFile.heatCapacityFreeExperimentGroupStatus, 'running');
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(frozenFile), false);
 assert.equal(getHeatCapacityFreeParameterLockReason(frozenFile), 'groupStarted');
-assert.notEqual(frozenFile.heatCapacityFreeActiveRunConfigSnapshot, null);
+const frozenConfigSnapshot = selectHeatCapacityFreeActiveRunConfigSnapshot(frozenFile);
+assert.notEqual(frozenConfigSnapshot, null);
 assert.equal(
-  frozenFile.heatCapacityFreeActiveRunConfigSnapshot?.environment.ambientPressureKPa,
+  Object.prototype.hasOwnProperty.call(frozenFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
+  false,
+);
+assert.equal(
+  frozenConfigSnapshot?.environment.ambientPressureKPa,
   99.8,
 );
 assert.equal(
-  frozenFile.heatCapacityFreeActiveRunConfigSnapshot?.physics.thermal.gasWallConductanceWPerK,
+  frozenConfigSnapshot?.physics.thermal.gasWallConductanceWPerK,
   0.35,
 );
-assert.equal(frozenFile.heatCapacityFreeActiveRunConfigSnapshot?.physics.leakage.enabled, true);
-assert.equal(frozenFile.heatCapacityFreeActiveRunConfigSnapshot?.sensor.noiseMv, 0);
+assert.equal(frozenConfigSnapshot?.physics.leakage.enabled, true);
+assert.equal(frozenConfigSnapshot?.sensor.noiseMv, 0);
 assert.equal(frozenFile.heatCapacityFreeInstrumentNoiseEnabled, false);
 assert.equal(frozenFile.heatCapacityFreePressureWarningMv, 122);
 assert.equal(frozenFile.heatCapacityFreeRecordConfig.pressureDangerMv, 150);
@@ -194,7 +205,7 @@ const completedFreeTrial = {
   u2: { displayPressureMv: 51.2 },
   blockedReason: null,
   correctedSignals: { gamma: 1.4 },
-  configSnapshot: frozenFile.heatCapacityFreeActiveRunConfigSnapshot,
+  configSnapshot: frozenConfigSnapshot,
 } as any;
 const activeBatchId = frozenFile.heatCapacityFreeBatch.id;
 assert.notEqual(activeBatchId, null);
@@ -290,7 +301,7 @@ assert.equal(shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(completedGroupP
 
 const preparedAfterPowerOff = powerHeatCapacityWorkbenchFile(completedGroupPowerOnFile, false, 2000);
 assert.equal(preparedAfterPowerOff.heatCapacityFreeExperimentGroupStatus, 'completed');
-assert.notEqual(preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(preparedAfterPowerOff), null);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(preparedAfterPowerOff), false);
 assert.equal(getHeatCapacityFreeParameterLockReason(preparedAfterPowerOff), 'batchStarted');
 
@@ -301,7 +312,10 @@ const completedFileForStandardReferenceSnapshot = {
   runState: 'idle' as const,
   pressureZeroed: true,
   heatCapacityFreeExperimentGroupStatus: 'completed' as const,
-  heatCapacityFreeActiveRunConfigSnapshot: snapshotParts.traceTrial.configSnapshot,
+  heatCapacityFreeRealDomain: {
+    ...defaultFile.heatCapacityFreeRealDomain,
+    activeRunConfigSnapshot: snapshotParts.traceTrial.configSnapshot,
+  },
   heatCapacityFreeTraceStore: snapshotParts.traceStore,
   heatCapacityFreeTrials: [{
     ...snapshotParts.trial,
@@ -342,7 +356,7 @@ assert.equal(
   preparedAfterPowerOff.heatCapacityFreeTrials.length,
   'restarting a blank next experiment must preserve already completed experiments',
 );
-assert.notEqual(restartedBlankNextExperiment.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(restartedBlankNextExperiment), null);
 const preparedForNextGroup = prepareNextHeatCapacityFreeExperimentWorkbenchState(preparedAfterPowerOff, 2100);
 assert.equal(preparedForNextGroup.heatCapacityFreeExperimentGroupStatus, 'draft');
 assert.equal(
@@ -351,8 +365,8 @@ assert.equal(
   'automatic experiment advance must preserve the current experiment group',
 );
 assert.deepEqual(
-  preparedForNextGroup.heatCapacityFreeActiveRunConfigSnapshot,
-  preparedAfterPowerOff.heatCapacityFreeActiveRunConfigSnapshot,
+  selectHeatCapacityFreeActiveRunConfigSnapshot(preparedForNextGroup),
+  selectHeatCapacityFreeActiveRunConfigSnapshot(preparedAfterPowerOff),
 );
 assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8);
 assert.equal(preparedForNextGroup.heatCapacityFreeParameterDraft.leakageRatePerS, 0.0018);
@@ -400,7 +414,7 @@ const gasTypeNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState
     {
       ...completedFreeTrial,
       id: 'completed-gas-type-lock-marker',
-      configSnapshot: gasTypeFrozenFile.heatCapacityFreeActiveRunConfigSnapshot,
+      configSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(gasTypeFrozenFile),
       completedAtMs: 3000,
     },
   ],

@@ -97,6 +97,19 @@ const withHeatCapacityFreeTrialsParameterScheme = (
   scheme: HeatCapacityFreeParameterScheme,
 ) => trials.map((trial) => withHeatCapacityFreeTrialParameterScheme(trial, scheme));
 
+export const selectHeatCapacityFreeActiveRunConfigSnapshot = (
+  file: WorkbenchHeatCapacityState,
+  scheme: HeatCapacityFreeParameterScheme = file.heatCapacityFreeParameterScheme,
+) => {
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  if (currentGroup?.scheme === scheme) return currentGroup.parameterSnapshot;
+  return scheme === 'ideal'
+    ? file.heatCapacityFreeIdealDomain.activeRunConfigSnapshot
+    : file.heatCapacityFreeRealDomain.activeRunConfigSnapshot;
+};
+
 export const projectHeatCapacityFreeExperimentGroupToDomain = (
   domain: HeatCapacityFreeExperimentDomainState,
   group: HeatCapacityFreeExperimentGroupRecord,
@@ -128,7 +141,7 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
   batch: file.heatCapacityFreeBatch,
   experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
-  activeRunConfigSnapshot: file.heatCapacityFreeActiveRunConfigSnapshot,
+  activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file, scheme),
   recordConfig: file.heatCapacityFreeRecordConfig,
   pressureWarningMv: file.heatCapacityFreePressureWarningMv,
   instrumentNoiseEnabled: file.heatCapacityFreeInstrumentNoiseEnabled,
@@ -265,7 +278,6 @@ export const applyHeatCapacityFreeDomainToRuntimeFields = (
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
-    heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
     heatCapacityFreeRecordConfig: domain.recordConfig,
     heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
     heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
@@ -345,7 +357,6 @@ export const applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields = (
       : currentGroup.status === 'collecting'
         ? file.heatCapacityFreeExperimentGroupStatus
         : 'completed',
-    heatCapacityFreeActiveRunConfigSnapshot: currentGroup.parameterSnapshot,
     heatCapacityFreeTraceStore: currentGroup.runSeries.traceStore,
     heatCapacityFreeTrials: withHeatCapacityFreeTrialsParameterScheme(
       currentGroup.runSeries.trials,

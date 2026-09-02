@@ -14,6 +14,7 @@ import {
   getHeatCapacityGaugePressureState,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   setHeatCapacityScriptedStopcockOpen,
   stepHeatCapacityWorkbenchFile,
   startHeatCapacityGuideWorkbenchState,
@@ -1388,7 +1389,7 @@ assert.equal(
   'the v4.2.3 fixed stopcock flow rate must migrate to the current runtime constant',
 );
 assert.equal(
-  legacy423FreeFile.heatCapacityFreeActiveRunConfigSnapshot?.physics.stopcockFlowRate,
+  selectHeatCapacityFreeActiveRunConfigSnapshot(legacy423FreeFile)?.physics.stopcockFlowRate,
   currentFreePhysicsConfig.stopcockFlowRate,
   'the active config snapshot must stay aligned with the migrated live physics config',
 );
@@ -2981,14 +2982,22 @@ assert.equal(customFreeFile.heatCapacityFreePressureWarningMv, 123);
 assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);
 assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
 assert.equal(
-  customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.version,
+  Object.prototype.hasOwnProperty.call(customFreeFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
+  false,
+  'session restore must keep the retired mirror out of current workbench state',
+);
+assert.equal(
+  selectHeatCapacityFreeActiveRunConfigSnapshot(customFreeFile)?.version,
   HEAT_CAPACITY_FREE_CONFIG_SNAPSHOT_VERSION,
 );
 assert.equal(
-  customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.environment.ambientPressureKPa,
+  selectHeatCapacityFreeActiveRunConfigSnapshot(customFreeFile)?.environment.ambientPressureKPa,
   99.2,
 );
-assert.equal(customFreeFile.heatCapacityFreeActiveRunConfigSnapshot?.record.pressureDangerMv, 152);
+assert.equal(
+  selectHeatCapacityFreeActiveRunConfigSnapshot(customFreeFile)?.record.pressureDangerMv,
+  152,
+);
 
 const airModelDefaults = getHeatCapacityFreeGasTypeModelDefaults('air');
 const realPhysicsDefaults = createDefaultHeatCapacityFreePhysicsConfig();

@@ -11,6 +11,7 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   powerHeatCapacityWorkbenchFile,
   recordHeatCapacityFreeTraceEvent,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   selectHeatCapacityFreeDomain,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   startHeatCapacityGuideWorkbenchState,
@@ -201,9 +202,13 @@ assert.match(
   heatCapacityPersistenceSource,
   /normalizeHeatCapacityFreeRestoreTrial/,
 );
-assert.match(
+assert.doesNotMatch(
   heatCapacitySessionRestoreSource,
   /normalizeHeatCapacityFreeRestoreConfigSnapshot/,
+);
+assert.match(
+  heatCapacitySessionRestoreSource,
+  /heatCapacityFreeActiveRunConfigSnapshot: discardedLegacyActiveRunConfigSnapshot/,
 );
 assert.match(
   heatCapacitySessionRestoreSource,
@@ -603,7 +608,7 @@ const frozenNoiseDisabledFile = freezeHeatCapacityFreeParametersForCurrentGroup(
   configureHeatCapacityFreeBatchWorkbenchState(noiseDisabledFile, 3, 12_347),
 );
 assert.equal(
-  frozenNoiseDisabledFile.heatCapacityFreeActiveRunConfigSnapshot?.sensor.noiseMv,
+  selectHeatCapacityFreeActiveRunConfigSnapshot(frozenNoiseDisabledFile)?.sensor.noiseMv,
   0,
   'runtime parameter freeze should snapshot the effective disabled-noise sensor configuration',
 );
@@ -1632,6 +1637,6 @@ assert.equal(
   incompleteRestored.heatCapacityFreeInstrumentNoiseEnabled,
   incompletePayload.free!.real.instrumentNoiseEnabled,
 );
-assert.equal(incompleteRestored.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(incompleteRestored), null);
 
 console.log('heatCapacityFreePersistence tests passed');

@@ -7,6 +7,7 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   powerHeatCapacityWorkbenchFile,
   restartHeatCapacityFreeBatchWorkbenchState,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
 } from '../../src/features/workbench/workbenchState.ts';
 
 const unconfiguredFile = createDefaultHeatCapacityFile(1);
@@ -24,7 +25,7 @@ const unconfiguredPowerAttempt = powerHeatCapacityWorkbenchFile(
 assert.equal(unconfiguredPowerAttempt.powerOn, false);
 assert.equal(unconfiguredPowerAttempt.heatCapacityFreeBatch.targetGroupCount, null);
 assert.equal(unconfiguredPowerAttempt.heatCapacityFreeBatch.startedAtMs, null);
-assert.equal(unconfiguredPowerAttempt.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(unconfiguredPowerAttempt), null);
 assert.equal(unconfiguredPowerAttempt.heatCapacityFreeExperimentGroupStatus, 'draft');
 
 const configuredFile = configureHeatCapacityFreeBatchWorkbenchState(
@@ -40,7 +41,7 @@ const configuredPowerAttempt = powerHeatCapacityWorkbenchFile(
 assert.equal(configuredPowerAttempt.powerOn, true);
 assert.equal(configuredPowerAttempt.heatCapacityFreeBatch.targetGroupCount, 3);
 assert.equal(configuredPowerAttempt.heatCapacityFreeBatch.startedAtMs, 103);
-assert.notEqual(configuredPowerAttempt.heatCapacityFreeActiveRunConfigSnapshot, null);
+assert.notEqual(selectHeatCapacityFreeActiveRunConfigSnapshot(configuredPowerAttempt), null);
 
 const fileWithOpenReview = {
   ...configuredPowerAttempt,

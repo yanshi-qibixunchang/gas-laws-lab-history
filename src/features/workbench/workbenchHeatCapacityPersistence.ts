@@ -28,6 +28,7 @@ import {
   createDefaultHeatCapacityFreeExperimentDomainState,
   getHeatCapacityStopcockTargetAngle,
   normalizeHeatCapacityFreeFileAcknowledgements,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type HeatCapacityFreeExperimentDomainState,
   type WorkbenchHeatCapacityState,
@@ -220,7 +221,9 @@ export const createHeatCapacityPersistencePayload = (
       config: createHeatCapacityFreeConfigSnapshotFromFile(fileWithCurrentDomain),
       parameterDraft: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeParameterDraft),
       experimentGroupStatus: fileWithCurrentDomain.heatCapacityFreeExperimentGroupStatus,
-      activeRunConfigSnapshot: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeActiveRunConfigSnapshot),
+      activeRunConfigSnapshot: clonePersistenceValue(
+        selectHeatCapacityFreeActiveRunConfigSnapshot(fileWithCurrentDomain),
+      ),
       acknowledgements: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeFileAcknowledgements),
       recordConfig: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRecordConfig),
       pressureWarningMv: fileWithCurrentDomain.heatCapacityFreePressureWarningMv,
@@ -297,7 +300,6 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
-    heatCapacityFreeActiveRunConfigSnapshot: domain.activeRunConfigSnapshot,
     heatCapacityFreeRecordConfig: domain.recordConfig,
     heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
     heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
@@ -468,8 +470,16 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     'air',
     fallbackIdealDomain,
   );
-  const restoredRealDomainWithGasType = restoredRealDomain;
-  const restoredIdealDomainWithGasType = restoredIdealDomain;
+  const restoredRealDomainWithGasType = (
+    restoredParameterScheme === 'real' && !hasPersistedRealDomain
+  )
+    ? { ...restoredRealDomain, activeRunConfigSnapshot }
+    : restoredRealDomain;
+  const restoredIdealDomainWithGasType = (
+    restoredParameterScheme === 'ideal' && !hasPersistedIdealDomain
+  )
+    ? { ...restoredIdealDomain, activeRunConfigSnapshot }
+    : restoredIdealDomain;
   const persistedExperimentGroups =
     normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(
       repairHeatCapacityExperimentGroupDerivedTrialCaches(
@@ -564,7 +574,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
       fallback.heatCapacityFreeExperimentGroupStatus,
     ),
     heatCapacityFreeParameterDraft: parameterDraft,
-    heatCapacityFreeActiveRunConfigSnapshot: activeRunConfigSnapshot,
     heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
       free?.acknowledgements,
     ),

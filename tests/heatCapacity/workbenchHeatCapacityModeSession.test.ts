@@ -492,6 +492,16 @@ for (const index of [1, 2, 3, 20]) {
     pristineFreeStore.free,
     'the pristine Free exception must preserve the original current-v2 record without rewriting user data',
   );
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(
+      normalizedPristineFree.free.snapshot?.mode === 'free'
+        ? normalizedPristineFree.free.snapshot.free
+        : {},
+      'heatCapacityFreeActiveRunConfigSnapshot',
+    ),
+    true,
+    'persisted mode-session snapshots must retain the compatibility projection',
+  );
   const pristineFreeRestored = restoreHeatCapacityModeSession(
     pristineFreeSuspendedFile,
     'free',
@@ -499,6 +509,14 @@ for (const index of [1, 2, 3, 20]) {
   );
   assert.notEqual(pristineFreeRestored, null);
   if (pristineFreeRestored) {
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(
+        pristineFreeRestored,
+        'heatCapacityFreeActiveRunConfigSnapshot',
+      ),
+      false,
+      'restoring a mode session must not leak the retired projection into current state',
+    );
     const pristineFreeResuspended = suspendHeatCapacityModeSession(
       pristineFreeRestored,
       null,
