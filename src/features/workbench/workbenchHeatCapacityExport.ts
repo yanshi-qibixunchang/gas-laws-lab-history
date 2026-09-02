@@ -11,7 +11,7 @@ import {
 import type {
   HeatCapacityFreeExperimentGroupRecord,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
-import type { WorkbenchHeatCapacityState } from './workbenchState.ts';
+import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
 import type {
   WorkbenchExportLanguage,
   WorkbenchExportMode,

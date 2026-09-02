@@ -32,6 +32,10 @@ const workbenchStateSource = readFileSync(
   join(process.cwd(), 'src/features/workbench/workbenchState.ts'),
   'utf8',
 );
+const instrumentStateSource = readFileSync(
+  join(process.cwd(), 'src/features/workbench/workbenchHeatCapacityInstrumentState.ts'),
+  'utf8',
+);
 
 const stabilizeGuidePressureZero = (
   file: WorkbenchHeatCapacityState,
@@ -438,7 +442,7 @@ const stabilizeGuidePressureZero = (
 }
 
 assert.doesNotMatch(
-  workbenchStateSource,
+  instrumentStateSource,
   /isHeatCapacityPhysicalKernelMode[\s\S]{0,120}mode === 'free' \|\| mode === 'guide'/,
   'Guide and Free must not share one broad physical-kernel mode predicate',
 );

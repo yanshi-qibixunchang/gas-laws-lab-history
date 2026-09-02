@@ -120,8 +120,10 @@ import type {
   HeatCapacityFreeExperimentDomainState,
   HeatCapacityFreeRollbackSnapshot,
   WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
+import type {
   WorkbenchRunState,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
 import {
   migrateLegacyHeatCapacityFreeExperimentGroups,
 } from './workbenchHeatCapacityExperimentGroupMigration.ts';

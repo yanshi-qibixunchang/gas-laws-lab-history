@@ -34,6 +34,20 @@ const heatCapacityMaterialsWindowCoordinatorPath = join(process.cwd(), 'src', 'f
 const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
+const stateTypesPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityStateTypes.ts',
+);
+const instrumentStatePath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityInstrumentState.ts',
+);
 const sessionPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchSession.ts');
 const indexedDbPersistencePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchIndexedDbPersistence.ts');
 const heatCapacitySessionRestorePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacitySessionRestore.ts');
@@ -95,6 +109,8 @@ const modeTypesSource = readFileSync(modeTypesPath, 'utf8');
 const modeControlModelSource = readFileSync(modeControlModelPath, 'utf8');
 const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
+const stateTypesSource = readFileSync(stateTypesPath, 'utf8');
+const instrumentStateSource = readFileSync(instrumentStatePath, 'utf8');
 const sessionSource = readFileSync(sessionPath, 'utf8');
 const heatCapacitySessionRestoreSource = readFileSync(heatCapacitySessionRestorePath, 'utf8');
 const heatCapacityPersistencePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityPersistence.ts');
@@ -1216,9 +1232,9 @@ assert.match(sceneSource, /已到调节上限|Upper adjustment limit reached/, '
 assert.match(sceneSource, /已到调节下限|Lower adjustment limit reached/, 'pressure zero interaction should show a restrained toast at the lower physical stop');
 assert.match(sceneSource, /onLockedInteraction\(limitMessage,\s*'pressureZero'\)/, 'pressure zero limit feedback should reuse the bottom-centered model-window toast path and identify the locked control');
 assert.doesNotMatch(sceneSource, /appliedDelta/, 'pressure zero drag should not use unbounded circular applied deltas');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG = -540/, 'pressure zero knob should expose a three-turn physical lower stop');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG = 540/, 'pressure zero knob should expose a three-turn physical upper stop');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV = 0\.1/, 'pressure zero readiness should use the strict +-0.1 mV tolerance');
+assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG = -540/, 'pressure zero knob should expose a three-turn physical lower stop');
+assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG = 540/, 'pressure zero knob should expose a three-turn physical upper stop');
+assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV = 0\.1/, 'pressure zero readiness should use the strict +-0.1 mV tolerance');
 assert.match(stateSource, /pressureInitialBiasMv/, 'heat-capacity state should keep the per-run initial zero bias');
 assert.match(stateSource, /pressureZeroDisplayedSamples/, 'heat-capacity state should keep a displayed Uₚ zeroing window');
 assert.match(stateSource, /createSeededFreePressureInitialBiasMv/, 'initial pressure-zero bias should use the deterministic sensor helper');
@@ -1516,7 +1532,7 @@ assert.doesNotMatch(styleSource, /@keyframes heatDemoFocusPulse/, 'unused CSS ke
 
 assert.match(workbenchSource, /HeatCapacityInstrumentScene/);
 assert.match(modeTypesSource, /export type HeatCapacityMode = 'demo' \| 'guide' \| 'free'/, 'heat-capacity modes should have one shared domain type');
-assert.match(workbenchSource, /type HeatCapacityMode,/, 'heat-capacity preview should use the shared mode type instead of a local duplicate');
+assert.match(workbenchSource, /HeatCapacityMode,[\s\S]{0,100}from '\.\/workbenchHeatCapacityStateTypes\.ts'/, 'heat-capacity preview should use the shared mode type from the extracted state boundary instead of a local duplicate');
 assert.match(modeControlModelSource, /selectHeatCapacityModeControlState/, 'heat-capacity mode action visibility should be selected by a dedicated model');
 assert.match(workbenchSource, /data-heat-capacity-mode-control="true"/, 'heat-capacity preview should render one unified top-right mode control');
 assert.match(workbenchSource, /<div className="studio-panel-actions">[\s\S]*renderHeatCapacityModeControl\(\)/, 'heat-capacity mode control should sit in the preview header where the old auto-demo button was');
@@ -1651,16 +1667,16 @@ assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit
 assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
 assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
 assert.match(heatCapacityRealtimeCopySource, /pressureAlarmTitle:\s*'报警'/, 'center alarm title should be alarm, not generic danger warning');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'interactive pumping should consider 90 mV sufficient instead of the old 100 mV gate');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
-assert.match(stateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
+assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'interactive pumping should consider 90 mV sufficient instead of the old 100 mV gate');
+assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
+assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV = 140/, 'alarm should remain above the 4-stroke Free Mode target window');
 assert.match(defaultConfigSource, /minimumUsefulU1CorrectedMv:\s*90/, 'Free U1 recording threshold should stay at 90 mV in the shared default config');
-assert.match(stateSource, /压强已达到建议打气范围，请停止打气并等待回温。/, 'pressure warning copy should use ordinary suggested-stop wording');
+assert.match(instrumentStateSource, /压强已达到建议打气范围，请停止打气并等待回温。/, 'pressure warning copy should use ordinary suggested-stop wording');
 assert.match(freeParameterPanelModelSource, /label:\s*\{ 'zh-CN': '建议停止阈值'[\s\S]*en: 'Suggested-stop threshold' \}/, 'pressure warning parameter label should use suggested-stop wording instead of error-like warning wording');
 assert.match(heatCapacityRealtimeCopySource, /warning:\s*'建议停止'[\s\S]*warningNote:\s*'等待回温'/, 'warning safety status should read as a normal suggested-stop state');
 assert.doesNotMatch(workbenchSource, /压力警告阈值|壓力警告閾值|Pressure warning threshold|warning:\s*'接近阈值'|warningNote:\s*'准备停止打气'/, 'old warning-like suggested-stop labels should be removed');
-assert.match(stateSource, /压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
-assert.doesNotMatch(stateSource, /压强接近预警值，请注意|压强接近安全阈值，请准备停止打气|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
+assert.match(instrumentStateSource, /压强已超过安全阈值，瓶塞可能被顶开，请立即停止打气。/, 'pressure alarm copy should use the confirmed alarm wording');
+assert.doesNotMatch(instrumentStateSource, /压强接近预警值，请注意|压强接近安全阈值，请准备停止打气|压强超过安全阈值，请停止打气(?!。)/, 'old pressure warning and alarm wording should be removed');
 assert.doesNotMatch(workbenchSource, /危险：压强超过阈值/, 'center alarm title should not keep the older threshold wording');
 assert.match(workbenchSource, /HEAT_CAPACITY_PRESSURE_ALARM_DURATION_MS = 2000/, 'center alarm should stay visible for two seconds');
 assert.match(workbenchSource, /HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALARM_MS = 220/, 'close-valve reminder should wait until after the center alarm has been cleared');
@@ -2533,7 +2549,7 @@ assert.match(
   'Heat Capacity user-facing copy touched since v4.1.17 should keep Simplified Chinese, Traditional Chinese, and English variants',
 );
 assert.match(
-  stateSource,
+  stateTypesSource,
   /heatCapacityLessonIntroAutoShown:\s*boolean;/,
   'Heat Capacity files should store a durable intro-lesson acknowledgement flag instead of relying on transient UI state',
 );

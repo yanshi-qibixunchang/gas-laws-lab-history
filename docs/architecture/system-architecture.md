@@ -35,14 +35,14 @@ React 入口与启动门禁
 | 工作台只读展示 | `WorkbenchSimulationRealtimePanel.tsx`、`WorkbenchIdealVerificationPanel.tsx`、`WorkbenchIdealResultsWindows.tsx`、`WorkbenchStandardResultsContent.tsx`、`WorkbenchStandardFiguresPanel.tsx`、`workbenchIdealVerificationChart.ts`、`workbenchPresentationFormatting.ts` 及同目录专用展示模块 | 从已计算状态渲染标准/理想实验实时摘要、Results 子页、关系验证、最终图表与诊断，并统一纯展示格式化和图表坐标模型；删除、清空、导出等动作只通过回调交还主组件 | 创建运行时、直接修改文件状态、持久化或执行实验操作 |
 | 工作台面板兼容 | `workbenchPanelRegistry.ts`、`workbenchPanelCompatibility.ts` | 注册当前可用面板键；只在读取边界把旧 `history` 映射到当前 `verification`，并去除映射后的重复项 | 把历史键重新加入当前状态类型、界面分支或写出白名单 |
 | 工作台文件状态 | `workbenchFileState.ts`、`workbenchPistonOscillationState.ts` | 定义通用文件壳、标准/理想气体文件状态、布局默认值，以及活塞振荡文件状态和 Guide/Free 纯转换 | 依赖 `workbenchState.ts` 兼容入口、修改持久化字段名或承载绝热膨胀运行时 |
-| 工作台状态适配 | `src/features/workbench/workbenchState.ts` 及同目录绝热膨胀专用模块 | 连接尚未拆分的绝热膨胀文件状态、领域模型和 UI 操作；为旧调用方维持兼容转发入口 | 复制已经存在于领域对象中的权威状态，或让新模块反向依赖兼容入口 |
+| 工作台状态适配 | `workbenchHeatCapacityStateTypes.ts`、`workbenchHeatCapacityInstrumentState.ts`、`src/features/workbench/workbenchState.ts` 及同目录绝热膨胀专用模块 | 定义绝热膨胀状态类型边界与纯仪器计算，连接尚未拆分的领域模型和 UI 操作；为旧调用方维持兼容转发入口 | 复制已经存在于领域对象中的权威状态，让新模块反向依赖兼容入口，或在纯仪器模块中写入运行时/持久化状态 |
 | 领域层 | `src/domain/` | 硬球、理想气体、绝热膨胀、活塞振荡、评分和计算的确定性规则 | 浏览器存储、窗口、文件选择和界面副作用 |
 | 持久化 | `src/features/workbench/persistenceV3/` | 权威字段投影、版本化编码、诊断、保留未知数据、恢复 | 把可重算显示值重新定义成权威事实 |
 | 存储执行 | `workbenchPersistenceWorkerClient.ts`、`workbenchPersistence.worker.ts` | 传输、超时、事务和 IndexedDB 代际写入 | 修改业务状态或静默吞掉不支持的未来版本 |
 | 桌面边界 | `electron/preload.cjs`、`electron/main.cjs` | 白名单 IPC、窗口、退出、更新、本地导出 | 向渲染器暴露 Node.js 或不受控文件系统能力 |
 | 导出器 | `tools/exporter/` | 从经过验证的输入生成报告、图表和数据文件 | 回写工作台业务状态 |
 
-`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。展示拆分已经把标准/理想实验实时摘要、理想气体关系验证、标准结果和最终图表，以及 Points/Verification 子页外壳移入独立组件；主组件只提供已计算状态、语言、文案和动作回调。状态拆分的第一阶段也已完成：`workbenchFileState.ts` 现在承载通用文件壳、布局、标准/理想气体状态及默认构造器，`workbenchPistonOscillationState.ts` 承载活塞振荡文件状态与 Guide/Free 转换；主组件及对应布局、持久化和结果协调器直接依赖这些模块，`workbenchState.ts` 通过显式重导出维持旧入口兼容，新模块不得反向依赖该兼容入口。本阶段未修改任何文件字段、版本号或持久化编码。下一步进入绝热膨胀状态切片前必须先建立字段权威表：区分实验分组权威数据、当前仪器投影、回滚与轨迹记录、教学/自由模式会话以及持久化镜像，再决定模块接口；这属于下一大改动断点。新增逻辑时应优先进入现有专用模块，只有确属跨模块编排或兼容转发的代码才留在两个大型入口中。
+`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。展示拆分已经把标准/理想实验实时摘要、理想气体关系验证、标准结果和最终图表，以及 Points/Verification 子页外壳移入独立组件；主组件只提供已计算状态、语言、文案和动作回调。状态拆分已完成两层低风险边界：`workbenchFileState.ts` 承载通用文件壳、布局、标准/理想气体状态及默认构造器，`workbenchPistonOscillationState.ts` 承载活塞振荡文件状态与 Guide/Free 转换；绝热膨胀的完整类型进入 `workbenchHeatCapacityStateTypes.ts`，旋塞、打气频率、机械压力表与调零的纯计算进入 `workbenchHeatCapacityInstrumentState.ts`。主组件及纯类型调用方直接依赖这些模块，`workbenchState.ts` 通过显式重导出维持旧入口兼容，新模块不得反向依赖该兼容入口。本阶段未修改任何文件字段、版本号或持久化编码。绝热膨胀字段权威关系由 `workbench-heat-capacity-state-authority.md` 固定；下一大改动断点是为实验分组、Real/Ideal 域与顶层 Free 仪器投影建立统一原子写入事务。新增逻辑时应优先进入现有专用模块，只有确属跨模块编排或兼容转发的代码才留在两个大型入口中。
 
 ## 3. 状态权威规则
 

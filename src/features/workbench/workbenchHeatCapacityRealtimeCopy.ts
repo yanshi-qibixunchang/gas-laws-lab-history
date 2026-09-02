@@ -2,7 +2,7 @@ import type { HeatCapacityFreeRecordRejectReason } from '../../domain/heatCapaci
 import type { HeatCapacityGuideRecordKind } from '../../domain/heatCapacity/heatCapacityGuideTrialModel.ts';
 import { createWorkbenchConsoleMessageTranslations, type WorkbenchConsoleMessageFactory } from './workbenchConsoleLocalization.ts';
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
-import type { WorkbenchHeatCapacityState } from './workbenchState.ts';
+import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
 import { workbenchCopies } from './workbenchStudioCopy.ts';
 
 export const heatCapacityRealtimeCopies = {

@@ -15,12 +15,14 @@ import type {
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-  type HeatCapacityFreeDisplayScheme,
-  type HeatCapacityFreeExperimentDomainState,
-  type HeatCapacityFreeFileAcknowledgements,
-  type HeatCapacityFreeParameterScheme,
-  type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
+import type {
+  HeatCapacityFreeDisplayScheme,
+  HeatCapacityFreeExperimentDomainState,
+  HeatCapacityFreeFileAcknowledgements,
+  HeatCapacityFreeParameterScheme,
+  WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
 import type {
   HeatCapacityModeSessionStore,
 } from './workbenchHeatCapacityModeSession.ts';

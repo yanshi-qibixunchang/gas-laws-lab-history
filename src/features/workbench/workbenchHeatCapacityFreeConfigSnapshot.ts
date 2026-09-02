@@ -25,7 +25,7 @@ import {
   type HeatCapacityFreeConfigSnapshot,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import type { HeatCapacityFreeRecordConfig } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
-import type { WorkbenchHeatCapacityState } from './workbenchState.ts';
+import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
 
 export interface HeatCapacityFreeConfigSnapshotOptions {
   environmentConfig?: HeatCapacityFreeEnvironmentConfig;

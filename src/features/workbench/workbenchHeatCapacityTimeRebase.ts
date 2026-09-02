@@ -1,7 +1,7 @@
 import type {
   HeatCapacityFreeExperimentDomainState,
   WorkbenchHeatCapacityState,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityStateTypes.ts';
 
 const HEAT_CAPACITY_RUNTIME_RECOVERY_PRESENTATION_KEYS = new Set([
   'name',

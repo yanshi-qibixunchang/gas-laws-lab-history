@@ -112,8 +112,8 @@ const pressureGaugeRadToDeg = (radians: number) => Math.round((radians * 180 / M
 const GLB_PRESSURE_GAUGE_DANGER_BOUNDARY_DEG = pressureGaugeRadToDeg(0.86);
 
 const defaultFile = createDefaultHeatCapacityFile(1);
-const workbenchStateSource = readFileSync(
-  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts'),
+const workbenchHeatCapacityStateTypesSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityStateTypes.ts'),
   'utf8',
 );
 const initialTemperatureMv = DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatureMvAtAmbient;
@@ -384,12 +384,12 @@ assert.equal(
 assert.deepEqual(defaultFile.pressureZeroDisplayedSamples, []);
 assert.equal(defaultFile.pressureZeroAdjustMode, 'none');
 assert.match(
-  workbenchStateSource,
-  /type HeatCapacityTeachingProfile/,
-  'workbench heat-capacity state should import the teaching-specific profile boundary',
+  workbenchHeatCapacityStateTypesSource,
+  /import type \{ HeatCapacityTeachingProfile \}/,
+  'the heat-capacity state type boundary should import the teaching-specific profile boundary',
 );
 assert.match(
-  workbenchStateSource,
+  workbenchHeatCapacityStateTypesSource,
   /heatCapacityExperimentProfile:\s*HeatCapacityTeachingProfile \| null/,
   'workbench should store scripted target fields only inside the teaching profile object',
 );

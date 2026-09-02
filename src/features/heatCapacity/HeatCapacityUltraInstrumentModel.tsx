@@ -6,7 +6,7 @@ import {
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG,
   HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG,
   getHeatCapacityStopcockState,
-} from '../workbench/workbenchState';
+} from '../workbench/workbenchHeatCapacityInstrumentState';
 import HeatCapacityHardSphereLayer, {
   type HeatCapacityHardSphereCheckpointProvider,
   type HeatCapacityHardSphereVisualCheckpoint,

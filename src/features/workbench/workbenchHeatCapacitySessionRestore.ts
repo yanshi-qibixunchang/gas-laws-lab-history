@@ -13,23 +13,27 @@ import {
   HEAT_CAPACITY_FREE_TRACE_VERSION,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
-  applyHeatCapacityPressureZero,
   clampWorkbenchLiveSplitRatio,
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityFreeExperimentDomainState,
   createDefaultHeatCapacityFreeRuntimeFields,
   applyHeatCapacityFreeDomainToRuntimeFields,
   applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
-  getHeatCapacityGaugePressureState,
-  getHeatCapacityStopcockTargetAngle,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   normalizeHeatCapacityFileName,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
   projectHeatCapacityFreeExperimentGroupToDomain,
   WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO,
-  type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
+import {
+  applyHeatCapacityPressureZero,
+  getHeatCapacityGaugePressureState,
+  getHeatCapacityStopcockTargetAngle,
+} from './workbenchHeatCapacityInstrumentState.ts';
+import type {
+  WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
 import {
   heatCapacityRestoreFiniteOrDefault as finiteOrDefault,
   normalizeHeatCapacityFreeRestoreConfigSnapshot,
