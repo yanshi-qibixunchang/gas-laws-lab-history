@@ -587,6 +587,29 @@ assert.equal(
   freeSource.heatCapacityFreePhysicsState,
   'in-memory mode checkpoints should structurally share immutable physics state instead of deep-cloning it on the UI thread',
 );
+const suspendedFreeRuntime = withSuspendedFree.heatCapacityModeSessions.free.snapshot?.mode === 'free'
+  ? withSuspendedFree.heatCapacityModeSessions.free.snapshot.free
+  : null;
+assert.notEqual(suspendedFreeRuntime, null);
+assert.equal(
+  Object.prototype.hasOwnProperty.call(suspendedFreeRuntime, 'heatCapacityFreeInstrumentConfig'),
+  false,
+  'mode-session compatibility snapshots must not introduce the current nested config field',
+);
+for (const field of [
+  'heatCapacityFreeRecordConfig',
+  'heatCapacityFreePressureWarningMv',
+  'heatCapacityFreeInstrumentNoiseEnabled',
+  'heatCapacityFreeEnvironmentConfig',
+  'heatCapacityFreePhysicsConfig',
+  'heatCapacityFreeSensorConfig',
+] as const) {
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(suspendedFreeRuntime, field),
+    true,
+    `mode-session compatibility snapshots must retain ${field}`,
+  );
+}
 
 const guideFixtureClock: GuideFixtureClock = { nowMs: freeCapturedAtMs + 100 };
 const guideSource = createGuideWaitingU1Fixture(withSuspendedFree, guideFixtureClock);

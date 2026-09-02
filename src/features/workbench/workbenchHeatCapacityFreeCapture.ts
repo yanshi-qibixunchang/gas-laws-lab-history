@@ -480,7 +480,7 @@ export const prepareHeatCapacityFreeCapture = (
     const useStoredActive =
       scheme === 'real' &&
       hasHeatCapacityFreeIdealThermalBoundaryContamination(
-        file.heatCapacityFreePhysicsConfig,
+        file.heatCapacityFreeInstrumentConfig.physics,
       );
     const runtimeSourceFile = file.heatCapacityMode === 'free'
       ? file

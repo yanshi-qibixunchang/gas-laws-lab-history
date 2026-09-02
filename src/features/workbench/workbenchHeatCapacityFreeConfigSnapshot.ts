@@ -104,14 +104,14 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
   file: WorkbenchHeatCapacityState,
   options: HeatCapacityFreeConfigSnapshotOptions = {},
 ): HeatCapacityFreeConfigSnapshot => {
-  const environmentConfig = options.environmentConfig ?? file.heatCapacityFreePhysicsConfig.environment;
-  const sensorConfig = options.sensorConfig ?? file.heatCapacityFreeSensorConfig;
-  const recordConfig = options.recordConfig ?? file.heatCapacityFreeRecordConfig;
+  const environmentConfig = options.environmentConfig ?? file.heatCapacityFreeInstrumentConfig.physics.environment;
+  const sensorConfig = options.sensorConfig ?? file.heatCapacityFreeInstrumentConfig.sensor;
+  const recordConfig = options.recordConfig ?? file.heatCapacityFreeInstrumentConfig.record;
   return createHeatCapacityFreeConfigSnapshotFromRuntimeConfigs({
     environmentConfig,
-    physicsConfig: file.heatCapacityFreePhysicsConfig,
+    physicsConfig: file.heatCapacityFreeInstrumentConfig.physics,
     sensorConfig,
     recordConfig,
-    pressureWarningMv: file.heatCapacityFreePressureWarningMv,
+    pressureWarningMv: file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
   });
 };

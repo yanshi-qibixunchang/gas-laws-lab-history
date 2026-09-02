@@ -653,32 +653,35 @@ assert.equal(
 const configuredFile = createDefaultHeatCapacityFile(91);
 const tracedConfiguredFile = recordHeatCapacityFreeTraceEventWithReference({
   ...configuredFile,
-  heatCapacityFreeEnvironmentConfig: {
-    ambientPressureKPa: 100.8,
-    ambientTemperatureK: 299.25,
-  },
-  heatCapacityFreePhysicsConfig: {
-    ...configuredFile.heatCapacityFreePhysicsConfig,
-    gamma: 1.37,
-    vesselVolumeL: 2.4,
-    pumpAmountGainRatio: 0.0065,
-    pumpPressureLimitKPa: 112,
-    stopcockFlowRate: 4.4,
-    thermal: {
-      gasWallConductanceWPerK: 0.45,
-      wallAmbientConductanceWPerK: 1.85,
-      wallHeatCapacityJPerK: 45,
-      minimumGasHeatCapacityJPerK: 0.1,
+  heatCapacityFreeInstrumentConfig: {
+    ...configuredFile.heatCapacityFreeInstrumentConfig,
+    environment: {
+      ambientPressureKPa: 100.8,
+      ambientTemperatureK: 299.25,
     },
-  },
-  heatCapacityFreeSensorConfig: {
-    ...configuredFile.heatCapacityFreeSensorConfig,
-    pressureMvPerKPa: 21.5,
-    temperatureMvAtAmbient: 1501.2,
-    temperatureMvPerK: 2.2,
-    lagRate: 4.5,
-    noiseMv: 0.03,
-    quantizationMv: 0.02,
+    physics: {
+      ...configuredFile.heatCapacityFreeInstrumentConfig.physics,
+      gamma: 1.37,
+      vesselVolumeL: 2.4,
+      pumpAmountGainRatio: 0.0065,
+      pumpPressureLimitKPa: 112,
+      stopcockFlowRate: 4.4,
+      thermal: {
+        gasWallConductanceWPerK: 0.45,
+        wallAmbientConductanceWPerK: 1.85,
+        wallHeatCapacityJPerK: 45,
+        minimumGasHeatCapacityJPerK: 0.1,
+      },
+    },
+    sensor: {
+      ...configuredFile.heatCapacityFreeInstrumentConfig.sensor,
+      pressureMvPerKPa: 21.5,
+      temperatureMvAtAmbient: 1501.2,
+      temperatureMvPerK: 2.2,
+      lagRate: 4.5,
+      noiseMv: 0.03,
+      quantizationMv: 0.02,
+    },
   },
 }, 'power-on', 100).file;
 const configuredTraceTrial = tracedConfiguredFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials.find((traceTrial) => (
@@ -715,9 +718,12 @@ assert.equal(configuredTraceTrial!.configSnapshot.record.minimumUsefulU1Correcte
 assert.equal(configuredTraceTrial!.configSnapshot.record.pressureDangerMv, 140);
 const changedAfterTrace = {
   ...tracedConfiguredFile,
-  heatCapacityFreeEnvironmentConfig: {
-    ...tracedConfiguredFile.heatCapacityFreeEnvironmentConfig,
-    ambientPressureKPa: 120,
+  heatCapacityFreeInstrumentConfig: {
+    ...tracedConfiguredFile.heatCapacityFreeInstrumentConfig,
+    environment: {
+      ...tracedConfiguredFile.heatCapacityFreeInstrumentConfig.environment,
+      ambientPressureKPa: 120,
+    },
   },
 };
 assert.equal(

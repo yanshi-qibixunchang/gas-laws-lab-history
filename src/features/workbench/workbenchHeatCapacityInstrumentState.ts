@@ -66,13 +66,13 @@ export const getHeatCapacityPressureThresholdsMv = (
   file: Partial<WorkbenchHeatCapacityState> = {},
 ) => {
   const freeRecordConfig = file.kind === 'heatCapacity' && isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)
-    ? file.heatCapacityFreeRecordConfig
+    ? file.heatCapacityFreeInstrumentConfig?.record
     : null;
   const pressureDangerThresholdMv = Number.isFinite(freeRecordConfig?.pressureDangerMv)
     ? Math.max(0, Number(freeRecordConfig?.pressureDangerMv))
     : HEAT_CAPACITY_PRESSURE_DANGER_THRESHOLD_MV;
-  const rawPressureWarningThresholdMv = Number.isFinite(file.heatCapacityFreePressureWarningMv)
-    ? Math.max(0, Number(file.heatCapacityFreePressureWarningMv))
+  const rawPressureWarningThresholdMv = Number.isFinite(file.heatCapacityFreeInstrumentConfig?.pressureWarningMv)
+    ? Math.max(0, Number(file.heatCapacityFreeInstrumentConfig?.pressureWarningMv))
     : HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV;
   const pressureWarningThresholdMv = Math.min(
     rawPressureWarningThresholdMv,
@@ -86,7 +86,7 @@ export const getHeatCapacityPressureThresholdsMv = (
 
 const getHeatCapacityGaugeConfig = (file: Partial<WorkbenchHeatCapacityState> = {}) => {
   const freeSensorConfig = file.kind === 'heatCapacity' && isHeatCapacityPhysicalKernelMode(file.heatCapacityMode)
-    ? file.heatCapacityFreeSensorConfig
+    ? file.heatCapacityFreeInstrumentConfig?.sensor
     : null;
   const pressureSensitivityMvPerKPa = Number.isFinite(freeSensorConfig?.pressureMvPerKPa)
     ? Math.max(0.001, Number(freeSensorConfig?.pressureMvPerKPa))

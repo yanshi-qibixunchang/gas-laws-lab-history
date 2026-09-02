@@ -1736,7 +1736,7 @@ const upgradeLegacy423PhysicsConfig = (value: unknown) => {
   if (!isLegacy423PhysicsConfig(value) || !isRecord(value)) {
     throw new Error('v4.2.3 heat-capacity physics config is invalid.');
   }
-  const current = createDefaultHeatCapacityFile(1).heatCapacityFreePhysicsConfig;
+  const current = createDefaultHeatCapacityFile(1).heatCapacityFreeInstrumentConfig.physics;
   return {
     ...value,
     vesselVolumeL: current.vesselVolumeL,

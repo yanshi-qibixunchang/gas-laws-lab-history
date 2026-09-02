@@ -1209,10 +1209,13 @@ const legacyMigrationSource = {
     temperatureStableSlopeMvPerS: 0.375,
     temperatureAmbientToleranceMv: 1.625,
   },
-  heatCapacityFreeRecordConfig: {
-    ...legacyMigrationBase.heatCapacityFreeRecordConfig,
-    temperatureStableSlopeMvPerS: 0.375,
-    temperatureAmbientToleranceMv: 1.625,
+  heatCapacityFreeInstrumentConfig: {
+    ...legacyMigrationBase.heatCapacityFreeInstrumentConfig,
+    record: {
+      ...legacyMigrationBase.heatCapacityFreeInstrumentConfig.record,
+      temperatureStableSlopeMvPerS: 0.375,
+      temperatureAmbientToleranceMv: 1.625,
+    },
   },
   heatCapacityFreePhysicsState: {
     ...legacyMigrationBase.heatCapacityFreePhysicsState,
@@ -1385,12 +1388,12 @@ assert.equal(legacy423FreeFile.heatCapacityFreeRealDomain.releaseState.phase, 'r
 assert.equal(legacy423FreeFile.heatCapacityFreeRealDomain.releaseState.purpose, 'release');
 const currentFreePhysicsConfig = createDefaultHeatCapacityFreePhysicsConfig();
 assert.equal(
-  legacy423FreeFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio,
+  legacy423FreeFile.heatCapacityFreeInstrumentConfig.physics.pumpAmountGainRatio,
   currentFreePhysicsConfig.pumpAmountGainRatio,
   'the v4.2.3 fixed pump gain must migrate to the current runtime constant',
 );
 assert.equal(
-  legacy423FreeFile.heatCapacityFreePhysicsConfig.stopcockFlowRate,
+  legacy423FreeFile.heatCapacityFreeInstrumentConfig.physics.stopcockFlowRate,
   currentFreePhysicsConfig.stopcockFlowRate,
   'the v4.2.3 fixed stopcock flow rate must migrate to the current runtime constant',
 );
@@ -1422,11 +1425,11 @@ assert.equal(
   'completed v4.2.3 trace snapshots must retain their historical flow-rate identity',
 );
 assert.equal(
-  legacy423FreeFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+  legacy423FreeFile.heatCapacityFreeInstrumentConfig.sensor.temperatureMvAtAmbient,
   HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
 );
 assert.equal(
-  legacy423FreeFile.heatCapacityFreeSensorConfig.temperatureMvPerK,
+  legacy423FreeFile.heatCapacityFreeInstrumentConfig.sensor.temperatureMvPerK,
   HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
 );
 assertClose(legacy423FreeFile.temperatureSignalMv, 1501.45);
@@ -1444,8 +1447,8 @@ assertClose(legacy423FreeFile.heatCapacityFreeSensorState.temperatureSlopeMvPerS
     expected,
   );
 });
-assertClose(legacy423FreeFile.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS, 0.375);
-assertClose(legacy423FreeFile.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv, 1.625);
+assertClose(legacy423FreeFile.heatCapacityFreeInstrumentConfig.record.temperatureStableSlopeMvPerS, 0.375);
+assertClose(legacy423FreeFile.heatCapacityFreeInstrumentConfig.record.temperatureAmbientToleranceMv, 1.625);
 assertClose(legacy423FreeFile.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS, 0.375);
 assertClose(legacy423FreeFile.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv, 1.625);
 assertClose(
@@ -2983,9 +2986,9 @@ assert.deepEqual(customFreeFile.heatCapacityFreeFileAcknowledgements, {
   advancedParametersRisk: true,
   idealParameterProfileIntro: true,
 });
-assert.equal(customFreeFile.heatCapacityFreeInstrumentNoiseEnabled, false);
-assert.equal(customFreeFile.heatCapacityFreePressureWarningMv, 123);
-assert.equal(customFreeFile.heatCapacityFreeRecordConfig.pressureDangerMv, 152);
+assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
+assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 123);
+assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 152);
 assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
 assert.equal(
   Object.prototype.hasOwnProperty.call(customFreeFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
@@ -3008,20 +3011,20 @@ assert.equal(
 const airModelDefaults = getHeatCapacityFreeGasTypeModelDefaults('air');
 const realPhysicsDefaults = createDefaultHeatCapacityFreePhysicsConfig();
 const contaminatedSessionPhysicsConfig = {
-  ...heatCapacity.heatCapacityFreePhysicsConfig,
+  ...heatCapacity.heatCapacityFreeInstrumentConfig.physics,
   thermal: {
-    ...heatCapacity.heatCapacityFreePhysicsConfig.thermal,
+    ...heatCapacity.heatCapacityFreeInstrumentConfig.physics.thermal,
     gasWallConductanceWPerK: 5,
     wallAmbientConductanceWPerK: 5,
   },
   pumpValveExchange: {
-    ...heatCapacity.heatCapacityFreePhysicsConfig.pumpValveExchange!,
+    ...heatCapacity.heatCapacityFreeInstrumentConfig.physics.pumpValveExchange!,
     enabled: false,
     gasExchangeRatePerS: 0,
     thermalConductanceWPerK: 0,
   },
   environmentDisturbance: {
-    ...heatCapacity.heatCapacityFreePhysicsConfig.environmentDisturbance!,
+    ...heatCapacity.heatCapacityFreeInstrumentConfig.physics.environmentDisturbance!,
     enabled: false,
     pressureAmplitudeKPa: 0,
     temperatureAmplitudeK: 0,
@@ -3198,17 +3201,17 @@ assert.equal(
 );
 assert.equal(contaminatedDomainFile.heatCapacityFreeRunWorkspace.trials.length, 0);
 assert.equal(
-  contaminatedDomainFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  contaminatedDomainFile.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK,
   airModelDefaults.gasWallConductanceWPerK,
   'raw session restore should not keep ideal thermal settings in the active real runtime',
 );
 assert.equal(
-  contaminatedDomainFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK,
+  contaminatedDomainFile.heatCapacityFreeInstrumentConfig.physics.thermal.wallAmbientConductanceWPerK,
   realPhysicsDefaults.thermal.wallAmbientConductanceWPerK,
 );
-assert.equal(contaminatedDomainFile.heatCapacityFreePhysicsConfig.leakage.enabled, true);
+assert.equal(contaminatedDomainFile.heatCapacityFreeInstrumentConfig.physics.leakage.enabled, true);
 assert.equal(
-  contaminatedDomainFile.heatCapacityFreePhysicsConfig.leakage.ratePerS,
+  contaminatedDomainFile.heatCapacityFreeInstrumentConfig.physics.leakage.ratePerS,
   airModelDefaults.leakageRatePerS,
 );
 assert.equal(contaminatedDomainFile.heatCapacityFreeRunWorkspace.traceStore.traceTrials.length, 0);

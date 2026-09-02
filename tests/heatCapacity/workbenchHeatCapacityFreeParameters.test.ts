@@ -50,7 +50,7 @@ assert.equal(defaultFile.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, 
 assert.equal(defaultFile.heatCapacityFreeGasType, 'air');
 assert.equal(defaultFile.heatCapacityFreeParameterDraft.gasType, 'air');
 assert.equal(defaultFile.theoreticalGamma, 1.4);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.gamma, 1.4);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.gamma, 1.4);
 assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(defaultFile), null);
 assert.equal(
   Object.prototype.hasOwnProperty.call(defaultFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
@@ -63,20 +63,23 @@ assert.deepEqual(defaultFile.heatCapacityFreeFileAcknowledgements, {
 });
 assert.equal(defaultFile.heatCapacityFreeParameterScheme, 'real');
 assert.equal(defaultFile.heatCapacityFreeDisplayScheme, 'real');
-assert.equal(defaultFile.heatCapacityFreeInstrumentNoiseEnabled, true);
-assert.equal(defaultFile.heatCapacityFreeRecordConfig.u0ZeroToleranceMv, 0.12);
-assert.equal(defaultFile.heatCapacityFreePressureWarningMv, 120);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, true);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.record.u0ZeroToleranceMv, 0.12);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 120);
 assert.equal(isHeatCapacityFreeParameterEditingAvailable(defaultFile), true);
 assert.equal(getHeatCapacityFreeParameterLockReason(defaultFile), null);
 
 const contaminatedProjectionFile = {
   ...defaultFile,
-  heatCapacityFreePhysicsConfig: {
-    ...defaultFile.heatCapacityFreePhysicsConfig,
-    thermal: {
-      ...defaultFile.heatCapacityFreePhysicsConfig.thermal,
-      gasWallConductanceWPerK: 5,
-      wallAmbientConductanceWPerK: 5,
+  heatCapacityFreeInstrumentConfig: {
+    ...defaultFile.heatCapacityFreeInstrumentConfig,
+    physics: {
+      ...defaultFile.heatCapacityFreeInstrumentConfig.physics,
+      thermal: {
+        ...defaultFile.heatCapacityFreeInstrumentConfig.physics.thermal,
+        gasWallConductanceWPerK: 5,
+        wallAmbientConductanceWPerK: 5,
+      },
     },
   },
   heatCapacityFreeParameterDraft: {
@@ -87,7 +90,7 @@ const contaminatedProjectionFile = {
 };
 const repairedProjectionFile = stepHeatCapacityWorkbenchFile(contaminatedProjectionFile, 1000);
 assert.equal(
-  repairedProjectionFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  repairedProjectionFile.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK,
   0.08,
   'free-mode runtime hydration should rebuild a polluted real top-level projection from the real domain',
 );
@@ -117,7 +120,7 @@ assert.equal(editedFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.8)
 assert.equal(editedFile.heatCapacityFreeParameterDraft.leakageEnabled, true);
 assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(editedFile), null);
 assert.equal(
-  editedFile.heatCapacityFreePhysicsConfig.environment.ambientPressureKPa,
+  editedFile.heatCapacityFreeInstrumentConfig.physics.environment.ambientPressureKPa,
   99.8,
   'draft application should keep the current file config aligned before freezing',
 );
@@ -187,9 +190,9 @@ assert.equal(
 );
 assert.equal(frozenConfigSnapshot?.physics.leakage.enabled, true);
 assert.equal(frozenConfigSnapshot?.sensor.noiseMv, 0);
-assert.equal(frozenFile.heatCapacityFreeInstrumentNoiseEnabled, false);
-assert.equal(frozenFile.heatCapacityFreePressureWarningMv, 122);
-assert.equal(frozenFile.heatCapacityFreeRecordConfig.pressureDangerMv, 150);
+assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
+assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 122);
+assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 150);
 
 const blockedNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState(frozenFile);
 assert.equal(blockedNextGroupFile, frozenFile, 'Next Group must stay disabled until a valid group is complete and powered off');
@@ -393,14 +396,14 @@ const heliumGasFile = applyHeatCapacityFreeParameterDraftWorkbenchState(defaultF
 assert.equal(heliumGasFile.heatCapacityFreeGasType, 'helium');
 assert.equal(heliumGasFile.heatCapacityFreeParameterDraft.gasType, 'helium');
 assert.equal(heliumGasFile.theoreticalGamma, 5 / 3);
-assert.equal(heliumGasFile.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(heliumGasFile.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(
   heliumGasFile.heatCapacityFreeParameterDraft.gasWallConductanceWPerK,
   0.03,
   'switching to helium should apply the tuned monatomic gas-wall conductance default',
 );
 assert.equal(
-  heliumGasFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  heliumGasFile.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK,
   0.03,
   'helium physics config should use the tuned monatomic gas-wall conductance',
 );
@@ -410,7 +413,7 @@ assert.equal(
   'switching to helium should apply the tuned monatomic leakage default',
 );
 assert.equal(
-  heliumGasFile.heatCapacityFreePhysicsConfig.leakage.ratePerS,
+  heliumGasFile.heatCapacityFreeInstrumentConfig.physics.leakage.ratePerS,
   HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
   'helium physics config should use the tuned monatomic leakage rate',
 );
@@ -445,7 +448,7 @@ assert.equal(
 );
 assert.equal(gasTypeLockedEdit.heatCapacityFreeGasType, 'helium');
 assert.equal(gasTypeLockedEdit.heatCapacityFreeParameterDraft.gasType, 'helium');
-assert.equal(gasTypeLockedEdit.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(gasTypeLockedEdit.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(gasTypeLockedEdit.theoreticalGamma, 5 / 3);
 
 const incompleteGasTypeRun = freezeHeatCapacityFreeParametersForCurrentGroup(
@@ -499,10 +502,10 @@ assert.deepEqual(
   defaultFile.heatCapacityFreeParameterDraft,
   'default reset should restore every exposed Free parameter, including advanced values',
 );
-assert.equal(restoredDefaultParameters.heatCapacityFreePhysicsConfig.gamma, defaultFile.heatCapacityFreePhysicsConfig.gamma);
+assert.equal(restoredDefaultParameters.heatCapacityFreeInstrumentConfig.physics.gamma, defaultFile.heatCapacityFreeInstrumentConfig.physics.gamma);
 assert.equal(restoredDefaultParameters.theoreticalGamma, defaultFile.theoreticalGamma);
-assert.equal(restoredDefaultParameters.heatCapacityFreeInstrumentNoiseEnabled, defaultFile.heatCapacityFreeInstrumentNoiseEnabled);
-assert.equal(restoredDefaultParameters.heatCapacityFreePressureWarningMv, defaultFile.heatCapacityFreePressureWarningMv);
+assert.equal(restoredDefaultParameters.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, defaultFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled);
+assert.equal(restoredDefaultParameters.heatCapacityFreeInstrumentConfig.pressureWarningMv, defaultFile.heatCapacityFreeInstrumentConfig.pressureWarningMv);
 assert.equal(restoredDefaultParameters.hardSphereViewEnabled, defaultFile.hardSphereViewEnabled);
 
 const lockedDefaultResetAttempt = resetHeatCapacityFreeParametersToDefaultWorkbenchState(

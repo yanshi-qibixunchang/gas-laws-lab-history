@@ -323,7 +323,7 @@ const createTrialReadyForU2 = (
 const createRecordPhysics = (
   overrides: Partial<HeatCapacityFreePhysicsState> = {},
 ) => ({
-  ...createDefaultFreePhysicsState(defaultFile.heatCapacityFreePhysicsConfig),
+  ...createDefaultFreePhysicsState(defaultFile.heatCapacityFreeInstrumentConfig.physics),
   simulationTimeS: 20,
   pumpStrokeCount: 6,
   lastStopcockOpenedAtS: 0,

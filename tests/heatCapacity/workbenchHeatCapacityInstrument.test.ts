@@ -121,18 +121,18 @@ const initialTemperatureMv = DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.temperatur
 assert.equal(defaultFile.powerOn, false);
 assert.equal(defaultFile.heatCapacityMode, 'free');
 assert.equal(defaultFile.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
-assert.deepEqual(defaultFile.heatCapacityFreeEnvironmentConfig, {
+assert.deepEqual(defaultFile.heatCapacityFreeInstrumentConfig.environment, {
   ambientTemperatureK: 298.15,
   ambientPressureKPa: 101.3,
 });
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL, 2);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00334);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.pumpWorkRetention, 0.3);
-assert.equal('pumpInflowTemperatureRiseK' in defaultFile.heatCapacityFreePhysicsConfig, false);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.vesselVolumeL, 2);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.pumpAmountGainRatio, 0.00334);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.pumpWorkRetention, 0.3);
+assert.equal('pumpInflowTemperatureRiseK' in defaultFile.heatCapacityFreeInstrumentConfig.physics, false);
 assert.ok(
   Math.abs(
-    defaultFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio *
-      defaultFile.heatCapacityFreePhysicsConfig.vesselVolumeL *
+    defaultFile.heatCapacityFreeInstrumentConfig.physics.pumpAmountGainRatio *
+      defaultFile.heatCapacityFreeInstrumentConfig.physics.vesselVolumeL *
       1000 -
       6.68,
   ) < 1e-9,
@@ -142,16 +142,16 @@ assert.equal(defaultFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
 assert.equal(defaultFile.heatCapacityFreePhysicsState.lastPumpStrokeAtS, null);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.08);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
-assert.equal(defaultFile.heatCapacityFreePhysicsConfig.thermal.wallHeatCapacityJPerK, 45);
-assert.deepEqual(defaultFile.heatCapacityFreePhysicsConfig.leakage, {
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK, 0.08);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.thermal.wallAmbientConductanceWPerK, 0.45);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.physics.thermal.wallHeatCapacityJPerK, 45);
+assert.deepEqual(defaultFile.heatCapacityFreeInstrumentConfig.physics.leakage, {
   enabled: true,
   ratePerS: 0.00005,
 });
-assert.equal(defaultFile.heatCapacityFreeSensorConfig.lagRate, 8);
-assert.equal(defaultFile.heatCapacityFreeSensorConfig.minSampleIntervalS, 0.08);
-assert.equal(defaultFile.heatCapacityFreeSensorConfig.maxSampleIntervalS, 0.12);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.sensor.lagRate, 8);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.sensor.minSampleIntervalS, 0.08);
+assert.equal(defaultFile.heatCapacityFreeInstrumentConfig.sensor.maxSampleIntervalS, 0.12);
 assert.equal(defaultFile.heatCapacityReleaseState.phase, 'closed');
 assert.equal(defaultFile.heatCapacityReleaseState.purpose, 'none');
 assert.deepEqual(HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS, [2, 4, 8, 16]);
@@ -169,7 +169,7 @@ assert.equal(
 );
 assert.equal(
   defaultFile.heatCapacityFreeSensorState.displayTemperatureMv,
-  defaultFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+  defaultFile.heatCapacityFreeInstrumentConfig.sensor.temperatureMvAtAmbient,
 );
 assert.equal(defaultFile.heatCapacityFreeCalibrationState.calibrationVersion, 0);
 assert.deepEqual(defaultFile.heatCapacityFreeRunWorkspace.trials, []);
@@ -535,7 +535,7 @@ assert.equal(resetFreeRun.pressureZeroAdjustMode, 'none');
 assert.equal(resetFreeRun.heatCapacityReleaseState.phase, 'closed');
 assert.equal(resetFreeRun.heatCapacityReleaseState.purpose, 'none');
 assert.equal(resetFreeRun.heatCapacityFreeEquilibriumSpeedMultiplier, 8);
-assert.deepEqual(resetFreeRun.heatCapacityFreePhysicsConfig.leakage, {
+assert.deepEqual(resetFreeRun.heatCapacityFreeInstrumentConfig.physics.leakage, {
   enabled: true,
   ratePerS: 0.00005,
 });
@@ -559,12 +559,12 @@ const configuredCustomAmbientFile = applyHeatCapacityFreeParameterDraftWorkbench
   },
 );
 assert.equal(
-  configuredCustomAmbientFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK,
+  configuredCustomAmbientFile.heatCapacityFreeInstrumentConfig.physics.environment.ambientTemperatureK,
   customAmbientTemperatureK,
   'the public parameter path should install the custom ambient temperature before reset',
 );
 assert.equal(
-  configuredCustomAmbientFile.heatCapacityFreeSensorConfig.temperatureMvAtAmbient,
+  configuredCustomAmbientFile.heatCapacityFreeInstrumentConfig.sensor.temperatureMvAtAmbient,
   mapTemperatureKToSignalMv(customAmbientTemperatureK),
   'the public parameter path should raise the equilibrium voltage with ambient temperature',
 );
@@ -597,11 +597,14 @@ const demoModeStep = stepHeatCapacityWorkbenchFile({
   heatCapacityMode: 'demo',
   powerOn: true,
   lastUpdateMs: 0,
-  heatCapacityFreePhysicsConfig: {
-    ...defaultFile.heatCapacityFreePhysicsConfig,
-    leakage: {
-      enabled: true,
-      ratePerS: 0.02,
+  heatCapacityFreeInstrumentConfig: {
+    ...defaultFile.heatCapacityFreeInstrumentConfig,
+    physics: {
+      ...defaultFile.heatCapacityFreeInstrumentConfig.physics,
+      leakage: {
+        enabled: true,
+        ratePerS: 0.02,
+      },
     },
   },
   heatCapacityFreePhysicsState: {
@@ -702,24 +705,27 @@ assert.equal(
 );
 const migratedFreeSamplingFile = stepHeatCapacityWorkbenchFile({
   ...freePowered,
-  heatCapacityFreeSensorConfig: {
-    ...freePowered.heatCapacityFreeSensorConfig,
-    lagRate: 3,
-    minSampleIntervalS: 0.2,
-    maxSampleIntervalS: 0.6,
+  heatCapacityFreeInstrumentConfig: {
+    ...freePowered.heatCapacityFreeInstrumentConfig,
+    sensor: {
+      ...freePowered.heatCapacityFreeInstrumentConfig.sensor,
+      lagRate: 3,
+      minSampleIntervalS: 0.2,
+      maxSampleIntervalS: 0.6,
+    },
   },
 }, 1_260);
 assert.equal(
-  migratedFreeSamplingFile.heatCapacityFreeSensorConfig.lagRate,
+  migratedFreeSamplingFile.heatCapacityFreeInstrumentConfig.sensor.lagRate,
   3,
   'existing Free files should preserve configured sensor lag while migrating denser sampling intervals',
 );
 assert.equal(
-  migratedFreeSamplingFile.heatCapacityFreeSensorConfig.minSampleIntervalS,
+  migratedFreeSamplingFile.heatCapacityFreeInstrumentConfig.sensor.minSampleIntervalS,
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
 );
 assert.equal(
-  migratedFreeSamplingFile.heatCapacityFreeSensorConfig.maxSampleIntervalS,
+  migratedFreeSamplingFile.heatCapacityFreeInstrumentConfig.sensor.maxSampleIntervalS,
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
 );
 const freeRapidSecondStroke = registerHeatCapacityPumpStroke(freePumped, 1_320);
@@ -1112,7 +1118,7 @@ for (let stepIndex = 1; stepIndex <= 30; stepIndex += 1) {
   );
 }
 const stableCalibratedPumpPressureMv = stableCalibratedPumpFile.pressureDeltaKPa *
-  stableCalibratedPumpFile.heatCapacityFreeSensorConfig.pressureMvPerKPa;
+  stableCalibratedPumpFile.heatCapacityFreeInstrumentConfig.sensor.pressureMvPerKPa;
 assert.equal(
   stableCalibratedPumpPressureMv >= 109 && stableCalibratedPumpPressureMv <= 119,
   true,
@@ -2179,11 +2185,14 @@ assert.deepEqual(getHeatCapacityGaugePressureState(7, true, defaultFile, 6.98), 
 
 const customPressureSafetyFile: WorkbenchHeatCapacityState = {
   ...defaultFile,
-  heatCapacityFreeRecordConfig: {
-    ...defaultFile.heatCapacityFreeRecordConfig,
-    pressureDangerMv: 160,
+  heatCapacityFreeInstrumentConfig: {
+    ...defaultFile.heatCapacityFreeInstrumentConfig,
+    record: {
+      ...defaultFile.heatCapacityFreeInstrumentConfig.record,
+      pressureDangerMv: 160,
+    },
+    pressureWarningMv: 120,
   },
-  heatCapacityFreePressureWarningMv: 120,
 };
 const customDangerBoundaryGauge = getHeatCapacityGaugePressureState(8, true, customPressureSafetyFile);
 assert.equal(customDangerBoundaryGauge.pressureSafetyThresholdKPa, 8);

@@ -225,9 +225,9 @@ export const createHeatCapacityPersistencePayload = (
         selectHeatCapacityFreeActiveRunConfigSnapshot(fileWithCurrentDomain),
       ),
       acknowledgements: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeFileAcknowledgements),
-      recordConfig: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRecordConfig),
-      pressureWarningMv: fileWithCurrentDomain.heatCapacityFreePressureWarningMv,
-      instrumentNoiseEnabled: fileWithCurrentDomain.heatCapacityFreeInstrumentNoiseEnabled,
+      recordConfig: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeInstrumentConfig.record),
+      pressureWarningMv: fileWithCurrentDomain.heatCapacityFreeInstrumentConfig.pressureWarningMv,
+      instrumentNoiseEnabled: fileWithCurrentDomain.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
       runtime: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreePhysicsState),
       controls: {
         powerOn: fileWithCurrentDomain.powerOn,
@@ -307,16 +307,18 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
-    heatCapacityFreeRecordConfig: domain.recordConfig,
-    heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
-    heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
-    heatCapacityFreeEnvironmentConfig: domain.environmentConfig,
-    heatCapacityFreePhysicsConfig: {
-      ...domain.physicsConfig,
-      gamma: gasTypeGamma,
+    heatCapacityFreeInstrumentConfig: {
+      record: domain.recordConfig,
+      pressureWarningMv: domain.pressureWarningMv,
+      instrumentNoiseEnabled: domain.instrumentNoiseEnabled,
+      environment: domain.environmentConfig,
+      physics: {
+        ...domain.physicsConfig,
+        gamma: gasTypeGamma,
+      },
+      sensor: domain.sensorConfig,
     },
     heatCapacityFreePhysicsState: domain.physicsState,
-    heatCapacityFreeSensorConfig: domain.sensorConfig,
     heatCapacityFreeSensorState: domain.sensorState,
     heatCapacityFreeCalibrationState: domain.calibrationState,
     heatCapacityReleaseState: { ...domain.releaseState },
@@ -384,7 +386,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   const physicsConfig = createPhysicsConfigFromSnapshot(snapshot, restoredGasType);
   const sensorConfig = createSensorConfigFromSnapshot(snapshot);
   const fallbackRecordConfig = {
-    ...fallback.heatCapacityFreeRecordConfig,
+    ...fallback.heatCapacityFreeInstrumentConfig.record,
     u0ZeroToleranceMv: snapshot.record.u0ZeroToleranceMv,
     pressureStableSlopeMvPerS: snapshot.record.pressureStableSlopeMvPerS,
     temperatureStableSlopeMvPerS: snapshot.record.temperatureStableSlopeMvPerS,
@@ -395,14 +397,14 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
   };
   const normalizedPersistedRecordConfig = freeHasCurrentParameterPayload
     ? normalizeHeatCapacityFreeRestoreRecordConfig(free?.recordConfig, fallbackRecordConfig)
-    : fallback.heatCapacityFreeRecordConfig;
+    : fallback.heatCapacityFreeInstrumentConfig.record;
   const recordConfig = normalizedPersistedRecordConfig;
   const pressureWarningMv = freeHasCurrentParameterPayload
     ? finiteOrDefault(free?.pressureWarningMv, snapshot.record.pressureWarningMv ?? HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV)
-    : fallback.heatCapacityFreePressureWarningMv;
+    : fallback.heatCapacityFreeInstrumentConfig.pressureWarningMv;
   const instrumentNoiseEnabled = freeHasCurrentParameterPayload
     ? free?.instrumentNoiseEnabled === true
-    : fallback.heatCapacityFreeInstrumentNoiseEnabled;
+    : fallback.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled;
   const fallbackDraft = createHeatCapacityFreeParameterDraftFromConfigs(
     physicsConfig,
     sensorConfig,
@@ -572,7 +574,6 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeRealDomain: restoredRealDomainWithGasType,
     heatCapacityFreeIdealDomain: restoredIdealDomainWithGasType,
     heatCapacityFreeExperimentGroups: restoredExperimentGroups,
-    heatCapacityFreeEnvironmentConfig: { ...snapshot.environment },
     heatCapacityFreeExperimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
       free?.experimentGroupStatus,
       fallback.heatCapacityFreeExperimentGroupStatus,
@@ -581,15 +582,18 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
       free?.acknowledgements,
     ),
-    heatCapacityFreeRecordConfig: recordConfig,
-    heatCapacityFreePressureWarningMv: pressureWarningMv,
-    heatCapacityFreeInstrumentNoiseEnabled: instrumentNoiseEnabled,
-    heatCapacityFreePhysicsConfig: {
-      ...physicsConfig,
-      gamma: getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType),
+    heatCapacityFreeInstrumentConfig: {
+      environment: { ...snapshot.environment },
+      record: recordConfig,
+      pressureWarningMv,
+      instrumentNoiseEnabled,
+      physics: {
+        ...physicsConfig,
+        gamma: getHeatCapacityFreeGasTypeGamma(parameterDraft.gasType),
+      },
+      sensor: sensorConfig,
     },
     heatCapacityFreePhysicsState: free?.runtime ?? fallback.heatCapacityFreePhysicsState,
-    heatCapacityFreeSensorConfig: sensorConfig,
     heatCapacityFreeSensorState: free?.sensor ?? fallback.heatCapacityFreeSensorState,
     heatCapacityFreeCalibrationState: free?.calibration ?? fallback.heatCapacityFreeCalibrationState,
     heatCapacityFreeRollbackSnapshots: free?.rollbackSnapshots ?? fallback.heatCapacityFreeRollbackSnapshots,

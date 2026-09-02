@@ -48,9 +48,9 @@ assert.equal('heatCapacityProcessingResult' in heatOne, false);
 assert.equal(heatOne.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
 assert.equal(heatOne.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
 assert.equal(heatOne.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
-assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK, 0.08);
-assert.equal(heatOne.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK, 0.45);
-assert.deepEqual(heatOne.heatCapacityFreePhysicsConfig.leakage, {
+assert.equal(heatOne.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK, 0.08);
+assert.equal(heatOne.heatCapacityFreeInstrumentConfig.physics.thermal.wallAmbientConductanceWPerK, 0.45);
+assert.deepEqual(heatOne.heatCapacityFreeInstrumentConfig.physics.leakage, {
   enabled: true,
   ratePerS: 0.00005,
 });
@@ -114,9 +114,12 @@ const outdatedRuntimeRestored = decodeWorkbenchSession({
   files: [{
     ...heatOne,
     heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION - 1,
-    heatCapacityFreePhysicsConfig: {
-      ...heatOne.heatCapacityFreePhysicsConfig,
-      pumpAmountGainRatio: 0.5,
+    heatCapacityFreeInstrumentConfig: {
+      ...heatOne.heatCapacityFreeInstrumentConfig,
+      physics: {
+        ...heatOne.heatCapacityFreeInstrumentConfig.physics,
+        pumpAmountGainRatio: 0.5,
+      },
     },
     heatCapacityFreePhysicsState: {
       ...heatOne.heatCapacityFreePhysicsState,
@@ -130,7 +133,7 @@ const outdatedRuntimeHeatFile = outdatedRuntimeRestored.files[0];
 assert.equal(outdatedRuntimeHeatFile.kind, 'heatCapacity');
 if (outdatedRuntimeHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
-assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsConfig.pumpAmountGainRatio, 0.00334);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeInstrumentConfig.physics.pumpAmountGainRatio, 0.00334);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);

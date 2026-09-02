@@ -142,13 +142,13 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   batch: file.heatCapacityFreeRunWorkspace.batch,
   experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
   activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file, scheme),
-  recordConfig: file.heatCapacityFreeRecordConfig,
-  pressureWarningMv: file.heatCapacityFreePressureWarningMv,
-  instrumentNoiseEnabled: file.heatCapacityFreeInstrumentNoiseEnabled,
-  environmentConfig: file.heatCapacityFreeEnvironmentConfig,
-  physicsConfig: file.heatCapacityFreePhysicsConfig,
+  recordConfig: file.heatCapacityFreeInstrumentConfig.record,
+  pressureWarningMv: file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
+  instrumentNoiseEnabled: file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
+  environmentConfig: file.heatCapacityFreeInstrumentConfig.environment,
+  physicsConfig: file.heatCapacityFreeInstrumentConfig.physics,
   physicsState: file.heatCapacityFreePhysicsState,
-  sensorConfig: file.heatCapacityFreeSensorConfig,
+  sensorConfig: file.heatCapacityFreeInstrumentConfig.sensor,
   sensorState: file.heatCapacityFreeSensorState,
   calibrationState: file.heatCapacityFreeCalibrationState,
   releaseState: { ...file.heatCapacityReleaseState },
@@ -289,16 +289,18 @@ export const applyHeatCapacityFreeDomainToRuntimeFields = (
     heatCapacityFreeExperimentGroupStatus: domain.experimentGroupStatus,
     heatCapacityFreeGasType: domain.gasType,
     heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
-    heatCapacityFreeRecordConfig: domain.recordConfig,
-    heatCapacityFreePressureWarningMv: domain.pressureWarningMv,
-    heatCapacityFreeInstrumentNoiseEnabled: domain.instrumentNoiseEnabled,
-    heatCapacityFreeEnvironmentConfig: domain.environmentConfig,
-    heatCapacityFreePhysicsConfig: {
-      ...domain.physicsConfig,
-      gamma: gasTypeGamma,
+    heatCapacityFreeInstrumentConfig: {
+      record: domain.recordConfig,
+      pressureWarningMv: domain.pressureWarningMv,
+      instrumentNoiseEnabled: domain.instrumentNoiseEnabled,
+      environment: domain.environmentConfig,
+      physics: {
+        ...domain.physicsConfig,
+        gamma: gasTypeGamma,
+      },
+      sensor: domain.sensorConfig,
     },
     heatCapacityFreePhysicsState: domain.physicsState,
-    heatCapacityFreeSensorConfig: domain.sensorConfig,
     heatCapacityFreeSensorState: domain.sensorState,
     heatCapacityFreeCalibrationState: domain.calibrationState,
     heatCapacityReleaseState: { ...domain.releaseState },
@@ -381,7 +383,7 @@ export const commitHeatCapacityFreeRuntimeAuthorityTransaction = (
   const shouldUseExistingDomain =
     scheme === 'real' &&
     hasHeatCapacityFreeIdealThermalBoundaryContamination(
-      file.heatCapacityFreePhysicsConfig,
+      file.heatCapacityFreeInstrumentConfig.physics,
     );
   const sourceFile = shouldUseExistingDomain
     ? applyHeatCapacityFreeDomainToRuntimeFields(file, activeDomain)

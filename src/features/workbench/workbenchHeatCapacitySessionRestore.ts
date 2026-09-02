@@ -249,22 +249,22 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     : openHeatCapacityTabs[0] ?? null;
   const fallbackFreeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(`free-runtime-${file.id}`);
   const savedFreeRuntimeCompatible = file.heatCapacityFreeRuntimeVersion === HEAT_CAPACITY_FREE_RUNTIME_VERSION;
-  const savedFreePhysicsConfigRaw = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreePhysicsConfig)
-    ? normalizeHeatCapacityFreePhysicsConfig(file.heatCapacityFreePhysicsConfig)
-    : fallbackFreeRuntimeFields.heatCapacityFreePhysicsConfig;
-  const savedFreeSensorConfig = isRecord(file.heatCapacityFreeSensorConfig)
-    ? normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeSensorConfig)
-    : fallbackFreeRuntimeFields.heatCapacityFreeSensorConfig;
+  const savedFreePhysicsConfigRaw = savedFreeRuntimeCompatible && isRecord(file.heatCapacityFreeInstrumentConfig.physics)
+    ? normalizeHeatCapacityFreePhysicsConfig(file.heatCapacityFreeInstrumentConfig.physics)
+    : fallbackFreeRuntimeFields.heatCapacityFreeInstrumentConfig.physics;
+  const savedFreeSensorConfig = isRecord(file.heatCapacityFreeInstrumentConfig.sensor)
+    ? normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeInstrumentConfig.sensor)
+    : fallbackFreeRuntimeFields.heatCapacityFreeInstrumentConfig.sensor;
   const savedFreeRecordConfig = normalizeHeatCapacityFreeRestoreRecordConfig(
-    file.heatCapacityFreeRecordConfig,
-    fallbackFreeRuntimeFields.heatCapacityFreeRecordConfig,
+    file.heatCapacityFreeInstrumentConfig.record,
+    fallbackFreeRuntimeFields.heatCapacityFreeInstrumentConfig.record,
   );
   const savedFreePressureWarningMv = finiteOrDefault(
-    file.heatCapacityFreePressureWarningMv,
-    fallbackFreeRuntimeFields.heatCapacityFreePressureWarningMv,
+    file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
+    fallbackFreeRuntimeFields.heatCapacityFreeInstrumentConfig.pressureWarningMv,
   );
-  const savedFreeInstrumentNoiseEnabled = typeof file.heatCapacityFreeInstrumentNoiseEnabled === 'boolean'
-    ? file.heatCapacityFreeInstrumentNoiseEnabled
+  const savedFreeInstrumentNoiseEnabled = typeof file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled === 'boolean'
+    ? file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled
     : savedFreeSensorConfig.noiseMv > 0;
   const fallbackFreeParameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
     savedFreePhysicsConfigRaw,
@@ -333,13 +333,15 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
         heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
           file.heatCapacityFreeFileAcknowledgements,
         ),
-        heatCapacityFreeRecordConfig: savedFreeRecordConfig,
-        heatCapacityFreePressureWarningMv: savedFreePressureWarningMv,
-        heatCapacityFreeInstrumentNoiseEnabled: savedFreeInstrumentNoiseEnabled,
-        heatCapacityFreeEnvironmentConfig: { ...savedFreePhysicsConfig.environment },
-        heatCapacityFreePhysicsConfig: savedFreePhysicsConfig,
+        heatCapacityFreeInstrumentConfig: {
+          record: savedFreeRecordConfig,
+          pressureWarningMv: savedFreePressureWarningMv,
+          instrumentNoiseEnabled: savedFreeInstrumentNoiseEnabled,
+          environment: { ...savedFreePhysicsConfig.environment },
+          physics: savedFreePhysicsConfig,
+          sensor: savedFreeSensorConfig,
+        },
         heatCapacityFreePhysicsState: savedFreePhysicsState,
-        heatCapacityFreeSensorConfig: savedFreeSensorConfig,
         heatCapacityFreeSensorState: savedFreeSensorState,
         heatCapacityFreeCalibrationState: savedFreeCalibrationState,
         heatCapacityReleaseState: normalizeHeatCapacityReleaseState(
@@ -490,9 +492,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     {
       ...file,
       heatCapacityMode: normalizedHeatCapacityMode,
-      heatCapacityFreeRecordConfig: normalizedFreeRuntimeFields.heatCapacityFreeRecordConfig,
-      heatCapacityFreePressureWarningMv: normalizedFreeRuntimeFields.heatCapacityFreePressureWarningMv,
-      heatCapacityFreeSensorConfig: normalizedFreeRuntimeFields.heatCapacityFreeSensorConfig,
+      heatCapacityFreeInstrumentConfig: normalizedFreeRuntimeFields.heatCapacityFreeInstrumentConfig,
     },
     restoredGaugeDisplayValue ?? undefined,
   );

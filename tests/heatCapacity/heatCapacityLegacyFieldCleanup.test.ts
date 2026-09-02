@@ -11,6 +11,12 @@ const retiredFreeRuntimeFields = [
   'heatCapacityFreeTraceStore',
   'heatCapacityFreeTrials',
   'heatCapacityFreeActiveAttempt',
+  'heatCapacityFreeRecordConfig',
+  'heatCapacityFreePressureWarningMv',
+  'heatCapacityFreeInstrumentNoiseEnabled',
+  'heatCapacityFreeEnvironmentConfig',
+  'heatCapacityFreePhysicsConfig',
+  'heatCapacityFreeSensorConfig',
 ] as const;
 const defaultHeatCapacityFile = createDefaultHeatCapacityFile(1);
 for (const field of retiredFreeRuntimeFields) {
@@ -24,6 +30,18 @@ assert.deepEqual(
   Object.keys(defaultHeatCapacityFile.heatCapacityFreeRunWorkspace).sort(),
   ['activeAttempt', 'batch', 'traceStore', 'trials'],
   'the current Free run workspace should own the four retired runtime projections',
+);
+assert.deepEqual(
+  Object.keys(defaultHeatCapacityFile.heatCapacityFreeInstrumentConfig).sort(),
+  [
+    'environment',
+    'instrumentNoiseEnabled',
+    'physics',
+    'pressureWarningMv',
+    'record',
+    'sensor',
+  ],
+  'the current Free instrument config should own the six retired config projections',
 );
 
 const forbiddenFields = [

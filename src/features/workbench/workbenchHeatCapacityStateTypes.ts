@@ -158,6 +158,16 @@ export interface HeatCapacityFreeRunWorkspace {
   activeAttempt: HeatCapacityFreeAttempt | null;
 }
 
+/** Low-frequency configuration for the currently selected Free instrument domain. */
+export interface HeatCapacityFreeInstrumentConfigWorkspace {
+  record: HeatCapacityFreeRecordConfig;
+  pressureWarningMv: number;
+  instrumentNoiseEnabled: boolean;
+  environment: HeatCapacityFreeEnvironmentConfig;
+  physics: HeatCapacityFreePhysicsConfig;
+  sensor: HeatCapacityFreeSensorConfig;
+}
+
 export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
@@ -181,13 +191,8 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   /** Parameter/instrument domains; group-bound batch, trial, and trace members are mirrors. */
   heatCapacityFreeRealDomain: HeatCapacityFreeExperimentDomainState;
   heatCapacityFreeIdealDomain: HeatCapacityFreeExperimentDomainState;
-  heatCapacityFreeRecordConfig: HeatCapacityFreeRecordConfig;
-  heatCapacityFreePressureWarningMv: number;
-  heatCapacityFreeInstrumentNoiseEnabled: boolean;
-  heatCapacityFreeEnvironmentConfig: HeatCapacityFreeEnvironmentConfig;
-  heatCapacityFreePhysicsConfig: HeatCapacityFreePhysicsConfig;
+  heatCapacityFreeInstrumentConfig: HeatCapacityFreeInstrumentConfigWorkspace;
   heatCapacityFreePhysicsState: HeatCapacityFreePhysicsState;
-  heatCapacityFreeSensorConfig: HeatCapacityFreeSensorConfig;
   heatCapacityFreeSensorState: HeatCapacityFreeSensorState;
   heatCapacityFreeCalibrationState: HeatCapacityFreeCalibrationState;
   heatCapacityReleaseState: HeatCapacityReleaseState;

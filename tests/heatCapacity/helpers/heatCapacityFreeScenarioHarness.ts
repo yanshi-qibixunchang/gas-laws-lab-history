@@ -83,13 +83,13 @@ const DEFAULT_STABLE_WAIT_S = 300;
 const createDefaultScenarioConfigs = (): ScenarioConfigs => {
   const file = createDefaultHeatCapacityFile(1);
   const sensor = getEffectiveHeatCapacityFreeSensorConfig(
-    file.heatCapacityFreeSensorConfig,
-    file.heatCapacityFreeInstrumentNoiseEnabled,
+    file.heatCapacityFreeInstrumentConfig.sensor,
+    file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
   );
   return {
-    physics: file.heatCapacityFreePhysicsConfig,
+    physics: file.heatCapacityFreeInstrumentConfig.physics,
     sensor,
-    record: file.heatCapacityFreeRecordConfig,
+    record: file.heatCapacityFreeInstrumentConfig.record,
   };
 };
 

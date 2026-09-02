@@ -230,13 +230,8 @@ const HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS = [
   'heatCapacityFreeDisplayScheme',
   'heatCapacityFreeRealDomain',
   'heatCapacityFreeIdealDomain',
-  'heatCapacityFreeRecordConfig',
-  'heatCapacityFreePressureWarningMv',
-  'heatCapacityFreeInstrumentNoiseEnabled',
-  'heatCapacityFreeEnvironmentConfig',
-  'heatCapacityFreePhysicsConfig',
+  'heatCapacityFreeInstrumentConfig',
   'heatCapacityFreePhysicsState',
-  'heatCapacityFreeSensorConfig',
   'heatCapacityFreeSensorState',
   'heatCapacityFreeCalibrationState',
   'heatCapacityFreeEquilibriumSpeedMultiplier',
@@ -271,7 +266,7 @@ type HeatCapacityFreeCurrentModeRuntimeSnapshot = Pick<
 
 export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
   HeatCapacityFreeCurrentModeRuntimeSnapshot,
-  'heatCapacityFreeRunWorkspace'
+  'heatCapacityFreeRunWorkspace' | 'heatCapacityFreeInstrumentConfig'
 > & {
   /** Stable compatibility projection retained in persisted mode-session snapshots. */
   heatCapacityFreeBatch:
@@ -282,6 +277,18 @@ export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
     WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['trials'];
   heatCapacityFreeActiveAttempt:
     WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['activeAttempt'];
+  heatCapacityFreeRecordConfig:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['record'];
+  heatCapacityFreePressureWarningMv:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['pressureWarningMv'];
+  heatCapacityFreeInstrumentNoiseEnabled:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['instrumentNoiseEnabled'];
+  heatCapacityFreeEnvironmentConfig:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['environment'];
+  heatCapacityFreePhysicsConfig:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['physics'];
+  heatCapacityFreeSensorConfig:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['sensor'];
   /** Compatibility projection retained in persisted mode-session snapshots. */
   heatCapacityFreeActiveRunConfigSnapshot:
     HeatCapacityFreeExperimentDomainState['activeRunConfigSnapshot'];
@@ -406,13 +413,13 @@ const createFreeModeSessionDomainFromProjection = (
     batch: file.heatCapacityFreeRunWorkspace.batch,
     experimentGroupStatus: file.heatCapacityFreeExperimentGroupStatus,
     activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
-    recordConfig: file.heatCapacityFreeRecordConfig,
-    pressureWarningMv: file.heatCapacityFreePressureWarningMv,
-    instrumentNoiseEnabled: file.heatCapacityFreeInstrumentNoiseEnabled,
-    environmentConfig: file.heatCapacityFreeEnvironmentConfig,
-    physicsConfig: file.heatCapacityFreePhysicsConfig,
+    recordConfig: file.heatCapacityFreeInstrumentConfig.record,
+    pressureWarningMv: file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
+    instrumentNoiseEnabled: file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
+    environmentConfig: file.heatCapacityFreeInstrumentConfig.environment,
+    physicsConfig: file.heatCapacityFreeInstrumentConfig.physics,
     physicsState: file.heatCapacityFreePhysicsState,
-    sensorConfig: file.heatCapacityFreeSensorConfig,
+    sensorConfig: file.heatCapacityFreeInstrumentConfig.sensor,
     sensorState: file.heatCapacityFreeSensorState,
     calibrationState: file.heatCapacityFreeCalibrationState,
     releaseState: file.heatCapacityReleaseState,
@@ -434,7 +441,11 @@ export const captureHeatCapacityModeRuntimeSnapshot = (
       file,
       HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS,
     );
-    const { heatCapacityFreeRunWorkspace: _runWorkspace, ...free } = currentFree;
+    const {
+      heatCapacityFreeRunWorkspace: _runWorkspace,
+      heatCapacityFreeInstrumentConfig: _instrumentConfig,
+      ...free
+    } = currentFree;
     const activeDomain = createFreeModeSessionDomainFromProjection(file);
     return {
       schemaVersion: HEAT_CAPACITY_MODE_RUNTIME_SNAPSHOT_SCHEMA_VERSION,

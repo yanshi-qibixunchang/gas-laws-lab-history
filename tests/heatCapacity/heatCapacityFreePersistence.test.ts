@@ -618,7 +618,10 @@ assert.deepEqual(restoredInFlight.heatCapacityFreeRunWorkspace.activeAttempt, in
 
 const noiseDisabledFile = {
   ...file,
-  heatCapacityFreeInstrumentNoiseEnabled: false,
+  heatCapacityFreeInstrumentConfig: {
+    ...file.heatCapacityFreeInstrumentConfig,
+    instrumentNoiseEnabled: false,
+  },
   heatCapacityFreeParameterDraft: {
     ...file.heatCapacityFreeParameterDraft,
     instrumentNoiseEnabled: false,
@@ -634,7 +637,7 @@ assert.equal(
 );
 assert.equal(
   createHeatCapacityPersistencePayload(noiseDisabledFile, 12345).free?.config.sensor.noiseMv,
-  noiseDisabledFile.heatCapacityFreeSensorConfig.noiseMv,
+  noiseDisabledFile.heatCapacityFreeInstrumentConfig.sensor.noiseMv,
   'file persistence should retain the configured noise magnitude separately from the enabled flag',
 );
 
@@ -1186,12 +1189,12 @@ const restored = restoreHeatCapacityFileFromPersistencePayload(envelope, editedP
 assert.equal(restored.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.4);
 assert.equal(restored.heatCapacityFreeGasType, 'helium');
 assert.equal(restored.heatCapacityFreeParameterDraft.gasType, 'helium');
-assert.equal(restored.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(restored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(restored.theoreticalGamma, 5 / 3);
 assert.equal(restored.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, false);
-assert.equal(restored.heatCapacityFreeRecordConfig.pressureDangerMv, 151);
-assert.equal(restored.heatCapacityFreePressureWarningMv, 121);
-assert.equal(restored.heatCapacityFreeInstrumentNoiseEnabled, false);
+assert.equal(restored.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 151);
+assert.equal(restored.heatCapacityFreeInstrumentConfig.pressureWarningMv, 121);
+assert.equal(restored.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
 assert.deepEqual(restored.heatCapacityFreeFileAcknowledgements, {
   advancedParametersRisk: true,
   idealParameterProfileIntro: true,
@@ -1223,11 +1226,11 @@ const currentTemperatureRestored = restoreHeatCapacityFileFromPersistencePayload
   id: 'heat-file-current-temperature-calibration-restore',
 }, currentTemperaturePayload, 32);
 assert.equal(
-  currentTemperatureRestored.heatCapacityFreeRecordConfig.temperatureStableSlopeMvPerS,
+  currentTemperatureRestored.heatCapacityFreeInstrumentConfig.record.temperatureStableSlopeMvPerS,
   0.44,
   'current-version record thresholds must not be treated as legacy data',
 );
-assert.equal(currentTemperatureRestored.heatCapacityFreeRecordConfig.temperatureAmbientToleranceMv, 1.23);
+assert.equal(currentTemperatureRestored.heatCapacityFreeInstrumentConfig.record.temperatureAmbientToleranceMv, 1.23);
 assert.equal(currentTemperatureRestored.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS, 0.44);
 assert.equal(currentTemperatureRestored.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv, 1.23);
 assert.deepEqual(currentTemperatureRestored.heatCapacityFreeSensorState.temperatureHistory, [
@@ -1387,7 +1390,7 @@ const legacyGammaRestored = restoreHeatCapacityFileFromPersistencePayload({
 }, legacyGammaOnlyPayload, 5);
 assert.equal(legacyGammaRestored.heatCapacityFreeGasType, 'helium');
 assert.equal(legacyGammaRestored.heatCapacityFreeParameterDraft.gasType, 'helium');
-assert.equal(legacyGammaRestored.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(legacyGammaRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(legacyGammaRestored.theoreticalGamma, 5 / 3);
 
 const newFile = createDefaultHeatCapacityFile(2);
@@ -1413,8 +1416,8 @@ const idealSchemeRestored = restoreHeatCapacityFileFromPersistencePayload({
 }, idealSchemePayload, 4);
 assert.equal(idealSchemeRestored.heatCapacityFreeParameterScheme, 'ideal');
 assert.equal(idealSchemeRestored.heatCapacityFreeDisplayScheme, 'ideal');
-assert.equal(idealSchemeRestored.heatCapacityFreePhysicsConfig.gamma, 1.4);
-assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentNoiseEnabled, false);
+assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 1.4);
+assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
 
 const heliumRealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
   ...file.heatCapacityFreeParameterDraft,
@@ -1441,7 +1444,7 @@ assert.equal(heliumIdealRestored.heatCapacityFreeGasType, 'air');
 const heliumRealRestored = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumIdealRestored, 'real', 780);
 assert.equal(heliumRealRestored.heatCapacityFreeGasType, 'helium');
 assert.equal(heliumRealRestored.heatCapacityFreeParameterDraft.gasType, 'helium');
-assert.equal(heliumRealRestored.heatCapacityFreePhysicsConfig.gamma, 5 / 3);
+assert.equal(heliumRealRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(heliumRealRestored.heatCapacityFreeRealDomain.gasType, 'helium');
 
 const runningGuideFile = startHeatCapacityGuideWorkbenchState(file, 880);
@@ -1489,28 +1492,31 @@ const staleTopLevelRealFile = {
   ...file,
   heatCapacityFreeParameterScheme: 'real' as const,
   heatCapacityFreeDisplayScheme: 'real' as const,
-  heatCapacityFreePhysicsConfig: {
-    ...file.heatCapacityFreePhysicsConfig,
-    thermal: {
-      ...file.heatCapacityFreePhysicsConfig.thermal,
-      gasWallConductanceWPerK: 5,
-      wallAmbientConductanceWPerK: 5,
-    },
-    pumpValveExchange: {
-      ...file.heatCapacityFreePhysicsConfig.pumpValveExchange!,
-      enabled: false,
-      gasExchangeRatePerS: 0,
-      thermalConductanceWPerK: 0,
-    },
-    environmentDisturbance: {
-      ...file.heatCapacityFreePhysicsConfig.environmentDisturbance!,
-      enabled: false,
-      pressureAmplitudeKPa: 0,
-      temperatureAmplitudeK: 0,
-    },
-    leakage: {
-      enabled: false,
-      ratePerS: 0,
+  heatCapacityFreeInstrumentConfig: {
+    ...file.heatCapacityFreeInstrumentConfig,
+    physics: {
+      ...file.heatCapacityFreeInstrumentConfig.physics,
+      thermal: {
+        ...file.heatCapacityFreeInstrumentConfig.physics.thermal,
+        gasWallConductanceWPerK: 5,
+        wallAmbientConductanceWPerK: 5,
+      },
+      pumpValveExchange: {
+        ...file.heatCapacityFreeInstrumentConfig.physics.pumpValveExchange!,
+        enabled: false,
+        gasExchangeRatePerS: 0,
+        thermalConductanceWPerK: 0,
+      },
+      environmentDisturbance: {
+        ...file.heatCapacityFreeInstrumentConfig.physics.environmentDisturbance!,
+        enabled: false,
+        pressureAmplitudeKPa: 0,
+        temperatureAmplitudeK: 0,
+      },
+      leakage: {
+        enabled: false,
+        ratePerS: 0,
+      },
     },
   },
   heatCapacityFreeParameterDraft: {
@@ -1569,7 +1575,7 @@ const staleTopLevelRealRestored = restoreHeatCapacityFileFromPersistencePayload(
   payload: staleTopLevelRealPayload as unknown as Record<string, unknown>,
 }, staleTopLevelRealPayload, 6);
 assert.equal(
-  staleTopLevelRealRestored.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  staleTopLevelRealRestored.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK,
   airModelDefaults.gasWallConductanceWPerK,
 );
 assert.equal(
@@ -1620,20 +1626,20 @@ const contaminatedRealDomainRestored = restoreHeatCapacityFileFromPersistencePay
   payload: contaminatedRealDomainPayload as unknown as Record<string, unknown>,
 }, contaminatedRealDomainPayload, 7);
 assert.equal(
-  contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.thermal.gasWallConductanceWPerK,
+  contaminatedRealDomainRestored.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK,
   airModelDefaults.gasWallConductanceWPerK,
 );
 assert.equal(
-  contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.thermal.wallAmbientConductanceWPerK,
+  contaminatedRealDomainRestored.heatCapacityFreeInstrumentConfig.physics.thermal.wallAmbientConductanceWPerK,
   realPhysicsDefaults.thermal.wallAmbientConductanceWPerK,
 );
-assert.equal(contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.leakage.enabled, true);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeInstrumentConfig.physics.leakage.enabled, true);
 assert.equal(
-  contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.leakage.ratePerS,
+  contaminatedRealDomainRestored.heatCapacityFreeInstrumentConfig.physics.leakage.ratePerS,
   airModelDefaults.leakageRatePerS,
 );
-assert.equal(contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.pumpValveExchange?.enabled, true);
-assert.equal(contaminatedRealDomainRestored.heatCapacityFreePhysicsConfig.environmentDisturbance?.enabled, true);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeInstrumentConfig.physics.pumpValveExchange?.enabled, true);
+assert.equal(contaminatedRealDomainRestored.heatCapacityFreeInstrumentConfig.physics.environmentDisturbance?.enabled, true);
 assert.equal(
   contaminatedRealDomainRestored.heatCapacityFreeRealDomain.physicsConfig.thermal.gasWallConductanceWPerK,
   airModelDefaults.gasWallConductanceWPerK,
@@ -1655,15 +1661,15 @@ assert.equal(
   incompletePayload.free!.real.physicsConfig.environment.ambientPressureKPa,
 );
 assert.equal(
-  incompleteRestored.heatCapacityFreeRecordConfig.pressureDangerMv,
+  incompleteRestored.heatCapacityFreeInstrumentConfig.record.pressureDangerMv,
   incompletePayload.free!.real.recordConfig.pressureDangerMv,
 );
 assert.equal(
-  incompleteRestored.heatCapacityFreePressureWarningMv,
+  incompleteRestored.heatCapacityFreeInstrumentConfig.pressureWarningMv,
   incompletePayload.free!.real.pressureWarningMv,
 );
 assert.equal(
-  incompleteRestored.heatCapacityFreeInstrumentNoiseEnabled,
+  incompleteRestored.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
   incompletePayload.free!.real.instrumentNoiseEnabled,
 );
 assert.equal(selectHeatCapacityFreeActiveRunConfigSnapshot(incompleteRestored), null);

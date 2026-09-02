@@ -21344,7 +21344,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               const heatCapacityHardSphereAmbientTemperatureK = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK
                 : activeFile.heatCapacityMode === 'free'
-                  ? activeFile.heatCapacityFreePhysicsConfig.environment.ambientTemperatureK
+                  ? activeFile.heatCapacityFreeInstrumentConfig.physics.environment.ambientTemperatureK
                   : activeFile.ambientTemperatureK;
               const heatCapacityHardSphereGasAmountRatio = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.gasAmountRatio

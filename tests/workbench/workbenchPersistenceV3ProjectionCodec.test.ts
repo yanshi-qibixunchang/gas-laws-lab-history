@@ -1877,7 +1877,7 @@ if (editedFreeReprojected.value.kind !== 'heatCapacity') {
 }
 assert.equal(editedFreeReprojected.value.heatCapacityFreeGasType, 'helium');
 assert.equal(
-  editedFreeReprojected.value.heatCapacityFreePhysicsConfig.environment
+  editedFreeReprojected.value.heatCapacityFreeInstrumentConfig.physics.environment
     .ambientTemperatureK,
   303.15,
   'active Free parameter edits must be captured into the selected domain',

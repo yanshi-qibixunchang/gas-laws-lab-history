@@ -85,6 +85,12 @@ for (const retiredRuntimeField of [
   'heatCapacityFreeTraceStore',
   'heatCapacityFreeTrials',
   'heatCapacityFreeActiveAttempt',
+  'heatCapacityFreeRecordConfig',
+  'heatCapacityFreePressureWarningMv',
+  'heatCapacityFreeInstrumentNoiseEnabled',
+  'heatCapacityFreeEnvironmentConfig',
+  'heatCapacityFreePhysicsConfig',
+  'heatCapacityFreeSensorConfig',
 ]) {
   assert.doesNotMatch(
     stateTypesSource,
@@ -99,6 +105,11 @@ assert.match(
 );
 assert.match(
   stateTypesSource,
+  /interface HeatCapacityFreeInstrumentConfigWorkspace[\s\S]*record:[\s\S]*pressureWarningMv:[\s\S]*instrumentNoiseEnabled:[\s\S]*environment:[\s\S]*physics:[\s\S]*sensor:/,
+  'the low-frequency Free instrument configuration should remain grouped',
+);
+assert.match(
+  stateTypesSource,
   /Sole authority for Free experiment-group history, progress, calculation, and results/,
   'the state type should identify the Free experiment-group authority',
 );
@@ -109,7 +120,7 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /高频运行镜像已完成一次性工作区迁移[\s\S]*下一大改动断点是评估其余顶层 Free 参数、物理、传感器与校准字段/,
+  /配置只在参数应用、域切换和恢复时低频更新[\s\S]*下一大改动断点是评估前三个 Free 高频状态是否建立独立热路径工作区/,
   'the authority table should preserve the next high-risk persistence breakpoint',
 );
 
