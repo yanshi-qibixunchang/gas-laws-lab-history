@@ -31,7 +31,6 @@ import {
 } from './workbenchPersistenceValue.ts';
 import {
   WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO,
-  areWorkbenchParamsEqual,
   clampWorkbenchLiveSplitRatio,
   createEmptyChartData,
   createDefaultIdealFile,
@@ -39,7 +38,8 @@ import {
   type WorkbenchIdealState,
   type WorkbenchIdealWindowLayout,
   type WorkbenchRunState,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
+import { areWorkbenchParamsEqual } from './workbenchState.ts';
 import { normalizeIdealWindowLayoutState } from './workbenchLayoutCompatibility.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,

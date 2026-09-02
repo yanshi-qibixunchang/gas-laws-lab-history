@@ -11,7 +11,7 @@ import type {
 } from './workbenchResults.ts';
 import type {
   WorkbenchHeatCapacityPistonOscillationState,
-} from './workbenchState.ts';
+} from './workbenchPistonOscillationState.ts';
 
 export const PISTON_OSCILLATION_REPORT_EXPORT_KIND =
   'heat-capacity-piston-oscillation' as const;

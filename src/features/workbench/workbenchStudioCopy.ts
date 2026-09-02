@@ -2,7 +2,8 @@ import type { ExperimentRelation, SimulationStats } from '../../shared/types.ts'
 import type { ExperimentParamKey } from '../../domain/idealGas/idealGasExperiment.ts';
 import type { WorkbenchLanguagePreference, WorkbenchPerformanceMode, WorkbenchThemePreference } from './workbenchGeneralSettings.ts';
 import type { IdealSamplingPresetKey } from './workbenchIdealControls.ts';
-import type { WorkbenchExportEnvironmentStatus, WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchExportEnvironmentStatus } from './workbenchFileState.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
 import type { WorkbenchExportMode } from './workbenchResults.ts';
 
 type ConsoleTab = 'logs' | 'warnings' | 'summary';

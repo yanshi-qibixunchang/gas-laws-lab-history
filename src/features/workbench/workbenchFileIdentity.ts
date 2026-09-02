@@ -1,8 +1,8 @@
-import type {
-  WorkbenchFileKind,
-  WorkbenchFileState,
-} from './workbenchState.ts';
-import { WORKBENCH_FILE_NAME_PREFIX_BY_KIND } from './workbenchFileKind.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
+import {
+  WORKBENCH_FILE_NAME_PREFIX_BY_KIND,
+  type WorkbenchFileKind,
+} from './workbenchFileKind.ts';
 
 const LEGACY_DISPLAY_NAME_PREFIXES_BY_KIND: Partial<
   Record<WorkbenchFileKind, readonly string[]>

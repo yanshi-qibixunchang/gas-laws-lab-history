@@ -5,7 +5,7 @@ const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
-const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
 const indexedDbPersistenceSource = readFileSync(new URL('../../src/features/workbench/workbenchIndexedDbPersistence.ts', import.meta.url), 'utf8');
 const filePresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchFilePresentation.ts', import.meta.url), 'utf8');
 const emptyWorkspaceSource = readFileSync(new URL('../../src/features/workbench/WorkbenchEmptyWorkspace.tsx', import.meta.url), 'utf8');
@@ -101,7 +101,7 @@ assert.match(
 );
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /lastOpenedAt: now,/,
   'new workbench files should record a true last-opened timestamp',
 );

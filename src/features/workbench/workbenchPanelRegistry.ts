@@ -1,4 +1,4 @@
-import type { WorkbenchPanelKey } from './workbenchState.ts';
+import type { WorkbenchPanelKey } from './workbenchFileState.ts';
 
 export const WORKBENCH_PANEL_KEYS = [
   'preview',

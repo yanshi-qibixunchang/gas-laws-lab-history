@@ -21,13 +21,15 @@ import {
 } from './workbenchLayoutCompatibility.ts';
 import {
   clampWorkbenchLiveSplitRatio,
+  type WorkbenchIdealResultWindowKey,
+  type WorkbenchStandardResultsTab,
+} from './workbenchFileState.ts';
+import {
   createDefaultHeatCapacityPistonOscillationFile,
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
-  type WorkbenchFileState,
-  type WorkbenchIdealResultWindowKey,
-  type WorkbenchStandardResultsTab,
-} from './workbenchState.ts';
+} from './workbenchPistonOscillationState.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
 
 const BASE_FILE_KEYS = [
   'id',

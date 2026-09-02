@@ -1,10 +1,10 @@
 import {
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
-  clampWorkbenchLiveSplitRatio,
   createDefaultHeatCapacityPistonOscillationFile,
   type WorkbenchHeatCapacityPistonOscillationState,
-} from './workbenchState.ts';
+} from './workbenchPistonOscillationState.ts';
+import { clampWorkbenchLiveSplitRatio } from './workbenchFileState.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,
 } from './workbenchPersistenceSchema.ts';

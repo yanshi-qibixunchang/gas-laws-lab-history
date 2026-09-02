@@ -1,6 +1,7 @@
 import type { HistogramBin } from '../../shared/types';
 import type { IdealGasExperimentPoint } from '../../shared/types';
-import type { WorkbenchFileState, WorkbenchRunState } from './workbenchState.ts';
+import type { WorkbenchRunState } from './workbenchFileState.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
 import { getIdealGasAnalysis, getRelationXValue } from '../../domain/idealGas/idealGasExperiment.ts';
 import {
   createHeatCapacityExportPayload,

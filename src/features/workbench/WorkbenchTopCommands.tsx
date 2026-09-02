@@ -19,11 +19,11 @@ import {
 } from 'lucide-react';
 import { useEffect, useState, type FocusEvent, type ReactNode, type RefObject } from 'react';
 import type {
-  WorkbenchFileKind,
   WorkbenchIdealResultWindowKey,
   WorkbenchPanelKey,
   WorkbenchStandardResultsTab,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
+import type { WorkbenchFileKind } from './workbenchFileKind.ts';
 
 export type WorkbenchTopMenuId = 'new' | 'edit' | 'window' | 'settings' | 'help' | null;
 

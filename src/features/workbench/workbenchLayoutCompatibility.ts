@@ -7,10 +7,10 @@ import {
   WORKBENCH_PISTON_OSCILLATION_SPLIT_DEFAULT_RATIO,
   type WorkbenchIdealResultWindowKey,
   type WorkbenchIdealWindowLayout,
-  type WorkbenchFileState,
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
 
 export interface WorkbenchLayoutDefaultState {
   resultsHeightRatio: number;

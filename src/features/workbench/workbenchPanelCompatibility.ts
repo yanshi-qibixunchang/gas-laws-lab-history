@@ -1,7 +1,7 @@
 import {
   isWorkbenchPanelKey,
 } from './workbenchPanelRegistry.ts';
-import type { WorkbenchPanelKey } from './workbenchState.ts';
+import type { WorkbenchPanelKey } from './workbenchFileState.ts';
 
 export type RestorableWorkbenchPanelKey = WorkbenchPanelKey | 'history';
 

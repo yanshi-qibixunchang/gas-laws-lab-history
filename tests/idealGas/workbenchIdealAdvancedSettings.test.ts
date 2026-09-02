@@ -4,17 +4,17 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const parameterRegistrySource = readFileSync(new URL('../../src/features/workbench/workbenchParameterRegistry.ts', import.meta.url), 'utf8');
-const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /export const DEFAULT_IDEAL_PARAMS: SimulationParams = \{[\s\S]*?targetTemperature:\s*0\.6,/,
   'new ideal-gas files should start at the minimum recommended temperature',
 );
 
 assert.match(
-  stateSource,
-  /createBaseFile\('ideal', index, DEFAULT_IDEAL_PARAMS, defaults\)[\s\S]*?activeParams: cloneParams\(DEFAULT_IDEAL_PARAMS\)/,
+  fileStateSource,
+  /createWorkbenchBaseFile\('ideal', index, DEFAULT_IDEAL_PARAMS, defaults\)[\s\S]*?activeParams: cloneParams\(DEFAULT_IDEAL_PARAMS\)/,
   'created ideal-gas files should use the shared ideal default params for saved and active params',
 );
 

@@ -8,7 +8,7 @@ const idealWindowsSource = readFileSync(new URL('../../src/features/workbench/Wo
 const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
-const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
@@ -127,12 +127,12 @@ assert.match(
   'ideal result state should store a single active tab instead of deriving foreground order from stacked windows',
 );
 assert.match(
-  stateSource,
+  fileStateSource,
   /openTabs:\s*WorkbenchIdealResultWindowKey\[\]/,
   'ideal result layout should remember which browser-style child tabs are open',
 );
 assert.match(
-  stateSource,
+  fileStateSource,
   /openTabs:\s*\['experimentPoints',\s*'verification'\]/,
   'new and legacy ideal Results windows should default to both child tabs open',
 );
@@ -342,7 +342,7 @@ assert.match(
   'P-V derived V and 1/V value chips should sit at the left and right edges under the scan slider',
 );
 assert.match(
-  stateSource,
+  fileStateSource,
   /equilibriumTime:\s*4,[\s\S]*statsDuration:\s*12,/,
   'ideal default sampling preset should be Balanced',
 );

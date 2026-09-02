@@ -15,7 +15,7 @@ import {
   getIdealExperimentLanguageCode,
   getLocalizedStatusValue,
 } from './workbenchPresentationFormatting.ts';
-import type { WorkbenchIdealState } from './workbenchState.ts';
+import type { WorkbenchIdealState } from './workbenchFileState.ts';
 import type { WorkbenchCopy } from './workbenchStudioCopy.ts';
 
 interface WorkbenchIdealVerificationPanelProps {

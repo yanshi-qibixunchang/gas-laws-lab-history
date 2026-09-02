@@ -6,7 +6,7 @@ import {
 import type {
   WorkbenchIdealState,
   WorkbenchStandardState,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
 import {
   formatMaybeMetric,
   formatMetric,

@@ -5,10 +5,12 @@ import {
 } from './workbenchHeatCapacityTabRegistry.ts';
 import type {
   WorkbenchFileState,
-  WorkbenchHeatCapacityPanelKey,
   WorkbenchHeatCapacityState,
-  WorkbenchHeatCapacityTabId,
 } from './workbenchState.ts';
+import type {
+  WorkbenchHeatCapacityPanelKey,
+  WorkbenchHeatCapacityTabId,
+} from './workbenchFileState.ts';
 
 export type WorkbenchHeatCapacityMaterialsTabState = 'off' | 'open' | 'active';
 

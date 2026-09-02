@@ -34,14 +34,15 @@ React 入口与启动门禁
 | 工作台文件生命周期 | `workbenchFileLifecycleCoordinator.ts` | 以纯状态计划定义重命名判定、关闭缓存、重新打开、删除、选择及下一活动文件 | 暂停运行时、释放热容会话、生成撤销记录、日志或持久化写入 |
 | 工作台只读展示 | `WorkbenchSimulationRealtimePanel.tsx`、`WorkbenchIdealVerificationPanel.tsx`、`WorkbenchIdealResultsWindows.tsx`、`WorkbenchStandardResultsContent.tsx`、`WorkbenchStandardFiguresPanel.tsx`、`workbenchIdealVerificationChart.ts`、`workbenchPresentationFormatting.ts` 及同目录专用展示模块 | 从已计算状态渲染标准/理想实验实时摘要、Results 子页、关系验证、最终图表与诊断，并统一纯展示格式化和图表坐标模型；删除、清空、导出等动作只通过回调交还主组件 | 创建运行时、直接修改文件状态、持久化或执行实验操作 |
 | 工作台面板兼容 | `workbenchPanelRegistry.ts`、`workbenchPanelCompatibility.ts` | 注册当前可用面板键；只在读取边界把旧 `history` 映射到当前 `verification`，并去除映射后的重复项 | 把历史键重新加入当前状态类型、界面分支或写出白名单 |
-| 工作台状态适配 | `src/features/workbench/workbenchState.ts` 及同目录专用模块 | 把文件状态、领域模型和 UI 操作连接起来；维持兼容入口 | 复制已经存在于领域对象中的权威状态 |
+| 工作台文件状态 | `workbenchFileState.ts`、`workbenchPistonOscillationState.ts` | 定义通用文件壳、标准/理想气体文件状态、布局默认值，以及活塞振荡文件状态和 Guide/Free 纯转换 | 依赖 `workbenchState.ts` 兼容入口、修改持久化字段名或承载绝热膨胀运行时 |
+| 工作台状态适配 | `src/features/workbench/workbenchState.ts` 及同目录绝热膨胀专用模块 | 连接尚未拆分的绝热膨胀文件状态、领域模型和 UI 操作；为旧调用方维持兼容转发入口 | 复制已经存在于领域对象中的权威状态，或让新模块反向依赖兼容入口 |
 | 领域层 | `src/domain/` | 硬球、理想气体、绝热膨胀、活塞振荡、评分和计算的确定性规则 | 浏览器存储、窗口、文件选择和界面副作用 |
 | 持久化 | `src/features/workbench/persistenceV3/` | 权威字段投影、版本化编码、诊断、保留未知数据、恢复 | 把可重算显示值重新定义成权威事实 |
 | 存储执行 | `workbenchPersistenceWorkerClient.ts`、`workbenchPersistence.worker.ts` | 传输、超时、事务和 IndexedDB 代际写入 | 修改业务状态或静默吞掉不支持的未来版本 |
 | 桌面边界 | `electron/preload.cjs`、`electron/main.cjs` | 白名单 IPC、窗口、退出、更新、本地导出 | 向渲染器暴露 Node.js 或不受控文件系统能力 |
 | 导出器 | `tools/exporter/` | 从经过验证的输入生成报告、图表和数据文件 | 回写工作台业务状态 |
 
-`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。第一批拆分已经把通用工作台文案、绝热膨胀法实时文案和 UI 检查点归一化移入专用模块；后续批次又把标准模拟、理想气体 Results 与绝热膨胀法实验资料标签的状态变化，以及文件重命名、关闭缓存、重新打开、删除和选择的集合决策，分别收口到纯协调器。标准/理想实验实时摘要、理想气体关系验证图与诊断、标准结果摘要和数据表、标准最终图表，以及理想气体 Points/Verification 子页外壳现已成为独立展示区域：主组件只提供已计算状态、分析结果、语言、文案和动作回调，展示组件不访问运行时、不直接修改工作区；关系验证图与标准最终图表的坐标、图例和数据选择也不再存放在主组件中。主组件继续负责撤销记录、运行时暂停与释放、日志、界面选中和持久化等副作用。剩余大块渲染与实验控制、运行时、窗口树或参数编辑强耦合，不再作为低风险搬迁处理；下一大阶段从 `workbenchState.ts` 的状态领域切片开始，先锁定公开导出与依赖基线，再按单一领域逐批迁移。新增逻辑时应优先进入现有专用模块；只有确属跨模块编排的代码才留在这两个入口中。
+`WorkbenchStudioPrototype.tsx` 和 `workbenchState.ts` 目前仍是较大的协调入口。展示拆分已经把标准/理想实验实时摘要、理想气体关系验证、标准结果和最终图表，以及 Points/Verification 子页外壳移入独立组件；主组件只提供已计算状态、语言、文案和动作回调。状态拆分的第一阶段也已完成：`workbenchFileState.ts` 现在承载通用文件壳、布局、标准/理想气体状态及默认构造器，`workbenchPistonOscillationState.ts` 承载活塞振荡文件状态与 Guide/Free 转换；主组件及对应布局、持久化和结果协调器直接依赖这些模块，`workbenchState.ts` 通过显式重导出维持旧入口兼容，新模块不得反向依赖该兼容入口。本阶段未修改任何文件字段、版本号或持久化编码。下一步进入绝热膨胀状态切片前必须先建立字段权威表：区分实验分组权威数据、当前仪器投影、回滚与轨迹记录、教学/自由模式会话以及持久化镜像，再决定模块接口；这属于下一大改动断点。新增逻辑时应优先进入现有专用模块，只有确属跨模块编排或兼容转发的代码才留在两个大型入口中。
 
 ## 3. 状态权威规则
 

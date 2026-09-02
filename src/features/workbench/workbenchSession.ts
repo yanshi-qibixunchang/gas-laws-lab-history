@@ -1,8 +1,8 @@
 import {
   clampWorkbenchLiveSplitRatio,
-  type WorkbenchFileState,
   type WorkbenchPanelKey,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
 import {
   normalizeHardSphereEngineSnapshot,
 } from './workbenchHardSpherePersistence.ts';

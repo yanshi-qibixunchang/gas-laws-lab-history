@@ -2,22 +2,22 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
-const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
 const layoutCompatibilitySource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutCompatibility.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /export interface WorkbenchIdealWindowLayout/,
   'ideal files should store per-file result window layout state',
 );
 assert.match(
-  stateSource,
+  fileStateSource,
   /IDEAL_RESULT_HEIGHT_RATIO\s*=\s*0\.5/,
   'ideal result window should default to half height',
 );
 assert.match(
-  stateSource,
+  fileStateSource,
   /idealWindowLayout:\s*createDefaultIdealWindowLayout\(\{ heightRatio: defaults\?\.resultsHeightRatio \}\)/,
   'new ideal files should receive default ideal result child window layout',
 );

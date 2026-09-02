@@ -4,23 +4,23 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
-const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /export type WorkbenchStandardResultsTab = 'summary' \| 'dataTable' \| 'figures'/,
   'standard Results tabs should use a shared per-file tab key type',
 );
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /standardResultsLayout:\s*WorkbenchStandardResultsLayout/,
   'standard files should persist their Results tab layout per file',
 );
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /openTabs:\s*\['summary',\s*'dataTable',\s*'figures'\]/,
   'standard Results should default to all result tabs open',
 );

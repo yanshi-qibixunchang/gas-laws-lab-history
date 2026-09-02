@@ -1,6 +1,4 @@
-import type {
-  WorkbenchFileKind,
-} from './workbenchState.ts';
+import type { WorkbenchFileKind } from './workbenchFileKind.ts';
 import {
   isPersistenceFiniteNumber as isFiniteNumber,
   isPersistenceRecord as isRecord,

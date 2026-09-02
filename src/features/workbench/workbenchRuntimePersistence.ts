@@ -18,7 +18,7 @@ import {
   createIdleStats,
   type WorkbenchPanelKey,
   type WorkbenchRunState,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
 
 const workbenchRunStates = ['idle', 'running', 'paused', 'finished', 'needs-reset'] as const satisfies readonly WorkbenchRunState[];
 const HARD_SPHERE_HISTOGRAM_BIN_COUNT = 30;

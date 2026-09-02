@@ -2,32 +2,32 @@
 import { readFileSync } from 'node:fs';
 
 const studioSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
-const stateSource = readFileSync(new URL('../../src/features/workbench/workbenchState.ts', import.meta.url), 'utf8');
+const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
 const sessionSource = readFileSync(new URL('../../src/features/workbench/workbenchSession.ts', import.meta.url), 'utf8');
 const resultsSource = readFileSync(new URL('../../src/features/workbench/workbenchResults.ts', import.meta.url), 'utf8');
 const layoutCompatibilitySource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutCompatibility.ts', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /liveWorkspaceSplitRatio: number;/,
   'WorkbenchFileState should store the 3D / Realtime split ratio per file',
 );
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /WORKBENCH_LIVE_SPLIT_DEFAULT_RATIO = 0\.48/,
   'live workspace default split should make Realtime Data wider than before',
 );
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /WORKBENCH_LIVE_SPLIT_MIN_RATIO = 0\.34/,
   'live workspace split should have a minimum clamp',
 );
 
 assert.match(
-  stateSource,
+  fileStateSource,
   /WORKBENCH_LIVE_SPLIT_MAX_RATIO = 0\.66/,
   'live workspace split should have a maximum clamp',
 );

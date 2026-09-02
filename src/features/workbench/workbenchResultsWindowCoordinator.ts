@@ -3,7 +3,7 @@ import type {
   WorkbenchIdealState,
   WorkbenchStandardResultsTab,
   WorkbenchStandardState,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
 import {
   clampIdealResultHeightRatio,
   idealResultWindowKeys,

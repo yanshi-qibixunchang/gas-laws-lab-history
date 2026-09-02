@@ -5,7 +5,8 @@ import {
   type WorkbenchFileKindCopy,
 } from './workbenchFilePresentation.ts';
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
-import type { WorkbenchFileKind, WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileKind } from './workbenchFileKind.ts';
+import type { WorkbenchFileState } from './workbenchState.ts';
 
 export interface WorkbenchEmptyWorkspaceCopy {
   menus: {

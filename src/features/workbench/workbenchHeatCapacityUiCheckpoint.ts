@@ -9,7 +9,7 @@ import type {
 } from './workbenchHeatCapacityRefreshSession.ts';
 import type {
   WorkbenchRunState,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
 
 export const isHeatCapacityRefreshRecord = (
   value: unknown,
