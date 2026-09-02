@@ -154,7 +154,7 @@ const stabilizePressureZero = (
     ? -(file.pressureSignalMvRaw + file.pressureInitialBiasMv)
     : file.heatCapacityMode === 'guide'
       ? -file.pressureInitialBiasMv
-      : -file.heatCapacityFreeSensorState.pressureInitialBiasMv;
+      : -file.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv;
   const knobAngle = getHeatCapacityPressureZeroKnobAngleForOffset(zeroOffset);
   let nextFile = file;
   for (let sampleIndex = 0; sampleIndex < 5; sampleIndex += 1) {
@@ -887,9 +887,9 @@ u2DomainRoutes.forEach((route, routeIndex) => {
   file = advanceFreeToPumpReady(file, clock);
   file = registerHeatCapacityPumpStroke(file, nextTime(clock, 1));
   file = stepHeatCapacityWorkbenchFile(file, nextTime(clock, 40));
-  assert.equal(file.heatCapacityFreePhysicsState.pumpProcesses.length, 1);
-  assert.equal(file.heatCapacityFreePhysicsState.pumpProcesses[0]?.appliedProgress > 0, true);
-  assert.equal(file.heatCapacityFreePhysicsState.pumpProcesses[0]?.appliedProgress < 1, true);
+  assert.equal(file.heatCapacityFreeInstrumentState.physics.pumpProcesses.length, 1);
+  assert.equal(file.heatCapacityFreeInstrumentState.physics.pumpProcesses[0]?.appliedProgress > 0, true);
+  assert.equal(file.heatCapacityFreeInstrumentState.physics.pumpProcesses[0]?.appliedProgress < 1, true);
   const suspended = suspendHeatCapacityModeSession(file, null, nextTime(clock, 1));
   assert.equal(
     normalizeHeatCapacityModeSessionStore(

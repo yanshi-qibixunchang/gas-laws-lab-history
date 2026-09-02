@@ -305,9 +305,9 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     gamma: getHeatCapacityFreeGasTypeGamma(savedFreeParameterDraft.gasType),
   };
   const savedFreePhysicsState = normalizeHeatCapacityFreeRestorePhysicsState(
-    savedFreeRuntimeCompatible ? file.heatCapacityFreePhysicsState : null,
+    savedFreeRuntimeCompatible ? file.heatCapacityFreeInstrumentState.physics : null,
     {
-      ...fallbackFreeRuntimeFields.heatCapacityFreePhysicsState,
+      ...fallbackFreeRuntimeFields.heatCapacityFreeInstrumentState.physics,
       gasTemperatureK: savedFreePhysicsConfig.environment.ambientTemperatureK,
       wallTemperatureK: savedFreePhysicsConfig.environment.ambientTemperatureK,
       effectiveAmbientPressureKPa: savedFreePhysicsConfig.environment.ambientPressureKPa,
@@ -315,12 +315,12 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     },
   );
   const savedFreeSensorState = normalizeHeatCapacityFreeRestoreSensorState(
-    savedFreeRuntimeCompatible ? file.heatCapacityFreeSensorState : null,
-    fallbackFreeRuntimeFields.heatCapacityFreeSensorState,
+    savedFreeRuntimeCompatible ? file.heatCapacityFreeInstrumentState.sensor : null,
+    fallbackFreeRuntimeFields.heatCapacityFreeInstrumentState.sensor,
   );
   const savedFreeCalibrationState = normalizeHeatCapacityFreeRestoreCalibrationState(
-    savedFreeRuntimeCompatible ? file.heatCapacityFreeCalibrationState : null,
-    fallbackFreeRuntimeFields.heatCapacityFreeCalibrationState,
+    savedFreeRuntimeCompatible ? file.heatCapacityFreeInstrumentState.calibration : null,
+    fallbackFreeRuntimeFields.heatCapacityFreeInstrumentState.calibration,
   );
   const normalizedFreeRuntimeFields = savedFreeRuntimeCompatible
     ? {
@@ -341,9 +341,11 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
           physics: savedFreePhysicsConfig,
           sensor: savedFreeSensorConfig,
         },
-        heatCapacityFreePhysicsState: savedFreePhysicsState,
-        heatCapacityFreeSensorState: savedFreeSensorState,
-        heatCapacityFreeCalibrationState: savedFreeCalibrationState,
+        heatCapacityFreeInstrumentState: {
+          physics: savedFreePhysicsState,
+          sensor: savedFreeSensorState,
+          calibration: savedFreeCalibrationState,
+        },
         heatCapacityReleaseState: normalizeHeatCapacityReleaseState(
           file.heatCapacityReleaseState,
           createClosedHeatCapacityReleaseState(savedFreePhysicsState.simulationTimeS),

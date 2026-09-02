@@ -99,7 +99,7 @@ export interface HeatCapacityFreePersistenceDataV1 {
   recordConfig: HeatCapacityFreeRecordConfig;
   pressureWarningMv: number;
   instrumentNoiseEnabled: boolean;
-  runtime: WorkbenchHeatCapacityState['heatCapacityFreePhysicsState'];
+  runtime: WorkbenchHeatCapacityState['heatCapacityFreeInstrumentState']['physics'];
   controls: {
     powerOn: boolean;
     pumpValveOpen: boolean;
@@ -107,8 +107,8 @@ export interface HeatCapacityFreePersistenceDataV1 {
     pumpBulbState: WorkbenchHeatCapacityState['pumpBulbState'];
     releaseState: WorkbenchHeatCapacityState['heatCapacityReleaseState'];
   };
-  sensor: WorkbenchHeatCapacityState['heatCapacityFreeSensorState'];
-  calibration: WorkbenchHeatCapacityState['heatCapacityFreeCalibrationState'];
+  sensor: WorkbenchHeatCapacityState['heatCapacityFreeInstrumentState']['sensor'];
+  calibration: WorkbenchHeatCapacityState['heatCapacityFreeInstrumentState']['calibration'];
   rollbackSnapshots: WorkbenchHeatCapacityState['heatCapacityFreeRollbackSnapshots'];
   traceStore: WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['traceStore'];
   trials: WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['trials'];

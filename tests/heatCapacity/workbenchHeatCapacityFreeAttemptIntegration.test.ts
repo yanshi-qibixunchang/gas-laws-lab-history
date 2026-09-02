@@ -37,11 +37,11 @@ assert.equal(
   true,
   'opening the glass stopcock before the first power-on must not consume preheat eligibility',
 );
-const initialBias = fresh.heatCapacityFreeSensorState.pressureInitialBiasMv;
+const initialBias = fresh.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv;
 const zeroedOff = setHeatCapacityPressureZeroOffset(fresh, 0.4, 'coarseDrag', 180, 1_000);
 assert.equal(zeroedOff.powerOn, false);
-assert.equal(zeroedOff.heatCapacityFreeCalibrationState.zeroOffsetMv, 0.5);
-assert.equal(zeroedOff.heatCapacityFreePhysicsState.gasAmountRatio, 1);
+assert.equal(zeroedOff.heatCapacityFreeInstrumentState.calibration.zeroOffsetMv, 0.5);
+assert.equal(zeroedOff.heatCapacityFreeInstrumentState.physics.gasAmountRatio, 1);
 
 const valveOpenOff = setHeatCapacityFreePumpValveOpen(zeroedOff, true, 1_010);
 const pumpedOff = registerHeatCapacityPumpStroke(valveOpenOff, 1_020);
@@ -49,7 +49,7 @@ const pumpedOffAdvanced = stepHeatCapacityWorkbenchFile(pumpedOff, 1_140);
 assert.equal(pumpedOffAdvanced.powerOn, false);
 assert.equal(pumpedOffAdvanced.pressureSignalMv, null);
 assert.equal(pumpedOffAdvanced.temperatureSignalMv, null);
-assert.ok(pumpedOffAdvanced.heatCapacityFreePhysicsState.gasAmountRatio > 1);
+assert.ok(pumpedOffAdvanced.heatCapacityFreeInstrumentState.physics.gasAmountRatio > 1);
 assert.ok(pumpedOffAdvanced.pressureDeltaKPa > 0);
 assert.ok(pumpedOffAdvanced.pressureGaugeDisplayValue > 0, 'mechanical gauge must respond while power is off');
 assert.equal(pumpedOffAdvanced.heatCapacityFreeRunWorkspace.activeAttempt?.startReason, 'effective-pump');
@@ -66,7 +66,7 @@ assert.equal(
 const resetOmitted = resetHeatCapacityFreeRunWorkbenchState(poweredAfterOmission, 1_300);
 assert.equal(resetOmitted.heatCapacityFreeRunWorkspace.activeAttempt, null);
 assert.equal(resetOmitted.heatCapacityFreePreheatCompleted, false);
-assert.equal(resetOmitted.heatCapacityFreeSensorState.pressureInitialBiasMv, initialBias);
+assert.equal(resetOmitted.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv, initialBias);
 const nextPowerOn = powerHeatCapacityWorkbenchFile(resetOmitted, true, 1_400);
 assert.equal(isHeatCapacityFreePreheatRequired(nextPowerOn), true, 'pending preheat should carry to the next group');
 const preheated = completeHeatCapacityFreePreheatWorkbenchState(nextPowerOn, 6_400);
@@ -106,20 +106,20 @@ const invalidByPowerOff = evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState(p
 assert.equal(invalidByPowerOff.heatCapacityFreeRunWorkspace.activeAttempt?.invalidReason, 'power-off-timeout');
 
 const delayedPowerToggleSource = createWaitingAttempt();
-const beforeDelayedPowerToggleS = delayedPowerToggleSource.heatCapacityFreePhysicsState.simulationTimeS;
+const beforeDelayedPowerToggleS = delayedPowerToggleSource.heatCapacityFreeInstrumentState.physics.simulationTimeS;
 const delayedPowerToggle = powerHeatCapacityWorkbenchFile(delayedPowerToggleSource, false, 7_525);
 assert.ok(
-  delayedPowerToggle.heatCapacityFreePhysicsState.simulationTimeS - beforeDelayedPowerToggleS >= 7.9,
+  delayedPowerToggle.heatCapacityFreeInstrumentState.physics.simulationTimeS - beforeDelayedPowerToggleS >= 7.9,
   'power toggling must step the existing physical state through the operation timestamp',
 );
 
 let acceleratedPowerOffWait = createWaitingAttempt();
 acceleratedPowerOffWait = setHeatCapacityFreeEquilibriumSpeedMultiplier(acceleratedPowerOffWait, 16, 6_530);
-const acceleratedStartS = acceleratedPowerOffWait.heatCapacityFreePhysicsState.simulationTimeS;
+const acceleratedStartS = acceleratedPowerOffWait.heatCapacityFreeInstrumentState.physics.simulationTimeS;
 acceleratedPowerOffWait = powerHeatCapacityWorkbenchFile(acceleratedPowerOffWait, false, 6_530);
 acceleratedPowerOffWait = stepHeatCapacityWorkbenchFile(acceleratedPowerOffWait, 16_530);
 assert.ok(
-  acceleratedPowerOffWait.heatCapacityFreePhysicsState.simulationTimeS - acceleratedStartS >= 159.9,
+  acceleratedPowerOffWait.heatCapacityFreeInstrumentState.physics.simulationTimeS - acceleratedStartS >= 159.9,
   'an active wait must continue at the selected multiplier while power is off',
 );
 assert.equal(deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(acceleratedPowerOffWait).stage, 'u1-wait');

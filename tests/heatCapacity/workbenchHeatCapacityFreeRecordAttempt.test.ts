@@ -71,35 +71,37 @@ const createStableFreeU1File = (): WorkbenchHeatCapacityState => {
         u0,
       }],
     },
-    heatCapacityFreePhysicsState: {
-      ...base.heatCapacityFreePhysicsState,
-      simulationTimeS: 60,
-      pumpStrokeCount: 9,
-      lastStopcockOpenedAtS: 2,
-      lastStopcockClosedAtS: 12,
-      releaseStarted: false,
-      releaseReference: null,
-    },
-    heatCapacityFreeSensorState: {
-      ...base.heatCapacityFreeSensorState,
-      displayPressureMv: 91.17,
-      displayTemperatureMv: 1499.02,
-      pressureSlopeMvPerS: 0.01,
-      temperatureSlopeMvPerS: 0.01,
-    },
-    heatCapacityFreeCalibrationState: {
-      ...base.heatCapacityFreeCalibrationState,
-      calibrationVersion: 1,
-      zeroOffsetMv: 0,
-      zeroEvents: [{
-        id: 'zero-1',
-        atS: 7.5,
-        displayPressureMv: 0.02,
+    heatCapacityFreeInstrumentState: {
+      physics: {
+        ...base.heatCapacityFreeInstrumentState.physics,
+        simulationTimeS: 60,
+        pumpStrokeCount: 9,
+        lastStopcockOpenedAtS: 2,
+        lastStopcockClosedAtS: 12,
+        releaseStarted: false,
+        releaseReference: null,
+      },
+      sensor: {
+        ...base.heatCapacityFreeInstrumentState.sensor,
+        displayPressureMv: 91.17,
         displayTemperatureMv: 1499.02,
+        pressureSlopeMvPerS: 0.01,
+        temperatureSlopeMvPerS: 0.01,
+      },
+      calibration: {
+        ...base.heatCapacityFreeInstrumentState.calibration,
+        calibrationVersion: 1,
         zeroOffsetMv: 0,
-        source: 'user',
-      }],
-      automaticU0: null,
+        zeroEvents: [{
+          id: 'zero-1',
+          atS: 7.5,
+          displayPressureMv: 0.02,
+          displayTemperatureMv: 1499.02,
+          zeroOffsetMv: 0,
+          source: 'user',
+        }],
+        automaticU0: null,
+      },
     },
   };
 };
@@ -114,11 +116,14 @@ const createStableOverAlarmFreeU1File = (): WorkbenchHeatCapacityState => {
     pressureSafetyStatus: 'danger',
     pressureBlockedPumping: true,
     pressureOverLimit: true,
-    heatCapacityFreeSensorState: {
-      ...base.heatCapacityFreeSensorState,
-      displayPressureMv: 151.95,
-      pressureSlopeMvPerS: 0.01,
-      temperatureSlopeMvPerS: 0.01,
+    heatCapacityFreeInstrumentState: {
+      ...base.heatCapacityFreeInstrumentState,
+      sensor: {
+        ...base.heatCapacityFreeInstrumentState.sensor,
+        displayPressureMv: 151.95,
+        pressureSlopeMvPerS: 0.01,
+        temperatureSlopeMvPerS: 0.01,
+      },
     },
   };
 };
@@ -143,32 +148,34 @@ const createNoisyFreeU0File = (): WorkbenchHeatCapacityState => {
       openingStartedAtS: 10,
       openingCompletedAtS: 10,
     },
-    heatCapacityFreePhysicsState: {
-      ...base.heatCapacityFreePhysicsState,
-      simulationTimeS: 12,
-      lastStopcockOpenedAtS: 10,
-      lastStopcockClosedAtS: null,
-    },
-    heatCapacityFreeSensorState: {
-      ...base.heatCapacityFreeSensorState,
-      displayPressureMv: 0.19,
-      displayTemperatureMv: 1499.09,
-      pressureSlopeMvPerS: 0.8,
-      temperatureSlopeMvPerS: 0.6,
-    },
-    heatCapacityFreeCalibrationState: {
-      ...base.heatCapacityFreeCalibrationState,
-      calibrationVersion: 1,
-      zeroOffsetMv: 0,
-      zeroEvents: [{
-        id: 'zero-1',
-        atS: 11,
+    heatCapacityFreeInstrumentState: {
+      physics: {
+        ...base.heatCapacityFreeInstrumentState.physics,
+        simulationTimeS: 12,
+        lastStopcockOpenedAtS: 10,
+        lastStopcockClosedAtS: null,
+      },
+      sensor: {
+        ...base.heatCapacityFreeInstrumentState.sensor,
         displayPressureMv: 0.19,
         displayTemperatureMv: 1499.09,
+        pressureSlopeMvPerS: 0.8,
+        temperatureSlopeMvPerS: 0.6,
+      },
+      calibration: {
+        ...base.heatCapacityFreeInstrumentState.calibration,
+        calibrationVersion: 1,
         zeroOffsetMv: 0,
-        source: 'user',
-      }],
-      automaticU0: null,
+        zeroEvents: [{
+          id: 'zero-1',
+          atS: 11,
+          displayPressureMv: 0.19,
+          displayTemperatureMv: 1499.09,
+          zeroOffsetMv: 0,
+          source: 'user',
+        }],
+        automaticU0: null,
+      },
     },
     pressureZeroDisplayedSamples: [
       { atMs: 18_100, valueMv: 0.2 },
@@ -187,11 +194,14 @@ const createUnzeroedFreeU0File = (): WorkbenchHeatCapacityState => {
   return {
     ...base,
     pressureZeroAdjusted: false,
-    heatCapacityFreeCalibrationState: {
-      ...base.heatCapacityFreeCalibrationState,
-      calibrationVersion: 0,
-      zeroOffsetMv: 0,
-      zeroEvents: [],
+    heatCapacityFreeInstrumentState: {
+      ...base.heatCapacityFreeInstrumentState,
+      calibration: {
+        ...base.heatCapacityFreeInstrumentState.calibration,
+        calibrationVersion: 0,
+        zeroOffsetMv: 0,
+        zeroEvents: [],
+      },
     },
   };
 };
@@ -211,9 +221,12 @@ const createClosedStopcockFreeU0File = (): WorkbenchHeatCapacityState => {
     stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
     glassPistonState: 'closed',
     heatCapacityReleaseState: { ...base.heatCapacityReleaseState },
-    heatCapacityFreePhysicsState: {
-      ...base.heatCapacityFreePhysicsState,
-      lastStopcockClosedAtS: 12,
+    heatCapacityFreeInstrumentState: {
+      ...base.heatCapacityFreeInstrumentState,
+      physics: {
+        ...base.heatCapacityFreeInstrumentState.physics,
+        lastStopcockClosedAtS: 12,
+      },
     },
   };
 };
@@ -239,25 +252,28 @@ const createReleasedAfterU1File = (): WorkbenchHeatCapacityState => {
       activeAttempt: waitingU2Attempt,
     },
     heatCapacityPhase: 'recovering',
-    heatCapacityFreePhysicsState: {
-      ...u1File.heatCapacityFreePhysicsState,
-      releaseStarted: true,
-      releaseReference: {
-        pressureBeforeKPa: 106,
-        temperatureBeforeK: 298.8,
-        amountBeforeRatio: 1.04,
-        openedAtS: 65,
-        reachedAmbientAtS: 65.3,
+    heatCapacityFreeInstrumentState: {
+      ...u1File.heatCapacityFreeInstrumentState,
+      physics: {
+        ...u1File.heatCapacityFreeInstrumentState.physics,
+        releaseStarted: true,
+        releaseReference: {
+          pressureBeforeKPa: 106,
+          temperatureBeforeK: 298.8,
+          amountBeforeRatio: 1.04,
+          openedAtS: 65,
+          reachedAmbientAtS: 65.3,
+        },
+        lastStopcockOpenedAtS: 65,
+        lastStopcockClosedAtS: 65.4,
       },
-      lastStopcockOpenedAtS: 65,
-      lastStopcockClosedAtS: 65.4,
-    },
-    heatCapacityFreeSensorState: {
-      ...u1File.heatCapacityFreeSensorState,
-      displayPressureMv: 25.44,
-      displayTemperatureMv: 1499.04,
-      pressureSlopeMvPerS: 0.01,
-      temperatureSlopeMvPerS: 0.01,
+      sensor: {
+        ...u1File.heatCapacityFreeInstrumentState.sensor,
+        displayPressureMv: 25.44,
+        displayTemperatureMv: 1499.04,
+        pressureSlopeMvPerS: 0.01,
+        temperatureSlopeMvPerS: 0.01,
+      },
     },
   };
 };
@@ -323,10 +339,13 @@ assert.equal(
 const repeatedU1BeforeReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
   {
     ...u1Attempt.file,
-    heatCapacityFreeSensorState: {
-      ...u1Attempt.file.heatCapacityFreeSensorState,
-      displayPressureMv: 92.34,
-      displayTemperatureMv: 1499.08,
+    heatCapacityFreeInstrumentState: {
+      ...u1Attempt.file.heatCapacityFreeInstrumentState,
+      sensor: {
+        ...u1Attempt.file.heatCapacityFreeInstrumentState.sensor,
+        displayPressureMv: 92.34,
+        displayTemperatureMv: 1499.08,
+      },
     },
   },
   'u1',
@@ -373,10 +392,13 @@ const staleU1DuringFreshZeroingFile: WorkbenchHeatCapacityState = {
     openingStartedAtS: 60,
     openingCompletedAtS: 60,
   },
-  heatCapacityFreePhysicsState: {
-    ...repeatedU1BeforeReleaseAttempt.file.heatCapacityFreePhysicsState,
-    releaseStarted: false,
-    releaseReference: null,
+  heatCapacityFreeInstrumentState: {
+    ...repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeInstrumentState,
+    physics: {
+      ...repeatedU1BeforeReleaseAttempt.file.heatCapacityFreeInstrumentState.physics,
+      releaseStarted: false,
+      releaseReference: null,
+    },
   },
 };
 assert.equal(
@@ -447,18 +469,21 @@ const releaseFlowStillOpenFile: WorkbenchHeatCapacityState = {
     formedRelease: true,
     releaseDurationS: 0.1,
   },
-  heatCapacityFreePhysicsState: {
-    ...visualReleaseOpeningAfterU1File.heatCapacityFreePhysicsState,
-    releaseStarted: true,
-    releaseReference: {
-      pressureBeforeKPa: 106,
-      temperatureBeforeK: 298.8,
-      amountBeforeRatio: 1.04,
-      openedAtS: 65,
-      reachedAmbientAtS: null,
+  heatCapacityFreeInstrumentState: {
+    ...visualReleaseOpeningAfterU1File.heatCapacityFreeInstrumentState,
+    physics: {
+      ...visualReleaseOpeningAfterU1File.heatCapacityFreeInstrumentState.physics,
+      releaseStarted: true,
+      releaseReference: {
+        pressureBeforeKPa: 106,
+        temperatureBeforeK: 298.8,
+        amountBeforeRatio: 1.04,
+        openedAtS: 65,
+        reachedAmbientAtS: null,
+      },
+      lastStopcockOpenedAtS: 65,
+      lastStopcockClosedAtS: null,
     },
-    lastStopcockOpenedAtS: 65,
-    lastStopcockClosedAtS: null,
   },
 };
 assert.equal(
@@ -496,10 +521,13 @@ assert.equal(u2AfterReleaseAttempt.file.heatCapacityFreeRunWorkspace.trials[0].u
 const repeatedU2AfterReleaseAttempt = applyHeatCapacityFreeRecordWorkbenchState(
   {
     ...u2AfterReleaseAttempt.file,
-    heatCapacityFreeSensorState: {
-      ...u2AfterReleaseAttempt.file.heatCapacityFreeSensorState,
-      displayPressureMv: 27.88,
-      displayTemperatureMv: 1499.05,
+    heatCapacityFreeInstrumentState: {
+      ...u2AfterReleaseAttempt.file.heatCapacityFreeInstrumentState,
+      sensor: {
+        ...u2AfterReleaseAttempt.file.heatCapacityFreeInstrumentState.sensor,
+        displayPressureMv: 27.88,
+        displayTemperatureMv: 1499.05,
+      },
     },
   },
   'u2',
@@ -553,10 +581,13 @@ const repeatedU0WhileZeroingAttempt = applyHeatCapacityFreeRecordWorkbenchState(
     ...noisyU0Attempt.file,
     pressureSignalMv: 0.34,
     temperatureSignalMv: 1499.14,
-    heatCapacityFreeSensorState: {
-      ...noisyU0Attempt.file.heatCapacityFreeSensorState,
-      displayPressureMv: 0.34,
-      displayTemperatureMv: 1499.14,
+    heatCapacityFreeInstrumentState: {
+      ...noisyU0Attempt.file.heatCapacityFreeInstrumentState,
+      sensor: {
+        ...noisyU0Attempt.file.heatCapacityFreeInstrumentState.sensor,
+        displayPressureMv: 0.34,
+        displayTemperatureMv: 1499.14,
+      },
     },
   },
   'u0',
@@ -687,12 +718,15 @@ const beforePumpSnapshot = captureHeatCapacityFreeRollbackSnapshot({
   pumpValveState: 'open',
   pumpStrokeCount: 0,
   pumpStrokeTimestamps: [],
-  heatCapacityFreePhysicsState: {
-    ...closedAfterU0File.heatCapacityFreePhysicsState,
-    pumpStrokeCount: 0,
-    lastPumpStrokeAtS: null,
-    lastPumpValveOpenedAtS: closedAfterU0File.heatCapacityFreePhysicsState.simulationTimeS,
-    lastPumpValveClosedAtS: null,
+  heatCapacityFreeInstrumentState: {
+    ...closedAfterU0File.heatCapacityFreeInstrumentState,
+    physics: {
+      ...closedAfterU0File.heatCapacityFreeInstrumentState.physics,
+      pumpStrokeCount: 0,
+      lastPumpStrokeAtS: null,
+      lastPumpValveOpenedAtS: closedAfterU0File.heatCapacityFreeInstrumentState.physics.simulationTimeS,
+      lastPumpValveClosedAtS: null,
+    },
   },
 });
 const beforeReleaseSnapshot = captureHeatCapacityFreeRollbackSnapshot(repeatedU1BeforeReleaseAttempt.file);
@@ -715,7 +749,7 @@ assert.equal(removeU2Rollback.heatCapacityFreeRunWorkspace.trials[0].u1 !== null
 assert.equal(removeU2Rollback.heatCapacityFreeRunWorkspace.trials[0].u2, null);
 assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU2Rollback), 'beforeRelease');
 assert.equal(
-  removeU2Rollback.heatCapacityFreePhysicsState.releaseStarted,
+  removeU2Rollback.heatCapacityFreeInstrumentState.physics.releaseStarted,
   false,
   'deleting U2 should restore the pre-release physics snapshot',
 );
@@ -731,7 +765,7 @@ assert.equal(removeU1Rollback.heatCapacityFreeRunWorkspace.trials[0].u1, null);
 assert.equal(removeU1Rollback.heatCapacityFreeRunWorkspace.trials[0].u2, null);
 assert.equal(deriveHeatCapacityFreeWorkflowStage(removeU1Rollback), 'beforePump');
 assert.equal(removeU1Rollback.pumpValveOpen, true);
-assert.equal(removeU1Rollback.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
+assert.equal(removeU1Rollback.heatCapacityFreeInstrumentState.physics.pumpStrokeCount, 0);
 
 const removeU0Rollback = removeHeatCapacityFreeTrialRecordWorkbenchState(
   completedWithRollbackSnapshots,

@@ -1526,6 +1526,7 @@ const HEAT_CAPACITY_DERIVED_KEYS = new Set([
 const HEAT_CAPACITY_ACTIVE_FREE_PROJECTION_KEYS = new Set([
   'heatCapacityFreeRunWorkspace',
   'heatCapacityFreeInstrumentConfig',
+  'heatCapacityFreeInstrumentState',
   'heatCapacityFreeBatch',
   'heatCapacityFreeExperimentGroupStatus',
   'heatCapacityFreeGasType',

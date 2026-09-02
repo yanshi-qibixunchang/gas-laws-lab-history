@@ -47,7 +47,7 @@ assert.equal('heatCapacityProcessingCalculated' in heatOne, false);
 assert.equal('heatCapacityProcessingResult' in heatOne, false);
 assert.equal(heatOne.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
 assert.equal(heatOne.heatCapacityFreeTraceVersion, HEAT_CAPACITY_FREE_TRACE_VERSION);
-assert.equal(heatOne.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
+assert.equal(heatOne.heatCapacityFreeInstrumentState.physics.wallTemperatureK, 298.15);
 assert.equal(heatOne.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK, 0.08);
 assert.equal(heatOne.heatCapacityFreeInstrumentConfig.physics.thermal.wallAmbientConductanceWPerK, 0.45);
 assert.deepEqual(heatOne.heatCapacityFreeInstrumentConfig.physics.leakage, {
@@ -122,7 +122,7 @@ const outdatedRuntimeRestored = decodeWorkbenchSession({
       },
     },
     heatCapacityFreePhysicsState: {
-      ...heatOne.heatCapacityFreePhysicsState,
+      ...heatOne.heatCapacityFreeInstrumentState.physics,
       gasAmountRatio: 2,
       gasTemperatureK: 360,
       wallTemperatureK: 340,
@@ -134,9 +134,9 @@ assert.equal(outdatedRuntimeHeatFile.kind, 'heatCapacity');
 if (outdatedRuntimeHeatFile.kind !== 'heatCapacity') throw new Error('expected heat capacity file');
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
 assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeInstrumentConfig.physics.pumpAmountGainRatio, 0.00334);
-assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasAmountRatio, 1);
-assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.gasTemperatureK, 298.15);
-assert.equal(outdatedRuntimeHeatFile.heatCapacityFreePhysicsState.wallTemperatureK, 298.15);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeInstrumentState.physics.gasAmountRatio, 1);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeInstrumentState.physics.gasTemperatureK, 298.15);
+assert.equal(outdatedRuntimeHeatFile.heatCapacityFreeInstrumentState.physics.wallTemperatureK, 298.15);
 
 const outdatedTraceRestored = decodeWorkbenchSession({
   version: WORKBENCH_SESSION_VERSION,

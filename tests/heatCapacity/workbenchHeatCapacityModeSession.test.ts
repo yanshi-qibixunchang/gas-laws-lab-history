@@ -282,7 +282,7 @@ const stabilizeFreeFixtureZero = (
   source: WorkbenchHeatCapacityState,
   clock: GuideFixtureClock,
 ) => {
-  const zeroOffsetMv = -source.heatCapacityFreeSensorState.pressureInitialBiasMv;
+  const zeroOffsetMv = -source.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv;
   const knobAngle = getHeatCapacityPressureZeroKnobAngleForOffset(zeroOffsetMv);
   let file = source;
   for (let sampleIndex = 0; sampleIndex < 5; sampleIndex += 1) {
@@ -462,7 +462,7 @@ const createFreePumpingFixture = (
     );
   }
   assert.equal(file.heatCapacityFreeRunWorkspace.activeAttempt?.stage, 'pumping');
-  assert.equal(file.heatCapacityFreePhysicsState.pumpStrokeCount, 9);
+  assert.equal(file.heatCapacityFreeInstrumentState.physics.pumpStrokeCount, 9);
   return file;
 };
 
@@ -584,7 +584,7 @@ assert.equal(
   withSuspendedFree.heatCapacityModeSessions.free.snapshot?.mode === 'free'
     ? withSuspendedFree.heatCapacityModeSessions.free.snapshot.free.heatCapacityFreePhysicsState
     : null,
-  freeSource.heatCapacityFreePhysicsState,
+  freeSource.heatCapacityFreeInstrumentState.physics,
   'in-memory mode checkpoints should structurally share immutable physics state instead of deep-cloning it on the UI thread',
 );
 const suspendedFreeRuntime = withSuspendedFree.heatCapacityModeSessions.free.snapshot?.mode === 'free'
@@ -596,6 +596,11 @@ assert.equal(
   false,
   'mode-session compatibility snapshots must not introduce the current nested config field',
 );
+assert.equal(
+  Object.prototype.hasOwnProperty.call(suspendedFreeRuntime, 'heatCapacityFreeInstrumentState'),
+  false,
+  'mode-session compatibility snapshots must not introduce the current nested instrument-state field',
+);
 for (const field of [
   'heatCapacityFreeRecordConfig',
   'heatCapacityFreePressureWarningMv',
@@ -603,6 +608,17 @@ for (const field of [
   'heatCapacityFreeEnvironmentConfig',
   'heatCapacityFreePhysicsConfig',
   'heatCapacityFreeSensorConfig',
+] as const) {
+  assert.equal(
+    Object.prototype.hasOwnProperty.call(suspendedFreeRuntime, field),
+    true,
+    `mode-session compatibility snapshots must retain ${field}`,
+  );
+}
+for (const field of [
+  'heatCapacityFreePhysicsState',
+  'heatCapacityFreeSensorState',
+  'heatCapacityFreeCalibrationState',
 ] as const) {
   assert.equal(
     Object.prototype.hasOwnProperty.call(suspendedFreeRuntime, field),
@@ -2040,8 +2056,8 @@ assert.equal(restoredFree?.pumpStrokeCount, 9);
 assert.equal(restoredFree?.runState, freeSource.runState);
 assert.equal(restoredFree?.lastUpdateMs, restoredFreeAtMs);
 assert.equal(
-  restoredFree?.heatCapacityFreePhysicsState,
-  freeSource.heatCapacityFreePhysicsState,
+  restoredFree?.heatCapacityFreeInstrumentState.physics,
+  freeSource.heatCapacityFreeInstrumentState.physics,
   'restoring a mode should reuse its immutable physics snapshot and avoid a second main-thread deep clone',
 );
 assert.equal(

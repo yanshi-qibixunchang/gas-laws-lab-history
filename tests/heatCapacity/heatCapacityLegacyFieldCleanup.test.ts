@@ -17,6 +17,9 @@ const retiredFreeRuntimeFields = [
   'heatCapacityFreeEnvironmentConfig',
   'heatCapacityFreePhysicsConfig',
   'heatCapacityFreeSensorConfig',
+  'heatCapacityFreePhysicsState',
+  'heatCapacityFreeSensorState',
+  'heatCapacityFreeCalibrationState',
 ] as const;
 const defaultHeatCapacityFile = createDefaultHeatCapacityFile(1);
 for (const field of retiredFreeRuntimeFields) {
@@ -42,6 +45,11 @@ assert.deepEqual(
     'sensor',
   ],
   'the current Free instrument config should own the six retired config projections',
+);
+assert.deepEqual(
+  Object.keys(defaultHeatCapacityFile.heatCapacityFreeInstrumentState).sort(),
+  ['calibration', 'physics', 'sensor'],
+  'the current Free instrument state should own the three retired high-frequency projections',
 );
 
 const forbiddenFields = [

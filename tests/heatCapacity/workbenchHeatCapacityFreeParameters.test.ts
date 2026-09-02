@@ -125,22 +125,22 @@ assert.equal(
   'draft application should keep the current file config aligned before freezing',
 );
 assert.equal(
-  editedFile.heatCapacityFreePhysicsState.gasTemperatureK,
+  editedFile.heatCapacityFreeInstrumentState.physics.gasTemperatureK,
   editedDraft.ambientTemperatureK,
   'editing an unstarted file should rebuild the gas at the selected ambient temperature',
 );
 assert.equal(
-  editedFile.heatCapacityFreePhysicsState.wallTemperatureK,
+  editedFile.heatCapacityFreeInstrumentState.physics.wallTemperatureK,
   editedDraft.ambientTemperatureK,
   'editing an unstarted file should rebuild the wall at the selected ambient temperature',
 );
 assert.equal(
-  editedFile.heatCapacityFreeSensorState.sensorTemperatureK,
+  editedFile.heatCapacityFreeInstrumentState.sensor.sensorTemperatureK,
   editedDraft.ambientTemperatureK,
   'editing an unstarted file should rebuild the temperature sensor at ambient',
 );
 assert.equal(
-  editedFile.heatCapacityFreeSensorState.displayTemperatureMv,
+  editedFile.heatCapacityFreeInstrumentState.sensor.displayTemperatureMv,
   mapTemperatureKToSignalMv(editedDraft.ambientTemperatureK),
   'editing an unstarted file should immediately expose the selected equilibrium voltage',
 );
@@ -160,10 +160,10 @@ const warmConfiguredBatch = applyHeatCapacityFreeParameterDraftWorkbenchState(
 );
 assert.equal(warmConfiguredBatch.heatCapacityFreeRunWorkspace.batch.targetGroupCount, 3);
 assert.equal(warmConfiguredBatch.heatCapacityFreeRunWorkspace.batch.startedAtMs, null);
-assert.equal(warmConfiguredBatch.heatCapacityFreePhysicsState.gasTemperatureK, 303.15);
-assert.equal(warmConfiguredBatch.heatCapacityFreeSensorState.sensorTemperatureK, 303.15);
+assert.equal(warmConfiguredBatch.heatCapacityFreeInstrumentState.physics.gasTemperatureK, 303.15);
+assert.equal(warmConfiguredBatch.heatCapacityFreeInstrumentState.sensor.sensorTemperatureK, 303.15);
 assert.equal(
-  warmConfiguredBatch.heatCapacityFreeSensorState.displayTemperatureMv,
+  warmConfiguredBatch.heatCapacityFreeInstrumentState.sensor.displayTemperatureMv,
   1523.7,
   'the real setup-batch -> edit-temperature path should not retain the old 25 degree runtime',
 );

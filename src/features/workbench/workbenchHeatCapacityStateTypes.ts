@@ -168,6 +168,13 @@ export interface HeatCapacityFreeInstrumentConfigWorkspace {
   sensor: HeatCapacityFreeSensorConfig;
 }
 
+/** High-frequency mutable state for the currently selected Free instrument domain. */
+export interface HeatCapacityFreeInstrumentStateWorkspace {
+  physics: HeatCapacityFreePhysicsState;
+  sensor: HeatCapacityFreeSensorState;
+  calibration: HeatCapacityFreeCalibrationState;
+}
+
 export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   kind: 'heatCapacity';
   particles: Particle[];
@@ -192,9 +199,7 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeRealDomain: HeatCapacityFreeExperimentDomainState;
   heatCapacityFreeIdealDomain: HeatCapacityFreeExperimentDomainState;
   heatCapacityFreeInstrumentConfig: HeatCapacityFreeInstrumentConfigWorkspace;
-  heatCapacityFreePhysicsState: HeatCapacityFreePhysicsState;
-  heatCapacityFreeSensorState: HeatCapacityFreeSensorState;
-  heatCapacityFreeCalibrationState: HeatCapacityFreeCalibrationState;
+  heatCapacityFreeInstrumentState: HeatCapacityFreeInstrumentStateWorkspace;
   heatCapacityReleaseState: HeatCapacityReleaseState;
   heatCapacityFreeEquilibriumSpeedMultiplier: WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier;
   heatCapacityFreeRollbackSnapshots: HeatCapacityFreeRollbackSnapshots;

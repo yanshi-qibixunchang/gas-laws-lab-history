@@ -105,8 +105,8 @@ const stabilizeGuidePressureZero = (
   assert.equal(stepped.heatCapacityMode, 'guide');
   assert.equal(stepped.heatCapacityGuidePhysicsState.simulationTimeS > 0, true);
   assert.equal(
-    stepped.heatCapacityFreePhysicsState.simulationTimeS,
-    guide.heatCapacityFreePhysicsState.simulationTimeS,
+    stepped.heatCapacityFreeInstrumentState.physics.simulationTimeS,
+    guide.heatCapacityFreeInstrumentState.physics.simulationTimeS,
     'Guide stepping must not advance the Free runtime state',
   );
 }

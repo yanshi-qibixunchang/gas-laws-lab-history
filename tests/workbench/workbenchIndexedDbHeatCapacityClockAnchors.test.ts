@@ -330,7 +330,7 @@ assert.equal(restoredAtOriginalAnchor.lastUpdateMs, CAPTURED_AT_MS);
 const rebaseAttempt = createHeatCapacityFreeAttempt({
   startReason: 'u0-recorded',
   preheatOutcome: 'completed',
-  atS: restoredAtOriginalAnchor.heatCapacityFreePhysicsState.simulationTimeS,
+  atS: restoredAtOriginalAnchor.heatCapacityFreeInstrumentState.physics.simulationTimeS,
   wallClockMs: 1_000,
   powerOn: false,
 });

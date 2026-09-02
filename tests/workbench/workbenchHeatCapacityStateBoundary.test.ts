@@ -29,6 +29,9 @@ const authoritySource = readFileSync(
   new URL('../../docs/architecture/workbench-heat-capacity-state-authority.md', import.meta.url),
   'utf8',
 );
+const workbenchHeatCapacityStateDeclaration = stateTypesSource.match(
+  /export interface WorkbenchHeatCapacityState extends WorkbenchFileBase \{[\s\S]*?\n\}/,
+)?.[0] ?? '';
 
 assert.equal(
   getGaugeFromFacade,
@@ -110,6 +113,27 @@ assert.match(
 );
 assert.match(
   stateTypesSource,
+  /interface HeatCapacityFreeInstrumentStateWorkspace[\s\S]*physics:[\s\S]*sensor:[\s\S]*calibration:/,
+  'the high-frequency Free instrument state should remain grouped',
+);
+assert.match(
+  workbenchHeatCapacityStateDeclaration,
+  /heatCapacityFreeInstrumentState:\s*HeatCapacityFreeInstrumentStateWorkspace/,
+  'current workbench state should expose one grouped Free instrument state',
+);
+for (const retiredInstrumentStateField of [
+  'heatCapacityFreePhysicsState',
+  'heatCapacityFreeSensorState',
+  'heatCapacityFreeCalibrationState',
+]) {
+  assert.doesNotMatch(
+    workbenchHeatCapacityStateDeclaration,
+    new RegExp(`^\\s*${retiredInstrumentStateField}:`, 'm'),
+    `${retiredInstrumentStateField} must stay out of current workbench state`,
+  );
+}
+assert.match(
+  stateTypesSource,
   /Sole authority for Free experiment-group history, progress, calculation, and results/,
   'the state type should identify the Free experiment-group authority',
 );
@@ -120,8 +144,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /配置只在参数应用、域切换和恢复时低频更新[\s\S]*下一大改动断点是评估前三个 Free 高频状态是否建立独立热路径工作区/,
-  'the authority table should preserve the next high-risk persistence breakpoint',
+  /heatCapacityFreeInstrumentState[\s\S]*下一大改动断点是评估当前试验状态、气体类型和参数草稿的语义归属/,
+  'the authority table should preserve the next semantic-ownership breakpoint',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');

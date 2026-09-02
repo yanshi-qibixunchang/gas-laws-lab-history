@@ -21339,7 +21339,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               const heatCapacityHardSphereGasTemperatureK = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.gasTemperatureK
                 : activeFile.heatCapacityMode === 'free'
-                  ? activeFile.heatCapacityFreePhysicsState.gasTemperatureK
+                  ? activeFile.heatCapacityFreeInstrumentState.physics.gasTemperatureK
                   : activeFile.gasTemperatureK;
               const heatCapacityHardSphereAmbientTemperatureK = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK
@@ -21349,7 +21349,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               const heatCapacityHardSphereGasAmountRatio = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.gasAmountRatio
                 : activeFile.heatCapacityMode === 'free'
-                  ? activeFile.heatCapacityFreePhysicsState.gasAmountRatio
+                  ? activeFile.heatCapacityFreeInstrumentState.physics.gasAmountRatio
                   : clampHeatCapacityHardSphereNumber(
                       (Math.max(0.001, activeFile.gasPressureKPaAbs) / Math.max(0.001, activeFile.ambientPressureKPa)) *
                         (Math.max(1, heatCapacityHardSphereAmbientTemperatureK) / Math.max(1, heatCapacityHardSphereGasTemperatureK)),
@@ -21359,7 +21359,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               const activeHeatCapacityUsesVisualPhysics = activeFile.heatCapacityMode === 'free' || activeFile.heatCapacityMode === 'guide';
               const heatCapacityPhysicalReleaseReference = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.releaseReference
-                : activeFile.heatCapacityFreePhysicsState.releaseReference;
+                : activeFile.heatCapacityFreeInstrumentState.physics.releaseReference;
               const heatCapacityPhysicalStopcockFlowOpen =
                 isHeatCapacityMainReleaseFlowOpen(activeFile.heatCapacityReleaseState);
               const physicalReleaseFlowActive = activeHeatCapacityUsesVisualPhysics &&
@@ -21403,7 +21403,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   ) {
                     const physicalState = activeFile.heatCapacityMode === 'guide'
                       ? activeFile.heatCapacityGuidePhysicsState
-                      : activeFile.heatCapacityFreePhysicsState;
+                      : activeFile.heatCapacityFreeInstrumentState.physics;
                     const elapsedS = getHeatCapacityReleaseDurationS(
                       activeFile.heatCapacityReleaseState,
                       physicalState.simulationTimeS,
@@ -21474,7 +21474,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               const activePumpProcesses = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.pumpProcesses
                 : activeFile.heatCapacityMode === 'free'
-                  ? activeFile.heatCapacityFreePhysicsState.pumpProcesses ?? []
+                  ? activeFile.heatCapacityFreeInstrumentState.physics.pumpProcesses ?? []
                   : [];
               const pumpFlowIntensity = Math.min(1.6, activePumpProcesses.reduce((total, process) => (
                 total + Math.max(0, 1 - process.appliedProgress)

@@ -1233,11 +1233,11 @@ assert.equal(
 assert.equal(currentTemperatureRestored.heatCapacityFreeInstrumentConfig.record.temperatureAmbientToleranceMv, 1.23);
 assert.equal(currentTemperatureRestored.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS, 0.44);
 assert.equal(currentTemperatureRestored.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv, 1.23);
-assert.deepEqual(currentTemperatureRestored.heatCapacityFreeSensorState.temperatureHistory, [
+assert.deepEqual(currentTemperatureRestored.heatCapacityFreeInstrumentState.sensor.temperatureHistory, [
   { atS: 2, valueMv: 1500.1 },
   { atS: 3, valueMv: 1500.4 },
 ]);
-assert.equal(currentTemperatureRestored.heatCapacityFreeSensorState.temperatureSlopeMvPerS, 0.3);
+assert.equal(currentTemperatureRestored.heatCapacityFreeInstrumentState.sensor.temperatureSlopeMvPerS, 0.3);
 assert.equal(currentTemperatureRestored.temperatureSignalTargetMv, 1512.3);
 assert.equal(currentTemperatureRestored.temperatureSignalMv, 1512.3);
 

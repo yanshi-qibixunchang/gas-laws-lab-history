@@ -278,12 +278,12 @@ const restored = decodeWorkbenchSession({
       heatCapacityFreeRealDomain: savedLegacyFreeDomain,
       heatCapacityFreeTrials: [savedAutomaticOnlyFreeTrial, savedLegacyCompleteFreeTrial],
       heatCapacityFreePhysicsState: {
-        ...heatCapacity.heatCapacityFreePhysicsState,
+        ...heatCapacity.heatCapacityFreeInstrumentState.physics,
         gasAmountRatio: 1.7,
         pumpStrokeCount: 9,
       },
       heatCapacityFreeCalibrationState: {
-        ...heatCapacity.heatCapacityFreeCalibrationState,
+        ...heatCapacity.heatCapacityFreeInstrumentState.calibration,
         calibrationVersion: 5,
         zeroOffsetMv: 1.2,
       },
@@ -321,9 +321,9 @@ const restoredHeatCapacity = restored.files[2];
 assert.equal(restoredHeatCapacity.kind, 'heatCapacity');
 if (restoredHeatCapacity.kind === 'heatCapacity') {
   assert.equal(restoredHeatCapacity.heatCapacityFreeRuntimeVersion, HEAT_CAPACITY_FREE_RUNTIME_VERSION);
-  assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.gasAmountRatio, 1);
-  assert.equal(restoredHeatCapacity.heatCapacityFreePhysicsState.pumpStrokeCount, 0);
-  assert.equal(restoredHeatCapacity.heatCapacityFreeCalibrationState.calibrationVersion, 0);
+  assert.equal(restoredHeatCapacity.heatCapacityFreeInstrumentState.physics.gasAmountRatio, 1);
+  assert.equal(restoredHeatCapacity.heatCapacityFreeInstrumentState.physics.pumpStrokeCount, 0);
+  assert.equal(restoredHeatCapacity.heatCapacityFreeInstrumentState.calibration.calibrationVersion, 0);
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials.length, 2, 'stale top-level runtime normalization must preserve migrated domain trials');
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].automaticU0?.zeroEventId, 'zero-1');
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].u0, null, 'automatic-only saved Free trials must not be promoted to official manual U0 records');
@@ -1217,39 +1217,42 @@ const legacyMigrationSource = {
       temperatureAmbientToleranceMv: 1.625,
     },
   },
-  heatCapacityFreePhysicsState: {
-    ...legacyMigrationBase.heatCapacityFreePhysicsState,
-    simulationTimeS: 42,
-    releaseStarted: true,
-    lastStopcockOpenedAtS: 41.4,
-    lastStopcockClosedAtS: null,
-    currentStopcockOpenDurationS: 0.6,
-    releaseReference: {
-      pressureBeforeKPa: 107.3,
-      temperatureBeforeK: 298.45,
-      amountBeforeRatio: 1.06,
-      openedAtS: 41.4,
-      reachedAmbientAtS: null,
+  heatCapacityFreeInstrumentState: {
+    ...legacyMigrationBase.heatCapacityFreeInstrumentState,
+    physics: {
+      ...legacyMigrationBase.heatCapacityFreeInstrumentState.physics,
+      simulationTimeS: 42,
+      releaseStarted: true,
+      lastStopcockOpenedAtS: 41.4,
+      lastStopcockClosedAtS: null,
+      currentStopcockOpenDurationS: 0.6,
+      releaseReference: {
+        pressureBeforeKPa: 107.3,
+        temperatureBeforeK: 298.45,
+        amountBeforeRatio: 1.06,
+        openedAtS: 41.4,
+        reachedAmbientAtS: null,
+      },
     },
-  },
-  heatCapacityFreeSensorState: {
-    ...legacyMigrationBase.heatCapacityFreeSensorState,
-    displayPressureMv: 37.125,
-    displayTemperatureMv: 1501.45,
-    sensorTemperatureK: 298.7,
-    nextSampleAtS: 42.1,
-    pressureHistory: [
-      { atS: 40, valueMv: 37 },
-      { atS: 41, valueMv: 37.0625 },
-      { atS: 42, valueMv: 37.125 },
-    ],
-    pressureSlopeMvPerS: 0.0625,
-    temperatureSlopeMvPerS: -0.25,
-    temperatureHistory: [
-      { atS: 40, valueMv: 1501.95 },
-      { atS: 41, valueMv: 1501.7 },
-      { atS: 42, valueMv: 1501.45 },
-    ],
+    sensor: {
+      ...legacyMigrationBase.heatCapacityFreeInstrumentState.sensor,
+      displayPressureMv: 37.125,
+      displayTemperatureMv: 1501.45,
+      sensorTemperatureK: 298.7,
+      nextSampleAtS: 42.1,
+      pressureHistory: [
+        { atS: 40, valueMv: 37 },
+        { atS: 41, valueMv: 37.0625 },
+        { atS: 42, valueMv: 37.125 },
+      ],
+      pressureSlopeMvPerS: 0.0625,
+      temperatureSlopeMvPerS: -0.25,
+      temperatureHistory: [
+        { atS: 40, valueMv: 1501.95 },
+        { atS: 41, valueMv: 1501.7 },
+        { atS: 42, valueMv: 1501.45 },
+      ],
+    },
   },
   heatCapacityReleaseState: {
     phase: 'releasing' as const,
@@ -1402,11 +1405,11 @@ assert.equal(
   currentFreePhysicsConfig.stopcockFlowRate,
   'the active config snapshot must stay aligned with the migrated live physics config',
 );
-assert.equal(legacy423FreeFile.heatCapacityFreePhysicsState.lastStopcockClosedAtS, null);
+assert.equal(legacy423FreeFile.heatCapacityFreeInstrumentState.physics.lastStopcockClosedAtS, null);
 assertClose(
-  legacy423FreeFile.heatCapacityFreePhysicsState.currentStopcockOpenDurationS,
-  legacy423FreeFile.heatCapacityFreePhysicsState.simulationTimeS -
-    (legacy423FreeFile.heatCapacityFreePhysicsState.lastStopcockOpenedAtS ?? 0),
+  legacy423FreeFile.heatCapacityFreeInstrumentState.physics.currentStopcockOpenDurationS,
+  legacy423FreeFile.heatCapacityFreeInstrumentState.physics.simulationTimeS -
+    (legacy423FreeFile.heatCapacityFreeInstrumentState.physics.lastStopcockOpenedAtS ?? 0),
   'an open v4.2.3 stopcock must receive a canonical timing projection',
 );
 assert.equal(
@@ -1438,12 +1441,12 @@ assertClose(legacy423FreeFile.temperatureDisplayJitterOffset, 0.35);
 assertClose(legacy423FreeFile.pressureSignalMvRaw, 37.125);
 assertClose(legacy423FreeFile.pressureSignalMvDisplayed, 36.875);
 assert.notEqual(legacy423FreeFile.pressureSignalMvRaw, legacy423FreeFile.pressureSignalMvDisplayed);
-assertClose(legacy423FreeFile.heatCapacityFreeSensorState.displayTemperatureMv, 1501.45);
-assertClose(legacy423FreeFile.heatCapacityFreeSensorState.sensorTemperatureK, 298.7);
-assertClose(legacy423FreeFile.heatCapacityFreeSensorState.temperatureSlopeMvPerS, -0.25);
+assertClose(legacy423FreeFile.heatCapacityFreeInstrumentState.sensor.displayTemperatureMv, 1501.45);
+assertClose(legacy423FreeFile.heatCapacityFreeInstrumentState.sensor.sensorTemperatureK, 298.7);
+assertClose(legacy423FreeFile.heatCapacityFreeInstrumentState.sensor.temperatureSlopeMvPerS, -0.25);
 [1501.95, 1501.7, 1501.45].forEach((expected, index) => {
   assertClose(
-    legacy423FreeFile.heatCapacityFreeSensorState.temperatureHistory[index]?.valueMv ?? NaN,
+    legacy423FreeFile.heatCapacityFreeInstrumentState.sensor.temperatureHistory[index]?.valueMv ?? NaN,
     expected,
   );
 });
@@ -1768,7 +1771,7 @@ assert.deepEqual(
 );
 assert.equal(
   legacy423FreeIndexedDbModeStore.free.snapshot?.common.simulationTimeS,
-  legacy423FreeFile.heatCapacityFreePhysicsState.simulationTimeS,
+  legacy423FreeFile.heatCapacityFreeInstrumentState.physics.simulationTimeS,
   'the active migrated v4.2.3 Free projection must carry the domain simulation clock before IndexedDB capture',
 );
 assert.deepEqual(legacy423FreeIndexedDbRecords.meta.openFileIds, [legacy423FreeFile.id]);

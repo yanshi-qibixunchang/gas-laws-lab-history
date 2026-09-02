@@ -231,9 +231,7 @@ const HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS = [
   'heatCapacityFreeRealDomain',
   'heatCapacityFreeIdealDomain',
   'heatCapacityFreeInstrumentConfig',
-  'heatCapacityFreePhysicsState',
-  'heatCapacityFreeSensorState',
-  'heatCapacityFreeCalibrationState',
+  'heatCapacityFreeInstrumentState',
   'heatCapacityFreeEquilibriumSpeedMultiplier',
   'heatCapacityFreeRollbackSnapshots',
   'heatCapacityFreeTraceVersion',
@@ -266,7 +264,9 @@ type HeatCapacityFreeCurrentModeRuntimeSnapshot = Pick<
 
 export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
   HeatCapacityFreeCurrentModeRuntimeSnapshot,
-  'heatCapacityFreeRunWorkspace' | 'heatCapacityFreeInstrumentConfig'
+  | 'heatCapacityFreeRunWorkspace'
+  | 'heatCapacityFreeInstrumentConfig'
+  | 'heatCapacityFreeInstrumentState'
 > & {
   /** Stable compatibility projection retained in persisted mode-session snapshots. */
   heatCapacityFreeBatch:
@@ -289,6 +289,12 @@ export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
     WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['physics'];
   heatCapacityFreeSensorConfig:
     WorkbenchHeatCapacityState['heatCapacityFreeInstrumentConfig']['sensor'];
+  heatCapacityFreePhysicsState:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentState']['physics'];
+  heatCapacityFreeSensorState:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentState']['sensor'];
+  heatCapacityFreeCalibrationState:
+    WorkbenchHeatCapacityState['heatCapacityFreeInstrumentState']['calibration'];
   /** Compatibility projection retained in persisted mode-session snapshots. */
   heatCapacityFreeActiveRunConfigSnapshot:
     HeatCapacityFreeExperimentDomainState['activeRunConfigSnapshot'];
@@ -418,10 +424,10 @@ const createFreeModeSessionDomainFromProjection = (
     instrumentNoiseEnabled: file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
     environmentConfig: file.heatCapacityFreeInstrumentConfig.environment,
     physicsConfig: file.heatCapacityFreeInstrumentConfig.physics,
-    physicsState: file.heatCapacityFreePhysicsState,
+    physicsState: file.heatCapacityFreeInstrumentState.physics,
     sensorConfig: file.heatCapacityFreeInstrumentConfig.sensor,
-    sensorState: file.heatCapacityFreeSensorState,
-    calibrationState: file.heatCapacityFreeCalibrationState,
+    sensorState: file.heatCapacityFreeInstrumentState.sensor,
+    calibrationState: file.heatCapacityFreeInstrumentState.calibration,
     releaseState: file.heatCapacityReleaseState,
     rollbackSnapshots: file.heatCapacityFreeRollbackSnapshots,
     traceStore: file.heatCapacityFreeRunWorkspace.traceStore,
@@ -444,6 +450,7 @@ export const captureHeatCapacityModeRuntimeSnapshot = (
     const {
       heatCapacityFreeRunWorkspace: _runWorkspace,
       heatCapacityFreeInstrumentConfig: _instrumentConfig,
+      heatCapacityFreeInstrumentState: _instrumentState,
       ...free
     } = currentFree;
     const activeDomain = createFreeModeSessionDomainFromProjection(file);
