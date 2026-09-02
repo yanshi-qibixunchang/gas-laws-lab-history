@@ -3031,6 +3031,8 @@ const reprojectHeatCapacityFile = (
     : real.value;
   const activeReleaseState = base.heatCapacityReleaseState;
   const activeTheoreticalGamma = base.theoreticalGamma;
+  // Keep the decoded domain aggregate intact until the capture pass reconciles
+  // legacy identity high-water values into experiment-group authority.
   const reprojected = applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
     applyHeatCapacityFreeDomainToRuntimeFields(
       base,

@@ -1457,10 +1457,10 @@ const migratedHeatBatch = decodeWorkbenchPersistenceV3FileRecord(
   heatLegacyBatchRecord,
   8,
 );
-assert.equal(migratedHeatBatch.ok, true);
 if (!migratedHeatBatch.ok) {
   throw new Error(migratedHeatBatch.diagnostics[0].message);
 }
+assert.equal(migratedHeatBatch.ok, true);
 assert.equal(migratedHeatBatch.status, 'migrated');
 const migratedHeatAuthority = migratedHeatBatch.value.fields
   .authoritative as {

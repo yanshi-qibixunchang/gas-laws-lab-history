@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "scriptVersion": "validation-evidence-v3",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-09-02T04:57:18.283Z",
-  "finishedAt": "2026-09-02T04:57:51.323Z",
+  "generatedAt": "2026-09-02T05:53:17.501Z",
+  "finishedAt": "2026-09-02T05:53:43.453Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": ".",
     "packageName": "hard-sphere-lab",
     "packageVersion": "6.4.0",
-    "gitCommit": "ad0fee495109de665f85821d4f133ef53c6b4461",
+    "gitCommit": "16e46db72b995dacf2f6d8719b4c90352a7b9d6e",
     "dirtyAtStart": true,
-    "dirtyEntryCountAtStart": 23
+    "dirtyEntryCountAtStart": 11
   },
   "runtime": {
     "node": "v24.12.0",
@@ -391,8 +391,8 @@
     },
     {
       "path": "src/features/workbench/workbenchState.ts",
-      "sha256": "b90b6af0f647de30ebc454badf5adfd3027f53443910a26166d07c0e9f7a8afc",
-      "bytes": 253810
+      "sha256": "65864942a5c1a05e1d09c6e738e40e227d68893d58a4a856de46dea4aefe65c8",
+      "bytes": 243224
     }
   ],
   "generatedFiles": [
@@ -404,7 +404,7 @@
     {
       "path": "docs/validation/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "5844e20ced8d9107eee436312ee4334977565e80d2378979e7201e13564ad3df"
+      "sha256": "2e24a47b0d40b98322bb9eb6a5624b43bd03f71c9768fc86ff30a692c6dd70f1"
     },
     {
       "path": "docs/validation/generated/rapid-release/rapid-release-runs.csv",

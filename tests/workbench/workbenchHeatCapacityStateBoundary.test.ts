@@ -21,6 +21,10 @@ const instrumentStateSource = readFileSync(
   new URL('../../src/features/workbench/workbenchHeatCapacityInstrumentState.ts', import.meta.url),
   'utf8',
 );
+const authorityTransactionSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeAuthorityTransaction.ts', import.meta.url),
+  'utf8',
+);
 const authoritySource = readFileSync(
   new URL('../../docs/architecture/workbench-heat-capacity-state-authority.md', import.meta.url),
   'utf8',
@@ -56,6 +60,16 @@ assert.doesNotMatch(
   /from '\.\/workbenchState(?:\.ts)?'/,
   'the extracted instrument-state module must not depend back on the compatibility facade',
 );
+assert.doesNotMatch(
+  authorityTransactionSource,
+  /from '\.\/workbenchState(?:\.ts)?'/,
+  'the Free authority transaction must not depend back on the compatibility facade',
+);
+assert.match(
+  authorityTransactionSource,
+  /export const transactHeatCapacityFreeAuthority/,
+  'the extracted authority boundary should expose one transaction entrypoint',
+);
 assert.match(
   stateTypesSource,
   /Sole authority for Free experiment-group history, progress, calculation, and results/,
@@ -68,8 +82,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /统一实验分组、Real\/Ideal 域与当前 Free 仪器投影的写入事务/,
-  'the authority table should preserve the next high-risk transactional breakpoint',
+  /下一大改动断点是删除顶层镜像字段或调整 Persistence V3 投影格式/,
+  'the authority table should preserve the next high-risk persistence breakpoint',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');

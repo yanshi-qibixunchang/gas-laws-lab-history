@@ -5,11 +5,10 @@ import {
   isAllowedHeatCapacityFreeDomainAggregateMigration,
 } from './workbenchHeatCapacityFreeAggregateCodec.ts';
 import {
-  applyHeatCapacityFreeDomainToRuntimeFields,
-  applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   createDefaultHeatCapacityFile,
   createHeatCapacityFreeExperimentDomainStateFromFile,
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
+  hydrateHeatCapacityFreeAuthorityProjection,
   projectHeatCapacityFreeExperimentGroupToDomain,
   type HeatCapacityFreeExperimentDomainState,
   type HeatCapacityFreeParameterScheme,
@@ -600,11 +599,9 @@ export const prepareHeatCapacityFreeCapture = (
     heatCapacityFreeExperimentGroups: experimentGroups,
   };
   const capturedFile = captureActiveRuntime
-    ? applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
-        applyHeatCapacityFreeDomainToRuntimeFields(
-          fileWithDomains,
-          capturedActiveDomain,
-        ),
+    ? hydrateHeatCapacityFreeAuthorityProjection(
+        fileWithDomains,
+        file.heatCapacityFreeParameterScheme,
       )
     : fileWithDomains;
   return {

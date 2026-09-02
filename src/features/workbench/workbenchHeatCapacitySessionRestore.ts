@@ -638,6 +638,8 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
       ...normalizeHeatCapacityProcessSamples(file.heatCapacityProcessSamples),
     },
   };
+  // Legacy session normalization must keep the decoded domain aggregate until
+  // its group migration and later persistence capture have reconciled caches.
   const fileWithMigratedActiveProjection =
     applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields(
       applyHeatCapacityFreeDomainToRuntimeFields(
