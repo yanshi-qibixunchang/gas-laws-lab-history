@@ -430,10 +430,7 @@ import {
 } from './workbenchResultsWindowCoordinator.ts';
 import {
   createIdealGasExperimentPoint,
-  getIdealFailureReasonText,
   getIdealGasAnalysis,
-  getIdealHistoryContent,
-  getIdealRecommendationText,
   getPresetSequence,
   getRelationLabel,
   getRelationVariableKey,
@@ -490,13 +487,18 @@ import { WorkbenchUpdateDialog } from './WorkbenchUpdateDialog.tsx';
 import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
-import { WorkbenchIdealVerificationPanel } from './WorkbenchIdealVerificationPanel.tsx';
+import {
+  WorkbenchIdealPointsWindow,
+  WorkbenchIdealVerificationWindow,
+} from './WorkbenchIdealResultsWindows.tsx';
 import { WorkbenchSimulationRealtimePanel } from './WorkbenchSimulationRealtimePanel.tsx';
 import {
-  formatMaybeMetric,
+  WorkbenchStandardResultsDataTable,
+  WorkbenchStandardResultsSummary,
+} from './WorkbenchStandardResultsContent.tsx';
+import { WorkbenchStandardFiguresPanel } from './WorkbenchStandardFiguresPanel.tsx';
+import {
   formatMetric,
-  getCompactHistogramBins,
-  getIdealExperimentLanguageCode,
   getLocalizedStatusValue,
 } from './workbenchPresentationFormatting.ts';
 import {
@@ -2284,21 +2286,6 @@ const renderScientificText = (text: string): React.ReactNode => {
 };
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
-
-const FINAL_CHART_VIEWBOX_WIDTH = 100;
-const FINAL_CHART_VIEWBOX_HEIGHT = 64;
-const FINAL_CHART_LEFT = 10;
-const FINAL_CHART_RIGHT = 94;
-const FINAL_CHART_TOP = 8;
-const FINAL_CHART_BOTTOM = 54;
-const FINAL_CHART_PLOT_WIDTH = FINAL_CHART_RIGHT - FINAL_CHART_LEFT;
-const FINAL_CHART_PLOT_HEIGHT = FINAL_CHART_BOTTOM - FINAL_CHART_TOP;
-type FinalChartLegendPosition = 'upper-left' | 'upper-right' | 'lower-left' | 'lower-right';
-type FinalChartLegendItem = {
-  kind: 'bar' | 'line' | 'point' | 'boundary';
-  label: string;
-  className?: string;
-};
 
 const getChangedIdealParamKeys = (
   previousParams: SimulationParams,
@@ -18453,28 +18440,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setPendingClearRelationKey(null);
   };
 
-  const renderIdealPointRemoveAction = (point: IdealGasExperimentPoint) => (
-    <div className={`studio-table-action-row ${pendingRemovePointId === point.id ? 'studio-table-action-row-pending' : ''}`}>
-      <button
-        type="button"
-        className={`studio-table-action ${pendingRemovePointId === point.id ? 'studio-table-action-confirm' : ''}`}
-        onClick={() => requestRemoveIdealPoint(point)}
-      >
-        {pendingRemovePointId === point.id ? workbenchCopy.results.confirmRemove : workbenchCopy.results.remove}
-      </button>
-      {pendingRemovePointId === point.id ? (
-        <button
-          type="button"
-          className="studio-table-action studio-table-action-cancel"
-          aria-label={`${workbenchCopy.results.cancel} ${point.id}`}
-          onClick={cancelRemoveIdealPoint}
-        >
-          {workbenchCopy.results.cancel}
-        </button>
-      ) : null}
-    </div>
-  );
-
   const requestClearIdealRelation = () => {
     if (activeFile.kind !== 'ideal') return;
 
@@ -22552,119 +22517,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     ) : renderRealtimePanelContent()
   );
 
-  const renderExperimentPointsPanel = () => {
-    if (activeFile.kind !== 'ideal' || !idealAnalysis) {
-      return (
-        <div className="studio-empty">
-          <div>
-            <strong>{workbenchCopy.results.experimentPointTableTitle}</strong>
-            <p>{workbenchCopy.results.experimentPointTableBody}</p>
-          </div>
-        </div>
-      );
-    }
-
-    const clearKey = `${activeFile.id}:${activeFile.relation}`;
-    const points = idealAnalysis.sortedPoints;
-
-    return (
-      <div className="studio-data-table-panel">
-        <section className="studio-data-table-section">
-          <div className="studio-results-subheader">
-            <div>
-              <strong>{workbenchCopy.results.pointsTitle(getRelationLabel(activeFile.relation))}</strong>
-              <span>{workbenchCopy.results.recordedPoints(points.length)}</span>
-            </div>
-            <div className={`studio-results-clear-actions ${pendingClearRelationKey === clearKey ? 'studio-results-clear-actions-pending' : ''}`}>
-              <button
-                type="button"
-                className={`studio-results-clear-button ${pendingClearRelationKey === clearKey ? 'studio-results-clear-confirm' : ''}`}
-                onClick={requestClearIdealRelation}
-                disabled={points.length === 0}
-              >
-                <Trash2 size={13} />
-                {pendingClearRelationKey === clearKey ? workbenchCopy.results.confirmClear : workbenchCopy.results.clearRelation}
-              </button>
-              {pendingClearRelationKey === clearKey ? (
-                <button
-                  type="button"
-                  className="studio-results-clear-button studio-results-clear-cancel"
-                  onClick={cancelClearIdealRelation}
-                >
-                  {workbenchCopy.results.cancel}
-                </button>
-              ) : null}
-            </div>
-          </div>
-          {points.length === 0 ? (
-            <div className="studio-panel-note">
-              {workbenchCopy.results.runToRecord}
-            </div>
-          ) : (
-            <table className="studio-table studio-ideal-points-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  {activeFile.relation === 'pt' ? <th>{workbenchCopy.parameters.targetTemperature}</th> : null}
-                  {activeFile.relation === 'pv' ? <><th>L</th><th>V</th><th>1/V</th></> : null}
-                  {activeFile.relation === 'pn' ? <th>N</th> : null}
-                  <th>{workbenchCopy.results.meanTemperature}</th>
-                  <th>{workbenchCopy.results.measuredPressure}</th>
-                  <th>{workbenchCopy.results.idealPressure}</th>
-                  <th>{workbenchCopy.results.relativeGap}</th>
-                  <th>{workbenchCopy.results.tableTime}</th>
-                  <th>{workbenchCopy.results.tableAction}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {points.map((point, index) => (
-                  <tr key={point.id}>
-                    <td>{index + 1}</td>
-                    {activeFile.relation === 'pt' ? <td>{formatMetric(point.targetTemperature, 2)}</td> : null}
-                    {activeFile.relation === 'pv' ? (
-                      <>
-                        <td>{formatMaybeMetric(point.boxLength, 2)}</td>
-                        <td>{formatMaybeMetric(point.volume, 1)}</td>
-                        <td>{formatMaybeMetric(point.inverseVolume, 6)}</td>
-                      </>
-                    ) : null}
-                    {activeFile.relation === 'pn' ? <td>{formatMaybeMetric(point.particleCount, 0)}</td> : null}
-                    <td>{formatMetric(point.meanTemperature, 3)}</td>
-                    <td>{formatMetric(point.meanPressure, 5)}</td>
-                    <td>{formatMetric(point.idealPressure, 5)}</td>
-                    <td>{formatMetric(point.relativeGap, 2)}%</td>
-                    <td>{new Date(point.timestamp).toLocaleTimeString('en-GB', { hour12: false })}</td>
-                    <td>{renderIdealPointRemoveAction(point)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-      </div>
-    );
-  };
-
-  const renderResultsDataTable = () => {
-    return (
-      <div className="studio-data-table-panel">
-        <section className="studio-data-table-section">
-          <h4>{workbenchCopy.results.finalState}</h4>
-          <table className="studio-table">
-            <tbody>
-              <tr><th>{workbenchCopy.results.metric}</th><th>{workbenchCopy.results.value}</th><th>{workbenchCopy.results.status}</th></tr>
-              <tr><td>{workbenchCopy.results.finalSpeedSamples}</td><td>{resultSummary.speedSampleCount}</td><td>{resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}</td></tr>
-              <tr><td>{workbenchCopy.results.finalEnergySamples}</td><td>{resultSummary.energySampleCount}</td><td>{resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}</td></tr>
-              <tr><td>{workbenchCopy.results.tempHistorySamples}</td><td>{resultSummary.tempHistoryCount}</td><td>{resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}</td></tr>
-                <tr><td>{workbenchCopy.results.finalDataReady}</td><td>{resultSummary.ready ? workbenchCopy.results.yes : workbenchCopy.results.no}</td><td>{getLocalizedStatusValue(resultSummary.runState, workbenchCopy)}</td></tr>
-              <tr><td>{workbenchCopy.results.energyDrift}</td><td>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</td><td>{workbenchCopy.results.diagnostic}</td></tr>
-              <tr><td>{workbenchCopy.results.meanAbsTempError}</td><td>{resultSummary.temperatureErrorMeanAbs === null ? '--' : formatMetric(resultSummary.temperatureErrorMeanAbs, 5)}</td><td>{workbenchCopy.results.diagnostic}</td></tr>
-            </tbody>
-          </table>
-        </section>
-      </div>
-    );
-  };
 
   const exportAvailable = isExportEnvironmentAvailableStatus(exportEnvironmentStatus);
   const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
@@ -22856,645 +22708,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     void handleExportAction('report', selectedIds);
   };
 
-  const renderResultsSummary = () => {
-    return (
-      <div className="studio-results-section">
-        <div className={`studio-result-status ${resultSummary.ready ? 'studio-result-status-ready' : 'studio-result-status-waiting'}`}>
-          <strong>{resultSummary.ready ? workbenchCopy.results.resultReadyStatus : workbenchCopy.results.resultNotReadyStatus}</strong>
-          <span>
-            {resultSummary.ready
-              ? workbenchCopy.results.resultReadyDetail
-              : workbenchCopy.results.resultNotReadyDetail}
-          </span>
-        </div>
 
-        <div className="studio-analysis-grid">
-          <div className="studio-analysis-cell"><span>{workbenchCopy.results.finalTime}</span><strong>{formatMetric(resultSummary.finalTime, 2)} s</strong></div>
-          <div className="studio-analysis-cell"><span>{workbenchCopy.results.finalTemperature}</span><strong>{formatMetric(resultSummary.temperature)}</strong></div>
-          <div className="studio-analysis-cell"><span>{workbenchCopy.results.finalPressure}</span><strong>{formatMetric(resultSummary.pressure, 4)}</strong></div>
-            <div className="studio-analysis-cell"><span>{workbenchCopy.results.meanSpeed}</span><strong>{formatMetric(resultSummary.meanSpeed)}</strong></div>
-          <div className="studio-analysis-cell"><span>{workbenchCopy.results.rmsSpeed}</span><strong>{formatMetric(resultSummary.rmsSpeed)}</strong></div>
-            <div className="studio-analysis-cell"><span>{workbenchCopy.results.energyDrift}</span><strong>{resultSummary.energyDriftPercent === null ? '--' : `${formatMetric(resultSummary.energyDriftPercent, 4)}%`}</strong></div>
-          <div className="studio-analysis-cell"><span>{workbenchCopy.results.speedBins}</span><strong>{resultSummary.speedBinCount}</strong></div>
-          <div className="studio-analysis-cell"><span>{workbenchCopy.results.energyBins}</span><strong>{resultSummary.energyBinCount}</strong></div>
-            <div className="studio-analysis-cell"><span>{workbenchCopy.results.tempSamples}</span><strong>{resultSummary.tempHistoryCount}</strong></div>
-        </div>
-      </div>
-    );
-  };
-
-  const getFinalChartAxisCopy = (figureId: string): { xLabel: string; yLabel: string } => {
-    const finalChartCopy = settingsLanguagePreference === 'en'
-      ? {
-          speed: 'Speed v',
-          energy: 'Energy E',
-          time: 'Time t',
-          logDensity: 'Log density',
-          temperatureError: 'Temperature error',
-          totalEnergy: 'Total energy',
-        }
-      : settingsLanguagePreference === 'zh-TW'
-        ? {
-            speed: '速度 v',
-            energy: '能量 E',
-            time: '時間 t',
-            logDensity: '對數密度',
-            temperatureError: '溫度誤差',
-            totalEnergy: '總能量',
-          }
-        : {
-            speed: '速度 v',
-            energy: '能量 E',
-            time: '时间 t',
-            logDensity: '对数密度',
-            temperatureError: '温度误差',
-            totalEnergy: '总能量',
-          };
-
-    switch (figureId) {
-      case 'speed-distribution':
-        return { xLabel: finalChartCopy.speed, yLabel: workbenchCopy.results.probabilityDensity };
-      case 'energy-distribution':
-        return { xLabel: finalChartCopy.energy, yLabel: workbenchCopy.results.probabilityDensity };
-      case 'semilog-energy':
-        return { xLabel: finalChartCopy.energy, yLabel: finalChartCopy.logDensity };
-      case 'temperature-error':
-        return { xLabel: finalChartCopy.time, yLabel: finalChartCopy.temperatureError };
-      case 'total-energy':
-        return { xLabel: finalChartCopy.time, yLabel: finalChartCopy.totalEnergy };
-      default:
-        return { xLabel: '', yLabel: '' };
-    }
-  };
-
-  const getFinalChartSparseLegendPosition = (
-    points: Array<{ x: number; y: number }>,
-  ): FinalChartLegendPosition => {
-    const candidates: Array<{
-      position: FinalChartLegendPosition;
-      xMin: number;
-      xMax: number;
-      yMin: number;
-      yMax: number;
-    }> = [
-      { position: 'upper-right', xMin: 0.58, xMax: 1, yMin: 0, yMax: 0.42 },
-      { position: 'upper-left', xMin: 0, xMax: 0.42, yMin: 0, yMax: 0.42 },
-      { position: 'lower-right', xMin: 0.58, xMax: 1, yMin: 0.58, yMax: 1 },
-      { position: 'lower-left', xMin: 0, xMax: 0.42, yMin: 0.58, yMax: 1 },
-    ];
-
-    return candidates.reduce((best, candidate) => {
-      const hits = points.filter((point) => {
-        const normalizedX = (point.x - FINAL_CHART_LEFT) / FINAL_CHART_PLOT_WIDTH;
-        const normalizedY = (point.y - FINAL_CHART_TOP) / FINAL_CHART_PLOT_HEIGHT;
-        return (
-          normalizedX >= candidate.xMin &&
-          normalizedX <= candidate.xMax &&
-          normalizedY >= candidate.yMin &&
-          normalizedY <= candidate.yMax
-        );
-      }).length;
-      return hits < best.hits ? { position: candidate.position, hits } : best;
-    }, { position: 'upper-right' as FinalChartLegendPosition, hits: Number.POSITIVE_INFINITY }).position;
-  };
-
-  const getFinalChartLegendWidth = (items: FinalChartLegendItem[]) => {
-    const estimateLabelWidth = (label: string) => Array.from(label).reduce((sum, char) => {
-      if (/[\u3400-\u9fff]/.test(char)) return sum + 2.55;
-      if (char === ' ') return sum + 0.78;
-      if (/[A-Z0-9]/.test(char)) return sum + 1.55;
-      if (/[il.,:;]/.test(char)) return sum + 0.72;
-      return sum + 1.28;
-    }, 0);
-    const longestLabelWidth = Math.max(0, ...items.map((item) => estimateLabelWidth(item.label)));
-    return Math.min(34, Math.max(13.5, longestLabelWidth + 8.9));
-  };
-
-  const renderFinalChartLegend = (
-    items: FinalChartLegendItem[],
-    position: FinalChartLegendPosition = 'upper-right',
-    width?: number,
-  ) => {
-    const panelWidth = width ?? getFinalChartLegendWidth(items);
-    const panelLeft = -2.1;
-    const panelTop = -2.5;
-    const itemGap = 4.35;
-    const height = Math.max(6.3, items.length * itemGap + 1.15);
-    const positions: Record<FinalChartLegendPosition, { x: number; y: number }> = {
-      'upper-left': { x: FINAL_CHART_LEFT + 4.2, y: FINAL_CHART_TOP + 4.7 },
-      'upper-right': { x: FINAL_CHART_RIGHT + 0.9 - panelWidth, y: FINAL_CHART_TOP + 4.7 },
-      'lower-left': { x: FINAL_CHART_LEFT + 4.2, y: FINAL_CHART_BOTTOM - height - 2.4 },
-      'lower-right': { x: FINAL_CHART_RIGHT + 0.9 - panelWidth, y: FINAL_CHART_BOTTOM - height - 2.4 },
-    };
-    const origin = positions[position];
-
-    return (
-      <g className="studio-final-chart-legend" transform={`translate(${origin.x} ${origin.y})`}>
-        <rect className="studio-final-chart-legend-panel" x={panelLeft} y={panelTop} width={panelWidth} height={height} />
-        {items.map((item, index) => {
-          const itemY = index * itemGap;
-          const textX = 3.45;
-          return (
-            <g key={`${item.kind}-${item.label}`} className="studio-final-chart-legend-item">
-              {item.kind === 'bar' && (
-                <rect className="studio-final-chart-bar studio-final-chart-legend-bar" x="-1.35" y={itemY - 1.25} width="2.65" height="2.35" />
-              )}
-              {item.kind === 'point' && (
-                <circle className={item.className} cx="-0.2" cy={itemY} r="1.1" />
-              )}
-              {item.kind === 'line' && (
-                <line className={item.className} x1="-1.55" y1={itemY} x2="1.45" y2={itemY} />
-              )}
-              {item.kind === 'boundary' && (
-                <line className="studio-final-chart-legend-line" x1="-1.55" y1={itemY} x2="1.45" y2={itemY} />
-              )}
-              <text className="studio-final-chart-legend-text" x={textX} y={itemY + 0.82}>{item.label}</text>
-            </g>
-          );
-        })}
-      </g>
-    );
-  };
-
-  const renderFinalChartFrame = (
-    figureId: string,
-    variant: 'bars' | 'line' | 'semilog',
-    children: React.ReactNode,
-  ) => {
-    const horizontalGrid = [0, 0.25, 0.5, 0.75, 1];
-    const verticalGrid = [0, 0.25, 0.5, 0.75, 1];
-    const { xLabel, yLabel } = getFinalChartAxisCopy(figureId);
-
-    return (
-      <svg
-        className={`studio-final-chart studio-final-chart-${variant} studio-final-chart-${figureId}`}
-        viewBox={`0 0 ${FINAL_CHART_VIEWBOX_WIDTH} ${FINAL_CHART_VIEWBOX_HEIGHT}`}
-        aria-hidden="true"
-        focusable="false"
-      >
-        <rect className="studio-final-chart-panel" x="5.5" y="5" width="91" height="52" />
-        <g className="studio-final-chart-grid">
-          {horizontalGrid.map((ratio) => {
-            const y = FINAL_CHART_TOP + FINAL_CHART_PLOT_HEIGHT * ratio;
-            return <line key={`h-${ratio}`} x1={FINAL_CHART_LEFT} y1={y} x2={FINAL_CHART_RIGHT} y2={y} />;
-          })}
-          {verticalGrid.map((ratio) => {
-            const x = FINAL_CHART_LEFT + FINAL_CHART_PLOT_WIDTH * ratio;
-            return <line key={`v-${ratio}`} x1={x} y1={FINAL_CHART_TOP} x2={x} y2={FINAL_CHART_BOTTOM} />;
-          })}
-        </g>
-        <line className="studio-final-chart-axis" x1={FINAL_CHART_LEFT} y1={FINAL_CHART_BOTTOM} x2={FINAL_CHART_RIGHT} y2={FINAL_CHART_BOTTOM} />
-        <line className="studio-final-chart-axis" x1={FINAL_CHART_LEFT} y1={FINAL_CHART_TOP} x2={FINAL_CHART_LEFT} y2={FINAL_CHART_BOTTOM} />
-        <g className="studio-final-chart-ticks">
-          {verticalGrid.map((ratio) => {
-            const x = FINAL_CHART_LEFT + FINAL_CHART_PLOT_WIDTH * ratio;
-            return <line key={`xt-${ratio}`} className="studio-final-chart-tick" x1={x} y1={FINAL_CHART_BOTTOM} x2={x} y2={FINAL_CHART_BOTTOM - 2.4} />;
-          })}
-          {horizontalGrid.map((ratio) => {
-            const y = FINAL_CHART_TOP + FINAL_CHART_PLOT_HEIGHT * ratio;
-            return <line key={`yt-${ratio}`} className="studio-final-chart-tick" x1={FINAL_CHART_LEFT} y1={y} x2={FINAL_CHART_LEFT + 2.4} y2={y} />;
-          })}
-        </g>
-        {xLabel && (
-          <text className="studio-final-chart-axis-label studio-final-chart-x-label" x={(FINAL_CHART_LEFT + FINAL_CHART_RIGHT) / 2} y="61.2">{xLabel}</text>
-        )}
-        {yLabel && (
-          <text className="studio-final-chart-axis-label studio-final-chart-y-label" transform={`translate(3.2 ${(FINAL_CHART_TOP + FINAL_CHART_BOTTOM) / 2}) rotate(-90)`}>{yLabel}</text>
-        )}
-        {children}
-      </svg>
-    );
-  };
-
-  const renderFinalFigurePreview = (figureId: string) => {
-    if (!resultSummary.ready || !activeFile.finalChartData) {
-      return <div className="studio-final-figure-empty">{workbenchCopy.results.notReadyPreview}</div>;
-    }
-
-    if (figureId === 'temperature-error' || figureId === 'total-energy') {
-      const history = activeFile.finalChartData.tempHistory;
-      const values = history.map((point) => (figureId === 'temperature-error' ? Math.abs(point.error) : point.totalEnergy));
-      const stride = Math.max(1, Math.ceil(values.length / 72));
-      const sampledValues = values.filter((_, index) => index % stride === 0).slice(0, 72);
-      if (!sampledValues.length) {
-        return <div className="studio-final-figure-empty">{workbenchCopy.results.noPoints}</div>;
-      }
-
-      const rawMinY = figureId === 'temperature-error' ? 0 : Math.min(...sampledValues);
-      const rawMaxY = Math.max(...sampledValues);
-      const yPadding = rawMaxY === rawMinY ? Math.max(0.0001, Math.abs(rawMaxY) * 0.04) : 0;
-      const minY = rawMinY - yPadding;
-      const maxY = rawMaxY + yPadding;
-      const ySpan = Math.max(0.0001, maxY - minY);
-      const toX = (index: number) => FINAL_CHART_LEFT + (sampledValues.length === 1 ? 0.5 : index / (sampledValues.length - 1)) * FINAL_CHART_PLOT_WIDTH;
-      const toY = (value: number) => FINAL_CHART_BOTTOM - ((value - minY) / ySpan) * FINAL_CHART_PLOT_HEIGHT;
-      const historyPolyline = sampledValues.map((value, index) => `${toX(index).toFixed(2)},${toY(value).toFixed(2)}`).join(' ');
-      const historyPoints = sampledValues.map((value, index) => ({ x: toX(index), y: toY(value) }));
-      const historyLegendPosition = getFinalChartSparseLegendPosition(historyPoints);
-      const historyLegendCopy = settingsLanguagePreference === 'en'
-        ? { temperatureErrorTrace: 'Temperature error', totalEnergyTrace: 'Total energy', zeroReference: 'Zero reference' }
-        : settingsLanguagePreference === 'zh-TW'
-          ? { temperatureErrorTrace: '溫度誤差', totalEnergyTrace: '總能量', zeroReference: '零參考線' }
-          : { temperatureErrorTrace: '温度误差', totalEnergyTrace: '总能量', zeroReference: '零参考线' };
-
-      return renderFinalChartFrame(
-        figureId,
-        'line',
-        <>
-          {figureId === 'temperature-error' && (
-            <line className="studio-final-chart-reference" x1={FINAL_CHART_LEFT} y1={FINAL_CHART_BOTTOM} x2={FINAL_CHART_RIGHT} y2={FINAL_CHART_BOTTOM} />
-          )}
-          <polyline className="studio-final-chart-history" points={historyPolyline} />
-          {renderFinalChartLegend([
-            {
-              kind: 'line',
-              className: 'studio-final-chart-history',
-              label: figureId === 'temperature-error' ? historyLegendCopy.temperatureErrorTrace : historyLegendCopy.totalEnergyTrace,
-            },
-            ...(figureId === 'temperature-error'
-              ? [{
-                  kind: 'line' as const,
-                  className: 'studio-final-chart-reference',
-                  label: historyLegendCopy.zeroReference,
-                }]
-              : []),
-          ], historyLegendPosition)}
-        </>,
-      );
-    }
-
-    if (figureId === 'semilog-energy') {
-      const measuredPoints = activeFile.finalChartData.energy
-        .map((bin) => ({
-          energy: (bin.binStart + bin.binEnd) / 2,
-          logProb: Math.log(bin.probability),
-          probability: bin.probability,
-        }))
-        .filter((point) => Number.isFinite(point.energy) && Number.isFinite(point.logProb) && point.probability > 0);
-      if (!measuredPoints.length) {
-        return <div className="studio-final-figure-empty">{workbenchCopy.results.noPoints}</div>;
-      }
-
-      const selectionStartIndex = measuredPoints.length > 4
-        ? Math.max(1, Math.floor(measuredPoints.length * 0.18))
-        : 0;
-      const selectionEndIndex = measuredPoints.length > 4
-        ? Math.min(measuredPoints.length - 2, Math.ceil(measuredPoints.length * 0.82) - 1)
-        : measuredPoints.length - 1;
-      const selectedPoints = measuredPoints.filter((_, index) => index >= selectionStartIndex && index <= selectionEndIndex);
-      const excludedPoints = measuredPoints.filter((_, index) => index < selectionStartIndex || index > selectionEndIndex);
-      const selectionStartEnergy = selectedPoints[0]?.energy ?? measuredPoints[0].energy;
-      const selectionEndEnergy = selectedPoints[selectedPoints.length - 1]?.energy ?? measuredPoints[measuredPoints.length - 1].energy;
-      const semilogLegendCopy = settingsLanguagePreference === 'en'
-        ? { selected: 'Selected bins', excluded: 'Excluded bins', window: 'Fit window', theory: workbenchCopy.results.theoryLegend }
-        : settingsLanguagePreference === 'zh-TW'
-          ? { selected: '選中點', excluded: '未選點', window: '選中區間', theory: workbenchCopy.results.theoryLegend }
-          : { selected: '选中点', excluded: '未选点', window: '选中区间', theory: workbenchCopy.results.theoryLegend };
-      const formatEnergyTick = (value: number) => value.toFixed(value >= 10 ? 1 : 2);
-      const theoryPoints = activeFile.finalChartData.energy
-        .map((bin) => ({
-          energy: (bin.binStart + bin.binEnd) / 2,
-          logDensity: bin.theoretical && bin.theoretical > 0 ? Math.log(bin.theoretical) : Number.NaN,
-        }))
-        .filter((point) => (
-          Number.isFinite(point.energy) &&
-          Number.isFinite(point.logDensity) &&
-          point.energy >= measuredPoints[0].energy &&
-          point.energy <= measuredPoints[measuredPoints.length - 1].energy
-        ));
-      const xValues = [
-        ...measuredPoints.map((point) => point.energy),
-        ...theoryPoints.map((point) => point.energy),
-      ];
-      const yValues = [
-        ...measuredPoints.map((point) => point.logProb),
-        ...theoryPoints.map((point) => point.logDensity),
-      ];
-      const minX = Math.min(...xValues);
-      const maxX = Math.max(...xValues);
-      const rawMinY = Math.min(...yValues);
-      const rawMaxY = Math.max(...yValues);
-      const xSpan = Math.max(0.0001, maxX - minX);
-      const rawYSpan = Math.max(0.0001, rawMaxY - rawMinY);
-      const minY = rawMinY - rawYSpan * 0.08;
-      const maxY = rawMaxY + rawYSpan * 0.16;
-      const ySpan = Math.max(0.0001, maxY - minY);
-      const toX = (value: number) => FINAL_CHART_LEFT + ((value - minX) / xSpan) * FINAL_CHART_PLOT_WIDTH;
-      const toY = (value: number) => FINAL_CHART_BOTTOM - ((value - minY) / ySpan) * FINAL_CHART_PLOT_HEIGHT;
-      const theoryPolyline = theoryPoints.map((point) => `${toX(point.energy).toFixed(2)},${toY(point.logDensity).toFixed(2)}`).join(' ');
-      const selectionStartX = toX(selectionStartEnergy);
-      const selectionEndX = toX(selectionEndEnergy);
-
-      return renderFinalChartFrame(
-        figureId,
-        'semilog',
-        <>
-          {theoryPolyline && <polyline className="studio-final-chart-theory studio-final-semilog-theory" points={theoryPolyline} />}
-          <line className="studio-final-chart-selection-boundary" x1={selectionStartX} y1={FINAL_CHART_TOP} x2={selectionStartX} y2={FINAL_CHART_BOTTOM} />
-          <line className="studio-final-chart-selection-boundary" x1={selectionEndX} y1={FINAL_CHART_TOP} x2={selectionEndX} y2={FINAL_CHART_BOTTOM} />
-          <text className="studio-final-chart-boundary-label" x={selectionStartX} y="6.4">{formatEnergyTick(selectionStartEnergy)}</text>
-          <text className="studio-final-chart-boundary-label" x={selectionEndX} y="6.4">{formatEnergyTick(selectionEndEnergy)}</text>
-          {excludedPoints.map((point, index) => (
-            <circle
-              className="studio-final-chart-point studio-final-chart-excluded-point studio-final-semilog-point"
-              key={`semilog-energy-excluded-${index}`}
-              cx={toX(point.energy)}
-              cy={toY(point.logProb)}
-              r="1.05"
-            />
-          ))}
-          {selectedPoints.map((point, index) => (
-            <circle
-              className="studio-final-chart-point studio-final-chart-selected-point studio-final-semilog-point"
-              key={`semilog-energy-selected-${index}`}
-              cx={toX(point.energy)}
-              cy={toY(point.logProb)}
-              r="1.15"
-            />
-          ))}
-          {renderFinalChartLegend([
-            { kind: 'point', className: 'studio-final-chart-selected-point', label: semilogLegendCopy.selected },
-            { kind: 'point', className: 'studio-final-chart-excluded-point', label: semilogLegendCopy.excluded },
-            { kind: 'boundary', label: semilogLegendCopy.window },
-            { kind: 'line', className: 'studio-final-chart-theory', label: semilogLegendCopy.theory },
-          ], 'upper-right')}
-        </>,
-      );
-    }
-
-    const bins = figureId === 'speed-distribution'
-      ? activeFile.finalChartData.speed
-      : activeFile.finalChartData.energy;
-    const compactBins = getCompactHistogramBins(bins, 30)
-      .filter((bin) => Number.isFinite(bin.binStart) && Number.isFinite(bin.binEnd) && Number.isFinite(bin.probability));
-    if (!compactBins.length) {
-      return <div className="studio-final-figure-empty">{workbenchCopy.results.noPoints}</div>;
-    }
-
-    const minX = Math.min(...compactBins.map((bin) => bin.binStart));
-    const maxX = Math.max(...compactBins.map((bin) => bin.binEnd));
-    const xSpan = Math.max(0.0001, maxX - minX);
-    const maxProbability = Math.max(
-      0.0001,
-      ...compactBins.map((bin) => bin.probability),
-      ...compactBins.map((bin) => bin.theoretical ?? 0),
-    );
-    const toX = (value: number) => FINAL_CHART_LEFT + ((value - minX) / xSpan) * FINAL_CHART_PLOT_WIDTH;
-    const toY = (value: number) => FINAL_CHART_BOTTOM - (Math.max(0, value) / maxProbability) * FINAL_CHART_PLOT_HEIGHT;
-    const theoryPolyline = compactBins
-      .filter((bin) => Number.isFinite(bin.theoretical))
-      .map((bin) => `${toX((bin.binStart + bin.binEnd) / 2).toFixed(2)},${toY(bin.theoretical ?? 0).toFixed(2)}`)
-      .join(' ');
-
-    return renderFinalChartFrame(
-      figureId,
-      'bars',
-      <>
-        {compactBins.map((bin, index) => {
-          const barX = toX(bin.binStart);
-          const barRight = toX(bin.binEnd);
-          const barWidth = Math.max(0.8, (barRight - barX) * 0.72);
-          const barHeight = bin.probability <= 0 ? 0 : Math.max(0.8, FINAL_CHART_BOTTOM - toY(bin.probability));
-          return (
-            <rect
-              className="studio-final-chart-bar"
-              key={`${figureId}-${index}`}
-              x={barX + ((barRight - barX) - barWidth) / 2}
-              y={FINAL_CHART_BOTTOM - barHeight}
-              width={barWidth}
-              height={barHeight}
-            />
-          );
-        })}
-        {theoryPolyline && <polyline className="studio-final-chart-theory" points={theoryPolyline} />}
-        {renderFinalChartLegend([
-          { kind: 'bar', label: workbenchCopy.results.measuredBars },
-          ...(theoryPolyline
-            ? [{
-                kind: 'line' as const,
-                className: 'studio-final-chart-theory',
-                label: workbenchCopy.results.theoryLegend,
-              }]
-            : []),
-        ], 'upper-right')}
-      </>,
-    );
-  };
-
-  const renderResultsFigures = () => {
-    return (
-      <div className="studio-results-section">
-        <div className="studio-results-subheader">
-          <div>
-            <strong>{workbenchCopy.panels.figuresTitle}</strong>
-            <span>{workbenchCopy.results.figuresHint}</span>
-          </div>
-          <button
-            type="button"
-            disabled={!isExportModeDataReady('figuresZip') || exportInProgress}
-            onClick={() => handleExportAction('figuresZip')}
-          >
-            <FileArchive size={13} />
-            {workbenchCopy.results.exportFigures}
-          </button>
-        </div>
-
-        <div className="studio-figure-list">
-          <div className="studio-figure-list-header">
-            <strong>{workbenchCopy.panels.figuresTitle}</strong>
-            <span>{workbenchCopy.results.exportFilesHint}</span>
-          </div>
-          {figureSpecs.map((figure) => (
-            <div className="studio-figure-row" key={figure.id}>
-              <div>
-                <strong>{figure.title}</strong>
-                <small>{figure.recommendedFilename}</small>
-              </div>
-              <span>{figure.dataCount}</span>
-              <em className={`studio-figure-status-${figure.status}`}>{workbenchCopy.results.figureStatus[figure.status]}</em>
-            </div>
-          ))}
-        </div>
-
-        <div className="studio-final-figures-grid">
-          {figureSpecs.map((figure) => (
-            <section className="studio-final-figure-card" key={`preview-${figure.id}`}>
-              <div>
-                <strong>{figure.title}</strong>
-                <span>{workbenchCopy.results.figureStatus[figure.status]}</span>
-              </div>
-              {renderFinalFigurePreview(figure.id)}
-            </section>
-          ))}
-        </div>
-      </div>
-    );
-  };
-
-  const renderIdealPointsWindow = () => {
-    if (activeFile.kind !== 'ideal' || !idealAnalysis) {
-      return (
-        <div className="studio-empty">
-          <div>
-            <strong>{workbenchCopy.results.noIdealPointsTitle}</strong>
-            <p>{workbenchCopy.results.noIdealPointsBody}</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="studio-ideal-child-window-body">
-        <div className="studio-ideal-results-card">
-          <div className="studio-ideal-results-card-header">
-            <div>
-              <strong>{workbenchCopy.results.experimentStatus}</strong>
-              <span>
-                {idealPointCount > 0
-                  ? workbenchCopy.results.resultsReady(getRelationLabel(activeFile.relation))
-                  : workbenchCopy.results.waitingForRecordedPoints(getRelationLabel(activeFile.relation))}
-                {' / '}
-                {workbenchCopy.results.recordedPoints(idealAnalysis.sortedPoints.length)}
-                {' / '}
-                {getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}
-              </span>
-            </div>
-          </div>
-          <div className="studio-ideal-results-status-grid">
-            <div><span>{workbenchCopy.results.activeRelation}</span><strong>{getRelationLabel(activeFile.relation)}</strong></div>
-            <div><span>{workbenchCopy.results.pointsMetric}</span><strong>{idealAnalysis.sortedPoints.length}</strong></div>
-            <div><span>{workbenchCopy.results.status}</span><strong>{getLocalizedStatusValue(idealAnalysis.verdictState, workbenchCopy)}</strong></div>
-            <div><span>{workbenchCopy.results.finalState}</span><strong>{activeFile.needsReset ? workbenchCopy.parameters.idealRuntimeOnStart : getLocalizedStatusValue(activeFile.runState, workbenchCopy)}</strong></div>
-          </div>
-        </div>
-        {renderExperimentPointsPanel()}
-      </div>
-    );
-  };
-
-  const renderIdealVerificationWindow = () => {
-    if (activeFile.kind !== 'ideal' || !idealAnalysis) {
-      return (
-        <div className="studio-empty">
-          <div>
-            <strong>{workbenchCopy.results.noIdealVerificationTitle}</strong>
-            <p>{workbenchCopy.results.noIdealVerificationBody}</p>
-          </div>
-        </div>
-      );
-    }
-
-    const verificationSpec = figureSpecs.find((figure) => figure.id === 'ideal-verification');
-    const rawPvSpec = figureSpecs.find((figure) => figure.id === 'ideal-raw-pv');
-    const pointsSpec = figureSpecs.find((figure) => figure.id === 'ideal-points');
-    const historySpec = figureSpecs.find((figure) => figure.id === 'ideal-history');
-    const idealLanguage = getIdealExperimentLanguageCode(settingsLanguagePreference);
-    const historyContent = getIdealHistoryContent(idealLanguage, activeFile.relation);
-    const failureReasonText = getIdealFailureReasonText(idealAnalysis.diagnosis.failureReason, idealLanguage);
-    const recommendationText = getIdealRecommendationText(
-      idealAnalysis.diagnosis.failureReason,
-      idealAnalysis.verdictState,
-      activeFile.relation,
-      idealLanguage,
-    );
-    const exportSpecs = figureSpecs.filter((figure) => (
-      figure.id === 'ideal-verification' ||
-      figure.id === 'ideal-raw-pv' ||
-      figure.id === 'ideal-points' ||
-      figure.id === 'ideal-history'
-    ));
-
-    return (
-      <div className="studio-ideal-child-window-body">
-        <WorkbenchIdealVerificationPanel
-          analysis={idealAnalysis}
-          file={activeFile}
-          language={settingsLanguagePreference}
-          workbenchCopy={workbenchCopy}
-        />
-        <div className={`studio-ideal-results-card ${idealAnalysis.isVerified ? 'studio-ideal-history-unlocked' : 'studio-ideal-history-locked'}`}>
-          <div className="studio-ideal-results-card-header">
-            <div>
-              <strong>{idealAnalysis.isVerified ? historyContent.title : workbenchCopy.results.historyLockedFor(getRelationLabel(activeFile.relation))}</strong>
-              <span>{idealAnalysis.isVerified ? workbenchCopy.results.historyUnlocked : workbenchCopy.results.historyUnlockHint}</span>
-            </div>
-          </div>
-          {idealAnalysis.isVerified ? (
-            <div className="studio-ideal-history-grid">
-              <div>
-                <span>{workbenchCopy.results.historicalContext}</span>
-                <strong>{historyContent.discovery}</strong>
-              </div>
-              <div>
-                <span>{workbenchCopy.results.workbenchInterpretation}</span>
-                <strong>{historyContent.simulation}</strong>
-              </div>
-              <div>
-                <span>{workbenchCopy.results.keyFigures}</span>
-                <strong>{workbenchCopy.results.keyFiguresValue(formatMaybeMetric(idealAnalysis.regression.rSquared, 5), idealAnalysis.regression.slopeError === null ? '--' : `${formatMetric(idealAnalysis.regression.slopeError, 2)}%`)}</strong>
-              </div>
-            </div>
-          ) : (
-            <div className="studio-ideal-history-grid">
-              <div>
-                <span>{workbenchCopy.results.whyLocked}</span>
-                <strong>{failureReasonText}</strong>
-              </div>
-              <div>
-                <span>{workbenchCopy.results.recommendedNextStep}</span>
-                <strong>{recommendationText}</strong>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="studio-ideal-results-card">
-          <div className="studio-ideal-results-card-header">
-            <div>
-              <strong>{workbenchCopy.results.export}</strong>
-              <span>{workbenchCopy.results.exportFilesHint} {exportCopy.label}</span>
-            </div>
-          </div>
-          <div className="studio-ideal-export-actions">
-            <button type="button" disabled={!isExportModeDataReady('completeBundle') || exportInProgress} onClick={() => handleExportAction('completeBundle')}>
-              <FileArchive size={13} />
-              {workbenchCopy.results.exportAll}
-            </button>
-            <button type="button" disabled={!isExportModeDataReady('report') || exportInProgress} onClick={() => handleExportAction('report')}>
-              <Download size={13} />
-              {workbenchCopy.results.reportPdf}
-            </button>
-            <button type="button" disabled={!isExportModeDataReady('verificationFigure') || exportInProgress} onClick={() => handleExportAction('verificationFigure')}>
-              <BarChart3 size={13} />
-              {workbenchCopy.results.verificationFigure}
-            </button>
-            <button type="button" disabled={!isExportModeDataReady('pointsCsv') || exportInProgress} onClick={() => handleExportAction('pointsCsv')}>
-              <Table2 size={13} />
-              {workbenchCopy.results.pointsCsv}
-            </button>
-          </div>
-          <div className="studio-ideal-export-files">
-            {verificationSpec ? <div><span>{workbenchCopy.results.verification}</span><strong>{verificationSpec.recommendedFilename}</strong></div> : null}
-            {rawPvSpec ? <div><span>{workbenchCopy.results.rawPv}</span><strong>{rawPvSpec.recommendedFilename}</strong></div> : null}
-            {pointsSpec ? <div><span>{workbenchCopy.results.pointsCsv}</span><strong>{pointsSpec.recommendedFilename}</strong></div> : null}
-            {historySpec ? <div><span>{workbenchCopy.results.history}</span><strong>{historySpec.recommendedFilename}</strong></div> : null}
-          </div>
-          <div className="studio-figure-list studio-ideal-export-specs">
-            {exportSpecs.map((figure) => (
-              <div className="studio-figure-row" key={`ideal-export-${figure.id}`}>
-                <div>
-                  <strong>{figure.title}</strong>
-                  <small>{figure.recommendedFilename}</small>
-                </div>
-                <span>{figure.dataCount}</span>
-                <em className={`studio-figure-status-${figure.status}`}>{workbenchCopy.results.figureStatus[figure.status]}</em>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   const renderResultsPanel = () => {
     if (activeFile.kind === 'ideal') {
@@ -23586,9 +22800,32 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         </div>
 
         <div className="studio-results-body">
-          {standardResultsLayout.activeTab === 'summary' ? renderResultsSummary() : null}
-          {standardResultsLayout.activeTab === 'dataTable' ? renderResultsDataTable() : null}
-          {standardResultsLayout.activeTab === 'figures' ? renderResultsFigures() : null}
+          {standardResultsLayout.activeTab === 'summary' ? (
+            <WorkbenchStandardResultsSummary
+              resultSummary={resultSummary}
+              workbenchCopy={workbenchCopy}
+            />
+          ) : null}
+          {standardResultsLayout.activeTab === 'dataTable' ? (
+            <WorkbenchStandardResultsDataTable
+              resultSummary={resultSummary}
+              workbenchCopy={workbenchCopy}
+            />
+          ) : null}
+          {standardResultsLayout.activeTab === 'figures' ? (
+            <WorkbenchStandardFiguresPanel
+              file={activeFile}
+              figureSpecs={figureSpecs}
+              resultSummary={resultSummary}
+              language={settingsLanguagePreference}
+              workbenchCopy={workbenchCopy}
+              exportInProgress={exportInProgress}
+              figuresExportReady={isExportModeDataReady('figuresZip')}
+              onExportFigures={() => {
+                void handleExportAction('figuresZip');
+              }}
+            />
+          ) : null}
         </div>
       </div>
     );
@@ -23598,17 +22835,38 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (panel.key === 'preview') return renderPreviewPanel();
     if (panel.key === 'realtime') return renderRealtimePanel();
     if (panel.key === 'verification') {
-      return activeFile.kind === 'ideal' ? renderIdealVerificationWindow() : (
-        <WorkbenchIdealVerificationPanel
-          analysis={null}
-          file={null}
+      return (
+        <WorkbenchIdealVerificationWindow
+          file={activeFile.kind === 'ideal' ? activeFile : null}
+          analysis={activeFile.kind === 'ideal' ? idealAnalysis : null}
+          figureSpecs={figureSpecs}
           language={settingsLanguagePreference}
           workbenchCopy={workbenchCopy}
+          exportEnvironmentLabel={exportCopy.label}
+          exportInProgress={exportInProgress}
+          isExportReady={isExportModeDataReady}
+          onExport={(mode) => {
+            void handleExportAction(mode);
+          }}
         />
       );
     }
     if (panel.key === 'results') return renderResultsPanel();
-    if (panel.key === 'experimentPoints') return renderIdealPointsWindow();
+    if (panel.key === 'experimentPoints') {
+      return (
+        <WorkbenchIdealPointsWindow
+          file={activeFile.kind === 'ideal' ? activeFile : null}
+          analysis={activeFile.kind === 'ideal' ? idealAnalysis : null}
+          workbenchCopy={workbenchCopy}
+          pendingClearRelationKey={pendingClearRelationKey}
+          pendingRemovePointId={pendingRemovePointId}
+          onClearRelation={requestClearIdealRelation}
+          onCancelClearRelation={cancelClearIdealRelation}
+          onRequestRemovePoint={requestRemoveIdealPoint}
+          onCancelRemovePoint={cancelRemoveIdealPoint}
+        />
+      );
+    }
     if (activeFile.kind === 'heatCapacity' && panel.key === 'heatCapacityReview') {
       const groupCollection = activeFile.heatCapacityFreeExperimentGroups;
       const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(groupCollection) ??

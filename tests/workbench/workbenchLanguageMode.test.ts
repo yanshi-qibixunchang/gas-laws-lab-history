@@ -7,7 +7,10 @@ const generalSettingsWindowSource = readFileSync(new URL('../../src/features/wor
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
 const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
-const uiSource = `${source}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}\n${verificationPanelSource}`;
+const idealResultsWindowsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealResultsWindows.tsx', import.meta.url), 'utf8');
+const standardResultsContentSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStandardResultsContent.tsx', import.meta.url), 'utf8');
+const standardFiguresPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStandardFiguresPanel.tsx', import.meta.url), 'utf8');
+const uiSource = `${source}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}\n${verificationPanelSource}\n${idealResultsWindowsSource}\n${standardResultsContentSource}\n${standardFiguresPanelSource}`;
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -41,7 +44,7 @@ const getLanguageBlock = (languageKey) => {
 const zhCNBlock = getLanguageBlock("'zh-CN'");
 const zhTWBlock = getLanguageBlock("'zh-TW'");
 const enBlock = getLanguageBlock('en');
-const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}\n${verificationPanelSource}`;
+const renderSource = `${source.slice(source.indexOf('interface WorkbenchLayoutDefaultState'))}\n${generalSettingsWindowSource}\n${topCommandsSource}\n${realtimePanelSource}\n${verificationPanelSource}\n${idealResultsWindowsSource}\n${standardResultsContentSource}\n${standardFiguresPanelSource}`;
 
 for (const [field, zhCNText, zhTWText, enText] of [
   ['openFiles', '打开文件', '開啟檔案', 'Open Files'],

@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const idealResultsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealResultsWindows.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -35,13 +36,13 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /pendingRemovePointId === point\.id \? \([\s\S]*?cancelRemoveIdealPoint[\s\S]*?workbenchCopy\.results\.cancel[\s\S]*?\) : null/,
+  idealResultsSource,
+  /pendingRemovePointId === point\.id \? \([\s\S]*?onCancelRemovePoint[\s\S]*?workbenchCopy\.results\.cancel[\s\S]*?\) : null/,
   'ideal gas point tables should show a Cancel button next to Confirm Remove while point removal is pending',
 );
 
 assert.match(
-  source,
+  idealResultsSource,
   /aria-label=\{`\$\{workbenchCopy\.results\.cancel\} \$\{point\.id\}`\}/,
   'the ideal gas point remove cancel button should have an explicit accessible label for the target point',
 );
@@ -59,7 +60,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  idealResultsSource,
   /studio-table-action-row-pending/,
   'the ideal gas point remove confirmation row should mark the two-button pending state for segmented styling',
 );
@@ -173,5 +174,4 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchDeleteCancel tests passed');
-
 

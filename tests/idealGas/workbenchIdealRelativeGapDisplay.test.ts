@@ -6,7 +6,11 @@ const realtimePanelSource = fs.readFileSync(
   'src/features/workbench/WorkbenchSimulationRealtimePanel.tsx',
   'utf8',
 );
-const displaySource = `${workbenchSource}\n${realtimePanelSource}`;
+const idealResultsSource = fs.readFileSync(
+  'src/features/workbench/WorkbenchIdealResultsWindows.tsx',
+  'utf8',
+);
+const displaySource = `${workbenchSource}\n${realtimePanelSource}\n${idealResultsSource}`;
 
 assert.doesNotMatch(
   displaySource,
@@ -26,4 +30,3 @@ assert.doesNotMatch(
 });
 
 console.log('workbenchIdealRelativeGapDisplay tests passed');
-

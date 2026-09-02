@@ -82,6 +82,10 @@ const workbenchSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
 );
+const idealWindowsSource = readFileSync(
+  new URL('../../src/features/workbench/WorkbenchIdealResultsWindows.tsx', import.meta.url),
+  'utf8',
+);
 
 assert.match(panelSource, /export const WorkbenchIdealVerificationPanel/);
 assert.match(panelSource, /file: WorkbenchIdealState \| null/);
@@ -96,8 +100,9 @@ assert.doesNotMatch(panelSource, /useEffect|useState|standardRuntimeRef|updateAc
 assert.match(chartSource, /export const createIdealVerificationChartModel/);
 assert.doesNotMatch(chartSource, /React|document\.|window\./);
 
-assert.match(workbenchSource, /from '\.\/WorkbenchIdealVerificationPanel\.tsx'/);
-assert.match(workbenchSource, /<WorkbenchIdealVerificationPanel/);
+assert.match(idealWindowsSource, /from '\.\/WorkbenchIdealVerificationPanel\.tsx'/);
+assert.match(idealWindowsSource, /<WorkbenchIdealVerificationPanel/);
+assert.match(workbenchSource, /from '\.\/WorkbenchIdealResultsWindows\.tsx'/);
 assert.doesNotMatch(workbenchSource, /const renderIdealValidationChart =/);
 assert.doesNotMatch(workbenchSource, /const renderVerificationPanel =/);
 

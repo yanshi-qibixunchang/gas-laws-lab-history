@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
-const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealResultsWindows.tsx', import.meta.url), 'utf8');
 const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
@@ -125,4 +125,3 @@ assert.match(
 );
 
 console.log('workbenchVerificationChartVisibility tests passed');
-

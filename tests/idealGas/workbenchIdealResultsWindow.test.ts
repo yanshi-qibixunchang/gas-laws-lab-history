@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
 const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
+const idealWindowsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealResultsWindows.tsx', import.meta.url), 'utf8');
 const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
@@ -56,15 +57,22 @@ assert.ok(
 );
 
 assert.match(
-  source,
-  /const renderIdealPointsWindow = \(\) =>/,
-  'ideal Points child window should have a dedicated renderer',
+  idealWindowsSource,
+  /export const WorkbenchIdealPointsWindow/,
+  'ideal Points child window should have a dedicated presentation component',
 );
 assert.match(
-  source,
-  /const renderIdealVerificationWindow = \(\) =>/,
-  'ideal Verification child window should have a dedicated renderer',
+  idealWindowsSource,
+  /export const WorkbenchIdealVerificationWindow/,
+  'ideal Verification child window should have a dedicated presentation component',
 );
+assert.match(source, /from '\.\/WorkbenchIdealResultsWindows\.tsx'/);
+assert.match(source, /<WorkbenchIdealPointsWindow/);
+assert.match(source, /<WorkbenchIdealVerificationWindow/);
+assert.doesNotMatch(idealWindowsSource, /useEffect|useState|updateActiveFile|captureUndoSnapshot/);
+assert.doesNotMatch(source, /const renderExperimentPointsPanel =/);
+assert.doesNotMatch(source, /const renderIdealPointsWindow =/);
+assert.doesNotMatch(source, /const renderIdealVerificationWindow =/);
 assert.match(
   source,
   /panel\.key === 'results' && activeFile\.kind === 'ideal' && !resultsChildrenCollapsed/,

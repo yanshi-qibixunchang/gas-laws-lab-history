@@ -3,12 +3,12 @@ import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 const root = resolve(new URL('../..', import.meta.url).pathname.slice(1));
-const prototypeSource = readFileSync(join(root, 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'), 'utf8');
+const prototypeSource = readFileSync(join(root, 'src', 'features', 'workbench', 'WorkbenchStandardFiguresPanel.tsx'), 'utf8');
 const prototypeCss = readFileSync(join(root, 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.css'), 'utf8');
 
 assert.match(
   prototypeSource,
-  /if \(figureId === 'semilog-energy'\) \{[\s\S]*activeFile\.finalChartData\.energy[\s\S]*probability > 0/,
+  /if \(figureId === 'semilog-energy'\) \{[\s\S]*finalChartData\.energy[\s\S]*probability > 0/,
   'standard results preview should render semilog-energy from calculable final energy bins, not the ordinary energy histogram',
 );
 
@@ -32,7 +32,7 @@ assert.match(
 
 assert.match(
   prototypeSource,
-  /const bins = figureId === 'speed-distribution'[\s\S]*: activeFile\.finalChartData\.energy;/,
+  /const bins = figureId === 'speed-distribution'[\s\S]*: finalChartData\.energy;/,
   'ordinary speed and energy distribution previews should remain histogram-based',
 );
 

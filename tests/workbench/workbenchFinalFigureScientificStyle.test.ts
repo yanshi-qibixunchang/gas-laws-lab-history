@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStandardFiguresPanel.tsx', import.meta.url), 'utf8');
+const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
@@ -36,7 +37,7 @@ assert.match(
 
 assert.match(
   source,
-  /activeFile\.finalChartData\.energy[\s\S]*probability > 0[\s\S]*studio-final-chart-excluded-point[\s\S]*studio-final-chart-selected-point/,
+  /finalChartData\.energy[\s\S]*probability > 0[\s\S]*studio-final-chart-excluded-point[\s\S]*studio-final-chart-selected-point/,
   'standard semilog preview should show all calculable points and distinguish selected versus excluded bins',
 );
 
@@ -105,5 +106,9 @@ assert.match(
   /\.studio-theme-light \.studio-final-chart[\s\S]*\.studio-theme-light \.studio-final-chart-point/,
   'light theme should cover the scientific result chart styles',
 );
+
+assert.match(workbenchSource, /from '\.\/WorkbenchStandardFiguresPanel\.tsx'/);
+assert.match(workbenchSource, /<WorkbenchStandardFiguresPanel/);
+assert.doesNotMatch(workbenchSource, /const renderFinalFigurePreview =/);
 
 console.log('workbenchFinalFigureScientificStyle tests passed');

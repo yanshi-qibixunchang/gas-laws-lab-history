@@ -2,6 +2,8 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const idealResultsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealResultsWindows.tsx', import.meta.url), 'utf8');
+const standardFiguresSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStandardFiguresPanel.tsx', import.meta.url), 'utf8');
 
 assert.match(
   source,
@@ -20,13 +22,22 @@ for (const [mode, buttonLabel] of [
   ['report', 'Report PDF'],
   ['verificationFigure', 'Verification Figure'],
   ['pointsCsv', 'Points CSV'],
-  ['figuresZip', 'Export Figures'],
 ]) {
   assert.ok(
-    source.includes(`disabled={!isExportModeDataReady('${mode}') || exportInProgress}`),
+    idealResultsSource.includes(`disabled={!isExportReady('${mode}') || exportInProgress}`),
     `${buttonLabel} should use per-export readiness instead of one shared result-ready flag`,
   );
 }
+assert.match(
+  source,
+  /figuresExportReady=\{isExportModeDataReady\('figuresZip'\)\}/,
+  'Export Figures should receive its own readiness decision from the coordinator',
+);
+assert.match(
+  standardFiguresSource,
+  /disabled=\{!figuresExportReady \|\| exportInProgress\}/,
+  'Export Figures should disable from its dedicated readiness property',
+);
 
 assert.doesNotMatch(
   source,
@@ -35,10 +46,9 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
-  /onClick=\{\(\) => handleExportAction\('completeBundle'\)\}[\s\S]*?\{workbenchCopy\.results\.exportAll\}[\s\S]*?onClick=\{\(\) => handleExportAction\('report'\)\}[\s\S]*?\{workbenchCopy\.results\.reportPdf\}/,
+  idealResultsSource,
+  /onClick=\{\(\) => onExport\('completeBundle'\)\}[\s\S]*?\{workbenchCopy\.results\.exportAll\}[\s\S]*?onClick=\{\(\) => onExport\('report'\)\}[\s\S]*?\{workbenchCopy\.results\.reportPdf\}/,
   'Complete export should render immediately to the left of Report PDF in export action groups',
 );
 
 console.log('workbenchExportButtonReadiness tests passed');
-
