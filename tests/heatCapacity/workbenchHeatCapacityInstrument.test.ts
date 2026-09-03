@@ -42,6 +42,7 @@ import {
   isHeatCapacityPressureZeroWithinTolerance,
   isHeatCapacityFreeEquilibriumSpeedAvailable,
   registerHeatCapacityPumpStroke,
+  selectHeatCapacityFreeAppliedParameterDraft,
   recordHeatCapacityFreeTraceEventWithReference,
   removeHeatCapacityFreeTrialRecordWorkbenchState,
   resetHeatCapacityFreeRunWorkbenchState,
@@ -569,7 +570,7 @@ const customAmbientFile = createDefaultHeatCapacityFile(91);
 const configuredCustomAmbientFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
   customAmbientFile,
   {
-    ...customAmbientFile.heatCapacityFreeParameterDraft,
+    ...selectHeatCapacityFreeAppliedParameterDraft(customAmbientFile),
     ambientTemperatureK: customAmbientTemperatureK,
   },
 );

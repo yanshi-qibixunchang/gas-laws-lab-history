@@ -175,6 +175,33 @@ export interface HeatCapacitySessionRuntimeRestoreResult {
   diagnostics: HeatCapacityFreeDomainRecoveryDiagnostic[];
 }
 
+interface LegacyHeatCapacityFreeGasTypeSource {
+  explicitGasType: unknown;
+  parameterDraft: unknown;
+  physicsGamma: unknown;
+}
+
+/** Compatibility-only precedence for pre-authority session payloads. */
+export const resolveLegacyHeatCapacityFreeGasType = ({
+  explicitGasType,
+  parameterDraft,
+  physicsGamma,
+}: LegacyHeatCapacityFreeGasTypeSource) => {
+  const draftRecord = isRecord(parameterDraft) ? parameterDraft : {};
+  return normalizeHeatCapacityFreeGasType(
+    explicitGasType,
+    normalizeHeatCapacityFreeGasType(
+      draftRecord.gasType,
+      resolveHeatCapacityFreeGasTypeFromGamma(draftRecord.gamma ?? physicsGamma),
+    ),
+  );
+};
+
+type HeatCapacitySessionRuntimeRestoreInput = WorkbenchHeatCapacityState & {
+  heatCapacityFreeGasType?: unknown;
+  heatCapacityFreeParameterDraft?: unknown;
+};
+
 const createHeatCapacityFreeDomainRecoveryDiagnostic = (
   fileId: string,
   domain: 'real' | 'ideal',
@@ -191,7 +218,7 @@ const createHeatCapacityFreeDomainRecoveryDiagnostic = (
 });
 
 export const normalizeHeatCapacitySessionRuntimeStateResult = (
-  file: WorkbenchHeatCapacityState,
+  file: HeatCapacitySessionRuntimeRestoreInput,
 ): HeatCapacitySessionRuntimeRestoreResult => {
   const recoveryDiagnostics: HeatCapacityFreeDomainRecoveryDiagnostic[] = [];
   const {
@@ -205,8 +232,10 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     heatCapacityFreeTrials: discardedLegacyTrials,
     heatCapacityFreeActiveAttempt: discardedLegacyActiveAttempt,
     heatCapacityFreeExperimentGroupStatus: discardedLegacyExperimentStatus,
+    heatCapacityFreeGasType: legacyFreeGasType,
+    heatCapacityFreeParameterDraft: legacyFreeParameterDraft,
     ...fileWithoutLegacySelectedPanel
-  } = file as WorkbenchHeatCapacityState & {
+  } = file as HeatCapacitySessionRuntimeRestoreInput & {
     selectedHeatCapacityPanel?: unknown;
     heatCapacityFreeStopcockFlowOpen?: unknown;
     heatCapacityFreeStopcockPendingOpenAtMs?: unknown;
@@ -281,16 +310,14 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     savedFreePressureWarningMv,
     savedFreeInstrumentNoiseEnabled,
   );
-  const savedFreeParameterDraftRecord: Record<string, unknown> = isRecord(file.heatCapacityFreeParameterDraft)
-    ? file.heatCapacityFreeParameterDraft
+  const savedFreeParameterDraftRecord: Record<string, unknown> = isRecord(legacyFreeParameterDraft)
+    ? legacyFreeParameterDraft
     : {};
-  const savedFreeGasType = normalizeHeatCapacityFreeGasType(
-    file.heatCapacityFreeGasType,
-    normalizeHeatCapacityFreeGasType(
-      savedFreeParameterDraftRecord.gasType,
-      resolveHeatCapacityFreeGasTypeFromGamma(savedFreeParameterDraftRecord.gamma ?? savedFreePhysicsConfigRaw.gamma),
-    ),
-  );
+  const savedFreeGasType = resolveLegacyHeatCapacityFreeGasType({
+    explicitGasType: legacyFreeGasType,
+    parameterDraft: savedFreeParameterDraftRecord,
+    physicsGamma: savedFreePhysicsConfigRaw.gamma,
+  });
   const savedFreeParameterDraft = normalizeHeatCapacityFreeParameterDraft(
     {
       ...savedFreeParameterDraftRecord,
@@ -333,8 +360,6 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
   const normalizedFreeRuntimeFields = savedFreeRuntimeCompatible
     ? {
         heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-        heatCapacityFreeGasType: savedFreeParameterDraft.gasType,
-        heatCapacityFreeParameterDraft: savedFreeParameterDraft,
         heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
           file.heatCapacityFreeFileAcknowledgements,
         ),
@@ -651,7 +676,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
       p2: normalizeNullableNumber(file.recordedPressures?.p2) ?? fallback.recordedPressures.p2,
     },
     theoreticalGamma: normalizedHeatCapacityMode === 'free'
-      ? getHeatCapacityFreeGasTypeGamma(normalizedFreeRuntimeFields.heatCapacityFreeGasType)
+      ? activeFreeDomain.physicsConfig.gamma
       : normalizeNullableNumber(file.heatCapacityGuidePhysicsConfig.gamma) ??
         fallback.heatCapacityGuidePhysicsConfig.gamma,
     heatCapacityProcessSamples: {
@@ -673,6 +698,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     : {
         ...fileWithMigratedActiveProjection,
         heatCapacityReleaseState: normalizedHeatCapacityFile.heatCapacityReleaseState,
+        theoreticalGamma: normalizedHeatCapacityFile.theoreticalGamma,
       };
   return { value, diagnostics: recoveryDiagnostics };
 };

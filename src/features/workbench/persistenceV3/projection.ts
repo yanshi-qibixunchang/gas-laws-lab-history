@@ -64,6 +64,7 @@ import {
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
+  selectHeatCapacityFreeGasType,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   type HeatCapacityFreeExperimentDomainState,
@@ -1954,7 +1955,7 @@ const projectHeatCapacityFile = (
   const real = decodeHeatCapacityFreeExperimentDomainAggregate(
     captureSource.heatCapacityFreeRealDomain,
     'real',
-    captureSource.heatCapacityFreeGasType,
+    selectHeatCapacityFreeGasType(captureSource, 'real'),
     createDefaultHeatCapacityFile(1).heatCapacityFreeRealDomain,
   );
   if (real.ok === false) {
@@ -2853,7 +2854,7 @@ const reprojectHeatCapacityFile = (
   const real = decodeHeatCapacityFreeExperimentDomainAggregate(
     authority.freeDomains.real,
     'real',
-    fallback.heatCapacityFreeGasType,
+    fallback.heatCapacityFreeRealDomain.gasType,
     fallback.heatCapacityFreeRealDomain,
   );
   if (real.ok === false) {

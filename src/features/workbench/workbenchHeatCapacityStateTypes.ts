@@ -189,8 +189,6 @@ export interface WorkbenchHeatCapacityState extends WorkbenchFileBase {
   heatCapacityFreeRuntimeVersion: number;
   /** Current instrument-site hot-path projection; experiment-group history is authoritative. */
   heatCapacityFreeRunWorkspace: HeatCapacityFreeRunWorkspace;
-  heatCapacityFreeGasType: HeatCapacityFreeGasType;
-  heatCapacityFreeParameterDraft: HeatCapacityFreeParameterDraft;
   heatCapacityFreeFileAcknowledgements: HeatCapacityFreeFileAcknowledgements;
   heatCapacityFreeParameterScheme: HeatCapacityFreeParameterScheme;
   heatCapacityFreeDisplayScheme: HeatCapacityFreeDisplayScheme;

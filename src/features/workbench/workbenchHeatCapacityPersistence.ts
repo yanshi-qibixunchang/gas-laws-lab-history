@@ -28,7 +28,9 @@ import {
   createDefaultHeatCapacityFreeExperimentDomainState,
   getHeatCapacityStopcockTargetAngle,
   normalizeHeatCapacityFreeFileAcknowledgements,
+  selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
+  selectHeatCapacityFreeGasType,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   type HeatCapacityFreeExperimentDomainState,
   type WorkbenchHeatCapacityState,
@@ -212,14 +214,16 @@ export const createHeatCapacityPersistencePayload = (
       preheatCompleted: fileWithCurrentDomain.heatCapacityFreePreheatCompleted,
       parameterScheme: fileWithCurrentDomain.heatCapacityFreeParameterScheme,
       displayScheme: fileWithCurrentDomain.heatCapacityFreeDisplayScheme,
-      gasType: fileWithCurrentDomain.heatCapacityFreeGasType,
+      gasType: selectHeatCapacityFreeGasType(fileWithCurrentDomain),
       real: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeRealDomain),
       ideal: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeIdealDomain),
       experimentGroups: clonePersistenceValue(
         experimentGroups,
       ),
       config: createHeatCapacityFreeConfigSnapshotFromFile(fileWithCurrentDomain),
-      parameterDraft: clonePersistenceValue(fileWithCurrentDomain.heatCapacityFreeParameterDraft),
+      parameterDraft: clonePersistenceValue(
+        selectHeatCapacityFreeAppliedParameterDraft(fileWithCurrentDomain),
+      ),
       experimentGroupStatus: fileWithCurrentDomain.heatCapacityFreeRunWorkspace.currentExperimentStatus,
       activeRunConfigSnapshot: clonePersistenceValue(
         selectHeatCapacityFreeActiveRunConfigSnapshot(fileWithCurrentDomain),
@@ -289,13 +293,6 @@ const createSensorConfigFromSnapshot = (
 const createRuntimeFieldsFromRestoredFreeDomain = (
   domain: HeatCapacityFreeExperimentDomainState,
 ) => {
-  const parameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
-    domain.physicsConfig,
-    domain.sensorConfig,
-    domain.recordConfig,
-    domain.pressureWarningMv,
-    domain.instrumentNoiseEnabled,
-  );
   const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
     heatCapacityFreeRunWorkspace: {
@@ -305,8 +302,6 @@ const createRuntimeFieldsFromRestoredFreeDomain = (
       activeAttempt: domain.activeAttempt,
       currentExperimentStatus: domain.experimentGroupStatus,
     },
-    heatCapacityFreeGasType: domain.gasType,
-    heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
     heatCapacityFreeInstrumentConfig: {
       record: domain.recordConfig,
       pressureWarningMv: domain.pressureWarningMv,
@@ -422,7 +417,7 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
         },
         fallbackDraft,
       )
-    : fallback.heatCapacityFreeParameterDraft;
+    : selectHeatCapacityFreeAppliedParameterDraft(fallback);
   const parameterDraft = restoredParameterDraft;
   const normalizedActiveRunConfigSnapshot = free?.activeRunConfigSnapshot === null
     ? null
@@ -583,11 +578,9 @@ export const restoreHeatCapacityFileFromPersistencePayload = (
     heatCapacityFreeTraceVersion: free?.traceVersion ?? HEAT_CAPACITY_FREE_TRACE_VERSION,
     heatCapacityFreeParameterScheme: restoredParameterScheme,
     heatCapacityFreeDisplayScheme: restoredDisplayScheme,
-    heatCapacityFreeGasType: parameterDraft.gasType,
     heatCapacityFreeRealDomain: restoredRealDomainWithGasType,
     heatCapacityFreeIdealDomain: restoredIdealDomainWithGasType,
     heatCapacityFreeExperimentGroups: restoredExperimentGroups,
-    heatCapacityFreeParameterDraft: parameterDraft,
     heatCapacityFreeFileAcknowledgements: normalizeHeatCapacityFreeFileAcknowledgements(
       free?.acknowledgements,
     ),

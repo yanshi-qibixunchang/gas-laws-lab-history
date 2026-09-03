@@ -11,8 +11,10 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   powerHeatCapacityWorkbenchFile,
   recordHeatCapacityFreeTraceEvent,
+  selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
   selectHeatCapacityFreeDomain,
+  selectHeatCapacityFreeGasType,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   startHeatCapacityGuideWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
@@ -53,6 +55,9 @@ import {
   validateHeatCapacityPersistencePayload,
 } from '../../src/features/workbench/workbenchHeatCapacityPersistence.ts';
 import {
+  resolveLegacyHeatCapacityFreeGasType,
+} from '../../src/features/workbench/workbenchHeatCapacitySessionRestore.ts';
+import {
   WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   WORKBENCH_FILE_SCHEMA_VERSION,
   type WorkbenchExperimentFileEnvelopeV1,
@@ -71,6 +76,43 @@ const aggregateCodecPath = join(
   'features',
   'workbench',
   'workbenchHeatCapacityFreeAggregateCodec.ts',
+);
+
+assert.equal(
+  resolveLegacyHeatCapacityFreeGasType({
+    explicitGasType: 'air',
+    parameterDraft: { gasType: 'helium', gamma: 5 / 3 },
+    physicsGamma: 5 / 3,
+  }),
+  'air',
+  'an explicit legacy gas type must win over conflicting draft and physics values',
+);
+assert.equal(
+  resolveLegacyHeatCapacityFreeGasType({
+    explicitGasType: 'unknown',
+    parameterDraft: { gasType: 'air', gamma: 5 / 3 },
+    physicsGamma: 5 / 3,
+  }),
+  'air',
+  'a legacy draft gas type must win when the explicit field is invalid',
+);
+assert.equal(
+  resolveLegacyHeatCapacityFreeGasType({
+    explicitGasType: undefined,
+    parameterDraft: { gamma: 5 / 3 },
+    physicsGamma: 1.4,
+  }),
+  'helium',
+  'legacy draft gamma must win over the applied physics gamma',
+);
+assert.equal(
+  resolveLegacyHeatCapacityFreeGasType({
+    explicitGasType: undefined,
+    parameterDraft: undefined,
+    physicsGamma: 5 / 3,
+  }),
+  'helium',
+  'the applied legacy physics gamma is the final gas inference source',
 );
 const restoreNormalizationSource = existsSync(aggregateCodecPath)
   ? readFileSync(aggregateCodecPath, 'utf8')
@@ -622,10 +664,6 @@ const noiseDisabledFile = {
     ...file.heatCapacityFreeInstrumentConfig,
     instrumentNoiseEnabled: false,
   },
-  heatCapacityFreeParameterDraft: {
-    ...file.heatCapacityFreeParameterDraft,
-    instrumentNoiseEnabled: false,
-  },
 };
 const frozenNoiseDisabledFile = freezeHeatCapacityFreeParametersForCurrentGroup(
   configureHeatCapacityFreeBatchWorkbenchState(noiseDisabledFile, 3, 12_347),
@@ -1146,7 +1184,7 @@ assert.equal(rollbackSnapshotRestored.heatCapacityFreeRollbackSnapshots.beforePu
 assert.equal(rollbackSnapshotRestored.heatCapacityFreeRollbackSnapshots.beforePump?.powerOn, true);
 
 const editedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
-  ...file.heatCapacityFreeParameterDraft,
+  ...selectHeatCapacityFreeAppliedParameterDraft(file),
   gasType: 'helium',
   ambientPressureKPa: 99.4,
   ambientTemperatureK: 300.2,
@@ -1186,12 +1224,14 @@ const envelope: WorkbenchExperimentFileEnvelopeV1 = {
   payload: editedPayload as unknown as Record<string, unknown>,
 };
 const restored = restoreHeatCapacityFileFromPersistencePayload(envelope, editedPayload, 1);
-assert.equal(restored.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.4);
-assert.equal(restored.heatCapacityFreeGasType, 'helium');
-assert.equal(restored.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal('heatCapacityFreeGasType' in restored, false);
+assert.equal('heatCapacityFreeParameterDraft' in restored, false);
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(restored).ambientPressureKPa, 99.4);
+assert.equal(selectHeatCapacityFreeGasType(restored), 'helium');
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(restored).gasType, 'helium');
 assert.equal(restored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(restored.theoreticalGamma, 5 / 3);
-assert.equal(restored.heatCapacityFreeParameterDraft.instrumentNoiseEnabled, false);
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(restored).instrumentNoiseEnabled, false);
 assert.equal(restored.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 151);
 assert.equal(restored.heatCapacityFreeInstrumentConfig.pressureWarningMv, 121);
 assert.equal(restored.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
@@ -1231,8 +1271,8 @@ assert.equal(
   'current-version record thresholds must not be treated as legacy data',
 );
 assert.equal(currentTemperatureRestored.heatCapacityFreeInstrumentConfig.record.temperatureAmbientToleranceMv, 1.23);
-assert.equal(currentTemperatureRestored.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS, 0.44);
-assert.equal(currentTemperatureRestored.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv, 1.23);
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(currentTemperatureRestored).temperatureStableSlopeMvPerS, 0.44);
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(currentTemperatureRestored).temperatureAmbientToleranceMv, 1.23);
 assert.deepEqual(currentTemperatureRestored.heatCapacityFreeInstrumentState.sensor.temperatureHistory, [
   { atS: 2, valueMv: 1500.1 },
   { atS: 3, valueMv: 1500.4 },
@@ -1388,8 +1428,8 @@ const legacyGammaRestored = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: legacyGammaOnlyPayload as unknown as Record<string, unknown>,
 }, legacyGammaOnlyPayload, 5);
-assert.equal(legacyGammaRestored.heatCapacityFreeGasType, 'helium');
-assert.equal(legacyGammaRestored.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(selectHeatCapacityFreeGasType(legacyGammaRestored), 'helium');
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(legacyGammaRestored).gasType, 'helium');
 assert.equal(legacyGammaRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(legacyGammaRestored.theoreticalGamma, 5 / 3);
 
@@ -1420,14 +1460,14 @@ assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentConfig.physics.gamma,
 assert.equal(idealSchemeRestored.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
 
 const heliumRealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
-  ...file.heatCapacityFreeParameterDraft,
+  ...selectHeatCapacityFreeAppliedParameterDraft(file),
   gasType: 'helium',
 });
 const heliumIdealAirFile = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumRealFile, 'ideal', 778);
 const heliumIdealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
   heliumIdealAirFile,
   {
-    ...heliumIdealAirFile.heatCapacityFreeParameterDraft,
+    ...selectHeatCapacityFreeAppliedParameterDraft(heliumIdealAirFile),
     gasType: 'helium',
   },
   778.5,
@@ -1448,12 +1488,12 @@ const heliumIdealRestored = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: heliumIdealPayload as unknown as Record<string, unknown>,
 }, heliumIdealPayload, 6);
-assert.equal(heliumIdealRestored.heatCapacityFreeGasType, 'helium');
+assert.equal(selectHeatCapacityFreeGasType(heliumIdealRestored), 'helium');
 assert.equal(heliumIdealRestored.heatCapacityFreeIdealDomain.gasType, 'helium');
 assert.equal(heliumIdealRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 const heliumRealRestored = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumIdealRestored, 'real', 780);
-assert.equal(heliumRealRestored.heatCapacityFreeGasType, 'helium');
-assert.equal(heliumRealRestored.heatCapacityFreeParameterDraft.gasType, 'helium');
+assert.equal(selectHeatCapacityFreeGasType(heliumRealRestored), 'helium');
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(heliumRealRestored).gasType, 'helium');
 assert.equal(heliumRealRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(heliumRealRestored.heatCapacityFreeRealDomain.gasType, 'helium');
 
@@ -1529,13 +1569,6 @@ const staleTopLevelRealFile = {
       },
     },
   },
-  heatCapacityFreeParameterDraft: {
-    ...file.heatCapacityFreeParameterDraft,
-    gasWallConductanceWPerK: 5,
-    wallAmbientConductanceWPerK: 5,
-    leakageEnabled: false,
-    leakageRatePerS: 0,
-  },
   heatCapacityFreeRealDomain: {
     ...file.heatCapacityFreeRealDomain,
     physicsConfig: {
@@ -1589,7 +1622,7 @@ assert.equal(
   airModelDefaults.gasWallConductanceWPerK,
 );
 assert.equal(
-  staleTopLevelRealRestored.heatCapacityFreeParameterDraft.gasWallConductanceWPerK,
+  selectHeatCapacityFreeAppliedParameterDraft(staleTopLevelRealRestored).gasWallConductanceWPerK,
   airModelDefaults.gasWallConductanceWPerK,
 );
 
@@ -1667,7 +1700,7 @@ delete incompletePayload.free!.pressureWarningMv;
 delete incompletePayload.free!.instrumentNoiseEnabled;
 const incompleteRestored = restoreHeatCapacityFileFromPersistencePayload(envelope, incompletePayload, 3);
 assert.equal(
-  incompleteRestored.heatCapacityFreeParameterDraft.ambientPressureKPa,
+  selectHeatCapacityFreeAppliedParameterDraft(incompleteRestored).ambientPressureKPa,
   incompletePayload.free!.real.physicsConfig.environment.ambientPressureKPa,
 );
 assert.equal(

@@ -12,6 +12,9 @@ import type {
   HeatCapacityFreeExperimentGroupRecord,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
+import {
+  selectHeatCapacityFreeAppliedParameterDraft,
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
 import type {
   WorkbenchExportLanguage,
   WorkbenchExportMode,
@@ -268,7 +271,7 @@ export const createHeatCapacityExportPayload = (
         ? {
             currentParameterScheme: file.heatCapacityFreeParameterScheme,
             pendingNextScheme: file.heatCapacityFreeExperimentGroups.pendingNextScheme,
-            currentParameterDraft: file.heatCapacityFreeParameterDraft,
+            currentParameterDraft: selectHeatCapacityFreeAppliedParameterDraft(file),
             realParameterDomain: file.heatCapacityFreeRealDomain,
             idealParameterDomain: file.heatCapacityFreeIdealDomain,
             experimentGroupCollection: file.heatCapacityFreeExperimentGroups,

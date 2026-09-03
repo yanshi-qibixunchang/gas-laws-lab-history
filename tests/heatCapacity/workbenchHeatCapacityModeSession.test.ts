@@ -518,6 +518,16 @@ for (const index of [1, 2, 3, 20]) {
       false,
       'restoring a mode session must not leak the retired projection into current state',
     );
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(pristineFreeRestored, 'heatCapacityFreeGasType'),
+      false,
+      'restoring a mode session must not leak the compatibility gas projection',
+    );
+    assert.equal(
+      Object.prototype.hasOwnProperty.call(pristineFreeRestored, 'heatCapacityFreeParameterDraft'),
+      false,
+      'restoring a mode session must not leak the compatibility parameter projection',
+    );
     const pristineFreeResuspended = suspendHeatCapacityModeSession(
       pristineFreeRestored,
       null,

@@ -10,6 +10,7 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityCalculationSession,
   revealHeatCapacityCalculationAnswerWorkbenchState,
+  selectHeatCapacityFreeAppliedParameterDraft,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   submitHeatCapacityCalculationStepWorkbenchState,
@@ -227,7 +228,7 @@ let idealFile = setHeatCapacityFreeParameterSchemeWorkbenchState(
   300,
 );
 idealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(idealFile, {
-  ...idealFile.heatCapacityFreeParameterDraft,
+  ...selectHeatCapacityFreeAppliedParameterDraft(idealFile),
   gasType: 'helium',
 }, 301);
 idealFile = configureHeatCapacityFreeBatchWorkbenchState(idealFile, 3, 302);

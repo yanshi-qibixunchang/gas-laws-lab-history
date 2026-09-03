@@ -36,6 +36,7 @@ import {
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   createDefaultHeatCapacityFile,
   getHeatCapacityGaugePressureState,
+  selectHeatCapacityFreeAppliedParameterDraft,
   type WorkbenchHeatCapacityState,
 } from '../../src/features/workbench/workbenchState.ts';
 
@@ -69,7 +70,7 @@ const assertMetricChanged = (
 };
 
 const defaultFile = createDefaultHeatCapacityFile(1);
-const defaultDraft = defaultFile.heatCapacityFreeParameterDraft;
+const defaultDraft = selectHeatCapacityFreeAppliedParameterDraft(defaultFile);
 
 const createDraft = (
   overrides: Partial<HeatCapacityFreeParameterDraft> = {},

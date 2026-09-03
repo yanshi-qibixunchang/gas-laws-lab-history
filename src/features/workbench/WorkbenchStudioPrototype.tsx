@@ -109,6 +109,8 @@ import {
   selectActiveHeatCapacityWorkbenchDisplay,
   selectHeatCapacityCalculationAggregateWorkbenchState,
   selectHeatCapacityCalculationGroupWorkbenchState,
+  selectHeatCapacityFreeAppliedParameterDraft,
+  selectHeatCapacityFreeGasType,
   selectHeatCapacityFreeViewedExperimentGroupWorkbenchState,
   selectHeatCapacityFreeViewedTrialWorkbenchState,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
@@ -4874,7 +4876,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   );
   const activeHeatCapacityGasLabel = activeFile.kind === 'heatCapacity'
     ? heatCapacityFreeGasTypeOptions.find((option) => (
-        option.id === activeFile.heatCapacityFreeGasType
+        option.id === selectHeatCapacityFreeGasType(activeFile)
       ))?.label[settingsLanguagePreference] ??
       heatCapacityFreeGasTypeOptions[0].label[settingsLanguagePreference]
     : heatCapacityFreeGasTypeOptions[0].label[settingsLanguagePreference];
@@ -8059,7 +8061,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const validation = validateHeatCapacityFreeNumberValue(
       definition,
       valueText,
-      activeFile.heatCapacityFreeParameterDraft,
+      selectHeatCapacityFreeAppliedParameterDraft(activeFile),
     );
     if (validation.valid === false) {
       setHeatCapacityBasicInputErrors((current) => ({
@@ -8078,7 +8080,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
       return {
         ...applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
-          ...file.heatCapacityFreeParameterDraft,
+          ...selectHeatCapacityFreeAppliedParameterDraft(file),
           [parameterId]: validation.value,
         }),
         updatedAt: Date.now(),
@@ -8114,7 +8116,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
       return {
         ...applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
-          ...file.heatCapacityFreeParameterDraft,
+          ...selectHeatCapacityFreeAppliedParameterDraft(file),
           [parameterId]: checked,
         }),
         updatedAt: Date.now(),
@@ -8127,7 +8129,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   ) => {
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
-    if (currentFile.heatCapacityFreeParameterDraft.gasType === gasType) return;
+    if (selectHeatCapacityFreeGasType(currentFile) === gasType) return;
     const parameterLockReason = getHeatCapacityFreeParameterLockReason(currentFile);
     if (parameterLockReason) {
       const message = getHeatCapacityFreeParameterLockMessage(parameterLockReason, settingsLanguagePreference);
@@ -8153,7 +8155,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       if (file.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return file;
       return {
         ...applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
-          ...file.heatCapacityFreeParameterDraft,
+          ...selectHeatCapacityFreeAppliedParameterDraft(file),
           gasType,
         }),
         updatedAt: Date.now(),
@@ -8206,7 +8208,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const createHeatCapacityAdvancedDraftFromFile = (): HeatCapacityFreeParameterDraft | null => (
     activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free'
-      ? { ...activeFile.heatCapacityFreeParameterDraft }
+      ? { ...selectHeatCapacityFreeAppliedParameterDraft(activeFile) }
       : null
   );
 
@@ -19582,7 +19584,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const renderHeatCapacityFreeGasTypeRow = () => {
     if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
-    const selectedGasType = activeFile.heatCapacityFreeParameterDraft.gasType;
+    const selectedGasType = selectHeatCapacityFreeGasType(activeFile);
     const gasTypeLocked = !isHeatCapacityFreeGasTypeEditingAvailable(activeFile);
     const disabled = gasTypeLocked;
     const nativeDisabled = false;
@@ -19655,7 +19657,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const renderHeatCapacityBasicParameterRows = () => {
     if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
-    const draft = activeFile.heatCapacityFreeParameterDraft;
+    const draft = selectHeatCapacityFreeAppliedParameterDraft(activeFile);
     const checkboxValue = (id: HeatCapacityFreeBasicCheckboxKey) => (
       id === 'hardSphereViewEnabled'
         ? activeFile.hardSphereViewEnabled

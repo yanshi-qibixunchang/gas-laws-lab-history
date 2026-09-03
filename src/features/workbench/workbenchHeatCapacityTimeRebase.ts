@@ -15,7 +15,6 @@ const HEAT_CAPACITY_RUNTIME_RECOVERY_PRESENTATION_KEYS = new Set([
   'heatCapacityTabContainerHeight',
   'hardSphereViewEnabled',
   'heatCapacityFreeDisplayScheme',
-  'heatCapacityFreeParameterDraft',
   'heatCapacityFreeFileAcknowledgements',
   'heatCapacityLessonIntroAutoShown',
 ]);

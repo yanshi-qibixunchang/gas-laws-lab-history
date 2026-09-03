@@ -24,6 +24,7 @@ import {
   resolveHeatCapacityFreeGasTypeFromGamma,
   createHeatCapacityFreeParameterDraftFromConfigs,
   type HeatCapacityFreeGasType,
+  type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import {
   normalizeFreePumpValveExchangeConfig,
@@ -112,6 +113,79 @@ export const selectHeatCapacityFreeActiveRunConfigSnapshot = (
     : file.heatCapacityFreeRealDomain.activeRunConfigSnapshot;
 };
 
+/**
+ * Resolves the selected gas from experiment-group/domain authority. The
+ * top-level instrument projection intentionally does not own a second copy.
+ */
+export const selectHeatCapacityFreeGasType = (
+  file: WorkbenchHeatCapacityState,
+  scheme: HeatCapacityFreeParameterScheme = file.heatCapacityFreeParameterScheme,
+): HeatCapacityFreeGasType => {
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  const domain = scheme === 'ideal'
+    ? file.heatCapacityFreeIdealDomain
+    : file.heatCapacityFreeRealDomain;
+  return normalizeHeatCapacityFreeGasType(
+    currentGroup?.scheme === scheme ? currentGroup.gasType : domain.gasType,
+    resolveHeatCapacityFreeGasTypeFromGamma(domain.physicsConfig.gamma),
+  );
+};
+
+/** Reconstructs the applied parameter view; unsaved dialog edits stay local to React. */
+export const selectHeatCapacityFreeAppliedParameterDraft = (
+  file: WorkbenchHeatCapacityState,
+): HeatCapacityFreeParameterDraft => ({
+  ...createHeatCapacityFreeParameterDraftFromConfigs(
+    file.heatCapacityFreeInstrumentConfig.physics,
+    file.heatCapacityFreeInstrumentConfig.sensor,
+    file.heatCapacityFreeInstrumentConfig.record,
+    file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
+    file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
+  ),
+  gasType: selectHeatCapacityFreeGasType(file),
+});
+
+export const setHeatCapacityFreeActiveGasTypeAuthority = (
+  file: WorkbenchHeatCapacityState,
+  gasType: HeatCapacityFreeGasType,
+): WorkbenchHeatCapacityState => {
+  const scheme = file.heatCapacityFreeParameterScheme;
+  const normalizedGasType = normalizeHeatCapacityFreeGasType(
+    gasType,
+    selectHeatCapacityFreeGasType(file, scheme),
+  );
+  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+    file.heatCapacityFreeExperimentGroups,
+  );
+  const heatCapacityFreeExperimentGroups =
+    currentGroup?.scheme === scheme && currentGroup.status === 'draft'
+      ? setHeatCapacityFreeExperimentGroupDraftScheme(
+          file.heatCapacityFreeExperimentGroups,
+          scheme,
+          normalizedGasType,
+        )
+      : file.heatCapacityFreeExperimentGroups;
+  return scheme === 'ideal'
+    ? {
+        ...file,
+        heatCapacityFreeExperimentGroups,
+        heatCapacityFreeIdealDomain: {
+          ...file.heatCapacityFreeIdealDomain,
+          gasType: normalizedGasType,
+        },
+      }
+    : {
+        ...file,
+        heatCapacityFreeExperimentGroups,
+        heatCapacityFreeRealDomain: {
+          ...file.heatCapacityFreeRealDomain,
+          gasType: normalizedGasType,
+        },
+      };
+};
+
 export const projectHeatCapacityFreeExperimentGroupToDomain = (
   domain: HeatCapacityFreeExperimentDomainState,
   group: HeatCapacityFreeExperimentGroupRecord,
@@ -140,7 +214,7 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   scheme: HeatCapacityFreeParameterScheme,
 ): HeatCapacityFreeExperimentDomainState => ({
   scheme,
-  gasType: normalizeHeatCapacityFreeGasType(file.heatCapacityFreeGasType),
+  gasType: selectHeatCapacityFreeGasType(file, scheme),
   batch: file.heatCapacityFreeRunWorkspace.batch,
   experimentGroupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
   activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file, scheme),
@@ -267,13 +341,6 @@ export const applyHeatCapacityFreeDomainToRuntimeFields = (
   file: WorkbenchHeatCapacityState,
   domain: HeatCapacityFreeExperimentDomainState,
 ): WorkbenchHeatCapacityState => {
-  const parameterDraft = createHeatCapacityFreeParameterDraftFromConfigs(
-    domain.physicsConfig,
-    domain.sensorConfig,
-    domain.recordConfig,
-    domain.pressureWarningMv,
-    domain.instrumentNoiseEnabled,
-  );
   const gasTypeGamma = getHeatCapacityFreeGasTypeGamma(domain.gasType);
   return {
     ...file,
@@ -287,8 +354,6 @@ export const applyHeatCapacityFreeDomainToRuntimeFields = (
       activeAttempt: domain.activeAttempt ?? null,
       currentExperimentStatus: domain.experimentGroupStatus,
     },
-    heatCapacityFreeGasType: domain.gasType,
-    heatCapacityFreeParameterDraft: { ...parameterDraft, gasType: domain.gasType },
     heatCapacityFreeInstrumentConfig: {
       record: domain.recordConfig,
       pressureWarningMv: domain.pressureWarningMv,
@@ -328,7 +393,7 @@ const captureHeatCapacityFreeRuntimeInCurrentExperimentGroup = (
     ? setHeatCapacityFreeExperimentGroupDraftScheme(
         file.heatCapacityFreeExperimentGroups,
         currentGroup.scheme,
-        file.heatCapacityFreeGasType,
+        selectHeatCapacityFreeGasType(file, currentGroup.scheme),
       )
     : file.heatCapacityFreeExperimentGroups;
   let groups = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(

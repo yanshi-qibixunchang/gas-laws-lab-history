@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   createDefaultHeatCapacityFile,
   createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  selectHeatCapacityFreeAppliedParameterDraft,
   type WorkbenchFileState,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -462,10 +464,15 @@ assert.equal(
 );
 
 const guideWithInactiveHeliumFreeDomain = {
-  ...createDefaultHeatCapacityFile(4),
+  ...applyHeatCapacityFreeParameterDraftWorkbenchState(
+    createDefaultHeatCapacityFile(4),
+    {
+      ...selectHeatCapacityFreeAppliedParameterDraft(createDefaultHeatCapacityFile(4)),
+      gasType: 'helium',
+    },
+  ),
   heatCapacityMode: 'guide' as const,
   heatCapacityTeachingStatus: 'running' as const,
-  heatCapacityFreeGasType: 'helium' as const,
   theoreticalGamma: 1.4,
 };
 const canonicalGuideSession = createWorkbenchSessionFromCanonicalFiles({

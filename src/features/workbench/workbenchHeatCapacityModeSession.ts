@@ -128,7 +128,9 @@ import {
   migrateLegacyHeatCapacityFreeExperimentGroups,
 } from './workbenchHeatCapacityExperimentGroupMigration.ts';
 import {
+  selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
+  selectHeatCapacityFreeGasType,
 } from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
 
 export const HEAT_CAPACITY_MODE_SESSION_SCHEMA_VERSION = 3 as const;
@@ -222,8 +224,6 @@ const HEAT_CAPACITY_FREE_CURRENT_SESSION_KEYS = [
   'heatCapacityFreeRuntimeVersion',
   'heatCapacityFreeRunWorkspace',
   'heatCapacityFreeExperimentGroups',
-  'heatCapacityFreeGasType',
-  'heatCapacityFreeParameterDraft',
   'heatCapacityFreeFileAcknowledgements',
   'heatCapacityFreeParameterScheme',
   'heatCapacityFreeDisplayScheme',
@@ -267,6 +267,10 @@ export type HeatCapacityFreeModeRuntimeSnapshot = Omit<
   | 'heatCapacityFreeInstrumentConfig'
   | 'heatCapacityFreeInstrumentState'
 > & {
+  /** Stable compatibility projection retained in persisted mode-session snapshots. */
+  heatCapacityFreeGasType: HeatCapacityFreeExperimentDomainState['gasType'];
+  /** Stable compatibility projection retained in persisted mode-session snapshots. */
+  heatCapacityFreeParameterDraft: ReturnType<typeof selectHeatCapacityFreeAppliedParameterDraft>;
   /** Stable compatibility projection retained in persisted mode-session snapshots. */
   heatCapacityFreeBatch:
     WorkbenchHeatCapacityState['heatCapacityFreeRunWorkspace']['batch'];
@@ -417,7 +421,7 @@ const createFreeModeSessionDomainFromProjection = (
   const scheme = file.heatCapacityFreeParameterScheme;
   return {
     scheme,
-    gasType: file.heatCapacityFreeGasType,
+    gasType: selectHeatCapacityFreeGasType(file),
     batch: file.heatCapacityFreeRunWorkspace.batch,
     experimentGroupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
     activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
@@ -465,6 +469,7 @@ export const captureHeatCapacityModeRuntimeSnapshot = (
         ...free,
         heatCapacityFreeBatch: activeDomain.batch,
         heatCapacityFreeGasType: activeDomain.gasType,
+        heatCapacityFreeParameterDraft: selectHeatCapacityFreeAppliedParameterDraft(file),
         heatCapacityFreeExperimentGroupStatus: activeDomain.experimentGroupStatus,
         heatCapacityFreeActiveRunConfigSnapshot: activeDomain.activeRunConfigSnapshot,
         heatCapacityFreeRecordConfig: activeDomain.recordConfig,
@@ -652,6 +657,8 @@ export const restoreHeatCapacityModeSession = (
         delete restoredFreeRuntime.heatCapacityFreeTraceStore;
         delete restoredFreeRuntime.heatCapacityFreeTrials;
         delete restoredFreeRuntime.heatCapacityFreeActiveAttempt;
+        delete restoredFreeRuntime.heatCapacityFreeGasType;
+        delete restoredFreeRuntime.heatCapacityFreeParameterDraft;
         return {
           ...restoredFreeRuntime,
           heatCapacityFreeRealDomain: realDomain,

@@ -10,10 +10,14 @@ import {
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
   hydrateHeatCapacityFreeAuthorityProjection,
   projectHeatCapacityFreeExperimentGroupToDomain,
+  selectHeatCapacityFreeGasType,
   type HeatCapacityFreeExperimentDomainState,
   type HeatCapacityFreeParameterScheme,
   type WorkbenchHeatCapacityState,
 } from './workbenchState.ts';
+import type {
+  HeatCapacityFreeGasType,
+} from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import {
   migrateLegacyHeatCapacityFreeExperimentGroups,
 } from './workbenchHeatCapacityExperimentGroupMigration.ts';
@@ -58,7 +62,7 @@ interface CanonicalDomainResult {
 const decodeCanonicalDomain = (
   raw: unknown,
   scheme: HeatCapacityFreeParameterScheme,
-  gasType: WorkbenchHeatCapacityState['heatCapacityFreeGasType'],
+  gasType: HeatCapacityFreeGasType,
   fallback: HeatCapacityFreeExperimentDomainState,
   fieldPath: string,
 ): CanonicalDomainResult | HeatCapacityFreeCaptureFailure => {
@@ -202,7 +206,7 @@ const reconcileActiveDomain = (
   runtime: CanonicalDomainResult,
   stored: CanonicalDomainResult,
   scheme: HeatCapacityFreeParameterScheme,
-  gasType: WorkbenchHeatCapacityState['heatCapacityFreeGasType'],
+  gasType: HeatCapacityFreeGasType,
   fallback: HeatCapacityFreeExperimentDomainState,
   fieldPath: string,
 ): CanonicalDomainResult | HeatCapacityFreeCaptureFailure => {
@@ -327,7 +331,7 @@ export const prepareHeatCapacityFreeCapture = (
   const real = decodeCanonicalDomain(
     file.heatCapacityFreeRealDomain,
     'real',
-    file.heatCapacityFreeGasType,
+    selectHeatCapacityFreeGasType(file, 'real'),
     fallback.heatCapacityFreeRealDomain,
     'heatCapacityFreeRealDomain',
   );
@@ -510,7 +514,7 @@ export const prepareHeatCapacityFreeCapture = (
     const runtime = decodeCanonicalDomain(
       rawRuntime,
       scheme,
-      file.heatCapacityFreeGasType,
+      selectHeatCapacityFreeGasType(file, scheme),
       scheme === 'ideal'
         ? fallback.heatCapacityFreeIdealDomain
         : fallback.heatCapacityFreeRealDomain,
@@ -523,7 +527,7 @@ export const prepareHeatCapacityFreeCapture = (
       runtime,
       storedActive,
       scheme,
-      file.heatCapacityFreeGasType,
+      selectHeatCapacityFreeGasType(file, scheme),
       scheme === 'ideal'
         ? fallback.heatCapacityFreeIdealDomain
         : fallback.heatCapacityFreeRealDomain,
@@ -549,7 +553,7 @@ export const prepareHeatCapacityFreeCapture = (
         activeAttempt: file.heatCapacityFreeRunWorkspace.activeAttempt,
       },
       scheme,
-      file.heatCapacityFreeGasType,
+      selectHeatCapacityFreeGasType(file, scheme),
       scheme === 'ideal'
         ? fallback.heatCapacityFreeIdealDomain
         : fallback.heatCapacityFreeRealDomain,

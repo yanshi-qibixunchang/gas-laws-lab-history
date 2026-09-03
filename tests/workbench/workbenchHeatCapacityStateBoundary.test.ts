@@ -78,6 +78,16 @@ assert.match(
   /export const selectHeatCapacityFreeActiveRunConfigSnapshot/,
   'the retired top-level snapshot mirror must have one authority selector',
 );
+assert.match(
+  authorityTransactionSource,
+  /export const selectHeatCapacityFreeGasType/,
+  'the retired top-level gas mirror must have one authority selector',
+);
+assert.match(
+  authorityTransactionSource,
+  /export const selectHeatCapacityFreeAppliedParameterDraft/,
+  'the retired applied-parameter mirror must have one reconstruction selector',
+);
 assert.doesNotMatch(
   stateTypesSource,
   /heatCapacityFreeActiveRunConfigSnapshot:/,
@@ -94,6 +104,8 @@ for (const retiredRuntimeField of [
   'heatCapacityFreeEnvironmentConfig',
   'heatCapacityFreePhysicsConfig',
   'heatCapacityFreeSensorConfig',
+  'heatCapacityFreeGasType',
+  'heatCapacityFreeParameterDraft',
 ]) {
   assert.doesNotMatch(
     stateTypesSource,
@@ -145,7 +157,7 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*下一大改动断点缩小为气体类型与参数草稿/,
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*气体类型与参数草稿收口已经完成[\s\S]*下一大改动断点回到模块职责拆分/,
   'the authority table should preserve the next semantic-ownership breakpoint',
 );
 

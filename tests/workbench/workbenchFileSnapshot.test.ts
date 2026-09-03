@@ -6,6 +6,7 @@ import {
   createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
+  selectHeatCapacityFreeAppliedParameterDraft,
   type WorkbenchHeatCapacityPistonOscillationState,
 } from '../../src/features/workbench/workbenchState.ts';
 import { cloneWorkbenchFiles } from '../../src/features/workbench/workbenchFileSnapshot.ts';
@@ -26,10 +27,10 @@ assert.notEqual(cloned[2], standard);
 assert.notEqual(cloned[3], pistonOscillation);
 
 if (cloned[0].kind !== 'heatCapacity') throw new Error('expected cloned Heat Capacity file');
-heatCapacity.heatCapacityFreeParameterDraft.ambientPressureKPa = 88;
+heatCapacity.heatCapacityFreeInstrumentConfig.physics.environment.ambientPressureKPa = 88;
 heatCapacity.heatCapacityFreeRealDomain.physicsConfig.environment.ambientPressureKPa = 77;
 heatCapacity.heatCapacityFreeFileAcknowledgements.advancedParametersRisk = true;
-assert.notEqual(cloned[0].heatCapacityFreeParameterDraft.ambientPressureKPa, 88);
+assert.notEqual(selectHeatCapacityFreeAppliedParameterDraft(cloned[0]).ambientPressureKPa, 88);
 assert.notEqual(cloned[0].heatCapacityFreeRealDomain.physicsConfig.environment.ambientPressureKPa, 77);
 assert.equal(cloned[0].heatCapacityFreeFileAcknowledgements.advancedParametersRisk, false);
 

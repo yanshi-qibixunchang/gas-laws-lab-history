@@ -14,6 +14,7 @@ import {
   getHeatCapacityGaugePressureState,
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
+  selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
   setHeatCapacityScriptedStopcockOpen,
   stepHeatCapacityWorkbenchFile,
@@ -1208,7 +1209,7 @@ const legacyMigrationSource = {
     },
   },
   heatCapacityFreeParameterDraft: {
-    ...legacyMigrationBase.heatCapacityFreeParameterDraft,
+    ...selectHeatCapacityFreeAppliedParameterDraft(legacyMigrationBase),
     temperatureStableSlopeMvPerS: 0.375,
     temperatureAmbientToleranceMv: 1.625,
   },
@@ -1455,8 +1456,8 @@ assertClose(legacy423FreeFile.heatCapacityFreeInstrumentState.sensor.temperature
 });
 assertClose(legacy423FreeFile.heatCapacityFreeInstrumentConfig.record.temperatureStableSlopeMvPerS, 0.375);
 assertClose(legacy423FreeFile.heatCapacityFreeInstrumentConfig.record.temperatureAmbientToleranceMv, 1.625);
-assertClose(legacy423FreeFile.heatCapacityFreeParameterDraft.temperatureStableSlopeMvPerS, 0.375);
-assertClose(legacy423FreeFile.heatCapacityFreeParameterDraft.temperatureAmbientToleranceMv, 1.625);
+assertClose(selectHeatCapacityFreeAppliedParameterDraft(legacy423FreeFile).temperatureStableSlopeMvPerS, 0.375);
+assertClose(selectHeatCapacityFreeAppliedParameterDraft(legacy423FreeFile).temperatureAmbientToleranceMv, 1.625);
 assertClose(
   legacy423FreeFile.heatCapacityProcessSamples.stableBeforeReleaseSample?.temperatureSignalMv ?? NaN,
   1500.2,
@@ -2956,7 +2957,7 @@ const customFreeSessionBase = createDefaultHeatCapacityFile(9);
 const customFreeSessionConfigured = applyHeatCapacityFreeParameterDraftWorkbenchState(
   customFreeSessionBase,
   {
-    ...customFreeSessionBase.heatCapacityFreeParameterDraft,
+    ...selectHeatCapacityFreeAppliedParameterDraft(customFreeSessionBase),
     ambientPressureKPa: 99.2,
     instrumentNoiseEnabled: false,
     pressureWarningMv: 123,
@@ -3000,7 +3001,7 @@ assert.deepEqual(customFreeFile.heatCapacityFreeFileAcknowledgements, {
 assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
 assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 123);
 assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 152);
-assert.equal(customFreeFile.heatCapacityFreeParameterDraft.ambientPressureKPa, 99.2);
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(customFreeFile).ambientPressureKPa, 99.2);
 assert.equal(
   Object.prototype.hasOwnProperty.call(customFreeFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
   false,
@@ -3077,7 +3078,7 @@ const contaminatedDomainSessionFile = {
   heatCapacityFreeDisplayScheme: 'stale-ideal' as any,
   heatCapacityFreePhysicsConfig: contaminatedSessionPhysicsConfig,
   heatCapacityFreeParameterDraft: {
-    ...heatCapacity.heatCapacityFreeParameterDraft,
+    ...selectHeatCapacityFreeAppliedParameterDraft(heatCapacity),
     gasType: 'air',
     gasWallConductanceWPerK: 5,
     wallAmbientConductanceWPerK: 5,

@@ -11,6 +11,8 @@ import {
   editPistonOscillationGuideParameterWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  selectHeatCapacityFreeAppliedParameterDraft,
+  selectHeatCapacityFreeGasType,
   startPistonOscillationFreeWorkbenchState,
   startPistonOscillationGuideWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
@@ -1852,7 +1854,7 @@ assert.deepEqual(
 const editedFreeFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
   createDefaultHeatCapacityFile(8),
   {
-    ...createDefaultHeatCapacityFile(8).heatCapacityFreeParameterDraft,
+    ...selectHeatCapacityFreeAppliedParameterDraft(createDefaultHeatCapacityFile(8)),
     gasType: 'helium',
     ambientTemperatureK: 303.15,
   },
@@ -1875,7 +1877,7 @@ assert.equal(editedFreeReprojected.value.kind, 'heatCapacity');
 if (editedFreeReprojected.value.kind !== 'heatCapacity') {
   throw new Error('Expected a heat-capacity file.');
 }
-assert.equal(editedFreeReprojected.value.heatCapacityFreeGasType, 'helium');
+assert.equal(selectHeatCapacityFreeGasType(editedFreeReprojected.value), 'helium');
 assert.equal(
   editedFreeReprojected.value.heatCapacityFreeInstrumentConfig.physics.environment
     .ambientTemperatureK,
@@ -1884,9 +1886,14 @@ assert.equal(
 );
 
 const guideWithHeliumFreeDomain = {
-  ...createDefaultHeatCapacityFile(9),
+  ...applyHeatCapacityFreeParameterDraftWorkbenchState(
+    createDefaultHeatCapacityFile(9),
+    {
+      ...selectHeatCapacityFreeAppliedParameterDraft(createDefaultHeatCapacityFile(9)),
+      gasType: 'helium',
+    },
+  ),
   heatCapacityMode: 'guide' as const,
-  heatCapacityFreeGasType: 'helium' as const,
   theoreticalGamma: 1.4,
 };
 const guideProjection = projectWorkbenchPersistenceV3File(

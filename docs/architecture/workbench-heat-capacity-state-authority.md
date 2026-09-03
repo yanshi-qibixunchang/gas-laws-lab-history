@@ -1,6 +1,6 @@
 # 绝热膨胀工作台状态权威表
 
-最后核验：2026-09-02
+最后核验：2026-09-03
 
 当前实现：Free 实验分组、Real/Ideal 域和当前仪器投影统一通过
 `workbenchHeatCapacityFreeAuthorityTransaction.ts` 提交或重建。旧的
@@ -28,6 +28,11 @@
 `heatCapacityFreeRunWorkspace.currentExperimentStatus`。它描述组内当前一次试验的
 `draft/running/completed` 生命周期，不等同于实验组集合的 `draft/collecting/completed`；
 旧存档和模式会话仍可使用原字段名，但恢复后不得重新形成顶层镜像。
+顶层 `heatCapacityFreeGasType` 和 `heatCapacityFreeParameterDraft` 也已删除。当前气体类型
+由所选方案的当前实验组（方案一致时）或 Real/Ideal 域读取；已应用参数视图由
+`heatCapacityFreeInstrumentConfig` 和该气体类型即时重建。高级参数窗口尚未保存的草稿
+继续只存在于 React 局部状态。V1/V2 与模式会话仍可写出这两个旧字段作为稳定兼容载荷，
+但恢复后会剥离，不能重新进入当前状态。
 旧版存档解码是例外：解码阶段必须暂时保留域聚合中的身份高水位，等实验组迁移和
 后续 capture 完成合并后再形成统一权威，不能提前用普通运行时 hydrate 覆盖。
 
@@ -60,7 +65,8 @@
 4. 按读写频率拆分剩余字段：先收口六个低频配置投影，不改变高频物理更新对象。（已完成）
 5. 取得热路径与会话体积基线后，把物理、传感器和校准三个高频状态收口到独立仪器状态工作区，同时保持旧模式会话与回滚字段兼容。（已完成）
 6. 把组内当前一次试验的状态改名后收口到运行工作区，同时保留旧存档和模式会话字段的单向兼容。（已完成）
-7. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
+7. 固定旧气体字段、旧草稿气体与 `physics.gamma` 的冲突优先级，再删除气体类型和参数草稿两个顶层镜像。（已完成）
+8. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
 
 ## 4. 下一大改动断点
 
@@ -69,4 +75,13 @@
 
 当前试验状态的语义核验和迁移已经完成：实验组可以保持 `collecting`，组内新一次试验则可回到 `draft`，因此它作为 `heatCapacityFreeRunWorkspace.currentExperimentStatus` 独立存在，不能直接由实验组生命周期替代。迁移覆盖默认构造、事务投影、运行操作、V1/V2 与 V3 恢复、IndexedDB/会话规范化和界面读取；冲突时仍以实验组及活动参数域为权威，旧顶层镜像不能反向覆盖。
 
-下一大改动断点缩小为气体类型与参数草稿。当前 `heatCapacityFreeGasType` 和 `heatCapacityFreeParameterDraft` 都能从已应用的仪器配置及所选 Real/Ideal 域重建，而高级参数窗口真正未提交的草稿保存在 React 局部状态。下一批应先固定旧载荷中显式气体类型、草稿气体类型与 `physics.gamma` 冲突时的恢复优先级，再决定删除两个顶层投影，避免破坏旧会话和 Real/Ideal 切换。
+气体类型与参数草稿收口已经完成。当前读取统一经过
+`selectHeatCapacityFreeGasType` 和 `selectHeatCapacityFreeAppliedParameterDraft`；气体切换先同步
+当前草稿实验组与所选参数域，再由权威事务提交仪器配置。旧载荷冲突时固定采用“显式旧气体
+字段 > 旧草稿气体字段 > 旧草稿 `gamma` > 已应用 `physics.gamma`”的顺序。兼容快照仍保留
+旧字段名，当前 `WorkbenchHeatCapacityState`、默认构造和恢复结果均不再包含它们。
+
+下一大改动断点回到模块职责拆分：应先选择 `workbenchState.ts` 中一组边界完整、测试覆盖
+充分的绝热膨胀协调逻辑（优先考虑参数编辑/冻结与实验组生命周期），迁入专用模块并由兼容
+入口重导出。该批会改变代码所有权和依赖方向，开始前应先核对候选函数集合，避免把运行时
+推进、持久化兼容和 UI 编排再次耦合到同一模块。
