@@ -2605,8 +2605,12 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "fit_results": "线性拟合结果",
         "final_results": "最终计算结果",
         "process_score": "过程与评分摘要",
+        "process_review": "过程回顾摘要",
         "process_evidence": "关键过程证据",
         "score_results": "评分结果",
+        "evidence_diagnostics": "过程证据诊断",
+        "operation_diagnostics": "各次实验过程诊断",
+        "scoring_status": "评分状态",
         "file": "实验文件",
         "experiment": "实验名称",
         "experiment_mode": "实验模式",
@@ -2660,7 +2664,7 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "evaluation": "评价",
         "credit": "得分率",
         "area": "气缸横截面积 A",
-        "gamma": "空气比热容比 γ",
+        "gamma": "气体比热容比 γ",
         "first_correct": "首次正确",
         "retry_correct": "修改后正确",
         "revealed": "查看答案后完成",
@@ -2677,6 +2681,7 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "operation_average": "操作平均分",
         "group_calculation": "整组计算分",
         "report_note": "报告只保留与结果和评分直接相关的过程证据；完整操作时间条仍可在软件的过程回顾页面中查看。",
+        "unscored_report_note": "报告保留与结果相关的过程证据；理想实验条件不生成数值评分，完整操作时间条仍可在软件的过程回顾页面中查看。",
         "curve_note": "图中浅绿色区域为最终周期选区；橙色虚线为触发阈值。图形仅用于报告显示，保存的正式样本未被改写。",
         "fit_caption": "本轮 h-T^2 线性拟合与最终选点",
         "curve_caption": "各次正式压力曲线及最终周期选区",
@@ -2696,8 +2701,12 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "fit_results": "線性擬合結果",
         "final_results": "最終計算結果",
         "process_score": "過程與評分摘要",
+        "process_review": "過程回顧摘要",
         "process_evidence": "關鍵過程證據",
         "score_results": "評分結果",
+        "evidence_diagnostics": "過程證據診斷",
+        "operation_diagnostics": "各次實驗過程診斷",
+        "scoring_status": "評分狀態",
         "experiment_scheme": "實驗方案",
         "gas_type": "氣體類型",
         "parameter_profile": "參數檔案版本",
@@ -2723,8 +2732,12 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "fit_results": "Linear fit",
         "final_results": "Final calculation",
         "process_score": "Process and score summary",
+        "process_review": "Process review summary",
         "process_evidence": "Key process evidence",
         "score_results": "Scores",
+        "evidence_diagnostics": "Process evidence",
+        "operation_diagnostics": "Per-run process diagnostics",
+        "scoring_status": "Scoring status",
         "experiment_scheme": "Experiment scheme",
         "gas_type": "Gas type",
         "parameter_profile": "Parameter profile version",
@@ -3147,6 +3160,7 @@ def build_piston_oscillation_report(
         story.append(paragraph(f"图 {figure_number} {caption}", caption_style))
 
     summary = data.get("summary") or {}
+    scoring_eligible = summary.get("scoringEligible") is True
     experiment_group = data.get("experimentGroup") or {}
     measurements = [item for item in (data.get("measurements") or []) if isinstance(item, dict)]
     fit = data.get("linearFitResult") or {}
@@ -3201,8 +3215,10 @@ def build_piston_oscillation_report(
             format_piston_number(summary.get("referenceGamma"), 4),
             format_piston_number(summary.get("relativeErrorPercent"), 2, "%"),
             format_piston_number(summary.get("rSquared"), 4),
-            f"{summary.get('operationAverageScore', '--')} + {summary.get('calculationScore', '--')}",
-            f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}",
+            f"{summary.get('operationAverageScore', '--')} + {summary.get('calculationScore', '--')}"
+            if scoring_eligible else copy["not_scored"],
+            f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}"
+            if scoring_eligible else copy["not_scored"],
         ]],
         [20 * mm, 19 * mm, 18 * mm, 21 * mm, 23 * mm, 19 * mm, 27 * mm, 23 * mm],
         compact=True,
@@ -3300,6 +3316,8 @@ def build_piston_oscillation_report(
             evaluation, credit = copy["revealed"], "0%"
         else:
             evaluation, credit = copy["unresolved"], "0%"
+        if not scoring_eligible:
+            credit = copy["not_scored"]
         return [
             label,
             f"{user_value}{suffix if raw and suffix else ''}",
@@ -3322,7 +3340,8 @@ def build_piston_oscillation_report(
     )
 
     story.append(PageBreak())
-    story.append(paragraph(f"4 {copy['process_score']}", chapter_style))
+    process_section_title = copy["process_score"] if scoring_eligible else copy["process_review"]
+    story.append(paragraph(f"4 {process_section_title}", chapter_style))
     story.append(paragraph(f"4.1 {copy['process_evidence']}", section_style))
     evidence_rows = []
     score_rows = []
@@ -3344,7 +3363,9 @@ def build_piston_oscillation_report(
         ])
         if touchdown:
             main_evidence = "记录到未支撑触底" if language != "en" else "Unsupported bottom impact recorded"
-        elif (release_gap or 0) >= 60 or selection_score < 27:
+        elif (release_gap or 0) >= 60 or (
+            scoring_eligible and selection_score < 27
+        ) or process.get("statusLabel") in ("可改进", "可改進", "Improve", "需复核", "需複核", "Review"):
             main_evidence = "注意松手同步与周期选区" if language != "en" else "Review release timing and period selection"
         elif safe_float(score.get("evidence"), 0) < 5:
             main_evidence = "记录证据不完整" if language != "en" else "Incomplete evidence"
@@ -3352,7 +3373,8 @@ def build_piston_oscillation_report(
             main_evidence = "过程证据完整" if language != "en" else "Complete process evidence"
         score_rows.append([
             f"第 {measurement.get('number')} 次" if language != "en" else f"Run {measurement.get('number')}",
-            f"{score.get('operation', '--')} / {score.get('operationMaximum', 75)}",
+            f"{score.get('operation', '--')} / {score.get('operationMaximum', 75)}"
+            if scoring_eligible else copy["not_scored"],
             process.get("statusLabel") or "--",
             main_evidence,
         ])
@@ -3364,30 +3386,41 @@ def build_piston_oscillation_report(
         [23 * mm, 30 * mm, 30 * mm, 20 * mm, 24 * mm, 24 * mm, 19 * mm],
         compact=len(evidence_rows) > 3,
     )
-    story.append(paragraph(copy["report_note"], note_style))
+    story.append(paragraph(
+        copy["report_note"] if scoring_eligible else copy["unscored_report_note"],
+        note_style,
+    ))
     story.append(Spacer(1, 2 * mm))
-    story.append(paragraph(f"4.2 {copy['score_results']}", section_style))
+    score_section_title = copy["score_results"] if scoring_eligible else copy["evidence_diagnostics"]
+    story.append(paragraph(f"4.2 {score_section_title}", section_style))
     append_table(
         story,
-        "各次实验操作评分" if language != "en" else "Operation scores",
-        [copy["number"], copy["operation_score"], copy["status"], copy["main_evidence"]],
+        ("各次实验操作评分" if language != "en" else "Operation scores")
+        if scoring_eligible else copy["operation_diagnostics"],
+        [
+            copy["number"],
+            copy["operation_score"] if scoring_eligible else copy["scoring_status"],
+            copy["status"],
+            copy["main_evidence"],
+        ],
         score_rows,
         [28 * mm, 38 * mm, 34 * mm, 70 * mm],
         left_columns={3},
         compact=len(score_rows) > 3,
     )
-    append_table(
-        story,
-        "本轮最终评分" if language != "en" else "Final score",
-        [copy["operation_average"], copy["group_calculation"], copy["total_score"]],
-        [[
-            f"{summary.get('operationAverageScore', '--')} / {summary.get('operationMaximum', 75)}",
-            f"{summary.get('calculationScore', '--')} / {summary.get('calculationMaximum', 25)}",
-            f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}",
-        ]],
-        [170 * mm / 3] * 3,
-        compact=True,
-    )
+    if scoring_eligible:
+        append_table(
+            story,
+            "本轮最终评分" if language != "en" else "Final score",
+            [copy["operation_average"], copy["group_calculation"], copy["total_score"]],
+            [[
+                f"{summary.get('operationAverageScore', '--')} / {summary.get('operationMaximum', 75)}",
+                f"{summary.get('calculationScore', '--')} / {summary.get('calculationMaximum', 25)}",
+                f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}",
+            ]],
+            [170 * mm / 3] * 3,
+            compact=True,
+        )
 
     def split_font_runs(value: Any) -> list[tuple[str, str]]:
         text = str(value or "")
@@ -3413,7 +3446,7 @@ def build_piston_oscillation_report(
         copy["file_information"],
         copy["actual_records"],
         copy["calculation_results"],
-        copy["process_score"],
+        process_section_title,
     ]
 
     def draw_page(canvas: Any, document: Any) -> None:

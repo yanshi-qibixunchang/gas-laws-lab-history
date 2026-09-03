@@ -1270,7 +1270,7 @@ export const PistonOscillationDataProcessingPanel = ({
               ref={chartSvgRef}
               viewBox={`0 0 ${chartWidth} ${CHART_HEIGHT}`}
               role="group"
-              aria-label={copy.chartAria(runIndex + 1, run.targetHeightMm)}
+              aria-label={copy.chartAria(runIndex + 1, run.fitHeightMm)}
               aria-describedby={`${chartId}-keyboard-help`}
               tabIndex={0}
               className={`is-${chartDrag?.type === 'pan' ? 'grabbing' : chartMode}`}
@@ -1612,7 +1612,9 @@ export const PistonOscillationDataProcessingPanel = ({
             <strong>{copy.preprocessingTitle}</strong>
             <span>{copy.preprocessingInstruction}</span>
           </div>
-          <span className="piston-period-height-chip">h = {run.targetHeightMm} mm</span>
+          <span className="piston-period-height-chip">
+            h = {Number(run.fitHeightMm.toFixed(3))} mm
+          </span>
         </div>
 
         {!selectionAccepted ? (

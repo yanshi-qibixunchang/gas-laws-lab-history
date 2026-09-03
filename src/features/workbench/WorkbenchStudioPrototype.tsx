@@ -22353,11 +22353,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                         : '导出报告'}
                   </strong>
                   <span>
-                    {settingsLanguagePreference === 'en'
-                      ? 'Export the saved curves, calculation results, process evidence, and score summary as PDF.'
-                      : settingsLanguagePreference === 'zh-TW'
-                        ? '將已儲存曲線、計算結果、過程證據與評分摘要匯出為 PDF。'
-                        : '将已保存曲线、计算结果、过程证据与评分摘要导出为 PDF。'}
+                    {activeFile.pistonOscillationFreeSession.experimentGroup.scheme === 'ideal'
+                      ? settingsLanguagePreference === 'en'
+                        ? 'Export the saved curves, calculation results, and unscored process evidence as PDF.'
+                        : settingsLanguagePreference === 'zh-TW'
+                          ? '將已儲存曲線、計算結果與不評分的過程證據匯出為 PDF。'
+                          : '将已保存曲线、计算结果和不评分的过程证据导出为 PDF。'
+                      : settingsLanguagePreference === 'en'
+                        ? 'Export the saved curves, calculation results, process evidence, and score summary as PDF.'
+                        : settingsLanguagePreference === 'zh-TW'
+                          ? '將已儲存曲線、計算結果、過程證據與評分摘要匯出為 PDF。'
+                          : '将已保存曲线、计算结果、过程证据与评分摘要导出为 PDF。'}
                   </span>
                 </div>
                 <div className="studio-heat-export-buttons">

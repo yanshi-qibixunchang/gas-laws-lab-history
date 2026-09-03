@@ -2,6 +2,7 @@ import type {
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
+  PISTON_OSCILLATION_SCORING_POLICY_VERSION,
   getConsistentPistonOscillationGasMaterialSnapshot,
 } from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
@@ -68,6 +69,12 @@ export const isPistonOscillationReportReady = (
     || processing.calculationSession?.status !== 'completed'
     || processing.runs.length < 3
   ) return false;
+  if (
+    !processing.scoringPolicy
+    || processing.scoringPolicy.policyVersion !== PISTON_OSCILLATION_SCORING_POLICY_VERSION
+    || processing.scoringPolicy.scheme !== session.experimentGroup.scheme
+    || processing.scoringPolicy.scoringEligible !== (session.experimentGroup.scheme === 'real')
+  ) return false;
   if (processing.runs.length !== session.savedMeasurements.length) return false;
   if (processing.runs.some((run) => run.result === null || run.selection === null)) return false;
   const gasMaterial = getConsistentPistonOscillationGasMaterialSnapshot(
@@ -119,6 +126,15 @@ export const createPistonOscillationReportExportPayload = (
   if (!processing || processing.status !== 'completed') {
     throw new Error('Piston-oscillation report data are not complete.');
   }
+  if (
+    !processing.scoringPolicy
+    || processing.scoringPolicy.policyVersion !== PISTON_OSCILLATION_SCORING_POLICY_VERSION
+    || processing.scoringPolicy.scheme !== session.experimentGroup.scheme
+    || processing.scoringPolicy.scoringEligible !== (session.experimentGroup.scheme === 'real')
+  ) {
+    throw new Error('Piston-oscillation scoring policy is inconsistent.');
+  }
+  const scoringEligible = processing.scoringPolicy.scoringEligible;
   const reviewModels = selectPistonOscillationProcessReviewModels(
     session,
     language as PistonOscillationLanguage,
@@ -160,7 +176,12 @@ export const createPistonOscillationReportExportPayload = (
       throw new Error(`Piston-oscillation measurement ${runIndex + 1} is missing.`);
     }
     const operationRows = review.scoreRows.filter((row) => row.id !== 'piston-calculation');
-    const operationScore = operationRows.reduce((sum, row) => sum + row.score, 0);
+    const operationScore = scoringEligible
+      ? operationRows.reduce((sum, row) => sum + (row.score ?? 0), 0)
+      : null;
+    const operationMaximum = scoringEligible
+      ? operationRows.reduce((sum, row) => sum + (row.maxScore ?? 0), 0)
+      : null;
     const touchdown = session.audit.some((event) => (
       event.type === 'operation-observed'
       && event.operation === 'bottomImpact'
@@ -217,28 +238,34 @@ export const createPistonOscillationReportExportPayload = (
         events: review.events,
         scoreRows: review.scoreRows,
       },
-      score: {
+      score: scoringEligible ? {
         operation: operationScore,
-        operationMaximum: operationRows.reduce((sum, row) => sum + row.maxScore, 0),
+        operationMaximum,
         setup: review.scoreRows.find((row) => row.id === 'piston-setup-height')?.score ?? 0,
         excitation: review.scoreRows.find((row) => row.id === 'piston-excitation')?.score ?? 0,
         selectionAndFit: review.scoreRows.find((row) => row.id === 'piston-selection-fit')?.score ?? 0,
         evidence: review.scoreRows.find((row) => row.id === 'piston-evidence')?.score ?? 0,
         tone: review.options[runIndex]?.statusTone ?? 'attention',
-      },
+      } : null,
     };
   });
 
-  const calculationScore = reviewModels[0]?.scoreRows.find((row) => (
-    row.id === 'piston-calculation'
-  ))?.score ?? 0;
-  const calculationMaximum = reviewModels[0]?.scoreRows.find((row) => (
-    row.id === 'piston-calculation'
-  ))?.maxScore ?? 25;
-  const operationAverage = Math.round(
-    measurements.reduce((sum, measurement) => sum + measurement.score.operation, 0)
-    / Math.max(1, measurements.length),
-  );
+  const calculationScore = scoringEligible
+    ? reviewModels[0]?.scoreRows.find((row) => (
+        row.id === 'piston-calculation'
+      ))?.score ?? 0
+    : null;
+  const calculationMaximum = scoringEligible
+    ? reviewModels[0]?.scoreRows.find((row) => (
+        row.id === 'piston-calculation'
+      ))?.maxScore ?? 25
+    : null;
+  const operationAverage = scoringEligible
+    ? Math.round(
+        measurements.reduce((sum, measurement) => sum + (measurement.score?.operation ?? 0), 0)
+        / Math.max(1, measurements.length),
+      )
+    : null;
   const calculation = processing.calculationSession;
   const completedAtMs = getSessionCompletionTime(session);
   const exportedAtMs = Date.now();
@@ -256,7 +283,7 @@ export const createPistonOscillationReportExportPayload = (
     filename: `${sanitizeFilenamePart(file.name)}-piston-oscillation-report-${formatTimestamp(completedAtMs)}.json`,
     data: {
       exportKind: PISTON_OSCILLATION_REPORT_EXPORT_KIND,
-      schemaVersion: 3,
+      schemaVersion: 4,
       language,
       fileId: file.id,
       fileName: file.name,
@@ -289,17 +316,20 @@ export const createPistonOscillationReportExportPayload = (
         gamma: calculation?.answers.gamma.expectedValue ?? null,
         scheme,
         gasType,
-        scoringEligible: scheme === 'real',
+        scoringEligible,
+        scoringPolicyVersion: processing.scoringPolicy.policyVersion,
         parameterProfileVersion: session.experimentGroup.parameterProfileVersion,
         referenceGamma: calculation?.knowns.referenceGamma ?? null,
         relativeErrorPercent: calculation?.answers.relativeError.expectedValue ?? null,
         rSquared: processing.linearFitResult?.rSquared ?? null,
         operationAverageScore: operationAverage,
-        operationMaximum: 75,
+        operationMaximum: scoringEligible ? 75 : null,
         calculationScore,
         calculationMaximum,
-        totalScore: operationAverage + calculationScore,
-        totalMaximum: 100,
+        totalScore: operationAverage === null || calculationScore === null
+          ? null
+          : operationAverage + calculationScore,
+        totalMaximum: scoringEligible ? 100 : null,
       },
       measurements,
       linearFitResult: processing.linearFitResult,

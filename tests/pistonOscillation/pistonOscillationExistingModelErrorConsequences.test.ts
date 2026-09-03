@@ -390,6 +390,25 @@ assert.deepEqual(
   [80, 70, 60],
   'Free processing must fit planned heights while preserving actual heights in raw physics',
 );
+const idealMismatchRecords = createScenarioRecords(
+  'ideal-height-processing-evidence',
+  [80, 65, 60],
+).map((record) => ({
+  ...record,
+  experimentContext: {
+    schemaVersion: 1 as const,
+    groupId: 'ideal-height-processing-evidence',
+    scheme: 'ideal' as const,
+    parameterProfileVersion: 'piston-oscillation-ideal-air-v1',
+    provenance: 'captured' as const,
+  },
+}));
+const idealMismatchFit = processFreeRecordsThroughFit(idealMismatchRecords);
+assert.deepEqual(
+  idealMismatchFit.points.map((point) => point.heightMm),
+  idealMismatchRecords.map((record) => record.confirmedHeightMm),
+  'Ideal processing must fit the exact captured equilibrium heights',
+);
 
 const normalCapture = getCapture(80);
 const observedReleaseStartKpa = normalCapture.releaseObservationSeries.samples[0]!

@@ -33,6 +33,10 @@ const parameterPanelSource = readFileSync(
   new URL('../../src/features/pistonOscillation/PistonOscillationParameterPanel.tsx', import.meta.url),
   'utf8',
 );
+const pistonOscillationCopySource = readFileSync(
+  new URL('../../src/features/pistonOscillation/pistonOscillationCopy.ts', import.meta.url),
+  'utf8',
+);
 const acquisitionBridgeSource = readFileSync(
   new URL('../../src/features/pistonOscillation/pistonOscillationGuideAcquisitionBridge.ts', import.meta.url),
   'utf8',
@@ -561,6 +565,16 @@ assert.match(
   workbenchSource,
   /activePistonOscillationProcessReview \? \([\s\S]*<PistonOscillationProcessReviewPanel[\s\S]*activePistonOscillationDataProcessing \? \([\s\S]*<PistonOscillationDataProcessingPanel[\s\S]*onProcessingEvent=\{handlePistonOscillationProcessingEvent\}[\s\S]*\) : \([\s\S]*<PistonOscillationAcquisitionPanel/,
   'the realtime panel should host process review, data processing, or acquisition without opening a second workspace implementation',
+);
+assert.match(
+  pistonOscillationCopySource,
+  /title: '过程回顾'[\s\S]*真实实验显示评分，理想实验不评分[\s\S]*navigationItem: '过程回顾'/,
+  'the shared review entry must not promise a score for Ideal experiment files',
+);
+assert.match(
+  workbenchSource,
+  /experimentGroup\.scheme === 'ideal'[\s\S]*不评分的过程证据[\s\S]*score summary as PDF/,
+  'report export copy must distinguish unscored Ideal evidence from Real score summaries',
 );
 assert.match(
   workbenchSource,

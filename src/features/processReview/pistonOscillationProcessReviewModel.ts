@@ -888,6 +888,10 @@ export const selectPistonOscillationProcessReviewModels = (
 ): ExperimentProcessReviewViewModel[] => {
   const processing = session.dataProcessing;
   if (session.status !== 'active' || processing?.status !== 'completed') return [];
+  const scheme = processing.scoringPolicy?.scheme
+    ?? session.experimentGroup?.scheme
+    ?? 'real';
+  const scoringEligible = processing.scoringPolicy?.scoringEligible ?? scheme === 'real';
   const runContexts = processing.runs.map((run) => {
     const record = session.savedMeasurements.find((candidate) => (
       candidate.recordId === run.rawMeasurementRecordId
@@ -903,16 +907,35 @@ export const selectPistonOscillationProcessReviewModels = (
     context !== null
   ));
   const calculationScoreContext = getCalculationScoreContext(processing);
-  const calculationScore = calculationScoreContext.score;
-  const averageOperationScore = Math.round(
-    resolvedContexts.reduce((sum, context) => sum + context.score.operationScore, 0)
-    / Math.max(1, resolvedContexts.length),
-  );
-  const totalScore = averageOperationScore + calculationScore;
+  const calculationScore = scoringEligible ? calculationScoreContext.score : null;
+  const averageOperationScore = scoringEligible
+    ? Math.round(
+        resolvedContexts.reduce((sum, context) => sum + context.score.operationScore, 0)
+        / Math.max(1, resolvedContexts.length),
+      )
+    : null;
+  const totalScore = averageOperationScore === null || calculationScore === null
+    ? null
+    : averageOperationScore + calculationScore;
   const calculation = processing.calculationSession;
   const gamma = calculation?.answers.gamma.expectedValue ?? null;
   const relativeError = calculation?.answers.relativeError.expectedValue ?? null;
   const rSquared = processing.linearFitResult?.rSquared ?? null;
+  const gasType = calculation?.knowns?.gasType
+    ?? session.experimentGroup?.gasMaterialSnapshot.gasType
+    ?? 'air';
+  const schemeLabel = scheme === 'ideal'
+    ? tr(language, '理想实验过程', '理想實驗過程', 'Ideal process')
+    : tr(language, '真实实验条件', '真實實驗條件', 'Real conditions');
+  const gasLabel = gasType === 'helium'
+    ? tr(language, '氦气', '氦氣', 'Helium')
+    : tr(language, '空气', '空氣', 'Air');
+  const unscoredNotice = tr(
+    language,
+    '理想实验条件保留完整过程证据，但不生成数值评分。',
+    '理想實驗條件保留完整過程證據，但不產生數值評分。',
+    'Ideal experiment conditions retain complete process evidence but do not generate numeric scores.',
+  );
   const options: ExperimentProcessReviewOption[] = resolvedContexts.map((context, runIndex) => {
     const hasAttention = context.score.releaseSeverity > 0
       || context.score.cycleDeviation > 0.02
@@ -940,22 +963,46 @@ export const selectPistonOscillationProcessReviewModels = (
     const cyclePeriods = getRunCyclePeriodsMs(session, run);
     const cycleMedian = getMedian(cyclePeriods.map((point) => point.y));
     const selection = run.selection;
-    const scoreRows = createScoreRows({
+    const scoredRows = createScoreRows({
       runIndex,
       context: score,
       calculation: calculationScoreContext,
       language,
     });
+    const scoreRows = scoringEligible
+      ? scoredRows
+      : scoredRows.map((row) => ({
+          ...row,
+          score: null,
+          maxScore: null,
+          details: row.details?.map((detail) => ({
+            ...detail,
+            score: null,
+            maxScore: null,
+          })),
+        }));
     return {
-      experimentLabel: tr(language, '活塞振动法 · 自由模式', '活塞振動法 · 自由模式', 'Piston oscillation · Free mode'),
+      scoringEligible,
+      experimentLabel: tr(
+        language,
+        `活塞振动法 · 自由模式 · ${schemeLabel} · ${gasLabel}`,
+        `活塞振動法 · 自由模式 · ${schemeLabel} · ${gasLabel}`,
+        `Piston oscillation · Free mode · ${schemeLabel} · ${gasLabel}`,
+      ),
       currentTitle: options[runIndex]!.title,
       currentSubtitle: `${options[runIndex]!.subtitle} · ${record.acquisitionSettings.sampleRateHz} Hz / ${record.acquisitionSettings.triggerThresholdKpa} kPa`,
-      summaryNote: tr(language, '本轮正式曲线、周期处理、线性拟合和最终答案均已完成；回顾页面只读，不会改写原始数据。', '本輪正式曲線、週期處理、線性擬合和最終答案均已完成；回顧頁面唯讀，不會改寫原始資料。', 'Formal curves, period processing, fit, and final answers are complete. This review is read-only.'),
+      summaryNote: scoringEligible
+        ? tr(language, '本轮正式曲线、周期处理、线性拟合和最终答案均已完成；回顾页面只读，不会改写原始数据。', '本輪正式曲線、週期處理、線性擬合和最終答案均已完成；回顧頁面唯讀，不會改寫原始資料。', 'Formal curves, period processing, fit, and final answers are complete. This review is read-only.')
+        : tr(language, '本轮仍完成正式曲线、周期处理、线性拟合和最终答案；回顾页面只读，理想实验不生成评分。', '本輪仍完成正式曲線、週期處理、線性擬合和最終答案；回顧頁面唯讀，理想實驗不產生評分。', 'Formal curves, period processing, fit, and final answers are complete. This read-only Ideal review does not generate a score.'),
       metrics: [
         { label: 'γ', value: formatNumber(gamma, 3), detail: relativeError === null ? '--' : tr(language, `相对理论误差 ${relativeError.toFixed(2)}%`, `相對理論誤差 ${relativeError.toFixed(2)}%`, `Relative error ${relativeError.toFixed(2)}%`), tone: relativeError !== null && relativeError <= 3 ? 'good' : 'attention' },
         { label: tr(language, '线性拟合 R²', '線性擬合 R²', 'Linear-fit R²'), value: formatNumber(rSquared, 4), detail: tr(language, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 个拟合点`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 個擬合點`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} fit points`), tone: rSquared !== null && rSquared >= 0.98 ? 'good' : 'attention' },
-        { label: tr(language, '本次实验操作', '本次實驗操作', 'Current run'), value: `${score.operationScore} / 75`, detail: tr(language, '按本次实验的实际证据归因', '按本次實驗的實際證據歸因', 'Attributed from this run evidence'), tone: toneForScore(score.operationScore, 75) },
-        { label: tr(language, '本轮总分', '本輪總分', 'Total score'), value: `${totalScore} / 100`, detail: tr(language, `操作均分 ${averageOperationScore} + 计算 ${calculationScore}`, `操作均分 ${averageOperationScore} + 計算 ${calculationScore}`, `Operations ${averageOperationScore} + calculation ${calculationScore}`), tone: toneForScore(totalScore, 100) },
+        scoringEligible
+          ? { label: tr(language, '本次实验操作', '本次實驗操作', 'Current run'), value: `${score.operationScore} / 75`, detail: tr(language, '按本次实验的实际证据归因', '按本次實驗的實際證據歸因', 'Attributed from this run evidence'), tone: toneForScore(score.operationScore, 75) }
+          : { label: tr(language, '本次实验操作', '本次實驗操作', 'Current run'), value: '--', detail: unscoredNotice, tone: 'neutral' },
+        scoringEligible && totalScore !== null && averageOperationScore !== null && calculationScore !== null
+          ? { label: tr(language, '本轮总分', '本輪總分', 'Total score'), value: `${totalScore} / 100`, detail: tr(language, `操作均分 ${averageOperationScore} + 计算 ${calculationScore}`, `操作均分 ${averageOperationScore} + 計算 ${calculationScore}`, `Operations ${averageOperationScore} + calculation ${calculationScore}`), tone: toneForScore(totalScore, 100) }
+          : { label: tr(language, '本轮总分', '本輪總分', 'Total score'), value: '--', detail: unscoredNotice, tone: 'neutral' },
       ],
       options,
       selectedOptionId: record.recordId,
@@ -1027,9 +1074,15 @@ export const selectPistonOscillationProcessReviewModels = (
             : tr(language, '当前选区的周期宽度围绕中位水平分布。', '目前選區的週期寬度圍繞中位水準分布。', 'Selected period widths remain near the median.'),
         },
       ],
-      scoreTitle: tr(language, '评分细则', '評分細則', 'Scoring details'),
-      scoreSubtitle: tr(language, `第 ${runIndex + 1} 次操作 ${score.operationScore} / 75 · 本组计算 ${calculationScore} / 25`, `第 ${runIndex + 1} 次操作 ${score.operationScore} / 75 · 本組計算 ${calculationScore} / 25`, `Run ${runIndex + 1} operations ${score.operationScore}/75 · calculation ${calculationScore}/25`),
-      scoreRule: tr(language, '本组总分 = 各次实验操作分平均值（75 分）+ 本组计算（25 分）。实际仪器动作、曲线后果、框选和答题分别只在其主要项目中计分，避免同一事实重复扣分。', '本組總分 = 各次實驗操作分平均值（75 分）+ 本組計算（25 分）。實際儀器動作、曲線後果、框選和答題分別只在其主要項目中計分，避免同一事實重複扣分。', 'Total = mean run-operation score (75) + group calculation (25). Each fact is scored once in its primary category.'),
+      scoreTitle: scoringEligible
+        ? tr(language, '评分细则', '評分細則', 'Scoring details')
+        : tr(language, '过程证据诊断', '過程證據診斷', 'Process evidence'),
+      scoreSubtitle: scoringEligible && calculationScore !== null
+        ? tr(language, `第 ${runIndex + 1} 次操作 ${score.operationScore} / 75 · 本组计算 ${calculationScore} / 25`, `第 ${runIndex + 1} 次操作 ${score.operationScore} / 75 · 本組計算 ${calculationScore} / 25`, `Run ${runIndex + 1} operations ${score.operationScore}/75 · calculation ${calculationScore}/25`)
+        : tr(language, `第 ${runIndex + 1} 次 · 不评分`, `第 ${runIndex + 1} 次 · 不評分`, `Run ${runIndex + 1} · not scored`),
+      scoreRule: scoringEligible
+        ? tr(language, '本组总分 = 各次实验操作分平均值（75 分）+ 本组计算（25 分）。实际仪器动作、曲线后果、框选和答题分别只在其主要项目中计分，避免同一事实重复扣分。', '本組總分 = 各次實驗操作分平均值（75 分）+ 本組計算（25 分）。實際儀器動作、曲線後果、框選和答題分別只在其主要項目中計分，避免同一事實重複扣分。', 'Total = mean run-operation score (75) + group calculation (25). Each fact is scored once in its primary category.')
+        : unscoredNotice,
       scoreRows,
     } satisfies ExperimentProcessReviewViewModel;
   });

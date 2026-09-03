@@ -11,6 +11,10 @@ const processReviewCss = readFileSync(new URL(
   '../../src/features/processReview/ExperimentProcessReviewPanel.css',
   import.meta.url,
 ), 'utf8');
+const processReviewComponent = readFileSync(new URL(
+  '../../src/features/processReview/ExperimentProcessReviewPanel.tsx',
+  import.meta.url,
+), 'utf8');
 
 const samples = Array.from({ length: 1_001 }, (_, index) => ({
   timeS: index / 1_000,
@@ -152,6 +156,7 @@ assert.ok(
 );
 assert.equal(records[0]?.samples.length, 1_001, 'the persisted raw record must remain unchanged');
 assert.equal(models[1]?.scoreRows[0]?.tone, 'risk');
+assert.equal(models[0]?.scoringEligible, true);
 assert.equal(
   JSON.stringify(models[0]).includes('Run'),
   false,
@@ -161,17 +166,50 @@ for (const model of models) {
   for (const row of model.scoreRows) {
     assert.ok((row.details?.length ?? 0) > 0, `${row.id} must expose expandable scoring details`);
     assert.equal(
-      row.details?.reduce((sum, detail) => sum + detail.score, 0),
+      row.details?.reduce((sum, detail) => sum + (detail.score ?? 0), 0),
       row.score,
       `${row.id} detail scores must sum to the existing row score`,
     );
     assert.equal(
-      row.details?.reduce((sum, detail) => sum + detail.maxScore, 0),
+      row.details?.reduce((sum, detail) => sum + (detail.maxScore ?? 0), 0),
       row.maxScore,
       `${row.id} detail maxima must preserve the existing scoring rule`,
     );
   }
 }
+const idealSession = structuredClone(session) as unknown as Record<string, any>;
+idealSession.experimentGroup = {
+  scheme: 'ideal',
+  gasMaterialSnapshot: { gasType: 'helium' },
+};
+idealSession.dataProcessing.scoringPolicy = {
+  schemaVersion: 1,
+  policyVersion: 'piston-oscillation-free-scoring-policy-v1',
+  scheme: 'ideal',
+  scoringEligible: false,
+};
+const idealModels = selectPistonOscillationProcessReviewModels(
+  idealSession as unknown as PistonOscillationFreeSession,
+  'zh-CN',
+);
+assert.equal(idealModels.length, models.length);
+assert.equal(idealModels[0]?.scoringEligible, false);
+assert.match(idealModels[0]?.experimentLabel ?? '', /理想实验过程 · 氦气/);
+assert.match(idealModels[0]?.summaryNote ?? '', /理想实验不生成评分/);
+assert.equal(idealModels[0]?.metrics[2]?.value, '--');
+assert.equal(idealModels[0]?.metrics[3]?.value, '--');
+assert.equal(idealModels[0]?.scoreTitle, '过程证据诊断');
+assert.match(idealModels[0]?.scoreRule ?? '', /不生成数值评分/);
+assert.equal(idealModels.every((model) => model.scoreRows.every((row) => (
+  row.score === null
+  && row.maxScore === null
+  && row.details?.every((detail) => detail.score === null && detail.maxScore === null)
+))), true);
+assert.match(
+  processReviewComponent,
+  /row\.score === null \|\| row\.maxScore === null \? '--'/,
+  'the shared review panel must render unscored evidence rows without numeric placeholders',
+);
 assert.match(
   processReviewCss,
   /\.epr-score \.hpr-diagnosis-row,[\s\S]*grid-template-columns: 148px/,

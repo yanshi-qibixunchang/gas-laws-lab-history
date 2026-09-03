@@ -107,8 +107,8 @@ export interface ExperimentProcessReviewScoreDetail {
   evidence: string;
   consequence: string;
   suggestion: string;
-  score: number;
-  maxScore: number;
+  score: number | null;
+  maxScore: number | null;
   tone: ExperimentProcessReviewTone;
 }
 
@@ -118,13 +118,14 @@ export interface ExperimentProcessReviewScoreRow {
   evidence: string;
   consequence: string;
   suggestion: string;
-  score: number;
-  maxScore: number;
+  score: number | null;
+  maxScore: number | null;
   tone: ExperimentProcessReviewTone;
   details?: readonly ExperimentProcessReviewScoreDetail[];
 }
 
 export interface ExperimentProcessReviewViewModel {
+  scoringEligible: boolean;
   experimentLabel: string;
   currentTitle: string;
   currentSubtitle: string;
@@ -836,7 +837,9 @@ export const ExperimentProcessReviewPanel: React.FC<ExperimentProcessReviewPanel
                   <span className="hpr-diagnosis-summary-cell">{row.evidence}</span>
                   <span className="hpr-diagnosis-summary-cell">{row.consequence}</span>
                   <span className="hpr-diagnosis-summary-cell">{row.suggestion}</span>
-                  <em className={`hpr-diagnosis-status ${getDiagnosisStatusClass(row.tone)}`}>{row.score}/{row.maxScore}</em>
+                  <em className={`hpr-diagnosis-status ${getDiagnosisStatusClass(row.tone)}`}>
+                    {row.score === null || row.maxScore === null ? '--' : `${row.score}/${row.maxScore}`}
+                  </em>
                 </div>
                 {details.length > 0 ? (
                   <div
@@ -851,7 +854,11 @@ export const ExperimentProcessReviewPanel: React.FC<ExperimentProcessReviewPanel
                           <span>{detail.evidence}</span>
                           <span>{detail.consequence}</span>
                           <span>{detail.suggestion}</span>
-                          <em className={`hpr-diagnosis-status ${getDiagnosisStatusClass(detail.tone)}`}>{detail.score}/{detail.maxScore}</em>
+                          <em className={`hpr-diagnosis-status ${getDiagnosisStatusClass(detail.tone)}`}>
+                            {detail.score === null || detail.maxScore === null
+                              ? '--'
+                              : `${detail.score}/${detail.maxScore}`}
+                          </em>
                         </div>
                       ))}
                     </div>

@@ -2243,7 +2243,14 @@ export const normalizePistonOscillationFreeSession = (
       ? contextualizedCandidateTarget.targetId
       : null;
   const contextualizedDataProcessing = allSavedMeasurementEvidenceAccepted
-    ? dataProcessing
+    && experimentPlan
+    && contextualizedSavedMeasurements.length >= experimentPlan.targetHeightsMm.length
+    ? normalizePistonOscillationDataProcessingSession(
+        value.dataProcessing,
+        contextualizedSavedMeasurements,
+        isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
+        { answerValidationMode: 'batch' },
+      )
     : null;
   const parameterDraft = experimentGroup.parameterSnapshot?.parameters
     ?? (legacyPendingRealHelium

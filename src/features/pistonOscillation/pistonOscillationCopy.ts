@@ -650,10 +650,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       nextReminder: '本幅周期结果已经记录，请继续处理下一幅曲线。',
     },
     review: {
-      title: '过程回顾与评分',
-      hint: '逐次回顾仪器操作、正式曲线、周期证据与评分',
-      navigationItem: '过程回顾与评分',
-      closeAria: '关闭过程回顾与评分',
+      title: '过程回顾',
+      hint: '逐次回顾仪器操作、正式曲线和周期证据；真实实验显示评分，理想实验不评分',
+      navigationItem: '过程回顾',
+      closeAria: '关闭过程回顾',
     },
   },
   'zh-TW': {
@@ -998,10 +998,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       nextReminder: '本幅週期結果已經記錄，請繼續處理下一幅曲線。',
     },
     review: {
-      title: '過程回顧與評分',
-      hint: '逐次回顧儀器操作、正式曲線、週期證據與評分',
-      navigationItem: '過程回顧與評分',
-      closeAria: '關閉過程回顧與評分',
+      title: '過程回顧',
+      hint: '逐次回顧儀器操作、正式曲線和週期證據；真實實驗顯示評分，理想實驗不評分',
+      navigationItem: '過程回顧',
+      closeAria: '關閉過程回顧',
     },
   },
   en: {
@@ -1346,10 +1346,10 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       nextReminder: 'This period result is recorded. Continue with the next curve.',
     },
     review: {
-      title: 'Process Review & Score',
-      hint: 'Review instrument actions, recorded curves, period evidence, and scores by run',
-      navigationItem: 'Process Review & Score',
-      closeAria: 'Close process review and score',
+      title: 'Process Review',
+      hint: 'Review instrument actions, recorded curves, and period evidence by run. Real experiments show scores; Ideal experiments are unscored.',
+      navigationItem: 'Process Review',
+      closeAria: 'Close process review',
     },
   },
 } as const satisfies Record<PistonOscillationLanguage, PistonOscillationShellCopy>;

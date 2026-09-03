@@ -142,7 +142,7 @@ assert.match(componentSource, /referenceGamma=\{calculationSession\.knowns\.refe
 assert.match(componentSource, /continueCalculationAnswer/);
 assert.match(componentSource, /revealCalculationAnswer/);
 assert.match(componentSource, /formatPistonOscillationCalculationAnswer/);
-assert.match(modelSource, /PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 6/);
+assert.match(modelSource, /PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 7/);
 assert.match(componentSource, /batchMode[^]*revealNextCalculationField[^]*submitCalculationBatch/);
 assert.match(componentSource, /getInvalidPistonOscillationCalculationBatchFields/);
 assert.match(modelSource, /visibleFieldIds: PistonOscillationCalculationFieldId\[\]/);

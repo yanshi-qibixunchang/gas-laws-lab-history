@@ -360,6 +360,29 @@ assert.equal(insufficientSelection.issue, 'insufficient-extrema');
 let processing = createPistonOscillationDataProcessingSession(records, 3_000);
 assert.equal(processing.processingPolicy.guidedMinimumPeriodCount, 3);
 assert.equal(processing.processingPolicy.freeMinimumPeriodCount, 0.5);
+assert.equal(processing.schemaVersion, 7);
+assert.deepEqual(processing.scoringPolicy, {
+  schemaVersion: 1,
+  policyVersion: 'piston-oscillation-free-scoring-policy-v1',
+  scheme: 'real',
+  scoringEligible: true,
+});
+const tamperedScoringPolicy = structuredClone(processing) as unknown as Record<string, unknown>;
+tamperedScoringPolicy.scoringPolicy = {
+  schemaVersion: 1,
+  policyVersion: 'tampered-scoring-policy',
+  scheme: 'ideal',
+  scoringEligible: false,
+};
+assert.deepEqual(
+  normalizePistonOscillationDataProcessingSession(
+    tamperedScoringPolicy,
+    records,
+    3_001,
+  )?.scoringPolicy,
+  processing.scoringPolicy,
+  'restoration must derive scoring eligibility from saved experiment context instead of persisted score claims',
+);
 processing = selectPistonOscillationPeriodRange(
   processing,
   records,

@@ -6,12 +6,15 @@ import {
   PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
   calculatePistonOscillationLinearFit,
   createPistonOscillationCalculationKnownsSnapshot,
+  createPistonOscillationCalculationSession,
   createPistonOscillationDataProcessingSession,
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
   createPistonOscillationSensorObservationSnapshot,
   findPistonOscillationPrimaryExtrema,
   normalizePistonOscillationRawMeasurementRecord,
+  submitPistonOscillationLinearFit,
+  togglePistonOscillationFitRun,
   type PistonOscillationRawMeasurementRecord,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
@@ -294,5 +297,101 @@ assert.equal(processing.runs.length, REFERENCE_HEIGHTS_MM.length);
 const knowns = createPistonOscillationCalculationKnownsSnapshot(heliumRecords);
 assert.equal(knowns.gasType, 'helium');
 assert.equal(knowns.referenceGamma, PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX);
+
+const sharedMatrixGammaByScheme: Partial<Record<'real' | 'ideal', number>> = {};
+for (const scheme of ['real', 'ideal'] as const) {
+  for (const gasType of ['air', 'helium'] as const) {
+    const gasMaterialSnapshot = createPistonOscillationGasMaterialSnapshot(gasType);
+    const group = createPistonOscillationFreeExperimentGroup({
+      groupId: `piston-processing-matrix:${scheme}:${gasType}`,
+      createdAtMs: 32_000,
+      scheme,
+      gasMaterialSnapshot,
+    });
+    const experimentContext = createPistonOscillationFreeExperimentContextSnapshot(group);
+    const matrixRecords = heliumRecords.map((record) => ({
+      ...structuredClone(record),
+      experimentContext: { ...experimentContext },
+      physicsSnapshot: {
+        ...structuredClone(record.physicsSnapshot),
+        gasMaterial: { ...gasMaterialSnapshot },
+        config: {
+          ...record.physicsSnapshot.config,
+          gamma: gasMaterialSnapshot.adiabaticIndex,
+        },
+      },
+    }));
+    let matrixProcessing = createPistonOscillationDataProcessingSession(
+      matrixRecords,
+      32_100,
+      { answerValidationMode: 'batch' },
+    );
+    assert.deepEqual(matrixProcessing.scoringPolicy, {
+      schemaVersion: 1,
+      policyVersion: 'piston-oscillation-free-scoring-policy-v1',
+      scheme,
+      scoringEligible: scheme === 'real',
+    });
+    matrixProcessing = {
+      ...matrixProcessing,
+      status: 'calculation-ready',
+      activeRunIndex: matrixProcessing.runs.length - 1,
+      runs: matrixProcessing.runs.map((run, runIndex) => {
+        const periodS = Math.sqrt(fitPoints[runIndex]!.periodSquaredS2);
+        return {
+          ...run,
+          result: {
+            resultVersion: 1,
+            leftSampleIndex: 0,
+            rightSampleIndex: Math.round(periodS * SAMPLE_RATE_HZ * 3),
+            leftPhase: 'peak',
+            rightPhase: 'peak',
+            phaseSpan: 'peak-to-peak',
+            t1S: 0,
+            t2S: periodS * 3,
+            periodCount: 3,
+            deltaTimeS: periodS * 3,
+            periodS,
+            periodSquaredS2: periodS ** 2,
+            completedAtMs: 32_200 + runIndex,
+          },
+        };
+      }),
+      calculationSession: createPistonOscillationCalculationSession(matrixRecords, 32_300),
+    };
+    for (let runIndex = 0; runIndex < matrixProcessing.runs.length; runIndex += 1) {
+      matrixProcessing = togglePistonOscillationFitRun(
+        matrixProcessing,
+        runIndex,
+        32_400 + runIndex,
+      );
+    }
+    matrixProcessing = submitPistonOscillationLinearFit(matrixProcessing, 32_500, {
+      requireAllRuns: true,
+    });
+    assert.equal(matrixProcessing.calculationSession?.status, 'calculating');
+    assert.equal(matrixProcessing.linearFitResult?.points.length, REFERENCE_HEIGHTS_MM.length);
+    assert.deepEqual(
+      matrixProcessing.linearFitResult?.points.map((point) => point.heightMm),
+      matrixRecords.map((record) => (
+        scheme === 'ideal' ? record.confirmedHeightMm : record.targetHeightMm
+      )),
+      `${scheme} ${gasType} must use its authoritative height source`,
+    );
+    assert.equal(matrixProcessing.calculationSession?.knowns.gasType, gasType);
+    assert.equal(
+      matrixProcessing.calculationSession?.knowns.referenceGamma,
+      gasMaterialSnapshot.adiabaticIndex,
+    );
+    const matrixGamma = matrixProcessing.calculationSession?.answers.gamma.expectedValue;
+    assert.ok(matrixGamma !== null && matrixGamma !== undefined);
+    const sharedMatrixGamma = sharedMatrixGammaByScheme[scheme];
+    if (sharedMatrixGamma === undefined) sharedMatrixGammaByScheme[scheme] = matrixGamma;
+    assert.ok(
+      sharedMatrixGamma === undefined || Math.abs(matrixGamma - sharedMatrixGamma) <= 1e-12,
+      `${scheme} air and helium must use the same fitted slope and calculation formula`,
+    );
+  }
+}
 
 console.log('pistonOscillationGasProfileMatrix tests passed');

@@ -78,7 +78,7 @@ import {
 } from './pistonOscillationExperimentContextModel.ts';
 
 export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 7 as const;
-export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 6 as const;
+export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 7 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
   'alternating-observed-local-extrema-v2' as const;
 export const PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION =
@@ -93,6 +93,8 @@ export const PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT = 3 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT = 0.5 as const;
 export const PISTON_OSCILLATION_PROCESSING_POLICY_VERSION =
   'piston-oscillation-processing-policy-v2' as const;
+export const PISTON_OSCILLATION_SCORING_POLICY_VERSION =
+  'piston-oscillation-free-scoring-policy-v1' as const;
 export const PISTON_OSCILLATION_GUIDED_MINIMUM_FIT_POINT_COUNT = 3 as const;
 export const PISTON_OSCILLATION_REFERENCE_PRESSURE_PA = 1.01e5 as const;
 
@@ -300,6 +302,7 @@ export interface PistonOscillationPeriodRunState {
   rawMeasurementRecordId: string;
   measurementIndex: number;
   targetHeightMm: number;
+  fitHeightMm: number;
   sampleRateHz: number;
   selection: PistonOscillationPeriodSelection | null;
   answers: {
@@ -319,6 +322,13 @@ export interface PistonOscillationProcessingPolicySnapshot {
   guidedMinimumPeriodCount: number;
   freeMinimumPeriodCount: number;
   answerValidationMode: PistonOscillationAnswerValidationMode;
+}
+
+export interface PistonOscillationScoringPolicySnapshot {
+  schemaVersion: 1;
+  policyVersion: typeof PISTON_OSCILLATION_SCORING_POLICY_VERSION;
+  scheme: PistonOscillationExperimentContextSnapshot['scheme'];
+  scoringEligible: boolean;
 }
 
 export type PistonOscillationDataProcessingAuditEventType =
@@ -429,6 +439,7 @@ export interface PistonOscillationCalculationSessionSnapshot {
 export interface PistonOscillationDataProcessingSession {
   schemaVersion: typeof PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION;
   processingPolicy: PistonOscillationProcessingPolicySnapshot;
+  scoringPolicy: PistonOscillationScoringPolicySnapshot;
   status: 'period-processing' | 'calculation-ready' | 'completed';
   activeRunIndex: number;
   runs: PistonOscillationPeriodRunState[];
@@ -2333,12 +2344,30 @@ export const createPistonOscillationProcessingPolicySnapshot = (
   answerValidationMode,
 });
 
+export const createPistonOscillationScoringPolicySnapshot = (
+  records: readonly PistonOscillationRawMeasurementRecord[],
+): PistonOscillationScoringPolicySnapshot => {
+  const experimentContext = requireConsistentPistonOscillationExperimentContextSnapshot(records);
+  // Records created before experiment groups existed are Real measurements by
+  // definition. Current records always carry an explicit group-bound scheme.
+  const scheme = experimentContext?.scheme ?? 'real';
+  return {
+    schemaVersion: 1,
+    policyVersion: PISTON_OSCILLATION_SCORING_POLICY_VERSION,
+    scheme,
+    scoringEligible: scheme === 'real',
+  };
+};
+
 const createRun = (
   record: PistonOscillationRawMeasurementRecord,
 ): PistonOscillationPeriodRunState => ({
   rawMeasurementRecordId: record.recordId,
   measurementIndex: record.measurementIndex,
   targetHeightMm: record.targetHeightMm,
+  fitHeightMm: record.experimentContext?.scheme === 'ideal'
+    ? record.confirmedHeightMm
+    : record.targetHeightMm,
   sampleRateHz: record.acquisitionSettings.sampleRateHz,
   selection: null,
   answers: {
@@ -2395,12 +2424,13 @@ export const createPistonOscillationDataProcessingSession = (
   options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession => {
   requireConsistentPistonOscillationGasMaterialSnapshot(records);
-  requireConsistentPistonOscillationExperimentContextSnapshot(records);
+  const scoringPolicy = createPistonOscillationScoringPolicySnapshot(records);
   return {
     schemaVersion: PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION,
     processingPolicy: createPistonOscillationProcessingPolicySnapshot(
       options.answerValidationMode,
     ),
+    scoringPolicy,
     status: 'period-processing',
     activeRunIndex: 0,
     runs: [...records]
@@ -3329,8 +3359,8 @@ const getLinearFitPoint = (
     measurementIndex: run.measurementIndex,
     rawMeasurementRecordId: run.rawMeasurementRecordId,
     periodSquaredS2: run.result.periodSquaredS2,
-    heightMm: run.targetHeightMm,
-    heightM: run.targetHeightMm / 1000,
+    heightMm: run.fitHeightMm,
+    heightM: run.fitHeightMm / 1000,
   };
 };
 

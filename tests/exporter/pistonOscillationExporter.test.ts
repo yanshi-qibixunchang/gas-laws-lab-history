@@ -19,6 +19,7 @@ import {
 } from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
+  createPistonOscillationFreeExperimentGroup,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
   createDefaultHeatCapacityPistonOscillationFile,
@@ -218,8 +219,14 @@ const session = {
     })),
   ],
   dataProcessing: {
-    schemaVersion: 6,
+    schemaVersion: 7,
     processingPolicy: {},
+    scoringPolicy: {
+      schemaVersion: 1,
+      policyVersion: 'piston-oscillation-free-scoring-policy-v1',
+      scheme: 'real',
+      scoringEligible: true,
+    },
     status: 'completed',
     activeRunIndex: 2,
     runs,
@@ -282,11 +289,15 @@ const payload = createPistonOscillationReportExportPayload(file, 'zh-CN');
 assert.equal(payload.kind, 'json');
 assert.equal(payload.mode, 'report');
 assert.equal(payload.data.exportKind, PISTON_OSCILLATION_REPORT_EXPORT_KIND);
-assert.equal(payload.data.schemaVersion, 3);
+assert.equal(payload.data.schemaVersion, 4);
 assert.equal(payload.data.experimentGroup.groupId, exportExperimentGroup.groupId);
 assert.equal(payload.data.summary.scheme, 'real');
 assert.equal(payload.data.summary.gasType, 'air');
 assert.equal(payload.data.summary.scoringEligible, true);
+assert.equal(
+  payload.data.summary.scoringPolicyVersion,
+  'piston-oscillation-free-scoring-policy-v1',
+);
 assert.equal(payload.data.gasMaterial.gasType, 'air');
 assert.equal(payload.data.gasMaterial.adiabaticIndex, 1.4);
 assert.equal(payload.data.measurements.length, 3);
@@ -294,6 +305,19 @@ assert.equal(payload.data.measurements[0].gasMaterial.gasType, 'air');
 assert.deepEqual(payload.data.measurements[0].experimentContext, exportExperimentContext);
 assert.equal(payload.data.measurements[0].samples.length, 701);
 assert.equal(records[0]?.samples.length, 701, 'building a report must not mutate saved samples');
+const missingScoringPolicyFile = structuredClone(file) as unknown as Record<string, any>;
+delete missingScoringPolicyFile.pistonOscillationFreeSession.dataProcessing.scoringPolicy;
+assert.equal(
+  isPistonOscillationReportReady(missingScoringPolicyFile as typeof file),
+  false,
+);
+assert.throws(
+  () => createPistonOscillationReportExportPayload(
+    missingScoringPolicyFile as typeof file,
+    'zh-CN',
+  ),
+  /scoring policy is inconsistent/,
+);
 const mismatchedContextFile = structuredClone(file);
 mismatchedContextFile.pistonOscillationFreeSession.savedMeasurements[0]!.experimentContext = {
   ...exportExperimentContext,
@@ -314,6 +338,48 @@ assert.equal(
 );
 assert.match(workbenchSource, /data-piston-oscillation-export-actions="true"/);
 assert.match(workbenchSource, /handleExportAction\('report'\)/);
+
+const idealExportGroup = createPistonOscillationFreeExperimentGroup({
+  groupId: 'piston-free-group:ideal-export',
+  createdAtMs: 1_725_079_700_000,
+  scheme: 'ideal',
+});
+const idealExperimentContext = createPistonOscillationFreeExperimentContextSnapshot(
+  idealExportGroup,
+);
+const idealFile = structuredClone(file);
+idealFile.pistonOscillationFreeSession.experimentGroup = idealExportGroup;
+idealFile.pistonOscillationFreeSession.savedMeasurements =
+  idealFile.pistonOscillationFreeSession.savedMeasurements.map((record) => ({
+    ...record,
+    experimentContext: { ...idealExperimentContext },
+  }));
+idealFile.pistonOscillationFreeSession.dataProcessing!.scoringPolicy = {
+  schemaVersion: 1,
+  policyVersion: 'piston-oscillation-free-scoring-policy-v1',
+  scheme: 'ideal',
+  scoringEligible: false,
+};
+assert.equal(isPistonOscillationReportReady(idealFile), true);
+const idealPayload = createPistonOscillationReportExportPayload(idealFile, 'zh-CN');
+assert.equal(idealPayload.kind, 'json');
+if (idealPayload.kind !== 'json') throw new Error('Expected Ideal JSON report payload.');
+assert.equal(idealPayload.data.summary.scheme, 'ideal');
+assert.equal(idealPayload.data.summary.scoringEligible, false);
+assert.equal(idealPayload.data.summary.operationAverageScore, null);
+assert.equal(idealPayload.data.summary.operationMaximum, null);
+assert.equal(idealPayload.data.summary.calculationScore, null);
+assert.equal(idealPayload.data.summary.calculationMaximum, null);
+assert.equal(idealPayload.data.summary.totalScore, null);
+assert.equal(idealPayload.data.summary.totalMaximum, null);
+assert.equal(idealPayload.data.measurements.every((measurement: Record<string, unknown>) => (
+  measurement.score === null
+)), true);
+assert.equal(idealPayload.data.measurements.every((measurement: Record<string, any>) => (
+  measurement.processReview.scoreRows.every((row: Record<string, unknown>) => (
+    row.score === null && row.maxScore === null
+  ))
+)), true);
 
 const sixMeasurementPayload = structuredClone(payload) as typeof payload;
 if (sixMeasurementPayload.kind !== 'json') throw new Error('Expected JSON report payload.');
@@ -418,6 +484,40 @@ if (pythonCheck.status !== 0) {
       assert.match(reportText, /第\s*1\s*次/);
       assert.doesNotMatch(reportText, /实验原理|计算公式/);
       assert.doesNotMatch(reportText, /�/u);
+    }
+
+    const idealInput = join(temporaryRoot, 'ideal-payload.json');
+    const idealOutput = join(temporaryRoot, 'ideal-report');
+    writeFileSync(idealInput, JSON.stringify(idealPayload), 'utf8');
+    const idealResult = spawnSync('python', [
+      exporter,
+      '--input', idealInput,
+      '--out', idealOutput,
+      '--formats', 'report',
+    ], {
+      cwd: root,
+      encoding: 'utf8',
+      timeout: 120_000,
+    });
+    assert.equal(idealResult.status, 0, idealResult.stderr || idealResult.stdout);
+    assert.ok(existsSync(join(idealOutput, 'report.pdf')));
+    const idealReportTextPath = join(temporaryRoot, 'ideal-report.txt');
+    const idealTextResult = spawnSync(
+      'pdftotext',
+      [join(idealOutput, 'report.pdf'), idealReportTextPath],
+      { cwd: root, encoding: 'utf8' },
+    );
+    if (idealTextResult.status === 0) {
+      const idealReportText = readFileSync(idealReportTextPath, 'utf8');
+      assert.match(idealReportText, /实验方案\s+理想实验过程/);
+      assert.match(idealReportText, /评分资格\s+不参与评分/);
+      assert.match(idealReportText, /4 过程回顾摘要/);
+      assert.match(idealReportText, /过程证据诊断/);
+      assert.match(idealReportText, /各次实验过程诊断/);
+      assert.doesNotMatch(idealReportText, /4 过程与评分摘要/);
+      assert.doesNotMatch(idealReportText, /各次实验操作评分/);
+      assert.doesNotMatch(idealReportText, /本轮最终评分/);
+      assert.doesNotMatch(idealReportText, /100%|80%/);
     }
 
     const sixInput = join(temporaryRoot, 'payload-6.json');
