@@ -67,6 +67,9 @@ import {
   createPistonOscillationIncompletePressOperationEvidence,
 } from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
 import {
+  createPistonOscillationExperimentContextSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationExperimentContextModel.ts';
+import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
 
@@ -180,6 +183,39 @@ assert.throws(
   () => createPistonOscillationDataProcessingSession(mismatchedGasMaterialRecords, 1_999),
   /same saved gas material/,
   'runs produced by different saved gas materials must not enter one fit',
+);
+const mismatchedExperimentContextRecords = structuredClone(records);
+mismatchedExperimentContextRecords.forEach((record) => {
+  record.experimentContext = createPistonOscillationExperimentContextSnapshot({
+    groupId: 'piston-context-group',
+    scheme: 'real',
+    parameterProfileVersion: 'piston-oscillation-real-parameter-profile-v1',
+  });
+});
+mismatchedExperimentContextRecords[2]!.experimentContext =
+  createPistonOscillationExperimentContextSnapshot({
+    groupId: 'piston-context-group',
+    scheme: 'ideal',
+    parameterProfileVersion: 'piston-oscillation-ideal-parameter-profile-v1',
+  });
+assert.throws(
+  () => createPistonOscillationDataProcessingSession(
+    mismatchedExperimentContextRecords,
+    2_000,
+  ),
+  /same saved experiment scheme and parameter profile/,
+  'runs from different schemes or parameter profiles must not enter one fit',
+);
+const partiallyContextualizedRecords = structuredClone(records);
+partiallyContextualizedRecords[0]!.experimentContext =
+  mismatchedExperimentContextRecords[0]!.experimentContext;
+assert.throws(
+  () => createPistonOscillationDataProcessingSession(
+    partiallyContextualizedRecords,
+    2_001,
+  ),
+  /same saved experiment scheme and parameter profile/,
+  'new contextualized runs must not be mixed with unbound legacy records',
 );
 assert.equal(
   normalizePistonOscillationDataProcessingSession(null, mismatchedGasMaterialRecords, 1_999),

@@ -28,7 +28,12 @@ import {
   createPistonOscillationAdiabaticStateFromReference,
   createPistonOscillationAtmosphericLockedState,
   getPistonOscillationSettlingStateAtProgress,
+  PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
+import {
+  PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+} from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
@@ -199,6 +204,28 @@ assert.equal(
   idealAirSelection,
   'the fixed Ideal profile must not accept manual physical-parameter edits',
 );
+const customizedRealAir = transitionPistonOscillationFreeSession(active, {
+  type: 'setParameterDraft',
+  parameterDraft: {
+    ...active.parameterDraft,
+    ambientPressureKpa: 99,
+    sampleRateHz: 500,
+    thermalRelaxationTimeS: 0.2,
+  },
+  nowMs: 102.5,
+});
+const customizedRealHelium = transitionPistonOscillationFreeSession(customizedRealAir, {
+  type: 'setGasType',
+  gasType: 'helium',
+  nowMs: 102.6,
+});
+assert.equal(customizedRealHelium.parameterDraft.ambientPressureKpa, 99);
+assert.equal(customizedRealHelium.parameterDraft.sampleRateHz, 500);
+assert.equal(
+  customizedRealHelium.parameterDraft.thermalRelaxationTimeS,
+  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+  'changing gas should retain environment/acquisition choices but replace gas-sensitive defaults',
+);
 const idealAcquisitionStarted = transitionPistonOscillationFreeSession(
   idealAirSelection,
   {
@@ -225,6 +252,18 @@ const idealHeliumSelection = transitionPistonOscillationFreeSession(idealAirSele
 });
 assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.gasType, 'helium');
 assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.adiabaticIndex, 5 / 3);
+assert.equal(canRunPistonOscillationFreeExperiment(idealHeliumSelection), true);
+assert.equal(
+  idealHeliumSelection.parameterDraft.thermalRelaxationTimeS,
+  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+  'the retained editable Real draft should follow the selected gas even while Ideal is active',
+);
+assert.equal(
+  idealHeliumSelection.instrumentState.thermodynamicState
+    .molarHeatCapacityAtConstantVolumeJPerMolK,
+  PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K / (5 / 3 - 1),
+  'changing gas must rebuild the reversible instrument state with helium heat capacity',
+);
 assert.equal(
   idealHeliumSelection.experimentGroup.parameterProfileVersion,
   PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
@@ -238,7 +277,65 @@ assert.equal(
   realHeliumSelection.experimentGroup.parameterProfileVersion,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
 );
-assert.equal(canRunPistonOscillationFreeExperiment(realHeliumSelection), false);
+assert.equal(canRunPistonOscillationFreeExperiment(realHeliumSelection), true);
+assert.equal(
+  realHeliumSelection.parameterDraft.thermalRelaxationTimeS,
+  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+);
+const restoredRealHeliumDefaults = transitionPistonOscillationFreeSession(
+  {
+    ...realHeliumSelection,
+    parameterDraft: {
+      ...realHeliumSelection.parameterDraft,
+      thermalRelaxationTimeS: 0.2,
+    },
+  },
+  { type: 'restoreDefaultParameters', nowMs: 105.5 },
+);
+assert.equal(
+  restoredRealHeliumDefaults.parameterDraft.thermalRelaxationTimeS,
+  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+  'Restore defaults must use the selected gas profile instead of the air baseline',
+);
+const migratedPendingRealHelium = normalizePistonOscillationFreeSession({
+  ...JSON.parse(JSON.stringify(realHeliumSelection)),
+  experimentGroup: {
+    ...JSON.parse(JSON.stringify(realHeliumSelection.experimentGroup)),
+    parameterProfileVersion:
+      PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  },
+  parameterDraft: {
+    ...JSON.parse(JSON.stringify(realHeliumSelection.parameterDraft)),
+    ambientPressureKpa: 99,
+    thermalRelaxationTimeS: 0.05,
+  },
+});
+assert.equal(
+  migratedPendingRealHelium.experimentGroup.parameterProfileVersion,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+);
+assert.equal(migratedPendingRealHelium.parameterDraft.ambientPressureKpa, 99);
+assert.equal(
+  migratedPendingRealHelium.parameterDraft.thermalRelaxationTimeS,
+  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+  'a saved pre-implementation helium draft must adopt the apparatus-specific thermal preset',
+);
+const restoredLooseHeliumState = normalizePistonOscillationFreeSession({
+  ...JSON.parse(JSON.stringify(realHeliumSelection)),
+  instrumentState: {
+    ...JSON.parse(JSON.stringify(realHeliumSelection.instrumentState)),
+    hoseState: 'connected',
+    nominalHeightMm: 60,
+    equilibriumHeightMm: 60,
+    thermodynamicState: active.instrumentState.thermodynamicState,
+  },
+});
+assert.equal(
+  restoredLooseHeliumState.instrumentState.thermodynamicState
+    .molarHeatCapacityAtConstantVolumeJPerMolK,
+  PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K / (5 / 3 - 1),
+  'restoring a reversible helium instrument state must not retain an air heat-capacity projection',
+);
 const realAirSelection = transitionPistonOscillationFreeSession(realHeliumSelection, {
   type: 'setGasType',
   gasType: 'air',
@@ -249,6 +346,7 @@ assert.equal(
   PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
 );
 assert.equal(canRunPistonOscillationFreeExperiment(realAirSelection), true);
+assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.05);
 assert.equal(
   normalizePistonOscillationFreeSession(
     JSON.parse(JSON.stringify(idealHeliumSelection)),

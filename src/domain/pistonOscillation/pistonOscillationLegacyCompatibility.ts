@@ -19,6 +19,7 @@ import type {
 import {
   createPistonOscillationEquilibriumState,
   createPistonOscillationIdealAdiabaticLoadedGasState,
+  type PistonOscillationPhysicsConfig,
   type PistonOscillationThermodynamicState,
 } from './pistonOscillationPhysicsEngine.ts';
 
@@ -65,9 +66,12 @@ export const createLegacyUnknownPistonOscillationPressOperationEvidence = (
 export const createLegacyPistonOscillationLooseConnectedThermodynamicState = (
   equilibriumHeightMm: number,
   pistonOffsetMm: number,
+  physicsConfig: Partial<PistonOscillationPhysicsConfig> = {},
 ): PistonOscillationThermodynamicState => (
   createPistonOscillationIdealAdiabaticLoadedGasState(
-    createPistonOscillationEquilibriumState(equilibriumHeightMm),
+    createPistonOscillationEquilibriumState(equilibriumHeightMm, physicsConfig),
     pistonOffsetMm,
+    0,
+    physicsConfig,
   )
 );

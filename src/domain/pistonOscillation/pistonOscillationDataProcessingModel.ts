@@ -72,6 +72,7 @@ import {
   createLegacyUnknownPistonOscillationPressOperationEvidence,
 } from './pistonOscillationLegacyCompatibility.ts';
 import {
+  doPistonOscillationExperimentContextsAgree,
   normalizePistonOscillationExperimentContextSnapshot,
   type PistonOscillationExperimentContextSnapshot,
 } from './pistonOscillationExperimentContextModel.ts';
@@ -551,10 +552,32 @@ const requireConsistentPistonOscillationGasMaterialSnapshot = (
   return gasMaterial;
 };
 
+const requireConsistentPistonOscillationExperimentContextSnapshot = (
+  records: readonly PistonOscillationRawMeasurementRecord[],
+) => {
+  const first = records[0]?.experimentContext ?? null;
+  const consistent = first === null
+    ? records.every((record) => record.experimentContext === null)
+    : records.every((record) => (
+        record.experimentContext !== null
+        && doPistonOscillationExperimentContextsAgree(
+          record.experimentContext,
+          first,
+        )
+      ));
+  if (!consistent) {
+    throw new RangeError(
+      'All fitted runs must use the same saved experiment scheme and parameter profile.',
+    );
+  }
+  return first ? { ...first } : null;
+};
+
 export const createPistonOscillationCalculationKnownsSnapshot = (
   records: readonly PistonOscillationRawMeasurementRecord[],
 ): PistonOscillationCalculationKnownsSnapshot => {
   const gasMaterial = requireConsistentPistonOscillationGasMaterialSnapshot(records);
+  requireConsistentPistonOscillationExperimentContextSnapshot(records);
   const firstConfig = records[0]?.physicsSnapshot.config;
   if (firstConfig && records.some((record) => (
     !physicsNumbersAgree(
@@ -2372,6 +2395,7 @@ export const createPistonOscillationDataProcessingSession = (
   options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession => {
   requireConsistentPistonOscillationGasMaterialSnapshot(records);
+  requireConsistentPistonOscillationExperimentContextSnapshot(records);
   return {
     schemaVersion: PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION,
     processingPolicy: createPistonOscillationProcessingPolicySnapshot(

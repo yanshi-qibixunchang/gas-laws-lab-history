@@ -33,6 +33,7 @@ import {
   createPistonOscillationFreeExperimentContextSnapshot,
   createPistonOscillationFreeExperimentGroup,
   doPistonOscillationGasMaterialSnapshotsAgree,
+  isPistonOscillationLegacyPendingRealHeliumExperimentGroup,
   isPistonOscillationFreeExperimentProfileImplemented,
   lockPistonOscillationFreeExperimentGroup,
   normalizePistonOscillationFreeExperimentGroup,
@@ -52,6 +53,7 @@ import {
   createPistonOscillationAtmosphericLockedState,
   normalizePistonOscillationThermodynamicState,
   resolvePistonOscillationStablePhysicalState,
+  type PistonOscillationPhysicsConfig,
   type PistonOscillationThermodynamicState,
 } from './pistonOscillationPhysicsEngine.ts';
 import {
@@ -73,6 +75,10 @@ import {
 import {
   resolvePistonOscillationFreeEffectiveConfig,
 } from './pistonOscillationFreeEffectiveConfig.ts';
+import {
+  applyPistonOscillationRealGasProfile,
+  createPistonOscillationRealParameterDraft,
+} from './pistonOscillationRealParameterProfile.ts';
 
 export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 10 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
@@ -489,6 +495,8 @@ const normalizeExperimentPlan = (value: unknown): PistonOscillationFreeExperimen
 
 export const createDefaultPistonOscillationFreeInstrumentState = (
   parameterDraft = createDefaultPistonOscillationFreeParameterDraft(),
+  physicsConfig: Partial<PistonOscillationPhysicsConfig> =
+    getPistonOscillationFreePhysicsConfig(parameterDraft),
 ): PistonOscillationFreeInstrumentState => ({
   schemaVersion: PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION,
   focusMode: 'overview',
@@ -501,7 +509,7 @@ export const createDefaultPistonOscillationFreeInstrumentState = (
   pistonPhase: 'idle',
   thermodynamicState: createPistonOscillationAtmosphericLockedState(
     0,
-    getPistonOscillationFreePhysicsConfig(parameterDraft),
+    physicsConfig,
     'vented',
   ),
 });
@@ -581,10 +589,11 @@ const createFreshActiveSession = (
     gasMaterialSnapshot: retainedGroup?.gasMaterialSnapshot,
     parameterProfileVersion: retainedGroup?.parameterProfileVersion,
   });
-  const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+  const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
     experimentGroup,
     parameterDraft,
-  ).parameters;
+  );
+  const effectiveParameters = effectiveConfig.parameters;
   const session: PistonOscillationFreeSession = {
     ...createDefaultPistonOscillationFreeSession(),
     status: 'active',
@@ -598,6 +607,7 @@ const createFreshActiveSession = (
     triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
     instrumentState: createDefaultPistonOscillationFreeInstrumentState(
       effectiveParameters,
+      effectiveConfig.physicsConfig,
     ),
   };
   return {
@@ -796,15 +806,20 @@ export const transitionPistonOscillationFreeSession = (
       event.scheme,
     );
     if (experimentGroup === session.experimentGroup) return session;
-    const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+    const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
       experimentGroup,
       session.parameterDraft,
-    ).parameters;
+    );
+    const effectiveParameters = effectiveConfig.parameters;
     const next = {
       ...session,
       experimentGroup,
       sampleRateHz: effectiveParameters.sampleRateHz,
       triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
+      instrumentState: createDefaultPistonOscillationFreeInstrumentState(
+        effectiveParameters,
+        effectiveConfig.physicsConfig,
+      ),
       updatedAtMs: event.nowMs,
     };
     return {
@@ -824,15 +839,25 @@ export const transitionPistonOscillationFreeSession = (
       event.gasType,
     );
     if (experimentGroup === session.experimentGroup) return session;
-    const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
-      experimentGroup,
+    const parameterDraft = applyPistonOscillationRealGasProfile(
       session.parameterDraft,
-    ).parameters;
+      event.gasType,
+    );
+    const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
+      experimentGroup,
+      parameterDraft,
+    );
+    const effectiveParameters = effectiveConfig.parameters;
     const next = {
       ...session,
       experimentGroup,
+      parameterDraft,
       sampleRateHz: effectiveParameters.sampleRateHz,
       triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
+      instrumentState: createDefaultPistonOscillationFreeInstrumentState(
+        effectiveParameters,
+        effectiveConfig.physicsConfig,
+      ),
       updatedAtMs: event.nowMs,
     };
     return {
@@ -917,13 +942,20 @@ export const transitionPistonOscillationFreeSession = (
       parameterDraft[key as keyof PistonOscillationFreeParameterDraft]
         !== session.parameterDraft[key as keyof PistonOscillationFreeParameterDraft]
     ));
+    const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
+      session.experimentGroup,
+      parameterDraft,
+    );
     const next = {
       ...session,
       parameterDraft,
       sampleRateHz: parameterDraft.sampleRateHz,
       triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
       instrumentState: thermodynamicInputsChanged
-        ? createDefaultPistonOscillationFreeInstrumentState(parameterDraft)
+        ? createDefaultPistonOscillationFreeInstrumentState(
+            parameterDraft,
+            effectiveConfig.physicsConfig,
+          )
         : session.instrumentState,
       updatedAtMs: event.nowMs,
     };
@@ -938,13 +970,22 @@ export const transitionPistonOscillationFreeSession = (
       isPistonOscillationFreeExperimentLocked(session)
       || session.experimentGroup.scheme === 'ideal'
     ) return session;
-    const parameterDraft = createDefaultPistonOscillationFreeParameterDraft();
+    const parameterDraft = createPistonOscillationRealParameterDraft(
+      session.experimentGroup.gasMaterialSnapshot.gasType,
+    );
+    const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
+      session.experimentGroup,
+      parameterDraft,
+    );
     const next = {
       ...session,
       parameterDraft,
       sampleRateHz: parameterDraft.sampleRateHz,
       triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
-      instrumentState: createDefaultPistonOscillationFreeInstrumentState(parameterDraft),
+      instrumentState: createDefaultPistonOscillationFreeInstrumentState(
+        parameterDraft,
+        effectiveConfig.physicsConfig,
+      ),
       updatedAtMs: event.nowMs,
     };
     return {
@@ -1347,6 +1388,10 @@ export const transitionPistonOscillationFreeSession = (
       } satisfies PistonOscillationFreeReacquisitionState,
       instrumentState: createDefaultPistonOscillationFreeInstrumentState(
         getPistonOscillationFreeEffectiveParameters(session),
+        resolvePistonOscillationFreeEffectiveConfig(
+          session.experimentGroup,
+          session.parameterDraft,
+        ).physicsConfig,
       ),
       updatedAtMs: event.nowMs,
     };
@@ -1688,9 +1733,13 @@ const normalizeInstrumentState = (
   value: unknown,
   recoverTransientState = false,
   parameterDraft = createDefaultPistonOscillationFreeParameterDraft(),
+  physicsConfig: Partial<PistonOscillationPhysicsConfig> =
+    getPistonOscillationFreePhysicsConfig(parameterDraft),
 ): PistonOscillationFreeInstrumentState => {
-  const physicsConfig = getPistonOscillationFreePhysicsConfig(parameterDraft);
-  const fallback = createDefaultPistonOscillationFreeInstrumentState(parameterDraft);
+  const fallback = createDefaultPistonOscillationFreeInstrumentState(
+    parameterDraft,
+    physicsConfig,
+  );
   if (!isPlainRecord(value)) return fallback;
   const equilibriumHeightMm = isFiniteNumber(value.equilibriumHeightMm)
     ? Math.min(80, Math.max(0, value.equilibriumHeightMm))
@@ -1704,6 +1753,7 @@ const normalizeInstrumentState = (
   const hoseState = value.hoseState === 'connected' ? 'connected' : 'disconnected';
   const persistedThermodynamicState = normalizePistonOscillationThermodynamicState(
     value.thermodynamicState,
+    physicsConfig,
   );
   const inferredThermodynamicState = (() => {
     const pistonHeightMm = Math.min(80, Math.max(
@@ -1727,6 +1777,7 @@ const normalizeInstrumentState = (
     return createLegacyPistonOscillationLooseConnectedThermodynamicState(
       equilibriumHeightMm,
       pistonOffsetMm,
+      physicsConfig,
     );
   })();
   const thermodynamicState = persistedThermodynamicState
@@ -2114,6 +2165,8 @@ export const normalizePistonOscillationFreeSession = (
     || reacquisition !== null
     || dataProcessing !== null
     || irreversibleAuditEvent !== undefined;
+  const legacyPendingRealHelium =
+    isPistonOscillationLegacyPendingRealHeliumExperimentGroup(value.experimentGroup);
   const experimentGroup = normalizePistonOscillationFreeExperimentGroup(
     value.experimentGroup,
     {
@@ -2193,11 +2246,17 @@ export const normalizePistonOscillationFreeSession = (
     ? dataProcessing
     : null;
   const parameterDraft = experimentGroup.parameterSnapshot?.parameters
-    ?? synchronizedParameterDraft;
-  const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+    ?? (legacyPendingRealHelium
+      ? applyPistonOscillationRealGasProfile(
+          synchronizedParameterDraft,
+          'helium',
+        )
+      : synchronizedParameterDraft);
+  const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
     experimentGroup,
     parameterDraft,
-  ).parameters;
+  );
+  const effectiveParameters = effectiveConfig.parameters;
   return {
     ...fallback,
     status,
@@ -2227,6 +2286,7 @@ export const normalizePistonOscillationFreeSession = (
       value.instrumentState,
       true,
       effectiveParameters,
+      effectiveConfig.physicsConfig,
     ),
     dataProcessing: contextualizedDataProcessing,
     audit,
