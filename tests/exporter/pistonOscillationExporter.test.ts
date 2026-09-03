@@ -15,6 +15,9 @@ import type {
   PistonOscillationFreeSession,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
+  createPistonOscillationGasMaterialSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
+import {
   createDefaultHeatCapacityPistonOscillationFile,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -52,7 +55,7 @@ const records = heights.map((heightMm, measurementIndex) => {
     return { timeS, absolutePressureKpa: pressure };
   });
   return {
-    schemaVersion: 5,
+    schemaVersion: 6,
     recordId: `piston-export-${measurementIndex + 1}`,
     capturedAtMs: 1_725_080_000_000 + measurementIndex * 120_000,
     measurementIndex,
@@ -71,7 +74,9 @@ const records = heights.map((heightMm, measurementIndex) => {
       releaseOrder: ['space-first', 'mouse-first', 'space-first'][measurementIndex],
     },
     sensorObservationSnapshot: {},
-    physicsSnapshot: {},
+    physicsSnapshot: {
+      gasMaterial: createPistonOscillationGasMaterialSnapshot(),
+    },
   };
 });
 
@@ -199,7 +204,7 @@ const session = {
     })),
   ],
   dataProcessing: {
-    schemaVersion: 5,
+    schemaVersion: 6,
     processingPolicy: {},
     status: 'completed',
     activeRunIndex: 2,
@@ -225,10 +230,11 @@ const session = {
       schemaVersion: 2,
       status: 'completed',
       knowns: {
-        schemaVersion: 1,
+        schemaVersion: 2,
         modelVersion: 'piston-slope-calculation-v1',
-        airMaterialModelVersion: 'air',
-        airMaterialId: 'air',
+        gasType: 'air',
+        gasMaterialModelVersion: 'piston-oscillation-dry-air-material-v1',
+        gasMaterialId: 'dry-air',
         movingMassKg: 0.0485,
         cylinderDiameterM: 0.0325,
         pressurePa: 101_000,
@@ -262,7 +268,11 @@ const payload = createPistonOscillationReportExportPayload(file, 'zh-CN');
 assert.equal(payload.kind, 'json');
 assert.equal(payload.mode, 'report');
 assert.equal(payload.data.exportKind, PISTON_OSCILLATION_REPORT_EXPORT_KIND);
+assert.equal(payload.data.schemaVersion, 2);
+assert.equal(payload.data.gasMaterial.gasType, 'air');
+assert.equal(payload.data.gasMaterial.adiabaticIndex, 1.4);
 assert.equal(payload.data.measurements.length, 3);
+assert.equal(payload.data.measurements[0].gasMaterial.gasType, 'air');
 assert.equal(payload.data.measurements[0].samples.length, 701);
 assert.equal(records[0]?.samples.length, 701, 'building a report must not mutate saved samples');
 const commonPayload = createWorkbenchExportPayload(file, 'report', 'zh-CN');

@@ -2,6 +2,9 @@ import type {
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
+  getConsistentPistonOscillationGasMaterialSnapshot,
+} from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
   selectPistonOscillationProcessReviewModels,
 } from '../processReview/pistonOscillationProcessReviewModel.ts';
 import type { PistonOscillationLanguage } from '../pistonOscillation/pistonOscillationCopy.ts';
@@ -60,6 +63,9 @@ export const isPistonOscillationReportReady = (
   ) return false;
   if (processing.runs.length !== session.savedMeasurements.length) return false;
   if (processing.runs.some((run) => run.result === null || run.selection === null)) return false;
+  if (!getConsistentPistonOscillationGasMaterialSnapshot(session.savedMeasurements)) {
+    return false;
+  }
   return selectPistonOscillationProcessReviewModels(session, 'zh-CN').length
     === processing.runs.length;
 };
@@ -93,6 +99,12 @@ export const createPistonOscillationReportExportPayload = (
   );
   if (reviewModels.length !== processing.runs.length) {
     throw new Error('Piston-oscillation process-review evidence is incomplete.');
+  }
+  const gasMaterial = getConsistentPistonOscillationGasMaterialSnapshot(
+    session.savedMeasurements,
+  );
+  if (!gasMaterial) {
+    throw new Error('Piston-oscillation gas-material evidence is inconsistent.');
   }
 
   const measurements = processing.runs.map((run, runIndex) => {
@@ -131,6 +143,7 @@ export const createPistonOscillationReportExportPayload = (
         maximum: Math.max(...pressureValues),
       } : null,
       samples: record.samples,
+      gasMaterial: { ...record.physicsSnapshot.gasMaterial },
       pressOperationEvidence: record.pressOperationEvidence,
       selection: run.selection,
       periodResult: run.result,
@@ -189,7 +202,7 @@ export const createPistonOscillationReportExportPayload = (
     filename: `${sanitizeFilenamePart(file.name)}-piston-oscillation-report-${formatTimestamp(completedAtMs)}.json`,
     data: {
       exportKind: PISTON_OSCILLATION_REPORT_EXPORT_KIND,
-      schemaVersion: 1,
+      schemaVersion: 2,
       language,
       fileId: file.id,
       fileName: file.name,
@@ -199,6 +212,7 @@ export const createPistonOscillationReportExportPayload = (
           ? '活塞振動法測空氣比熱容比'
           : '活塞振动法测空气比热容比',
       experimentMode: 'free',
+      gasMaterial: { ...gasMaterial },
       fileCreatedAtMs: file.createdAt,
       fileUpdatedAtMs: file.updatedAt,
       sessionStartedAtMs: session.startedAtMs,
@@ -210,6 +224,7 @@ export const createPistonOscillationReportExportPayload = (
         fitPointCount: processing.linearFitResult?.selectedRunIndices.length ?? 0,
         areaM2: calculation?.answers.area.expectedValue ?? null,
         gamma: calculation?.answers.gamma.expectedValue ?? null,
+        gasType: gasMaterial.gasType,
         referenceGamma: calculation?.knowns.referenceGamma ?? null,
         relativeErrorPercent: calculation?.answers.relativeError.expectedValue ?? null,
         rSquared: processing.linearFitResult?.rSquared ?? null,

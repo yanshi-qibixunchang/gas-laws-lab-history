@@ -51,9 +51,9 @@ type MutablePersistedRecord = Record<string, unknown> & {
   };
 };
 import {
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
-  PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
-} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION,
+} from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
 import {
   PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
   PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
@@ -119,12 +119,18 @@ const records = [
   createOscillationRecord(2, 60, PERIOD_SAMPLES[2]),
 ];
 assert.equal(
-  records[0].physicsSnapshot.airMaterial.modelVersion,
-  PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
+  records[0].physicsSnapshot.gasMaterial.modelVersion,
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION,
 );
 assert.equal(
-  records[0].physicsSnapshot.airMaterial.adiabaticIndex,
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
+  records[0].physicsSnapshot.gasMaterial.adiabaticIndex,
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
+);
+assert.equal(records[0].physicsSnapshot.gasMaterial.gasType, 'air');
+assert.equal(
+  Object.hasOwn(records[0].physicsSnapshot, 'airMaterial'),
+  false,
+  'new measurements must not write the retired airMaterial field',
 );
 assert.equal(
   records[0].physicsSnapshot.equivalentLoss.modelVersion,
@@ -158,19 +164,19 @@ assert.ok(
   'records captured with the pre-formal 1.1 review snapshot must remain readable',
 );
 
-const mismatchedAirMaterialRecords = structuredClone(records);
-mismatchedAirMaterialRecords[2]!.physicsSnapshot.airMaterial = {
-  ...mismatchedAirMaterialRecords[2]!.physicsSnapshot.airMaterial,
+const mismatchedGasMaterialRecords = structuredClone(records);
+mismatchedGasMaterialRecords[2]!.physicsSnapshot.gasMaterial = {
+  ...mismatchedGasMaterialRecords[2]!.physicsSnapshot.gasMaterial,
   modelVersion: 'another-saved-air-material-version',
   provenance: 'legacy-inferred',
 };
 assert.throws(
-  () => createPistonOscillationDataProcessingSession(mismatchedAirMaterialRecords, 1_999),
-  /same saved air material/,
-  'runs produced by different saved air materials must not enter one fit',
+  () => createPistonOscillationDataProcessingSession(mismatchedGasMaterialRecords, 1_999),
+  /same saved gas material/,
+  'runs produced by different saved gas materials must not enter one fit',
 );
 assert.equal(
-  normalizePistonOscillationDataProcessingSession(null, mismatchedAirMaterialRecords, 1_999),
+  normalizePistonOscillationDataProcessingSession(null, mismatchedGasMaterialRecords, 1_999),
   null,
 );
 
@@ -594,7 +600,7 @@ Object.assign(tamperedPersistence.linearFitResult as Record<string, unknown>, {
 const tamperedCalculation = tamperedPersistence.calculationSession as Record<string, unknown>;
 const tamperedKnowns = tamperedCalculation.knowns as Record<string, unknown>;
 tamperedKnowns.referenceGamma = 1.2;
-tamperedKnowns.airMaterialModelVersion = 'tampered-material';
+tamperedKnowns.gasMaterialModelVersion = 'tampered-material';
 const tamperedCalculationAnswers = tamperedCalculation.answers as Record<string, Record<string, unknown>>;
 tamperedCalculationAnswers.gamma.expectedValue = 999;
 tamperedCalculationAnswers.relativeError.draftRaw = '999';
@@ -608,12 +614,18 @@ assert.ok(restoredCalculation);
 assert.equal(restoredCalculation.status, 'completed');
 assert.equal(
   restoredCalculation.calculationSession?.knowns.referenceGamma,
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
   'restoration must derive the relative-error reference from the raw material snapshot',
 );
 assert.equal(
-  restoredCalculation.calculationSession?.knowns.airMaterialModelVersion,
-  PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
+  restoredCalculation.calculationSession?.knowns.gasMaterialModelVersion,
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION,
+);
+assert.equal(restoredCalculation.calculationSession?.knowns.gasType, 'air');
+assert.equal(
+  Object.hasOwn(restoredCalculation.calculationSession?.knowns ?? {}, 'airMaterialId'),
+  false,
+  'normalized calculation knowns must not keep retired air-specific fields',
 );
 assert.deepEqual(restoredCalculation.runs[0].result, authoritativeFirstResult);
 assert.equal(restoredCalculation.runs[0].selection?.periodCount, 3);
@@ -841,7 +853,7 @@ const validCurrentRecord = normalizePistonOscillationRawMeasurementRecord(
   structuredClone(records[0]),
 );
 assert.ok(validCurrentRecord);
-assert.equal(validCurrentRecord.schemaVersion, 5);
+assert.equal(validCurrentRecord.schemaVersion, 6);
 assert.equal(validCurrentRecord.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(validCurrentRecord.acquisitionSettings.releaseOffsetS, null);
 
@@ -964,26 +976,56 @@ const materiallessHistoricalPhysics = materiallessHistoricalRecord.physicsSnapsh
   string,
   unknown
 >;
-delete materiallessHistoricalPhysics.airMaterial;
+delete materiallessHistoricalPhysics.gasMaterial;
 delete materiallessHistoricalPhysics.equivalentLoss;
 const restoredMateriallessRecord = normalizePistonOscillationRawMeasurementRecord(
   materiallessHistoricalRecord,
 );
 assert.ok(restoredMateriallessRecord);
-assert.equal(restoredMateriallessRecord.physicsSnapshot.airMaterial.provenance, 'legacy-inferred');
+assert.equal(restoredMateriallessRecord.physicsSnapshot.gasMaterial.provenance, 'legacy-inferred');
 assert.equal(
-  restoredMateriallessRecord.physicsSnapshot.airMaterial.adiabaticIndex,
+  restoredMateriallessRecord.physicsSnapshot.gasMaterial.adiabaticIndex,
   records[0].physicsSnapshot.config.gamma,
 );
 assert.equal(restoredMateriallessRecord.physicsSnapshot.equivalentLoss.provenance, 'legacy-inferred');
+
+const legacyAirFieldRecord = structuredClone(records[0]) as unknown as Record<string, unknown>;
+legacyAirFieldRecord.schemaVersion = 5;
+const legacyAirFieldPhysics = legacyAirFieldRecord.physicsSnapshot as Record<string, unknown>;
+const legacyAirMaterial = {
+  ...(legacyAirFieldPhysics.gasMaterial as Record<string, unknown>),
+};
+delete legacyAirMaterial.gasType;
+legacyAirFieldPhysics.airMaterial = legacyAirMaterial;
+delete legacyAirFieldPhysics.gasMaterial;
+const restoredLegacyAirFieldRecord = normalizePistonOscillationRawMeasurementRecord(
+  legacyAirFieldRecord,
+);
+assert.ok(restoredLegacyAirFieldRecord);
+assert.equal(restoredLegacyAirFieldRecord.physicsSnapshot.gasMaterial.gasType, 'air');
+assert.equal(
+  restoredLegacyAirFieldRecord.physicsSnapshot.gasMaterial.modelVersion,
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION,
+);
+assert.equal(
+  Object.hasOwn(restoredLegacyAirFieldRecord.physicsSnapshot, 'airMaterial'),
+  false,
+  'legacy airMaterial must be consumed at the read boundary and rewritten as gasMaterial',
+);
+assert.deepEqual(
+  normalizePistonOscillationRawMeasurementRecord(restoredLegacyAirFieldRecord),
+  restoredLegacyAirFieldRecord,
+  'the airMaterial-to-gasMaterial migration must be idempotent',
+);
 
 const inconsistentMaterialRecord = structuredClone(records[0]) as unknown as Record<string, unknown>;
 const inconsistentMaterialPhysics = inconsistentMaterialRecord.physicsSnapshot as Record<
   string,
   unknown
 >;
-inconsistentMaterialPhysics.airMaterial = {
+inconsistentMaterialPhysics.gasMaterial = {
   schemaVersion: 1,
+  gasType: 'air',
   modelVersion: 'legacy-physics-config-air-material',
   materialId: 'dry-air',
   adiabaticIndex: 1.3,
@@ -1093,7 +1135,7 @@ const legacy = normalizePistonOscillationRawMeasurementRecord({
   ],
 });
 assert.ok(legacy);
-assert.equal(legacy.schemaVersion, 5);
+assert.equal(legacy.schemaVersion, 6);
 assert.equal(legacy.pressOperationEvidence.provenance, 'legacy-unknown');
 assert.equal(legacy.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(legacy.acquisitionSettings.releaseOffsetS, null);
@@ -1106,8 +1148,8 @@ assert.equal(legacy.sensorObservationSnapshot.provenance, 'legacy-migrated');
 assert.equal(legacy.sensorObservationSnapshot.sourceRecordSchemaVersion, 1);
 assert.equal(legacy.physicsSnapshot.provenance, 'legacy-inferred');
 assert.equal(legacy.physicsSnapshot.modelVersion, 'legacy-unknown');
-assert.equal(legacy.physicsSnapshot.airMaterial.provenance, 'legacy-inferred');
-assert.equal(legacy.physicsSnapshot.airMaterial.adiabaticIndex, 1.4);
+assert.equal(legacy.physicsSnapshot.gasMaterial.provenance, 'legacy-inferred');
+assert.equal(legacy.physicsSnapshot.gasMaterial.adiabaticIndex, 1.4);
 assert.equal(legacy.physicsSnapshot.equivalentLoss.provenance, 'legacy-inferred');
 
 const legacyWithMissingSamples = {

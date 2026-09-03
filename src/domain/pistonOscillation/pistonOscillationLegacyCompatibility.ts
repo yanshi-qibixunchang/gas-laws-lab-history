@@ -5,10 +5,10 @@
  * remains the archive for superseded behavior.
  */
 import {
-  PISTON_OSCILLATION_AIR_MATERIAL_ID,
-  PISTON_OSCILLATION_AIR_MATERIAL_SCHEMA_VERSION,
-  type PistonOscillationAirMaterialSnapshot,
-} from './pistonOscillationAirMaterialModel.ts';
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL_ID,
+  PISTON_OSCILLATION_GAS_MATERIAL_SCHEMA_VERSION,
+  type PistonOscillationGasMaterialSnapshot,
+} from './pistonOscillationGasMaterialModel.ts';
 import {
   PISTON_OSCILLATION_EQUIVALENT_LOSS_SCHEMA_VERSION,
   type PistonOscillationEquivalentLossSnapshot,
@@ -22,12 +22,13 @@ import {
   type PistonOscillationThermodynamicState,
 } from './pistonOscillationPhysicsEngine.ts';
 
-export const createLegacyPistonOscillationAirMaterialSnapshot = (
+export const createLegacyPistonOscillationGasMaterialSnapshot = (
   adiabaticIndex: number,
-): PistonOscillationAirMaterialSnapshot => ({
-  schemaVersion: PISTON_OSCILLATION_AIR_MATERIAL_SCHEMA_VERSION,
+): PistonOscillationGasMaterialSnapshot => ({
+  schemaVersion: PISTON_OSCILLATION_GAS_MATERIAL_SCHEMA_VERSION,
+  gasType: 'air',
   modelVersion: 'legacy-physics-config-air-material',
-  materialId: PISTON_OSCILLATION_AIR_MATERIAL_ID,
+  materialId: PISTON_OSCILLATION_DRY_AIR_MATERIAL_ID,
   adiabaticIndex,
   provenance: 'legacy-inferred',
 });

@@ -1,6 +1,6 @@
 import {
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
-} from './pistonOscillationAirMaterialModel.ts';
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
+} from './pistonOscillationGasMaterialModel.ts';
 import {
   PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 } from './pistonOscillationEquivalentLossModel.ts';
@@ -216,7 +216,7 @@ export const PISTON_OSCILLATION_LEGACY_CALIBRATION_PROFILE = {
 } as const;
 
 export const DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG: PistonOscillationPhysicsConfig = {
-  gamma: PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
+  gamma: PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
   ambientPressurePa: 101_325,
   ambientTemperatureK: 293.15,
   movingMassKg: PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG,

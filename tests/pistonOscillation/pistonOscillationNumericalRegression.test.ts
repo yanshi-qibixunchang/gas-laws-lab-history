@@ -20,8 +20,8 @@ import {
   findPistonOscillationObservedFallingTriggerSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
 import {
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
-} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
+} from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
 import {
   PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
 } from '../../src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
@@ -58,7 +58,7 @@ assert.equal(
 assert.equal(DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.movingMassKg, 0.0485);
 assert.equal(
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.gamma,
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
 );
 
 const regressionRuns = REFERENCE_HEIGHTS_MM.map((heightMm, measurementIndex) => {
@@ -168,6 +168,6 @@ assert.ok(fit.slopeMPerS2 > 60.3 && fit.slopeMPerS2 < 60.4);
 assert.ok(fit.interceptM > -0.0061 && fit.interceptM < -0.0060);
 assert.ok(fit.rSquared > 0.9958 && fit.rSquared < 0.9960);
 assert.ok(regressionGamma > 1.37 && regressionGamma < 1.39);
-assert.notEqual(regressionGamma, PISTON_OSCILLATION_AIR_ADIABATIC_INDEX);
+assert.notEqual(regressionGamma, PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX);
 
 console.log('pistonOscillationNumericalRegression tests passed');

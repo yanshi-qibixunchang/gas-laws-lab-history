@@ -28,9 +28,11 @@ import {
   simulatePistonOscillationIdealAdiabaticRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
-  PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION,
-} from '../../src/domain/pistonOscillation/pistonOscillationAirMaterialModel.ts';
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION,
+  createPistonOscillationGasMaterialSnapshot,
+  isPistonOscillationGasMaterialSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
 import {
   PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
   PISTON_OSCILLATION_EQUIVALENT_LOSS_KIND,
@@ -43,12 +45,29 @@ import {
   isPistonOscillationEquivalentLossSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
 
-assert.equal(PISTON_OSCILLATION_AIR_MATERIAL_MODEL_VERSION, 'piston-oscillation-dry-air-material-v1');
-assert.equal(PISTON_OSCILLATION_AIR_ADIABATIC_INDEX, 1.4);
+assert.equal(PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION, 'piston-oscillation-dry-air-material-v1');
+assert.equal(PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX, 1.4);
 assert.equal(
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.gamma,
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
   'the guided physics equation must use the single versioned dry-air material value',
+);
+const currentGasMaterial = createPistonOscillationGasMaterialSnapshot('air');
+assert.equal(currentGasMaterial.gasType, 'air');
+assert.ok(isPistonOscillationGasMaterialSnapshot(currentGasMaterial));
+assert.equal(
+  isPistonOscillationGasMaterialSnapshot({
+    ...currentGasMaterial,
+    gasType: 'helium',
+    provenance: 'legacy-inferred',
+  }),
+  false,
+  'helium must remain disabled until a versioned piston-specific profile is introduced',
+);
+assert.throws(
+  () => createPistonOscillationGasMaterialSnapshot('helium'),
+  /No captured piston-oscillation material profile exists for helium/,
+  'the generic contract must not silently invent a helium profile before calibration exists',
 );
 assert.equal(
   PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION,
@@ -226,7 +245,7 @@ assert.ok(
   ) < 1e-9,
   'the live pressed-state pressure must use the same state equation as release trajectories',
 );
-assert.equal(instantaneousPressedState.config.gamma, PISTON_OSCILLATION_AIR_ADIABATIC_INDEX);
+assert.equal(instantaneousPressedState.config.gamma, PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX);
 assert.throws(
   () => getPistonOscillationIdealAdiabaticInstantaneousState(5, -6),
   /cannot pass below the 0 mm stop/,
@@ -390,7 +409,7 @@ const recoveredIdealGamma = 4 * Math.PI ** 2
   * invariantSlopeMPerS2
   / (areaM2 * invariantPressurePa);
 assert.ok(
-  Math.abs(recoveredIdealGamma - PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) < 1e-12,
+  Math.abs(recoveredIdealGamma - PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX) < 1e-12,
   'the zero-loss analytic invariant must recover the versioned 1.40 air property',
 );
 
@@ -428,7 +447,7 @@ const recoveredGammaAfterSettling = 4 * Math.PI ** 2
   * lockedInvariantSlopeMPerS2
   / (areaM2 * loadedFromLocked80.equilibriumPressurePa);
 assert.ok(
-  Math.abs(recoveredGammaAfterSettling - PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) < 1e-12,
+  Math.abs(recoveredGammaAfterSettling - PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX) < 1e-12,
   'the ideal self-check must use the true post-settling heights and still recover 1.40',
 );
 

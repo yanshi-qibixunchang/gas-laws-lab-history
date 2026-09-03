@@ -28,11 +28,11 @@ import {
   advancePistonOscillationPrescribedThermodynamicState,
 } from './pistonOscillationThermalPhysicsModel.ts';
 import {
-  PISTON_OSCILLATION_AIR_ADIABATIC_INDEX,
-  createPistonOscillationAirMaterialSnapshot,
-  isPistonOscillationAirMaterialSnapshot,
-  type PistonOscillationAirMaterialSnapshot,
-} from './pistonOscillationAirMaterialModel.ts';
+  PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
+  createPistonOscillationGasMaterialSnapshot,
+  isPistonOscillationGasMaterialSnapshot,
+  type PistonOscillationGasMaterialSnapshot,
+} from './pistonOscillationGasMaterialModel.ts';
 import {
   createPistonOscillationEquivalentLossSnapshot,
   isPistonOscillationEquivalentLossSnapshot,
@@ -63,13 +63,13 @@ import {
   type PistonOscillationPressOperationEvidence,
 } from './pistonOscillationPressInteractionModel.ts';
 import {
-  createLegacyPistonOscillationAirMaterialSnapshot,
+  createLegacyPistonOscillationGasMaterialSnapshot,
   createLegacyPistonOscillationEquivalentLossSnapshot,
   createLegacyUnknownPistonOscillationPressOperationEvidence,
 } from './pistonOscillationLegacyCompatibility.ts';
 
-export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 5 as const;
-export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 5 as const;
+export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 6 as const;
+export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 6 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
   'alternating-observed-local-extrema-v2' as const;
 export const PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION =
@@ -101,7 +101,7 @@ export interface PistonOscillationPhysicsSnapshot {
   modelVersion: string;
   provenance: 'captured' | 'legacy-inferred';
   captureKind: 'released' | 'incomplete-press' | 'legacy-imported';
-  airMaterial: PistonOscillationAirMaterialSnapshot;
+  gasMaterial: PistonOscillationGasMaterialSnapshot;
   equivalentLoss: PistonOscillationEquivalentLossSnapshot;
   config: PistonOscillationPhysicsConfig;
   equilibrium: PistonOscillationEquilibriumState;
@@ -358,10 +358,11 @@ export interface PistonOscillationLinearFitPointSnapshot {
 }
 
 export interface PistonOscillationCalculationKnownsSnapshot {
-  schemaVersion: 1;
+  schemaVersion: 2;
   modelVersion: typeof PISTON_OSCILLATION_CALCULATION_MODEL_VERSION | string;
-  airMaterialModelVersion: string;
-  airMaterialId: string;
+  gasType: PistonOscillationGasMaterialSnapshot['gasType'];
+  gasMaterialModelVersion: string;
+  gasMaterialId: string;
   movingMassKg: number;
   cylinderDiameterM: number;
   pressurePa: number;
@@ -511,34 +512,36 @@ export const formatPistonOscillationCalculationAnswer = (
   PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS[fieldId],
 );
 
-export const getConsistentPistonOscillationAirMaterialSnapshot = (
+export const getConsistentPistonOscillationGasMaterialSnapshot = (
   records: readonly PistonOscillationRawMeasurementRecord[],
-): PistonOscillationAirMaterialSnapshot | null => {
-  const first = records[0]?.physicsSnapshot.airMaterial
-    ?? createPistonOscillationAirMaterialSnapshot();
+): PistonOscillationGasMaterialSnapshot | null => {
+  const first = records[0]?.physicsSnapshot?.gasMaterial;
+  if (!first) return null;
   const isConsistent = records.every((record) => {
-    const candidate = record.physicsSnapshot.airMaterial;
-    return candidate.modelVersion === first.modelVersion
+    const candidate = record.physicsSnapshot?.gasMaterial;
+    return candidate !== undefined
+      && candidate.gasType === first.gasType
+      && candidate.modelVersion === first.modelVersion
       && candidate.materialId === first.materialId
       && candidate.adiabaticIndex === first.adiabaticIndex;
   });
   return isConsistent ? { ...first } : null;
 };
 
-const requireConsistentPistonOscillationAirMaterialSnapshot = (
+const requireConsistentPistonOscillationGasMaterialSnapshot = (
   records: readonly PistonOscillationRawMeasurementRecord[],
 ) => {
-  const airMaterial = getConsistentPistonOscillationAirMaterialSnapshot(records);
-  if (!airMaterial) {
-    throw new RangeError('All fitted runs must use the same saved air material.');
+  const gasMaterial = getConsistentPistonOscillationGasMaterialSnapshot(records);
+  if (!gasMaterial) {
+    throw new RangeError('All fitted runs must use the same saved gas material.');
   }
-  return airMaterial;
+  return gasMaterial;
 };
 
 export const createPistonOscillationCalculationKnownsSnapshot = (
   records: readonly PistonOscillationRawMeasurementRecord[],
 ): PistonOscillationCalculationKnownsSnapshot => {
-  const airMaterial = requireConsistentPistonOscillationAirMaterialSnapshot(records);
+  const gasMaterial = requireConsistentPistonOscillationGasMaterialSnapshot(records);
   const firstConfig = records[0]?.physicsSnapshot.config;
   if (firstConfig && records.some((record) => (
     !physicsNumbersAgree(
@@ -553,16 +556,17 @@ export const createPistonOscillationCalculationKnownsSnapshot = (
     throw new RangeError('All fitted runs must use the same saved apparatus parameters.');
   }
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     modelVersion: PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
-    airMaterialModelVersion: airMaterial.modelVersion,
-    airMaterialId: airMaterial.materialId,
+    gasType: gasMaterial.gasType,
+    gasMaterialModelVersion: gasMaterial.modelVersion,
+    gasMaterialId: gasMaterial.materialId,
     movingMassKg: firstConfig?.movingMassKg
       ?? DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.movingMassKg,
     cylinderDiameterM: PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
     pressurePa: firstConfig?.ambientPressurePa
       ?? PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
-    referenceGamma: airMaterial.adiabaticIndex,
+    referenceGamma: gasMaterial.adiabaticIndex,
   };
 };
 
@@ -590,7 +594,7 @@ export const createPistonOscillationPhysicsSnapshot = (
   ) {
     throw new RangeError('Current measurements require a heat-flow-lag trajectory.');
   }
-  if (trajectory.config.gamma !== PISTON_OSCILLATION_AIR_ADIABATIC_INDEX) {
+  if (trajectory.config.gamma !== PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX) {
     throw new RangeError('Current measurements must use the versioned dry-air material.');
   }
   const equivalentLoss = createPistonOscillationEquivalentLossSnapshot(
@@ -600,7 +604,7 @@ export const createPistonOscillationPhysicsSnapshot = (
     modelVersion: trajectory.modelVersion,
     provenance: 'captured',
     captureKind: 'released',
-    airMaterial: createPistonOscillationAirMaterialSnapshot(),
+    gasMaterial: createPistonOscillationGasMaterialSnapshot(),
     equivalentLoss,
     config: { ...trajectory.config },
     equilibrium: { ...trajectory.equilibrium },
@@ -658,7 +662,7 @@ export const createPistonOscillationIncompletePhysicsSnapshot = (options: {
     modelVersion: thermodynamicState.modelVersion,
     provenance: 'captured',
     captureKind: 'incomplete-press',
-    airMaterial: createPistonOscillationAirMaterialSnapshot(),
+    gasMaterial: createPistonOscillationGasMaterialSnapshot(),
     equivalentLoss,
     config,
     equilibrium,
@@ -751,10 +755,10 @@ const isValidPistonOscillationPhysicsSnapshot = (
       || !Number.isFinite(snapshot.initialVelocityMPerS)
       || !Number.isSafeInteger(snapshot.integrationSubstepsPerSample)
       || snapshot.integrationSubstepsPerSample < 1
-      || !isPistonOscillationAirMaterialSnapshot(snapshot.airMaterial)
+      || !isPistonOscillationGasMaterialSnapshot(snapshot.gasMaterial)
       || !isPistonOscillationEquivalentLossSnapshot(snapshot.equivalentLoss)
       || !physicsNumbersAgree(
-        snapshot.airMaterial.adiabaticIndex,
+        snapshot.gasMaterial.adiabaticIndex,
         snapshot.config.gamma,
       )
       || !physicsNumbersAgree(
@@ -1048,7 +1052,7 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
     },
     physicsSnapshot: {
       ...options.physicsSnapshot,
-      airMaterial: { ...options.physicsSnapshot.airMaterial },
+      gasMaterial: { ...options.physicsSnapshot.gasMaterial },
       equivalentLoss: { ...options.physicsSnapshot.equivalentLoss },
       config: { ...options.physicsSnapshot.config },
       equilibrium: { ...options.physicsSnapshot.equilibrium },
@@ -1085,7 +1089,7 @@ export const clonePistonOscillationRawMeasurementRecord = (
   },
   physicsSnapshot: {
     ...record.physicsSnapshot,
-    airMaterial: { ...record.physicsSnapshot.airMaterial },
+    gasMaterial: { ...record.physicsSnapshot.gasMaterial },
     equivalentLoss: { ...record.physicsSnapshot.equivalentLoss },
     config: { ...record.physicsSnapshot.config },
     equilibrium: { ...record.physicsSnapshot.equilibrium },
@@ -1104,7 +1108,7 @@ const createLegacyPhysicsSnapshot = (
   modelVersion: 'legacy-unknown',
   provenance: 'legacy-inferred',
   captureKind: 'legacy-imported',
-  airMaterial: createLegacyPistonOscillationAirMaterialSnapshot(
+  gasMaterial: createLegacyPistonOscillationGasMaterialSnapshot(
     DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.gamma,
   ),
   equivalentLoss: createLegacyPistonOscillationEquivalentLossSnapshot(
@@ -1247,17 +1251,22 @@ const normalizePhysicsSnapshot = (
       && !isFiniteNumber(value.triggerTimeS)
     )
   ) return fallback();
-  const airMaterial = value.airMaterial === undefined
-    ? createLegacyPistonOscillationAirMaterialSnapshot(config.gamma)
-    : isPistonOscillationAirMaterialSnapshot(value.airMaterial)
-      ? { ...value.airMaterial }
+  const storedGasMaterial = value.gasMaterial ?? value.airMaterial;
+  const gasMaterialCandidate = isPlainRecord(storedGasMaterial)
+    && storedGasMaterial.gasType === undefined
+    ? { ...storedGasMaterial, gasType: 'air' }
+    : storedGasMaterial;
+  const gasMaterial = storedGasMaterial === undefined
+    ? createLegacyPistonOscillationGasMaterialSnapshot(config.gamma)
+    : isPistonOscillationGasMaterialSnapshot(gasMaterialCandidate)
+      ? { ...gasMaterialCandidate }
       : null;
   const equivalentLoss = value.equivalentLoss === undefined
     ? createLegacyPistonOscillationEquivalentLossSnapshot(config.linearDampingNsPerM)
     : isPistonOscillationEquivalentLossSnapshot(value.equivalentLoss)
       ? { ...value.equivalentLoss }
       : null;
-  if (!airMaterial || !equivalentLoss) return fallback();
+  if (!gasMaterial || !equivalentLoss) return fallback();
   const initialThermodynamicState = value.initialThermodynamicState === undefined
     || value.initialThermodynamicState === null
     ? null
@@ -1323,7 +1332,7 @@ const normalizePhysicsSnapshot = (
     modelVersion: value.modelVersion,
     provenance: value.provenance,
     captureKind,
-    airMaterial,
+    gasMaterial,
     equivalentLoss,
     config,
     equilibrium,
@@ -2222,7 +2231,7 @@ export const createPistonOscillationDataProcessingSession = (
   nowMs: number,
   options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession => {
-  requireConsistentPistonOscillationAirMaterialSnapshot(records);
+  requireConsistentPistonOscillationGasMaterialSnapshot(records);
   return {
     schemaVersion: PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION,
     processingPolicy: createPistonOscillationProcessingPolicySnapshot(
@@ -4080,7 +4089,7 @@ const normalizeCalculationKnowns = (
   const fallback = createPistonOscillationCalculationKnownsSnapshot(records);
   if (!isPlainRecord(value)) return fallback;
   if (
-    (value.schemaVersion !== undefined && value.schemaVersion !== 1)
+    (value.schemaVersion !== undefined && value.schemaVersion !== 1 && value.schemaVersion !== 2)
     || !isCompatiblePersistedVersion(
       value.modelVersion,
       PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
@@ -4097,10 +4106,11 @@ const normalizeCalculationKnowns = (
     ? value.pressurePa
     : fallback.pressurePa;
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     modelVersion: PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
-    airMaterialModelVersion: fallback.airMaterialModelVersion,
-    airMaterialId: fallback.airMaterialId,
+    gasType: fallback.gasType,
+    gasMaterialModelVersion: fallback.gasMaterialModelVersion,
+    gasMaterialId: fallback.gasMaterialId,
     movingMassKg,
     cylinderDiameterM,
     pressurePa,
@@ -4319,7 +4329,7 @@ export const normalizePistonOscillationDataProcessingSession = (
   options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession | null => {
   if (records.length === 0) return null;
-  if (!getConsistentPistonOscillationAirMaterialSnapshot(records)) return null;
+  if (!getConsistentPistonOscillationGasMaterialSnapshot(records)) return null;
   const fallback = createPistonOscillationDataProcessingSession(records, nowMs, options);
   if (!isPlainRecord(value) || !Array.isArray(value.runs)) return fallback;
   const processingPolicy = normalizePistonOscillationProcessingPolicy(
