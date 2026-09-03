@@ -52,27 +52,43 @@ import {
 import {
   applyHeatCapacityFreeDomainToRuntimeFields,
   applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
+  selectHeatCapacityFreeActiveRunConfigSnapshot,
+  selectHeatCapacityFreeGasType,
+} from '../workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import {
   areWorkbenchParamsEqual,
+} from '../workbenchParameterState.ts';
+import {
   clampWorkbenchLiveSplitRatio,
-  createDefaultHeatCapacityFile,
-  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
   createEmptyChartData,
   createIdleStats,
+} from '../workbenchFileState.ts';
+import {
+  createDefaultHeatCapacityFile,
+} from '../workbenchHeatCapacityFileFactory.ts';
+import {
+  createDefaultHeatCapacityPistonOscillationFile,
+  WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
+  WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
+} from '../workbenchPistonOscillationState.ts';
+import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
   normalizeHeatCapacityFreeFileAcknowledgements,
-  selectHeatCapacityFreeActiveRunConfigSnapshot,
-  selectHeatCapacityFreeGasType,
-  WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
-  WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
-  type HeatCapacityFreeExperimentDomainState,
-  type WorkbenchFileState,
-  type WorkbenchHeatCapacityState,
-  type WorkbenchIdealState,
-  type WorkbenchStandardState,
-} from '../workbenchState.ts';
+} from '../workbenchHeatCapacityRuntimeDefaults.ts';
+import type {
+  HeatCapacityFreeExperimentDomainState,
+  WorkbenchHeatCapacityState,
+} from '../workbenchHeatCapacityStateTypes.ts';
+import type {
+  WorkbenchFileState,
+} from '../workbenchFileUnion.ts';
+import type {
+  WorkbenchIdealState,
+  WorkbenchStandardState,
+} from '../workbenchFileState.ts';
 import {
   assertNeverWorkbenchFileKind,
   isWorkbenchFileKind,

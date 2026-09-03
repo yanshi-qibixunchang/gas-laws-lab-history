@@ -1,4 +1,4 @@
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 
 export type WorkbenchFileRenameDecision =
   | { kind: 'empty' }

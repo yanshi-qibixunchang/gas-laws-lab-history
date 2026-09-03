@@ -3,7 +3,7 @@ import type { ExperimentParamKey } from '../../domain/idealGas/idealGasExperimen
 import type { WorkbenchLanguagePreference, WorkbenchPerformanceMode, WorkbenchThemePreference } from './workbenchGeneralSettings.ts';
 import type { IdealSamplingPresetKey } from './workbenchIdealControls.ts';
 import type { WorkbenchExportEnvironmentStatus } from './workbenchFileState.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 import type { WorkbenchExportMode } from './workbenchResults.ts';
 
 type ConsoleTab = 'logs' | 'warnings' | 'summary';

@@ -8,7 +8,7 @@ import type {
   WorkbenchFigureSpec,
   WorkbenchResultSummary,
 } from './workbenchResults.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 import type { WorkbenchCopy } from './workbenchStudioCopy.ts';
 
 const FINAL_CHART_VIEWBOX_WIDTH = 100;

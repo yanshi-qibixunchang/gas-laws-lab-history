@@ -13,8 +13,10 @@ import {
 } from '../workbenchHeatCapacityModeSession.ts';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-  type WorkbenchHeatCapacityState,
-} from '../workbenchState.ts';
+} from '../workbenchHeatCapacityRuntimeDefaults.ts';
+import type {
+  WorkbenchHeatCapacityState,
+} from '../workbenchHeatCapacityStateTypes.ts';
 
 interface HeatCapacityAuthorityValueDecodeSuccess {
   ok: true;

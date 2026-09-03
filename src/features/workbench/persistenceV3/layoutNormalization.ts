@@ -4,7 +4,7 @@ import {
   type WorkbenchIdealWindowLayout,
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
-} from '../workbenchState.ts';
+} from '../workbenchFileState.ts';
 
 export interface WorkbenchPersistenceV3LayoutDefaults {
   resultsHeightRatio: number;

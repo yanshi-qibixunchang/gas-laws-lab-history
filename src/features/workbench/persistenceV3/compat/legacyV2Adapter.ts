@@ -1,24 +1,42 @@
 import {
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
-  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  createDefaultHeatCapacityPistonOscillationFile,
+} from '../../workbenchPistonOscillationState.ts';
+import {
   applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
   applyHeatCapacityFreeDomainToRuntimeFields,
+} from '../../workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import {
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+} from '../../workbenchHeatCapacityRuntimeDefaults.ts';
+import {
   areWorkbenchParamsEqual,
+} from '../../workbenchParameterState.ts';
+import {
   clampWorkbenchLiveSplitRatio,
-  createDefaultHeatCapacityFile,
-  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultIdealFile,
   createDefaultStandardFile,
   createEmptyChartData,
   createIdleStats,
+} from '../../workbenchFileState.ts';
+import {
+  createDefaultHeatCapacityFile,
+} from '../../workbenchHeatCapacityFileFactory.ts';
+import {
   mergeHeatCapacityGuideRuntimeState,
-  type WorkbenchFileState,
-  type WorkbenchHeatCapacityState,
-  type WorkbenchIdealState,
-  type WorkbenchPanelKey,
-  type WorkbenchStandardState,
-} from '../../workbenchState.ts';
+} from '../../workbenchHeatCapacityGuideRuntimeState.ts';
+import type {
+  WorkbenchFileState,
+} from '../../workbenchFileUnion.ts';
+import type {
+  WorkbenchHeatCapacityState,
+} from '../../workbenchHeatCapacityStateTypes.ts';
+import type {
+  WorkbenchIdealState,
+  WorkbenchPanelKey,
+  WorkbenchStandardState,
+} from '../../workbenchFileState.ts';
 import {
   isRestorableWorkbenchPanelKey,
   normalizeWorkbenchPanelKey,

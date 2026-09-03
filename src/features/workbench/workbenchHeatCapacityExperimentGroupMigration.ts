@@ -23,7 +23,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import type {
   HeatCapacityFreeExperimentDomainState,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityStateTypes.ts';
 
 interface MigrateLegacyHeatCapacityExperimentGroupsInput {
   fileId: string;

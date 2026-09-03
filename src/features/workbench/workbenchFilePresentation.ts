@@ -1,6 +1,6 @@
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
 import type { WorkbenchFileKind } from './workbenchFileKind.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 
 export interface WorkbenchFileKindCopy {
   std: string;

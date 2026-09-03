@@ -3,7 +3,7 @@ import type {
   WorkbenchHeatCapacityTabId,
   WorkbenchPanelKey,
 } from './workbenchFileState.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 
 export const HEAT_CAPACITY_TAB_IDS = [
   'guide',

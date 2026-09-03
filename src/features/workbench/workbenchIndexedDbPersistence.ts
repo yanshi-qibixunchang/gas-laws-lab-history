@@ -55,14 +55,20 @@ import {
 export { normalizeLegacyHeatCapacityModeSessionEntry };
 import type {
   WorkbenchFileState,
+} from './workbenchFileUnion.ts';
+import type {
   WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
+import type {
   WorkbenchPanelKey,
-} from './workbenchState.ts';
+} from './workbenchFileState.ts';
 import {
   createDefaultHeatCapacityFile,
-  mergeHeatCapacityGuideRuntimeState,
   normalizeHeatCapacityFileName,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityFileFactory.ts';
+import {
+  mergeHeatCapacityGuideRuntimeState,
+} from './workbenchHeatCapacityGuideRuntimeState.ts';
 import { assertUniqueWorkbenchFileCollections } from './workbenchFileIdentity.ts';
 import { isWorkbenchPanelKey } from './workbenchPanelRegistry.ts';
 import { normalizeWorkbenchPanelKey } from './workbenchPanelCompatibility.ts';

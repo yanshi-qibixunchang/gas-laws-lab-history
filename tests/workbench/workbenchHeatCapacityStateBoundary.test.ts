@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import {
+  adjustHeatCapacityPressureZeroFine as adjustPressureZeroFineFromFacade,
   applyHeatCapacityFreeParameterDraftWorkbenchState as applyParameterDraftFromFacade,
   applyHeatCapacityGuideRecordWorkbenchState as applyGuideRecordFromFacade,
   completeHeatCapacityTeachingModeWorkbenchState as completeTeachingFromFacade,
   completeHeatCapacityCalculationWorkflowWorkbenchState as completeCalculationFromFacade,
   configureHeatCapacityFreeBatchWorkbenchState as configureBatchFromFacade,
+  createDefaultHeatCapacityFile as createDefaultHeatCapacityFileFromFacade,
   createDefaultHeatCapacityFreeParameterState as createDefaultParameterStateFromFacade,
   freezeHeatCapacityFreeParametersForCurrentGroup as freezeParametersFromFacade,
   getHeatCapacityCalculationSession as getCalculationSessionFromFacade,
@@ -24,8 +26,22 @@ import {
   resetHeatCapacityFreeRunWorkbenchState as resetFreeRunFromFacade,
   setHeatCapacityFreeParameterSchemeWorkbenchState as setParameterSchemeFromFacade,
   prepareHeatCapacityAutoDemoStart as prepareAutoDemoStartFromFacade,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState as prepareNextFreeExperimentFromFacade,
+  areWorkbenchParamsEqual as areWorkbenchParamsEqualFromFacade,
   stepHeatCapacityWorkbenchFile as stepHeatCapacityFromFacade,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  adjustHeatCapacityPressureZeroFine,
+} from '../../src/features/workbench/workbenchHeatCapacityCalibrationCoordinator.ts';
+import {
+  createDefaultHeatCapacityFile,
+} from '../../src/features/workbench/workbenchHeatCapacityFileFactory.ts';
+import {
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
+} from '../../src/features/workbench/workbenchHeatCapacityFreeGroupLifecycle.ts';
+import {
+  areWorkbenchParamsEqual,
+} from '../../src/features/workbench/workbenchParameterState.ts';
 import {
   completeHeatCapacityCalculationWorkflowWorkbenchState,
   ensureHeatCapacityCalculationSessionWorkbenchState,
@@ -192,6 +208,32 @@ const calculationCoordinatorSource = readFileSync(
   ),
   'utf8',
 );
+const calibrationCoordinatorSource = readFileSync(
+  new URL(
+    '../../src/features/workbench/workbenchHeatCapacityCalibrationCoordinator.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const fileFactorySource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFileFactory.ts', import.meta.url),
+  'utf8',
+);
+const freeGroupLifecycleSource = readFileSync(
+  new URL(
+    '../../src/features/workbench/workbenchHeatCapacityFreeGroupLifecycle.ts',
+    import.meta.url,
+  ),
+  'utf8',
+);
+const workbenchParameterStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchParameterState.ts', import.meta.url),
+  'utf8',
+);
+const workbenchFileUnionSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchFileUnion.ts', import.meta.url),
+  'utf8',
+);
 const authoritySource = readFileSync(
   new URL('../../docs/architecture/workbench-heat-capacity-state-authority.md', import.meta.url),
   'utf8',
@@ -320,6 +362,36 @@ assert.equal(
   stepHeatCapacityWorkbenchFile,
   'the compatibility facade should forward the extracted cross-mode runtime coordinator',
 );
+assert.equal(
+  adjustPressureZeroFineFromFacade,
+  adjustHeatCapacityPressureZeroFine,
+  'the compatibility facade should forward the extracted cross-mode calibration API',
+);
+assert.equal(
+  createDefaultHeatCapacityFileFromFacade,
+  createDefaultHeatCapacityFile,
+  'the compatibility facade should forward the extracted heat-capacity file factory',
+);
+assert.equal(
+  prepareNextFreeExperimentFromFacade,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
+  'the compatibility facade should forward the extracted Free experiment lifecycle API',
+);
+assert.equal(
+  areWorkbenchParamsEqualFromFacade,
+  areWorkbenchParamsEqual,
+  'the compatibility facade should forward the extracted generic parameter API',
+);
+assert.doesNotMatch(
+  facadeSource,
+  /^\s*import\s/m,
+  'the compatibility facade should not import implementation modules into its own runtime',
+);
+assert.doesNotMatch(
+  facadeSource,
+  /\b(?:const|let|function|class|interface)\s+\w+/,
+  'the compatibility facade should contain no remaining declarations or implementations',
+);
 assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityStateTypes\.ts'/,
@@ -384,6 +456,11 @@ for (const [source, moduleName] of [
   [teachingResultStateSource, 'teaching result state'],
   [teachingLifecycleStateSource, 'teaching lifecycle state'],
   [heatCapacityRuntimeCoordinatorSource, 'cross-mode runtime coordinator'],
+  [calibrationCoordinatorSource, 'cross-mode calibration coordinator'],
+  [fileFactorySource, 'heat-capacity file factory'],
+  [freeGroupLifecycleSource, 'Free experiment lifecycle'],
+  [workbenchParameterStateSource, 'generic workbench parameter state'],
+  [workbenchFileUnionSource, 'workbench file union'],
 ] as const) {
   assert.doesNotMatch(
     source,
@@ -426,11 +503,39 @@ for (const directUiDependency of [
   'workbenchHeatCapacityTeachingLifecycleState',
   'workbenchHeatCapacityTeachingResultState',
   'workbenchHeatCapacityRuntimeCoordinator',
+  'workbenchHeatCapacityCalibrationCoordinator',
+  'workbenchHeatCapacityFileFactory',
+  'workbenchHeatCapacityFreeGroupLifecycle',
+  'workbenchParameterState',
+  'workbenchFileUnion',
 ]) {
   assert.match(
     workbenchUiSource,
     new RegExp(`from '\\.\\/${directUiDependency}\\.ts'`),
     `the workbench UI should depend directly on ${directUiDependency}`,
+  );
+}
+assert.doesNotMatch(
+  workbenchUiSource,
+  /from '\.\/workbenchState(?:\.ts)?'/,
+  'the workbench UI should not depend on the compatibility facade',
+);
+
+const collectWorkbenchSourceFiles = (directory: URL): URL[] => (
+  readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryUrl = new URL(`${entry.name}${entry.isDirectory() ? '/' : ''}`, directory);
+    if (entry.isDirectory()) return collectWorkbenchSourceFiles(entryUrl);
+    return /\.(?:ts|tsx)$/.test(entry.name) ? [entryUrl] : [];
+  })
+);
+for (const sourceUrl of collectWorkbenchSourceFiles(
+  new URL('../../src/features/workbench/', import.meta.url),
+)) {
+  if (sourceUrl.pathname.endsWith('/workbenchState.ts')) continue;
+  assert.doesNotMatch(
+    readFileSync(sourceUrl, 'utf8'),
+    /from ['"][^'"]*workbenchState(?:\.ts)?['"];/,
+    `${sourceUrl.pathname} must not depend on the compatibility facade`,
   );
 }
 assert.match(
@@ -522,8 +627,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*Demo\/Guide 教学运行协调的职责拆分已经完成[\s\S]*下一大改动断点是 `workbenchState\.ts` 兼容入口收尾/,
-  'the authority table should record the completed teaching runtime boundary and next facade-cleanup breakpoint',
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*`workbenchState\.ts` 兼容入口收尾已经完成[\s\S]*下一大改动断点转向 25,291 行的 `WorkbenchStudioPrototype\.tsx`/,
+  'the authority table should record the completed facade boundary and next UI-coordinator breakpoint',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');

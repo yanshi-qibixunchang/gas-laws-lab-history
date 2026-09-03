@@ -39,7 +39,7 @@ import {
   type WorkbenchIdealWindowLayout,
   type WorkbenchRunState,
 } from './workbenchFileState.ts';
-import { areWorkbenchParamsEqual } from './workbenchState.ts';
+import { areWorkbenchParamsEqual } from './workbenchParameterState.ts';
 import { normalizeIdealWindowLayoutState } from './workbenchLayoutCompatibility.ts';
 import type {
   WorkbenchExperimentFileEnvelopeV1,

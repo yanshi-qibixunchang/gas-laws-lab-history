@@ -75,14 +75,18 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
 import {
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
-  type HeatCapacityFreeDisplayScheme,
-  type HeatCapacityFreeExperimentDomainState,
-  type HeatCapacityFreeParameterScheme,
-  type HeatCapacityFreeRollbackSnapshot,
-  type HeatCapacityFreeRollbackSnapshots,
   normalizeHeatCapacityFreeExperimentDomainBoundary,
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import type {
+  HeatCapacityFreeDisplayScheme,
+  HeatCapacityFreeExperimentDomainState,
+  HeatCapacityFreeParameterScheme,
+  HeatCapacityFreeRollbackSnapshot,
+  HeatCapacityFreeRollbackSnapshots,
+} from './workbenchHeatCapacityStateTypes.ts';
+import {
   normalizeHeatCapacityStopcockAngle,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityInstrumentState.ts';
 import {
   normalizeHeatCapacityFreePhysicsConfig,
   normalizeHeatCapacityFreeSensorConfig,

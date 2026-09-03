@@ -1,4 +1,4 @@
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 import {
   WORKBENCH_FILE_NAME_PREFIX_BY_KIND,
   type WorkbenchFileKind,

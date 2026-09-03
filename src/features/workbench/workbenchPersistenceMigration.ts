@@ -1,13 +1,27 @@
 import {
   applyHeatCapacityFreeDomainToRuntimeFields,
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import {
   createDefaultHeatCapacityFile,
+} from './workbenchHeatCapacityFileFactory.ts';
+import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
+import {
   mergeHeatCapacityFreeRuntimeState,
+} from './workbenchHeatCapacityFreeRuntimeState.ts';
+import {
   mergeHeatCapacityGuideRuntimeState,
-  type WorkbenchFileState,
-  type WorkbenchHeatCapacityState,
-  type WorkbenchPanelKey,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityGuideRuntimeState.ts';
+import type {
+  WorkbenchFileState,
+} from './workbenchFileUnion.ts';
+import type {
+  WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
+import type {
+  WorkbenchPanelKey,
+} from './workbenchFileState.ts';
 import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
 import { normalizeWorkbenchPanelKey } from './workbenchPanelCompatibility.ts';
 import type {

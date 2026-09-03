@@ -71,7 +71,8 @@
 10. 将 Demo、Guide、Free 的计算会话创建、逐步作答、实验结束启动和最终结果/评分回写迁入统一协调器。（已完成）
 11. 将 Free 尝试、轨迹证据、记录/重录、回滚、运行步进和仪器操作协调迁入专用模块，并保留旧入口兼容重导出。（已完成）
 12. 将 Guide 状态合并、物理步进、控件与记录，Demo 运行映射，跨模式运行连接，教学预热/切换和完成结果迁入无反向依赖的专用模块。（已完成）
-13. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
+13. 将绝热膨胀默认文件工厂、跨模式调零、Free 实验组重置/下一组生命周期、通用参数校验和工作台文件联合类型迁入专用模块；兼容入口收尾为纯重导出，仓库内部调用方全部改为直接依赖职责模块。（已完成）
+14. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
 
 ## 4. 下一大改动断点
 
@@ -128,6 +129,13 @@ Demo/Guide/Free 步进、脚本控件、采样和实时提交判断；预热、D
 总协调器由 2723 行降为 825 行。原有 Guide 可回看、Free 会话保留、模式切换清空、暂停恢复和存档格式
 均未改变。
 
-下一大改动断点是 `workbenchState.ts` 兼容入口收尾。剩余实现主要是绝热膨胀默认文件工厂、跨模式调零
-入口、Free 实验组重置/下一组生命周期和通用参数校验；应按构造、运行命令与通用类型三个边界迁移，
-完成后让该文件只承担稳定类型/API 转发，再转向 `WorkbenchStudioPrototype.tsx` 的界面协调拆分。
+`workbenchState.ts` 兼容入口收尾已经完成。`workbenchHeatCapacityFileFactory.ts` 负责默认文件构造与文件名
+兼容，`workbenchHeatCapacityCalibrationCoordinator.ts` 负责 Demo/Guide/Free 跨模式调零，
+`workbenchHeatCapacityFreeGroupLifecycle.ts` 负责 Free 当前实验重做、批次重启和下一组准备；通用文件联合类型与
+参数展示/校验分别进入 `workbenchFileUnion.ts` 和 `workbenchParameterState.ts`。主界面、持久化 V1/V2/V3、
+会话恢复和其他工作台源码已经全部改为直接依赖职责模块；架构门禁会递归检查除兼容入口自身之外的工作台
+源码，禁止重新导入 `workbenchState.ts`。该文件现在为 300 行纯显式重导出，不再包含运行时声明或实现。
+
+下一大改动断点转向 25,291 行的 `WorkbenchStudioPrototype.tsx` 界面协调拆分。后续应先按只读派生、
+文件/窗口动作、绝热膨胀模式交互和持久化副作用识别可独立边界，再逐批迁出；每批继续保持行为测试、严格
+类型检查、全量测试、构建与固定端口预览门禁，避免把状态权威重新搬回 React 主组件。

@@ -1,7 +1,7 @@
 import type { HistogramBin } from '../../shared/types.ts';
 import type { IdealExperimentLanguageCode } from '../../domain/idealGas/idealGasExperiment.ts';
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 import type { WorkbenchCopy } from './workbenchStudioCopy.ts';
 
 export const formatMetric = (value: number, digits = 3) => {

@@ -1,7 +1,9 @@
 import type {
   WorkbenchFileState,
+} from '../workbenchFileUnion.ts';
+import type {
   WorkbenchPanelKey,
-} from '../workbenchState.ts';
+} from '../workbenchFileState.ts';
 import {
   WORKBENCH_PERSISTENCE_V3_SCHEMA_FAMILY,
   WORKBENCH_PERSISTENCE_V3_SCHEMA_VERSION,

@@ -1,9 +1,9 @@
 {
-  "generatedAt": "2026-09-03T07:57:31.464Z",
-  "contentFingerprint": "d31e11c8ed0321a5b17e2823f3153d2a69710af2650e34362ae840e9068db292",
-  "packageRecordCount": 468,
+  "generatedAt": "2026-09-03T15:44:44.223Z",
+  "contentFingerprint": "50f1fc91627866d0aa50a024efd69529ee441c9fcb7bb263326ff3253f1bf5fe",
+  "packageRecordCount": 467,
   "licenseCounts": {
-    "MIT": 367,
+    "MIT": 366,
     "ISC": 40,
     "Apache-2.0": 16,
     "BSD-2-Clause": 6,

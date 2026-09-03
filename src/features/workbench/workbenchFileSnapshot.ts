@@ -1,5 +1,5 @@
-import type { WorkbenchFileState } from './workbenchState.ts';
-import { normalizeHeatCapacityFileName } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
+import { normalizeHeatCapacityFileName } from './workbenchHeatCapacityFileFactory.ts';
 import { cloneHardSphereEngineSnapshot } from './workbenchHardSpherePersistence.ts';
 import {
   normalizeIdealWindowLayoutState,

@@ -3,7 +3,7 @@ import {
   sanitizeHardSphereSimulationParams,
   validateHardSphereSimulationParams,
 } from '../../domain/hardSphere/hardSphereSimulationValidation.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 
 type StandardOrIdealWorkbenchFile = Extract<
   WorkbenchFileState,

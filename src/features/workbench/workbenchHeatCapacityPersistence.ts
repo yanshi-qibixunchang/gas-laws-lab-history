@@ -21,20 +21,28 @@ import {
   type HeatCapacityFreeConfigSnapshot,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
-  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
   applyCurrentHeatCapacityFreeExperimentGroupToRuntimeFields,
-  createDefaultHeatCapacityFile,
-  createDefaultHeatCapacityFreeExperimentDomainState,
-  getHeatCapacityStopcockTargetAngle,
-  normalizeHeatCapacityFreeFileAcknowledgements,
   selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
   selectHeatCapacityFreeGasType,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
-  type HeatCapacityFreeExperimentDomainState,
-  type WorkbenchHeatCapacityState,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import {
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  createDefaultHeatCapacityFreeExperimentDomainState,
+  normalizeHeatCapacityFreeFileAcknowledgements,
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
+import {
+  createDefaultHeatCapacityFile,
+} from './workbenchHeatCapacityFileFactory.ts';
+import {
+  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
+  getHeatCapacityStopcockTargetAngle,
+} from './workbenchHeatCapacityInstrumentState.ts';
+import type {
+  HeatCapacityFreeExperimentDomainState,
+  WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
 import {
   createHeatCapacityFreeParameterDraftFromConfigs,
   getHeatCapacityFreeGasTypeGamma,

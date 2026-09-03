@@ -33,7 +33,7 @@ import {
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardState,
 } from './workbenchFileState.ts';
-import { areWorkbenchParamsEqual } from './workbenchState.ts';
+import { areWorkbenchParamsEqual } from './workbenchParameterState.ts';
 import {
   normalizeStandardResultsLayout,
 } from './workbenchLayoutCompatibility.ts';

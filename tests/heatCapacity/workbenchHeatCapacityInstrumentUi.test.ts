@@ -34,6 +34,20 @@ const heatCapacityMaterialsWindowCoordinatorPath = join(process.cwd(), 'src', 'f
 const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
+const heatCapacityFileFactoryPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityFileFactory.ts',
+);
+const heatCapacityCalibrationCoordinatorPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityCalibrationCoordinator.ts',
+);
 const freeRuntimeCoordinatorPath = join(
   process.cwd(),
   'src',
@@ -165,6 +179,11 @@ const modeTypesSource = readFileSync(modeTypesPath, 'utf8');
 const modeControlModelSource = readFileSync(modeControlModelPath, 'utf8');
 const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
+const heatCapacityFileFactorySource = readFileSync(heatCapacityFileFactoryPath, 'utf8');
+const heatCapacityCalibrationCoordinatorSource = readFileSync(
+  heatCapacityCalibrationCoordinatorPath,
+  'utf8',
+);
 const freeRuntimeCoordinatorSource = readFileSync(freeRuntimeCoordinatorPath, 'utf8');
 const guideRuntimeCoordinatorSource = readFileSync(guideRuntimeCoordinatorPath, 'utf8');
 const guideControlStateSource = readFileSync(guideControlStatePath, 'utf8');
@@ -630,7 +649,7 @@ assert.match(workbenchSource, /data-heat-capacity-guided-record=\{stepRecordKind
 assert.match(workbenchSource, /applyHeatCapacityFreeRecordWorkbenchState/, 'Free Mode record buttons should use one synchronous record-attempt helper');
 assert.match(heatCapacityRealtimeCopySource, /'zero-not-ready': '请先打开电源并打开玻璃旋塞，再记录 U₀。'/, 'Free Mode U0 reject copy should state only the minimum physical record prerequisites');
 assert.doesNotMatch(workbenchSource, /完成调零，待 Uₚ 稳定接近 0 后再记录 U₀|finish zeroing, and wait until Uₚ is stable near 0 before recording U₀/, 'Free Mode U0 reject copy should not imply strict zeroing and stability gates');
-assert.match(stateSource, /recordHeatCapacityFreeTraceEventWithReference/, 'Free Mode official records should capture hidden trace references before saving U0/U1/U2');
+assert.match(freeTraceStateSource, /recordHeatCapacityFreeTraceEventWithReference/, 'Free Mode official records should capture hidden trace references before saving U0/U1/U2');
 assert.match(processReviewStageScaleSource, /MIN_COMPRESSED_STAGE_DURATION_BY_ID/, 'process review timeline should keep each experiment stage readable even after long idle waits');
 assert.match(processReviewStageScaleSource, /calculateHeatCapacityProcessReviewCompressedDurationS/, 'process review timeline should expose compressed process duration for independent actual and standard process traces');
 assert.match(processReviewStageScaleSource, /axisTicks/, 'process review stage scale should expose mixed major/minor axis ticks');
@@ -1299,15 +1318,15 @@ assert.doesNotMatch(sceneSource, /appliedDelta/, 'pressure zero drag should not 
 assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MIN_DEG = -540/, 'pressure zero knob should expose a three-turn physical lower stop');
 assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_DEG = 540/, 'pressure zero knob should expose a three-turn physical upper stop');
 assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV = 0\.1/, 'pressure zero readiness should use the strict +-0.1 mV tolerance');
-assert.match(stateSource, /pressureInitialBiasMv/, 'heat-capacity state should keep the per-run initial zero bias');
-assert.match(stateSource, /pressureZeroDisplayedSamples/, 'heat-capacity state should keep a displayed Uₚ zeroing window');
+assert.match(heatCapacityFileFactorySource, /pressureInitialBiasMv/, 'new heat-capacity files should keep the per-run initial zero bias');
+assert.match(heatCapacityFileFactorySource, /pressureZeroDisplayedSamples/, 'new heat-capacity files should keep a displayed Uₚ zeroing window');
 assert.match(teachingLifecycleStateSource, /createSeededFreePressureInitialBiasMv/, 'initial pressure-zero bias should use the deterministic sensor helper');
-assert.doesNotMatch(stateSource, /createHeatCapacityInitialPressureBiasMv/, 'the old non-deterministic pressure-bias helper should not remain');
-assert.match(stateSource, /isHeatCapacityPressureZeroWithinTolerance/, 'U0 readiness should be based on the displayed sample window');
-assert.doesNotMatch(stateSource, /HEAT_CAPACITY_MANUAL_INITIAL_PRESSURE_BIAS_MV\s*=\s*0\.6/, 'guide experiments must not use the old fixed +0.6 mV zero bias');
-assert.doesNotMatch(stateSource, /Math\.abs\(file\.pressureSignalReadoutMv\)\s*<=\s*0\.2/, 'U0 readiness must not use the old loose <=0.2 mV gate');
-assert.match(stateSource, /clampHeatCapacityPressureZeroKnobAngle/, 'pressure zero knob angle changes should clamp at physical stops');
-assert.match(stateSource, /getHeatCapacityPressureZeroOffsetForKnobAngle/, 'pressure zero offset should be derived from a continuous angle-to-offset mapping');
+assert.doesNotMatch(`${heatCapacityFileFactorySource}\n${teachingLifecycleStateSource}`, /createHeatCapacityInitialPressureBiasMv/, 'the old non-deterministic pressure-bias helper should not remain');
+assert.match(heatCapacityCalibrationCoordinatorSource, /isHeatCapacityPressureZeroWithinTolerance/, 'U0 readiness should be based on the displayed sample window');
+assert.doesNotMatch(`${heatCapacityFileFactorySource}\n${teachingLifecycleStateSource}`, /HEAT_CAPACITY_MANUAL_INITIAL_PRESSURE_BIAS_MV\s*=\s*0\.6/, 'guide experiments must not use the old fixed +0.6 mV zero bias');
+assert.doesNotMatch(heatCapacityCalibrationCoordinatorSource, /Math\.abs\(file\.pressureSignalReadoutMv\)\s*<=\s*0\.2/, 'U0 readiness must not use the old loose <=0.2 mV gate');
+assert.match(heatCapacityCalibrationCoordinatorSource, /clampHeatCapacityPressureZeroKnobAngle/, 'pressure zero knob angle changes should clamp at physical stops');
+assert.match(heatCapacityCalibrationCoordinatorSource, /getHeatCapacityPressureZeroOffsetForKnobAngle/, 'pressure zero offset should be derived from a continuous angle-to-offset mapping');
 assert.match(sceneSource, /pressureZeroInteractionEnabled = focusMode === 'instrument'/, 'pressure zero knob should only rotate in instrument focus mode');
 assert.match(sceneSource, /onPointerDown=\{pressureZeroInteractionEnabled \? startPressureZeroDrag : undefined\}/, 'pressure zero drag should be disabled outside instrument focus mode');
 assert.match(sceneSource, /onWheel=\{pressureZeroInteractionEnabled \? handlePressureZeroWheel : undefined\}/, 'pressure zero wheel adjustment should be disabled outside instrument focus mode');
@@ -2623,7 +2642,7 @@ assert.match(
   'Heat Capacity files should store a durable intro-lesson acknowledgement flag instead of relying on transient UI state',
 );
 assert.match(
-  stateSource,
+  heatCapacityFileFactorySource,
   /heatCapacityLessonIntroAutoShown:\s*false,/,
   'New Heat Capacity files should auto-show the intro lesson once before marking it acknowledged',
 );

@@ -5,16 +5,20 @@ import {
   isAllowedHeatCapacityFreeDomainAggregateMigration,
 } from './workbenchHeatCapacityFreeAggregateCodec.ts';
 import {
-  createDefaultHeatCapacityFile,
   createHeatCapacityFreeExperimentDomainStateFromFile,
   hasHeatCapacityFreeIdealThermalBoundaryContamination,
   hydrateHeatCapacityFreeAuthorityProjection,
   projectHeatCapacityFreeExperimentGroupToDomain,
   selectHeatCapacityFreeGasType,
-  type HeatCapacityFreeExperimentDomainState,
-  type HeatCapacityFreeParameterScheme,
-  type WorkbenchHeatCapacityState,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import {
+  createDefaultHeatCapacityFile,
+} from './workbenchHeatCapacityFileFactory.ts';
+import type {
+  HeatCapacityFreeExperimentDomainState,
+  HeatCapacityFreeParameterScheme,
+  WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
 import type {
   HeatCapacityFreeGasType,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';

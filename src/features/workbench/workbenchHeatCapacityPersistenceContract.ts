@@ -15,7 +15,7 @@ import type {
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
   HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
 import type {
   HeatCapacityFreeDisplayScheme,
   HeatCapacityFreeExperimentDomainState,

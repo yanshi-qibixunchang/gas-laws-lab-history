@@ -29,7 +29,7 @@ import {
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
   WORKBENCH_PISTON_OSCILLATION_SCHEMA_VERSION,
 } from './workbenchPistonOscillationState.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 
 const BASE_FILE_KEYS = [
   'id',

@@ -1,9 +1,11 @@
 import {
   HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
   normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
-  type WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
-  type WorkbenchHeatCapacityState,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
+import type {
+  WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
+  WorkbenchHeatCapacityState,
+} from './workbenchHeatCapacityStateTypes.ts';
 import type { HeatCapacityGuidePersistenceDataV1 } from './workbenchHeatCapacityPersistenceContract.ts';
 import {
   heatCapacityRestoreFiniteOrDefault,

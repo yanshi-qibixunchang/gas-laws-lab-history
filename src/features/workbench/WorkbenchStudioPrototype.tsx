@@ -61,23 +61,33 @@ import {
   type PromptViewportFeedbackMessage,
 } from '../../components/prompts/promptViewportFeedbackController.ts';
 import {
-  areWorkbenchParamsEqual,
   adjustHeatCapacityPressureZeroCoarse,
   adjustHeatCapacityPressureZeroFine,
-  createDefaultHeatCapacityFile,
+  setHeatCapacityPressureZeroOffset,
+} from './workbenchHeatCapacityCalibrationCoordinator.ts';
+import {
   acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
-  getWorkbenchParameterRows,
+  createDefaultHeatCapacityFile,
   normalizeHeatCapacityFileName,
+} from './workbenchHeatCapacityFileFactory.ts';
+import {
   restartHeatCapacityFreeBatchWorkbenchState,
   restartCurrentHeatCapacityFreeExperimentWorkbenchState,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
+} from './workbenchHeatCapacityFreeGroupLifecycle.ts';
+import {
   selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeGasType,
-  setHeatCapacityPressureZeroOffset,
-  prepareNextHeatCapacityFreeExperimentWorkbenchState,
+} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import {
+  areWorkbenchParamsEqual,
+  getWorkbenchParameterRows,
   validateWorkbenchParams,
-  type WorkbenchFileState,
   type WorkbenchParameterRow,
-} from './workbenchState';
+} from './workbenchParameterState.ts';
+import type {
+  WorkbenchFileState,
+} from './workbenchFileUnion.ts';
 import {
   applyHeatCapacityGuideRecordWorkbenchState,
   getHeatCapacityGuideRecordButtonState,

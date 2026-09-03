@@ -10,7 +10,7 @@ import {
   type WorkbenchStandardResultsLayout,
   type WorkbenchStandardResultsTab,
 } from './workbenchFileState.ts';
-import type { WorkbenchFileState } from './workbenchState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 
 export interface WorkbenchLayoutDefaultState {
   resultsHeightRatio: number;

@@ -5,8 +5,10 @@ import {
 } from './workbenchHeatCapacityTabRegistry.ts';
 import type {
   WorkbenchFileState,
+} from './workbenchFileUnion.ts';
+import type {
   WorkbenchHeatCapacityState,
-} from './workbenchState.ts';
+} from './workbenchHeatCapacityStateTypes.ts';
 import type {
   WorkbenchHeatCapacityPanelKey,
   WorkbenchHeatCapacityTabId,
