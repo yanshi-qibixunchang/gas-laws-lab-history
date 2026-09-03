@@ -1,13 +1,31 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  configureHeatCapacityFreeBatchWorkbenchState as configureBatchFromFacade,
+  createDefaultHeatCapacityFreeParameterState as createDefaultParameterStateFromFacade,
+  freezeHeatCapacityFreeParametersForCurrentGroup as freezeParametersFromFacade,
+  getActiveHeatCapacityFreeTrialIndex as getActiveTrialIndexFromFacade,
   getHeatCapacityGaugePressureState as getGaugeFromFacade,
+  getHeatCapacityFreeParameterLockReason as getParameterLockReasonFromFacade,
   getHeatCapacityStopcockState as getStopcockFromFacade,
+  setHeatCapacityFreeParameterSchemeWorkbenchState as setParameterSchemeFromFacade,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
   getHeatCapacityGaugePressureState,
   getHeatCapacityStopcockState,
 } from '../../src/features/workbench/workbenchHeatCapacityInstrumentState.ts';
+import {
+  createDefaultHeatCapacityFreeParameterState,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
+  getHeatCapacityFreeParameterLockReason,
+} from '../../src/features/workbench/workbenchHeatCapacityFreeParameterState.ts';
+import {
+  getActiveHeatCapacityFreeTrialIndex,
+} from '../../src/features/workbench/workbenchHeatCapacityFreeTrialState.ts';
+import {
+  configureHeatCapacityFreeBatchWorkbenchState,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
+} from '../../src/features/workbench/workbenchHeatCapacityFreeExperimentGroupState.ts';
 
 const facadeSource = readFileSync(
   new URL('../../src/features/workbench/workbenchState.ts', import.meta.url),
@@ -23,6 +41,18 @@ const instrumentStateSource = readFileSync(
 );
 const authorityTransactionSource = readFileSync(
   new URL('../../src/features/workbench/workbenchHeatCapacityFreeAuthorityTransaction.ts', import.meta.url),
+  'utf8',
+);
+const parameterStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeParameterState.ts', import.meta.url),
+  'utf8',
+);
+const trialStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeTrialState.ts', import.meta.url),
+  'utf8',
+);
+const experimentGroupStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeExperimentGroupState.ts', import.meta.url),
   'utf8',
 );
 const authoritySource = readFileSync(
@@ -43,10 +73,55 @@ assert.equal(
   getHeatCapacityStopcockState,
   'the compatibility facade should forward the extracted stopcock-state API',
 );
+assert.equal(
+  createDefaultParameterStateFromFacade,
+  createDefaultHeatCapacityFreeParameterState,
+  'the compatibility facade should forward the extracted Free parameter defaults',
+);
+assert.equal(
+  freezeParametersFromFacade,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
+  'the compatibility facade should forward the extracted parameter-freeze command',
+);
+assert.equal(
+  getParameterLockReasonFromFacade,
+  getHeatCapacityFreeParameterLockReason,
+  'the compatibility facade should forward the extracted parameter-lock policy',
+);
+assert.equal(
+  getActiveTrialIndexFromFacade,
+  getActiveHeatCapacityFreeTrialIndex,
+  'the compatibility facade should forward the extracted active-trial selector',
+);
+assert.equal(
+  configureBatchFromFacade,
+  configureHeatCapacityFreeBatchWorkbenchState,
+  'the compatibility facade should forward the extracted experiment-group configuration command',
+);
+assert.equal(
+  setParameterSchemeFromFacade,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
+  'the compatibility facade should forward the extracted parameter-scheme command',
+);
 assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityStateTypes\.ts'/,
   'the compatibility facade should explicitly forward the heat-capacity state types',
+);
+assert.doesNotMatch(
+  trialStateSource,
+  /from '\.\/workbenchState(?:\.ts)?'/,
+  'the extracted Free trial selectors must not depend back on the compatibility facade',
+);
+assert.doesNotMatch(
+  experimentGroupStateSource,
+  /from '\.\/workbenchState(?:\.ts)?'/,
+  'the extracted experiment-group module must not depend back on the compatibility facade',
+);
+assert.match(
+  facadeSource,
+  /from '\.\/workbenchHeatCapacityFreeExperimentGroupState\.ts'/,
+  'the compatibility facade should explicitly forward the extracted experiment-group API',
 );
 assert.match(
   facadeSource,
@@ -67,6 +142,16 @@ assert.doesNotMatch(
   authorityTransactionSource,
   /from '\.\/workbenchState(?:\.ts)?'/,
   'the Free authority transaction must not depend back on the compatibility facade',
+);
+assert.doesNotMatch(
+  parameterStateSource,
+  /from '\.\/workbenchState(?:\.ts)?'/,
+  'the extracted Free parameter module must not depend back on the compatibility facade',
+);
+assert.match(
+  facadeSource,
+  /from '\.\/workbenchHeatCapacityFreeParameterState\.ts'/,
+  'the compatibility facade should explicitly forward the extracted Free parameter API',
 );
 assert.match(
   authorityTransactionSource,
@@ -157,8 +242,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*气体类型与参数草稿收口已经完成[\s\S]*下一大改动断点回到模块职责拆分/,
-  'the authority table should preserve the next semantic-ownership breakpoint',
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*参数编辑\/冻结与实验组生命周期的职责拆分已经完成[\s\S]*下一大改动断点是跨模式计算会话与完整运行重置/,
+  'the authority table should preserve the next cross-mode coordination breakpoint',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');

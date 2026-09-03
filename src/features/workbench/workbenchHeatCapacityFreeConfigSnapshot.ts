@@ -3,6 +3,9 @@ import {
   type HeatCapacityFreeEnvironmentConfig,
   type HeatCapacityFreePhysicsConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import {
+  getEffectiveHeatCapacityFreeSensorConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
   HeatCapacityFreeSensorConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
@@ -16,6 +19,7 @@ import {
   normalizeFreeEnvironmentDisturbanceConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
 import {
+  createDefaultHeatCapacityFreeRecordConfig,
   HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import {
@@ -25,6 +29,9 @@ import {
   type HeatCapacityFreeConfigSnapshot,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import type { HeatCapacityFreeRecordConfig } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import {
+  normalizeHeatCapacityFreeSensorConfig,
+} from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
 
 export interface HeatCapacityFreeConfigSnapshotOptions {
@@ -113,5 +120,21 @@ export const createHeatCapacityFreeConfigSnapshotFromFile = (
     sensorConfig,
     recordConfig,
     pressureWarningMv: file.heatCapacityFreeInstrumentConfig.pressureWarningMv,
+  });
+};
+
+export const createHeatCapacityFreeRuntimeConfigSnapshotFromFile = (
+  file: WorkbenchHeatCapacityState,
+) => {
+  const sensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
+    normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeInstrumentConfig.sensor),
+    file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
+  );
+  const recordConfig = file.heatCapacityFreeInstrumentConfig.record ??
+    createDefaultHeatCapacityFreeRecordConfig();
+  return createHeatCapacityFreeConfigSnapshotFromFile(file, {
+    environmentConfig: file.heatCapacityFreeInstrumentConfig.environment,
+    sensorConfig,
+    recordConfig,
   });
 };

@@ -114,8 +114,6 @@ import {
   deriveHeatCapacityFreeBatchProgress,
   isHeatCapacityFreeBatchLocked,
   shouldStartHeatCapacityFreeBatchCalculation,
-  startHeatCapacityFreeBatch,
-  type HeatCapacityFreeBatchGroupCount,
   type HeatCapacityFreeBatchState,
 } from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
@@ -124,17 +122,8 @@ import {
   completeHeatCapacityFreeIdealExperimentGroupCalculation,
   completeHeatCapacityFreeRealExperimentGroup,
   createEmptyHeatCapacityFreeExperimentGroupCollection,
-  createHeatCapacityFreeExperimentGroupDraft,
-  abandonCurrentHeatCapacityFreeExperimentGroupDraft,
   restartCurrentHeatCapacityFreeExperimentGroup,
   selectCurrentHeatCapacityFreeExperimentGroup,
-  selectViewedHeatCapacityFreeExperimentGroup,
-  selectHeatCapacityFreeViewedExperimentGroup,
-  selectHeatCapacityFreeViewedTrial,
-  setHeatCapacityFreeExperimentGroupDraftScheme,
-  setHeatCapacityFreeExperimentGroupDraftTargetCount,
-  setHeatCapacityFreePendingNextGroupScheme,
-  startHeatCapacityFreeExperimentGroup,
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
@@ -182,10 +171,9 @@ import {
   type HeatCapacityFreeTraceTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
-  createHeatCapacityFreeConfigSnapshotFromFile,
+  createHeatCapacityFreeRuntimeConfigSnapshotFromFile,
 } from './workbenchHeatCapacityFreeConfigSnapshot.ts';
 import {
-  DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
   normalizeHeatCapacityFreePhysicsConfig,
   normalizeHeatCapacityFreeSensorConfig,
@@ -193,13 +181,11 @@ import {
 import {
   commitHeatCapacityFreeRuntimeAuthorityTransaction,
   hydrateHeatCapacityFreeAuthorityProjection,
-  projectHeatCapacityFreeExperimentGroupToDomain,
   selectActiveHeatCapacityFreeDomain,
   selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
   selectHeatCapacityFreeDomain,
   selectHeatCapacityFreeGasType,
-  setHeatCapacityFreeActiveGasTypeAuthority,
   transactHeatCapacityFreeAuthority,
 } from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
 export {
@@ -237,23 +223,16 @@ import {
   truncateHeatCapacitySignalMv,
 } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 import {
-  applyHeatCapacityFreeGasTypeModelDefaultsToDraft,
   applyHeatCapacityFreeParameterDraftToConfigs,
   createHeatCapacityFreeParameterDraftFromConfigs,
-  getHeatCapacityFreeGasTypeGamma,
   getHeatCapacityFreeIdealTheoreticalGamma,
   getEffectiveHeatCapacityFreeSensorConfig,
   normalizeHeatCapacityFreeParameterDraft,
-  normalizeHeatCapacityFreeGasType,
   type HeatCapacityFreeGasType,
   type HeatCapacityFreeParameterApplyResult,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
-import type {
-  HeatCapacityFreeParameterLockReasonId,
-} from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
 import {
-  createHeatCapacityFreeIdealEffectiveConfigs,
   createHeatCapacityFreeIdealStagePhysicsConfig,
   type HeatCapacityFreeIdealStage,
 } from '../../domain/heatCapacity/heatCapacityFreeIdealParameterProfile.ts';
@@ -299,7 +278,6 @@ import type {
   WorkbenchHeatCapacityPistonOscillationState,
 } from './workbenchPistonOscillationState.ts';
 import type {
-  HeatCapacityFreeDisplayScheme,
   HeatCapacityFreeExperimentDomainState,
   HeatCapacityFreeFileAcknowledgements,
   HeatCapacityFreeFileNoticeKey,
@@ -331,6 +309,59 @@ import {
   isHeatCapacityPressureZeroWithinTolerance,
   updatePressureZeroDisplayedSamples,
 } from './workbenchHeatCapacityInstrumentState.ts';
+import {
+  applyHeatCapacityFreeParameterDraftConfigWorkbenchState,
+  canOpenHeatCapacityParameterSidebar,
+  createDefaultHeatCapacityFreeParameterState,
+  createHeatCapacityFreeIdealParameterState,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
+  getHeatCapacityFreeParameterLockReason,
+  getHeatCapacityParameterSidebarBlockReason,
+  hasCompletedHeatCapacityFreeRecordSet,
+  isHeatCapacityFreeExperimentGroupComplete,
+  isHeatCapacityFreeGasTypeEditingAvailable,
+  isHeatCapacityFreeParameterEditingAvailable,
+  shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
+} from './workbenchHeatCapacityFreeParameterState.ts';
+import {
+  getActiveHeatCapacityFreeTrial,
+  getActiveHeatCapacityFreeTrialIndex,
+  hasHeatCapacityFreeTrialProgress,
+  isHeatCapacityFreeTrialComplete,
+  isHeatCapacityFreeTrialRecordComplete,
+} from './workbenchHeatCapacityFreeTrialState.ts';
+import {
+  getHeatCapacityFreeBatchProgress,
+} from './workbenchHeatCapacityFreeExperimentGroupState.ts';
+
+export {
+  canOpenHeatCapacityParameterSidebar,
+  createDefaultHeatCapacityFreeParameterState,
+  freezeHeatCapacityFreeParametersForCurrentGroup,
+  getHeatCapacityFreeParameterLockReason,
+  getHeatCapacityParameterSidebarBlockReason,
+  hasCompletedHeatCapacityFreeRecordSet,
+  isHeatCapacityFreeExperimentGroupComplete,
+  isHeatCapacityFreeGasTypeEditingAvailable,
+  isHeatCapacityFreeParameterEditingAvailable,
+  shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
+} from './workbenchHeatCapacityFreeParameterState.ts';
+export {
+  getActiveHeatCapacityFreeTrialIndex,
+  getHeatCapacityFreeRecordDisplayTrialIndex,
+} from './workbenchHeatCapacityFreeTrialState.ts';
+export {
+  abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState,
+  configureHeatCapacityFreeBatchWorkbenchState,
+  getHeatCapacityFreeBatchProgress,
+  getHeatCapacityFreeDisplayTheoreticalGamma,
+  isHeatCapacityFreeExperimentStarted,
+  selectDisplayedHeatCapacityFreeDomain,
+  selectHeatCapacityFreeViewedExperimentGroupWorkbenchState,
+  selectHeatCapacityFreeViewedTrialWorkbenchState,
+  setHeatCapacityFreeDisplaySchemeWorkbenchState,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
+} from './workbenchHeatCapacityFreeExperimentGroupState.ts';
 
 export {
   DEFAULT_HEAT_CAPACITY_PARAMS,
@@ -687,79 +718,6 @@ export type WorkbenchFileState =
 
 const HEAT_CAPACITY_FREE_DEFAULT_HARD_SPHERE_VIEW_ENABLED = false;
 
-export const createDefaultHeatCapacityFreeParameterState = (): HeatCapacityFreeParameterApplyResult => {
-  const recordConfig = createDefaultHeatCapacityFreeRecordConfig();
-  const draft = createHeatCapacityFreeParameterDraftFromConfigs(
-    DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-    recordConfig,
-    HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.noiseMv > 0,
-  );
-  return applyHeatCapacityFreeParameterDraftToConfigs(draft);
-};
-
-const getLatestHeatCapacityFreeTrial = (
-  file: Pick<WorkbenchHeatCapacityState, 'heatCapacityFreeRunWorkspace'>,
-) => file.heatCapacityFreeRunWorkspace.trials[file.heatCapacityFreeRunWorkspace.trials.length - 1] ?? null;
-
-const isHeatCapacityFreeTrialRecordComplete = (
-  trial: Pick<HeatCapacityFreeTrial, 'u1' | 'u2' | 'correctedSignals'>,
-) => (
-  trial.u1 !== null &&
-  trial.u2 !== null &&
-  trial.correctedSignals !== null
-);
-
-type HeatCapacityFreeActiveTrialSource =
-  Pick<WorkbenchHeatCapacityState, 'heatCapacityFreeRunWorkspace'> &
-  Partial<Pick<WorkbenchHeatCapacityState, 'powerOn'>>;
-
-export const getActiveHeatCapacityFreeTrialIndex = (
-  file: HeatCapacityFreeActiveTrialSource,
-) => {
-  const incompleteIndex = file.heatCapacityFreeRunWorkspace.trials.findIndex((trial) => (
-    !isHeatCapacityFreeTrialRecordComplete(trial)
-  ));
-  if (incompleteIndex >= 0) return incompleteIndex;
-  if (
-    file.powerOn === true &&
-    file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'completed' &&
-    file.heatCapacityFreeRunWorkspace.trials.length > 0
-  ) {
-    return file.heatCapacityFreeRunWorkspace.trials.length - 1;
-  }
-  return -1;
-};
-
-export const getHeatCapacityFreeRecordDisplayTrialIndex = (
-  file: HeatCapacityFreeActiveTrialSource,
-) => {
-  const activeIndex = getActiveHeatCapacityFreeTrialIndex(file);
-  if (activeIndex >= 0) return activeIndex;
-  const lastIndex = file.heatCapacityFreeRunWorkspace.trials.length - 1;
-  const lastTrial = file.heatCapacityFreeRunWorkspace.trials[lastIndex] ?? null;
-  if (
-    file.powerOn === false &&
-    (
-      file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'draft' ||
-      file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'completed'
-    ) &&
-    lastTrial !== null &&
-    isHeatCapacityFreeTrialRecordComplete(lastTrial)
-  ) {
-    return lastIndex;
-  }
-  return -1;
-};
-
-const getActiveHeatCapacityFreeTrial = (
-  file: HeatCapacityFreeActiveTrialSource,
-) => {
-  const activeIndex = getActiveHeatCapacityFreeTrialIndex(file);
-  return activeIndex >= 0 ? file.heatCapacityFreeRunWorkspace.trials[activeIndex] ?? null : null;
-};
-
 export const isHeatCapacityFreeAttemptInvalid = (
   file: Pick<WorkbenchHeatCapacityState, 'heatCapacityMode' | 'heatCapacityFreeRunWorkspace'>,
 ) => file.heatCapacityMode === 'free' && file.heatCapacityFreeRunWorkspace.activeAttempt?.status === 'invalid';
@@ -918,163 +876,6 @@ export interface HeatCapacityFreeRecordButtonState {
   disabledReason: HeatCapacityFreeRecordRejectReason | null;
 }
 
-export const hasCompletedHeatCapacityFreeRecordSet = (
-  file: WorkbenchFileState | null,
-): boolean => {
-  if (file?.kind !== 'heatCapacity' || file.heatCapacityMode !== 'free') return false;
-  const latestTrial = getLatestHeatCapacityFreeTrial(file);
-  return Boolean(latestTrial?.u1 && latestTrial.u2 && latestTrial.correctedSignals);
-};
-
-export const isHeatCapacityFreeExperimentGroupComplete = (
-  file: WorkbenchFileState | null,
-): boolean => (
-  file?.kind === 'heatCapacity' &&
-  file.heatCapacityMode === 'free' &&
-  file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'completed' &&
-  file.heatCapacityFreeRunWorkspace.activeAttempt?.status !== 'invalid' &&
-  hasCompletedHeatCapacityFreeRecordSet(file) &&
-  !file.powerOn
-);
-
-export const shouldPromptHeatCapacityFreePowerOffBeforeNextGroup = (
-  file: WorkbenchFileState | null,
-): boolean => (
-  file?.kind === 'heatCapacity' &&
-  file.heatCapacityMode === 'free' &&
-  file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'completed' &&
-  file.heatCapacityFreeRunWorkspace.activeAttempt?.status !== 'invalid' &&
-  hasCompletedHeatCapacityFreeRecordSet(file) &&
-  file.powerOn
-);
-
-export const isHeatCapacityFreeParameterEditingAvailable = (
-  file: WorkbenchFileState | null,
-): file is WorkbenchHeatCapacityState => (
-  file?.kind === 'heatCapacity' &&
-  file.heatCapacityMode === 'free' &&
-  !isHeatCapacityFreeBatchLocked(selectActiveHeatCapacityFreeDomain(file).batch) &&
-  (
-    file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'draft' ||
-    isHeatCapacityFreeExperimentGroupComplete(file)
-  ) &&
-  file.runState !== 'running' &&
-  file.runState !== 'paused'
-);
-
-export const isHeatCapacityFreeGasTypeEditingAvailable = (
-  file: WorkbenchFileState | null,
-): boolean => (
-  isHeatCapacityFreeParameterEditingAvailable(file) &&
-  file.heatCapacityFreeRunWorkspace.trials.length === 0
-);
-
-export const getHeatCapacityFreeParameterLockReason = (
-  file: WorkbenchFileState | null,
-): HeatCapacityFreeParameterLockReasonId | null => {
-  if (!file || file.kind !== 'heatCapacity') return null;
-  if (file.heatCapacityMode !== 'free') return 'freeModeOnly';
-  if (file.runState === 'running' || file.runState === 'paused') {
-    return 'runningOrPaused';
-  }
-  if (shouldPromptHeatCapacityFreePowerOffBeforeNextGroup(file)) {
-    return 'powerOffBeforeNextGroup';
-  }
-  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  if (
-    currentGroup?.status === 'collecting' &&
-    currentGroup.runSeries.trials.length === 0
-  ) {
-    return 'groupStarted';
-  }
-  if (isHeatCapacityFreeBatchLocked(selectActiveHeatCapacityFreeDomain(file).batch)) {
-    return 'batchStarted';
-  }
-  if (isHeatCapacityFreeExperimentGroupComplete(file)) {
-    return null;
-  }
-  if (file.heatCapacityFreeRunWorkspace.currentExperimentStatus !== 'draft') {
-    return 'groupStarted';
-  }
-  return null;
-};
-
-export const canOpenHeatCapacityParameterSidebar = (
-  file: WorkbenchFileState | null,
-) => (
-  file?.kind !== 'heatCapacity' ||
-  file.heatCapacityMode === 'free'
-);
-
-export const getHeatCapacityParameterSidebarBlockReason = (
-  file: WorkbenchFileState | null,
-): HeatCapacityFreeParameterLockReasonId | null => (
-  file?.kind === 'heatCapacity' && file.heatCapacityMode !== 'free'
-    ? 'freeModeOnly'
-    : null
-);
-
-const applyHeatCapacityFreeParameterDraftConfigWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  draft: HeatCapacityFreeParameterDraft,
-): WorkbenchHeatCapacityState => {
-  if (!isHeatCapacityFreeParameterEditingAvailable(file)) return file;
-  const gasTypeEditingAvailable = isHeatCapacityFreeGasTypeEditingAvailable(file);
-  const appliedDraft = selectHeatCapacityFreeAppliedParameterDraft(file);
-  const lockedGasType = selectHeatCapacityFreeGasType(file);
-  const requestedGasType = normalizeHeatCapacityFreeGasType(draft.gasType, lockedGasType);
-  if (file.heatCapacityFreeParameterScheme === 'ideal') {
-    const gasType = gasTypeEditingAvailable ? requestedGasType : lockedGasType;
-    const parameterState = createHeatCapacityFreeIdealParameterState(gasType);
-    return setHeatCapacityFreeActiveGasTypeAuthority({
-      ...file,
-      heatCapacityFreeInstrumentConfig: {
-        environment: parameterState.environmentConfig,
-        physics: parameterState.physicsConfig,
-        sensor: parameterState.sensorConfig,
-        record: parameterState.recordConfig,
-        pressureWarningMv: parameterState.pressureWarningMv,
-        instrumentNoiseEnabled: parameterState.instrumentNoiseEnabled,
-      },
-      theoreticalGamma: getHeatCapacityFreeIdealTheoreticalGamma(gasType),
-    }, gasType);
-  }
-  const gasTypeChanged = gasTypeEditingAvailable && requestedGasType !== lockedGasType;
-  const shouldApplyGasTypeModelDefaults = gasTypeChanged &&
-    draft.gasWallConductanceWPerK === appliedDraft.gasWallConductanceWPerK &&
-    draft.leakageRatePerS === appliedDraft.leakageRatePerS;
-  const requestedDraft = shouldApplyGasTypeModelDefaults
-    ? applyHeatCapacityFreeGasTypeModelDefaultsToDraft(draft, requestedGasType)
-    : draft;
-  const normalizedDraft = normalizeHeatCapacityFreeParameterDraft(
-    gasTypeEditingAvailable
-      ? requestedDraft
-      : {
-          ...requestedDraft,
-          gasType: lockedGasType,
-        },
-    appliedDraft,
-  );
-  const parameterState = applyHeatCapacityFreeParameterDraftToConfigs(normalizedDraft);
-  const theoreticalGamma = gasTypeEditingAvailable
-    ? parameterState.physicsConfig.gamma
-    : file.theoreticalGamma;
-  return setHeatCapacityFreeActiveGasTypeAuthority({
-    ...file,
-    heatCapacityFreeInstrumentConfig: {
-      environment: parameterState.environmentConfig,
-      physics: parameterState.physicsConfig,
-      sensor: parameterState.sensorConfig,
-      record: parameterState.recordConfig,
-      pressureWarningMv: parameterState.pressureWarningMv,
-      instrumentNoiseEnabled: parameterState.instrumentNoiseEnabled,
-    },
-    theoreticalGamma,
-  }, parameterState.gasType);
-};
-
 export const applyHeatCapacityFreeParameterDraftWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   draft: HeatCapacityFreeParameterDraft,
@@ -1103,49 +904,6 @@ export const resetHeatCapacityFreeParametersToDefaultWorkbenchState = (
     ...resetFile,
     hardSphereViewEnabled: HEAT_CAPACITY_FREE_DEFAULT_HARD_SPHERE_VIEW_ENABLED,
   };
-};
-
-export const freezeHeatCapacityFreeParametersForCurrentGroup = (
-  file: WorkbenchHeatCapacityState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  if (file.heatCapacityFreeRunWorkspace.currentExperimentStatus !== 'draft') return file;
-  if (file.heatCapacityFreeRunWorkspace.batch.targetGroupCount === null) return file;
-  const configuredBatch = file.heatCapacityFreeRunWorkspace.batch;
-  if (isHeatCapacityFreeBatchLocked(configuredBatch)) {
-    return commitHeatCapacityFreeRuntimeAuthorityTransaction({
-      ...file,
-      heatCapacityFreeRunWorkspace: {
-        ...file.heatCapacityFreeRunWorkspace,
-        batch: configuredBatch,
-        currentExperimentStatus: 'running',
-      },
-    }, file.heatCapacityFreeParameterScheme);
-  }
-  const appliedFile = applyHeatCapacityFreeParameterDraftConfigWorkbenchState(
-    file,
-    selectHeatCapacityFreeAppliedParameterDraft(file),
-  );
-  const snapshot = createHeatCapacityFreeRuntimeConfigSnapshotFromFile(appliedFile);
-  const groups = startHeatCapacityFreeExperimentGroup(
-    appliedFile.heatCapacityFreeExperimentGroups,
-    snapshot,
-    now,
-  );
-  const startedGroup = selectCurrentHeatCapacityFreeExperimentGroup(groups);
-  const startedBatch = startedGroup?.status === 'collecting'
-    ? startedGroup.runSeries.batch
-    : startHeatCapacityFreeBatch(configuredBatch, snapshot, now);
-  return commitHeatCapacityFreeRuntimeAuthorityTransaction({
-    ...appliedFile,
-    heatCapacityFreeExperimentGroups: groups,
-    heatCapacityFreeRunWorkspace: {
-      ...appliedFile.heatCapacityFreeRunWorkspace,
-      batch: startedBatch,
-      currentExperimentStatus: 'running',
-    },
-  }, appliedFile.heatCapacityFreeParameterScheme);
 };
 
 export const acknowledgeHeatCapacityFreeFileNoticeWorkbenchState = (
@@ -1624,21 +1382,6 @@ export const mergeHeatCapacityFreeRuntimeState = (
   };
 };
 
-const createHeatCapacityFreeRuntimeConfigSnapshotFromFile = (
-  file: WorkbenchHeatCapacityState,
-) => {
-  const sensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
-    normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeInstrumentConfig.sensor),
-    file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
-  );
-  const recordConfig = file.heatCapacityFreeInstrumentConfig.record ?? createDefaultHeatCapacityFreeRecordConfig();
-  return createHeatCapacityFreeConfigSnapshotFromFile(file, {
-    environmentConfig: file.heatCapacityFreeInstrumentConfig.environment,
-    sensorConfig,
-    recordConfig,
-  });
-};
-
 const ensureActiveHeatCapacityFreeTraceTrial = (
   file: WorkbenchHeatCapacityState,
 ) => {
@@ -1974,10 +1717,6 @@ const syncFreeTrialBranchReference = (
     : trial
 ));
 
-const isHeatCapacityFreeTrialComplete = (trial: HeatCapacityFreeTrial) => (
-  isHeatCapacityFreeTrialRecordComplete(trial)
-);
-
 const findHeatCapacityFreeTraceTrialForTrial = (
   store: HeatCapacityFreeTraceStore,
   trial: HeatCapacityFreeTrial,
@@ -2041,17 +1780,6 @@ const stampLatestCompletedHeatCapacityFreeTrial = (
     },
   };
 };
-
-const hasHeatCapacityFreeTrialProgress = (trial: HeatCapacityFreeTrial) => (
-  trial.automaticU0 !== null ||
-  trial.u0 !== null ||
-  trial.u1 !== null ||
-  trial.u2 !== null ||
-  trial.blockedReason !== null ||
-  trial.correctedSignals !== null ||
-  trial.traceTrialId !== null ||
-  trial.branchCount > 0
-);
 
 const markHeatCapacityFreeTraceTrialCompleted = (
   store: HeatCapacityFreeTraceStore,
@@ -4897,21 +4625,6 @@ export const createDefaultHeatCapacityFreeRuntimeFields = (
   };
 };
 
-function createHeatCapacityFreeIdealParameterState(
-  gasType: HeatCapacityFreeGasType = 'air',
-): HeatCapacityFreeParameterApplyResult {
-  const ideal = createHeatCapacityFreeIdealEffectiveConfigs('thermalEquilibrium', gasType);
-  return {
-    environmentConfig: { ...ideal.environment },
-    physicsConfig: ideal.physics,
-    sensorConfig: normalizeHeatCapacityFreeSensorConfig(ideal.sensor),
-    recordConfig: ideal.record,
-    pressureWarningMv: ideal.pressureWarningMv,
-    instrumentNoiseEnabled: ideal.instrumentNoiseEnabled,
-    gasType,
-  };
-}
-
 export const createDefaultHeatCapacityFreeExperimentDomainState = (
   scheme: HeatCapacityFreeParameterScheme,
   seed: number | string = `${scheme}-free-runtime`,
@@ -4948,140 +4661,6 @@ export const createDefaultHeatCapacityFreeExperimentDomainState = (
   };
 };
 
-export const selectDisplayedHeatCapacityFreeDomain = (
-  file: WorkbenchHeatCapacityState,
-): HeatCapacityFreeExperimentDomainState => {
-  const selectedDomain = selectHeatCapacityFreeDomain(
-    file,
-    file.heatCapacityFreeDisplayScheme,
-  );
-  const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  const domain = viewedGroup?.scheme === file.heatCapacityFreeDisplayScheme
-    ? {
-        ...projectHeatCapacityFreeExperimentGroupToDomain(
-          selectedDomain,
-          viewedGroup,
-        ),
-        activeAttempt: null,
-      }
-    : selectedDomain;
-  if (domain.activeAttempt?.status !== 'invalid') return domain;
-  return {
-    ...domain,
-    // An invalid attempt is a transient scratch run, not an official numbered
-    // group. Keep only already finalized groups in result/scoring views.
-    trials: domain.trials.filter((trial) => trial.completedAtMs !== null),
-  };
-};
-
-export const getHeatCapacityFreeDisplayTheoreticalGamma = (
-  file: WorkbenchHeatCapacityState,
-  scheme: HeatCapacityFreeDisplayScheme = file.heatCapacityFreeDisplayScheme,
-) => {
-  const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  const gasType = viewedGroup?.scheme === scheme
-    ? viewedGroup.gasType
-    : selectHeatCapacityFreeDomain(file, scheme).gasType;
-  return getHeatCapacityFreeGasTypeGamma(gasType);
-};
-
-export const setHeatCapacityFreeDisplaySchemeWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  scheme: HeatCapacityFreeDisplayScheme,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => ({
-  ...file,
-  heatCapacityFreeDisplayScheme: scheme,
-  updatedAt: now,
-});
-
-export const isHeatCapacityFreeExperimentStarted = (
-  file: WorkbenchHeatCapacityState,
-): boolean => {
-  const domain = selectActiveHeatCapacityFreeDomain(file);
-  if (isHeatCapacityFreeBatchLocked(domain.batch)) {
-    return true;
-  }
-  if (domain.experimentGroupStatus === 'completed' && !file.powerOn) {
-    return false;
-  }
-  const activeTrialIndex = getActiveHeatCapacityFreeTrialIndex({
-    heatCapacityFreeRunWorkspace: {
-      batch: domain.batch,
-      traceStore: domain.traceStore,
-      trials: domain.trials,
-      activeAttempt: domain.activeAttempt,
-      currentExperimentStatus: domain.experimentGroupStatus,
-    },
-    powerOn: file.powerOn,
-  });
-  const activeTrial = activeTrialIndex >= 0 ? domain.trials[activeTrialIndex] ?? null : null;
-  return file.powerOn ||
-    file.pumpValveOpen ||
-    file.glassPistonState === 'open' ||
-    file.pressureZeroed ||
-    file.pumpBulbState !== 'idle' ||
-    domain.experimentGroupStatus === 'running' ||
-    domain.traceStore.activeTraceTrialId !== null ||
-    (activeTrial !== null && hasHeatCapacityFreeTrialProgress(activeTrial)) ||
-    domain.physicsState.pumpStrokeCount > 0;
-};
-
-export const setHeatCapacityFreeParameterSchemeWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  scheme: HeatCapacityFreeParameterScheme,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  if (
-    currentGroup?.status === 'completed' ||
-    currentGroup?.status === 'legacy-incomplete-readonly'
-  ) {
-    const transactedFile = transactHeatCapacityFreeAuthority(
-      file,
-      (authority) => ({
-        ...authority,
-        heatCapacityFreeExperimentGroups: setHeatCapacityFreePendingNextGroupScheme(
-          authority.heatCapacityFreeExperimentGroups,
-          scheme,
-        ),
-        heatCapacityFreeParameterScheme: scheme,
-      }),
-      { commitRuntimeScheme: file.heatCapacityFreeParameterScheme },
-    );
-    return { ...transactedFile, updatedAt: now };
-  }
-  if (isHeatCapacityFreeExperimentStarted(file)) return file;
-  const transactedFile = transactHeatCapacityFreeAuthority(
-    file,
-    (authority) => {
-      const authorityFile = { ...file, ...authority };
-      const nextDomain = selectHeatCapacityFreeDomain(authorityFile, scheme);
-      return {
-        ...authority,
-        heatCapacityFreeExperimentGroups: currentGroup?.status === 'draft'
-          ? setHeatCapacityFreeExperimentGroupDraftScheme(
-              authority.heatCapacityFreeExperimentGroups,
-              scheme,
-              nextDomain.gasType,
-            )
-          : authority.heatCapacityFreeExperimentGroups,
-        heatCapacityFreeParameterScheme: scheme,
-        heatCapacityFreeDisplayScheme: scheme,
-      };
-    },
-    { commitRuntimeScheme: file.heatCapacityFreeParameterScheme },
-  );
-  return { ...transactedFile, updatedAt: now };
-};
-
 const loadActiveHeatCapacityFreeDomainRuntimeFields = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
@@ -5101,26 +4680,6 @@ const storeActiveHeatCapacityFreeDomainRuntimeFields = (
     ? commitHeatCapacityFreeRuntimeAuthorityTransaction(file, scheme)
     : file
 );
-
-export const getHeatCapacityFreeBatchProgress = (
-  file: WorkbenchHeatCapacityState,
-  scheme: HeatCapacityFreeParameterScheme = file.heatCapacityFreeParameterScheme,
-) => {
-  const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  if (
-    scheme === file.heatCapacityFreeParameterScheme &&
-    currentGroup?.scheme === scheme
-  ) {
-    return deriveHeatCapacityFreeBatchProgress(
-      currentGroup.runSeries.batch,
-      currentGroup.runSeries.trials,
-    );
-  }
-  const domain = selectHeatCapacityFreeDomain(file, scheme);
-  return deriveHeatCapacityFreeBatchProgress(domain.batch, domain.trials);
-};
 
 export const getHeatCapacityCalculationSession = (
   file: WorkbenchHeatCapacityState,
@@ -5341,166 +4900,6 @@ export const completeHeatCapacityCalculationWorkflowWorkbenchState = (
     { commitRuntimeScheme: completedFile.heatCapacityFreeParameterScheme },
   );
   return { ...transactedFile, updatedAt: now };
-};
-
-export const configureHeatCapacityFreeBatchWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  targetGroupCount: HeatCapacityFreeBatchGroupCount,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  const existingCurrent = selectCurrentHeatCapacityFreeExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  if (
-    existingCurrent &&
-    existingCurrent.status !== 'draft' &&
-    existingCurrent.status !== 'completed' &&
-    existingCurrent.status !== 'legacy-incomplete-readonly'
-  ) {
-    return file;
-  }
-  const scheme = existingCurrent?.status === 'completed' ||
-    existingCurrent?.status === 'legacy-incomplete-readonly'
-    ? file.heatCapacityFreeExperimentGroups.pendingNextScheme
-    : file.heatCapacityFreeParameterScheme;
-  const transactedFile = transactHeatCapacityFreeAuthority(
-    file,
-    (authority) => {
-      const authorityFile = { ...file, ...authority };
-      const selectedDomain = selectHeatCapacityFreeDomain(authorityFile, scheme);
-      let groups = authority.heatCapacityFreeExperimentGroups;
-      const current = selectCurrentHeatCapacityFreeExperimentGroup(groups);
-      if (current?.status === 'draft') {
-        groups = setHeatCapacityFreeExperimentGroupDraftTargetCount(
-          groups,
-          targetGroupCount,
-          now,
-        );
-      } else {
-        const groupId = `${file.id}:${scheme}:group:${
-          typeof globalThis.crypto?.randomUUID === 'function'
-            ? globalThis.crypto.randomUUID()
-            : `${now}:${Math.random().toString(36).slice(2)}`
-        }`;
-        groups = createHeatCapacityFreeExperimentGroupDraft(groups, {
-          id: groupId,
-          scheme,
-          gasType: selectedDomain.gasType,
-          targetExperimentCount: targetGroupCount,
-          now,
-        });
-      }
-      return {
-        ...authority,
-        heatCapacityFreeExperimentGroups: groups,
-        heatCapacityFreeParameterScheme: scheme,
-        heatCapacityFreeDisplayScheme: scheme,
-      };
-    },
-    { commitRuntimeScheme: file.heatCapacityFreeParameterScheme },
-  );
-  return commitHeatCapacityFreeRuntimeAuthorityTransaction({
-    ...transactedFile,
-    heatCapacityFreeRunWorkspace: {
-      ...transactedFile.heatCapacityFreeRunWorkspace,
-      activeAttempt: null,
-      currentExperimentStatus: 'draft',
-    },
-    updatedAt: now,
-  }, scheme);
-};
-
-export const selectHeatCapacityFreeViewedExperimentGroupWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  groupId: string,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  const groups = selectHeatCapacityFreeViewedExperimentGroup(
-    file.heatCapacityFreeExperimentGroups,
-    groupId,
-  );
-  if (groups === file.heatCapacityFreeExperimentGroups) return file;
-  const viewedGroup = groups.groups.find((group) => group.id === groupId);
-  return {
-    ...file,
-    heatCapacityFreeExperimentGroups: groups,
-    heatCapacityFreeDisplayScheme:
-      viewedGroup?.scheme ?? file.heatCapacityFreeDisplayScheme,
-    updatedAt: now,
-  };
-};
-
-export const selectHeatCapacityFreeViewedTrialWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  groupId: string,
-  trialId: string | null,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  const groups = selectHeatCapacityFreeViewedTrial(
-    file.heatCapacityFreeExperimentGroups,
-    groupId,
-    trialId,
-  );
-  return groups === file.heatCapacityFreeExperimentGroups
-    ? file
-    : {
-        ...file,
-        heatCapacityFreeExperimentGroups: groups,
-        updatedAt: now,
-      };
-};
-
-export const abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') return file;
-  const groups = abandonCurrentHeatCapacityFreeExperimentGroupDraft(
-    file.heatCapacityFreeExperimentGroups,
-  );
-  if (groups === file.heatCapacityFreeExperimentGroups) return file;
-  const fallback = selectCurrentHeatCapacityFreeExperimentGroup(groups);
-  if (fallback) {
-    const transactedFile = transactHeatCapacityFreeAuthority(
-      file,
-      (authority) => ({
-        ...authority,
-        heatCapacityFreeExperimentGroups: groups,
-        heatCapacityFreeParameterScheme: fallback.scheme,
-        heatCapacityFreeDisplayScheme: fallback.scheme,
-      }),
-      { commitRuntimeScheme: file.heatCapacityFreeParameterScheme },
-    );
-    return { ...transactedFile, updatedAt: now };
-  }
-  const scheme = groups.pendingNextScheme;
-  const transactedFile = transactHeatCapacityFreeAuthority(
-    file,
-    (authority) => ({
-      ...authority,
-      heatCapacityFreeExperimentGroups: groups,
-      heatCapacityFreeParameterScheme: scheme,
-      heatCapacityFreeDisplayScheme: scheme,
-    }),
-    { commitRuntimeScheme: file.heatCapacityFreeParameterScheme },
-  );
-  return commitHeatCapacityFreeRuntimeAuthorityTransaction({
-    ...transactedFile,
-    heatCapacityFreeExperimentGroups: groups,
-    heatCapacityFreeParameterScheme: scheme,
-    heatCapacityFreeDisplayScheme: scheme,
-    heatCapacityFreeRunWorkspace: {
-      batch: createEmptyHeatCapacityFreeBatchState(),
-      traceStore: createDefaultFreeTraceStore(),
-      trials: [],
-      activeAttempt: null,
-      currentExperimentStatus: 'draft',
-    },
-    updatedAt: now,
-  }, scheme);
 };
 
 const createDefaultHeatCapacityGuideRuntimeFields = () => {
