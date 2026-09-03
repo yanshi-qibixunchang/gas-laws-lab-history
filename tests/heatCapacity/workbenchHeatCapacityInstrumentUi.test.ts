@@ -34,6 +34,20 @@ const heatCapacityMaterialsWindowCoordinatorPath = join(process.cwd(), 'src', 'f
 const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
+const freeRuntimeCoordinatorPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityFreeRuntimeCoordinator.ts',
+);
+const freeTraceStatePath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityFreeTraceState.ts',
+);
 const freeRunResetPath = join(
   process.cwd(),
   'src',
@@ -116,6 +130,8 @@ const modeTypesSource = readFileSync(modeTypesPath, 'utf8');
 const modeControlModelSource = readFileSync(modeControlModelPath, 'utf8');
 const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
+const freeRuntimeCoordinatorSource = readFileSync(freeRuntimeCoordinatorPath, 'utf8');
+const freeTraceStateSource = readFileSync(freeTraceStatePath, 'utf8');
 const freeRunResetSource = readFileSync(freeRunResetPath, 'utf8');
 const stateTypesSource = readFileSync(stateTypesPath, 'utf8');
 const instrumentStateSource = readFileSync(instrumentStatePath, 'utf8');
@@ -911,8 +927,8 @@ assert.match(guideDataResultsRendererSection, /DocumentDisclosure[\s\S]*copy\.gu
 assert.match(guideDataResultsRendererSection, /ln\(P₁ \/ P₀\) \/ ln\(P₁ \/ P₂\)/, 'Guide calculation explanation should use the absolute-pressure logarithm formula');
 assert.doesNotMatch(guideDataResultsRendererSection, /Math\.log/, 'Guide calculation explanation should not expose JavaScript implementation syntax');
 assert.doesNotMatch(guideDataResultsRendererSection, /data-heat-capacity-guide-result-table="true"/, 'Guide data/result page should remove the old separate one-row processing table');
-assert.match(stateSource, /stepFreePhysics\(/, 'Free Mode workbench stepping should call the Free physics engine');
-assert.match(stateSource, /stepFreeSensor\(/, 'Free Mode workbench stepping should call the Free sensor layer');
+assert.match(freeRuntimeCoordinatorSource, /stepFreePhysics\(/, 'Free Mode workbench stepping should call the Free physics engine');
+assert.match(freeRuntimeCoordinatorSource, /stepFreeSensor\(/, 'Free Mode workbench stepping should call the Free sensor layer');
 assert.match(sceneSource, /@react-three\/fiber/);
 assert.match(sceneSource, /@react-three\/drei/);
 assert.doesNotMatch(autoDemoSource, asciiSubscriptPattern, 'auto demo user-facing copy should use real Unicode subscripts instead of underscores');
@@ -2311,7 +2327,7 @@ assert.doesNotMatch(gasTheorySource, /HEAT_CAPACITY_FREE_IDEAL_GAS_TYPE/, 'ideal
 assert.match(gasTheorySource, /export const getHeatCapacityFreeIdealTheoreticalGamma[\s\S]*gasType:\s*HeatCapacityFreeGasType\s*=\s*'air'[\s\S]*getHeatCapacityFreeGasTypeGamma\(gasType\)/, 'ideal Free Mode should derive theoretical gamma from its selected gas while preserving air as the compatibility default');
 assert.match(idealParameterProfileSource, /getHeatCapacityFreeIdealTheoreticalGamma/, 'ideal parameter profile should consume the shared ideal-gas theory helper');
 assert.doesNotMatch(idealParameterProfileSource, /gamma:\s*1\.4/, 'ideal parameter profile should not duplicate the fixed air gamma literal');
-assert.match(stateSource, /getHeatCapacityFreeIdealTheoreticalGamma/, 'Workbench state should consume the shared ideal-gas theory helper');
+assert.match(freeTraceStateSource, /getHeatCapacityFreeIdealTheoreticalGamma/, 'Free trial evidence should consume the shared ideal-gas theory helper');
 assert.doesNotMatch(stateSource, /export const HEAT_CAPACITY_FREE_IDEAL_GAS_TYPE|export const getHeatCapacityFreeIdealTheoreticalGamma/, 'Workbench state should not own ideal-gas theory constants');
 assert.match(workbenchSource, /renderHeatCapacityFreeGasTypeRow[\s\S]*heatCapacityFreeGasTypeOptions\.map/, 'Free Mode basic parameters should render the gas type selector from model options');
 assert.match(workbenchSource, /activeHeatCapacityExperimentTitle[\s\S]*heatCapacityRealtimeCopy\.gasExperimentTitle\(activeHeatCapacityGasLabel\)/, 'Free Mode experiment titles should follow the selected gas type');

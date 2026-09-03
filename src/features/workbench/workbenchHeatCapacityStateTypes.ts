@@ -32,7 +32,6 @@ import type {
 import type {
   HeatCapacityFreeExperimentGroupStatus,
   HeatCapacityFreeGasType,
-  HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type { HeatCapacityReleaseState } from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
 import type {

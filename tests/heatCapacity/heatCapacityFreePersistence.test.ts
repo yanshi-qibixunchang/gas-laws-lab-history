@@ -159,6 +159,10 @@ const stateSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts'),
   'utf8',
 );
+const freeTraceStateSource = readFileSync(
+  join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityFreeTraceState.ts'),
+  'utf8',
+);
 const heatCapacitySessionRestoreSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacitySessionRestore.ts'),
   'utf8',
@@ -211,7 +215,7 @@ assert.match(
   heatCapacityPersistenceSource,
   /from '\.\/workbenchHeatCapacityFreeConfigSnapshot\.ts'/,
 );
-assert.match(stateSource, /from '\.\/workbenchHeatCapacityFreeConfigSnapshot\.ts'/);
+assert.match(freeTraceStateSource, /from '\.\/workbenchHeatCapacityFreeConfigSnapshot\.ts'/);
 assert.doesNotMatch(
   heatCapacityPersistenceSource,
   /export const createHeatCapacityFreeConfigSnapshotFromFile\s*=/,

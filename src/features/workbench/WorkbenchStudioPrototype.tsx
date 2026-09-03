@@ -70,12 +70,7 @@ import {
   completeHeatCapacityFreePreheatWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
-  deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
-  dismissHeatCapacityFreeInvalidAttemptPromptWorkbenchState,
   enterHeatCapacityFreeModeWorkbenchState,
-  evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState,
-  getHeatCapacityFreeDisplayPhase,
-  getHeatCapacityFreeRecordButtonState,
   getHeatCapacityGuideRecordButtonState,
   isHeatCapacityFreePreheatRequired,
   getWorkbenchParameterRows,
@@ -84,21 +79,15 @@ import {
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoReset,
   prepareHeatCapacityAutoDemoStart,
-  applyHeatCapacityFreeRecordWorkbenchState,
   refreshHeatCapacityPumpFrequency,
   registerHeatCapacityPumpStroke,
-  removeHeatCapacityFreeTrialRecordWorkbenchState,
   restartHeatCapacityFreeBatchWorkbenchState,
   restartCurrentHeatCapacityFreeExperimentWorkbenchState,
-  selectActiveHeatCapacityWorkbenchDisplay,
   selectHeatCapacityFreeAppliedParameterDraft,
   selectHeatCapacityFreeGasType,
-  setHeatCapacityFreeEquilibriumSpeedMultiplier,
   setHeatCapacityGuideEquilibriumSpeedMultiplier,
   setHeatCapacityGuidePumpValveOpen,
   setHeatCapacityGuideStopcockOpen,
-  setHeatCapacityFreePumpValveOpen,
-  setHeatCapacityFreeStopcockOpen,
   setHeatCapacityScriptedStopcockOpen,
   setHeatCapacityScriptedPumpValveOpen,
   setHeatCapacityPressureZeroOffset,
@@ -110,6 +99,27 @@ import {
   type WorkbenchFileState,
   type WorkbenchParameterRow,
 } from './workbenchState';
+import {
+  deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
+  dismissHeatCapacityFreeInvalidAttemptPromptWorkbenchState,
+  evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState,
+  getHeatCapacityFreeDisplayPhase,
+} from './workbenchHeatCapacityFreeAttemptState.ts';
+import {
+  applyHeatCapacityFreeRecordWorkbenchState,
+  getHeatCapacityFreeRecordButtonState,
+} from './workbenchHeatCapacityFreeRecordState.ts';
+import {
+  removeHeatCapacityFreeTrialRecordWorkbenchState,
+} from './workbenchHeatCapacityFreeRollbackState.ts';
+import {
+  selectActiveHeatCapacityWorkbenchDisplay,
+} from './workbenchHeatCapacityDisplayState.ts';
+import {
+  setHeatCapacityFreeEquilibriumSpeedMultiplier,
+  setHeatCapacityFreePumpValveOpen,
+  setHeatCapacityFreeStopcockOpen,
+} from './workbenchHeatCapacityFreeRuntimeCoordinator.ts';
 import {
   completeHeatCapacityCalculationWorkflowWorkbenchState,
   continueHeatCapacityCalculationAnswerWorkbenchState,

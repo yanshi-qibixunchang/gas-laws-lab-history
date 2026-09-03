@@ -69,7 +69,8 @@
 8. 将参数编辑/冻结策略、当前试次选择规则、实验组配置/方案切换/历史查看迁入专用模块，并由旧入口兼容重导出。（已完成）
 9. 将 Free/Guide 运行默认值、Free 热状态合并、轨迹清理和完整运行重置迁入无反向依赖的专用模块。（已完成）
 10. 将 Demo、Guide、Free 的计算会话创建、逐步作答、实验结束启动和最终结果/评分回写迁入统一协调器。（已完成）
-11. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
+11. 将 Free 尝试、轨迹证据、记录/重录、回滚、运行步进和仪器操作协调迁入专用模块，并保留旧入口兼容重导出。（已完成）
+12. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
 
 ## 4. 下一大改动断点
 
@@ -106,6 +107,15 @@ Demo/Guide 单次试验与 Free 多组试验的计算基准创建、会话选择
 主界面直接依赖新模块，`workbenchState.ts` 继续兼容重导出旧 API。总协调器由 5262 行降为
 4867 行，旧计算会话存档结构和恢复语义未改变。
 
-下一大改动断点是 Free 实验操作与证据链的职责拆分。当前打气、阀门、调零、尝试状态、轨迹采样、
-回滚快照、记录/重录和错误操作后果仍共同位于总协调器中；这些行为同时决定“操作是否不可逆”、
-试次证据和 Real 评分输入，迁移时必须作为同一批次审查，不能只拆界面调用而破坏轨迹或评分链。
+Free 实验操作与证据链的职责拆分已经完成。`workbenchHeatCapacityFreeAttemptState.ts` 负责尝试生命周期
+和阶段派生，`workbenchHeatCapacityFreeTraceState.ts` 负责轨迹采样、事件、记录引用与完成归档，
+`workbenchHeatCapacityFreeRecordState.ts` 负责 U0/U1/U2 的门禁和写入，
+`workbenchHeatCapacityFreeRollbackState.ts` 负责删除记录、快照恢复和重录分支，
+`workbenchHeatCapacityFreeRuntimeCoordinator.ts` 负责 Free 物理步进、旋塞、气阀和等待加速，
+`workbenchHeatCapacityFreeControlState.ts` 负责调零、打气和电源操作与证据链的连接；显示源选择则进入
+`workbenchHeatCapacityDisplayState.ts`。主界面直接依赖这些模块，兼容入口只做重导出。总协调器由
+4867 行降为 2723 行；“不可逆操作”、试次证据、Real 评分输入及存档格式均未改变。
+
+下一大改动断点是 Demo/Guide 教学运行协调的职责拆分。教学物理步进、工作流门禁、旋塞/气阀/打气、
+记录 U0/U1/U2、预热与教学模式切换仍集中在总协调器中；这些逻辑共同决定教学步骤、暂停恢复和已完成
+结果，迁移时应作为一个大批次审查，并继续保持 Guide 可回看、Free 会话保留及模式切换清空规则。
