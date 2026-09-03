@@ -72,7 +72,9 @@ import type {
   PistonOscillationGuideSavedMeasurement,
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
-import type {
+import {
+  getPistonOscillationFreeEffectiveParameters,
+  isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
@@ -180,6 +182,7 @@ export interface PistonOscillationAcquisitionPanelProps {
   ) => void;
   onFreeCandidateChange?: (candidate: PistonOscillationRawMeasurementRecord | null) => void;
   onFreeMeasurementSave?: (measurement: PistonOscillationRawMeasurementRecord) => void;
+  onFreeAcquisitionStarted?: () => void;
   guidePaused?: boolean;
   guideCue?: PistonOscillationGuideAcquisitionCue;
   onGuideAcquisitionEvent?: (event: PistonOscillationGuideAcquisitionEvent) => boolean;
@@ -384,6 +387,7 @@ PistonOscillationAcquisitionPanelProps
   onFreeAcquisitionSettingCommit,
   onFreeCandidateChange,
   onFreeMeasurementSave,
+  onFreeAcquisitionStarted,
   guidePaused = false,
   guideCue = null,
   onGuideAcquisitionEvent,
@@ -490,9 +494,9 @@ PistonOscillationAcquisitionPanelProps
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
   const freeSelected = freeSession?.status === 'active';
-  const effectiveFreeParameterDraft = freeSession?.frozenParameterSnapshot?.parameters
-    ?? freeSession?.parameterDraft
-    ?? null;
+  const effectiveFreeParameterDraft = freeSession
+    ? getPistonOscillationFreeEffectiveParameters(freeSession)
+    : null;
   const freeAmbientPressureKpa = effectiveFreeParameterDraft?.ambientPressureKpa
     ?? PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA;
   const freeTriggerThresholdRange = useMemo(
@@ -528,10 +532,9 @@ PistonOscillationAcquisitionPanelProps
       : null,
     [effectiveFreeParameterDraft],
   );
-  const freeParametersLocked = Boolean(
-    freeSession?.frozenParameterSnapshot
-    || freeSession?.acquisitionCandidate,
-  );
+  const freeParametersLocked = freeSession
+    ? isPistonOscillationFreeExperimentLocked(freeSession)
+    : false;
   const configuredTriggerKpa = guideSelected
     ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
       || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
@@ -1983,6 +1986,7 @@ PistonOscillationAcquisitionPanelProps
       guideActive
       && onGuideAcquisitionEvent?.({ type: 'startAcquisition' }) !== true
     ) return;
+    if (freeSelected) onFreeAcquisitionStarted?.();
     const recordingStartedAtMs = performance.now();
     const currentObservation = livePressureObservation ?? {
       sampleClockIndex: Math.floor(recordingStartedAtMs),

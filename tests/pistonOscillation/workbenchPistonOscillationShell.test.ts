@@ -235,6 +235,11 @@ assert.match(
   /onPressStartEvent=\{\(event\) => \{[\s\S]*setPistonOscillationPressStartEventsByFileId[\s\S]*\[activeFile\.id\]: event[\s\S]*pressStartEvent=\{pistonOscillationPressStartEventsByFileId\[activeFile\.id\] \?\? null\}/,
   'the scene and acquisition panel must share later two-hand press-start events for one continuous Free record',
 );
+assert.match(
+  workbenchSource,
+  /onFreeAcquisitionStarted=\{\(\) => \{[\s\S]*type: 'observeOperation'[\s\S]*operation: 'startAcquisition'/,
+  'Free acquisition start must reach the persisted irreversible-operation boundary',
+);
 assert.doesNotMatch(
   workbenchSource,
   /releaseControlExternallyHeld|onReleaseControlHoldChange|pistonOscillationReleaseControlHoldsByFileId/,

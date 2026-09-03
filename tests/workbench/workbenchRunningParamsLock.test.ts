@@ -21,8 +21,8 @@ assert.match(
 );
 assert.match(
   pistonParameterPanelSource,
-  /const physicsLocked = !freeMode[\s\S]*session\.frozenParameterSnapshot !== null[\s\S]*candidateLocked/,
-  'Piston Oscillation should remain editable before the first formal save and lock its profile once evidence is frozen',
+  /const physicsLocked = !freeMode[\s\S]*isPistonOscillationFreeExperimentLocked\(session\)/,
+  'Piston Oscillation should lock its profile from the first irreversible experiment event',
 );
 assert.match(
   source,

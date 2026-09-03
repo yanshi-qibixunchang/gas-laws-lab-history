@@ -162,6 +162,11 @@ assert.match(
 );
 assert.match(
   panelSource,
+  /guideActive[\s\S]*type: 'startAcquisition'[\s\S]*\) !== true[\s\S]*if \(freeSelected\) onFreeAcquisitionStarted\?\.\(\);[\s\S]*const recordingStartedAtMs = performance\.now\(\)/,
+  'a valid Free Start click must freeze experiment conditions before acquisition state begins changing',
+);
+assert.match(
+  panelSource,
   /createPistonOscillationContinuousRecordingSamples[\s\S]*releaseSegments: freeReleaseSegmentsRef\.current[\s\S]*pressStartedAtMs: freePressStartedAtMsRef\.current[\s\S]*liveObservations: freeLiveObservationsRef\.current[\s\S]*recordingPath: 'immediate'/,
   'Free recording must combine live press intervals with every released oscillation segment',
 );

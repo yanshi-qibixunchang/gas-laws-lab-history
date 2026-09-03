@@ -6,7 +6,9 @@ import {
   getPistonOscillationFreeTriggerThresholdRange,
   type PistonOscillationFreeParameterDraft,
 } from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
-import type {
+import {
+  getPistonOscillationFreeEffectiveParameters,
+  isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
@@ -49,9 +51,8 @@ const text = {
     advanced: '高级设置',
     restore: '恢复默认参数',
     freeOnly: '当前参数仅可在自由模式中打开和调整。',
-    locked: '首条正式曲线已保存；本实验参数已固化。',
-    candidateLocked: '当前曲线等待保存或重做，参数暂时锁定。',
-    editable: '首次保存正式曲线后，整套参数将锁定。',
+    locked: '当前实验已留下不可逆记录；完整重置或新建文件后可重新设置参数。',
+    editable: '开始正式采集或发生不可逆操作后，整套参数将锁定。',
     advancedTitle: '活塞振动法高级设置',
     cancel: '取消',
     apply: '保存设置',
@@ -74,10 +75,9 @@ const text = {
     section: '自由模式參數', ambientPressure: '環境壓強', ambientTemperature: '環境溫度',
     sampleRate: '取樣頻率', trigger: '下降觸發閾值', sensorFluctuation: '感測器波動',
     tailIrregularity: '尾段不規則', operationVisualization: '鍵鼠操作視覺化', on: '開', off: '關',
-    advanced: '進階設定', restore: '恢復預設參數', locked: '首條正式曲線已儲存；本實驗參數已固化。',
+    advanced: '進階設定', restore: '恢復預設參數', locked: '目前實驗已留下不可逆記錄；完整重設或建立新檔案後可重新設定參數。',
     freeOnly: '目前參數僅可在自由模式中開啟和調整。',
-    candidateLocked: '目前曲線等待儲存或重做，參數暫時鎖定。',
-    editable: '首次儲存正式曲線後，整套參數將鎖定。', advancedTitle: '活塞振動法進階設定',
+    editable: '開始正式採集或發生不可逆操作後，整套參數將鎖定。', advancedTitle: '活塞振動法進階設定',
     cancel: '取消', apply: '儲存設定', confirm: '確認並繼續', riskTitle: '確認調整進階參數',
     riskBody: '進階參數會影響目前實驗檔案的物理過程、感測器讀數和採集結果。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
     restoreTitle: '恢復活塞振動法預設參數？', restoreBody: '所有自由模式普通與進階參數將恢復預設值，鍵鼠操作視覺化將關閉。',
@@ -89,9 +89,8 @@ const text = {
     section: 'Free-mode parameters', ambientPressure: 'Ambient pressure', ambientTemperature: 'Ambient temperature',
     sampleRate: 'Sample rate', trigger: 'Falling trigger', sensorFluctuation: 'Sensor fluctuation',
     tailIrregularity: 'Tail irregularity', operationVisualization: 'Input visualization', on: 'On', off: 'Off', freeOnly: 'Current parameters are available only in Free mode.',
-    advanced: 'Advanced settings', restore: 'Restore defaults', locked: 'The first formal curve has frozen this experiment profile.',
-    candidateLocked: 'The current curve is awaiting Save or Redo; parameters are temporarily locked.',
-    editable: 'The complete profile freezes after the first formal curve is saved.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
+    advanced: 'Advanced settings', restore: 'Restore defaults', locked: 'This experiment contains an irreversible record. Fully reset it or create a new file to change parameters.',
+    editable: 'The complete profile freezes when formal acquisition starts or another irreversible operation occurs.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
     riskTitle: 'Confirm advanced-parameter editing', riskBody: 'Advanced parameters affect this file’s physical process, sensor readings, and acquisition results. After confirmation, this file will not show the warning again.',
     restoreTitle: 'Restore piston-oscillation defaults?', restoreBody: 'All basic and advanced Free parameters will be restored, and input visualization will be turned off.',
     restoreConfirm: 'Restore defaults', thermal: 'Thermal process and equivalent loss',
@@ -107,11 +106,9 @@ export const getPistonOscillationParameterSidebarFreeOnlyMessage = (
 export const getPistonOscillationParameterLockMessage = (
   session: PistonOscillationFreeSession,
   language: PistonOscillationLanguage,
-) => session.frozenParameterSnapshot !== null
+) => isPistonOscillationFreeExperimentLocked(session)
   ? text[language].locked
-  : session.acquisitionCandidate !== null
-    ? text[language].candidateLocked
-    : text[language].editable;
+  : text[language].editable;
 
 const parameterEffects = {
   'zh-CN': {
@@ -296,12 +293,10 @@ export const PistonOscillationParameterPanel = ({
 }: PistonOscillationParameterPanelProps) => {
   const copy = text[language];
   const effects = parameterEffects[language];
-  const parameters = session.frozenParameterSnapshot?.parameters ?? session.parameterDraft;
+  const parameters = getPistonOscillationFreeEffectiveParameters(session);
   const freeMode = mode === 'free';
-  const candidateLocked = session.acquisitionCandidate !== null;
   const physicsLocked = !freeMode
-    || session.frozenParameterSnapshot !== null
-    || candidateLocked;
+    || isPistonOscillationFreeExperimentLocked(session);
   const lockMessage = !freeMode
     ? getPistonOscillationParameterSidebarFreeOnlyMessage(language)
     : getPistonOscillationParameterLockMessage(session, language);

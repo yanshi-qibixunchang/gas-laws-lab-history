@@ -177,6 +177,9 @@ export const transitionPistonOscillationFreeWorkbenchState = (
     ...file,
     updatedAt: event.nowMs,
     previewCameraPreset: event.type === 'reset' ? 'overview' : file.previewCameraPreset,
+    pistonOscillationOperationVisualizationEnabled: event.type === 'reset'
+      ? false
+      : file.pistonOscillationOperationVisualizationEnabled,
     pistonOscillationFreeSession,
   };
 };

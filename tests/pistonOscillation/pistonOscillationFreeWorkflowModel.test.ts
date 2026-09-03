@@ -105,6 +105,9 @@ assert.equal(baseline.experimentPlan, null);
 assert.equal(baseline.sampleRateHz, null);
 assert.equal(baseline.triggerThresholdKpa, null);
 assert.equal(baseline.advancedParametersRiskAcknowledged, false);
+assert.equal(baseline.experimentGroup.scheme, 'real');
+assert.equal(baseline.experimentGroup.gasMaterialSnapshot.gasType, 'air');
+assert.equal(baseline.experimentGroup.lock, null);
 assert.equal(getPistonOscillationFreeCurrentTargetHeightMm(baseline), null);
 assert.equal(isPistonOscillationFreePlanComplete(baseline), false);
 
@@ -146,6 +149,7 @@ assert.equal(active.status, 'active');
 assert.equal(active.startedAtMs, 100);
 assert.equal(active.audit.length, 1);
 assert.equal(active.audit[0]?.type, 'session-started');
+assert.equal(active.experimentGroup.groupId, 'piston-free-group:100');
 
 const advancedAcknowledged = transitionPistonOscillationFreeSession(active, {
   type: 'acknowledgeAdvancedParametersRisk',
@@ -173,7 +177,11 @@ const resetAfterAdvancedAcknowledgement = transitionPistonOscillationFreeSession
     nowMs: 106,
   },
 );
-assert.equal(resetAfterAdvancedAcknowledgement.advancedParametersRiskAcknowledged, true);
+assert.equal(
+  resetAfterAdvancedAcknowledgement.advancedParametersRiskAcknowledged,
+  false,
+  'a complete reset must also clear the per-file advanced-parameter acknowledgement',
+);
 
 const configured = transitionPistonOscillationFreeSession(active, {
   type: 'setPlan',
@@ -262,6 +270,7 @@ assert.equal(
 
 const restoredLegacyEditableThreshold = normalizePistonOscillationFreeSession({
   ...structuredClone(withAcquisitionSettings),
+  experimentGroup: undefined,
   parameterDraft: {
     ...withAcquisitionSettings.parameterDraft,
     ambientPressureKpa: 60,
@@ -296,6 +305,61 @@ assert.deepEqual(withOperation.audit.at(-1)?.payload, {
   releaseGapMs: 18,
   firstReleasedHand: 'left',
 });
+assert.equal(
+  withOperation.experimentGroup.lock,
+  null,
+  'reversible instrument operations must not lock the experiment conditions',
+);
+
+const lockedByAcquisitionStart = transitionPistonOscillationFreeSession(withPower, {
+  type: 'observeOperation',
+  operation: 'startAcquisition',
+  nowMs: 131,
+});
+assert.equal(
+  lockedByAcquisitionStart.experimentGroup.lock?.reason,
+  'formal-acquisition-started',
+);
+assert.equal(
+  lockedByAcquisitionStart.experimentGroup.parameterSnapshot?.parameters.sampleRateHz,
+  1000,
+);
+assert.equal(
+  transitionPistonOscillationFreeSession(lockedByAcquisitionStart, {
+    type: 'setParameterDraft',
+    parameterDraft: {
+      ...lockedByAcquisitionStart.parameterDraft,
+      sensorFluctuationEnabled: false,
+    },
+    nowMs: 132,
+  }),
+  lockedByAcquisitionStart,
+);
+const lockedAgainByBottomImpact = transitionPistonOscillationFreeSession(
+  lockedByAcquisitionStart,
+  {
+    type: 'observeOperation',
+    operation: 'bottomImpact',
+    nowMs: 132.5,
+  },
+);
+assert.equal(
+  lockedAgainByBottomImpact.experimentGroup.lock?.reason,
+  'formal-acquisition-started',
+  'the first irreversible operation must remain the authoritative lock reason',
+);
+assert.equal(
+  lockedAgainByBottomImpact.audit.filter((event) => event.type === 'experiment-locked').length,
+  1,
+  'later irreversible operations must not append duplicate lock events',
+);
+
+const lockedByBottomImpact = transitionPistonOscillationFreeSession(withPower, {
+  type: 'observeOperation',
+  operation: 'bottomImpact',
+  nowMs: 133,
+});
+assert.equal(lockedByBottomImpact.experimentGroup.lock?.reason, 'bottom-impact');
 
 const withInstrumentState = transitionPistonOscillationFreeSession(withOperation, {
   type: 'setInstrumentState',
@@ -401,9 +465,11 @@ const reset = transitionPistonOscillationFreeSession(resumed, {
 assert.equal(reset.status, 'active');
 assert.equal(reset.startedAtMs, 200);
 assert.equal(reset.experimentPlan, null);
-assert.equal(reset.sampleRateHz, 1000);
-assert.equal(reset.triggerThresholdKpa, 120.1);
-assert.equal(reset.frozenParameterSnapshot, null);
+assert.equal(reset.sampleRateHz, null);
+assert.equal(reset.triggerThresholdKpa, null);
+assert.equal(reset.experimentGroup.lock, null);
+assert.notEqual(reset.experimentGroup.groupId, resumed.experimentGroup.groupId);
+assert.equal(reset.advancedParametersRiskAcknowledged, false);
 assert.equal(reset.audit.length, 1);
 assert.equal(reset.audit[0]?.type, 'session-reset');
 
@@ -429,6 +495,32 @@ collection = transitionPistonOscillationFreeSession(collection, {
   nowMs: 303,
 });
 const firstCandidate = createMeasurement(0, 80, 310);
+const mismatchedGasCandidate: PistonOscillationRawMeasurementRecord = {
+  ...firstCandidate,
+  physicsSnapshot: {
+    ...firstCandidate.physicsSnapshot,
+    gasMaterial: {
+      ...firstCandidate.physicsSnapshot.gasMaterial,
+      modelVersion: 'legacy-air-material-other',
+      materialId: 'legacy-air-other',
+      adiabaticIndex: 1.39,
+      provenance: 'legacy-inferred',
+    },
+    config: {
+      ...firstCandidate.physicsSnapshot.config,
+      gamma: 1.39,
+    },
+  },
+};
+assert.equal(
+  transitionPistonOscillationFreeSession(collection, {
+    type: 'freezeAcquisition',
+    measurement: mismatchedGasCandidate,
+    nowMs: 309,
+  }),
+  collection,
+  'a measurement from a different gas-material snapshot must not enter the experiment group',
+);
 collection = transitionPistonOscillationFreeSession(collection, {
   type: 'freezeAcquisition',
   measurement: firstCandidate,
@@ -465,8 +557,9 @@ collection = transitionPistonOscillationFreeSession(collection, {
 assert.equal(collection.measurementIndex, 1);
 assert.equal(collection.acquisitionCandidate, null);
 assert.equal(collection.dataProcessing, null);
-assert.equal(collection.frozenParameterSnapshot?.parameters.sampleRateHz, 1000);
-assert.equal(collection.frozenParameterSnapshot?.parameters.triggerThresholdKpa, 120);
+assert.equal(collection.experimentGroup.parameterSnapshot?.parameters.sampleRateHz, 1000);
+assert.equal(collection.experimentGroup.parameterSnapshot?.parameters.triggerThresholdKpa, 120);
+assert.equal(collection.experimentGroup.lock?.reason, 'measurement-frozen');
 const rejectedLockedParameterEdit = transitionPistonOscillationFreeSession(collection, {
   type: 'setParameterDraft',
   parameterDraft: {
@@ -480,9 +573,10 @@ const unlockedAfterWholeReset = transitionPistonOscillationFreeSession(collectio
   type: 'reset',
   nowMs: 342,
 });
-assert.equal(unlockedAfterWholeReset.frozenParameterSnapshot, null);
-assert.equal(unlockedAfterWholeReset.parameterDraft.sampleRateHz, 1000);
-assert.equal(unlockedAfterWholeReset.parameterDraft.triggerThresholdKpa, 120);
+assert.equal(unlockedAfterWholeReset.experimentGroup.lock, null);
+assert.equal(unlockedAfterWholeReset.experimentGroup.parameterSnapshot, null);
+assert.equal(unlockedAfterWholeReset.parameterDraft.sampleRateHz, null);
+assert.equal(unlockedAfterWholeReset.parameterDraft.triggerThresholdKpa, null);
 assert.equal(unlockedAfterWholeReset.savedMeasurements.length, 0);
 
 for (const [measurementIndex, targetHeightMm] of [[1, 70], [2, 60]] as const) {
@@ -524,6 +618,23 @@ assert.equal(collection.dataProcessing?.status, 'period-processing');
 const restoredCollection = normalizePistonOscillationFreeSession(collection);
 assert.equal(restoredCollection.measurementIndex, 3);
 assert.equal(restoredCollection.dataProcessing?.runs.length, 3);
+assert.ok(restoredCollection.experimentGroup.lock);
+
+const legacyLockedCollection = structuredClone(collection) as unknown as Record<string, unknown>;
+legacyLockedCollection.experimentGroup = undefined;
+legacyLockedCollection.frozenParameterSnapshot = structuredClone(
+  collection.experimentGroup.parameterSnapshot,
+);
+const restoredLegacyLockedCollection = normalizePistonOscillationFreeSession(
+  legacyLockedCollection,
+);
+assert.equal(restoredLegacyLockedCollection.experimentGroup.provenance, 'legacy-inferred');
+assert.equal(restoredLegacyLockedCollection.experimentGroup.lock?.reason, 'legacy-evidence');
+assert.equal(
+  Object.hasOwn(restoredLegacyLockedCollection, 'frozenParameterSnapshot'),
+  false,
+  'legacy parameter locks must be consumed into the single experiment-group authority',
+);
 
 const resolveFreePeriodRunByReveal = (
   source: typeof collection,

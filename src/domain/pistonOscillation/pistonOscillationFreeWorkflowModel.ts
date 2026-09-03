@@ -7,6 +7,7 @@ import {
   continuePistonOscillationFreeCalculationBatch,
   continuePistonOscillationFreePeriodBatch,
   createPistonOscillationDataProcessingSession,
+  getConsistentPistonOscillationGasMaterialSnapshot,
   normalizePistonOscillationDataProcessingSession,
   normalizePistonOscillationRawMeasurementRecord,
   replacePistonOscillationProcessingMeasurement,
@@ -29,6 +30,14 @@ import {
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
 import {
+  createPistonOscillationFreeExperimentGroup,
+  doPistonOscillationGasMaterialSnapshotsAgree,
+  lockPistonOscillationFreeExperimentGroup,
+  normalizePistonOscillationFreeExperimentGroup,
+  type PistonOscillationFreeExperimentGroup,
+  type PistonOscillationFreeExperimentLockReason,
+} from './pistonOscillationFreeExperimentGroupModel.ts';
+import {
   createPistonOscillationAtmosphericLockedState,
   normalizePistonOscillationThermodynamicState,
   resolvePistonOscillationStablePhysicalState,
@@ -40,7 +49,6 @@ import {
 import {
   createDefaultPistonOscillationFreeParameterDraft,
   createPistonOscillationFreeParameterDraftFromMeasurement,
-  createPistonOscillationFreeParameterSnapshot,
   doesPistonOscillationMeasurementMatchFreeParameters,
   getPistonOscillationFreePhysicsConfig,
   isPistonOscillationFreeTriggerThresholdKpa,
@@ -50,16 +58,15 @@ import {
   PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
   scalePistonOscillationFreeTriggerThresholdKpa,
   type PistonOscillationFreeParameterDraft,
-  type PistonOscillationFreeParameterSnapshot,
 } from './pistonOscillationFreeParameterConfig.ts';
 
-export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 8 as const;
+export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 9 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION = 2 as const;
-export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 2 as const;
+export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 3 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT = 3 as const;
 export const PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT = 6 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM = [80, 70, 60, 50, 40, 30] as const;
@@ -150,6 +157,7 @@ export type PistonOscillationFreeAuditEventType =
   | 'session-resumed'
   | 'session-paused'
   | 'session-reset'
+  | 'experiment-locked'
   | 'plan-updated'
   | 'power-changed'
   | 'parameter-changed'
@@ -179,12 +187,12 @@ export interface PistonOscillationFreeSession {
   status: PistonOscillationFreeSessionStatus;
   startedAtMs: number | null;
   updatedAtMs: number | null;
+  experimentGroup: PistonOscillationFreeExperimentGroup;
   experimentPlan: PistonOscillationFreeExperimentPlan | null;
   measurementIndex: number;
   powerOn: boolean;
   advancedParametersRiskAcknowledged: boolean;
   parameterDraft: PistonOscillationFreeParameterDraft;
-  frozenParameterSnapshot: PistonOscillationFreeParameterSnapshot | null;
   sampleRateHz: number | null;
   triggerThresholdKpa: number | null;
   acquisitionCandidate: PistonOscillationRawMeasurementRecord | null;
@@ -303,6 +311,7 @@ const FREE_EVENT_TYPES: readonly PistonOscillationFreeAuditEventType[] = [
   'session-resumed',
   'session-paused',
   'session-reset',
+  'experiment-locked',
   'plan-updated',
   'power-changed',
   'parameter-changed',
@@ -479,12 +488,12 @@ PistonOscillationFreeSession => {
   status: 'idle',
   startedAtMs: null,
   updatedAtMs: null,
+  experimentGroup: createPistonOscillationFreeExperimentGroup(),
   experimentPlan: null,
   measurementIndex: 0,
   powerOn: false,
   advancedParametersRiskAcknowledged: false,
   parameterDraft,
-  frozenParameterSnapshot: null,
   sampleRateHz: null,
   triggerThresholdKpa: null,
   acquisitionCandidate: null,
@@ -529,18 +538,30 @@ const appendAudit = (
 const createFreshActiveSession = (
   nowMs: number,
   auditType: 'session-started' | 'session-reset' = 'session-started',
-  retainedParameterDraft = createDefaultPistonOscillationFreeParameterDraft(),
-  advancedParametersRiskAcknowledged = false,
+  options: {
+    retainedParameterDraft?: PistonOscillationFreeParameterDraft;
+    retainedAdvancedParametersRiskAcknowledgement?: boolean;
+    retainedExperimentGroup?: PistonOscillationFreeExperimentGroup;
+  } = {},
 ): PistonOscillationFreeSession => {
   const parameterDraft = normalizePistonOscillationFreeParameterDraft(
-    retainedParameterDraft,
+    options.retainedParameterDraft ?? createDefaultPistonOscillationFreeParameterDraft(),
   );
+  const retainedGroup = options.retainedExperimentGroup;
   const session: PistonOscillationFreeSession = {
     ...createDefaultPistonOscillationFreeSession(),
     status: 'active',
     startedAtMs: nowMs,
     updatedAtMs: nowMs,
-    advancedParametersRiskAcknowledged,
+    experimentGroup: createPistonOscillationFreeExperimentGroup({
+      groupId: `piston-free-group:${nowMs}`,
+      createdAtMs: nowMs,
+      scheme: retainedGroup?.scheme,
+      gasMaterialSnapshot: retainedGroup?.gasMaterialSnapshot,
+      parameterProfileVersion: retainedGroup?.parameterProfileVersion,
+    }),
+    advancedParametersRiskAcknowledged:
+      options.retainedAdvancedParametersRiskAcknowledgement ?? false,
     parameterDraft,
     sampleRateHz: parameterDraft.sampleRateHz,
     triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
@@ -549,6 +570,48 @@ const createFreshActiveSession = (
   return {
     ...session,
     audit: appendAudit(session, auditType, nowMs),
+  };
+};
+
+export const isPistonOscillationFreeExperimentLocked = (
+  session: PistonOscillationFreeSession,
+) => session.experimentGroup.lock !== null;
+
+export const getPistonOscillationFreeEffectiveParameters = (
+  session: PistonOscillationFreeSession,
+) => session.experimentGroup.parameterSnapshot?.parameters ?? session.parameterDraft;
+
+const IRREVERSIBLE_OPERATION_LOCK_REASON: Partial<Record<
+  PistonOscillationFreeObservedOperation,
+  PistonOscillationFreeExperimentLockReason
+>> = {
+  startAcquisition: 'formal-acquisition-started',
+  redoAcquisition: 'acquisition-repeated',
+  bottomImpact: 'bottom-impact',
+};
+
+const lockFreeExperiment = (
+  session: PistonOscillationFreeSession,
+  reason: PistonOscillationFreeExperimentLockReason,
+  nowMs: number,
+) => {
+  const experimentGroup = lockPistonOscillationFreeExperimentGroup(
+    session.experimentGroup,
+    session.parameterDraft,
+    reason,
+    nowMs,
+  );
+  if (experimentGroup === session.experimentGroup) return session;
+  const next = {
+    ...session,
+    experimentGroup,
+    updatedAtMs: nowMs,
+  };
+  return {
+    ...next,
+    audit: appendAudit(next, 'experiment-locked', nowMs, {
+      payload: { reason },
+    }),
   };
 };
 
@@ -633,8 +696,12 @@ export const transitionPistonOscillationFreeSession = (
       return createFreshActiveSession(
         event.nowMs,
         'session-started',
-        session.parameterDraft,
-        session.advancedParametersRiskAcknowledged,
+        {
+          retainedParameterDraft: session.parameterDraft,
+          retainedAdvancedParametersRiskAcknowledgement:
+            session.advancedParametersRiskAcknowledged,
+          retainedExperimentGroup: session.experimentGroup,
+        },
       );
     }
     const next = {
@@ -648,12 +715,7 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
   if (event.type === 'reset') {
-    return createFreshActiveSession(
-      event.nowMs,
-      'session-reset',
-      session.parameterDraft,
-      session.advancedParametersRiskAcknowledged,
-    );
+    return createFreshActiveSession(event.nowMs, 'session-reset');
   }
   if (event.type === 'pause') {
     if (session.status !== 'active') return session;
@@ -673,7 +735,7 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
   if (event.type === 'setParameterDraft') {
-    if (session.frozenParameterSnapshot !== null) return session;
+    if (isPistonOscillationFreeExperimentLocked(session)) return session;
     let parameterDraft = normalizePistonOscillationFreeParameterDraft(
       event.parameterDraft,
       session.parameterDraft,
@@ -744,7 +806,7 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'restoreDefaultParameters') {
-    if (session.frozenParameterSnapshot !== null) return session;
+    if (isPistonOscillationFreeExperimentLocked(session)) return session;
     const parameterDraft = createDefaultPistonOscillationFreeParameterDraft();
     const next = {
       ...session,
@@ -770,7 +832,7 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'setAcquisitionSetting') {
-    if (session.frozenParameterSnapshot !== null) return session;
+    if (isPistonOscillationFreeExperimentLocked(session)) return session;
     const valueValid = event.field === 'sampleRateHz'
       ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
       : isPistonOscillationFreeTriggerThresholdKpa(
@@ -885,10 +947,14 @@ export const transitionPistonOscillationFreeSession = (
     const targetHeightMm = isFiniteNumber(event.targetHeightMm)
       ? event.targetHeightMm
       : session.experimentPlan?.targetHeightsMm[measurementIndex] ?? null;
+    const lockReason = IRREVERSIBLE_OPERATION_LOCK_REASON[event.operation];
+    const lockedSession = lockReason
+      ? lockFreeExperiment(session, lockReason, event.nowMs)
+      : session;
     return {
-      ...session,
+      ...lockedSession,
       updatedAtMs: event.nowMs,
-      audit: appendAudit(session, 'operation-observed', event.nowMs, {
+      audit: appendAudit(lockedSession, 'operation-observed', event.nowMs, {
         measurementIndex,
         targetHeightMm,
         operation: event.operation,
@@ -909,9 +975,18 @@ export const transitionPistonOscillationFreeSession = (
       !normalized
       || normalized.measurementIndex !== measurementIndex
       || normalized.targetHeightMm !== target.heightMm
+      || !doPistonOscillationGasMaterialSnapshotsAgree(
+        normalized.physicsSnapshot.gasMaterial,
+        session.experimentGroup.gasMaterialSnapshot,
+      )
     ) return session;
+    const lockedSession = lockFreeExperiment(
+      session,
+      'measurement-frozen',
+      event.nowMs,
+    );
     return {
-      ...session,
+      ...lockedSession,
       acquisitionCandidate: clonePistonOscillationRawMeasurementRecord(normalized),
       acquisitionCandidateTargetId: target.targetId,
       updatedAtMs: event.nowMs,
@@ -920,19 +995,24 @@ export const transitionPistonOscillationFreeSession = (
 
   if (event.type === 'clearAcquisition') {
     if (session.acquisitionCandidate === null) return session;
+    const lockedSession = lockFreeExperiment(
+      session,
+      'acquisition-repeated',
+      event.nowMs,
+    );
     const target = session.experimentPlan?.targets[session.measurementIndex];
     const targetId = session.acquisitionCandidateTargetId ?? target?.targetId ?? null;
     const excludedAttempts = targetId === null
       ? session.excludedAttempts
       : appendExcludedAttempt(
-          session,
+          lockedSession,
           session.acquisitionCandidate,
           targetId,
           'redo',
           event.nowMs,
         );
     const next = {
-      ...session,
+      ...lockedSession,
       acquisitionCandidate: null,
       acquisitionCandidateTargetId: null,
       excludedAttempts,
@@ -962,13 +1042,24 @@ export const transitionPistonOscillationFreeSession = (
       event.measurement,
       measurementIndex,
     );
-    if (!normalized || normalized.targetHeightMm !== target.heightMm) return session;
-    const frozenParameters = session.frozenParameterSnapshot?.parameters
-      ?? session.parameterDraft;
+    if (
+      !normalized
+      || normalized.targetHeightMm !== target.heightMm
+      || !doPistonOscillationGasMaterialSnapshotsAgree(
+        normalized.physicsSnapshot.gasMaterial,
+        session.experimentGroup.gasMaterialSnapshot,
+      )
+    ) return session;
+    const frozenParameters = getPistonOscillationFreeEffectiveParameters(session);
     if (!doesPistonOscillationMeasurementMatchFreeParameters(
       normalized,
       frozenParameters,
     )) return session;
+    const lockedSession = lockFreeExperiment(
+      session,
+      'measurement-saved',
+      event.nowMs,
+    );
     const savedMeasurements = [
       ...session.savedMeasurements.filter((measurement) => (
         measurement.measurementIndex !== measurementIndex
@@ -1030,12 +1121,7 @@ export const transitionPistonOscillationFreeSession = (
           )
       : null;
     const next = {
-      ...session,
-      frozenParameterSnapshot: session.frozenParameterSnapshot
-        ?? createPistonOscillationFreeParameterSnapshot(
-          session.parameterDraft,
-          event.nowMs,
-        ),
+      ...lockedSession,
       savedMeasurements,
       savedMeasurementTargetIds,
       excludedAttempts,
@@ -1114,7 +1200,7 @@ export const transitionPistonOscillationFreeSession = (
         requestedAtMs: event.nowMs,
       } satisfies PistonOscillationFreeReacquisitionState,
       instrumentState: createDefaultPistonOscillationFreeInstrumentState(
-        session.frozenParameterSnapshot?.parameters ?? session.parameterDraft,
+        getPistonOscillationFreeEffectiveParameters(session),
       ),
       updatedAtMs: event.nowMs,
     };
@@ -1875,29 +1961,59 @@ export const normalizePistonOscillationFreeSession = (
       ),
     }, synchronizedParameterDraft);
   }
-  const persistedFrozenParameterSnapshot =
+  const legacyFrozenParameterSnapshot =
     normalizePistonOscillationFreeParameterSnapshot(value.frozenParameterSnapshot);
-  const frozenParameterSnapshot = savedMeasurements.length === 0
-    ? null
-    : persistedFrozenParameterSnapshot
-      ?? createPistonOscillationFreeParameterSnapshot(
-        measurementInferredDraft,
-        savedMeasurements[0]?.capturedAtMs ?? startedAtMs ?? Date.now(),
-      );
-  const parameterDraft = frozenParameterSnapshot?.parameters
+  const irreversibleAuditEvent = audit.find((auditEvent) => (
+    auditEvent.type === 'experiment-locked'
+    || auditEvent.type === 'acquisition-excluded'
+    || auditEvent.type === 'measurement-saved'
+    || auditEvent.type === 'measurement-deleted'
+    || (
+      auditEvent.type === 'operation-observed'
+      && auditEvent.operation !== null
+      && IRREVERSIBLE_OPERATION_LOCK_REASON[auditEvent.operation] !== undefined
+    )
+  ));
+  const hasIrreversibleEvidence = legacyFrozenParameterSnapshot !== null
+    || normalizedAcquisitionCandidate !== null
+    || savedMeasurements.length > 0
+    || excludedAttempts.length > 0
+    || reacquisition !== null
+    || dataProcessing !== null
+    || irreversibleAuditEvent !== undefined;
+  const experimentGroup = normalizePistonOscillationFreeExperimentGroup(
+    value.experimentGroup,
+    {
+      fallbackGroupId: `piston-free-group:legacy:${startedAtMs ?? 0}`,
+      fallbackCreatedAtMs: startedAtMs,
+      fallbackParameters: legacyFrozenParameterSnapshot?.parameters
+        ?? (savedMeasurements.length > 0 ? measurementInferredDraft : synchronizedParameterDraft),
+      fallbackGasMaterialSnapshot:
+        getConsistentPistonOscillationGasMaterialSnapshot(savedMeasurements) ?? undefined,
+      legacyParameterSnapshot: legacyFrozenParameterSnapshot,
+      forceLock: hasIrreversibleEvidence,
+      forceLockAtMs: irreversibleAuditEvent?.occurredAtMs
+        ?? normalizedAcquisitionCandidate?.capturedAtMs
+        ?? savedMeasurements[0]?.capturedAtMs
+        ?? excludedAttempts[0]?.excludedAtMs
+        ?? startedAtMs
+        ?? 0,
+    },
+  );
+  const parameterDraft = experimentGroup.parameterSnapshot?.parameters
     ?? synchronizedParameterDraft;
   return {
     ...fallback,
     status,
     startedAtMs,
     updatedAtMs: isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : startedAtMs,
+    experimentGroup,
     experimentPlan,
     measurementIndex,
     powerOn: status === 'active' && (reacquisition !== null || value.powerOn === true),
     advancedParametersRiskAcknowledged:
       value.advancedParametersRiskAcknowledged === true,
     parameterDraft,
-    frozenParameterSnapshot,
     sampleRateHz: parameterDraft.sampleRateHz,
     triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
     acquisitionCandidate: normalizedAcquisitionCandidate,

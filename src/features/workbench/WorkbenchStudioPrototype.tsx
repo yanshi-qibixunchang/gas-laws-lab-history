@@ -566,7 +566,8 @@ import {
   resumePistonOscillationDemoSession,
   startPistonOscillationDemoSession,
 } from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
-import type {
+import {
+  getPistonOscillationFreeEffectiveParameters,
   PistonOscillationFreeEvent,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
@@ -4257,8 +4258,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const activePistonOscillationParameterDraft = activeFile.kind
     === 'heatCapacityPistonOscillation'
     && activeFile.pistonOscillationFreeSession.status === 'active'
-    ? activeFile.pistonOscillationFreeSession.frozenParameterSnapshot?.parameters
-      ?? activeFile.pistonOscillationFreeSession.parameterDraft
+    ? getPistonOscillationFreeEffectiveParameters(
+        activeFile.pistonOscillationFreeSession,
+      )
     : null;
   const activePistonOscillationPhysicsConfig = useMemo(
     () => activePistonOscillationParameterDraft
@@ -22476,6 +22478,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     nowMs,
                   });
             });
+          }}
+          onFreeAcquisitionStarted={() => {
+            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+              ? transitionPistonOscillationFreeWorkbenchState(file, {
+                  type: 'observeOperation',
+                  operation: 'startAcquisition',
+                  nowMs: Date.now(),
+                })
+              : file);
           }}
           onFreeMeasurementSave={(measurement) => {
             updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'

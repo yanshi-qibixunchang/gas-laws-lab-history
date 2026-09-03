@@ -50,6 +50,17 @@ activeFreeFile = transitionPistonOscillationFreeWorkbenchState(activeFreeFile, {
   powerOn: true,
   nowMs: 1_020,
 });
+const fullyResetFreeFile = transitionPistonOscillationFreeWorkbenchState(
+  {
+    ...activeFreeFile,
+    pistonOscillationOperationVisualizationEnabled: true,
+  },
+  { type: 'reset', nowMs: 1_025 },
+);
+assert.equal(fullyResetFreeFile.pistonOscillationOperationVisualizationEnabled, false);
+assert.equal(fullyResetFreeFile.pistonOscillationFreeSession.experimentPlan, null);
+assert.equal(fullyResetFreeFile.pistonOscillationFreeSession.parameterDraft.sampleRateHz, null);
+assert.equal(fullyResetFreeFile.pistonOscillationFreeSession.experimentGroup.lock, null);
 const retainedFreePlan = activeFreeFile.pistonOscillationFreeSession.experimentPlan;
 const guideStartedOverFree = startPistonOscillationGuideWorkbenchState(activeFreeFile, 1_030);
 assert.equal(guideStartedOverFree.pistonOscillationGuideSession.status, 'active');
