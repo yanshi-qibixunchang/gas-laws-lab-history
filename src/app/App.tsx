@@ -163,7 +163,11 @@ function App() {
             baseProfile: experienceProfileLoad.status === 'loaded'
               ? experienceProfileLoad.profile
               : createDefaultAppExperienceProfile(),
-            draft: draft ?? { language: initialFirstRunLanguage, heatCapacity: null },
+            draft: draft ?? {
+              language: initialFirstRunLanguage,
+              heatCapacity: null,
+              pistonOscillation: null,
+            },
           })
         : experienceProfileLoad.status === 'loaded'
           ? acceptCurrentLegalVersion(experienceProfileLoad.profile)
@@ -184,7 +188,10 @@ function App() {
         persisted: true,
       };
       setTutorialEntryKind(
-        entryMode === 'full' && draft?.heatCapacity === 'needs-guidance'
+        entryMode === 'full' && (
+          draft?.heatCapacity === 'needs-guidance' ||
+          draft?.pistonOscillation === 'needs-guidance'
+        )
           ? 'start'
           : 'resume',
       );

@@ -15,8 +15,9 @@ assert.match(componentSource, /open: boolean;/, 'settings window visibility shou
 assert.match(componentSource, /onThemeChange: \(theme: WorkbenchThemePreference\) => void;/, 'theme updates should cross an explicit callback boundary');
 assert.match(componentSource, /onLanguageChange: \(language: WorkbenchLanguagePreference\) => void;/, 'language updates should cross an explicit callback boundary');
 assert.match(componentSource, /onPerformanceModeChange: \(mode: WorkbenchPerformanceMode\) => void;/, 'performance updates should cross an explicit callback boundary');
-assert.match(componentSource, /onExitHeatCapacityTutorial: \(\) => void;/, 'settings should expose a dedicated tutorial exit callback');
-assert.match(componentSource, /heatCapacityTutorialActive \? \(/, 'tutorial exit should only be visible while the tutorial is active');
+assert.match(componentSource, /onExitTutorial: \(\) => void;/, 'settings should expose a dedicated tutorial exit callback');
+assert.match(componentSource, /tutorialActive \? \(/, 'tutorial exit should only be visible while a tutorial is active');
+assert.match(componentSource, /resetLearningActions\.map/, 'settings should expose reset actions for every experiment');
 assert.match(componentSource, /learningCopy\.exitTutorialLabel/, 'tutorial exit should use localized settings copy');
 assert.match(componentSource, /HEAT_CAPACITY_QUALITY_MODE_ORDER\.map/, 'performance options should use the shared quality-mode registry');
 assert.doesNotMatch(componentSource, /persistWorkbenchGeneralSettings|localStorage/, 'the view component should not own persistence side effects');

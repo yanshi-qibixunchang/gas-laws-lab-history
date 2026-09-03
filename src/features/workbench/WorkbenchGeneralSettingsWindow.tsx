@@ -60,13 +60,17 @@ interface WorkbenchGeneralSettingsWindowProps {
     reselectNeedsHint: string;
     simulateFirstRunLabel: string;
     simulateFirstRunHint: string;
-    resetLabel: string;
-    resetHint: string;
     resetDisabledHint: string;
     exitTutorialLabel: string;
     exitTutorialHint: string;
   };
-  heatCapacityTutorialActive: boolean;
+  tutorialActive: boolean;
+  resetLearningActions: Array<{
+    id: string;
+    label: string;
+    hint: string;
+    onReset: () => void;
+  }>;
   showSimulateFirstRun: boolean;
   onClose: () => void;
   onThemeChange: (theme: WorkbenchThemePreference) => void;
@@ -77,8 +81,7 @@ interface WorkbenchGeneralSettingsWindowProps {
   onLanguageMenuOpenChange: (open: boolean) => void;
   onReplayProductIntro: () => void;
   onReselectLearningNeeds: () => void;
-  onResetHeatCapacityLearning: () => void;
-  onExitHeatCapacityTutorial: () => void;
+  onExitTutorial: () => void;
   onSimulateFirstRun: () => void;
 }
 
@@ -111,7 +114,8 @@ export const WorkbenchGeneralSettingsWindow = ({
   languageMenuOpen,
   languageTriggerRef,
   learningCopy,
-  heatCapacityTutorialActive,
+  tutorialActive,
+  resetLearningActions,
   showSimulateFirstRun,
   onClose,
   onThemeChange,
@@ -122,8 +126,7 @@ export const WorkbenchGeneralSettingsWindow = ({
   onLanguageMenuOpenChange,
   onReplayProductIntro,
   onReselectLearningNeeds,
-  onResetHeatCapacityLearning,
-  onExitHeatCapacityTutorial,
+  onExitTutorial,
   onSimulateFirstRun,
 }: WorkbenchGeneralSettingsWindowProps) => {
   if (!open) return null;
@@ -297,11 +300,11 @@ export const WorkbenchGeneralSettingsWindow = ({
               <span>{learningCopy.hint}</span>
             </div>
             <div className="studio-settings-control-surface studio-settings-learning-actions">
-              {heatCapacityTutorialActive ? (
+              {tutorialActive ? (
                 <button
                   type="button"
                   className="studio-settings-learning-action studio-settings-learning-action-exit"
-                  onClick={onExitHeatCapacityTutorial}
+                  onClick={onExitTutorial}
                 >
                   <LogOut size={15} />
                   <span>
@@ -313,50 +316,53 @@ export const WorkbenchGeneralSettingsWindow = ({
               <button
                 type="button"
                 className="studio-settings-learning-action"
-                disabled={heatCapacityTutorialActive}
+                disabled={tutorialActive}
                 onClick={onReplayProductIntro}
               >
                 <BookOpen size={15} />
                 <span>
                   <strong>{learningCopy.replayIntroLabel}</strong>
-                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.replayIntroHint}</small>
+                    <small>{tutorialActive ? learningCopy.resetDisabledHint : learningCopy.replayIntroHint}</small>
                 </span>
               </button>
               <button
                 type="button"
                 className="studio-settings-learning-action"
-                disabled={heatCapacityTutorialActive}
+                disabled={tutorialActive}
                 onClick={onReselectLearningNeeds}
               >
                 <ListChecks size={15} />
                 <span>
                   <strong>{learningCopy.reselectNeedsLabel}</strong>
-                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.reselectNeedsHint}</small>
+                    <small>{tutorialActive ? learningCopy.resetDisabledHint : learningCopy.reselectNeedsHint}</small>
                 </span>
               </button>
-              <button
-                type="button"
-                className="studio-settings-learning-action"
-                disabled={heatCapacityTutorialActive}
-                onClick={onResetHeatCapacityLearning}
-              >
-                <RotateCcw size={15} />
-                <span>
-                  <strong>{learningCopy.resetLabel}</strong>
-                  <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.resetHint}</small>
-                </span>
-              </button>
+              {resetLearningActions.map((action) => (
+                <button
+                  type="button"
+                  key={action.id}
+                  className="studio-settings-learning-action"
+                  disabled={tutorialActive}
+                  onClick={action.onReset}
+                >
+                  <RotateCcw size={15} />
+                  <span>
+                    <strong>{action.label}</strong>
+                    <small>{tutorialActive ? learningCopy.resetDisabledHint : action.hint}</small>
+                  </span>
+                </button>
+              ))}
               {showSimulateFirstRun ? (
                 <button
                   type="button"
                   className="studio-settings-learning-action"
-                  disabled={heatCapacityTutorialActive}
+                  disabled={tutorialActive}
                   onClick={onSimulateFirstRun}
                 >
                   <TestTube2 size={15} />
                   <span>
                     <strong>{learningCopy.simulateFirstRunLabel}</strong>
-                    <small>{heatCapacityTutorialActive ? learningCopy.resetDisabledHint : learningCopy.simulateFirstRunHint}</small>
+                    <small>{tutorialActive ? learningCopy.resetDisabledHint : learningCopy.simulateFirstRunHint}</small>
                   </span>
                 </button>
               ) : null}

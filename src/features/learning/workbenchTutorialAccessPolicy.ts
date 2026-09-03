@@ -1,5 +1,5 @@
 import {
-  isHeatCapacityTutorialActive,
+  isExperimentTutorialActive,
   type AppExperienceProfile,
   type ExperimentLearningMilestone,
 } from './experimentLearningModel.ts';
@@ -61,13 +61,13 @@ export const evaluateWorkbenchTutorialAccess = (
   profile: AppExperienceProfile,
   action: WorkbenchTutorialAccessAction,
 ): WorkbenchTutorialAccessDecision => {
-  if (!isHeatCapacityTutorialActive(profile) || ALLOWED_DURING_TUTORIAL.has(action)) {
+  if (!isExperimentTutorialActive(profile) || ALLOWED_DURING_TUTORIAL.has(action)) {
     return { allowed: true, reason: null };
   }
   return { allowed: false, reason: 'tutorial-active' };
 };
 
-export const isHeatCapacityTutorialModeUnlocked = (
+export const isExperimentTutorialModeUnlocked = (
   milestone: ExperimentLearningMilestone,
   mode: 'demo' | 'guide' | 'free',
 ) => (

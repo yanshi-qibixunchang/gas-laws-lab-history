@@ -222,10 +222,11 @@ assert.match(appEntrySource, /productIntroCapture/);
 assert.match(appEntrySource, /import\('\.\.\/features\/onboarding\/ProductIntroGuideVideoCapturePage\.tsx'\)/);
 assert.match(appEntrySource, /import\('\.\.\/features\/onboarding\/ProductIntroOutcomeVideoCapturePage\.tsx'\)/);
 
-assert.match(copySource, /您是否了解本软件绝热膨胀法实验的操作逻辑？/);
+assert.match(copySource, /请选择每个实验所需的学习方式/);
 assert.doesNotMatch(copySource, /是否了解软件总体 UI/);
-assert.doesNotMatch(copySource, /是否了解本软件.*活塞振动/);
-assert.match(needsSource, /disabled=\{answer === null\}/);
+assert.match(copySource, /活塞振动法测气体比热容比/);
+assert.match(needsSource, /Object\.values\(answers\)\.some/);
+assert.match(needsSource, /EXPERIMENT_LEARNING_ORDER\.map/);
 assert.match(needsSource, /role="radiogroup"/);
 
 assert.match(consentSource, /dismiss=\{\{ closeButton: false, escape: false, backdrop: false \}\}/);

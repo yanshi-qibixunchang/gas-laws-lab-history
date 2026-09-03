@@ -1,15 +1,21 @@
 import type {
   AppExperienceProfile,
+  ExperimentLearningId,
   ExperimentLearningMilestone,
 } from './experimentLearningModel.ts';
 import { EXPERIMENT_LEARNING_REGISTRY } from './experimentLearningRegistry.ts';
 
-export const HEAT_CAPACITY_TUTORIAL_FILE_ID = 'runtime:tutorial:heat-capacity';
-export const HEAT_CAPACITY_TUTORIAL_HANDOFF_STORAGE_KEY = 'hsl_heat_capacity_tutorial_handoff_v1';
+export const EXPERIMENT_TUTORIAL_FILE_IDS: Record<ExperimentLearningId, string> = {
+  heatCapacity: 'runtime:tutorial:heat-capacity',
+  pistonOscillation: 'runtime:tutorial:piston-oscillation',
+};
 
-export interface HeatCapacityTutorialHandoffMarker {
+// Keep the established key so an update cannot strand an in-flight heat-capacity handoff.
+export const EXPERIMENT_TUTORIAL_HANDOFF_STORAGE_KEY = 'hsl_heat_capacity_tutorial_handoff_v1';
+
+export interface ExperimentTutorialHandoffMarker {
   schemaVersion: 1;
-  experiment: 'heatCapacity';
+  experiment: ExperimentLearningId;
   status: 'profile-unlocked-pending-file';
   targetFileId: string;
   createdAtMs: number;
@@ -21,18 +27,22 @@ interface TutorialHandoffStorage {
   removeItem: (key: string) => void;
 }
 
-export type HeatCapacityTutorialHandoffLoadResult =
+export type ExperimentTutorialHandoffLoadResult =
   | { status: 'missing'; marker: null }
-  | { status: 'loaded'; marker: HeatCapacityTutorialHandoffMarker }
+  | { status: 'loaded'; marker: ExperimentTutorialHandoffMarker }
   | { status: 'invalid'; marker: null; error: Error };
 
-const isHandoffMarker = (value: unknown): value is HeatCapacityTutorialHandoffMarker => {
+const isExperimentLearningId = (value: unknown): value is ExperimentLearningId => (
+  value === 'heatCapacity' || value === 'pistonOscillation'
+);
+
+const isHandoffMarker = (value: unknown): value is ExperimentTutorialHandoffMarker => {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
   const record = value as Record<string, unknown>;
   return (
     Object.keys(record).length === 5 &&
     record.schemaVersion === 1 &&
-    record.experiment === 'heatCapacity' &&
+    isExperimentLearningId(record.experiment) &&
     record.status === 'profile-unlocked-pending-file' &&
     typeof record.targetFileId === 'string' &&
     record.targetFileId.trim().length > 0 &&
@@ -45,12 +55,12 @@ const resolveStorage = (): TutorialHandoffStorage | null => (
   typeof window === 'undefined' ? null : window.localStorage
 );
 
-export const loadHeatCapacityTutorialHandoff = (
+export const loadExperimentTutorialHandoff = (
   storage: Pick<TutorialHandoffStorage, 'getItem'> | null = resolveStorage(),
-): HeatCapacityTutorialHandoffLoadResult => {
+): ExperimentTutorialHandoffLoadResult => {
   if (!storage) return { status: 'missing', marker: null };
   try {
-    const raw = storage.getItem(HEAT_CAPACITY_TUTORIAL_HANDOFF_STORAGE_KEY);
+    const raw = storage.getItem(EXPERIMENT_TUTORIAL_HANDOFF_STORAGE_KEY);
     if (raw === null) return { status: 'missing', marker: null };
     const marker: unknown = JSON.parse(raw);
     return isHandoffMarker(marker)
@@ -65,7 +75,8 @@ export const loadHeatCapacityTutorialHandoff = (
   }
 };
 
-export const persistHeatCapacityTutorialHandoff = (
+export const persistExperimentTutorialHandoff = (
+  experiment: ExperimentLearningId,
   targetFileId: string,
   storage: Pick<TutorialHandoffStorage, 'setItem'> | null = resolveStorage(),
   nowMs = Date.now(),
@@ -74,15 +85,15 @@ export const persistHeatCapacityTutorialHandoff = (
   if (targetFileId.trim().length === 0) {
     return { ok: false as const, error: new Error('Tutorial handoff target file identity is invalid.') };
   }
-  const marker: HeatCapacityTutorialHandoffMarker = {
+  const marker: ExperimentTutorialHandoffMarker = {
     schemaVersion: 1,
-    experiment: 'heatCapacity',
+    experiment,
     status: 'profile-unlocked-pending-file',
     targetFileId,
     createdAtMs: nowMs,
   };
   try {
-    storage.setItem(HEAT_CAPACITY_TUTORIAL_HANDOFF_STORAGE_KEY, JSON.stringify(marker));
+    storage.setItem(EXPERIMENT_TUTORIAL_HANDOFF_STORAGE_KEY, JSON.stringify(marker));
     return { ok: true as const, marker };
   } catch (cause) {
     return {
@@ -92,12 +103,12 @@ export const persistHeatCapacityTutorialHandoff = (
   }
 };
 
-export const clearHeatCapacityTutorialHandoff = (
+export const clearExperimentTutorialHandoff = (
   storage: Pick<TutorialHandoffStorage, 'removeItem'> | null = resolveStorage(),
 ) => {
   if (!storage) return { ok: false as const, error: new Error('Persistent browser storage is unavailable.') };
   try {
-    storage.removeItem(HEAT_CAPACITY_TUTORIAL_HANDOFF_STORAGE_KEY);
+    storage.removeItem(EXPERIMENT_TUTORIAL_HANDOFF_STORAGE_KEY);
     return { ok: true as const };
   } catch (cause) {
     return {
@@ -107,29 +118,36 @@ export const clearHeatCapacityTutorialHandoff = (
   }
 };
 
-export interface HeatCapacityTutorialMilestoneLog {
+export interface ExperimentTutorialMilestoneLog {
   id: 'demo-started' | 'guide-unlocked' | 'all-modes-unlocked';
   kind: 'info' | 'success';
 }
 
-export const getHeatCapacityTutorialFileName = () => (
-  EXPERIMENT_LEARNING_REGISTRY.heatCapacity.tutorialFileName
+export const getExperimentTutorialFileId = (experiment: ExperimentLearningId) => (
+  EXPERIMENT_TUTORIAL_FILE_IDS[experiment]
 );
 
-export const isHeatCapacityTutorialFileId = (fileId: string) => (
-  fileId === HEAT_CAPACITY_TUTORIAL_FILE_ID
+export const getExperimentTutorialFileName = (experiment: ExperimentLearningId) => (
+  EXPERIMENT_LEARNING_REGISTRY[experiment].tutorialFileName
 );
 
-export const getHeatCapacityTutorialResumeMode = (
+export const isExperimentTutorialFileId = (
+  fileId: string,
+  experiment?: ExperimentLearningId | null,
+) => experiment
+  ? fileId === getExperimentTutorialFileId(experiment)
+  : Object.values(EXPERIMENT_TUTORIAL_FILE_IDS).includes(fileId);
+
+export const getExperimentTutorialResumeMode = (
   milestone: ExperimentLearningMilestone,
 ): 'demo' | 'guide' | null => (
   milestone === 'demo' ? 'demo' : milestone === 'guide' ? 'guide' : null
 );
 
-export const getHeatCapacityTutorialMilestoneLogs = (
+export const getExperimentTutorialMilestoneLogs = (
   milestone: ExperimentLearningMilestone,
-): HeatCapacityTutorialMilestoneLog[] => {
-  const logs: HeatCapacityTutorialMilestoneLog[] = [{ id: 'demo-started', kind: 'info' }];
+): ExperimentTutorialMilestoneLog[] => {
+  const logs: ExperimentTutorialMilestoneLog[] = [{ id: 'demo-started', kind: 'info' }];
   if (milestone === 'guide' || milestone === 'unlocked') {
     logs.push({ id: 'guide-unlocked', kind: 'success' });
   }
@@ -139,7 +157,7 @@ export const getHeatCapacityTutorialMilestoneLogs = (
   return logs;
 };
 
-export const shouldReconstructHeatCapacityTutorial = (profile: AppExperienceProfile) => (
-  profile.activeTutorialExperiment === 'heatCapacity' &&
-  profile.learning.heatCapacity !== 'unlocked'
-);
+export const shouldReconstructExperimentTutorial = (profile: AppExperienceProfile) => {
+  const experiment = profile.activeTutorialExperiment;
+  return experiment !== null && profile.learning[experiment] !== 'unlocked';
+};

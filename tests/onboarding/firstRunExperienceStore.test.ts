@@ -18,7 +18,7 @@ class MemoryStorage implements ExperienceProfileStorage {
 }
 
 const profile = createCommittedFirstRunProfile({
-  draft: { language: 'en', heatCapacity: 'known' },
+  draft: { language: 'en', heatCapacity: 'known', pistonOscillation: 'known' },
 });
 const storage = new MemoryStorage();
 assert.equal(commitFirstRunExperienceProfile(profile, storage).ok, true);

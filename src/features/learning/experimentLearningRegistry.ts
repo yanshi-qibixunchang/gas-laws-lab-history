@@ -1,4 +1,7 @@
-import type { ExperimentLearningId } from './experimentLearningModel.ts';
+import {
+  EXPERIMENT_LEARNING_ORDER,
+  type ExperimentLearningId,
+} from './experimentLearningModel.ts';
 
 export interface ExperimentLearningDefinition {
   id: ExperimentLearningId;
@@ -14,11 +17,13 @@ export const EXPERIMENT_LEARNING_REGISTRY: Record<ExperimentLearningId, Experime
   },
   pistonOscillation: {
     id: 'pistonOscillation',
-    available: false,
+    available: true,
     tutorialFileName: '活塞振动学习实验（临时）',
   },
 };
 
 export const getAvailableExperimentLearningDefinitions = () => (
-  Object.values(EXPERIMENT_LEARNING_REGISTRY).filter((definition) => definition.available)
+  EXPERIMENT_LEARNING_ORDER
+    .map((experiment) => EXPERIMENT_LEARNING_REGISTRY[experiment])
+    .filter((definition) => definition.available)
 );

@@ -1,5 +1,6 @@
 import {
   createDefaultAppExperienceProfile,
+  EXPERIMENT_LEARNING_ORDER,
   type AppExperienceProfile,
   type ExperienceNeedState,
 } from '../learning/experimentLearningModel.ts';
@@ -11,11 +12,12 @@ import {
 } from './workbenchLegalVersion.ts';
 
 export type FirstRunEntryMode = 'full' | 'legal-only' | 'workbench';
-export type HeatCapacityFamiliarityAnswer = Exclude<ExperienceNeedState, null>;
+export type ExperimentFamiliarityAnswer = Exclude<ExperienceNeedState, null>;
 
 export interface FirstRunDraft {
   language: WorkbenchLanguagePreference;
-  heatCapacity: HeatCapacityFamiliarityAnswer | null;
+  heatCapacity: ExperimentFamiliarityAnswer | null;
+  pistonOscillation: ExperimentFamiliarityAnswer | null;
 }
 
 export const resolveFirstRunEntryMode = (
@@ -67,12 +69,11 @@ export const createCommittedFirstRunProfile = ({
   draft: FirstRunDraft;
   legalVersion?: string;
 }): AppExperienceProfile => {
-  if (draft.heatCapacity === null) {
-    throw new Error('The adiabatic-expansion familiarity question must be answered.');
+  if (draft.heatCapacity === null || draft.pistonOscillation === null) {
+    throw new Error('Every experiment familiarity question must be answered.');
   }
   const base = baseProfile ?? createDefaultAppExperienceProfile();
-  const needsGuidance = draft.heatCapacity === 'needs-guidance';
-  return {
+  const committedProfile: AppExperienceProfile = {
     ...base,
     firstRunCompleted: true,
     acceptedLegalVersion: legalVersion,
@@ -80,12 +81,20 @@ export const createCommittedFirstRunProfile = ({
     needs: {
       ...base.needs,
       heatCapacity: draft.heatCapacity,
+      pistonOscillation: draft.pistonOscillation,
     },
     learning: {
       ...base.learning,
-      heatCapacity: needsGuidance ? 'demo' : 'unlocked',
+      heatCapacity: draft.heatCapacity === 'needs-guidance' ? 'demo' : 'unlocked',
+      pistonOscillation: draft.pistonOscillation === 'needs-guidance' ? 'demo' : 'unlocked',
     },
-    activeTutorialExperiment: needsGuidance ? 'heatCapacity' : null,
+    activeTutorialExperiment: null,
+  };
+  return {
+    ...committedProfile,
+    activeTutorialExperiment: EXPERIMENT_LEARNING_ORDER.find((experiment) => (
+      committedProfile.needs[experiment] === 'needs-guidance'
+    )) ?? null,
   };
 };
 

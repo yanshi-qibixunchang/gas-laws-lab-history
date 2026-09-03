@@ -6,6 +6,11 @@ export type ExperimentLearningId = 'heatCapacity' | 'pistonOscillation';
 export type ExperienceNeedState = 'known' | 'needs-guidance' | null;
 export type ExperimentLearningMilestone = 'demo' | 'guide' | 'unlocked';
 
+export const EXPERIMENT_LEARNING_ORDER: readonly ExperimentLearningId[] = [
+  'heatCapacity',
+  'pistonOscillation',
+];
+
 export interface AppExperienceProfile {
   schemaVersion: typeof APP_EXPERIENCE_PROFILE_SCHEMA_VERSION;
   firstRunCompleted: boolean;
@@ -76,9 +81,8 @@ export const createDefaultAppExperienceProfile = (
 });
 
 /**
- * Version two intentionally keeps users without an experience record fully
- * unlocked. This value is an in-memory compatibility fallback and must never
- * be persisted merely because it was read.
+ * Users upgrading from versions without an experience record stay fully
+ * unlocked. This in-memory compatibility fallback is never persisted on read.
  */
 export const createLegacyUnlockedExperienceProfile = (
   committedLanguage: WorkbenchLanguagePreference | null = null,
@@ -159,69 +163,98 @@ export const parseAppExperienceProfile = (value: unknown): ExperienceProfilePars
   return { ok: true, value: value as unknown as AppExperienceProfile };
 };
 
-export const startHeatCapacityTutorialProfile = (
+export const getNextPendingTutorialExperiment = (
+  profile: AppExperienceProfile,
+  afterExperiment: ExperimentLearningId | null = null,
+): ExperimentLearningId | null => {
+  const afterIndex = afterExperiment === null
+    ? -1
+    : EXPERIMENT_LEARNING_ORDER.indexOf(afterExperiment);
+  const orderedCandidates = [
+    ...EXPERIMENT_LEARNING_ORDER.slice(afterIndex + 1),
+    ...EXPERIMENT_LEARNING_ORDER.slice(0, afterIndex + 1),
+  ];
+  return orderedCandidates.find((experiment) => (
+    profile.needs[experiment] === 'needs-guidance' &&
+    profile.learning[experiment] !== 'unlocked'
+  )) ?? null;
+};
+
+export const startExperimentTutorialProfile = (
   current: AppExperienceProfile,
+  experiment: ExperimentLearningId,
 ): AppExperienceProfile => ({
   ...current,
   needs: {
     ...current.needs,
-    heatCapacity: 'needs-guidance',
+    [experiment]: 'needs-guidance',
   },
   learning: {
     ...current.learning,
-    heatCapacity: 'demo',
+    [experiment]: 'demo',
   },
-  activeTutorialExperiment: 'heatCapacity',
+  activeTutorialExperiment: experiment,
 });
 
-export const unlockHeatCapacityGuideProfile = (
+export const unlockExperimentGuideProfile = (
   current: AppExperienceProfile,
+  experiment: ExperimentLearningId,
 ): AppExperienceProfile | null => {
   if (
-    current.activeTutorialExperiment !== 'heatCapacity' ||
-    current.learning.heatCapacity !== 'demo'
+    current.activeTutorialExperiment !== experiment ||
+    current.learning[experiment] !== 'demo'
   ) return null;
   return {
     ...current,
     learning: {
       ...current.learning,
-      heatCapacity: 'guide',
+      [experiment]: 'guide',
     },
   };
 };
 
-export const completeHeatCapacityTutorialProfile = (
+export const completeExperimentTutorialProfile = (
   current: AppExperienceProfile,
+  experiment: ExperimentLearningId,
 ): AppExperienceProfile | null => {
   if (
-    current.activeTutorialExperiment !== 'heatCapacity' ||
-    current.learning.heatCapacity !== 'guide'
+    current.activeTutorialExperiment !== experiment ||
+    current.learning[experiment] !== 'guide'
   ) return null;
-  return skipHeatCapacityTutorialProfile(current);
+  return skipExperimentTutorialProfile(current, experiment);
 };
 
-export const skipHeatCapacityTutorialProfile = (
+export const skipExperimentTutorialProfile = (
   current: AppExperienceProfile,
+  experiment: ExperimentLearningId,
 ): AppExperienceProfile | null => {
   if (
-    current.activeTutorialExperiment !== 'heatCapacity' ||
-    current.learning.heatCapacity === 'unlocked'
+    current.activeTutorialExperiment !== experiment ||
+    current.learning[experiment] === 'unlocked'
   ) return null;
-  return {
+  const completedProfile: AppExperienceProfile = {
     ...current,
     needs: {
       ...current.needs,
-      heatCapacity: 'known',
+      [experiment]: 'known',
     },
     learning: {
       ...current.learning,
-      heatCapacity: 'unlocked',
+      [experiment]: 'unlocked',
     },
     activeTutorialExperiment: null,
   };
+  return {
+    ...completedProfile,
+    activeTutorialExperiment: getNextPendingTutorialExperiment(completedProfile, experiment),
+  };
 };
 
-export const isHeatCapacityTutorialActive = (profile: AppExperienceProfile) => (
-  profile.activeTutorialExperiment === 'heatCapacity' &&
-  profile.learning.heatCapacity !== 'unlocked'
+export const isExperimentTutorialActive = (
+  profile: AppExperienceProfile,
+  experiment: ExperimentLearningId | null = profile.activeTutorialExperiment,
+) => (
+  experiment !== null &&
+  profile.activeTutorialExperiment === experiment &&
+  profile.learning[experiment] !== 'unlocked'
 );

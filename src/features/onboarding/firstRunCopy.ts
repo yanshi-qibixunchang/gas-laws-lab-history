@@ -47,6 +47,10 @@ export interface FirstRunCopy {
     step: string;
     title: string;
     body: string;
+    experimentNames: {
+      heatCapacity: string;
+      pistonOscillation: string;
+    };
     known: string;
     knownHint: string;
     guidance: string;
@@ -136,13 +140,17 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     },
     needs: {
       step: '使用确认 · 3 / 3',
-      title: '您是否了解本软件绝热膨胀法实验的操作逻辑？',
-      body: '请根据您是否能够使用本软件完成模式选择、仪器操作、数据记录与结果处理进行选择。',
+      title: '请选择每个实验所需的学习方式',
+      body: '请分别确认您能否独立完成模式选择、仪器操作、数据记录与结果处理。需要引导的实验将按下列顺序逐一学习。',
+      experimentNames: {
+        heatCapacity: '绝热膨胀法测空气比热容比',
+        pistonOscillation: '活塞振动法测气体比热容比',
+      },
       known: '是，我已了解',
       knownHint: '进入软件后直接开放演示、引导和自由实验。',
       guidance: '否，我需要引导',
-      guidanceHint: '同意许可后立即进入演示与引导逐步解锁流程。',
-      required: '请选择一项后继续。',
+      guidanceHint: '完成设置后进入演示与引导逐步解锁流程。',
+      required: '请为两个实验分别选择一项后继续。',
     },
     consent: {
       title: '权限说明与第三方开源许可',
@@ -210,13 +218,17 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     },
     needs: {
       step: '使用確認 · 3 / 3',
-      title: '您是否了解本軟體絕熱膨脹法實驗的操作邏輯？',
-      body: '請根據您是否能夠使用本軟體完成模式選擇、儀器操作、資料記錄與結果處理進行選擇。',
+      title: '請選擇每個實驗所需的學習方式',
+      body: '請分別確認您能否獨立完成模式選擇、儀器操作、資料記錄與結果處理。需要引導的實驗將按下列順序逐一學習。',
+      experimentNames: {
+        heatCapacity: '絕熱膨脹法測空氣比熱容比',
+        pistonOscillation: '活塞振動法測氣體比熱容比',
+      },
       known: '是，我已了解',
       knownHint: '進入軟體後直接開放示範、引導與自由實驗。',
       guidance: '否，我需要引導',
-      guidanceHint: '同意授權後立即進入示範與引導逐步解鎖流程。',
-      required: '請選擇一項後繼續。',
+      guidanceHint: '完成設定後進入示範與引導逐步解鎖流程。',
+      required: '請為兩個實驗分別選擇一項後繼續。',
     },
     consent: {
       title: '權限說明與第三方開源授權',
@@ -284,13 +296,17 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     },
     needs: {
       step: 'Familiarity · 3 / 3',
-      title: 'Do you understand how to operate the adiabatic-expansion experiment in this app?',
-      body: 'Choose based on whether you can use this app to select a mode, operate the apparatus, record data, and process results.',
+      title: 'Choose the learning path for each experiment',
+      body: 'For each experiment, decide whether you can independently select modes, operate the apparatus, record data, and process results. Guided experiments will run in the order below.',
+      experimentNames: {
+        heatCapacity: 'Adiabatic-expansion heat-capacity ratio',
+        pistonOscillation: 'Piston-oscillation heat-capacity ratio',
+      },
       known: 'Yes, I understand',
       knownHint: 'Demo, Guide, and Free experiment modes will be available immediately.',
       guidance: 'No, I need guidance',
-      guidanceHint: 'The staged Demo and Guide learning flow will begin after legal consent.',
-      required: 'Choose one option to continue.',
+      guidanceHint: 'The staged Demo and Guide learning flow will begin after setup.',
+      required: 'Choose one option for each experiment to continue.',
     },
     consent: {
       title: 'Permissions and Third-Party Open-Source Licenses',

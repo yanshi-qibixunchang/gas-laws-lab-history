@@ -13,7 +13,7 @@ import { WelcomeProductIntroFlow } from './WelcomeProductIntroFlow.tsx';
 import type {
   FirstRunDraft,
   FirstRunEntryMode,
-  HeatCapacityFamiliarityAnswer,
+  ExperimentFamiliarityAnswer,
 } from './firstRunExperienceModel.ts';
 import { firstRunCopies } from './firstRunCopy.ts';
 import { useReducedMotionPreference } from './useReducedMotionPreference.ts';
@@ -37,7 +37,10 @@ export const FirstRunExperience = ({
   onExit,
 }: FirstRunExperienceProps) => {
   const [language, setLanguage] = useState(initialLanguage);
-  const [answer, setAnswer] = useState<HeatCapacityFamiliarityAnswer | null>(null);
+  const [answers, setAnswers] = useState<Record<'heatCapacity' | 'pistonOscillation', ExperimentFamiliarityAnswer | null>>({
+    heatCapacity: null,
+    pistonOscillation: null,
+  });
   const [page, setPage] = useState<FirstRunPage>(mode === 'full' ? 'language' : 'needs');
   const [consentOpen, setConsentOpen] = useState(mode === 'legal-only');
   const [welcomePlayed, setWelcomePlayed] = useState(false);
@@ -96,7 +99,7 @@ export const FirstRunExperience = ({
     setPage('welcome');
   };
 
-  const acceptConsent = () => onAccept(mode === 'full' ? { language, heatCapacity: answer } : null);
+  const acceptConsent = () => onAccept(mode === 'full' ? { language, ...answers } : null);
   const exit = async () => {
     await onExit();
     if (!window.hardSphereLabTutorial) setRejected(true);
@@ -137,8 +140,10 @@ export const FirstRunExperience = ({
   ) : (
     <LearningNeedsPage
       copy={copy}
-      answer={answer}
-      onAnswerChange={setAnswer}
+      answers={answers}
+      onAnswerChange={(experiment, answer) => {
+        setAnswers((current) => ({ ...current, [experiment]: answer }));
+      }}
       onPrevious={() => setPage('product')}
       onNext={() => setConsentOpen(true)}
     />

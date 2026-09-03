@@ -1,6 +1,7 @@
 import {
   parseAppExperienceProfile,
   type AppExperienceProfile,
+  type ExperimentLearningId,
 } from './experimentLearningModel.ts';
 import { APP_EXPERIENCE_PROFILE_STORAGE_KEY } from './experimentLearningStore.ts';
 
@@ -10,7 +11,7 @@ export const EXPERIMENT_TUTORIAL_OWNER_TTL_MS = 15_000;
 
 export interface ExperimentTutorialOwnerRecord {
   instanceId: string;
-  experiment: 'heatCapacity';
+  experiment: ExperimentLearningId;
   updatedAtMs: number;
 }
 
@@ -99,7 +100,7 @@ const parseOwnerRecord = (value: string | null): ExperimentTutorialOwnerRecord |
     if (
       !isRecord(parsed) ||
       typeof parsed.instanceId !== 'string' ||
-      parsed.experiment !== 'heatCapacity' ||
+      (parsed.experiment !== 'heatCapacity' && parsed.experiment !== 'pistonOscillation') ||
       typeof parsed.updatedAtMs !== 'number' ||
       !Number.isFinite(parsed.updatedAtMs)
     ) return null;
@@ -109,8 +110,9 @@ const parseOwnerRecord = (value: string | null): ExperimentTutorialOwnerRecord |
   }
 };
 
-export const claimHeatCapacityTutorialOwnership = (
+export const claimExperimentTutorialOwnership = (
   instanceId: string,
+  experiment: ExperimentLearningId,
   storage: Pick<TutorialOwnerStorage, 'getItem' | 'setItem'>,
   nowMs = Date.now(),
 ) => {
@@ -120,24 +122,26 @@ export const claimHeatCapacityTutorialOwnership = (
     current.instanceId !== instanceId &&
     nowMs - current.updatedAtMs < EXPERIMENT_TUTORIAL_OWNER_TTL_MS
   ) return false;
-  return takeOverHeatCapacityTutorialOwnership(instanceId, storage, nowMs);
+  return takeOverExperimentTutorialOwnership(instanceId, experiment, storage, nowMs);
 };
 
-export const takeOverHeatCapacityTutorialOwnership = (
+export const takeOverExperimentTutorialOwnership = (
   instanceId: string,
+  experiment: ExperimentLearningId,
   storage: Pick<TutorialOwnerStorage, 'getItem' | 'setItem'>,
   nowMs = Date.now(),
 ) => {
   const next: ExperimentTutorialOwnerRecord = {
     instanceId,
-    experiment: 'heatCapacity',
+    experiment,
     updatedAtMs: nowMs,
   };
   storage.setItem(EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY, JSON.stringify(next));
-  return parseOwnerRecord(storage.getItem(EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY))?.instanceId === instanceId;
+  const persisted = parseOwnerRecord(storage.getItem(EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY));
+  return persisted?.instanceId === instanceId && persisted.experiment === experiment;
 };
 
-export const releaseHeatCapacityTutorialOwnership = (
+export const releaseExperimentTutorialOwnership = (
   instanceId: string,
   storage: Pick<TutorialOwnerStorage, 'getItem' | 'removeItem'>,
 ) => {

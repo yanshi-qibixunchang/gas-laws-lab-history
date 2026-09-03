@@ -53,22 +53,37 @@ assert.equal(resolveInitialFirstRunLanguage({
 }), 'en');
 
 const familiarProfile = createCommittedFirstRunProfile({
-  draft: { language: 'zh-TW', heatCapacity: 'known' },
+  draft: { language: 'zh-TW', heatCapacity: 'known', pistonOscillation: 'known' },
 });
 assert.equal(familiarProfile.firstRunCompleted, true);
 assert.equal(familiarProfile.committedLanguage, 'zh-TW');
 assert.equal(familiarProfile.needs.heatCapacity, 'known');
 assert.equal(familiarProfile.learning.heatCapacity, 'unlocked');
+assert.equal(familiarProfile.learning.pistonOscillation, 'unlocked');
 assert.equal(familiarProfile.activeTutorialExperiment, null);
 
 const guidedProfile = createCommittedFirstRunProfile({
-  draft: { language: 'zh-CN', heatCapacity: 'needs-guidance' },
+  draft: {
+    language: 'zh-CN',
+    heatCapacity: 'needs-guidance',
+    pistonOscillation: 'needs-guidance',
+  },
 });
 assert.equal(guidedProfile.needs.heatCapacity, 'needs-guidance');
 assert.equal(guidedProfile.learning.heatCapacity, 'demo');
 assert.equal(guidedProfile.activeTutorialExperiment, 'heatCapacity');
+assert.equal(guidedProfile.learning.pistonOscillation, 'demo');
 assert.throws(() => createCommittedFirstRunProfile({
-  draft: { language: 'zh-CN', heatCapacity: null },
+  draft: { language: 'zh-CN', heatCapacity: null, pistonOscillation: 'known' },
 }), /must be answered/);
+
+const pistonOnlyGuidedProfile = createCommittedFirstRunProfile({
+  draft: {
+    language: 'zh-CN',
+    heatCapacity: 'known',
+    pistonOscillation: 'needs-guidance',
+  },
+});
+assert.equal(pistonOnlyGuidedProfile.activeTutorialExperiment, 'pistonOscillation');
 
 console.log('firstRunExperienceModel tests passed');
