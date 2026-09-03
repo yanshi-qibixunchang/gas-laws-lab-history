@@ -93,6 +93,11 @@ assert.match(
   /const handlePistonOscillationFreeInstrumentSnapshot = \([\s\S]*if \(snapshot\.pistonPhase !== 'idle'\) return;[\s\S]*updateRuntimeFileById/,
   'transient piston animation frames must not rerender and persist the entire free-mode workbench',
 );
+assert.match(
+  parameterPanelSource,
+  /const parameters = useMemo\([\s\S]*getPistonOscillationFreeEffectiveParameters\(session\)[\s\S]*\[session\.experimentGroup, session\.parameterDraft\]/,
+  'the Ideal parameter profile must keep a stable reference so draft synchronization effects cannot loop',
+);
 
 assert.match(
   workbenchSource,
@@ -242,8 +247,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const pistonOscillationLivePressureChannel = useMemo\([\s\S]*createPistonOscillationLivePressureChannel\([\s\S]*activePistonOscillationSensorConfig[\s\S]*\[activeFile\.id, activePistonOscillationSensorConfig\][\s\S]*onLivePhysicalStateChange=\{[\s\S]*pistonOscillationLivePressureChannel\.publishPhysicalState[\s\S]*<PistonOscillationAcquisitionPanel[\s\S]*livePressureChannel=\{pistonOscillationLivePressureChannel\}/,
-  'one parameterized file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples',
+  /const pistonOscillationLivePressureChannel = useMemo\([\s\S]*createPistonOscillationLivePressureChannel\([\s\S]*activePistonOscillationSensorConfig,[\s\S]*exactObservation:[\s\S]*activePistonOscillationEffectiveConfig\?\.exactSensorObservation[\s\S]*activeFile\.id,[\s\S]*activePistonOscillationEffectiveConfig\?\.exactSensorObservation,[\s\S]*activePistonOscillationSensorConfig,[\s\S]*onLivePhysicalStateChange=\{[\s\S]*pistonOscillationLivePressureChannel\.publishPhysicalState[\s\S]*<PistonOscillationAcquisitionPanel[\s\S]*livePressureChannel=\{pistonOscillationLivePressureChannel\}/,
+  'one scheme-aware file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples',
 );
 assert.match(
   workbenchSource,

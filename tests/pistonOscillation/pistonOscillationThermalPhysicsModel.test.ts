@@ -11,6 +11,7 @@ import {
 import {
   DEFAULT_PISTON_OSCILLATION_THERMAL_MODEL_CONFIG,
   advancePistonOscillationPrescribedThermodynamicState,
+  advancePistonOscillationVirtualHandThermodynamicState,
   createPistonOscillationThermodynamicStateFromTrajectorySample,
   getPistonOscillationThermalRelaxationTimeS,
   simulatePistonOscillationThermalRelease,
@@ -35,6 +36,44 @@ const slowPressedState = advancePistonOscillationPrescribedThermodynamicState({
   pistonHeightMm: 70,
   elapsedS: 1,
 });
+const idealFastPressedState = advancePistonOscillationPrescribedThermodynamicState({
+  referenceState: loadedState,
+  pistonHeightMm: 70,
+  elapsedS: 0.05,
+  adiabatic: true,
+});
+const idealSlowPressedState = advancePistonOscillationPrescribedThermodynamicState({
+  referenceState: loadedState,
+  pistonHeightMm: 70,
+  elapsedS: 1,
+  adiabatic: true,
+});
+assert.equal(idealFastPressedState.thermal.enabled, false);
+assert.equal(idealFastPressedState.thermal.cumulativeHeatTransferJ, 0);
+assert.equal(idealFastPressedState.temperatureK, idealSlowPressedState.temperatureK);
+assert.equal(idealFastPressedState.pressurePa, idealSlowPressedState.pressurePa);
+const idealHeldState = advancePistonOscillationPrescribedThermodynamicState({
+  referenceState: idealFastPressedState,
+  pistonHeightMm: 70,
+  elapsedS: 0.25,
+  velocityMmPerS: 0,
+  adiabatic: true,
+});
+assert.equal(idealHeldState.temperatureK, idealFastPressedState.temperatureK);
+assert.equal(idealHeldState.pressurePa, idealFastPressedState.pressurePa);
+assert.equal(idealHeldState.thermal.cumulativeHeatTransferJ, 0);
+const idealVirtualHandState = advancePistonOscillationVirtualHandThermodynamicState({
+  referenceState: loadedState,
+  equilibriumHeightMm: loadedState.pistonHeightM * 1_000,
+  targetDownwardDisplacementMm: 10,
+  elapsedS: 0.05,
+  adiabatic: true,
+}, {
+  linearDampingNsPerM: 0,
+});
+assert.equal(idealVirtualHandState.thermal.enabled, false);
+assert.equal(idealVirtualHandState.thermal.cumulativeHeatTransferJ, 0);
+assert.ok(idealVirtualHandState.temperatureK > loadedState.temperatureK);
 
 assert.equal(
   DEFAULT_PISTON_OSCILLATION_THERMAL_MODEL_CONFIG.relaxationTimeAtReferenceHeightS,

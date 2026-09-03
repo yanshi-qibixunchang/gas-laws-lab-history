@@ -79,6 +79,7 @@ export interface PistonOscillationInstrumentSceneProps {
   sensorSampleRateHz?: number;
   physicsConfig?: Partial<PistonOscillationPhysicsConfig>;
   thermalConfig?: Partial<PistonOscillationThermalModelConfig>;
+  adiabaticProcess?: boolean;
   releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
   sceneTheme: 'light' | 'dark';
   cameraPreset: WorkbenchPistonOscillationCameraPreset;
@@ -133,6 +134,7 @@ export const PistonOscillationInstrumentScene = ({
   sensorSampleRateHz,
   physicsConfig,
   thermalConfig,
+  adiabaticProcess,
   releaseAsymmetryConfig,
   sceneTheme,
   cameraPreset,
@@ -210,6 +212,7 @@ export const PistonOscillationInstrumentScene = ({
           sensorSampleRateHz={sensorSampleRateHz}
           physicsConfig={physicsConfig}
           thermalConfig={thermalConfig}
+          adiabaticProcess={adiabaticProcess}
           releaseAsymmetryConfig={releaseAsymmetryConfig}
           initialMode={guideInitialInstrumentState?.focusMode ?? 'overview'}
           cameraPreset={cameraPreset}

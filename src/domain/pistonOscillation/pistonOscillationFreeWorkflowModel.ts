@@ -70,6 +70,9 @@ import {
   scalePistonOscillationFreeTriggerThresholdKpa,
   type PistonOscillationFreeParameterDraft,
 } from './pistonOscillationFreeParameterConfig.ts';
+import {
+  resolvePistonOscillationFreeEffectiveConfig,
+} from './pistonOscillationFreeEffectiveConfig.ts';
 
 export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 10 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
@@ -571,24 +574,31 @@ const createFreshActiveSession = (
     options.retainedParameterDraft ?? createDefaultPistonOscillationFreeParameterDraft(),
   );
   const retainedGroup = options.retainedExperimentGroup;
+  const experimentGroup = createPistonOscillationFreeExperimentGroup({
+    groupId: `piston-free-group:${nowMs}`,
+    createdAtMs: nowMs,
+    scheme: retainedGroup?.scheme,
+    gasMaterialSnapshot: retainedGroup?.gasMaterialSnapshot,
+    parameterProfileVersion: retainedGroup?.parameterProfileVersion,
+  });
+  const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+    experimentGroup,
+    parameterDraft,
+  ).parameters;
   const session: PistonOscillationFreeSession = {
     ...createDefaultPistonOscillationFreeSession(),
     status: 'active',
     startedAtMs: nowMs,
     updatedAtMs: nowMs,
-    experimentGroup: createPistonOscillationFreeExperimentGroup({
-      groupId: `piston-free-group:${nowMs}`,
-      createdAtMs: nowMs,
-      scheme: retainedGroup?.scheme,
-      gasMaterialSnapshot: retainedGroup?.gasMaterialSnapshot,
-      parameterProfileVersion: retainedGroup?.parameterProfileVersion,
-    }),
+    experimentGroup,
     advancedParametersRiskAcknowledged:
       options.retainedAdvancedParametersRiskAcknowledgement ?? false,
     parameterDraft,
-    sampleRateHz: parameterDraft.sampleRateHz,
-    triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
-    instrumentState: createDefaultPistonOscillationFreeInstrumentState(parameterDraft),
+    sampleRateHz: effectiveParameters.sampleRateHz,
+    triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
+    instrumentState: createDefaultPistonOscillationFreeInstrumentState(
+      effectiveParameters,
+    ),
   };
   return {
     ...session,
@@ -602,7 +612,10 @@ export const isPistonOscillationFreeExperimentLocked = (
 
 export const getPistonOscillationFreeEffectiveParameters = (
   session: PistonOscillationFreeSession,
-) => session.experimentGroup.parameterSnapshot?.parameters ?? session.parameterDraft;
+) => resolvePistonOscillationFreeEffectiveConfig(
+  session.experimentGroup,
+  session.parameterDraft,
+).parameters;
 
 export const canRunPistonOscillationFreeExperiment = (
   session: PistonOscillationFreeSession,
@@ -653,7 +666,7 @@ const lockFreeExperiment = (
 ) => {
   const experimentGroup = lockPistonOscillationFreeExperimentGroup(
     session.experimentGroup,
-    session.parameterDraft,
+    getPistonOscillationFreeEffectiveParameters(session),
     reason,
     nowMs,
   );
@@ -783,9 +796,15 @@ export const transitionPistonOscillationFreeSession = (
       event.scheme,
     );
     if (experimentGroup === session.experimentGroup) return session;
+    const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+      experimentGroup,
+      session.parameterDraft,
+    ).parameters;
     const next = {
       ...session,
       experimentGroup,
+      sampleRateHz: effectiveParameters.sampleRateHz,
+      triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
       updatedAtMs: event.nowMs,
     };
     return {
@@ -805,9 +824,15 @@ export const transitionPistonOscillationFreeSession = (
       event.gasType,
     );
     if (experimentGroup === session.experimentGroup) return session;
+    const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+      experimentGroup,
+      session.parameterDraft,
+    ).parameters;
     const next = {
       ...session,
       experimentGroup,
+      sampleRateHz: effectiveParameters.sampleRateHz,
+      triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
       updatedAtMs: event.nowMs,
     };
     return {
@@ -1172,6 +1197,7 @@ export const transitionPistonOscillationFreeSession = (
     if (!doesPistonOscillationMeasurementMatchFreeParameters(
       contextualized,
       frozenParameters,
+      session.experimentGroup.scheme,
     )) return session;
     const lockedSession = lockFreeExperiment(
       session,
@@ -2168,6 +2194,10 @@ export const normalizePistonOscillationFreeSession = (
     : null;
   const parameterDraft = experimentGroup.parameterSnapshot?.parameters
     ?? synchronizedParameterDraft;
+  const effectiveParameters = resolvePistonOscillationFreeEffectiveConfig(
+    experimentGroup,
+    parameterDraft,
+  ).parameters;
   return {
     ...fallback,
     status,
@@ -2182,8 +2212,8 @@ export const normalizePistonOscillationFreeSession = (
     advancedParametersRiskAcknowledged:
       value.advancedParametersRiskAcknowledged === true,
     parameterDraft,
-    sampleRateHz: parameterDraft.sampleRateHz,
-    triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
+    sampleRateHz: effectiveParameters.sampleRateHz,
+    triggerThresholdKpa: effectiveParameters.triggerThresholdKpa,
     acquisitionCandidate: contextualizedCandidateTargetId === null
       ? null
       : contextualizedCandidate,
@@ -2196,7 +2226,7 @@ export const normalizePistonOscillationFreeSession = (
     instrumentState: normalizeInstrumentState(
       value.instrumentState,
       true,
-      parameterDraft,
+      effectiveParameters,
     ),
     dataProcessing: contextualizedDataProcessing,
     audit,

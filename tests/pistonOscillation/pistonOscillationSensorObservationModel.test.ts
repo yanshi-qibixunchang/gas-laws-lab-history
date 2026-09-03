@@ -5,6 +5,8 @@ import {
   PISTON_OSCILLATION_DYNAMIC_SENSOR_CONFIG_VERSION,
   PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+  PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION,
+  PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
   PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
   PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_CONFIG_VERSION,
   PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
@@ -14,6 +16,7 @@ import {
   createInitialPistonOscillationDynamicSensorState,
   createPistonOscillationRecordedObservationSamples,
   createPistonOscillationDynamicSensorObservationSeries,
+  createPistonOscillationIdealProcessSensorObservationSeries,
   createPistonOscillationIdealSensorReferenceSeries,
   createPistonOscillationSensorSessionSeed,
   findPistonOscillationObservedFallingTriggerSample,
@@ -28,9 +31,15 @@ import {
   simulatePistonOscillationIdealAdiabaticRelease,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
+  createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
+  createPistonOscillationSensorObservationSnapshot,
   normalizePistonOscillationRawMeasurementRecord,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
+  createPistonOscillationFreeExperimentContextSnapshot,
+  createPistonOscillationFreeExperimentGroup,
+} from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
@@ -42,6 +51,11 @@ assert.equal(
   PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION,
   'piston-oscillation-sensor-observation-v1',
 );
+assert.equal(
+  PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
+  'piston-oscillation-sensor-observation-exact-v2',
+);
+assert.equal(PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION, 'none');
 assert.equal(
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   'piston-oscillation-sensor-observation-correlated-fluctuation-v3',
@@ -284,6 +298,37 @@ assert.deepEqual(
 );
 assert.equal(assertPistonOscillationSensorObservationSeries(observations), observations);
 
+const exactIdealObservations = createPistonOscillationIdealProcessSensorObservationSeries(
+  physicalSamples,
+  1_000,
+);
+assert.equal(
+  exactIdealObservations.modelVersion,
+  PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
+);
+assert.equal(exactIdealObservations.pressureResolutionKpa, null);
+assert.equal(exactIdealObservations.pressureQuantization, 'none');
+assert.equal(exactIdealObservations.dynamicConfig, null);
+assert.equal(exactIdealObservations.initialDynamicState, null);
+assert.equal(exactIdealObservations.finalDynamicState, null);
+assert.deepEqual(
+  exactIdealObservations.samples.map((sample) => sample.absolutePressureKpa),
+  physicalSamples.map((sample) => sample.pressurePa / 1_000),
+  'the interactive Ideal sensor must preserve physical pressure without lag or quantization',
+);
+assert.equal(
+  assertPistonOscillationSensorObservationSeries(exactIdealObservations),
+  exactIdealObservations,
+);
+const invalidExactIdealObservations = structuredClone(exactIdealObservations);
+invalidExactIdealObservations.pressureResolutionKpa = 0.01;
+assert.throws(
+  () => assertPistonOscillationSensorObservationSeries(
+    invalidExactIdealObservations,
+  ),
+  /unsupported pressure observation policy/,
+);
+
 const physicalTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
   equilibriumHeightMm: 80,
   initialDisplacementMm: -8,
@@ -348,6 +393,85 @@ assert.deepEqual(normalizedDynamicRecord?.samples, dynamicRecord.samples);
 assert.deepEqual(
   normalizedDynamicRecord?.sensorObservationSnapshot.dynamicConfig,
   dynamicRecord.sensorObservationSnapshot.dynamicConfig,
+);
+
+const idealProcessTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
+  lockedHeightMm: 80,
+  initialDisplacementMm: -8,
+}, {
+  linearDampingNsPerM: 0,
+  sensorSampleRateHz: 1_000,
+  trajectoryDurationS: 0.1,
+});
+const idealProcessObservations = createPistonOscillationIdealProcessSensorObservationSeries(
+  idealProcessTrajectory.samples,
+  idealProcessTrajectory.sampleRateHz,
+);
+const idealProcessTrigger = findPistonOscillationObservedFallingTriggerSample(
+  idealProcessObservations,
+  105,
+);
+assert.ok(idealProcessTrigger);
+const idealProcessRecordedSamples = createPistonOscillationRecordedObservationSamples(
+  idealProcessObservations,
+  idealProcessTrigger!.sampleIndex,
+  0.05,
+);
+const idealProcessGroup = createPistonOscillationFreeExperimentGroup({
+  groupId: 'ideal-process-group',
+  createdAtMs: 1,
+  scheme: 'ideal',
+});
+const idealProcessRecord = createPistonOscillationRawMeasurementRecord({
+  recordId: 'ideal-process-record',
+  capturedAtMs: 2,
+  measurementIndex: 0,
+  targetHeightMm: 80,
+  confirmedHeightMm: idealProcessTrajectory.equilibrium.equilibriumHeightM * 1_000,
+  experimentContext: createPistonOscillationFreeExperimentContextSnapshot(
+    idealProcessGroup,
+  ),
+  sampleRateHz: idealProcessTrajectory.sampleRateHz,
+  triggerThresholdKpa: 105,
+  recordedDurationS: 0.05,
+  recordingPath: 'falling-trigger',
+  releaseOffsetS: null,
+  samples: idealProcessRecordedSamples,
+  pressOperationEvidence: dynamicRecordArtifacts.pressOperationEvidence,
+  sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
+    sampleRateHz: idealProcessTrajectory.sampleRateHz,
+    triggerSourceSampleIndex: idealProcessTrigger!.sampleIndex,
+    observationSeries: idealProcessObservations,
+  }),
+  physicsSnapshot: createPistonOscillationPhysicsSnapshot(
+    idealProcessTrajectory,
+    idealProcessTrigger!.timeS,
+  ),
+});
+assert.equal(idealProcessRecord.sensorObservationSnapshot.schemaVersion, 4);
+assert.equal(idealProcessRecord.physicsSnapshot.thermalModel, null);
+assert.equal(idealProcessRecord.experimentContext?.scheme, 'ideal');
+assert.ok(normalizePistonOscillationRawMeasurementRecord(
+  structuredClone(idealProcessRecord),
+));
+assert.equal(
+  normalizePistonOscillationRawMeasurementRecord({
+    ...structuredClone(idealProcessRecord),
+    experimentContext: null,
+  }),
+  null,
+  'a current Ideal record must not lose the experiment context that gives its exact data meaning',
+);
+assert.equal(
+  normalizePistonOscillationRawMeasurementRecord({
+    ...structuredClone(idealProcessRecord),
+    experimentContext: {
+      ...idealProcessRecord.experimentContext!,
+      scheme: 'real',
+    },
+  }),
+  null,
+  'record normalization must reject a Real context wrapped around Ideal physics and sensor data',
 );
 
 const currentFinalSensorState = dynamicRecord.sensorObservationSnapshot.finalDynamicState;

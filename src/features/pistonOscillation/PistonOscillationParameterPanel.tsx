@@ -326,7 +326,10 @@ export const PistonOscillationParameterPanel = ({
 }: PistonOscillationParameterPanelProps) => {
   const copy = text[language];
   const effects = parameterEffects[language];
-  const parameters = getPistonOscillationFreeEffectiveParameters(session);
+  const parameters = useMemo(
+    () => getPistonOscillationFreeEffectiveParameters(session),
+    [session.experimentGroup, session.parameterDraft],
+  );
   const freeMode = mode === 'free';
   const conditionLocked = !freeMode
     || isPistonOscillationFreeExperimentLocked(session);

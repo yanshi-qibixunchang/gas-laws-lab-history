@@ -262,6 +262,41 @@ const trajectories = [60, 70, 80].map((equilibriumHeightMm) => (
   })
 ));
 
+const idealZeroLossTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
+  lockedHeightMm: 80,
+  initialDisplacementMm: -8,
+  releaseAsymmetry: { signedReleaseGapS: 0 },
+}, {
+  linearDampingNsPerM: 0,
+  trajectoryDurationS: 0.5,
+});
+const idealMishandledReleaseTrajectory = simulatePistonOscillationIdealAdiabaticRelease({
+  lockedHeightMm: 80,
+  initialDisplacementMm: -8,
+  releaseAsymmetry: { signedReleaseGapS: 0.2 },
+}, {
+  linearDampingNsPerM: 0,
+  trajectoryDurationS: 0.5,
+});
+const getLatePeakToPeakMm = (
+  trajectory: typeof idealZeroLossTrajectory,
+) => {
+  const lateSamples = trajectory.samples.filter((sample) => sample.timeS >= 0.2);
+  return (
+    Math.max(...lateSamples.map((sample) => sample.displacementM))
+    - Math.min(...lateSamples.map((sample) => sample.displacementM))
+  ) * 1_000;
+};
+assert.ok(
+  getLatePeakToPeakMm(idealZeroLossTrajectory) > 15,
+  'the Ideal profile must not introduce inherent damping',
+);
+assert.ok(
+  getLatePeakToPeakMm(idealMishandledReleaseTrajectory)
+    < getLatePeakToPeakMm(idealZeroLossTrajectory) * 0.5,
+  'Ideal conditions must still preserve the physical consequence of an asynchronous hand release',
+);
+
 for (const trajectory of trajectories) {
   assert.equal(trajectory.sampleRateHz, 1_000);
   assert.equal(trajectory.samples.length, 6_001);

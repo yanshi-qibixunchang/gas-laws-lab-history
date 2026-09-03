@@ -4,6 +4,13 @@ import {
 import {
   PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
 } from './pistonOscillationEquivalentLossModel.ts';
+import {
+  createPistonOscillationReleaseAsymmetryProfile,
+  getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM,
+  type PistonOscillationReleaseAsymmetryConfig,
+  type PistonOscillationReleaseAsymmetryInput,
+  type PistonOscillationReleaseAsymmetryProfile,
+} from './pistonOscillationReleaseAsymmetryModel.ts';
 
 export const PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K =
   8.31446261815324;
@@ -1020,6 +1027,8 @@ const getMotionDerivative = (
   state: IdealAdiabaticMotionState,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
+  releaseAsymmetryProfile?: PistonOscillationReleaseAsymmetryProfile,
+  elapsedMotionS = 0,
 ): IdealAdiabaticMotionDerivative => {
   assertFiniteNumber('motion displacement', state.displacementM);
   assertFiniteNumber('motion velocity', state.velocityMPerS);
@@ -1032,7 +1041,15 @@ const getMotionDerivative = (
     * (pressurePa - config.ambientPressurePa);
   const gravityForceN = config.movingMassKg
     * PISTON_OSCILLATION_STANDARD_GRAVITY_M_PER_S2;
-  const dampingForceN = config.linearDampingNsPerM * state.velocityMPerS;
+  const userOperationLossNsPerM = releaseAsymmetryProfile
+    ? getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM(
+        releaseAsymmetryProfile,
+        elapsedMotionS,
+      )
+    : 0;
+  const dampingForceN = (
+    config.linearDampingNsPerM + userOperationLossNsPerM
+  ) * state.velocityMPerS;
   const derivative = {
     displacementRateMPerS: state.velocityMPerS,
     velocityRateMPerS2: (
@@ -1058,22 +1075,36 @@ const stepMotionRungeKutta = (
   dtS: number,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
+  releaseAsymmetryProfile?: PistonOscillationReleaseAsymmetryProfile,
+  elapsedMotionS = 0,
 ): IdealAdiabaticMotionState => {
-  const k1 = getMotionDerivative(state, equilibrium, config);
+  const k1 = getMotionDerivative(
+    state,
+    equilibrium,
+    config,
+    releaseAsymmetryProfile,
+    elapsedMotionS,
+  );
   const k2 = getMotionDerivative(
     addDerivative(state, k1, dtS / 2),
     equilibrium,
     config,
+    releaseAsymmetryProfile,
+    elapsedMotionS + dtS / 2,
   );
   const k3 = getMotionDerivative(
     addDerivative(state, k2, dtS / 2),
     equilibrium,
     config,
+    releaseAsymmetryProfile,
+    elapsedMotionS + dtS / 2,
   );
   const k4 = getMotionDerivative(
     addDerivative(state, k3, dtS),
     equilibrium,
     config,
+    releaseAsymmetryProfile,
+    elapsedMotionS + dtS,
   );
   const nextState = {
     displacementM: state.displacementM + dtS / 6 * (
@@ -1115,6 +1146,7 @@ const getIntegrationSubstepsPerSample = (
   initialDisplacementM: number,
   equilibrium: PistonOscillationEquilibriumState,
   config: PistonOscillationPhysicsConfig,
+  maximumUserOperationLossNsPerM = 0,
 ) => {
   const initialThermodynamicState = getIdealAdiabaticThermodynamicState(
     initialDisplacementM,
@@ -1133,8 +1165,10 @@ const getIntegrationSubstepsPerSample = (
   const periodLimitedStepS = 1 / (
     localFrequencyHz * PISTON_OSCILLATION_MIN_INTEGRATION_STEPS_PER_PERIOD
   );
-  const dampingLimitedStepS = config.linearDampingNsPerM > 0
-    ? config.movingMassKg / (config.linearDampingNsPerM * 50)
+  const maximumLinearLossNsPerM = config.linearDampingNsPerM
+    + maximumUserOperationLossNsPerM;
+  const dampingLimitedStepS = maximumLinearLossNsPerM > 0
+    ? config.movingMassKg / (maximumLinearLossNsPerM * 50)
     : Number.POSITIVE_INFINITY;
   const maximumStepS = Math.min(
     PISTON_OSCILLATION_MAX_INTEGRATION_STEP_S,
@@ -1147,8 +1181,14 @@ const getIntegrationSubstepsPerSample = (
   return Math.max(1, Math.ceil((1 / config.sensorSampleRateHz) / maximumStepS));
 };
 
+export interface PistonOscillationIdealProcessReleaseInput
+  extends PistonOscillationReleaseInput {
+  releaseAsymmetry?: PistonOscillationReleaseAsymmetryInput;
+  releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
+}
+
 export const simulatePistonOscillationIdealAdiabaticRelease = (
-  input: PistonOscillationReleaseInput,
+  input: PistonOscillationIdealProcessReleaseInput,
   configInput: Partial<PistonOscillationPhysicsConfig> = {},
 ): PistonOscillationTrajectory => {
   const config = normalizePistonOscillationPhysicsConfig(configInput);
@@ -1178,11 +1218,31 @@ export const simulatePistonOscillationIdealAdiabaticRelease = (
     input.initialVelocityMmPerS ?? 0,
   );
   const initialVelocityMPerS = initialVelocityMmPerS / 1_000;
+  const naturalAngularFrequencyRadPerS = Math.sqrt(
+    config.gamma
+      * equilibrium.equilibriumPressurePa
+      * equilibrium.cylinderAreaM2
+      / (config.movingMassKg * equilibrium.effectiveGasHeightM),
+  );
+  const releaseAsymmetryProfile = input.releaseAsymmetry
+    ? createPistonOscillationReleaseAsymmetryProfile(
+        input.releaseAsymmetry,
+        2 * Math.PI / naturalAngularFrequencyRadPerS,
+        input.releaseAsymmetryConfig,
+      )
+    : undefined;
+  const maximumUserOperationLossNsPerM = releaseAsymmetryProfile
+    ? getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM(
+        releaseAsymmetryProfile,
+        0,
+      )
+    : 0;
   const sampleIntervalS = 1 / config.sensorSampleRateHz;
   const integrationSubstepsPerSample = getIntegrationSubstepsPerSample(
     initialDisplacementM,
     equilibrium,
     config,
+    maximumUserOperationLossNsPerM,
   );
   const integrationStepS = sampleIntervalS / integrationSubstepsPerSample;
   const sampleCount = Math.floor(
@@ -1211,6 +1271,8 @@ export const simulatePistonOscillationIdealAdiabaticRelease = (
         integrationStepS,
         equilibrium,
         config,
+        releaseAsymmetryProfile,
+        sampleIndex * sampleIntervalS + substep * integrationStepS,
       );
     }
   }

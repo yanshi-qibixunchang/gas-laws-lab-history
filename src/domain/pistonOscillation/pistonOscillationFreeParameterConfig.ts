@@ -6,11 +6,15 @@ import {
 } from './pistonOscillationEquivalentLossModel.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
+  PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_MAX_PRESSURE_KPA,
   PISTON_OSCILLATION_SENSOR_MIN_PRESSURE_KPA,
   normalizePistonOscillationPhysicsConfig,
   type PistonOscillationPhysicsConfig,
 } from './pistonOscillationPhysicsEngine.ts';
+import {
+  PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
+} from './pistonOscillationSensorObservationModel.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_RELEASE_ASYMMETRY_CONFIG,
   normalizePistonOscillationReleaseAsymmetryConfig,
@@ -497,6 +501,7 @@ const numbersAgree = (first: number, second: number) => (
 export const doesPistonOscillationMeasurementMatchFreeParameters = (
   measurement: PistonOscillationRawMeasurementRecord,
   draft: PistonOscillationFreeParameterDraft,
+  scheme: 'real' | 'ideal' = 'real',
 ) => {
   const config = measurement.physicsSnapshot.config;
   const thermal = measurement.physicsSnapshot.thermalModel;
@@ -505,15 +510,23 @@ export const doesPistonOscillationMeasurementMatchFreeParameters = (
     && numbersAgree(config.ambientPressurePa, draft.ambientPressureKpa * 1_000)
     && numbersAgree(config.ambientTemperatureK, draft.ambientTemperatureK)
     && numbersAgree(config.linearDampingNsPerM, draft.equivalentLinearLossNsPerM)
-    && Boolean(thermal)
-    && numbersAgree(
-      thermal?.relaxationTimeAtReferenceHeightS ?? Number.NaN,
-      draft.thermalRelaxationTimeS,
-    )
-    && numbersAgree(
-      thermal?.enabled && 'heatTransferLagTimeS' in thermal
-        ? thermal.heatTransferLagTimeS
-        : Number.NaN,
-      draft.heatFlowLagTimeS,
-    );
+    && (scheme === 'ideal'
+      ? measurement.physicsSnapshot.modelVersion
+          === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
+        && thermal == null
+        && measurement.sensorObservationSnapshot.modelVersion
+          === PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION
+        && measurement.sensorObservationSnapshot.pressureResolutionKpa === null
+        && measurement.sensorObservationSnapshot.pressureQuantization === 'none'
+      : Boolean(thermal)
+        && numbersAgree(
+          thermal?.relaxationTimeAtReferenceHeightS ?? Number.NaN,
+          draft.thermalRelaxationTimeS,
+        )
+        && numbersAgree(
+          thermal?.enabled && 'heatTransferLagTimeS' in thermal
+            ? thermal.heatTransferLagTimeS
+            : Number.NaN,
+          draft.heatFlowLagTimeS,
+        ));
 };

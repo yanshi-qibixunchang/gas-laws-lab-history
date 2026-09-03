@@ -18,6 +18,9 @@ import {
   PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
+  resolvePistonOscillationFreeEffectiveConfig,
+} from '../../src/domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
+import {
   createPistonOscillationRawMeasurementRecord,
   type PistonOscillationRawMeasurementRecord,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
@@ -168,7 +171,21 @@ assert.equal(
   idealAirSelection.experimentGroup.parameterProfileVersion,
   PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
 );
-assert.equal(canRunPistonOscillationFreeExperiment(idealAirSelection), false);
+assert.equal(canRunPistonOscillationFreeExperiment(idealAirSelection), true);
+const idealAirEffectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
+  idealAirSelection.experimentGroup,
+  idealAirSelection.parameterDraft,
+);
+assert.equal(idealAirEffectiveConfig.parameters.sampleRateHz, 1_000);
+assert.equal(idealAirEffectiveConfig.parameters.triggerThresholdKpa, 105);
+assert.equal(idealAirEffectiveConfig.physicsConfig.linearDampingNsPerM, 0);
+assert.equal(idealAirEffectiveConfig.adiabaticProcess, true);
+assert.equal(idealAirEffectiveConfig.exactSensorObservation, true);
+assert.equal(idealAirEffectiveConfig.tailIrregularityEnabled, false);
+assert.equal(idealAirEffectiveConfig.heightSnapEnabled, true);
+assert.equal(idealAirEffectiveConfig.scoringEligible, false);
+assert.equal(idealAirSelection.sampleRateHz, 1_000);
+assert.equal(idealAirSelection.triggerThresholdKpa, 105);
 assert.equal(idealAirSelection.audit.at(-1)?.type, 'experiment-scheme-changed');
 assert.equal(
   transitionPistonOscillationFreeSession(idealAirSelection, {
@@ -182,14 +199,24 @@ assert.equal(
   idealAirSelection,
   'the fixed Ideal profile must not accept manual physical-parameter edits',
 );
-assert.equal(
-  transitionPistonOscillationFreeSession(idealAirSelection, {
+const idealAcquisitionStarted = transitionPistonOscillationFreeSession(
+  idealAirSelection,
+  {
     type: 'observeOperation',
     operation: 'startAcquisition',
     nowMs: 103,
-  }),
-  idealAirSelection,
-  'an unavailable profile must not start or lock a formal acquisition',
+  },
+);
+assert.equal(
+  idealAcquisitionStarted.experimentGroup.lock?.reason,
+  'formal-acquisition-started',
+  'Ideal must use the same irreversible-operation lock as Real',
+);
+assert.equal(
+  idealAcquisitionStarted.experimentGroup.parameterSnapshot
+    ?.parameters.equivalentLinearLossNsPerM,
+  0,
+  'locking Ideal must freeze the effective zero-loss profile instead of the retained Real draft',
 );
 const idealHeliumSelection = transitionPistonOscillationFreeSession(idealAirSelection, {
   type: 'setGasType',

@@ -796,8 +796,8 @@ assert.doesNotMatch(
 );
 assert.doesNotMatch(
   workspaceSource,
-  /simulatePistonOscillationIdealAdiabaticRelease|createPistonOscillationIdealAdiabaticLoadedGasState|createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
-  'the live interaction workspace must stay on the current thermal chain and outside legacy compatibility',
+  /createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
+  'the live interaction workspace must stay outside the quantized legacy Ideal sensor path and compatibility shims',
 );
 assert.match(
   workspaceSource,
@@ -986,8 +986,8 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /setReleaseControlLock\(true\);[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*initialVelocityMmPerS: \(pressOperationEvidence\.releaseVelocityMPerS \?\? 0\) \* 1_000,[\s\S]*referenceThermodynamicState: thermodynamicStateRef\.current[\s\S]*pressOperationEvidence,[\s\S]*startPistonRebound\(trajectory, releaseStartedAtMs\)/,
-  'the second-hand release must atomically lock control, preserve release velocity and publish the operation evidence with the shared trajectory',
+  /setReleaseControlLock\(true\);[\s\S]*initialVelocityMmPerS:[\s\S]*pressOperationEvidence\.releaseVelocityMPerS \?\? 0[\s\S]*const trajectory = adiabaticProcess[\s\S]*simulatePistonOscillationIdealAdiabaticRelease\([\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*referenceThermodynamicState: thermodynamicStateRef\.current[\s\S]*pressOperationEvidence,[\s\S]*startPistonRebound\(trajectory, releaseStartedAtMs\)/,
+  'the second-hand release must atomically lock control, preserve release velocity, select the Ideal or Real physical path, and publish the same operation evidence',
 );
 assert.match(
   workspaceSource,
@@ -1051,7 +1051,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /const visibleHeightMm = pistonEquilibriumHeightMmRef\.current[\s\S]*const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*lockedHeightMm: pistonNominalHeightMmRef\.current,[\s\S]*initialDisplacementMm/,
+  /const visibleHeightMm = pistonEquilibriumHeightMmRef\.current[\s\S]*const initialDisplacementMm = visibleHeightMm - equilibriumHeightMm[\s\S]*const releaseInput = \{[\s\S]*lockedHeightMm: pistonNominalHeightMmRef\.current,[\s\S]*initialDisplacementMm[\s\S]*const trajectory = adiabaticProcess[\s\S]*simulatePistonOscillationIdealAdiabaticRelease[\s\S]*simulatePistonOscillationThermalRelease/,
   'formal release must create one nonlinear trajectory from the nominal lock height and true live position',
 );
 assert.match(
@@ -1066,7 +1066,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /simulatePistonOscillationThermalRelease\(\{[\s\S]*releaseAsymmetry: \{[\s\S]*signedReleaseGapS: pressOperationEvidence\.signedReleaseGapS/,
+  /const releaseInput = \{[\s\S]*releaseAsymmetry: \{[\s\S]*signedReleaseGapS: pressOperationEvidence\.signedReleaseGapS[\s\S]*simulatePistonOscillationIdealAdiabaticRelease\([\s\S]*releaseInput[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*\.\.\.releaseInput/,
   'the captured two-hand release gap must drive the current release-asymmetry model',
 );
 assert.match(

@@ -1,5 +1,7 @@
 export const PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION =
   'piston-oscillation-sensor-observation-v1' as const;
+export const PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION =
+  'piston-oscillation-sensor-observation-exact-v2' as const;
 export const PISTON_OSCILLATION_LEGACY_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION =
   'piston-oscillation-sensor-observation-lag-drift-v2' as const;
 export const PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION =
@@ -17,6 +19,7 @@ export const PISTON_OSCILLATION_SENSOR_TIME_DECIMAL_PLACES = 3 as const;
 export const PISTON_OSCILLATION_SENSOR_PRESSURE_DECIMAL_PLACES = 2 as const;
 export const PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION =
   'truncate-toward-zero' as const;
+export const PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION = 'none' as const;
 
 export interface PistonOscillationPhysicalPressureSample {
   pressurePa: number;
@@ -102,10 +105,15 @@ PistonOscillationDynamicSensorConfig = Object.freeze({
 export interface PistonOscillationSensorObservationSeries {
   modelVersion:
     | typeof PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION
+    | typeof PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION
     | typeof PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
   sampleRateHz: number;
-  pressureResolutionKpa: typeof PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA;
-  pressureQuantization: typeof PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION;
+  pressureResolutionKpa:
+    | typeof PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA
+    | null;
+  pressureQuantization:
+    | typeof PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION
+    | typeof PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION;
   samples: PistonOscillationObservedSample[];
   dynamicConfig?: PistonOscillationDynamicSensorConfig | null;
   initialDynamicState?: PistonOscillationDynamicSensorState | null;
@@ -499,9 +507,10 @@ export const formatPistonOscillationObservedPressureKpa = (
 );
 
 /**
- * Ideal, zero-lag sensor reference retained for scientific comparison and
- * legacy-record migration. Current acquisition paths use the dynamic sensor
- * model below and must not call this reference projection.
+ * Quantized zero-lag reference retained for scientific comparison and
+ * legacy-record migration. Current Real acquisition uses the dynamic sensor
+ * model, while interactive Ideal acquisition uses the distinct exact model
+ * below; neither current path may call this compatibility projection.
  */
 export const createPistonOscillationIdealSensorReferenceSeries = (
   physicalSamples: readonly PistonOscillationPhysicalPressureSample[],
@@ -534,6 +543,49 @@ export const createPistonOscillationIdealSensorReferenceSeries = (
     pressureResolutionKpa: PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
     pressureQuantization: PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
     samples,
+  };
+};
+
+/**
+ * Exact, zero-lag observation used by the interactive Ideal experiment. It
+ * intentionally keeps the experiment's sampling grid while removing pressure
+ * quantization and every dynamic sensor state or stochastic term.
+ */
+export const createPistonOscillationIdealProcessSensorObservationSeries = (
+  physicalSamples: readonly PistonOscillationPhysicalPressureSample[],
+  sampleRateHz: number = PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
+): PistonOscillationSensorObservationSeries => {
+  const normalizedSampleRateHz = assertPositiveSafeInteger(
+    'sampleRateHz',
+    sampleRateHz,
+  );
+  if (!Array.isArray(physicalSamples) || physicalSamples.length === 0) {
+    throw new RangeError('physicalSamples must contain at least one sample.');
+  }
+  return {
+    modelVersion: PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
+    sampleRateHz: normalizedSampleRateHz,
+    pressureResolutionKpa: null,
+    pressureQuantization: PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION,
+    samples: physicalSamples.map((physicalSample, sampleIndex) => {
+      if (!physicalSample || typeof physicalSample !== 'object') {
+        throw new RangeError(`physicalSamples[${sampleIndex}] is missing.`);
+      }
+      return {
+        sampleIndex,
+        timeS: getPistonOscillationObservedTimeS(
+          sampleIndex,
+          normalizedSampleRateHz,
+        ),
+        absolutePressureKpa: assertFinitePositive(
+          `physicalSamples[${sampleIndex}].pressurePa`,
+          physicalSample.pressurePa,
+        ) / 1_000,
+      };
+    }),
+    dynamicConfig: null,
+    initialDynamicState: null,
+    finalDynamicState: null,
   };
 };
 
@@ -617,8 +669,11 @@ export const assertPistonOscillationSensorObservationSeries = (
   }
   const dynamic = series.modelVersion
     === PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION;
+  const exact = series.modelVersion
+    === PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION;
   if (
     series.modelVersion !== PISTON_OSCILLATION_IDEAL_SENSOR_REFERENCE_MODEL_VERSION
+    && !exact
     && !dynamic
   ) {
     throw new RangeError('series uses an unsupported observation model version.');
@@ -641,13 +696,22 @@ export const assertPistonOscillationSensorObservationSeries = (
       throw new RangeError('series uses invalid dynamic sensor metadata.');
     }
   }
+  if (exact && (
+    series.dynamicConfig != null
+    || series.initialDynamicState != null
+    || series.finalDynamicState != null
+  )) {
+    throw new RangeError('Exact Ideal observations cannot contain dynamic sensor state.');
+  }
   const sampleRateHz = assertPositiveSafeInteger('series.sampleRateHz', series.sampleRateHz);
-  if (
-    series.pressureResolutionKpa
-      !== PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA
-    || series.pressureQuantization
-      !== PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION
-  ) {
+  const validObservationPolicy = exact
+    ? series.pressureResolutionKpa === null
+      && series.pressureQuantization === PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION
+    : series.pressureResolutionKpa
+        === PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA
+      && series.pressureQuantization
+        === PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION;
+  if (!validObservationPolicy) {
     throw new RangeError('series uses an unsupported pressure observation policy.');
   }
   if (!Array.isArray(series.samples) || series.samples.length === 0) {
@@ -668,7 +732,7 @@ export const assertPistonOscillationSensorObservationSeries = (
     if (
       !Number.isFinite(sample.absolutePressureKpa)
       || sample.absolutePressureKpa <= 0
-      || !isPressureOnObservationGrid(sample.absolutePressureKpa)
+      || (!exact && !isPressureOnObservationGrid(sample.absolutePressureKpa))
     ) {
       throw new RangeError(`series.samples[${index}] is not on the pressure grid.`);
     }

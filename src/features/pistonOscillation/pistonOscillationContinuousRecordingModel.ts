@@ -1,5 +1,7 @@
 import {
   PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
+  PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION,
+  PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_QUANTIZATION,
   PISTON_OSCILLATION_SENSOR_PRESSURE_RESOLUTION_KPA,
   getPistonOscillationObservedTimeS,
@@ -42,13 +44,16 @@ const getReleasePressureKpa = (
 const getLivePressureKpa = (
   observations: readonly PistonOscillationLivePressureObservation[],
   sampledAtMs: number,
+  exactObservation: boolean,
 ) => {
   const first = observations[0];
   const last = observations.at(-1);
   if (!first || !last) {
-    return quantizePistonOscillationObservedPressureKpa(
-      BASELINE_PRESSURE_KPA * 1_000,
-    );
+    return exactObservation
+      ? BASELINE_PRESSURE_KPA
+      : quantizePistonOscillationObservedPressureKpa(
+          BASELINE_PRESSURE_KPA * 1_000,
+        );
   }
   if (sampledAtMs <= first.sampledAtMs) return first.absolutePressureKpa;
   if (sampledAtMs >= last.sampledAtMs) return last.absolutePressureKpa;
@@ -68,10 +73,13 @@ const getLivePressureKpa = (
   const spanMs = upper.sampledAtMs - lower.sampledAtMs;
   if (spanMs <= 0) return upper.absolutePressureKpa;
   const ratio = Math.min(1, Math.max(0, (sampledAtMs - lower.sampledAtMs) / spanMs));
-  return quantizePistonOscillationObservedPressureKpa((
-    lower.absolutePressureKpa
-    + (upper.absolutePressureKpa - lower.absolutePressureKpa) * ratio
-  ) * 1_000);
+  const interpolatedPressureKpa = lower.absolutePressureKpa
+    + (upper.absolutePressureKpa - lower.absolutePressureKpa) * ratio;
+  return exactObservation
+    ? interpolatedPressureKpa
+    : quantizePistonOscillationObservedPressureKpa(
+        interpolatedPressureKpa * 1_000,
+      );
 };
 
 const getLatestAtOrBefore = <Value extends { startedAtMs: number }>(
@@ -105,6 +113,7 @@ export const createPistonOscillationContinuousRecordingSamples = (options: {
   releaseSegments: readonly PistonOscillationRecordingReleaseSegment[];
   pressStartedAtMs: readonly number[];
   liveObservations: readonly PistonOscillationLivePressureObservation[];
+  exactObservation?: boolean;
 }): PistonOscillationObservedSample[] => {
   const requestedIntervalCount = Math.max(
     0,
@@ -140,7 +149,11 @@ export const createPistonOscillationContinuousRecordingSamples = (options: {
       && (pressStartedAtMs === null || releaseSegment.startedAtMs >= pressStartedAtMs);
     const absolutePressureKpa = releaseControlsSample
       ? getReleasePressureKpa(releaseSegment, sampledAtMs)
-      : getLivePressureKpa(options.liveObservations, sampledAtMs);
+      : getLivePressureKpa(
+          options.liveObservations,
+          sampledAtMs,
+          options.exactObservation === true,
+        );
     return { sampleIndex, timeS, absolutePressureKpa };
   });
 };
@@ -151,8 +164,21 @@ export const createPistonOscillationContinuousObservationSeries = (options: {
   releaseSegments: readonly PistonOscillationRecordingReleaseSegment[];
   pressStartedAtMs: readonly number[];
   liveObservations: readonly PistonOscillationLivePressureObservation[];
+  exactObservation?: boolean;
 }): PistonOscillationSensorObservationSeries => {
   const samples = options.samples.map((sample) => ({ ...sample }));
+  if (options.exactObservation) {
+    return {
+      modelVersion: PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION,
+      sampleRateHz: options.sampleRateHz,
+      pressureResolutionKpa: null,
+      pressureQuantization: PISTON_OSCILLATION_EXACT_PRESSURE_QUANTIZATION,
+      samples,
+      dynamicConfig: null,
+      initialDynamicState: null,
+      finalDynamicState: null,
+    };
+  }
   const firstRelease = options.releaseSegments[0]?.observationSeries ?? null;
   const latestReleaseSegment = options.releaseSegments.at(-1) ?? null;
   const latestPressStartedAtMs = options.pressStartedAtMs.at(-1) ?? null;

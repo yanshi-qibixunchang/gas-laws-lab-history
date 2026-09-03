@@ -44,6 +44,7 @@ export interface PistonOscillationLivePressureChannel {
 
 export const createPistonOscillationLivePressureChannel = (
   configInput?: Partial<PistonOscillationDynamicSensorConfig>,
+  options: { exactObservation?: boolean } = {},
 ): PistonOscillationLivePressureChannel => {
   const usesGeneratedSessionSeed = configInput?.seed === undefined;
   const createSensorConfig = () => normalizePistonOscillationDynamicSensorConfig({
@@ -123,7 +124,9 @@ export const createPistonOscillationLivePressureChannel = (
         sampledAtMs: sampleClockIndex
           * 1_000 / PISTON_OSCILLATION_FORMAL_SAMPLE_RATE_HZ,
         physicalPressurePa: thermodynamicState.pressurePa,
-        absolutePressureKpa,
+        absolutePressureKpa: options.exactObservation
+          ? thermodynamicState.pressurePa / 1_000
+          : absolutePressureKpa,
         equilibriumHeightMm: state.equilibriumHeightMm,
         displacementMm: state.displacementMm,
         truePistonHeightMm: thermodynamicState.pistonHeightM * 1_000,

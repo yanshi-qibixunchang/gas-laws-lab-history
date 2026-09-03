@@ -117,4 +117,19 @@ assert.notEqual(
   'new live sensor sessions must receive distinct persisted fluctuation seeds',
 );
 
+const exactChannel = createPistonOscillationLivePressureChannel(undefined, {
+  exactObservation: true,
+});
+const exactPressedObservation = exactChannel.publishPhysicalState({
+  observedAtMs: 3_000.25,
+  equilibriumHeightMm: 80,
+  displacementMm: -10.5,
+  thermodynamicState: pressedState,
+});
+assert.equal(
+  exactPressedObservation?.absolutePressureKpa,
+  pressedState.pressurePa / 1_000,
+  'the Ideal live channel must expose the physical pressure without lag or quantization',
+);
+
 console.log('pistonOscillationLivePressureChannel tests passed');

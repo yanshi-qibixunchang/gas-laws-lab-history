@@ -229,8 +229,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*createPistonOscillationDynamicSensorObservationSeries\([\s\S]*nextTrajectory\.samples,[\s\S]*nextTrajectory\.sampleRateHz,[\s\S]*initialState: livePressureObservation\?\.sensorState \?\? null,[\s\S]*config: livePressureObservation\?\.sensorConfig[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
-  'formal acquisition must quantize the released trajectory before choosing its discrete falling-trigger sample',
+  /const nextTrajectory = releaseEvent\.trajectory;[\s\S]*effectiveFreeConfig\?\.exactSensorObservation[\s\S]*createPistonOscillationIdealProcessSensorObservationSeries\([\s\S]*createPistonOscillationDynamicSensorObservationSeries\([\s\S]*initialState: livePressureObservation\?\.sensorState \?\? null,[\s\S]*config: livePressureObservation\?\.sensorConfig[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries,[\s\S]*configuredTriggerKpa[\s\S]*setTriggerSeconds\(nextTriggerSeconds\);[\s\S]*setTriggerSourceSampleIndex\(nextTriggerSample\?\.sampleIndex \?\? null\);/,
+  'formal acquisition must choose the exact Ideal or dynamic Real sensor before selecting its discrete falling-trigger sample',
 );
 assert.match(
   panelSource,
@@ -239,7 +239,7 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries\([\s\S]*const expectedPeriodS = 1[\s\S]*getPistonOscillationSmallSignalFrequencyFromLockedHeightHz\([\s\S]*const nextObservationSeries = freeSelected[\s\S]*!effectiveFreeParameterDraft\.tailIrregularityEnabled[\s\S]*\? baseObservationSeries[\s\S]*: applyPistonOscillationTailIrregularityObservation\(\{[\s\S]*observationSeries: baseObservationSeries,[\s\S]*expectedPeriodS,[\s\S]*config: freeSelected \? effectiveFreeTailConfig \?\? undefined : undefined[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries/,
+  /const baseObservationSeries = effectiveFreeConfig\?\.exactSensorObservation[\s\S]*const expectedPeriodS = 1[\s\S]*getPistonOscillationSmallSignalFrequencyFromLockedHeightHz\([\s\S]*const nextObservationSeries = freeSelected[\s\S]*!effectiveFreeConfig\.tailIrregularityEnabled[\s\S]*\? baseObservationSeries[\s\S]*: applyPistonOscillationTailIrregularityObservation\(\{[\s\S]*observationSeries: baseObservationSeries,[\s\S]*expectedPeriodS,[\s\S]*config: freeSelected \? effectiveFreeTailConfig \?\? undefined : undefined[\s\S]*findPistonOscillationObservedFallingTriggerSample\([\s\S]*nextObservationSeries/,
   'formal acquisition must either bypass disabled tail irregularity or apply its configured observation before display, trigger slicing, and persistence',
 );
 assert.match(
@@ -307,7 +307,7 @@ assert.match(
 );
 assert.doesNotMatch(
   panelSource,
-  /getPistonOscillationTrajectorySampleAt|findPistonOscillationFallingTriggerTimeS|simulatePistonOscillationIdealAdiabaticRelease|createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
+  /getPistonOscillationTrajectorySampleAt|findPistonOscillationFallingTriggerTimeS|createPistonOscillationIdealSensorReferenceSeries|pistonOscillationLegacyCompatibility/,
   'the acquisition panel must not recover interpolated physical pressure or a continuous threshold crossing',
 );
 assert.doesNotMatch(

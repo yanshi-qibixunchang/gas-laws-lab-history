@@ -567,16 +567,14 @@ import {
   startPistonOscillationDemoSession,
 } from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 import {
-  getPistonOscillationFreeEffectiveParameters,
   PistonOscillationFreeEvent,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
-  getPistonOscillationFreePhysicsConfig,
-  getPistonOscillationFreeReleaseAsymmetryConfig,
-  getPistonOscillationFreeSensorConfig,
-  getPistonOscillationFreeThermalConfig,
   type PistonOscillationFreeParameterDraft,
 } from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
+import {
+  resolvePistonOscillationFreeEffectiveConfig,
+} from '../../domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
 import {
   getPistonOscillationParameterLockMessage,
   getPistonOscillationParameterSidebarFreeOnlyMessage,
@@ -4255,47 +4253,57 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   }
   previousActiveTeachingCompletionKeyRef.current = activeTeachingCompletionKey;
   }, [activeTeachingCompletionKey]);
-  const activePistonOscillationParameterDraft = activeFile.kind
+  const activePistonOscillationConfigGroup = activeFile.kind
     === 'heatCapacityPistonOscillation'
     && activeFile.pistonOscillationFreeSession.status === 'active'
-    ? getPistonOscillationFreeEffectiveParameters(
-        activeFile.pistonOscillationFreeSession,
-      )
+    ? activeFile.pistonOscillationFreeSession.experimentGroup
     : null;
+  const activePistonOscillationConfigDraft = activeFile.kind
+    === 'heatCapacityPistonOscillation'
+    && activeFile.pistonOscillationFreeSession.status === 'active'
+    ? activeFile.pistonOscillationFreeSession.parameterDraft
+    : null;
+  const activePistonOscillationEffectiveConfig = useMemo(
+    () => activePistonOscillationConfigGroup && activePistonOscillationConfigDraft
+      ? resolvePistonOscillationFreeEffectiveConfig(
+          activePistonOscillationConfigGroup,
+          activePistonOscillationConfigDraft,
+        )
+      : null,
+    [activePistonOscillationConfigDraft, activePistonOscillationConfigGroup],
+  );
   const activePistonOscillationPhysicsConfig = useMemo(
-    () => activePistonOscillationParameterDraft
-      ? getPistonOscillationFreePhysicsConfig(activePistonOscillationParameterDraft)
-      : undefined,
-    [activePistonOscillationParameterDraft],
+    () => activePistonOscillationEffectiveConfig?.physicsConfig,
+    [activePistonOscillationEffectiveConfig],
   );
   const activePistonOscillationThermalConfig = useMemo(
-    () => activePistonOscillationParameterDraft
-      ? getPistonOscillationFreeThermalConfig(activePistonOscillationParameterDraft)
-      : undefined,
-    [activePistonOscillationParameterDraft],
+    () => activePistonOscillationEffectiveConfig?.thermalConfig,
+    [activePistonOscillationEffectiveConfig],
   );
   const activePistonOscillationReleaseAsymmetryConfig = useMemo(
-    () => activePistonOscillationParameterDraft
-      ? getPistonOscillationFreeReleaseAsymmetryConfig(
-          activePistonOscillationParameterDraft,
-        )
-      : undefined,
-    [activePistonOscillationParameterDraft],
+    () => activePistonOscillationEffectiveConfig?.releaseAsymmetryConfig,
+    [activePistonOscillationEffectiveConfig],
   );
   const activePistonOscillationSensorConfig = useMemo(
-    () => activePistonOscillationParameterDraft
-      ? getPistonOscillationFreeSensorConfig(activePistonOscillationParameterDraft)
-      : undefined,
-    [activePistonOscillationParameterDraft],
+    () => activePistonOscillationEffectiveConfig?.sensorConfig,
+    [activePistonOscillationEffectiveConfig],
   );
-  const activePistonOscillationParameterSignature = activePistonOscillationParameterDraft
-    ? JSON.stringify(activePistonOscillationParameterDraft)
+  const activePistonOscillationParameterSignature = activePistonOscillationEffectiveConfig
+    ? JSON.stringify(activePistonOscillationEffectiveConfig.parameters)
     : 'teaching-defaults';
   const pistonOscillationLivePressureChannel = useMemo(
     () => createPistonOscillationLivePressureChannel(
       activePistonOscillationSensorConfig,
+      {
+        exactObservation:
+          activePistonOscillationEffectiveConfig?.exactSensorObservation,
+      },
     ),
-    [activeFile.id, activePistonOscillationSensorConfig],
+    [
+      activeFile.id,
+      activePistonOscillationEffectiveConfig?.exactSensorObservation,
+      activePistonOscillationSensorConfig,
+    ],
   );
   const pistonOscillationAcquisitionPanelRef = useRef<
     PistonOscillationAcquisitionPanelHandle | null
@@ -4472,7 +4480,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       ? PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
         activePistonOscillationGuideSession.measurementIndex
       ]
-      : null;
+      : activePistonOscillationFreeSelected
+        && activePistonOscillationEffectiveConfig?.heightSnapEnabled
+        ? activePistonOscillationFreeSession?.experimentPlan
+            ?.targets[activePistonOscillationFreeSession.measurementIndex]
+            ?.heightMm ?? null
+        : null;
   useEffect(() => {
     setPistonOscillationGuidePulseElapsedMs(0);
     clearPistonOscillationGuideFeedback();
@@ -21854,6 +21867,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 : undefined}
               physicsConfig={activePistonOscillationPhysicsConfig}
               thermalConfig={activePistonOscillationThermalConfig}
+              adiabaticProcess={
+                activePistonOscillationEffectiveConfig?.adiabaticProcess
+              }
               releaseAsymmetryConfig={
                 activePistonOscillationReleaseAsymmetryConfig
               }

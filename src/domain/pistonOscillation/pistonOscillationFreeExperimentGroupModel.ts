@@ -14,6 +14,10 @@ import {
   type PistonOscillationExperimentContextSnapshot,
   type PistonOscillationExperimentScheme,
 } from './pistonOscillationExperimentContextModel.ts';
+import {
+  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+  createPistonOscillationIdealParameterDraft,
+} from './pistonOscillationIdealParameterProfile.ts';
 
 export type { PistonOscillationExperimentScheme } from './pistonOscillationExperimentContextModel.ts';
 
@@ -49,8 +53,7 @@ export interface PistonOscillationFreeExperimentGroup {
   lock: PistonOscillationFreeExperimentLock | null;
 }
 
-export const PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION =
-  'piston-oscillation-ideal-parameter-profile-v1' as const;
+export { PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION };
 export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION =
   'piston-oscillation-real-helium-parameter-profile-v1' as const;
 
@@ -150,7 +153,7 @@ export const selectPistonOscillationFreeGasType = (
 
 export const isPistonOscillationFreeExperimentProfileImplemented = (
   group: PistonOscillationFreeExperimentGroup,
-) => group.scheme === 'real' && group.gasMaterialSnapshot.gasType === 'air';
+) => group.gasMaterialSnapshot.gasType === 'air';
 
 export const lockPistonOscillationFreeExperimentGroup = (
   group: PistonOscillationFreeExperimentGroup,
@@ -257,11 +260,16 @@ export const normalizePistonOscillationFreeExperimentGroup = (
     ?? 0;
   return {
     ...group,
-    parameterSnapshot: persistedParameterSnapshot
-      ?? createPistonOscillationFreeParameterSnapshot(
-        options.fallbackParameters,
-        lockedAtMs,
-      ),
+    parameterSnapshot: group.scheme === 'ideal'
+      ? createPistonOscillationFreeParameterSnapshot(
+          createPistonOscillationIdealParameterDraft(),
+          lockedAtMs,
+        )
+      : persistedParameterSnapshot
+        ?? createPistonOscillationFreeParameterSnapshot(
+          options.fallbackParameters,
+          lockedAtMs,
+        ),
     lock: persistedLock ?? {
       schemaVersion: 1,
       lockedAtMs,

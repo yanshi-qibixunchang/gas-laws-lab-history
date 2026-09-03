@@ -27,6 +27,7 @@ import {
   createInitialPistonOscillationDynamicSensorState,
   createPistonOscillationRecordedObservationSamples,
   createPistonOscillationDynamicSensorObservationSeries,
+  createPistonOscillationIdealProcessSensorObservationSeries,
   findPistonOscillationObservedFallingTriggerSample,
   formatPistonOscillationObservedPressureKpa,
   getPistonOscillationObservedTimeS,
@@ -74,18 +75,20 @@ import type {
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
   canRunPistonOscillationFreeExperiment,
-  getPistonOscillationFreeEffectiveParameters,
   isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
   PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA,
   getPistonOscillationFreeTriggerThresholdRange,
-  getPistonOscillationFreePhysicsConfig,
-  getPistonOscillationFreeSensorConfig,
-  getPistonOscillationFreeTailConfig,
   scalePistonOscillationFreeTriggerThresholdKpa,
 } from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
+import {
+  resolvePistonOscillationFreeEffectiveConfig,
+} from '../../domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
+import {
+  createPistonOscillationFreeExperimentContextSnapshot,
+} from '../../domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
   createPistonOscillationIncompletePressOperationEvidence,
   type PistonOscillationPressOperationEvidence,
@@ -495,9 +498,16 @@ PistonOscillationAcquisitionPanelProps
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
   const freeSelected = freeSession?.status === 'active';
-  const effectiveFreeParameterDraft = freeSession
-    ? getPistonOscillationFreeEffectiveParameters(freeSession)
-    : null;
+  const effectiveFreeConfig = useMemo(
+    () => freeSession
+      ? resolvePistonOscillationFreeEffectiveConfig(
+          freeSession.experimentGroup,
+          freeSession.parameterDraft,
+        )
+      : null,
+    [freeSession?.experimentGroup, freeSession?.parameterDraft],
+  );
+  const effectiveFreeParameterDraft = effectiveFreeConfig?.parameters ?? null;
   const freeAmbientPressureKpa = effectiveFreeParameterDraft?.ambientPressureKpa
     ?? PISTON_OSCILLATION_FREE_TRIGGER_REFERENCE_AMBIENT_PRESSURE_KPA;
   const freeTriggerThresholdRange = useMemo(
@@ -516,22 +526,16 @@ PistonOscillationAcquisitionPanelProps
     freeFallbackPhysicalPressurePa,
   );
   const effectiveFreePhysicsConfig = useMemo(
-    () => effectiveFreeParameterDraft
-      ? getPistonOscillationFreePhysicsConfig(effectiveFreeParameterDraft)
-      : null,
-    [effectiveFreeParameterDraft],
+    () => effectiveFreeConfig?.physicsConfig ?? null,
+    [effectiveFreeConfig],
   );
   const effectiveFreeSensorConfig = useMemo(
-    () => effectiveFreeParameterDraft
-      ? getPistonOscillationFreeSensorConfig(effectiveFreeParameterDraft)
-      : null,
-    [effectiveFreeParameterDraft],
+    () => effectiveFreeConfig?.sensorConfig ?? null,
+    [effectiveFreeConfig],
   );
   const effectiveFreeTailConfig = useMemo(
-    () => effectiveFreeParameterDraft
-      ? getPistonOscillationFreeTailConfig(effectiveFreeParameterDraft)
-      : null,
-    [effectiveFreeParameterDraft],
+    () => effectiveFreeConfig?.tailConfig ?? null,
+    [effectiveFreeConfig],
   );
   const freeParametersLocked = freeSession
     ? isPistonOscillationFreeExperimentLocked(freeSession)
@@ -895,24 +899,29 @@ PistonOscillationAcquisitionPanelProps
       rebaseDisplayClock(releaseEvent.startedAtMs, true);
     }
     const nextTrajectory = releaseEvent.trajectory;
-    const baseObservationSeries = createPistonOscillationDynamicSensorObservationSeries(
-      nextTrajectory.samples,
-      nextTrajectory.sampleRateHz,
-      {
-        initialState: livePressureObservation?.sensorState ?? null,
-        initialObservedPressureKpa:
-          livePressureObservation?.absolutePressureKpa ?? null,
-        config: livePressureObservation?.sensorConfig,
-      },
-    );
+    const baseObservationSeries = effectiveFreeConfig?.exactSensorObservation
+      ? createPistonOscillationIdealProcessSensorObservationSeries(
+          nextTrajectory.samples,
+          nextTrajectory.sampleRateHz,
+        )
+      : createPistonOscillationDynamicSensorObservationSeries(
+          nextTrajectory.samples,
+          nextTrajectory.sampleRateHz,
+          {
+            initialState: livePressureObservation?.sensorState ?? null,
+            initialObservedPressureKpa:
+              livePressureObservation?.absolutePressureKpa ?? null,
+            config: livePressureObservation?.sensorConfig,
+          },
+        );
     const expectedPeriodS = 1
       / getPistonOscillationSmallSignalFrequencyFromLockedHeightHz(
         nextTrajectory.equilibrium.lockedHeightM * 1_000,
         nextTrajectory.config,
       );
     const nextObservationSeries = freeSelected
-      && effectiveFreeParameterDraft
-      && !effectiveFreeParameterDraft.tailIrregularityEnabled
+      && effectiveFreeConfig
+      && !effectiveFreeConfig.tailIrregularityEnabled
       ? baseObservationSeries
       : applyPistonOscillationTailIrregularityObservation({
           observationSeries: baseObservationSeries,
@@ -1037,6 +1046,7 @@ PistonOscillationAcquisitionPanelProps
     cycleStartMs,
     effectivePowerOn,
     effectiveFreeParameterDraft,
+    effectiveFreeConfig,
     effectiveFreeTailConfig,
     freeRecordingPath,
     freeSelected,
@@ -1268,6 +1278,7 @@ PistonOscillationAcquisitionPanelProps
         releaseSegments: freeReleaseSegmentsRef.current,
         pressStartedAtMs: freePressStartedAtMsRef.current,
         liveObservations: freeLiveObservationsRef.current,
+        exactObservation: effectiveFreeConfig?.exactSensorObservation,
       });
     }
     if (formalElapsedSeconds <= 0 || effectiveTriggerSeconds === null) return [];
@@ -1311,6 +1322,7 @@ PistonOscillationAcquisitionPanelProps
     cycleStartMs,
     demoObservationSeries,
     demoTriggerSample,
+    effectiveFreeConfig,
     effectiveTriggerSeconds,
     formalElapsedSeconds,
     freeRecordingPath,
@@ -1732,6 +1744,7 @@ PistonOscillationAcquisitionPanelProps
         releaseSegments: freeReleaseSegmentsRef.current,
         pressStartedAtMs: freePressStartedAtMsRef.current,
         liveObservations: freeLiveObservationsRef.current,
+        exactObservation: effectiveFreeConfig?.exactSensorObservation,
       });
       const snapshotObservationSeries =
         createPistonOscillationContinuousObservationSeries({
@@ -1740,6 +1753,7 @@ PistonOscillationAcquisitionPanelProps
           releaseSegments: freeReleaseSegmentsRef.current,
           pressStartedAtMs: freePressStartedAtMsRef.current,
           liveObservations: freeLiveObservationsRef.current,
+          exactObservation: effectiveFreeConfig?.exactSensorObservation,
         });
       const boundedDurationS = samples.at(-1)?.timeS ?? 0;
       if (
@@ -1774,6 +1788,9 @@ PistonOscillationAcquisitionPanelProps
             capturedUntilMs: captureEndedAtMs,
           });
       if (!pressOperationEvidence) return null;
+      if (effectiveFreeConfig?.exactSensorObservation && !activeTrajectory) {
+        return null;
+      }
       let physicsSnapshot: PistonOscillationPhysicsSnapshot;
       try {
         physicsSnapshot = activeTrajectory
@@ -1797,6 +1814,9 @@ PistonOscillationAcquisitionPanelProps
         measurementIndex: freeSession.measurementIndex,
         targetHeightMm,
         confirmedHeightMm: physicsSnapshot.equilibrium.equilibriumHeightM * 1_000,
+        experimentContext: createPistonOscillationFreeExperimentContextSnapshot(
+          freeSession.experimentGroup,
+        ),
         sampleRateHz: snapshotObservationSeries.sampleRateHz,
         triggerThresholdKpa: effectiveTriggerKpa,
         recordedDurationS: boundedDurationS,
@@ -1849,6 +1869,7 @@ PistonOscillationAcquisitionPanelProps
           releaseSegments,
           pressStartedAtMs,
           liveObservations,
+          exactObservation: effectiveFreeConfig?.exactSensorObservation,
         });
     if (samples.length < 2) return null;
     const boundedDurationS = samples.at(-1)?.timeS ?? 0;
@@ -1860,6 +1881,7 @@ PistonOscillationAcquisitionPanelProps
           releaseSegments,
           pressStartedAtMs,
           liveObservations,
+          exactObservation: effectiveFreeConfig?.exactSensorObservation,
         });
     return createPistonOscillationRawMeasurementRecord({
       recordId: `piston-free-${freeSession.startedAtMs ?? 0}-${target?.targetId ?? freeSession.measurementIndex}-${attemptId}`,
@@ -1867,6 +1889,9 @@ PistonOscillationAcquisitionPanelProps
       measurementIndex: freeSession.measurementIndex,
       targetHeightMm,
       confirmedHeightMm: activeTrajectory.equilibrium.equilibriumHeightM * 1_000,
+      experimentContext: createPistonOscillationFreeExperimentContextSnapshot(
+        freeSession.experimentGroup,
+      ),
       sampleRateHz: activeObservationSeries.sampleRateHz,
       triggerThresholdKpa: effectiveTriggerKpa,
       recordedDurationS: boundedDurationS,
@@ -1889,6 +1914,7 @@ PistonOscillationAcquisitionPanelProps
     activePressOperationEvidence,
     activeTrajectory,
     cycleStartMs,
+    effectiveFreeConfig,
     effectiveFreePhysicsConfig,
     effectiveTriggerKpa,
     freeRecordingPath,
@@ -2005,7 +2031,9 @@ PistonOscillationAcquisitionPanelProps
         ? freeFallbackPhysicalPressurePa
         : PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
       absolutePressureKpa: freeSelected
-        ? freeFallbackPressureKpa
+        ? effectiveFreeConfig?.exactSensorObservation
+          ? freeFallbackPhysicalPressurePa / 1_000
+          : freeFallbackPressureKpa
         : quantizePistonOscillationObservedPressureKpa(
             PISTON_ACQUISITION_BASELINE_PRESSURE_KPA * 1_000,
           ),

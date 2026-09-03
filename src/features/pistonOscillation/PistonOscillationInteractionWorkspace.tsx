@@ -34,6 +34,7 @@ import {
   getPistonOscillationSettlingStateAtProgress,
   resolvePistonOscillationStablePhysicalState,
   PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
+  simulatePistonOscillationIdealAdiabaticRelease,
   type PistonOscillationPhysicsConfig,
   type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
@@ -1326,6 +1327,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
   sensorSampleRateHz?: number;
   physicsConfig?: Partial<PistonOscillationPhysicsConfig>;
   thermalConfig?: Partial<PistonOscillationThermalModelConfig>;
+  adiabaticProcess?: boolean;
   releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
   initialMode?: PistonOscillationFocusMode;
   cameraPreset?: WorkbenchPistonOscillationCameraPreset;
@@ -1384,6 +1386,7 @@ export const PistonOscillationInteractionWorkspace = ({
   sensorSampleRateHz,
   physicsConfig: providedPhysicsConfig,
   thermalConfig: providedThermalConfig,
+  adiabaticProcess = false,
   releaseAsymmetryConfig: providedReleaseAsymmetryConfig,
   initialMode = 'pistonFocus',
   cameraPreset = 'overview',
@@ -2314,8 +2317,15 @@ export const PistonOscillationInteractionWorkspace = ({
       velocityMmPerS,
       physicsConfig,
       thermalConfig,
+      adiabatic: adiabaticProcess,
     }));
-  }, [commitThermodynamicState, hoseState, physicsConfig, thermalConfig]);
+  }, [
+    adiabaticProcess,
+    commitThermodynamicState,
+    hoseState,
+    physicsConfig,
+    thermalConfig,
+  ]);
   const advanceVirtualHandPressTo = useCallback((observedAtMs: number) => {
     const previousUpdatedAtMs = thermodynamicUpdatedAtMsRef.current;
     const monotonicObservedAtMs = previousUpdatedAtMs === null
@@ -2337,6 +2347,7 @@ export const PistonOscillationInteractionWorkspace = ({
         elapsedS,
         physicsConfig,
         thermalConfig,
+        adiabatic: adiabaticProcess,
       }));
       return;
     }
@@ -2350,6 +2361,7 @@ export const PistonOscillationInteractionWorkspace = ({
       elapsedS,
       preventUpwardMotion:
         observedAtMs <= virtualHandDownwardCommandUntilMsRef.current,
+      adiabatic: adiabaticProcess,
     }, physicsConfig, thermalConfig);
     const nextOffsetMm = nextState.pistonHeightM * 1_000
       - pistonEquilibriumHeightMmRef.current;
@@ -2361,7 +2373,13 @@ export const PistonOscillationInteractionWorkspace = ({
         : virtualHandReferenceDragPxRef.current
     ));
     commitThermodynamicState(nextState);
-  }, [commitThermodynamicState, hoseState, physicsConfig, thermalConfig]);
+  }, [
+    adiabaticProcess,
+    commitThermodynamicState,
+    hoseState,
+    physicsConfig,
+    thermalConfig,
+  ]);
   const setPistonOffset = useCallback((nextOffsetMm: number) => {
     const observedAtMs = performance.now();
     pistonOffsetMmRef.current = nextOffsetMm;
@@ -3163,19 +3181,29 @@ export const PistonOscillationInteractionWorkspace = ({
           : Math.abs(pressOperationEvidence.signedReleaseGapS * 1_000),
       );
       setReleaseControlLock(true);
-      const trajectory = simulatePistonOscillationThermalRelease({
+      const releaseInput = {
         lockedHeightMm: pistonNominalHeightMmRef.current,
         initialDisplacementMm,
-        initialVelocityMmPerS: (pressOperationEvidence.releaseVelocityMPerS ?? 0) * 1_000,
-        referenceThermodynamicState: thermodynamicStateRef.current,
+        initialVelocityMmPerS:
+          (pressOperationEvidence.releaseVelocityMPerS ?? 0) * 1_000,
         releaseAsymmetry: {
           signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
         },
         releaseAsymmetryConfig,
-      }, {
+      };
+      const effectivePhysicsConfig = {
         ...physicsConfig,
         sensorSampleRateHz,
-      }, thermalConfig);
+      };
+      const trajectory = adiabaticProcess
+        ? simulatePistonOscillationIdealAdiabaticRelease(
+            releaseInput,
+            effectivePhysicsConfig,
+          )
+        : simulatePistonOscillationThermalRelease({
+            ...releaseInput,
+            referenceThermodynamicState: thermodynamicStateRef.current,
+          }, effectivePhysicsConfig, thermalConfig);
       onFreeOperationObserved?.({
         operation: 'releasePiston',
         payload: {
@@ -3204,6 +3232,7 @@ export const PistonOscillationInteractionWorkspace = ({
       recoverPistonMotionFailure(cause, 'release-calculation');
     }
   }, [
+    adiabaticProcess,
     capturePressTracePoint,
     advanceVirtualHandPressTo,
     endPressTrace,

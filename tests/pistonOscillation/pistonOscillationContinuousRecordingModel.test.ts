@@ -122,3 +122,30 @@ const stillPressingSamples = createPistonOscillationContinuousRecordingSamples({
   liveObservations: liveObservations.slice(0, 2),
 });
 assert.equal(stillPressingSamples.at(-1)?.absolutePressureKpa, 125);
+
+const exactLiveObservations = [
+  createLiveObservation(2_000, 110.12345),
+  createLiveObservation(2_100, 125.67891),
+];
+const exactSamples = createPistonOscillationContinuousRecordingSamples({
+  durationS: 0.1,
+  sampleRateHz: 20,
+  recordingStartedAtMs: 2_000,
+  releaseSegments: [],
+  pressStartedAtMs: [2_000],
+  liveObservations: exactLiveObservations,
+  exactObservation: true,
+});
+assert.equal(exactSamples[1]?.absolutePressureKpa, (110.12345 + 125.67891) / 2);
+const exactSeries = createPistonOscillationContinuousObservationSeries({
+  samples: exactSamples,
+  sampleRateHz: 20,
+  releaseSegments: [],
+  pressStartedAtMs: [2_000],
+  liveObservations: exactLiveObservations,
+  exactObservation: true,
+});
+assert.equal(exactSeries.pressureResolutionKpa, null);
+assert.equal(exactSeries.pressureQuantization, 'none');
+assert.equal(exactSeries.dynamicConfig, null);
+assert.doesNotThrow(() => assertPistonOscillationSensorObservationSeries(exactSeries));
