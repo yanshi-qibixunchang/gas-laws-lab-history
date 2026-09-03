@@ -66,8 +66,9 @@
 5. 取得热路径与会话体积基线后，把物理、传感器和校准三个高频状态收口到独立仪器状态工作区，同时保持旧模式会话与回滚字段兼容。（已完成）
 6. 把组内当前一次试验的状态改名后收口到运行工作区，同时保留旧存档和模式会话字段的单向兼容。（已完成）
 7. 固定旧气体字段、旧草稿气体与 `physics.gamma` 的冲突优先级，再删除气体类型和参数草稿两个顶层镜像。（已完成）
-8. 将参数默认值与编辑/冻结策略、当前试次选择规则、实验组配置/方案切换/历史查看迁入专用模块，并由旧入口兼容重导出。（已完成）
-9. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
+8. 将参数编辑/冻结策略、当前试次选择规则、实验组配置/方案切换/历史查看迁入专用模块，并由旧入口兼容重导出。（已完成）
+9. 将 Free/Guide 运行默认值、Free 热状态合并、轨迹清理和完整运行重置迁入无反向依赖的专用模块。（已完成）
+10. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
 
 ## 4. 下一大改动断点
 
@@ -82,14 +83,21 @@
 字段 > 旧草稿气体字段 > 旧草稿 `gamma` > 已应用 `physics.gamma`”的顺序。兼容快照仍保留
 旧字段名，当前 `WorkbenchHeatCapacityState`、默认构造和恢复结果均不再包含它们。
 
-参数编辑/冻结与实验组生命周期的职责拆分已经完成。参数默认值、理想参数组、编辑门禁、
-锁定原因、配置应用核心和参数冻结进入 `workbenchHeatCapacityFreeParameterState.ts`；当前试次
+参数编辑/冻结与实验组生命周期的职责拆分已经完成。编辑门禁、锁定原因、配置应用核心和
+参数冻结进入 `workbenchHeatCapacityFreeParameterState.ts`；当前试次
 选择、记录完成度与进度判定进入 `workbenchHeatCapacityFreeTrialState.ts`；实验组配置、方案切换、
 展示域、批次进度和历史查看进入 `workbenchHeatCapacityFreeExperimentGroupState.ts`。主界面直接
 依赖这些专用模块，`workbenchState.ts` 只为旧调用方保留兼容重导出；专用模块均不得反向依赖
-兼容入口。总协调器由 6479 行降为 5878 行，外部函数行为和存档格式未改变。
+兼容入口。
 
-下一大改动断点是跨模式计算会话与完整运行重置的职责拆分。计算会话同时覆盖 Demo、Guide、
-Free，并会在完成时回写实验组评分；完整重置同时依赖物理显示合并、Guide 默认现场、Free 轨迹
-清理和 Real/Ideal 域提交。开始前需要先决定是建立跨模式 calculation coordinator，还是先拆出
-Free runtime reset/defaults，再迁移公共计算入口；该批不能与物理步进或持久化格式修改混做。
+Free 运行默认值与完整重置的职责拆分已经完成。`workbenchHeatCapacityRuntimeDefaults.ts` 统一
+构造 Real/Ideal 参数档案、Free 运行现场和 Guide 默认现场；
+`workbenchHeatCapacityFreeRuntimeState.ts` 负责将物理、传感器和校准状态合并回当前显示现场；
+`workbenchHeatCapacityFreeTraceState.ts` 负责重置时的轨迹清理；
+`workbenchHeatCapacityFreeRunReset.ts` 负责保留已完成历史、清除当前可重做试验并将结果原子提交
+回 Real/Ideal 域。参数保存与恢复默认值也已直接从参数模块调用该重置边界。总协调器由 6479 行
+降为 5262 行；外部兼容入口、物理算法和存档格式均未改变。
+
+下一大改动断点是跨模式计算会话的职责拆分。该流程同时覆盖 Demo、Guide、Free，既要统一逐步
+计算，又会在 Free 完成时回写实验组结果和 Real 评分；迁移时必须保持 Guide 已完成结果可复查、
+Ideal 不评分、Real 继续评分以及旧计算会话恢复语义。该批不与物理步进或持久化格式修改混做。

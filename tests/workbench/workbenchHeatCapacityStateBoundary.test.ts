@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
+  applyHeatCapacityFreeParameterDraftWorkbenchState as applyParameterDraftFromFacade,
   configureHeatCapacityFreeBatchWorkbenchState as configureBatchFromFacade,
   createDefaultHeatCapacityFreeParameterState as createDefaultParameterStateFromFacade,
   freezeHeatCapacityFreeParametersForCurrentGroup as freezeParametersFromFacade,
@@ -8,6 +9,8 @@ import {
   getHeatCapacityGaugePressureState as getGaugeFromFacade,
   getHeatCapacityFreeParameterLockReason as getParameterLockReasonFromFacade,
   getHeatCapacityStopcockState as getStopcockFromFacade,
+  mergeHeatCapacityFreeRuntimeState as mergeRuntimeFromFacade,
+  resetHeatCapacityFreeRunWorkbenchState as resetFreeRunFromFacade,
   setHeatCapacityFreeParameterSchemeWorkbenchState as setParameterSchemeFromFacade,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -15,10 +18,17 @@ import {
   getHeatCapacityStopcockState,
 } from '../../src/features/workbench/workbenchHeatCapacityInstrumentState.ts';
 import {
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   createDefaultHeatCapacityFreeParameterState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeParameterLockReason,
 } from '../../src/features/workbench/workbenchHeatCapacityFreeParameterState.ts';
+import {
+  resetHeatCapacityFreeRunWorkbenchState,
+} from '../../src/features/workbench/workbenchHeatCapacityFreeRunReset.ts';
+import {
+  mergeHeatCapacityFreeRuntimeState,
+} from '../../src/features/workbench/workbenchHeatCapacityFreeRuntimeState.ts';
 import {
   getActiveHeatCapacityFreeTrialIndex,
 } from '../../src/features/workbench/workbenchHeatCapacityFreeTrialState.ts';
@@ -53,6 +63,22 @@ const trialStateSource = readFileSync(
 );
 const experimentGroupStateSource = readFileSync(
   new URL('../../src/features/workbench/workbenchHeatCapacityFreeExperimentGroupState.ts', import.meta.url),
+  'utf8',
+);
+const freeRuntimeDefaultsSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityRuntimeDefaults.ts', import.meta.url),
+  'utf8',
+);
+const freeRuntimeStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeRuntimeState.ts', import.meta.url),
+  'utf8',
+);
+const freeTraceStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeTraceState.ts', import.meta.url),
+  'utf8',
+);
+const freeRunResetSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityFreeRunReset.ts', import.meta.url),
   'utf8',
 );
 const authoritySource = readFileSync(
@@ -103,6 +129,21 @@ assert.equal(
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   'the compatibility facade should forward the extracted parameter-scheme command',
 );
+assert.equal(
+  applyParameterDraftFromFacade,
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
+  'the compatibility facade should forward the parameter-apply command that resets Free runtime',
+);
+assert.equal(
+  mergeRuntimeFromFacade,
+  mergeHeatCapacityFreeRuntimeState,
+  'the compatibility facade should forward the extracted Free runtime merge API',
+);
+assert.equal(
+  resetFreeRunFromFacade,
+  resetHeatCapacityFreeRunWorkbenchState,
+  'the compatibility facade should forward the extracted Free run-reset API',
+);
 assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityStateTypes\.ts'/,
@@ -148,10 +189,32 @@ assert.doesNotMatch(
   /from '\.\/workbenchState(?:\.ts)?'/,
   'the extracted Free parameter module must not depend back on the compatibility facade',
 );
+for (const [source, moduleName] of [
+  [freeRuntimeDefaultsSource, 'Free runtime defaults'],
+  [freeRuntimeStateSource, 'Free runtime state'],
+  [freeTraceStateSource, 'Free trace state'],
+  [freeRunResetSource, 'Free run reset'],
+] as const) {
+  assert.doesNotMatch(
+    source,
+    /from '\.\/workbenchState(?:\.ts)?'/,
+    `the extracted ${moduleName} module must not depend back on the compatibility facade`,
+  );
+}
 assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityFreeParameterState\.ts'/,
   'the compatibility facade should explicitly forward the extracted Free parameter API',
+);
+assert.match(
+  facadeSource,
+  /from '\.\/workbenchHeatCapacityFreeRunReset\.ts'/,
+  'the compatibility facade should explicitly forward the extracted Free reset API',
+);
+assert.match(
+  facadeSource,
+  /from '\.\/workbenchHeatCapacityFreeRuntimeState\.ts'/,
+  'the compatibility facade should explicitly forward the extracted Free runtime merge API',
 );
 assert.match(
   authorityTransactionSource,
@@ -242,7 +305,7 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*参数编辑\/冻结与实验组生命周期的职责拆分已经完成[\s\S]*下一大改动断点是跨模式计算会话与完整运行重置/,
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*Free 运行默认值与完整重置的职责拆分已经完成[\s\S]*下一大改动断点是跨模式计算会话/,
   'the authority table should preserve the next cross-mode coordination breakpoint',
 );
 

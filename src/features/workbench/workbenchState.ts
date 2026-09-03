@@ -58,14 +58,12 @@ import {
 } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
 import {
   applyFreePumpStroke as applyFreeRuntimePumpStroke,
-  createDefaultFreePhysicsState,
   deriveFreePhysicalState,
   stepFreePhysics,
   type HeatCapacityFreePhysicsConfig,
   type HeatCapacityFreePhysicsState,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
 import {
-  createDefaultFreeSensorState,
   createSeededFreePressureInitialBiasMv,
   getFreeSensorDisplay,
   stepFreeSensor,
@@ -110,7 +108,6 @@ import {
 import {
   allocateHeatCapacityFreeTrialIdentity,
   completeHeatCapacityFreeBatchExperiment,
-  createEmptyHeatCapacityFreeBatchState,
   deriveHeatCapacityFreeBatchProgress,
   isHeatCapacityFreeBatchLocked,
   shouldStartHeatCapacityFreeBatchCalculation,
@@ -121,7 +118,6 @@ import {
   beginHeatCapacityFreeRealGroupCalculation,
   completeHeatCapacityFreeIdealExperimentGroupCalculation,
   completeHeatCapacityFreeRealExperimentGroup,
-  createEmptyHeatCapacityFreeExperimentGroupCollection,
   restartCurrentHeatCapacityFreeExperimentGroup,
   selectCurrentHeatCapacityFreeExperimentGroup,
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
@@ -133,7 +129,6 @@ import {
   createHeatCapacityFreeAttempt,
   deriveHeatCapacityFreeAttemptWaitTimer,
   evaluateHeatCapacityFreeAttemptPowerOffTimeout,
-  HEAT_CAPACITY_FREE_WAIT_SPEED_OPTIONS,
   setHeatCapacityFreeAttemptInvalidPromptDismissed,
   setHeatCapacityFreeAttemptPower,
   transitionHeatCapacityFreeAttempt,
@@ -158,8 +153,6 @@ import {
   appendFreeTraceEvent,
   appendFreeTraceSample,
   compactFreeTraceBranch,
-  compactFreeTraceStore,
-  createDefaultFreeTraceStore,
   createFreeTraceTrial,
   getFreeTraceTrialBranchCount,
   HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S,
@@ -175,7 +168,6 @@ import {
 } from './workbenchHeatCapacityFreeConfigSnapshot.ts';
 import {
   DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-  normalizeHeatCapacityFreePhysicsConfig,
   normalizeHeatCapacityFreeSensorConfig,
 } from './workbenchHeatCapacityFreeRuntimeConfig.ts';
 import {
@@ -223,14 +215,9 @@ import {
   truncateHeatCapacitySignalMv,
 } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 import {
-  applyHeatCapacityFreeParameterDraftToConfigs,
-  createHeatCapacityFreeParameterDraftFromConfigs,
   getHeatCapacityFreeIdealTheoreticalGamma,
   getEffectiveHeatCapacityFreeSensorConfig,
   normalizeHeatCapacityFreeParameterDraft,
-  type HeatCapacityFreeGasType,
-  type HeatCapacityFreeParameterApplyResult,
-  type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import {
   createHeatCapacityFreeIdealStagePhysicsConfig,
@@ -238,15 +225,12 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeIdealParameterProfile.ts';
 import {
   applyGuidePumpStroke,
-  createDefaultGuidePhysicsConfig,
-  createDefaultGuidePhysicsState,
   deriveGuidePhysicalState,
   stepGuidePhysicsState,
   type HeatCapacityGuidePhysicsConfig,
   type HeatCapacityGuidePhysicsState,
 } from '../../domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts';
 import {
-  createDefaultHeatCapacityGuideWorkflow,
   HEAT_CAPACITY_GUIDE_PUMP_TARGET_MV,
   getHeatCapacityGuideActionGuard,
   transitionHeatCapacityGuideWorkflow,
@@ -278,14 +262,10 @@ import type {
   WorkbenchHeatCapacityPistonOscillationState,
 } from './workbenchPistonOscillationState.ts';
 import type {
-  HeatCapacityFreeExperimentDomainState,
-  HeatCapacityFreeFileAcknowledgements,
   HeatCapacityFreeFileNoticeKey,
   HeatCapacityFreeParameterScheme,
   HeatCapacityFreeRollbackSnapshot,
-  HeatCapacityFreeRollbackSnapshots,
   HeatCapacityFreeWorkflowStage,
-  WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
   WorkbenchHeatCapacityPressureZeroAdjustMode,
   WorkbenchHeatCapacityState,
 } from './workbenchHeatCapacityStateTypes.ts';
@@ -312,8 +292,6 @@ import {
 import {
   applyHeatCapacityFreeParameterDraftConfigWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
-  createDefaultHeatCapacityFreeParameterState,
-  createHeatCapacityFreeIdealParameterState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityFreeParameterLockReason,
   getHeatCapacityParameterSidebarBlockReason,
@@ -331,10 +309,31 @@ import {
   isHeatCapacityFreeTrialRecordComplete,
 } from './workbenchHeatCapacityFreeTrialState.ts';
 import {
+  mergeHeatCapacityFreeRuntimeState,
+  synchronizeHeatCapacityPhysicsControlTiming,
+} from './workbenchHeatCapacityFreeRuntimeState.ts';
+import {
+  markHeatCapacityFreeTraceTrialCompleted,
+  removeHeatCapacityFreeTraceTrialFromStore,
+} from './workbenchHeatCapacityFreeTraceState.ts';
+import {
+  HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
+  createDefaultHeatCapacityFreeExperimentDomainState,
+  createDefaultHeatCapacityFreeRuntimeFields,
+  createDefaultHeatCapacityGuideRuntimeFields,
+  normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
+  normalizeHeatCapacityFreeFileAcknowledgements,
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
+import {
+  resetHeatCapacityFreeRunWorkbenchState,
+  resetHeatCapacityFreeRunWorkbenchStateCore,
+} from './workbenchHeatCapacityFreeRunReset.ts';
+import {
   getHeatCapacityFreeBatchProgress,
 } from './workbenchHeatCapacityFreeExperimentGroupState.ts';
 
 export {
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   canOpenHeatCapacityParameterSidebar,
   createDefaultHeatCapacityFreeParameterState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
@@ -344,12 +343,29 @@ export {
   isHeatCapacityFreeExperimentGroupComplete,
   isHeatCapacityFreeGasTypeEditingAvailable,
   isHeatCapacityFreeParameterEditingAvailable,
+  resetHeatCapacityFreeParametersToDefaultWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
 } from './workbenchHeatCapacityFreeParameterState.ts';
 export {
   getActiveHeatCapacityFreeTrialIndex,
   getHeatCapacityFreeRecordDisplayTrialIndex,
 } from './workbenchHeatCapacityFreeTrialState.ts';
+export {
+  mergeHeatCapacityFreeRuntimeState,
+} from './workbenchHeatCapacityFreeRuntimeState.ts';
+export {
+  HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
+  HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS,
+  HEAT_CAPACITY_FREE_RUNTIME_VERSION,
+  createDefaultHeatCapacityFreeExperimentDomainState,
+  createDefaultHeatCapacityFreeFileAcknowledgements,
+  createDefaultHeatCapacityFreeRuntimeFields,
+  normalizeHeatCapacityFreeEquilibriumSpeedMultiplier,
+  normalizeHeatCapacityFreeFileAcknowledgements,
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
+export {
+  resetHeatCapacityFreeRunWorkbenchState,
+} from './workbenchHeatCapacityFreeRunReset.ts';
 export {
   abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState,
   configureHeatCapacityFreeBatchWorkbenchState,
@@ -470,21 +486,8 @@ export {
 } from './workbenchHeatCapacityInstrumentState.ts';
 
 export type { WorkbenchFileKind } from './workbenchFileKind.ts';
-export const HEAT_CAPACITY_FREE_RUNTIME_VERSION = 6;
-export const HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS = HEAT_CAPACITY_FREE_WAIT_SPEED_OPTIONS;
-export const HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER:
-  WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier = 8;
 export const HEAT_CAPACITY_FREE_ACCELERATED_SAMPLE_STEP_S = HEAT_CAPACITY_FREE_FAST_PROCESS_SAMPLE_STEP_S;
 const HEAT_CAPACITY_FREE_ACCELERATED_MAX_SEGMENTS = 600;
-export const normalizeHeatCapacityFreeEquilibriumSpeedMultiplier = (
-  value: unknown,
-): WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier => (
-  HEAT_CAPACITY_FREE_EQUILIBRIUM_SPEED_OPTIONS.includes(
-    value as WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier,
-  )
-    ? value as WorkbenchHeatCapacityFreeEquilibriumSpeedMultiplier
-    : HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER
-);
 
 export { HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA };
 const clampNumber = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -689,27 +692,6 @@ export interface WorkbenchValidationResult {
   errors: string[];
 }
 
-export const createDefaultHeatCapacityFreeFileAcknowledgements = (): HeatCapacityFreeFileAcknowledgements => ({
-  advancedParametersRisk: false,
-  idealParameterProfileIntro: false,
-});
-
-const isHeatCapacityFreeAcknowledgementRecord = (value: unknown): value is Record<string, unknown> => (
-  typeof value === 'object' && value !== null
-);
-
-export const normalizeHeatCapacityFreeFileAcknowledgements = (
-  value: unknown,
-): HeatCapacityFreeFileAcknowledgements => {
-  const record = isHeatCapacityFreeAcknowledgementRecord(value) ? value : {};
-  return {
-    advancedParametersRisk:
-      record.advancedParametersRisk === true ||
-      record.advancedRiskAccepted === true,
-    idealParameterProfileIntro: record.idealParameterProfileIntro === true,
-  };
-};
-
 export type WorkbenchFileState =
   | WorkbenchStandardState
   | WorkbenchIdealState
@@ -875,36 +857,6 @@ export interface HeatCapacityFreeRecordButtonState {
   mode: 'record' | 'rerecord';
   disabledReason: HeatCapacityFreeRecordRejectReason | null;
 }
-
-export const applyHeatCapacityFreeParameterDraftWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  draft: HeatCapacityFreeParameterDraft,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  const appliedFile = applyHeatCapacityFreeParameterDraftConfigWorkbenchState(file, draft);
-  return appliedFile === file
-    ? file
-    : resetHeatCapacityFreeRunWorkbenchState(appliedFile, now);
-};
-
-export const resetHeatCapacityFreeParametersToDefaultWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-): WorkbenchHeatCapacityState => {
-  if (!isHeatCapacityFreeParameterEditingAvailable(file)) return file;
-  const defaultParameterState = createDefaultHeatCapacityFreeParameterState();
-  const defaultDraft = createHeatCapacityFreeParameterDraftFromConfigs(
-    defaultParameterState.physicsConfig,
-    defaultParameterState.sensorConfig,
-    defaultParameterState.recordConfig,
-    defaultParameterState.pressureWarningMv,
-    defaultParameterState.instrumentNoiseEnabled,
-  );
-  const resetFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, defaultDraft);
-  return {
-    ...resetFile,
-    hardSphereViewEnabled: HEAT_CAPACITY_FREE_DEFAULT_HARD_SPHERE_VIEW_ENABLED,
-  };
-};
 
 export const acknowledgeHeatCapacityFreeFileNoticeWorkbenchState = (
   file: WorkbenchHeatCapacityState,
@@ -1180,203 +1132,6 @@ const mergeHeatCapacityRuntimeState = (
       temperature: roundNumber(runtime.gasTemperatureK, 3),
       pressure: roundNumber(runtime.gasPressureKPaAbs, 3),
       phase: getStatsPhaseForHeatCapacity(file, runtime),
-    },
-    updatedAt: now,
-  };
-};
-
-const getHeatCapacityFreeRuntimePhase = (
-  file: WorkbenchHeatCapacityState,
-  physicsState: HeatCapacityFreePhysicsState,
-): HeatCapacityRuntimePhase => {
-  const stopcockFlowOpen = isHeatCapacityReleaseFlowOpen(file.heatCapacityReleaseState);
-  if (isHeatCapacityMainReleaseFlowOpen(file.heatCapacityReleaseState)) return 'releasing';
-  if (!stopcockFlowOpen && physicsState.releaseStarted) return 'recovering';
-  if (physicsState.pumpStrokeCount > 0 && file.pumpValveOpen) return 'pumping';
-  if (physicsState.pumpStrokeCount > 0) return 'sealedStabilizing';
-  if (stopcockFlowOpen && file.pressureZeroed) return 'zeroed';
-  if (stopcockFlowOpen) return 'readyToZero';
-  return 'readyToPump';
-};
-
-type HeatCapacityValveTimingPhysicsState = Pick<
-  HeatCapacityFreePhysicsState,
-  | 'simulationTimeS'
-  | 'lastPumpValveOpenedAtS'
-  | 'lastPumpValveClosedAtS'
-  | 'currentPumpValveOpenDurationS'
-  | 'lastStopcockOpenedAtS'
-  | 'lastStopcockClosedAtS'
-  | 'currentStopcockOpenDurationS'
->;
-
-const isHeatCapacityPhysicsValveTimingOpen = (
-  openedAtS: number | null,
-  closedAtS: number | null,
-) => openedAtS !== null && (closedAtS === null || openedAtS >= closedAtS);
-
-const synchronizeHeatCapacityPhysicsControlTiming = <State extends HeatCapacityValveTimingPhysicsState>(
-  state: State,
-  pumpValveOpen: boolean,
-  stopcockFlowOpen: boolean,
-): State => {
-  const pumpTimingOpen = isHeatCapacityPhysicsValveTimingOpen(
-    state.lastPumpValveOpenedAtS,
-    state.lastPumpValveClosedAtS,
-  );
-  const stopcockTimingOpen = isHeatCapacityPhysicsValveTimingOpen(
-    state.lastStopcockOpenedAtS,
-    state.lastStopcockClosedAtS,
-  );
-  return {
-    ...state,
-    lastPumpValveOpenedAtS: pumpValveOpen && !pumpTimingOpen
-      ? state.simulationTimeS
-      : state.lastPumpValveOpenedAtS,
-    lastPumpValveClosedAtS: pumpValveOpen
-      ? null
-      : pumpTimingOpen
-        ? state.simulationTimeS
-        : state.lastPumpValveClosedAtS,
-    currentPumpValveOpenDurationS: pumpValveOpen
-      ? pumpTimingOpen
-        ? state.currentPumpValveOpenDurationS
-        : 0
-      : 0,
-    lastStopcockOpenedAtS: stopcockFlowOpen && !stopcockTimingOpen
-      ? state.simulationTimeS
-      : state.lastStopcockOpenedAtS,
-    lastStopcockClosedAtS: stopcockFlowOpen
-      ? null
-      : stopcockTimingOpen
-        ? state.simulationTimeS
-        : state.lastStopcockClosedAtS,
-    currentStopcockOpenDurationS: stopcockFlowOpen
-      ? stopcockTimingOpen
-        ? state.currentStopcockOpenDurationS
-        : 0
-      : 0,
-  };
-};
-
-export const mergeHeatCapacityFreeRuntimeState = (
-  file: WorkbenchHeatCapacityState,
-  physicsState: HeatCapacityFreePhysicsState,
-  sensorState: HeatCapacityFreeSensorState,
-  calibrationState: HeatCapacityFreeCalibrationState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  physicsState = synchronizeHeatCapacityPhysicsControlTiming(
-    physicsState,
-    file.pumpValveOpen,
-    isHeatCapacityReleaseFlowOpen(file.heatCapacityReleaseState),
-  );
-  const derived = deriveFreePhysicalState(physicsState, file.heatCapacityFreeInstrumentConfig.physics);
-  const sensorConfig = normalizeHeatCapacityFreeSensorConfig(file.heatCapacityFreeInstrumentConfig.sensor);
-  const effectiveSensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
-    sensorConfig,
-    file.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
-  );
-  const display = getFreeSensorDisplay(
-    sensorState,
-    calibrationState,
-    effectiveSensorConfig,
-  );
-  const powerOn = file.powerOn;
-  const pressureSignalMv = powerOn ? truncateHeatCapacitySignalMv(display.displayPressureMv) : null;
-  const temperatureSignalMv = powerOn ? truncateHeatCapacitySignalMv(display.displayTemperatureMv) : null;
-  const pressureZeroDisplayedSamples = updatePressureZeroDisplayedSamples(
-    file.pressureZeroDisplayedSamples,
-    now,
-    pressureSignalMv,
-    powerOn,
-  );
-  const hasExplicitZeroEvent = calibrationState.zeroEvents.length > 0;
-  const pressureZeroed = powerOn &&
-    hasExplicitZeroEvent &&
-    isHeatCapacityPressureZeroWithinTolerance(pressureZeroDisplayedSamples);
-  const gaugePressureState = getHeatCapacityGaugePressureState(
-    derived.pressureDeltaKPa,
-    powerOn,
-    file,
-  );
-  const heatCapacityPhase = getHeatCapacityFreeRuntimePhase(
-    {
-      ...file,
-      pressureZeroed,
-    },
-    physicsState,
-  );
-
-  return {
-    ...file,
-    heatCapacityFreeInstrumentConfig: {
-      ...file.heatCapacityFreeInstrumentConfig,
-      sensor: sensorConfig,
-    },
-    heatCapacityFreeInstrumentState: {
-      physics: physicsState,
-      sensor: sensorState,
-      calibration: calibrationState,
-    },
-    ambientPressureKPa: file.heatCapacityFreeInstrumentConfig.environment.ambientPressureKPa,
-    ambientTemperatureK: file.heatCapacityFreeInstrumentConfig.environment.ambientTemperatureK,
-    gasPressureKPaAbs: roundNumber(derived.gasPressureKPa, 4),
-    gasTemperatureK: roundNumber(physicsState.gasTemperatureK, 4),
-    sensorTemperatureK: roundNumber(
-      Number.isFinite(sensorState.sensorTemperatureK)
-        ? sensorState.sensorTemperatureK as number
-        : physicsState.gasTemperatureK,
-      4,
-    ),
-    pressureDeltaKPa: roundNumber(derived.pressureDeltaKPa, 4),
-    simulationTimeS: roundNumber(physicsState.simulationTimeS, 4),
-    lastUpdateMs: now,
-    pressureSignalMvRaw: roundNumber(sensorState.displayPressureMv, 4),
-    pressureSignalMvDisplayed: roundNumber(display.displayPressureMv, 4),
-    pressureInitialBiasMv: roundNumber(sensorState.pressureInitialBiasMv, 3),
-    temperatureSignalTargetMv: roundNumber(display.displayTemperatureMv, 4),
-    pressureSignalTargetMv: roundNumber(display.displayPressureMv, 4),
-    displayResponseLastUpdateMs: now,
-    pressureZeroDisplayedSamples,
-    pressureDisplayJitterOffset: 0,
-    pressureDisplayNextJitterAtMs: now,
-    temperatureDisplayJitterOffset: 0,
-    temperatureDisplayNextJitterAtMs: now,
-    pressureSignalRawReadoutMv: roundNumber(sensorState.displayPressureMv, 2),
-    pressureSignalReadoutMv: roundNumber(display.displayPressureMv, 2),
-    pressureGaugeTargetValue: gaugePressureState.pressureGaugeTargetValue,
-    pressureGaugeDisplayValue: gaugePressureState.pressureGaugeDisplayValue,
-    pressureGaugeNeedleAngle: gaugePressureState.pressureGaugeNeedleAngle,
-    gaugePressureMinKPa: gaugePressureState.gaugePressureMinKPa,
-    gaugePressureMaxKPa: gaugePressureState.gaugePressureMaxKPa,
-    pressureWarningThresholdKPa: gaugePressureState.pressureWarningThresholdKPa,
-    pressureSafeThresholdKPa: gaugePressureState.pressureSafeThresholdKPa,
-    pressureSafetyThresholdKPa: gaugePressureState.pressureSafetyThresholdKPa,
-    pressureSafetyStatus: gaugePressureState.pressureSafetyStatus,
-    pressureSafetyMessage: gaugePressureState.pressureSafetyMessage,
-    pressureBlockedPumping: gaugePressureState.pressureBlockedPumping,
-    pressureOverLimit: gaugePressureState.pressureOverLimit,
-    pressureZeroOffset: roundNumber(calibrationState.zeroOffsetMv, 3),
-    releaseRecoveryTargetDeltaKPa: null,
-    pressureZeroMvPerTurn: HEAT_CAPACITY_PRESSURE_ZERO_MV_PER_TURN,
-    pressureZeroed,
-    temperatureSignalMv,
-    pressureSignalMv,
-    pressureKPa: powerOn ? roundNumber(derived.gasPressureKPa, 2) : null,
-    visualizationMode: 'particle',
-    calculationModel: 'airHeatCapacityRatio',
-    pressureSensitivityMvPerKPa: sensorConfig.pressureMvPerKPa,
-    vesselPressureReadoutKPa: roundNumber(derived.gasPressureKPa, 2),
-    vesselTemperatureReadoutK: roundNumber(physicsState.gasTemperatureK, 3),
-    heatCapacityPhase,
-    heatCapacityProcessSamples: file.heatCapacityProcessSamples,
-    stats: {
-      ...file.stats,
-      time: roundNumber(physicsState.simulationTimeS, 3),
-      temperature: roundNumber(physicsState.gasTemperatureK, 3),
-      pressure: roundNumber(derived.gasPressureKPa, 3),
-      phase: file.runState === 'running' ? 'collecting' : 'idle',
     },
     updatedAt: now,
   };
@@ -1687,21 +1442,6 @@ const recordHeatCapacityFreeSafetyTransitionEvents = (
   return nextFile;
 };
 
-const removeHeatCapacityFreeTraceTrialFromStore = (
-  store: HeatCapacityFreeTraceStore,
-  traceTrialId: string | null,
-): HeatCapacityFreeTraceStore => {
-  if (!traceTrialId) return store;
-  const traceTrials = store.traceTrials.filter((traceTrial) => traceTrial.id !== traceTrialId);
-  return {
-    ...store,
-    activeTraceTrialId: traceTrials.some((traceTrial) => traceTrial.id === store.activeTraceTrialId)
-      ? store.activeTraceTrialId
-      : null,
-    traceTrials,
-  };
-};
-
 const syncFreeTrialBranchReference = (
   trials: HeatCapacityFreeTrial[],
   trialIndex: number,
@@ -1779,22 +1519,6 @@ const stampLatestCompletedHeatCapacityFreeTrial = (
       )),
     },
   };
-};
-
-const markHeatCapacityFreeTraceTrialCompleted = (
-  store: HeatCapacityFreeTraceStore,
-  traceTrialId: string | null,
-  linkedTrialId: string,
-): HeatCapacityFreeTraceStore => {
-  if (!traceTrialId) return store;
-  return compactFreeTraceStore({
-    ...store,
-    traceTrials: store.traceTrials.map((traceTrial) => (
-      traceTrial.id === traceTrialId
-        ? { ...traceTrial, linkedTrialId, status: 'completed' }
-        : traceTrial
-    )),
-  });
 };
 
 const finalizeCompletedHeatCapacityFreeExperimentGroupWorkbenchState = (
@@ -2268,92 +1992,6 @@ export const removeHeatCapacityFreeTrialRecordWorkbenchState = (
     nextStoredFile,
     nextStoredFile.heatCapacityFreeParameterScheme,
   );
-};
-
-const resolveHeatCapacityFreeResetStructure = (
-  file: WorkbenchHeatCapacityState,
-) => {
-  const lastTrial = file.heatCapacityFreeRunWorkspace.trials[file.heatCapacityFreeRunWorkspace.trials.length - 1] ?? null;
-  const activeTraceTrialId = file.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId;
-  if (file.heatCapacityFreeRunWorkspace.activeAttempt?.status === 'invalid') {
-    const traceTrialIds = new Set(
-      [lastTrial?.traceTrialId ?? null, activeTraceTrialId]
-        .filter((id): id is string => typeof id === 'string'),
-    );
-    let traceStore = file.heatCapacityFreeRunWorkspace.traceStore;
-    for (const traceTrialId of traceTrialIds) {
-      traceStore = removeHeatCapacityFreeTraceTrialFromStore(traceStore, traceTrialId);
-    }
-    return {
-      trials: lastTrial?.completedAtMs === null
-        ? file.heatCapacityFreeRunWorkspace.trials.slice(0, -1)
-        : file.heatCapacityFreeRunWorkspace.trials,
-      traceStore,
-    };
-  }
-  if (!lastTrial) {
-    return {
-      trials: file.heatCapacityFreeRunWorkspace.trials,
-      traceStore: removeHeatCapacityFreeTraceTrialFromStore(
-        file.heatCapacityFreeRunWorkspace.traceStore,
-        activeTraceTrialId,
-      ),
-    };
-  }
-
-  if (
-    isHeatCapacityFreeTrialComplete(lastTrial) &&
-    (
-      !file.powerOn ||
-      file.heatCapacityFreeRunWorkspace.currentExperimentStatus !== 'completed'
-    )
-  ) {
-    let traceStore = markHeatCapacityFreeTraceTrialCompleted(
-      file.heatCapacityFreeRunWorkspace.traceStore,
-      lastTrial.traceTrialId,
-      lastTrial.id,
-    );
-    traceStore = activeTraceTrialId && activeTraceTrialId !== lastTrial.traceTrialId
-      ? removeHeatCapacityFreeTraceTrialFromStore(traceStore, activeTraceTrialId)
-      : { ...traceStore, activeTraceTrialId: null };
-    return {
-      trials: file.heatCapacityFreeRunWorkspace.trials,
-      traceStore,
-    };
-  }
-
-  const activeTrialIndex = getActiveHeatCapacityFreeTrialIndex(file);
-  const activeTrial = activeTrialIndex >= 0 ? file.heatCapacityFreeRunWorkspace.trials[activeTrialIndex] ?? null : null;
-  if (activeTrial && (hasHeatCapacityFreeTrialProgress(activeTrial) || activeTraceTrialId !== null)) {
-    const traceTrialIds = new Set(
-      [activeTrial.traceTrialId, activeTraceTrialId].filter((id): id is string => typeof id === 'string'),
-    );
-    let traceStore = file.heatCapacityFreeRunWorkspace.traceStore;
-    for (const traceTrialId of traceTrialIds) {
-      traceStore = removeHeatCapacityFreeTraceTrialFromStore(traceStore, traceTrialId);
-    }
-    return {
-      trials: activeTrialIndex >= 0
-        ? file.heatCapacityFreeRunWorkspace.trials.filter((_, index) => index !== activeTrialIndex)
-        : file.heatCapacityFreeRunWorkspace.trials.slice(0, -1),
-      traceStore,
-    };
-  }
-
-  if (activeTraceTrialId !== null) {
-    return {
-      trials: file.heatCapacityFreeRunWorkspace.trials,
-      traceStore: removeHeatCapacityFreeTraceTrialFromStore(
-        file.heatCapacityFreeRunWorkspace.traceStore,
-        activeTraceTrialId,
-      ),
-    };
-  }
-
-  return {
-    trials: file.heatCapacityFreeRunWorkspace.trials,
-    traceStore: file.heatCapacityFreeRunWorkspace.traceStore,
-  };
 };
 
 export const isHeatCapacityFreeEquilibriumSpeedAvailable = (
@@ -4560,107 +4198,6 @@ export const normalizeHeatCapacityFileName = (name: string) => {
   return match ? `Adiabatic Expansion - ${match[1]}` : name;
 };
 
-const createDefaultHeatCapacityFreeCalibrationState = (): HeatCapacityFreeCalibrationState => ({
-  calibrationVersion: 0,
-  zeroOffsetMv: 0,
-  zeroEvents: [],
-  automaticU0: null,
-});
-
-const createDefaultHeatCapacityFreeRollbackSnapshots = (): HeatCapacityFreeRollbackSnapshots => ({
-  afterPowerOn: null,
-  beforePump: null,
-  beforeRelease: null,
-});
-
-export const createDefaultHeatCapacityFreeRuntimeFields = (
-  seed: number | string = 'free-runtime',
-  parameterState: HeatCapacityFreeParameterApplyResult = createDefaultHeatCapacityFreeParameterState(),
-  pressureInitialBiasOverrideMv?: number,
-) => {
-  const physicsConfig = normalizeHeatCapacityFreePhysicsConfig(parameterState.physicsConfig);
-  const sensorConfig = normalizeHeatCapacityFreeSensorConfig(parameterState.sensorConfig);
-  const recordConfig = { ...parameterState.recordConfig };
-  const pressureInitialBiasMv = typeof pressureInitialBiasOverrideMv === 'number' &&
-    Number.isFinite(pressureInitialBiasOverrideMv)
-    ? pressureInitialBiasOverrideMv
-    : createSeededFreePressureInitialBiasMv(
-        seed,
-        HEAT_CAPACITY_PRESSURE_ZERO_RANGE_MV,
-      );
-  return {
-    heatCapacityFreeRuntimeVersion: HEAT_CAPACITY_FREE_RUNTIME_VERSION,
-    heatCapacityFreeRunWorkspace: {
-      batch: createEmptyHeatCapacityFreeBatchState(),
-      traceStore: createDefaultFreeTraceStore(),
-      trials: [],
-      activeAttempt: null as HeatCapacityFreeAttempt | null,
-      currentExperimentStatus: 'draft' as const,
-    },
-    heatCapacityFreeFileAcknowledgements: createDefaultHeatCapacityFreeFileAcknowledgements(),
-    heatCapacityFreeParameterScheme: 'real' as const,
-    heatCapacityFreeDisplayScheme: 'real' as const,
-    heatCapacityFreeExperimentGroups: createEmptyHeatCapacityFreeExperimentGroupCollection(),
-    heatCapacityFreeInstrumentConfig: {
-      record: recordConfig,
-      pressureWarningMv: parameterState.pressureWarningMv,
-      instrumentNoiseEnabled: parameterState.instrumentNoiseEnabled,
-      environment: { ...physicsConfig.environment },
-      physics: physicsConfig,
-      sensor: sensorConfig,
-    },
-    heatCapacityFreeInstrumentState: {
-      physics: createDefaultFreePhysicsState(physicsConfig, seed),
-      sensor: createDefaultFreeSensorState(seed, {
-        pressureMv: pressureInitialBiasMv,
-        pressureInitialBiasMv,
-        temperatureMv: sensorConfig.temperatureMvAtAmbient,
-        sensorTemperatureK: physicsConfig.environment.ambientTemperatureK,
-      }),
-      calibration: createDefaultHeatCapacityFreeCalibrationState(),
-    },
-    heatCapacityReleaseState: createClosedHeatCapacityReleaseState(),
-    heatCapacityFreeEquilibriumSpeedMultiplier: HEAT_CAPACITY_FREE_DEFAULT_EQUILIBRIUM_SPEED_MULTIPLIER,
-    heatCapacityFreeRollbackSnapshots: createDefaultHeatCapacityFreeRollbackSnapshots(),
-  };
-};
-
-export const createDefaultHeatCapacityFreeExperimentDomainState = (
-  scheme: HeatCapacityFreeParameterScheme,
-  seed: number | string = `${scheme}-free-runtime`,
-  gasType: HeatCapacityFreeGasType = 'air',
-): HeatCapacityFreeExperimentDomainState => {
-  const parameterState = scheme === 'ideal'
-    ? createHeatCapacityFreeIdealParameterState(gasType)
-    : createDefaultHeatCapacityFreeParameterState();
-  const fields = createDefaultHeatCapacityFreeRuntimeFields(
-    seed,
-    parameterState,
-    scheme === 'ideal' ? 0 : undefined,
-  );
-  return {
-    scheme,
-    gasType: parameterState.gasType,
-    batch: fields.heatCapacityFreeRunWorkspace.batch,
-    experimentGroupStatus: fields.heatCapacityFreeRunWorkspace.currentExperimentStatus,
-    activeRunConfigSnapshot: null,
-    recordConfig: fields.heatCapacityFreeInstrumentConfig.record,
-    pressureWarningMv: fields.heatCapacityFreeInstrumentConfig.pressureWarningMv,
-    instrumentNoiseEnabled: fields.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled,
-    environmentConfig: fields.heatCapacityFreeInstrumentConfig.environment,
-    physicsConfig: fields.heatCapacityFreeInstrumentConfig.physics,
-    physicsState: fields.heatCapacityFreeInstrumentState.physics,
-    sensorConfig: fields.heatCapacityFreeInstrumentConfig.sensor,
-    sensorState: fields.heatCapacityFreeInstrumentState.sensor,
-    calibrationState: fields.heatCapacityFreeInstrumentState.calibration,
-    releaseState: { ...fields.heatCapacityReleaseState },
-    rollbackSnapshots: fields.heatCapacityFreeRollbackSnapshots,
-    traceStore: createDefaultFreeTraceStore(),
-    trials: [],
-    activeAttempt: null,
-  };
-};
-
 const loadActiveHeatCapacityFreeDomainRuntimeFields = (
   file: WorkbenchHeatCapacityState,
 ): WorkbenchHeatCapacityState => {
@@ -4902,20 +4439,6 @@ export const completeHeatCapacityCalculationWorkflowWorkbenchState = (
   return { ...transactedFile, updatedAt: now };
 };
 
-const createDefaultHeatCapacityGuideRuntimeFields = () => {
-  const heatCapacityGuidePhysicsConfig = createDefaultGuidePhysicsConfig();
-  return {
-    heatCapacityGuidePhysicsConfig,
-    heatCapacityGuidePhysicsState: createDefaultGuidePhysicsState(heatCapacityGuidePhysicsConfig),
-    heatCapacityGuideTemperatureSensorState: createHeatCapacityTemperatureSensorState(
-      heatCapacityGuidePhysicsConfig.environment.ambientTemperatureK,
-    ),
-    heatCapacityGuideWorkflow: createDefaultHeatCapacityGuideWorkflow(),
-    heatCapacityGuideTrial: null,
-    heatCapacityGuideCalculationSession: null,
-  };
-};
-
 export const createDefaultHeatCapacityFile = (
   index = 1,
   defaults?: WorkbenchFileLayoutDefaults,
@@ -5152,145 +4675,6 @@ export const enterHeatCapacityFreeModeWorkbenchState = (
 ): WorkbenchHeatCapacityState => {
   const resetFile = resetHeatCapacityFreeRunWorkbenchState(file, now);
   return recordHeatCapacityFreeTraceEvent(resetFile, 'enter-free-mode', now);
-};
-
-const resetHeatCapacityFreeRunWorkbenchStateCore = (
-  file: WorkbenchHeatCapacityState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  const appliedDraft = selectHeatCapacityFreeAppliedParameterDraft(file);
-  const parameterState = file.heatCapacityFreeParameterScheme === 'ideal'
-    ? createHeatCapacityFreeIdealParameterState(selectHeatCapacityFreeGasType(file))
-    : applyHeatCapacityFreeParameterDraftToConfigs(
-        normalizeHeatCapacityFreeParameterDraft(appliedDraft, appliedDraft),
-      );
-  const generatedFreeRuntimeFields = createDefaultHeatCapacityFreeRuntimeFields(
-    `free-runtime-${file.id}-${now}`,
-    parameterState,
-    file.heatCapacityFreeParameterScheme === 'ideal' ? 0 : undefined,
-  );
-  const preservedSensorBiasMv = file.heatCapacityFreeParameterScheme === 'ideal'
-    ? 0
-    : Number.isFinite(file.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv)
-    ? file.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv
-    : generatedFreeRuntimeFields.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv;
-  const preservedSensorSeed = file.heatCapacityFreeInstrumentState.sensor.seed ?? `free-runtime-${file.id}`;
-  const freeRuntimeFields = {
-    ...generatedFreeRuntimeFields,
-    heatCapacityFreeInstrumentState: {
-      ...generatedFreeRuntimeFields.heatCapacityFreeInstrumentState,
-      sensor: createDefaultFreeSensorState(
-        preservedSensorSeed,
-        {
-          pressureMv: preservedSensorBiasMv,
-          pressureInitialBiasMv: preservedSensorBiasMv,
-          temperatureMv: generatedFreeRuntimeFields.heatCapacityFreeInstrumentConfig.sensor.temperatureMvAtAmbient,
-          sensorTemperatureK:
-            generatedFreeRuntimeFields.heatCapacityFreeInstrumentConfig.physics.environment.ambientTemperatureK,
-        },
-      ),
-    },
-  };
-  const guideRuntimeFields = createDefaultHeatCapacityGuideRuntimeFields();
-  const resetStructure = resolveHeatCapacityFreeResetStructure(file);
-  const resetFile = mergeHeatCapacityFreeRuntimeState(
-    {
-      ...file,
-      ...freeRuntimeFields,
-      ...guideRuntimeFields,
-      heatCapacityFreeRunWorkspace: {
-        ...freeRuntimeFields.heatCapacityFreeRunWorkspace,
-        traceStore: resetStructure.traceStore,
-        trials: resetStructure.trials,
-      },
-      heatCapacityFreeFileAcknowledgements: file.heatCapacityFreeFileAcknowledgements,
-      heatCapacityMode: 'free',
-      heatCapacityTeachingStatus: 'idle',
-      powerOn: false,
-      runState: 'idle',
-      heatCapacityPhase: 'powerOff',
-      glassPistonState: 'closed',
-      stopcockAngleDeg: HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG,
-      pressureZeroed: false,
-      pressureZeroAdjusted: false,
-      pressureZeroKnobAngle: 0,
-      pressureZeroOffset: 0,
-      pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
-      pressureZeroAdjustMode: 'none',
-      pressureZeroDisplayedSamples: [],
-      pumpValveOpen: false,
-      pumpValveState: 'closed',
-      pumpBulbState: 'idle',
-      pumpStrokeTimestamps: [],
-      pumpFrequency: 0,
-      pumpFrequencyStatus: 'idle',
-      lastPumpTime: null,
-      pumpStrokeCount: 0,
-      pumpHint: '未打气',
-      heatCapacityProcessSamples: {},
-      updatedAt: now,
-    },
-    freeRuntimeFields.heatCapacityFreeInstrumentState.physics,
-    freeRuntimeFields.heatCapacityFreeInstrumentState.sensor,
-    freeRuntimeFields.heatCapacityFreeInstrumentState.calibration,
-    now,
-  );
-  return {
-    ...resetFile,
-    lastUpdateMs: null,
-    displayResponseLastUpdateMs: null,
-    heatCapacityPhase: 'powerOff',
-    pressureZeroed: false,
-    pressureZeroAdjusted: false,
-    pressureZeroKnobAngle: 0,
-    pressureZeroOffset: 0,
-    pressureZeroDisplayText: getHeatCapacityPressureZeroDisplayText(false, 0),
-    pressureZeroAdjustMode: 'none',
-    pressureZeroDisplayedSamples: [],
-    pumpValveOpen: false,
-    pumpValveState: 'closed',
-    pumpBulbState: 'idle',
-    pumpStrokeTimestamps: [],
-    pumpFrequency: 0,
-    pumpFrequencyStatus: 'idle',
-    lastPumpTime: null,
-    pumpStrokeCount: 0,
-    pumpHint: '未打气',
-    heatCapacityReleaseState: createClosedHeatCapacityReleaseState(
-      freeRuntimeFields.heatCapacityFreeInstrumentState.physics.simulationTimeS,
-    ),
-    heatCapacityFreeRunWorkspace: {
-      ...resetFile.heatCapacityFreeRunWorkspace,
-      traceStore: resetStructure.traceStore,
-      trials: resetStructure.trials,
-    },
-    heatCapacityProcessSamples: {},
-    updatedAt: now,
-  };
-};
-
-export const resetHeatCapacityFreeRunWorkbenchState = (
-  file: WorkbenchHeatCapacityState,
-  now = Date.now(),
-): WorkbenchHeatCapacityState => {
-  if (file.heatCapacityMode !== 'free') {
-    return resetHeatCapacityFreeRunWorkbenchStateCore(file, now);
-  }
-  const scheme = file.heatCapacityFreeParameterScheme;
-  const hydratedFile = loadActiveHeatCapacityFreeDomainRuntimeFields(file);
-  const nextFile = resetHeatCapacityFreeRunWorkbenchStateCore(hydratedFile, now);
-  return storeActiveHeatCapacityFreeDomainRuntimeFields(
-    {
-      ...nextFile,
-      heatCapacityFreeRunWorkspace: {
-        ...nextFile.heatCapacityFreeRunWorkspace,
-        batch: hydratedFile.heatCapacityFreeRunWorkspace.batch,
-      },
-      heatCapacityFreeParameterScheme: scheme,
-      heatCapacityFreeDisplayScheme: scheme,
-    },
-    scheme,
-  );
 };
 
 const discardCurrentHeatCapacityFreeExperimentRuntime = (

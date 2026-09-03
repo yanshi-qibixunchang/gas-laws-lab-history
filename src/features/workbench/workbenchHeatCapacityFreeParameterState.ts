@@ -1,7 +1,4 @@
 import {
-  createDefaultHeatCapacityFreeRecordConfig,
-} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
-import {
   isHeatCapacityFreeBatchLocked,
   startHeatCapacityFreeBatch,
 } from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
@@ -10,25 +7,17 @@ import {
   startHeatCapacityFreeExperimentGroup,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
-  createHeatCapacityFreeIdealEffectiveConfigs,
-} from '../../domain/heatCapacity/heatCapacityFreeIdealParameterProfile.ts';
-import {
   applyHeatCapacityFreeGasTypeModelDefaultsToDraft,
   applyHeatCapacityFreeParameterDraftToConfigs,
   createHeatCapacityFreeParameterDraftFromConfigs,
   getHeatCapacityFreeIdealTheoreticalGamma,
   normalizeHeatCapacityFreeGasType,
   normalizeHeatCapacityFreeParameterDraft,
-  type HeatCapacityFreeGasType,
-  type HeatCapacityFreeParameterApplyResult,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
   HeatCapacityFreeParameterLockReasonId,
 } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
-import {
-  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
-} from './workbenchHeatCapacityInstrumentState.ts';
 import {
   commitHeatCapacityFreeRuntimeAuthorityTransaction,
   selectActiveHeatCapacityFreeDomain,
@@ -40,10 +29,12 @@ import {
   createHeatCapacityFreeRuntimeConfigSnapshotFromFile,
 } from './workbenchHeatCapacityFreeConfigSnapshot.ts';
 import {
-  DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
-  DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-  normalizeHeatCapacityFreeSensorConfig,
-} from './workbenchHeatCapacityFreeRuntimeConfig.ts';
+  createDefaultHeatCapacityFreeParameterState,
+  createHeatCapacityFreeIdealParameterState,
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
+import {
+  resetHeatCapacityFreeRunWorkbenchState,
+} from './workbenchHeatCapacityFreeRunReset.ts';
 import type {
   WorkbenchHeatCapacityState,
 } from './workbenchHeatCapacityStateTypes.ts';
@@ -51,6 +42,8 @@ import type {
 type WorkbenchFileCandidate = (
   { kind: string } & Partial<Omit<WorkbenchHeatCapacityState, 'kind'>>
 ) | null;
+
+const HEAT_CAPACITY_FREE_DEFAULT_HARD_SPHERE_VIEW_ENABLED = false;
 
 const asHeatCapacityFile = (
   file: WorkbenchFileCandidate,
@@ -60,32 +53,10 @@ const asHeatCapacityFile = (
     : null
 );
 
-export const createDefaultHeatCapacityFreeParameterState = (): HeatCapacityFreeParameterApplyResult => {
-  const recordConfig = createDefaultHeatCapacityFreeRecordConfig();
-  const draft = createHeatCapacityFreeParameterDraftFromConfigs(
-    DEFAULT_HEAT_CAPACITY_FREE_PHYSICS_CONFIG,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG,
-    recordConfig,
-    HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
-    DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.noiseMv > 0,
-  );
-  return applyHeatCapacityFreeParameterDraftToConfigs(draft);
-};
-
-export const createHeatCapacityFreeIdealParameterState = (
-  gasType: HeatCapacityFreeGasType = 'air',
-): HeatCapacityFreeParameterApplyResult => {
-  const ideal = createHeatCapacityFreeIdealEffectiveConfigs('thermalEquilibrium', gasType);
-  return {
-    environmentConfig: { ...ideal.environment },
-    physicsConfig: ideal.physics,
-    sensorConfig: normalizeHeatCapacityFreeSensorConfig(ideal.sensor),
-    recordConfig: ideal.record,
-    pressureWarningMv: ideal.pressureWarningMv,
-    instrumentNoiseEnabled: ideal.instrumentNoiseEnabled,
-    gasType,
-  };
-};
+export {
+  createDefaultHeatCapacityFreeParameterState,
+  createHeatCapacityFreeIdealParameterState,
+} from './workbenchHeatCapacityRuntimeDefaults.ts';
 
 export const hasCompletedHeatCapacityFreeRecordSet = (
   file: WorkbenchFileCandidate,
@@ -253,6 +224,36 @@ export const applyHeatCapacityFreeParameterDraftConfigWorkbenchState = (
     },
     theoreticalGamma,
   }, parameterState.gasType);
+};
+
+export const applyHeatCapacityFreeParameterDraftWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  draft: HeatCapacityFreeParameterDraft,
+  now = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const appliedFile = applyHeatCapacityFreeParameterDraftConfigWorkbenchState(file, draft);
+  return appliedFile === file
+    ? file
+    : resetHeatCapacityFreeRunWorkbenchState(appliedFile, now);
+};
+
+export const resetHeatCapacityFreeParametersToDefaultWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+): WorkbenchHeatCapacityState => {
+  if (!isHeatCapacityFreeParameterEditingAvailable(file)) return file;
+  const defaultParameterState = createDefaultHeatCapacityFreeParameterState();
+  const defaultDraft = createHeatCapacityFreeParameterDraftFromConfigs(
+    defaultParameterState.physicsConfig,
+    defaultParameterState.sensorConfig,
+    defaultParameterState.recordConfig,
+    defaultParameterState.pressureWarningMv,
+    defaultParameterState.instrumentNoiseEnabled,
+  );
+  const resetFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, defaultDraft);
+  return {
+    ...resetFile,
+    hardSphereViewEnabled: HEAT_CAPACITY_FREE_DEFAULT_HARD_SPHERE_VIEW_ENABLED,
+  };
 };
 
 export const freezeHeatCapacityFreeParametersForCurrentGroup = (

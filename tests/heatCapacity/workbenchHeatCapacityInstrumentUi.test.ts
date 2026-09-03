@@ -34,6 +34,13 @@ const heatCapacityMaterialsWindowCoordinatorPath = join(process.cwd(), 'src', 'f
 const parameterDialogsPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchHeatCapacityParameterDialogs.tsx');
 const emptyWorkspacePath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchEmptyWorkspace.tsx');
 const statePath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchState.ts');
+const freeRunResetPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityFreeRunReset.ts',
+);
 const stateTypesPath = join(
   process.cwd(),
   'src',
@@ -109,6 +116,7 @@ const modeTypesSource = readFileSync(modeTypesPath, 'utf8');
 const modeControlModelSource = readFileSync(modeControlModelPath, 'utf8');
 const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
+const freeRunResetSource = readFileSync(freeRunResetPath, 'utf8');
 const stateTypesSource = readFileSync(stateTypesPath, 'utf8');
 const instrumentStateSource = readFileSync(instrumentStatePath, 'utf8');
 const sessionSource = readFileSync(sessionPath, 'utf8');
@@ -828,8 +836,8 @@ assert.match(
   'the instrument should become read-only while a group awaits processing or after that group is completed',
 );
 assert.match(workbenchSource, /const restartHeatCapacityFreeExperiment = \(\) => \{[\s\S]*resetHeatCapacityGroupUiRuntime\(\)/, 'restarting the current experiment should return the 3D preview and transient UI to their initial state');
-assert.match(stateSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*resolveHeatCapacityFreeResetStructure\(file\)[\s\S]*powerOn:\s*false[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG[\s\S]*pumpValveOpen:\s*false[\s\S]*heatCapacityFreeRunWorkspace:[\s\S]*trials:\s*resetStructure\.trials/, 'Free Mode reset should clear the current run and return apparatus controls to their initial state without deleting completed Free groups');
-assert.match(stateSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*pressureZeroed:\s*false[\s\S]*pressureZeroKnobAngle:\s*0/, 'Free Mode reset should reset zeroing and zero-knob state');
+assert.match(freeRunResetSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*resolveHeatCapacityFreeResetStructure\(file\)[\s\S]*powerOn:\s*false[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_CLOSED_ANGLE_DEG[\s\S]*pumpValveOpen:\s*false[\s\S]*heatCapacityFreeRunWorkspace:[\s\S]*trials:\s*resetStructure\.trials/, 'Free Mode reset should clear the current run and return apparatus controls to their initial state without deleting completed Free groups');
+assert.match(freeRunResetSource, /resetHeatCapacityFreeRunWorkbenchStateCore[\s\S]*pressureZeroed:\s*false[\s\S]*pressureZeroKnobAngle:\s*0/, 'Free Mode reset should reset zeroing and zero-knob state');
 assert.doesNotMatch(stateSource, /heatCapacityProcessingCalculated|heatCapacityProcessingResult/, 'Heat Capacity state should not keep legacy standalone processing result flags');
 assert.match(workbenchSource, /heatCapacityResetFeedbackActionId/, 'Guide reset should retain its short visual feedback state');
 assert.match(workbenchSource, /showHeatCapacityResetFeedback\('reset-guide'\)/, 'Guide reset should retain its feedback controller');
