@@ -1,21 +1,24 @@
 import assert from 'node:assert/strict';
 import {
-  completeHeatCapacityCalculationWorkflowWorkbenchState,
   applyHeatCapacityFreeParameterDraftWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
   configureHeatCapacityFreeBatchWorkbenchState,
-  continueHeatCapacityCalculationAnswerWorkbenchState,
   createDefaultHeatCapacityFile,
-  ensureHeatCapacityCalculationSessionWorkbenchState,
   freezeHeatCapacityFreeParametersForCurrentGroup,
-  getHeatCapacityCalculationSession,
-  revealHeatCapacityCalculationAnswerWorkbenchState,
   selectHeatCapacityFreeAppliedParameterDraft,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
+  type WorkbenchHeatCapacityState,
+} from '../../src/features/workbench/workbenchState.ts';
+import {
+  completeHeatCapacityCalculationWorkflowWorkbenchState,
+  continueHeatCapacityCalculationAnswerWorkbenchState,
+  getHeatCapacityCalculationSession,
+  revealHeatCapacityCalculationAnswerWorkbenchState,
+  startHeatCapacityFreeBatchCalculationWorkbenchState,
   submitHeatCapacityCalculationStepWorkbenchState,
   updateHeatCapacityCalculationDraftWorkbenchState,
-} from '../../src/features/workbench/workbenchState.ts';
+} from '../../src/features/workbench/workbenchHeatCapacityCalculationCoordinator.ts';
 import {
   createHeatCapacityGuideTrial,
   recordGuideU0,
@@ -30,14 +33,12 @@ import {
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   allocateHeatCapacityFreeTrialIdentity,
-  completeHeatCapacityFreeBatchExperiment,
 } from '../../src/domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
   formatHeatCapacityCalculationReference,
   HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
 } from '../../src/domain/heatCapacity/heatCapacityCalculationValidation.ts';
 import {
-  beginHeatCapacityFreeIdealGroupCalculation,
   selectCurrentHeatCapacityFreeExperimentGroup,
 } from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 
@@ -165,6 +166,37 @@ assert.equal(getHeatCapacityCalculationSession(guideFile)?.status, 'ready-to-exi
 guideFile = completeHeatCapacityCalculationWorkflowWorkbenchState(guideFile, 120);
 assert.equal(getHeatCapacityCalculationSession(guideFile)?.status, 'completed');
 
+const revealRemainingCalculationAnswers = (
+  sourceFile: WorkbenchHeatCapacityState,
+  now: number,
+): WorkbenchHeatCapacityState => {
+  let file = sourceFile;
+  while (getHeatCapacityCalculationSession(file)?.status === 'in-progress') {
+    const session = getHeatCapacityCalculationSession(file)!;
+    const stepId = session.activeStepId!;
+    const step = [
+      ...session.groups.flatMap((group) => group.steps),
+      ...(session.aggregate?.steps ?? []),
+    ].find((candidate) => candidate.id === stepId)!;
+    file = submitHeatCapacityCalculationStepWorkbenchState(file, stepId, now);
+    for (const fieldId of step.fieldIds) {
+      const currentSession = getHeatCapacityCalculationSession(file)!;
+      const field = [
+        ...currentSession.groups.flatMap((group) => group.fields),
+        ...(currentSession.aggregate?.fields ?? []),
+      ].find((candidate) => candidate.id === fieldId);
+      if (field?.feedback) {
+        file = revealHeatCapacityCalculationAnswerWorkbenchState(
+          file,
+          fieldId,
+          now + 1,
+        );
+      }
+    }
+  }
+  return file;
+};
+
 const makeFreeRecord = (
   displayPressureMv: number,
   atS: number,
@@ -212,15 +244,34 @@ freeFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
   heatCapacityFreeRunWorkspace: {
     ...freeFile.heatCapacityFreeRunWorkspace,
     trials: freeTrials,
-    batch: completeHeatCapacityFreeBatchExperiment(allocatedBatch, 220),
+    batch: allocatedBatch,
   },
 }, 'real');
-freeFile = ensureHeatCapacityCalculationSessionWorkbenchState(freeFile, 221);
+freeFile = startHeatCapacityFreeBatchCalculationWorkbenchState(freeFile, 220);
 const freeSession = getHeatCapacityCalculationSession(freeFile);
 assert.equal(freeSession?.mode, 'free');
 assert.equal(freeSession?.groups.length, 3);
 assert.equal(freeSession?.aggregate?.reference.count, 3);
 assert.equal(freeSession?.status, 'in-progress');
+assert.equal(
+  selectCurrentHeatCapacityFreeExperimentGroup(
+    freeFile.heatCapacityFreeExperimentGroups,
+  )?.status,
+  'awaiting-real-calculation',
+);
+freeFile = revealRemainingCalculationAnswers(freeFile, 230);
+assert.equal(getHeatCapacityCalculationSession(freeFile)?.status, 'ready-to-exit');
+freeFile = completeHeatCapacityCalculationWorkflowWorkbenchState(freeFile, 240);
+const realGroupWithoutTraceEvidence = selectCurrentHeatCapacityFreeExperimentGroup(
+  freeFile.heatCapacityFreeExperimentGroups,
+);
+assert.equal(realGroupWithoutTraceEvidence?.status, 'awaiting-real-calculation');
+assert.equal(realGroupWithoutTraceEvidence?.calculation?.kind, 'real-interactive');
+assert.equal(
+  realGroupWithoutTraceEvidence?.finalScore,
+  null,
+  'Real calculation completion must not invent a score when trace evidence is missing',
+);
 
 let idealFile = setHeatCapacityFreeParameterSchemeWorkbenchState(
   createDefaultHeatCapacityFile(3),
@@ -261,50 +312,20 @@ idealFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
   heatCapacityFreeRunWorkspace: {
     ...idealFile.heatCapacityFreeRunWorkspace,
     trials: idealTrials,
-    batch: completeHeatCapacityFreeBatchExperiment(idealBatch, 320),
+    batch: idealBatch,
   },
 }, 'ideal');
-idealFile = ensureHeatCapacityCalculationSessionWorkbenchState(idealFile, 321);
+idealFile = startHeatCapacityFreeBatchCalculationWorkbenchState(idealFile, 320);
 const idealCalculationSession = getHeatCapacityCalculationSession(idealFile);
 assert.equal(idealCalculationSession?.theoreticalGamma, 5 / 3);
 assert.equal(idealCalculationSession?.presentation, 'interactive');
-idealFile = {
-  ...idealFile,
-  heatCapacityFreeExperimentGroups: beginHeatCapacityFreeIdealGroupCalculation(
-    idealFile.heatCapacityFreeExperimentGroups,
-    idealCalculationSession!,
-    322,
-  ),
-};
 assert.equal(
   selectCurrentHeatCapacityFreeExperimentGroup(
     idealFile.heatCapacityFreeExperimentGroups,
   )?.status,
   'awaiting-ideal-calculation',
 );
-while (getHeatCapacityCalculationSession(idealFile)?.status === 'in-progress') {
-  const session = getHeatCapacityCalculationSession(idealFile)!;
-  const stepId = session.activeStepId!;
-  const step = [
-    ...session.groups.flatMap((group) => group.steps),
-    ...(session.aggregate?.steps ?? []),
-  ].find((candidate) => candidate.id === stepId)!;
-  idealFile = submitHeatCapacityCalculationStepWorkbenchState(idealFile, stepId, 330);
-  for (const fieldId of step.fieldIds) {
-    const currentSession = getHeatCapacityCalculationSession(idealFile)!;
-    const field = [
-      ...currentSession.groups.flatMap((group) => group.fields),
-      ...(currentSession.aggregate?.fields ?? []),
-    ].find((candidate) => candidate.id === fieldId);
-    if (field?.feedback) {
-      idealFile = revealHeatCapacityCalculationAnswerWorkbenchState(
-        idealFile,
-        fieldId,
-        331,
-      );
-    }
-  }
-}
+idealFile = revealRemainingCalculationAnswers(idealFile, 330);
 assert.equal(getHeatCapacityCalculationSession(idealFile)?.status, 'ready-to-exit');
 idealFile = completeHeatCapacityCalculationWorkflowWorkbenchState(idealFile, 340);
 const completedIdealGroup = selectCurrentHeatCapacityFreeExperimentGroup(

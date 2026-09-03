@@ -2,17 +2,25 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   applyHeatCapacityFreeParameterDraftWorkbenchState as applyParameterDraftFromFacade,
+  completeHeatCapacityCalculationWorkflowWorkbenchState as completeCalculationFromFacade,
   configureHeatCapacityFreeBatchWorkbenchState as configureBatchFromFacade,
   createDefaultHeatCapacityFreeParameterState as createDefaultParameterStateFromFacade,
   freezeHeatCapacityFreeParametersForCurrentGroup as freezeParametersFromFacade,
+  getHeatCapacityCalculationSession as getCalculationSessionFromFacade,
   getActiveHeatCapacityFreeTrialIndex as getActiveTrialIndexFromFacade,
   getHeatCapacityGaugePressureState as getGaugeFromFacade,
   getHeatCapacityFreeParameterLockReason as getParameterLockReasonFromFacade,
   getHeatCapacityStopcockState as getStopcockFromFacade,
   mergeHeatCapacityFreeRuntimeState as mergeRuntimeFromFacade,
+  ensureHeatCapacityCalculationSessionWorkbenchState as ensureCalculationFromFacade,
   resetHeatCapacityFreeRunWorkbenchState as resetFreeRunFromFacade,
   setHeatCapacityFreeParameterSchemeWorkbenchState as setParameterSchemeFromFacade,
 } from '../../src/features/workbench/workbenchState.ts';
+import {
+  completeHeatCapacityCalculationWorkflowWorkbenchState,
+  ensureHeatCapacityCalculationSessionWorkbenchState,
+  getHeatCapacityCalculationSession,
+} from '../../src/features/workbench/workbenchHeatCapacityCalculationCoordinator.ts';
 import {
   getHeatCapacityGaugePressureState,
   getHeatCapacityStopcockState,
@@ -39,6 +47,10 @@ import {
 
 const facadeSource = readFileSync(
   new URL('../../src/features/workbench/workbenchState.ts', import.meta.url),
+  'utf8',
+);
+const workbenchUiSource = readFileSync(
+  new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
 );
 const stateTypesSource = readFileSync(
@@ -79,6 +91,13 @@ const freeTraceStateSource = readFileSync(
 );
 const freeRunResetSource = readFileSync(
   new URL('../../src/features/workbench/workbenchHeatCapacityFreeRunReset.ts', import.meta.url),
+  'utf8',
+);
+const calculationCoordinatorSource = readFileSync(
+  new URL(
+    '../../src/features/workbench/workbenchHeatCapacityCalculationCoordinator.ts',
+    import.meta.url,
+  ),
   'utf8',
 );
 const authoritySource = readFileSync(
@@ -144,6 +163,21 @@ assert.equal(
   resetHeatCapacityFreeRunWorkbenchState,
   'the compatibility facade should forward the extracted Free run-reset API',
 );
+assert.equal(
+  getCalculationSessionFromFacade,
+  getHeatCapacityCalculationSession,
+  'the compatibility facade should forward the extracted calculation-session selector',
+);
+assert.equal(
+  ensureCalculationFromFacade,
+  ensureHeatCapacityCalculationSessionWorkbenchState,
+  'the compatibility facade should forward the extracted calculation-session initializer',
+);
+assert.equal(
+  completeCalculationFromFacade,
+  completeHeatCapacityCalculationWorkflowWorkbenchState,
+  'the compatibility facade should forward the extracted calculation completion command',
+);
 assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityStateTypes\.ts'/,
@@ -194,6 +228,7 @@ for (const [source, moduleName] of [
   [freeRuntimeStateSource, 'Free runtime state'],
   [freeTraceStateSource, 'Free trace state'],
   [freeRunResetSource, 'Free run reset'],
+  [calculationCoordinatorSource, 'cross-mode calculation coordinator'],
 ] as const) {
   assert.doesNotMatch(
     source,
@@ -215,6 +250,16 @@ assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityFreeRuntimeState\.ts'/,
   'the compatibility facade should explicitly forward the extracted Free runtime merge API',
+);
+assert.match(
+  facadeSource,
+  /from '\.\/workbenchHeatCapacityCalculationCoordinator\.ts'/,
+  'the compatibility facade should explicitly forward the extracted calculation API',
+);
+assert.match(
+  workbenchUiSource,
+  /from '\.\/workbenchHeatCapacityCalculationCoordinator\.ts'/,
+  'the workbench UI should depend directly on the extracted calculation coordinator',
 );
 assert.match(
   authorityTransactionSource,
@@ -305,8 +350,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*Free 运行默认值与完整重置的职责拆分已经完成[\s\S]*下一大改动断点是跨模式计算会话/,
-  'the authority table should preserve the next cross-mode coordination breakpoint',
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*跨模式计算会话的职责拆分已经完成[\s\S]*下一大改动断点是 Free 实验操作与证据链/,
+  'the authority table should preserve the next Free operation-evidence breakpoint',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');
