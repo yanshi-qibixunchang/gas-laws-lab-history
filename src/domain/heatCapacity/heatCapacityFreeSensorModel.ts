@@ -28,6 +28,9 @@ export interface HeatCapacityFreeSensorConfig {
   pressureNonlinearity?: HeatCapacityFreePressureSensorNonlinearityConfig;
 }
 
+export const HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE = 1_000_000;
+export const HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S = 1 / 60;
+
 export interface HeatCapacityFreePhysicalDisplayInput {
   gasPressureKPa: number;
   pressureDeltaKPa: number;
@@ -209,15 +212,18 @@ export const stepFreeSensor = (
   const lastSampleAtS = state.pressureHistory[state.pressureHistory.length - 1]?.atS ?? atS;
   const dtS = Math.max(0, atS - lastSampleAtS);
   void calibration;
-  const sensorTemperatureK = stepHeatCapacityTemperatureSensor(
-    {
-      temperatureK: state.sensorTemperatureK,
-    },
-    {
-      gasTemperatureK: physical.gasTemperatureK,
-      dtS,
-    },
-  ).temperatureK;
+  const idealResponse = config.lagRate >= HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE;
+  const sensorTemperatureK = idealResponse
+    ? physical.gasTemperatureK
+    : stepHeatCapacityTemperatureSensor(
+        {
+          temperatureK: state.sensorTemperatureK,
+        },
+        {
+          gasTemperatureK: physical.gasTemperatureK,
+          dtS,
+        },
+      ).temperatureK;
   const target = toTargetDisplay(
     physical,
     sensorTemperatureK,
@@ -232,7 +238,9 @@ export const stepFreeSensor = (
     2 *
     config.noiseMv;
   const displayPressureMv = quantize(
-    approach(state.displayPressureMv, target.pressureMv, config.lagRate, dtS) +
+    (idealResponse
+      ? target.pressureMv
+      : approach(state.displayPressureMv, target.pressureMv, config.lagRate, dtS)) +
       pressureNoiseMv,
     config.quantizationMv,
   );

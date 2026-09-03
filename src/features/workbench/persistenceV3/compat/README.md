@@ -10,6 +10,10 @@ workspace and file-envelope schemas.
 - `legacyV3ProjectionAdapter.ts` contains the explicit upgrade hook for early
   V3 heat-capacity projections that predate experiment-group authority.
 
+Migration baseline 2 keeps the same supported legacy schema families while
+canonicalizing heat-capacity Ideal sessions to the selectable gas profile and
+accepting the earlier Ideal sensor profile during restore.
+
 Ordinary V3 production save and restore must import `workspaceCodec.ts`
 directly and must not import this directory. Unknown data and future versions
 remain preserved or quarantined; they must never be forced through a legacy

@@ -8755,12 +8755,12 @@
   color: var(--studio-text);
 }
 
-.studio-heat-free-params.is-ideal-readonly .studio-heat-free-param-row:not([data-heat-capacity-free-param-id="hardSphereViewEnabled"]),
+.studio-heat-free-params.is-ideal-readonly .studio-heat-free-param-row:not([data-heat-capacity-free-param-id="hardSphereViewEnabled"]):not([data-heat-capacity-free-param-id="gasType"]),
 .studio-heat-free-params.is-ideal-readonly .studio-heat-free-default-button {
   opacity: 0.55;
 }
 
-.studio-heat-free-params.is-ideal-readonly .studio-heat-free-param-row:not([data-heat-capacity-free-param-id="hardSphereViewEnabled"]) input,
+.studio-heat-free-params.is-ideal-readonly .studio-heat-free-param-row:not([data-heat-capacity-free-param-id="hardSphereViewEnabled"]):not([data-heat-capacity-free-param-id="gasType"]) input,
 .studio-heat-free-params.is-ideal-readonly .studio-heat-free-default-button {
   cursor: not-allowed;
 }

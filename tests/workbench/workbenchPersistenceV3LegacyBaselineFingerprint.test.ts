@@ -83,7 +83,7 @@ const baselineHash = createHash('sha256')
 
 assert.equal(
   baselineHash,
-  'b04f3801eee1dc88dad5ab91d72c21654d496b78afd93443af95cd53447d3107',
+  '5a52f30c4096854dfe64877e40984bb08c145ef1e3004e772ca39cec6a078ca7',
   'legacy migration output changed; review the compatibility support matrix and bump its baseline deliberately',
 );
 

@@ -21,8 +21,10 @@ const COPY = {
     experiment: '查看实验次序',
     real: '真实',
     ideal: '理想',
+    air: '空气',
+    helium: '氦气',
     draft: '未开始的新组',
-    groupLabel: (scheme: string, number: number) => `${scheme} · 第 ${number} 组`,
+    groupLabel: (scheme: string, gas: string, number: number) => `${scheme} · ${gas} · 第 ${number} 组`,
     experimentLabel: (number: number) => `第 ${number} 次实验`,
     noExperiment: '暂无实验数据',
     current: '当前实验组',
@@ -37,8 +39,10 @@ const COPY = {
     experiment: '查看實驗次序',
     real: '真實',
     ideal: '理想',
+    air: '空氣',
+    helium: '氦氣',
     draft: '未開始的新組',
-    groupLabel: (scheme: string, number: number) => `${scheme} · 第 ${number} 組`,
+    groupLabel: (scheme: string, gas: string, number: number) => `${scheme} · ${gas} · 第 ${number} 組`,
     experimentLabel: (number: number) => `第 ${number} 次實驗`,
     noExperiment: '暫無實驗資料',
     current: '目前實驗組',
@@ -53,8 +57,10 @@ const COPY = {
     experiment: 'Experiment',
     real: 'Real',
     ideal: 'Ideal',
+    air: 'Air',
+    helium: 'Helium',
     draft: 'New group (not started)',
-    groupLabel: (scheme: string, number: number) => `${scheme} · Group ${number}`,
+    groupLabel: (scheme: string, gas: string, number: number) => `${scheme} · ${gas} · Group ${number}`,
     experimentLabel: (number: number) => `Experiment ${number}`,
     noExperiment: 'No experiment data',
     current: 'Current group',
@@ -71,8 +77,9 @@ const getGroupLabel = (
   copy: typeof COPY[keyof typeof COPY],
 ) => {
   const scheme = group.scheme === 'ideal' ? copy.ideal : copy.real;
-  if (group.schemeGroupNumber === null) return `${copy.draft} · ${scheme}`;
-  return copy.groupLabel(scheme, group.schemeGroupNumber);
+  const gas = group.gasType === 'helium' ? copy.helium : copy.air;
+  if (group.schemeGroupNumber === null) return `${copy.draft} · ${scheme} · ${gas}`;
+  return copy.groupLabel(scheme, gas, group.schemeGroupNumber);
 };
 
 export const HeatCapacityExperimentGroupContextBar = ({

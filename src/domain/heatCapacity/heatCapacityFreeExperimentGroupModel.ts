@@ -37,6 +37,7 @@ export type HeatCapacityFreeExperimentGroupLifecycleStatus =
   | 'draft'
   | 'collecting'
   | 'awaiting-real-calculation'
+  | 'awaiting-ideal-calculation'
   | 'awaiting-ideal-processing'
   | 'completed'
   | 'legacy-incomplete-readonly';
@@ -53,6 +54,11 @@ export type HeatCapacityFreeExperimentGroupCalculation =
       session: HeatCapacityCalculationWorkflowSession;
     }
   | {
+      kind: 'ideal-interactive';
+      session: HeatCapacityCalculationWorkflowSession;
+    }
+  | {
+      /** Historical Ideal groups completed before the interactive workflow was introduced. */
       kind: 'ideal-automatic';
       result: HeatCapacityFreeProcessingResult;
     };
@@ -125,6 +131,7 @@ export const isHeatCapacityFreeExperimentGroupExecutableUnfinished = (
   group.status === 'draft' ||
   group.status === 'collecting' ||
   group.status === 'awaiting-real-calculation' ||
+  group.status === 'awaiting-ideal-calculation' ||
   group.status === 'awaiting-ideal-processing'
 );
 
@@ -246,11 +253,15 @@ export const getHeatCapacityFreeExperimentGroupInvariantErrors = (
         ) {
           errors.push(`Completed real experiment group ${group.id} is missing calculation or score.`);
         }
-      } else if (
-        group.calculation?.kind !== 'ideal-automatic' ||
-        group.finalScore !== null
-      ) {
-        errors.push(`Completed ideal experiment group ${group.id} cannot own interactive scoring.`);
+      } else {
+        const calculationCompleted = group.calculation?.kind === 'ideal-automatic' ||
+          (
+            group.calculation?.kind === 'ideal-interactive' &&
+            group.calculation.session.status === 'completed'
+          );
+        if (!calculationCompleted || group.finalScore !== null) {
+          errors.push(`Completed ideal experiment group ${group.id} is missing calculation or owns a score.`);
+        }
       }
     }
   }
@@ -510,6 +521,36 @@ export const updateCurrentHeatCapacityFreeRealCalculationSession = (
   });
 };
 
+export const updateCurrentHeatCapacityFreeIdealCalculationSession = (
+  collection: HeatCapacityFreeExperimentGroupCollection,
+  session: HeatCapacityCalculationWorkflowSession,
+): HeatCapacityFreeExperimentGroupCollection => {
+  const group = selectCurrentHeatCapacityFreeExperimentGroup(collection);
+  if (
+    !group ||
+    group.status !== 'awaiting-ideal-calculation' ||
+    group.scheme !== 'ideal' ||
+    session.mode !== 'free' ||
+    session.presentation !== 'interactive'
+  ) {
+    return collection;
+  }
+  return replaceGroup(collection, {
+    ...group,
+    calculation: {
+      kind: 'ideal-interactive',
+      session,
+    },
+    runSeries: {
+      ...group.runSeries,
+      batch: {
+        ...group.runSeries.batch,
+        calculationSession: session,
+      },
+    },
+  });
+};
+
 export const beginHeatCapacityFreeRealGroupCalculation = (
   collection: HeatCapacityFreeExperimentGroupCollection,
   session: HeatCapacityCalculationWorkflowSession,
@@ -551,6 +592,51 @@ export const beginHeatCapacityFreeRealGroupCalculation = (
   });
 };
 
+export const beginHeatCapacityFreeIdealGroupCalculation = (
+  collection: HeatCapacityFreeExperimentGroupCollection,
+  session: HeatCapacityCalculationWorkflowSession,
+  now = Date.now(),
+): HeatCapacityFreeExperimentGroupCollection => {
+  const group = selectCurrentHeatCapacityFreeExperimentGroup(collection);
+  if (
+    !group ||
+    group.status !== 'collecting' ||
+    group.scheme !== 'ideal' ||
+    session.mode !== 'free' ||
+    session.presentation !== 'interactive' ||
+    !deriveHeatCapacityFreeBatchProgress(
+      group.runSeries.batch,
+      group.runSeries.trials,
+    ).allGroupsRecorded
+  ) {
+    return collection;
+  }
+  const batch = completeHeatCapacityFreeBatchExperiment(
+    {
+      ...group.runSeries.batch,
+      calculationSession: session,
+    },
+    now,
+  );
+  return replaceGroup(collection, {
+    ...group,
+    status: 'awaiting-ideal-calculation',
+    acquisitionCompletedAtMs: now,
+    runSeries: {
+      ...group.runSeries,
+      batch,
+    },
+    calculation: {
+      kind: 'ideal-interactive',
+      session,
+    },
+  });
+};
+
+/**
+ * Compatibility-only transition for Ideal groups saved by releases that
+ * calculated results automatically. New groups use the interactive workflow.
+ */
 export const beginHeatCapacityFreeIdealGroupProcessing = (
   collection: HeatCapacityFreeExperimentGroupCollection,
   now = Date.now(),
@@ -615,6 +701,42 @@ export const completeHeatCapacityFreeRealExperimentGroup = (
   });
 };
 
+export const completeHeatCapacityFreeIdealExperimentGroupCalculation = (
+  collection: HeatCapacityFreeExperimentGroupCollection,
+  session: HeatCapacityCalculationWorkflowSession,
+  now = Date.now(),
+): HeatCapacityFreeExperimentGroupCollection => {
+  const group = selectCurrentHeatCapacityFreeExperimentGroup(collection);
+  if (
+    !group ||
+    group.status !== 'awaiting-ideal-calculation' ||
+    group.scheme !== 'ideal' ||
+    session.mode !== 'free' ||
+    session.presentation !== 'interactive' ||
+    session.status !== 'completed'
+  ) {
+    return collection;
+  }
+  return replaceGroup(collection, {
+    ...group,
+    status: 'completed',
+    completedAtMs: now,
+    calculation: {
+      kind: 'ideal-interactive',
+      session,
+    },
+    finalScore: null,
+    runSeries: {
+      ...group.runSeries,
+      batch: {
+        ...group.runSeries.batch,
+        calculationSession: session,
+      },
+    },
+  });
+};
+
+/** Compatibility-only completion for historical automatic Ideal results. */
 export const completeHeatCapacityFreeIdealExperimentGroup = (
   collection: HeatCapacityFreeExperimentGroupCollection,
   result: HeatCapacityFreeProcessingResult,

@@ -3,7 +3,11 @@ import {
   type HeatCapacityFreeEnvironmentConfig,
   type HeatCapacityFreePhysicsConfig,
 } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
-import type { HeatCapacityFreeSensorConfig } from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
+import {
+  HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE,
+  HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S,
+  type HeatCapacityFreeSensorConfig,
+} from '../../domain/heatCapacity/heatCapacityFreeSensorModel.ts';
 import {
   createDefaultHeatCapacityEnvironmentConfig,
   createDefaultHeatCapacityFreePhysicsConfig,
@@ -47,11 +51,13 @@ export const normalizeHeatCapacityFreeSensorConfig = (
     HEAT_CAPACITY_TEMPERATURE_BASELINE_MV,
   ),
   temperatureMvPerK: HEAT_CAPACITY_TEMPERATURE_SENSITIVITY_MV_PER_K,
-  lagRate: clampNumber(
-    finiteNumberOr(config?.lagRate, DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate),
-    0.01,
-    60,
-  ),
+  lagRate: config?.lagRate === HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE
+    ? HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE
+    : clampNumber(
+        finiteNumberOr(config?.lagRate, DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.lagRate),
+        0.01,
+        60,
+      ),
   noiseMv: Math.max(0, finiteNumberOr(
     config?.noiseMv,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.noiseMv,
@@ -60,8 +66,14 @@ export const normalizeHeatCapacityFreeSensorConfig = (
     config?.quantizationMv,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.quantizationMv,
   )),
-  minSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
-  maxSampleIntervalS: DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
+  minSampleIntervalS: config?.minSampleIntervalS === HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S &&
+      config?.maxSampleIntervalS === HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S
+    ? HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S
+    : DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.minSampleIntervalS,
+  maxSampleIntervalS: config?.minSampleIntervalS === HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S &&
+      config?.maxSampleIntervalS === HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S
+    ? HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S
+    : DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.maxSampleIntervalS,
   historyWindowS: Math.max(0.001, finiteNumberOr(
     config?.historyWindowS,
     DEFAULT_HEAT_CAPACITY_FREE_SENSOR_CONFIG.historyWindowS,

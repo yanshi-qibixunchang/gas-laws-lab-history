@@ -39,7 +39,7 @@ const COPY = {
     sectionTitle: '本组实验次数',
     description: (purpose: 'first' | 'next') => purpose === 'next'
       ? '当前实验组将保留为只读记录。确认后会创建新的实验组，数据、计算、过程回顾和图像将切换到暂无数据的新组。'
-      : '请选择本组计划完成的实验次数。真实实验组在全部实验完成后进入计算，理想实验组会自动给出结果。',
+      : '请选择本组计划完成的实验次数。真实实验组和理想实验组在全部实验完成后都会进入手动计算；理想实验组不参与评分。',
     inputAria: '输入本组实验次数',
     menuAria: '选择本组实验次数',
     menuButtonAria: '展开实验次数菜单',
@@ -61,7 +61,7 @@ const COPY = {
     sectionTitle: '本組實驗次數',
     description: (purpose: 'first' | 'next') => purpose === 'next'
       ? '目前實驗組將保留為唯讀記錄。確認後會建立新的實驗組，資料、計算、過程回顧和圖像將切換到暫無資料的新組。'
-      : '請選擇本組計劃完成的實驗次數。真實實驗組完成後進入計算，理想實驗組會自動給出結果。',
+      : '請選擇本組計劃完成的實驗次數。真實實驗組和理想實驗組完成後都會進入手動計算；理想實驗組不參與評分。',
     inputAria: '輸入本組實驗次數',
     menuAria: '選擇本組實驗次數',
     menuButtonAria: '展開實驗次數選單',
@@ -83,7 +83,7 @@ const COPY = {
     sectionTitle: 'Experiments in this group',
     description: (purpose: 'first' | 'next') => purpose === 'next'
       ? 'The completed group remains read-only. Confirming creates a new group and switches data, calculations, process review, and figures to its empty state.'
-      : 'Choose how many experiments to complete in this group. Real groups continue to calculation; ideal groups produce results automatically.',
+      : 'Choose how many experiments to complete in this group. Both Real and Ideal groups continue to manual calculation; Ideal groups are not scored.',
     inputAria: 'Enter the experiment count for this group',
     menuAria: 'Select the experiment count for this group',
     menuButtonAria: 'Open the experiment count menu',

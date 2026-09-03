@@ -23,7 +23,9 @@ const COPY = {
     intro: '已完成实验组默认纳入报告；有实验记录或过程数据的未完成组可主动勾选。空白新组不纳入报告。',
     real: '真实模拟',
     ideal: '理想参数',
-    group: (scheme: string, number: number) => `${scheme} · 第 ${number} 组`,
+    air: '空气',
+    helium: '氦气',
+    group: (scheme: string, gas: string, number: number) => `${scheme} · ${gas} · 第 ${number} 组`,
     complete: '已完成',
     incomplete: '未完成',
     experiments: (done: number, total: number) => `${done} / ${total} 次实验`,
@@ -38,7 +40,9 @@ const COPY = {
     intro: '已完成實驗組預設納入報告；有實驗記錄或過程資料的未完成組可主動勾選。空白新組不納入報告。',
     real: '真實模擬',
     ideal: '理想參數',
-    group: (scheme: string, number: number) => `${scheme} · 第 ${number} 組`,
+    air: '空氣',
+    helium: '氦氣',
+    group: (scheme: string, gas: string, number: number) => `${scheme} · ${gas} · 第 ${number} 組`,
     complete: '已完成',
     incomplete: '未完成',
     experiments: (done: number, total: number) => `${done} / ${total} 次實驗`,
@@ -53,7 +57,9 @@ const COPY = {
     intro: 'Completed groups are selected by default. Incomplete groups with records or process data may be included; blank new groups are omitted.',
     real: 'Real simulation',
     ideal: 'Ideal parameters',
-    group: (scheme: string, number: number) => `${scheme} · Group ${number}`,
+    air: 'Air',
+    helium: 'Helium',
+    group: (scheme: string, gas: string, number: number) => `${scheme} · ${gas} · Group ${number}`,
     complete: 'Complete',
     incomplete: 'Incomplete',
     experiments: (done: number, total: number) => `${done} / ${total} experiments`,
@@ -112,9 +118,10 @@ export const HeatCapacityReportExportDialog = ({
           <div className="studio-heat-report-export-list">
             {sortedGroups.map((group) => {
               const scheme = group.scheme === 'ideal' ? copy.ideal : copy.real;
+              const gas = group.gasType === 'helium' ? copy.helium : copy.air;
               const label = group.schemeGroupNumber === null
-                ? `${scheme} · ${copy.incomplete}`
-                : copy.group(scheme, group.schemeGroupNumber);
+                ? `${scheme} · ${gas} · ${copy.incomplete}`
+                : copy.group(scheme, gas, group.schemeGroupNumber);
               const complete = group.status === 'completed';
               return (
                 <label key={group.id}>

@@ -41,7 +41,8 @@ const getTheory = (group: HeatCapacityFreeExperimentGroupRecord) => (
   group.parameterSnapshot?.physics.gamma ??
   (group.calculation?.kind === 'ideal-automatic'
     ? group.calculation.result.theoreticalGamma
-    : group.calculation?.kind === 'real-interactive'
+    : group.calculation?.kind === 'real-interactive' ||
+        group.calculation?.kind === 'ideal-interactive'
       ? group.calculation.session.theoreticalGamma
       : 1.4)
 );
@@ -74,7 +75,8 @@ const createExperimentExportRecord = (
     traceStore: group.runSeries.traceStore,
     theoreticalGamma: theory,
     selectedTrialId: trial.id,
-    calculationSession: group.calculation?.kind === 'real-interactive'
+    calculationSession: group.calculation?.kind === 'real-interactive' ||
+        group.calculation?.kind === 'ideal-interactive'
       ? group.calculation.session
       : null,
     scoringVersion: group.scoringVersion,
@@ -103,7 +105,10 @@ const createExperimentExportRecord = (
 const createCalculationAuditExportRecords = (
   group: HeatCapacityFreeExperimentGroupRecord,
 ) => {
-  if (group.scheme !== 'real' || group.calculation?.kind !== 'real-interactive') {
+  if (
+    group.calculation?.kind !== 'real-interactive' &&
+    group.calculation?.kind !== 'ideal-interactive'
+  ) {
     return [];
   }
   const session = group.calculation.session;
@@ -166,9 +171,7 @@ const createGroupExportRecord = (
     completedAtMs: group.completedAtMs,
     result,
     lollipopChart: createHeatCapacityFreeGroupLollipopChartModel(group),
-    calculation: group.scheme === 'real' ? group.calculation : (
-      group.calculation?.kind === 'ideal-automatic' ? group.calculation : null
-    ),
+    calculation: group.calculation,
     calculationAudit: createCalculationAuditExportRecords(group),
     score: group.scheme === 'real' ? group.finalScore : null,
     experiments: group.runSeries.trials.map((_, index) => (
@@ -241,10 +244,10 @@ export const createHeatCapacityExportPayload = (
       fileId: file.id,
       fileName: file.name,
       experimentName: language === 'en'
-        ? 'Air heat-capacity ratio by adiabatic expansion'
+        ? 'Gas heat-capacity ratio by adiabatic expansion'
         : language === 'zh-TW'
-          ? '絕熱膨脹法測空氣比熱容比'
-          : '绝热膨胀法测空气比热容比',
+          ? '絕熱膨脹法測氣體比熱容比'
+          : '绝热膨胀法测气体比热容比',
       exportedAtMs: Date.now(),
       sourceCreatedAtMs: file.createdAt,
       sourceUpdatedAtMs: file.updatedAt,

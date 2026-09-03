@@ -300,7 +300,7 @@ const navigationSuspendSection = sourceBetween(
 );
 assert.match(
   navigationSuspendSection,
-  /preservePendingRefresh[\s\S]*cancelPendingHeatCapacityRefreshRestore\(\)[\s\S]*else \{[\s\S]*suspendHeatCapacityModeSession[\s\S]*releaseHeatCapacityRuntimeForFileExit\(currentFile\.id\)[\s\S]*return preservePendingRefresh/,
+  /preservePendingRefresh[\s\S]*cancelPendingHeatCapacityRefreshRestore\(\)[\s\S]*else \{[\s\S]*prepareHeatCapacityModeSessionForExit[\s\S]*releaseHeatCapacityRuntimeForFileExit\(currentFile\.id\)[\s\S]*return preservePendingRefresh/,
   'pending hydration must skip recapture while both pending and ordinary navigation still share one runtime cleanup owner',
 );
 

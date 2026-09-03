@@ -3,6 +3,7 @@ import {
   clearHeatCapacityModeSession,
   createDefaultHeatCapacityModeSessionStore,
   normalizeHeatCapacityModeSessionStore,
+  prepareHeatCapacityModeSessionForExit,
   restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
 } from '../../src/features/workbench/workbenchHeatCapacityModeSession.ts';
@@ -681,6 +682,38 @@ const completedGuideStore = suspendHeatCapacityModeSession(
   null,
   completedGuideCapturedAtMs,
 ).heatCapacityModeSessions;
+const preparedCompletedGuideExit = prepareHeatCapacityModeSessionForExit(
+  completedGuideSource,
+  null,
+  completedGuideCapturedAtMs,
+);
+assert.equal(
+  preparedCompletedGuideExit.heatCapacityModeSessions.guide.status,
+  'completed',
+  'leaving a completed Guide session must retain its reviewable result',
+);
+const restoredCompletedGuide = restoreHeatCapacityModeSession(
+  preparedCompletedGuideExit,
+  'guide',
+  completedGuideCapturedAtMs + 100,
+);
+assert.equal(restoredCompletedGuide?.heatCapacityTeachingStatus, 'completed');
+assert.equal(restoredCompletedGuide?.heatCapacityGuideWorkflow.step, 'completed');
+assert.equal(
+  restoredCompletedGuide?.heatCapacityGuideTrial?.correctedSignals?.gamma,
+  completedGuideSource.heatCapacityGuideTrial?.correctedSignals?.gamma,
+  'reopening a completed Guide session must restore the original calculated result',
+);
+const preparedIncompleteGuideExit = prepareHeatCapacityModeSessionForExit(
+  guideSource,
+  guideUiCheckpoint,
+  completedGuideCapturedAtMs + 200,
+);
+assert.equal(
+  preparedIncompleteGuideExit.heatCapacityModeSessions.guide.status,
+  'empty',
+  'leaving an unfinished Guide session must still discard its progress',
+);
 const normalizedCompletedGuideStore = normalizeHeatCapacityModeSessionStore(
   cloneUnknown(completedGuideStore),
   completedGuideSource.id,
@@ -2292,6 +2325,16 @@ assert.equal(
 const completedDemo = completeHeatCapacityTeachingModeWorkbenchState(demoSource, demoCapturedAtMs + 1_100);
 const withCompletedDemo = suspendHeatCapacityModeSession(completedDemo, null, demoCapturedAtMs + 1_200);
 assert.equal(withCompletedDemo.heatCapacityModeSessions.demo.status, 'completed');
+const preparedCompletedDemoExit = prepareHeatCapacityModeSessionForExit(
+  completedDemo,
+  null,
+  demoCapturedAtMs + 1_200,
+);
+assert.equal(
+  preparedCompletedDemoExit.heatCapacityModeSessions.demo.status,
+  'empty',
+  'leaving Demo must discard it even after playback completes',
+);
 assert.equal(
   normalizeHeatCapacityModeSessionStore(
     cloneUnknown(withCompletedDemo.heatCapacityModeSessions),

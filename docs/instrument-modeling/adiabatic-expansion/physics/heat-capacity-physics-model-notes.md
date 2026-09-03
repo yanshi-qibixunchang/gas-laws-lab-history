@@ -1,4 +1,4 @@
-# 空气比热容 Free Mode 建模说明
+# 绝热膨胀法气体比热容比 Free Mode 建模说明
 
 本文档记录当前 Free Mode 的底层模型、实现边界和验收点，便于后续调参、新增高级设置或继续扩展物理模型。这里记录的是当前设计事实，不是实验结果数据。
 
@@ -12,7 +12,7 @@
   -> 物理模型: 气体量 / 温度 / 压强 / 打气 / 放气 / 热交换 / 微漏
   -> 传感器模型: 响应滞后 / 噪声 / 量化 / 采样
   -> Trace: 物理层样本 + 显示层样本 + 事件
-  -> 过程图 / 数据记录 / 评分
+  -> 过程图 / 数据记录 / 手动计算 / 条件化评分
 ```
 
 约束：
@@ -35,6 +35,8 @@
 | 微漏 | `src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts` | 关闭状态下由内外压差驱动的慢泄漏 |
 | 共享温度传感器 | `src/domain/heatCapacity/heatCapacityTemperatureSensorModel.ts` | 三模式共用的独立 `Tsensor` 一阶迟滞 |
 | Free 显示传感器 | `src/domain/heatCapacity/heatCapacityFreeSensorModel.ts` | 统一温度映射、压力响应、噪声、量化和采样历史 |
+| 气体理论值 | `src/domain/heatCapacity/heatCapacityGasTheory.ts` | 空气／氦气材料类型及各自理论 `gamma` 的唯一映射 |
+| Ideal 参数档案 | `src/domain/heatCapacity/heatCapacityFreeIdealParameterProfile.ts` | 按气体生成无固有实验误差的固定参数组，并按快过程／热平衡阶段切换热边界 |
 | Trace | `src/domain/heatCapacity/heatCapacityFreeTraceModel.ts` | trace store、样本、事件、配置快照、降采样 |
 | 过程图 | `src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts` | 将 trace、记录值和参考曲线整理成图表数据 |
 | 3D 分子映射 | `src/domain/heatCapacity/heatCapacityHardSphereModel.ts` | 分子数量、速度、颜色、定向放气运动 |
@@ -61,6 +63,15 @@ ambientPressureKPa = 101.3
 vesselVolumeL = 2
 gamma = 1.4
 ```
+
+其中 `gamma = 1.4` 是新建文件默认的空气值，不是 Free Mode 的固定气体。Real 与 Ideal 都允许选择空气或氦气；氦气使用 `gamma = 5/3`。气体类型在实验组开始时与完整参数快照一起冻结，历史结果只读取所属实验组的快照，不能由当前选择反推。
+
+方案合同：
+
+- Real 保留热交换、微漏、环境扰动、传感器响应、噪声和量化等可配置现实因素，并参与操作与计算评分。
+- Ideal 只消除模型条件自身的误差，不替用户完成操作或纠正错误；空气和氦气使用同一套固定理想边界，但分别读取各自理论 `gamma`。
+- Ideal 在快速放气阶段关闭热交换，在回温阶段恢复确定性的完整换热；微漏、泵阀交换、环境扰动、初始零点偏置、传感器滞后、噪声、非线性、量化和随机采样间隔均关闭。
+- Real 与 Ideal 都必须完成相同的 `U0/U1/U2` 记录和交互式逐步计算。Ideal 的最终分数恒为空；旧版本已经保存的 `ideal-automatic` 结果只作为历史兼容记录读取，新实验不再生成。
 
 核心状态：
 
@@ -192,7 +203,7 @@ stopcockFlowRate = 0.79
 - 自动演示、指导模式和自由模式从 `heatCapacityDefaultConfig.ts` 读取同一套核心环境、容积、气体、打气、热交换和放气参数。
 - 指导模式对应自由模式的一组确定性配置：关闭微漏、泵阀交换、环境扰动、传感器噪声和低压非线性，保留同一套基础热交换参数。
 - 对 `0.50 s`、`0.60 s`、`0.70 s` 三个主放气时长及其后 `300 s` 密闭恢复，指导物理状态与上述自由模式配置的气体量、气体温度和压差必须逐项一致。
-- 自由模式界面中的“理想参数组”还可能调整热导，因此它不是指导模式的别名；指导模式的精确对照是“自由模式真实物理核心 + 所有非理想开关关闭”。
+- 自由模式界面中的“理想参数组”按阶段显式切换热边界并使用无误差传感器，因此它不是指导模式的别名；演示和引导仍使用固定空气教学预设。
 
 ## 6. 热交换 v2 模型
 

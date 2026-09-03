@@ -137,14 +137,14 @@ export const heatCapacityFreeSharedText = {
     en: 'The current group has started, so its scheme is locked. After completing it, choose Real Simulation or Ideal Parameters for the next group.',
   },
   idealProfileReadonlyNote: {
-    'zh-CN': '理想参数方案下，普通参数和高级参数由系统按理想过程自动设定，暂不可编辑。',
-    'zh-TW': '理想參數方案下，普通參數和進階參數由系統按理想過程自動設定，暫不可編輯。',
-    en: 'With Ideal Parameters, basic and advanced parameters are set automatically and cannot be edited.',
+    'zh-CN': '理想参数方案下，可选择空气或氦气；其余普通参数和高级参数由系统按理想过程自动设定。',
+    'zh-TW': '理想參數方案下，可選擇空氣或氦氣；其餘普通參數和進階參數由系統按理想過程自動設定。',
+    en: 'With Ideal Parameters, you can choose air or helium; all other basic and advanced parameters are configured automatically.',
   },
   idealProfileReadonlyToast: {
-    'zh-CN': '理想参数方案由系统自动设定。',
-    'zh-TW': '理想參數方案由系統自動設定。',
-    en: 'The Ideal Parameters scheme is configured automatically.',
+    'zh-CN': '理想参数方案仅允许选择气体类型，其余参数由系统自动设定。',
+    'zh-TW': '理想參數方案僅允許選擇氣體類型，其餘參數由系統自動設定。',
+    en: 'Ideal Parameters allow gas selection only; all other parameters are configured automatically.',
   },
   idealProfileIntroTitle: {
     'zh-CN': '确认启用理想参数',
@@ -152,9 +152,9 @@ export const heatCapacityFreeSharedText = {
     en: 'Enable Ideal Parameters',
   },
   idealProfileIntroBody: {
-    'zh-CN': '理想参数用于体验完全理想条件下的空气比热容比实验。启用后，普通参数和高级参数由系统自动设定，不需要用户计算，也不参与评分。在实验组开始前可再次切回真实模拟。',
-    'zh-TW': '理想參數用於體驗完全理想條件下的空氣比熱容比實驗。啟用後，普通參數和進階參數由系統自動設定，不需要使用者計算，也不參與評分。在實驗組開始前可再次切回真實模擬。',
-    en: 'Ideal Parameters provide a fully idealized heat-capacity-ratio experiment. The system configures the parameters, calculates results automatically, and does not score the group. You can switch back to Real Simulation before the group starts.',
+    'zh-CN': '理想参数用于体验完全理想条件下的气体比热容比实验。启用后可选择空气或氦气，其余参数由系统自动设定；实验操作和数据计算仍由用户完成，但本组不参与评分。在实验组开始前可再次切回真实模拟。',
+    'zh-TW': '理想參數用於體驗完全理想條件下的氣體比熱容比實驗。啟用後可選擇空氣或氦氣，其餘參數由系統自動設定；實驗操作和資料計算仍由使用者完成，但本組不參與評分。在實驗組開始前可再次切回真實模擬。',
+    en: 'Ideal Parameters provide a fully idealized gas heat-capacity-ratio experiment. You can choose air or helium while the remaining parameters are configured automatically. You still perform the experiment and calculations, but the group is not scored. You can switch back to Real Simulation before the group starts.',
   },
   confirmEnableIdealProfile: {
     'zh-CN': '确认开启',

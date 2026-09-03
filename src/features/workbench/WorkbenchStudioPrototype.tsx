@@ -668,6 +668,7 @@ import {
   clearHeatCapacityModeSession,
   enterHeatCapacityExploreModeWorkbenchState,
   prepareHeatCapacityFileForExploreOnOpen,
+  prepareHeatCapacityModeSessionForExit,
   restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
 } from './workbenchHeatCapacityModeSession.ts';
@@ -4829,6 +4830,26 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     () => getHeatCapacityRealtimeCopy(settingsLanguagePreference),
     [settingsLanguagePreference],
   );
+  const activeHeatCapacityGasLabel = activeFile.kind === 'heatCapacity'
+    ? heatCapacityFreeGasTypeOptions.find((option) => (
+        option.id === activeFile.heatCapacityFreeGasType
+      ))?.label[settingsLanguagePreference] ??
+      heatCapacityFreeGasTypeOptions[0].label[settingsLanguagePreference]
+    : heatCapacityFreeGasTypeOptions[0].label[settingsLanguagePreference];
+  const activeHeatCapacityUsesSelectableGas = activeFile.kind === 'heatCapacity' &&
+    activeFile.heatCapacityMode === 'free';
+  const activeHeatCapacityExperimentTitle = activeHeatCapacityUsesSelectableGas
+    ? heatCapacityRealtimeCopy.gasExperimentTitle(activeHeatCapacityGasLabel)
+    : heatCapacityRealtimeCopy.realtimeTitle;
+  const activeHeatCapacityCalculationHint = activeHeatCapacityUsesSelectableGas
+    ? heatCapacityRealtimeCopy.gasCalculationHint(activeHeatCapacityGasLabel)
+    : heatCapacityRealtimeCopy.materialsHint;
+  const activeHeatCapacityMaterialsTabsAria = activeHeatCapacityUsesSelectableGas
+    ? heatCapacityRealtimeCopy.gasMaterialsTabsAria(activeHeatCapacityGasLabel)
+    : heatCapacityRealtimeCopy.materialsTabsAria;
+  const activeHeatCapacityPreviewMountAria = activeHeatCapacityUsesSelectableGas
+    ? heatCapacityRealtimeCopy.gasPreviewMountAria(activeHeatCapacityGasLabel)
+    : heatCapacityRealtimeCopy.previewMountAria;
   const pistonOscillationCopy = getPistonOscillationShellCopy(settingsLanguagePreference);
   const pistonGuideStep = activePistonOscillationGuideSession?.step ?? null;
   const pistonGuideHeightConfirmationReady = Boolean(
@@ -8026,10 +8047,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
     if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== 'free') return;
     if (currentFile.heatCapacityFreeParameterDraft.gasType === gasType) return;
-    if (currentFile.heatCapacityFreeParameterScheme === 'ideal') {
-      showHeatCapacityFreeIdealReadonlyHint();
-      return;
-    }
     const parameterLockReason = getHeatCapacityFreeParameterLockReason(currentFile);
     if (parameterLockReason) {
       const message = getHeatCapacityFreeParameterLockMessage(parameterLockReason, settingsLanguagePreference);
@@ -12634,7 +12651,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         switchHeatCapacityMode(
           'demo',
           'mode-control',
-          activeFile.heatCapacityMode !== 'free',
         );
       }
       return;
@@ -13528,7 +13544,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       return false;
     }
     const now = Date.now();
-    const sourceFile = targetMode === 'free'
+    const sourceFile = targetMode === 'free' || (
+      targetMode === 'guide' &&
+      currentFile.heatCapacityModeSessions.guide.status === 'completed'
+    )
       ? currentFile
       : clearHeatCapacityModeSession(currentFile, targetMode);
     const target = resolveHeatCapacityModeTarget(sourceFile, targetMode, now);
@@ -13569,9 +13588,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       currentFile.heatCapacityMode !== sourceMode
     ) return false;
     const now = Date.now();
-    const preparedFile = sourceMode === 'free'
-      ? suspendHeatCapacityModeSession(currentFile, null, now)
-      : clearHeatCapacityModeSession(currentFile, sourceMode);
+    const preparedFile = prepareHeatCapacityModeSessionForExit(currentFile, null, now);
     const exploreFile = enterHeatCapacityExploreModeWorkbenchState(
       preparedFile,
       createDefaultHeatCapacityFile(1),
@@ -13734,9 +13751,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       const sourceCheckpoint = currentFile.heatCapacityMode === 'free'
         ? null
         : buildHeatCapacityModeUiCheckpoint(currentFile, now, deferredGuideCheckpoint);
-      const suspendedFile = transition.activeIntent?.discardSource
-        ? clearHeatCapacityModeSession(currentFile, currentFile.heatCapacityMode)
-        : suspendHeatCapacityModeSession(currentFile, sourceCheckpoint, now);
+      const suspendedFile = prepareHeatCapacityModeSessionForExit(
+        currentFile,
+        sourceCheckpoint,
+        now,
+      );
       pendingHeatCapacityGuideUiRestoreRef.current = null;
       const target = resolveHeatCapacityModeTarget(suspendedFile, transition.targetMode, now);
       heatCapacitySceneModeTransitionControllerRef.current?.prepare(requestId, null);
@@ -13930,7 +13949,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const switchHeatCapacityMode = (
     targetMode: HeatCapacityMode,
     reason: HeatCapacityModeTransitionReason = 'mode-control',
-    discardSource = false,
     teachingResetConfirmed = false,
   ) => {
     if (heatCapacityRuntimeFailureFileIdRef.current !== null) return;
@@ -13942,7 +13960,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       shouldConfirmHeatCapacityTeachingProgressReset(currentFile, targetMode)
     ) {
       requestHeatCapacityTeachingProgressReset(() => {
-        switchHeatCapacityMode(targetMode, reason, discardSource, true);
+        switchHeatCapacityMode(targetMode, reason, true);
       });
       return;
     }
@@ -13964,7 +13982,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       sourceMode: heatCapacityModeTransitionStateRef.current.visibleMode,
       targetMode,
       reason,
-      discardSource,
     }, heatCapacitySceneDiscreteMotionRef.current.reasons);
     window.requestAnimationFrame(() => {
       if (
@@ -14157,11 +14174,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     } else {
       captureHeatCapacityModeSceneMetadata(currentFile.id);
       const now = Date.now();
-      const preparedFile = currentFile.heatCapacityMode === 'free'
-        ? suspendHeatCapacityModeSession(currentFile, null, now)
-        : currentFile.heatCapacityMode === 'demo' || currentFile.heatCapacityMode === 'guide'
-          ? clearHeatCapacityModeSession(currentFile, currentFile.heatCapacityMode)
-          : currentFile;
+      const preparedFile = prepareHeatCapacityModeSessionForExit(currentFile, null, now);
       const exploreFile = enterHeatCapacityExploreModeWorkbenchState(
         preparedFile,
         createDefaultHeatCapacityFile(1),
@@ -17309,7 +17322,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
     setLogs(createHeatCapacityTutorialLogs('guide', settingsLanguagePreference));
     tutorialGuideUnlockPendingRef.current = true;
-    switchHeatCapacityMode('guide', 'mode-control', true, true);
+    switchHeatCapacityMode('guide', 'mode-control', true);
   };
 
   useEffect(() => {
@@ -19261,8 +19274,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
     const selectedGasType = activeFile.heatCapacityFreeParameterDraft.gasType;
     const gasTypeLocked = !isHeatCapacityFreeGasTypeEditingAvailable(activeFile);
-    const disabled = activeHeatCapacityFreeIdealReadonly || gasTypeLocked;
-    const nativeDisabled = activeHeatCapacityFreeIdealReadonly;
+    const disabled = gasTypeLocked;
+    const nativeDisabled = false;
     const renderOption = (option: HeatCapacityFreeGasTypeOptionDefinition) => {
       const selected = selectedGasType === option.id;
       const gasTypeHelp = (
@@ -19284,16 +19297,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           disabled={nativeDisabled}
           onClick={() => {
             if (disabled) {
-              if (activeHeatCapacityFreeIdealReadonly) {
-                showHeatCapacityFreeIdealReadonlyHint();
-              } else {
-                const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
-                setScanInputToast(message);
-                pushLog(
-                  (language) => `${activeFile.name}: ${heatCapacityFreeSharedText.gasTypeLocked[language]}`,
-                  'warning',
-                );
-              }
+              const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
+              setScanInputToast(message);
+              pushLog(
+                (language) => `${activeFile.name}: ${heatCapacityFreeSharedText.gasTypeLocked[language]}`,
+                'warning',
+              );
               return;
             }
             setHeatCapacityFreeGasType(option.id);
@@ -19423,7 +19432,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       <section
         className={`studio-heat-free-params ${activeHeatCapacityFreeParameterLocked ? 'is-locked' : ''} ${activeHeatCapacityFreeIdealReadonly ? 'is-ideal-readonly' : ''}`}
         data-heat-capacity-free-parameter-panel="true"
-        aria-disabled={activeHeatCapacityFreeParameterInputDisabled}
+        aria-disabled={activeHeatCapacityFreeParameterLocked ? true : undefined}
         onPointerDownCapture={(event) => {
           if (!activeHeatCapacityFreeParameterLocked) return;
           const target = event.target instanceof Element ? event.target : null;
@@ -19837,7 +19846,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             activateHeatCapacityModeFromExplore('free');
           }
         } else if (heatCapacityActiveMode !== 'free' || autoDemoInteractionLocked) {
-          switchHeatCapacityMode('free', 'mode-control', heatCapacityActiveMode !== 'free');
+          switchHeatCapacityMode('free', 'mode-control');
         }
         return;
       }
@@ -19846,7 +19855,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         return;
       }
       if (heatCapacityActiveMode !== mode) {
-        switchHeatCapacityMode(mode, 'mode-control', heatCapacityActiveMode !== 'free');
+        switchHeatCapacityMode(mode, 'mode-control');
       }
     };
     const heatCapacityModeActionClassName = (action: HeatCapacityModeControlAction) => {
@@ -20809,7 +20818,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         {activeFile.kind === 'heatCapacity' ? (
           <div
             className="studio-heat-preview-mount"
-            aria-label={heatCapacityRealtimeCopy.previewMountAria}
+            aria-label={activeHeatCapacityPreviewMountAria}
             data-heat-capacity-preview-mount="true"
             onPointerDownCapture={(event) => {
               const target = event.target instanceof Element ? event.target : null;
@@ -22212,7 +22221,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         <div className="studio-heat-monitor-header" data-heat-capacity-realtime-header="true">
           <div className="studio-heat-monitor-title">
             <span>{heatCapacityRealtimeCopy.realtimeKicker}</span>
-            <strong>{heatCapacityRealtimeCopy.realtimeTitle}</strong>
+            <strong>{activeHeatCapacityExperimentTitle}</strong>
             <small>{renderScientificText(heatCapacityRealtimeCopy.realtimeSubtitle)}</small>
           </div>
           <div className="studio-heat-status-badges">
@@ -22896,7 +22905,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         ? storedTrialId
         : viewedGroup.runSeries.trials[0]?.id ?? null;
       const theoreticalGamma = viewedGroup.parameterSnapshot?.physics.gamma ?? activeFile.theoreticalGamma;
-      const calculationSession = viewedGroup.calculation?.kind === 'real-interactive'
+      const calculationSession = viewedGroup.calculation?.kind === 'real-interactive' ||
+          viewedGroup.calculation?.kind === 'ideal-interactive'
         ? viewedGroup.calculation.session
         : null;
       const review = selectHeatCapacityFreeProcessReview({
@@ -23204,7 +23214,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         <div className="studio-results-toolbar studio-heat-materials-toolbar">
           <div className="studio-results-title">
               <strong>{heatCapacityRealtimeCopy.materialsTitle}</strong>
-              <span>{heatCapacityRealtimeCopy.materialsHint}</span>
+              <span>{activeHeatCapacityCalculationHint}</span>
             </div>
             <div className="studio-results-actions">
               <button
@@ -23219,7 +23229,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               </button>
             </div>
           </div>
-          <div className="studio-results-tabs studio-heat-materials-tabs" role="tablist" aria-label={heatCapacityRealtimeCopy.materialsTabsAria}>
+          <div className="studio-results-tabs studio-heat-materials-tabs" role="tablist" aria-label={activeHeatCapacityMaterialsTabsAria}>
             {openTabs.map(({ tabId, panel }) => (
               <button
                 type="button"
@@ -24689,7 +24699,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                         ? workbenchCopy.parameters.idealSimulation
                         : activeFile.kind === 'heatCapacityPistonOscillation'
                           ? pistonOscillationCopy.methodName
-                          : workbenchCopy.parameters.heatCapacityExperiment}</strong>
+                          : activeHeatCapacityExperimentTitle}</strong>
                     <span>{activeFile.name}</span>
                     <span className={`studio-param-state ${parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) ? 'studio-param-state-pending' : ''}`}>
                       {parametersDirty
@@ -24771,7 +24781,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     {activeFile.kind === 'standard'
                         ? workbenchCopy.parameters.standardReadonlyNote
                         : activeFile.kind === 'heatCapacity'
-                          ? workbenchCopy.parameters.heatCapacityReadonlyNote
+                          ? activeHeatCapacityCalculationHint
                           : workbenchCopy.parameters.idealReadonlyNote}
                   </div>
                   ) : null}

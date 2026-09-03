@@ -62,7 +62,7 @@ assert.equal(
 );
 assert.deepEqual(
   WORKBENCH_PERSISTENCE_LEGACY_SUPPORT_MATRIX.migrationBaselineVersion,
-  1,
+  2,
   'legacy migration semantics must have an explicit baseline version',
 );
 assert.deepEqual(

@@ -10,7 +10,9 @@ import type {
 import {
   isHeatCapacityFreeExperimentGroupExecutableUnfinished,
   selectCurrentHeatCapacityFreeExperimentGroup,
+  setHeatCapacityFreeExperimentGroupDraftScheme,
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
+  updateCurrentHeatCapacityFreeIdealCalculationSession,
   updateCurrentHeatCapacityFreeRealCalculationSession,
   type HeatCapacityFreeExperimentGroupRecord,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
@@ -138,7 +140,7 @@ export const createHeatCapacityFreeExperimentDomainStateFromFile = (
   scheme: HeatCapacityFreeParameterScheme,
 ): HeatCapacityFreeExperimentDomainState => ({
   scheme,
-  gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
+  gasType: normalizeHeatCapacityFreeGasType(file.heatCapacityFreeGasType),
   batch: file.heatCapacityFreeRunWorkspace.batch,
   experimentGroupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
   activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file, scheme),
@@ -167,15 +169,13 @@ export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
   fallbackGasType?: HeatCapacityFreeGasType,
 ): HeatCapacityFreeExperimentDomainState => {
   const physicsConfig = normalizeHeatCapacityFreePhysicsConfig(domain.physicsConfig);
-  const gasType = scheme === 'ideal'
-    ? 'air'
-    : normalizeHeatCapacityFreeGasType(
-        domain.gasType,
-        normalizeHeatCapacityFreeGasType(
-          fallbackGasType,
-          resolveHeatCapacityFreeGasTypeFromGamma(physicsConfig.gamma),
-        ),
-      );
+  const gasType = normalizeHeatCapacityFreeGasType(
+    domain.gasType,
+    normalizeHeatCapacityFreeGasType(
+      fallbackGasType,
+      resolveHeatCapacityFreeGasTypeFromGamma(physicsConfig.gamma),
+    ),
+  );
   if (scheme === 'ideal') {
     return {
       ...domain,
@@ -184,7 +184,7 @@ export const normalizeHeatCapacityFreeExperimentDomainBoundary = (
       batch: normalizeHeatCapacityFreeBatchState(domain.batch),
       physicsConfig: {
         ...physicsConfig,
-        gamma: getHeatCapacityFreeIdealTheoreticalGamma(),
+        gamma: getHeatCapacityFreeIdealTheoreticalGamma(gasType),
       },
       trials: withHeatCapacityFreeTrialsParameterScheme(domain.trials, 'ideal'),
       activeAttempt: domain.activeAttempt ?? null,
@@ -324,8 +324,15 @@ const captureHeatCapacityFreeRuntimeInCurrentExperimentGroup = (
   ) {
     return file;
   }
+  const synchronizedGroups = currentGroup.status === 'draft'
+    ? setHeatCapacityFreeExperimentGroupDraftScheme(
+        file.heatCapacityFreeExperimentGroups,
+        currentGroup.scheme,
+        file.heatCapacityFreeGasType,
+      )
+    : file.heatCapacityFreeExperimentGroups;
   let groups = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(
-    file.heatCapacityFreeExperimentGroups,
+    synchronizedGroups,
     {
       batch: file.heatCapacityFreeRunWorkspace.batch,
       trials: file.heatCapacityFreeRunWorkspace.trials,
@@ -337,6 +344,14 @@ const captureHeatCapacityFreeRuntimeInCurrentExperimentGroup = (
     file.heatCapacityFreeRunWorkspace.batch.calculationSession !== null
   ) {
     groups = updateCurrentHeatCapacityFreeRealCalculationSession(
+      groups,
+      file.heatCapacityFreeRunWorkspace.batch.calculationSession,
+    );
+  } else if (
+    currentGroup.status === 'awaiting-ideal-calculation' &&
+    file.heatCapacityFreeRunWorkspace.batch.calculationSession !== null
+  ) {
+    groups = updateCurrentHeatCapacityFreeIdealCalculationSession(
       groups,
       file.heatCapacityFreeRunWorkspace.batch.calculationSession,
     );

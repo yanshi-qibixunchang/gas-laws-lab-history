@@ -1423,12 +1423,20 @@ const heliumRealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
   ...file.heatCapacityFreeParameterDraft,
   gasType: 'helium',
 });
-const heliumIdealFile = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumRealFile, 'ideal', 778);
+const heliumIdealAirFile = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumRealFile, 'ideal', 778);
+const heliumIdealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
+  heliumIdealAirFile,
+  {
+    ...heliumIdealAirFile.heatCapacityFreeParameterDraft,
+    gasType: 'helium',
+  },
+  778.5,
+);
 const heliumIdealPayload = createHeatCapacityPersistencePayload(heliumIdealFile, 779);
 assert.equal(heliumIdealPayload.free?.real.gasType, 'helium');
 assert.equal(heliumIdealPayload.free?.real.physicsConfig.gamma, 5 / 3);
-assert.equal(heliumIdealPayload.free?.ideal.gasType, 'air');
-assert.equal(heliumIdealPayload.free?.ideal.physicsConfig.gamma, 1.4);
+assert.equal(heliumIdealPayload.free?.ideal.gasType, 'helium');
+assert.equal(heliumIdealPayload.free?.ideal.physicsConfig.gamma, 5 / 3);
 const heliumIdealRestored = restoreHeatCapacityFileFromPersistencePayload({
   schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
   fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
@@ -1440,7 +1448,9 @@ const heliumIdealRestored = restoreHeatCapacityFileFromPersistencePayload({
   layout: {},
   payload: heliumIdealPayload as unknown as Record<string, unknown>,
 }, heliumIdealPayload, 6);
-assert.equal(heliumIdealRestored.heatCapacityFreeGasType, 'air');
+assert.equal(heliumIdealRestored.heatCapacityFreeGasType, 'helium');
+assert.equal(heliumIdealRestored.heatCapacityFreeIdealDomain.gasType, 'helium');
+assert.equal(heliumIdealRestored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 const heliumRealRestored = setHeatCapacityFreeParameterSchemeWorkbenchState(heliumIdealRestored, 'real', 780);
 assert.equal(heliumRealRestored.heatCapacityFreeGasType, 'helium');
 assert.equal(heliumRealRestored.heatCapacityFreeParameterDraft.gasType, 'helium');

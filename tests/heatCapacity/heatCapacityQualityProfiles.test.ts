@@ -52,7 +52,7 @@ assert.match(
 );
 assert.match(
   profileSource,
-  /ultra:[\s\S]*renderModel:\s*'ultraGlb'[\s\S]*dpr:\s*2[\s\S]*frameLoop:\s*'always'[\s\S]*enhancedLighting:\s*true[\s\S]*particleMultiplier:\s*1\.25[\s\S]*speedMultiplier:\s*1\.25[\s\S]*tickIntervalMs:\s*100/,
+  /ultra:[\s\S]*renderModel:\s*'ultraGlb'[\s\S]*dpr:\s*2[\s\S]*frameLoop:\s*'demand'[\s\S]*enhancedLighting:\s*true[\s\S]*particleMultiplier:\s*1\.25[\s\S]*speedMultiplier:\s*1\.25[\s\S]*tickIntervalMs:\s*100/,
   'ultra should improve GLB clarity and refresh while leaving molecule count and rate equal to highPerformance',
 );
 

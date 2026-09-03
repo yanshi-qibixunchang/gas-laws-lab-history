@@ -26,6 +26,7 @@ import {
   raiseCurrentHeatCapacityFreeExperimentGroupHighWaterMarks,
   selectCurrentHeatCapacityFreeExperimentGroup,
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
+  updateCurrentHeatCapacityFreeIdealCalculationSession,
   updateCurrentHeatCapacityFreeRealCalculationSession,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 
@@ -509,7 +510,7 @@ export const prepareHeatCapacityFreeCapture = (
     const runtime = decodeCanonicalDomain(
       rawRuntime,
       scheme,
-      scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
+      file.heatCapacityFreeGasType,
       scheme === 'ideal'
         ? fallback.heatCapacityFreeIdealDomain
         : fallback.heatCapacityFreeRealDomain,
@@ -522,7 +523,7 @@ export const prepareHeatCapacityFreeCapture = (
       runtime,
       storedActive,
       scheme,
-      scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
+      file.heatCapacityFreeGasType,
       scheme === 'ideal'
         ? fallback.heatCapacityFreeIdealDomain
         : fallback.heatCapacityFreeRealDomain,
@@ -548,7 +549,7 @@ export const prepareHeatCapacityFreeCapture = (
         activeAttempt: file.heatCapacityFreeRunWorkspace.activeAttempt,
       },
       scheme,
-      scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
+      file.heatCapacityFreeGasType,
       scheme === 'ideal'
         ? fallback.heatCapacityFreeIdealDomain
         : fallback.heatCapacityFreeRealDomain,
@@ -587,6 +588,14 @@ export const prepareHeatCapacityFreeCapture = (
       capturedActiveDomain.batch.calculationSession !== null
     ) {
       experimentGroups = updateCurrentHeatCapacityFreeRealCalculationSession(
+        experimentGroups,
+        capturedActiveDomain.batch.calculationSession,
+      );
+    } else if (
+      currentGroup.status === 'awaiting-ideal-calculation' &&
+      capturedActiveDomain.batch.calculationSession !== null
+    ) {
+      experimentGroups = updateCurrentHeatCapacityFreeIdealCalculationSession(
         experimentGroups,
         capturedActiveDomain.batch.calculationSession,
       );

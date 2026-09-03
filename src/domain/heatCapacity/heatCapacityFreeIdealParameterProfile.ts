@@ -9,11 +9,14 @@ import type {
 import type {
   HeatCapacityFreeRecordConfig,
 } from './heatCapacityFreeRecordModel.ts';
-import type {
-  HeatCapacityFreeSensorConfig,
+import {
+  HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE,
+  HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S,
+  type HeatCapacityFreeSensorConfig,
 } from './heatCapacityFreeSensorModel.ts';
 import {
   getHeatCapacityFreeIdealTheoreticalGamma,
+  type HeatCapacityFreeGasType,
 } from './heatCapacityGasTheory.ts';
 
 export type HeatCapacityFreeIdealStage =
@@ -81,6 +84,7 @@ export const createHeatCapacityFreeIdealStagePhysicsConfig = (
 
 export const createHeatCapacityFreeIdealEffectiveConfigs = (
   stage: HeatCapacityFreeIdealStage,
+  gasType: HeatCapacityFreeGasType = 'air',
 ): HeatCapacityFreeIdealEffectiveConfigs => {
   const basePhysics = createDefaultHeatCapacityFreePhysicsConfig();
   const baseSensor = createDefaultHeatCapacityFreeSensorConfig();
@@ -96,12 +100,15 @@ export const createHeatCapacityFreeIdealEffectiveConfigs = (
     physics: {
       ...physics,
       environment,
-      gamma: getHeatCapacityFreeIdealTheoreticalGamma(),
+      gamma: getHeatCapacityFreeIdealTheoreticalGamma(gasType),
     },
     sensor: {
       ...baseSensor,
-      lagRate: 120,
+      lagRate: HEAT_CAPACITY_FREE_IDEAL_SENSOR_LAG_RATE,
       noiseMv: 0,
+      quantizationMv: 0,
+      minSampleIntervalS: HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S,
+      maxSampleIntervalS: HEAT_CAPACITY_FREE_IDEAL_SENSOR_SAMPLE_INTERVAL_S,
       pressureNonlinearity: {
         ...baseSensor.pressureNonlinearity,
         enabled: false,

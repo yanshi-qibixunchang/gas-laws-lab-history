@@ -76,7 +76,7 @@ const COPY = {
     stepTitle: {
       correctedVoltages: '计算电压差',
       absolutePressures: '计算绝对压强',
-      groupGamma: '计算本次实验空气比热容比',
+      groupGamma: '计算本次实验气体比热容比',
       guideRelativeError: '计算相对误差',
       meanGamma: '计算比热容比平均值',
       sampleStandardDeviation: '计算样本标准差',
@@ -120,7 +120,7 @@ const COPY = {
     stepTitle: {
       correctedVoltages: '計算電壓差',
       absolutePressures: '計算絕對壓強',
-      groupGamma: '計算本次實驗空氣比熱容比',
+      groupGamma: '計算本次實驗氣體比熱容比',
       guideRelativeError: '計算相對誤差',
       meanGamma: '計算比熱容比平均值',
       sampleStandardDeviation: '計算樣本標準差',

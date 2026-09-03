@@ -26,6 +26,11 @@ import {
 import {
   HEAT_CAPACITY_RELEASE_TIMING,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import {
+  enterHeatCapacityExploreModeWorkbenchState,
+  prepareHeatCapacityModeSessionForExit,
+  restoreHeatCapacityModeSession,
+} from '../../src/features/workbench/workbenchHeatCapacityModeSession.ts';
 
 const createBaseFile = (): WorkbenchHeatCapacityState => createDefaultHeatCapacityFile(1);
 const workbenchStateSource = readFileSync(
@@ -354,14 +359,27 @@ const stabilizeGuidePressureZero = (
   assert.equal(guide.heatCapacityFreeRunWorkspace.trials.length, 0);
   assert.equal(guide.heatCapacityGuideWorkflow.step, 'completed');
 
-  const exitedGuide = exitHeatCapacityTeachingModeWorkbenchState(guide, now += 100);
-  assert.equal(exitedGuide.heatCapacityMode, 'free');
-  assert.equal(exitedGuide.heatCapacityTeachingStatus, 'idle');
-  assert.equal(exitedGuide.heatCapacityGuideTrial, null);
-  assert.equal(exitedGuide.heatCapacityGuideWorkflow.step, 'powerRequired');
+  const exitedGuide = enterHeatCapacityExploreModeWorkbenchState(
+    prepareHeatCapacityModeSessionForExit(guide, null, now += 100),
+    createBaseFile(),
+    now,
+  );
+  assert.equal(exitedGuide.heatCapacityMode, null);
+  assert.equal(exitedGuide.heatCapacityModeSessions.guide.status, 'completed');
+  const reopenedGuide = restoreHeatCapacityModeSession(exitedGuide, 'guide', now += 100);
+  assert.equal(reopenedGuide?.heatCapacityTeachingStatus, 'completed');
+  assert.equal(reopenedGuide?.heatCapacityGuideWorkflow.step, 'completed');
+  assert.equal(
+    reopenedGuide?.heatCapacityGuideTrial?.correctedSignals?.gamma,
+    guide.heatCapacityGuideTrial?.correctedSignals?.gamma,
+  );
 
   const poweredFree = powerHeatCapacityWorkbenchFile(
-    configureHeatCapacityFreeBatchWorkbenchState(exitedGuide, 3, now += 50),
+    configureHeatCapacityFreeBatchWorkbenchState(
+      enterHeatCapacityFreeModeWorkbenchState(exitedGuide, now += 50),
+      3,
+      now,
+    ),
     true,
     now += 100,
   );

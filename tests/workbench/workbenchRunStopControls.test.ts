@@ -78,7 +78,7 @@ assert.match(
 
 assert.match(
   source,
-  /const switchHeatCapacityMode = \([\s\S]*targetMode: HeatCapacityMode,[\s\S]*reason: HeatCapacityModeTransitionReason[\s\S]*discardSource = false,[\s\S]*requestHeatCapacityModeTransition\(\{[\s\S]*sourceMode:[\s\S]*targetMode,[\s\S]*reason,[\s\S]*discardSource,[\s\S]*scheduleHeatCapacityModeTargetPreparation\(nextState\.requestId\)/,
+  /const switchHeatCapacityMode = \([\s\S]*targetMode: HeatCapacityMode,[\s\S]*reason: HeatCapacityModeTransitionReason[\s\S]*requestHeatCapacityModeTransition\(\{[\s\S]*sourceMode:[\s\S]*targetMode,[\s\S]*reason,[\s\S]*scheduleHeatCapacityModeTargetPreparation\(nextState\.requestId\)/,
   'mode switching should submit a strongly typed intent to the shared transition coordinator instead of projecting a target synchronously',
 );
 

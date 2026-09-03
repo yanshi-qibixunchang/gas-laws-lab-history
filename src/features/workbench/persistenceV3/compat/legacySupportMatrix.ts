@@ -13,7 +13,7 @@ export const LEGACY_WORKBENCH_FILE_SCHEMA_FAMILY =
   'hard-sphere-lab.experiment-file' as const;
 
 export const WORKBENCH_PERSISTENCE_LEGACY_SUPPORT_MATRIX = Object.freeze({
-  migrationBaselineVersion: 1,
+  migrationBaselineVersion: 2,
   workspace: Object.freeze({
     schemaFamily: LEGACY_WORKBENCH_WORKSPACE_SCHEMA_FAMILY,
     supportedSchemaVersions: Object.freeze([2] as const),

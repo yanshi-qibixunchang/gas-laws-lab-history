@@ -191,7 +191,6 @@ const roundNumber = (value: number, digits = 2) => (
 const PROCESS_REVIEW_POST_U2_BUFFER_S = 6;
 const PROCESS_REVIEW_POWER_OFF_GRACE_S = 30;
 const DEFAULT_PROCESS_REVIEW_THEORETICAL_GAMMA = getHeatCapacityFreeGasTypeGamma('air');
-const IDEAL_REVIEW_THEORETICAL_GAMMA = DEFAULT_PROCESS_REVIEW_THEORETICAL_GAMMA;
 
 const formatNumber = (value: number, digits = 1) => (
   Number.isFinite(value) ? value.toFixed(digits) : '--'
@@ -758,9 +757,7 @@ export const selectHeatCapacityFreeProcessReview = ({
     };
   }
 
-  const reviewTheoreticalGamma = selected.trial.parameterScheme === 'ideal'
-    ? IDEAL_REVIEW_THEORETICAL_GAMMA
-    : theoreticalGamma;
+  const reviewTheoreticalGamma = theoreticalGamma;
   const standardReference = selected.trial.standardReferenceSnapshot ?? createHeatCapacityFreeStandardReference({
     traceTrial,
     trial: selected.trial,
@@ -792,9 +789,7 @@ export const selectHeatCapacityFreeProcessReview = ({
       ? selectMainBranch(candidateTraceTrial)
       : null;
     if (!candidateTraceTrial || !candidateBranch) continue;
-    const candidateTheoreticalGamma = trial.parameterScheme === 'ideal'
-      ? IDEAL_REVIEW_THEORETICAL_GAMMA
-      : theoreticalGamma;
+    const candidateTheoreticalGamma = theoreticalGamma;
     const candidateReference = trial.standardReferenceSnapshot ??
       createHeatCapacityFreeStandardReference({
         traceTrial: candidateTraceTrial,

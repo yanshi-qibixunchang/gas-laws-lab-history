@@ -2192,7 +2192,7 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomainResult = (
   const normalizedDomain = normalizeHeatCapacityFreeExperimentDomainBoundary({
     ...fallback,
     scheme,
-    gasType: scheme === 'ideal' ? 'air' : normalizeHeatCapacityFreeGasType(domain.gasType, gasType),
+    gasType: normalizeHeatCapacityFreeGasType(domain.gasType, gasType),
     batch: normalizedBatch,
     experimentGroupStatus: normalizeHeatCapacityFreeRestoreExperimentGroupStatus(
       domain.experimentGroupStatus,

@@ -62,7 +62,7 @@ export const HEAT_CAPACITY_QUALITY_PROFILES: Record<HeatCapacityQualityMode, Hea
   ultra: {
     renderModel: 'ultraGlb',
     dpr: 2,
-    frameLoop: 'always',
+    frameLoop: 'demand',
     reduceInteractionQuality: false,
     highClarityProcedural: false,
     panelTextUpdateIntervalMs: 120,

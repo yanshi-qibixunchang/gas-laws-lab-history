@@ -6,6 +6,7 @@ import type {
   HeatCapacityFreeExperimentGroupRecord,
   HeatCapacityFreeExperimentGroupScheme,
 } from './heatCapacityFreeExperimentGroupModel.ts';
+import type { HeatCapacityFreeGasType } from './heatCapacityGasTheory.ts';
 
 export interface HeatCapacityFreeGroupLollipopPoint {
   trialId: string;
@@ -17,6 +18,7 @@ export interface HeatCapacityFreeGroupLollipopPoint {
 export interface HeatCapacityFreeGroupLollipopChartModel {
   groupId: string;
   scheme: HeatCapacityFreeExperimentGroupScheme;
+  gasType: HeatCapacityFreeGasType;
   schemeGroupNumber: number | null;
   targetExperimentCount: number;
   completedExperimentCount: number;
@@ -32,6 +34,7 @@ export interface HeatCapacityFreeGroupLollipopChartModel {
 export interface HeatCapacityFreeAllGroupsOverviewPoint {
   groupId: string;
   scheme: HeatCapacityFreeExperimentGroupScheme;
+  gasType: HeatCapacityFreeGasType;
   schemeGroupNumber: number;
   globalOrder: number;
   meanGamma: number;
@@ -52,7 +55,8 @@ const getTheoreticalGamma = (
 ) => group.parameterSnapshot?.physics.gamma ??
   (group.calculation?.kind === 'ideal-automatic'
     ? group.calculation.result.theoreticalGamma
-    : group.calculation?.kind === 'real-interactive'
+    : group.calculation?.kind === 'real-interactive' ||
+        group.calculation?.kind === 'ideal-interactive'
       ? group.calculation.session.theoreticalGamma
       : null);
 
@@ -78,6 +82,7 @@ export const createHeatCapacityFreeGroupLollipopChartModel = (
   return {
     groupId: group.id,
     scheme: group.scheme,
+    gasType: group.gasType,
     schemeGroupNumber: group.schemeGroupNumber,
     targetExperimentCount: group.targetExperimentCount,
     completedExperimentCount: points.length,
@@ -124,6 +129,7 @@ export const createHeatCapacityFreeAllGroupsOverviewModel = (
         return {
           groupId: model.groupId,
           scheme: model.scheme,
+          gasType: model.gasType,
           schemeGroupNumber: model.schemeGroupNumber!,
           globalOrder: group.globalOrder ?? Number.MAX_SAFE_INTEGER,
           meanGamma: model.meanGamma!,

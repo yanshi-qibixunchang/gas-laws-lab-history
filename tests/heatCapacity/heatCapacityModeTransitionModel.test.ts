@@ -12,7 +12,6 @@ const requestTransition = (
   state: TransitionState,
   targetMode: TransitionState['visibleMode'],
   sceneMotionReasons: TransitionState['sourceBlockers'],
-  discardSource = false,
 ) => reduceHeatCapacityModeTransition(state, {
   type: 'request',
   intent: {
@@ -20,7 +19,6 @@ const requestTransition = (
     sourceMode: state.visibleMode,
     targetMode,
     reason: 'mode-control',
-    discardSource,
   },
   sceneMotionReasons,
 });

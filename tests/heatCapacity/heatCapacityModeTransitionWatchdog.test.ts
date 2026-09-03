@@ -24,7 +24,6 @@ const pendingTransition = reduceHeatCapacityModeTransition(
       sourceMode: 'free',
       targetMode: 'guide',
       reason: 'mode-control',
-      discardSource: false,
     },
     sceneMotionReasons: ['camera'],
   },

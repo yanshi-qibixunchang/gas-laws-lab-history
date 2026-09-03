@@ -417,7 +417,7 @@ const createFreeModeSessionDomainFromProjection = (
   const scheme = file.heatCapacityFreeParameterScheme;
   return {
     scheme,
-    gasType: scheme === 'ideal' ? 'air' : file.heatCapacityFreeGasType,
+    gasType: file.heatCapacityFreeGasType,
     batch: file.heatCapacityFreeRunWorkspace.batch,
     experimentGroupStatus: file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
     activeRunConfigSnapshot: selectHeatCapacityFreeActiveRunConfigSnapshot(file),
@@ -709,20 +709,36 @@ export const clearHeatCapacityModeSession = (
   },
 });
 
+export const shouldRetainHeatCapacityModeSessionOnExit = (
+  file: WorkbenchHeatCapacityState,
+) => file.heatCapacityMode === 'free' || (
+  file.heatCapacityMode === 'guide' &&
+  file.heatCapacityTeachingStatus === 'completed'
+);
+
+export const prepareHeatCapacityModeSessionForExit = (
+  file: WorkbenchHeatCapacityState,
+  uiCheckpoint: HeatCapacityModeUiCheckpoint | null,
+  capturedAtMs = Date.now(),
+): WorkbenchHeatCapacityState => {
+  const mode = file.heatCapacityMode;
+  if (mode === null) return file;
+  return shouldRetainHeatCapacityModeSessionOnExit(file)
+    ? suspendHeatCapacityModeSession(file, uiCheckpoint, capturedAtMs)
+    : clearHeatCapacityModeSession(file, mode);
+};
+
 /**
  * Normalizes a file opened from disk or revisited in the workbench to Explore.
- * Free mode is resumable; Demo and Guide are intentionally discarded.
+ * Free mode and completed Guide results are resumable. Demo and unfinished
+ * Guide progress are intentionally discarded.
  */
 export const prepareHeatCapacityFileForExploreOnOpen = (
   file: WorkbenchHeatCapacityState,
   defaults: WorkbenchHeatCapacityState,
   now = Date.now(),
 ): WorkbenchHeatCapacityState => {
-  const prepared = file.heatCapacityMode === 'free'
-    ? suspendHeatCapacityModeSession(file, null, now)
-    : file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide'
-      ? clearHeatCapacityModeSession(file, file.heatCapacityMode)
-      : file;
+  const prepared = prepareHeatCapacityModeSessionForExit(file, null, now);
   return enterHeatCapacityExploreModeWorkbenchState(prepared, defaults, now);
 };
 
@@ -3527,8 +3543,7 @@ const isFreeExperimentDomainSemanticallyValid = (
     domain.environmentConfig,
     domain.physicsConfig.environment,
   );
-  const gasValid = domain.physicsConfig.gamma === getHeatCapacityFreeGasTypeGamma(domain.gasType) &&
-    (domain.scheme !== 'ideal' || domain.gasType === 'air');
+  const gasValid = domain.physicsConfig.gamma === getHeatCapacityFreeGasTypeGamma(domain.gasType);
   const thermodynamicValid = isFreeThermodynamicProjectionConsistent(domain.physicsState, domain.physicsConfig);
   const physicsTimelineValid = isPhysicsTimelineWithinSimulationTime(domain.physicsState);
   const stopcockTimingValid = isPhysicsValveTimingProjectionConsistent(
@@ -3552,31 +3567,51 @@ const isFreeExperimentDomainSemanticallyValid = (
     domain.pressureWarningMv,
     domain.instrumentNoiseEnabled,
   );
-  const expectedParameterState = domain.scheme === 'ideal'
+  const expectedParameterStates = domain.scheme === 'ideal'
     ? (() => {
-        const ideal = createHeatCapacityFreeIdealEffectiveConfigs('thermalEquilibrium');
-        return {
+        const ideal = createHeatCapacityFreeIdealEffectiveConfigs(
+          'thermalEquilibrium',
+          domain.gasType,
+        );
+        const current = {
           environmentConfig: ideal.environment,
           physicsConfig: ideal.physics,
           sensorConfig: normalizeHeatCapacityFreeSensorConfig(ideal.sensor),
           recordConfig: ideal.record,
           pressureWarningMv: ideal.pressureWarningMv,
           instrumentNoiseEnabled: ideal.instrumentNoiseEnabled,
-          gasType: 'air' as const,
+          gasType: domain.gasType,
         };
+        const legacySensor = createDefaultHeatCapacityFreeSensorConfig();
+        const legacy = {
+          ...current,
+          sensorConfig: normalizeHeatCapacityFreeSensorConfig({
+            ...legacySensor,
+            lagRate: 60,
+            noiseMv: 0,
+            pressureNonlinearity: {
+              ...legacySensor.pressureNonlinearity,
+              enabled: false,
+              extraNoiseMv: 0,
+            },
+          }),
+        };
+        return [current, legacy];
       })()
-    : applyHeatCapacityFreeParameterDraftToConfigs(parameterDraft);
-  const parameterConfigValid = areRuntimeValuesStructurallyEqual(
+    : [applyHeatCapacityFreeParameterDraftToConfigs(parameterDraft)];
+  const parameterDraftValid = domain.scheme === 'ideal' || areRuntimeValuesStructurallyEqual(
     parameterDraft,
     normalizeHeatCapacityFreeParameterDraft(parameterDraft),
-  ) &&
+  );
+  const parameterConfigValid = parameterDraftValid && expectedParameterStates.some((expectedParameterState) => (
     areRuntimeValuesStructurallyEqual(domain.environmentConfig, expectedParameterState.environmentConfig) &&
     areRuntimeValuesStructurallyEqual(domain.physicsConfig, expectedParameterState.physicsConfig) &&
     areRuntimeValuesStructurallyEqual(domain.sensorConfig, expectedParameterState.sensorConfig) &&
     areRuntimeValuesStructurallyEqual(domain.recordConfig, expectedParameterState.recordConfig) &&
     domain.pressureWarningMv === expectedParameterState.pressureWarningMv &&
     domain.instrumentNoiseEnabled === expectedParameterState.instrumentNoiseEnabled &&
-    domain.gasType === expectedParameterState.gasType;
+    domain.gasType === expectedParameterState.gasType
+  ));
   const activeAttemptValid = isFreeActiveAttemptProjectionConsistent(domain);
   const batchValid = isFreeBatchProjectionConsistent(domain);
   const effectiveSensorConfig = getEffectiveHeatCapacityFreeSensorConfig(
@@ -3772,6 +3807,11 @@ const decodeFreeExperimentGroupCalculation: RuntimeValueDecoder = (value) => {
         kind: decodeLiteral(['real-interactive']),
         session: decodeCalculationWorkflowSession,
       })(value)
+    : value.kind === 'ideal-interactive'
+      ? decodeRecord({
+          kind: decodeLiteral(['ideal-interactive']),
+          session: decodeCalculationWorkflowSession,
+        })(value)
     : value.kind === 'ideal-automatic'
       ? decodeRecord({
           kind: decodeLiteral(['ideal-automatic']),
@@ -3798,6 +3838,7 @@ const decodeFreeExperimentGroup = decodeRecord({
     'draft',
     'collecting',
     'awaiting-real-calculation',
+    'awaiting-ideal-calculation',
     'awaiting-ideal-processing',
     'completed',
     'legacy-incomplete-readonly',

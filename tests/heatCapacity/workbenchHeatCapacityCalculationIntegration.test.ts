@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   completeHeatCapacityCalculationWorkflowWorkbenchState,
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   completeHeatCapacityTeachingModeWorkbenchState,
   configureHeatCapacityFreeBatchWorkbenchState,
   continueHeatCapacityCalculationAnswerWorkbenchState,
@@ -9,6 +10,7 @@ import {
   freezeHeatCapacityFreeParametersForCurrentGroup,
   getHeatCapacityCalculationSession,
   revealHeatCapacityCalculationAnswerWorkbenchState,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
   submitHeatCapacityCalculationStepWorkbenchState,
   updateHeatCapacityCalculationDraftWorkbenchState,
@@ -33,6 +35,10 @@ import {
   formatHeatCapacityCalculationReference,
   HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
 } from '../../src/domain/heatCapacity/heatCapacityCalculationValidation.ts';
+import {
+  beginHeatCapacityFreeIdealGroupCalculation,
+  selectCurrentHeatCapacityFreeExperimentGroup,
+} from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 
 const guideRecord = (
   displayPressureMv: number,
@@ -214,5 +220,97 @@ assert.equal(freeSession?.mode, 'free');
 assert.equal(freeSession?.groups.length, 3);
 assert.equal(freeSession?.aggregate?.reference.count, 3);
 assert.equal(freeSession?.status, 'in-progress');
+
+let idealFile = setHeatCapacityFreeParameterSchemeWorkbenchState(
+  createDefaultHeatCapacityFile(3),
+  'ideal',
+  300,
+);
+idealFile = applyHeatCapacityFreeParameterDraftWorkbenchState(idealFile, {
+  ...idealFile.heatCapacityFreeParameterDraft,
+  gasType: 'helium',
+}, 301);
+idealFile = configureHeatCapacityFreeBatchWorkbenchState(idealFile, 3, 302);
+idealFile = freezeHeatCapacityFreeParametersForCurrentGroup(idealFile, 303);
+const idealSnapshot = idealFile.heatCapacityFreeRunWorkspace.batch.frozenConfigSnapshot!;
+let idealBatch = idealFile.heatCapacityFreeRunWorkspace.batch;
+const idealTrials = [0, 1, 2].map((index): HeatCapacityFreeTrial => {
+  const allocation = allocateHeatCapacityFreeTrialIdentity(idealBatch);
+  assert.ok(allocation);
+  idealBatch = allocation.batch;
+  const base = {
+    ...createHeatCapacityFreeBatchTrial(allocation.identity, null, 'ideal'),
+    u0: makeFreeRecord(0, 1),
+    u1: makeFreeRecord(120 + index * 2, 2),
+    u2: makeFreeRecord(50 + index, 3),
+    configSnapshot: idealSnapshot,
+    completedAtMs: 310 + index,
+  };
+  return {
+    ...base,
+    correctedSignals: calculateFreeHeatCapacityTrialSignals(base, {
+      atmosphericPressureKPa: idealSnapshot.environment.ambientPressureKPa,
+      pressureSensitivityMvPerKPa: idealSnapshot.sensor.pressureMvPerKPa,
+      theoreticalGamma: idealSnapshot.physics.gamma,
+    }),
+  };
+});
+idealFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
+  ...idealFile,
+  heatCapacityFreeRunWorkspace: {
+    ...idealFile.heatCapacityFreeRunWorkspace,
+    trials: idealTrials,
+    batch: completeHeatCapacityFreeBatchExperiment(idealBatch, 320),
+  },
+}, 'ideal');
+idealFile = ensureHeatCapacityCalculationSessionWorkbenchState(idealFile, 321);
+const idealCalculationSession = getHeatCapacityCalculationSession(idealFile);
+assert.equal(idealCalculationSession?.theoreticalGamma, 5 / 3);
+assert.equal(idealCalculationSession?.presentation, 'interactive');
+idealFile = {
+  ...idealFile,
+  heatCapacityFreeExperimentGroups: beginHeatCapacityFreeIdealGroupCalculation(
+    idealFile.heatCapacityFreeExperimentGroups,
+    idealCalculationSession!,
+    322,
+  ),
+};
+assert.equal(
+  selectCurrentHeatCapacityFreeExperimentGroup(
+    idealFile.heatCapacityFreeExperimentGroups,
+  )?.status,
+  'awaiting-ideal-calculation',
+);
+while (getHeatCapacityCalculationSession(idealFile)?.status === 'in-progress') {
+  const session = getHeatCapacityCalculationSession(idealFile)!;
+  const stepId = session.activeStepId!;
+  const step = [
+    ...session.groups.flatMap((group) => group.steps),
+    ...(session.aggregate?.steps ?? []),
+  ].find((candidate) => candidate.id === stepId)!;
+  idealFile = submitHeatCapacityCalculationStepWorkbenchState(idealFile, stepId, 330);
+  for (const fieldId of step.fieldIds) {
+    const currentSession = getHeatCapacityCalculationSession(idealFile)!;
+    const field = [
+      ...currentSession.groups.flatMap((group) => group.fields),
+      ...(currentSession.aggregate?.fields ?? []),
+    ].find((candidate) => candidate.id === fieldId);
+    if (field?.feedback) {
+      idealFile = revealHeatCapacityCalculationAnswerWorkbenchState(
+        idealFile,
+        fieldId,
+        331,
+      );
+    }
+  }
+}
+assert.equal(getHeatCapacityCalculationSession(idealFile)?.status, 'ready-to-exit');
+idealFile = completeHeatCapacityCalculationWorkflowWorkbenchState(idealFile, 340);
+const completedIdealGroup = selectCurrentHeatCapacityFreeExperimentGroup(
+  idealFile.heatCapacityFreeExperimentGroups,
+);
+assert.equal(completedIdealGroup?.status, 'completed');
+assert.equal(completedIdealGroup?.calculation?.kind, 'ideal-interactive');
+assert.equal(completedIdealGroup?.finalScore, null, 'Ideal manual calculations must remain unscored');
 
 console.log('workbenchHeatCapacityCalculationIntegration tests passed');

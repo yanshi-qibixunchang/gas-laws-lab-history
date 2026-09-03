@@ -2,16 +2,16 @@
   "schemaVersion": 1,
   "scriptVersion": "validation-evidence-v3",
   "randomGenerator": "fnv1a32-mulberry32-v1",
-  "generatedAt": "2026-09-02T12:04:16.042Z",
-  "finishedAt": "2026-09-02T12:04:39.678Z",
+  "generatedAt": "2026-09-02T17:09:56.198Z",
+  "finishedAt": "2026-09-02T17:10:35.965Z",
   "command": "node scripts/research-report/generate-evidence.ts",
   "repository": {
     "root": ".",
     "packageName": "hard-sphere-lab",
     "packageVersion": "6.4.0",
-    "gitCommit": "98f898ebdfafebb76e61500929222eca6fdf1651",
+    "gitCommit": "872442866b364b8040f2c7ea13ed653e67a9a560",
     "dirtyAtStart": true,
-    "dirtyEntryCountAtStart": 19
+    "dirtyEntryCountAtStart": 48
   },
   "runtime": {
     "node": "v24.12.0",
@@ -346,8 +346,8 @@
     },
     {
       "path": "src/domain/heatCapacity/heatCapacityFreeSensorModel.ts",
-      "sha256": "6f57008e9171664afc04b320f1af6417100f8ffa30ce6fa711d7d618c6c0d4f3",
-      "bytes": 8689
+      "sha256": "1f21f4ae95a2020eb4041165983080cda91d03b23cf98f2774a258b10f7dc973",
+      "bytes": 9047
     },
     {
       "path": "src/domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts",
@@ -391,8 +391,8 @@
     },
     {
       "path": "src/features/workbench/workbenchState.ts",
-      "sha256": "fb29036418d8f28ea5cf9a26a9b538e34d19db55f6fb37573505c6445072c3c7",
-      "bytes": 249409
+      "sha256": "42f6c915178a1d53b04e4f8f79729268787f35e143226b5c5c81085af3587fd8",
+      "bytes": 251369
     }
   ],
   "generatedFiles": [
@@ -404,7 +404,7 @@
     {
       "path": "docs/validation/generated/evidence-summary.json",
       "bytes": 60486,
-      "sha256": "73c783aa1fc6e243aec27d01156eeb60cb97c4b122820716a7cb79225e7a807e"
+      "sha256": "ab68f449f058422feac5a76d93522696a0320b307604e3f33c98aade2434ac89"
     },
     {
       "path": "docs/validation/generated/rapid-release/rapid-release-runs.csv",

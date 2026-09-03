@@ -242,7 +242,8 @@ interface HoseHandleBounds {
 
 const FOCUS_TRANSITION_DURATION_MS = 360;
 const PISTON_REBOUND_VISIBLE_DURATION_MS = 800;
-const PISTON_LIVE_PRESENTATION_INTERVAL_MS = 1_000 / 60;
+const PISTON_PHYSICS_PRESENTATION_INTERVAL_MS = 1_000 / 60;
+const PISTON_LIVE_PRESSURE_PRESENTATION_INTERVAL_MS = 1_000 / 30;
 const PISTON_LIVE_PRESENTATION_TOLERANCE_MS = 0.5;
 const PISTON_HEIGHT_DRAG_MM_PER_PX = 0.3;
 const PISTON_GUIDE_HEIGHT_RESET_MIN_DURATION_MS = 520;
@@ -1979,11 +1980,11 @@ export const PistonOscillationInteractionWorkspace = ({
   useEffect(() => {
     if (!onLivePhysicalStateChange || demoActive) return undefined;
     let animationFrame: number | null = null;
-    let lastPublishedAtMs = performance.now() - PISTON_LIVE_PRESENTATION_INTERVAL_MS;
+    let lastPublishedAtMs = performance.now() - PISTON_LIVE_PRESSURE_PRESENTATION_INTERVAL_MS;
     const publishSensorClock = (observedAtMs: number) => {
       if (
         observedAtMs - lastPublishedAtMs
-          >= PISTON_LIVE_PRESENTATION_INTERVAL_MS
+          >= PISTON_LIVE_PRESSURE_PRESENTATION_INTERVAL_MS
             - PISTON_LIVE_PRESENTATION_TOLERANCE_MS
       ) {
         lastPublishedAtMs = observedAtMs;
@@ -2413,7 +2414,7 @@ export const PistonOscillationInteractionWorkspace = ({
       const previousUpdatedAtMs = thermodynamicUpdatedAtMsRef.current ?? observedAtMs;
       if (
         observedAtMs - previousUpdatedAtMs
-          >= PISTON_LIVE_PRESENTATION_INTERVAL_MS
+          >= PISTON_PHYSICS_PRESENTATION_INTERVAL_MS
             - PISTON_LIVE_PRESENTATION_TOLERANCE_MS
       ) {
         advanceVirtualHandPressTo(observedAtMs);

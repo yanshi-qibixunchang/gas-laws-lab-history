@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {
   abandonCurrentHeatCapacityFreeExperimentGroupDraft,
-  beginHeatCapacityFreeIdealGroupProcessing,
-  completeHeatCapacityFreeIdealExperimentGroup,
+  beginHeatCapacityFreeIdealGroupCalculation,
+  completeHeatCapacityFreeIdealExperimentGroupCalculation,
   createEmptyHeatCapacityFreeExperimentGroupCollection,
   createHeatCapacityFreeExperimentGroupDraft,
   getHeatCapacityFreeExperimentGroupInvariantErrors,
@@ -12,8 +12,11 @@ import {
   updateCurrentHeatCapacityFreeExperimentGroupRunSeries,
 } from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import {
-  calculateFreeHeatCapacityMeanResult,
-} from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+  calculateHeatCapacityGroupReference,
+} from '../../src/domain/heatCapacity/heatCapacityCalculationModel.ts';
+import {
+  createHeatCapacityCalculationWorkflowSession,
+} from '../../src/domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
 import {
   createDefaultFreeConfigSnapshot,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTraceModel.ts';
@@ -51,12 +54,19 @@ assert.equal(current?.status, 'draft');
 assert.equal(current?.schemeGroupNumber, null, 'a blank draft must not consume a formal group number');
 assert.equal(collection.nextSchemeGroupNumber.real, 1);
 
-collection = setHeatCapacityFreeExperimentGroupDraftScheme(collection, 'ideal', 'air');
+collection = setHeatCapacityFreeExperimentGroupDraftScheme(collection, 'ideal', 'helium');
 current = selectCurrentHeatCapacityFreeExperimentGroup(collection);
 assert.equal(current?.scheme, 'ideal');
 assert.equal(current?.targetExperimentCount, 3, 'switching a blank draft scheme must preserve experiment count');
 
-const snapshot = createDefaultFreeConfigSnapshot();
+const defaultSnapshot = createDefaultFreeConfigSnapshot();
+const snapshot = {
+  ...defaultSnapshot,
+  physics: {
+    ...defaultSnapshot.physics,
+    gamma: 5 / 3,
+  },
+};
 collection = startHeatCapacityFreeExperimentGroup(collection, snapshot, 200);
 current = selectCurrentHeatCapacityFreeExperimentGroup(collection);
 assert.equal(current?.status, 'collecting');
@@ -83,16 +93,38 @@ collection = updateCurrentHeatCapacityFreeExperimentGroupRunSeries(collection, {
   trials: idealTrials,
   traceStore: current!.runSeries.traceStore,
 });
-collection = beginHeatCapacityFreeIdealGroupProcessing(collection, 400);
-current = selectCurrentHeatCapacityFreeExperimentGroup(collection);
-assert.equal(current?.status, 'awaiting-ideal-processing');
-const idealResult = calculateFreeHeatCapacityMeanResult(idealTrials, {
+const calculationReference = calculateHeatCapacityGroupReference({
+  u0Mv: 0,
+  u1Mv: 120,
+  u2Mv: 50,
+  atmosphericPressureKPa: 101.3,
+  pressureSensitivityMvPerKPa: 20,
+})!;
+const calculationSession = createHeatCapacityCalculationWorkflowSession({
+  mode: 'free',
+  groups: idealTrials.map((trial) => ({ trialId: trial.id, reference: calculationReference })),
   theoreticalGamma: snapshot.physics.gamma,
+  presentation: 'interactive',
+  now: 400,
 });
-collection = completeHeatCapacityFreeIdealExperimentGroup(collection, idealResult, 500);
+collection = beginHeatCapacityFreeIdealGroupCalculation(collection, calculationSession, 400);
+current = selectCurrentHeatCapacityFreeExperimentGroup(collection);
+assert.equal(current?.status, 'awaiting-ideal-calculation');
+assert.equal(current?.calculation?.kind, 'ideal-interactive');
+const completedCalculationSession = {
+  ...calculationSession,
+  status: 'completed' as const,
+  activeStepId: null,
+  completedAtMs: 500,
+};
+collection = completeHeatCapacityFreeIdealExperimentGroupCalculation(
+  collection,
+  completedCalculationSession,
+  500,
+);
 current = selectCurrentHeatCapacityFreeExperimentGroup(collection);
 assert.equal(current?.status, 'completed');
-assert.equal(current?.calculation?.kind, 'ideal-automatic');
+assert.equal(current?.calculation?.kind, 'ideal-interactive');
 assert.equal(current?.finalScore, null, 'ideal groups must never own a score');
 
 const completedSnapshot = structuredClone(current);

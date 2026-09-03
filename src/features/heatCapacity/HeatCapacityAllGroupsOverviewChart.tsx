@@ -9,9 +9,9 @@ interface HeatCapacityAllGroupsOverviewChartProps {
 }
 
 const COPY = {
-  'zh-CN': { real: '真实', ideal: '理想', theory: '理论参考', group: '组' },
-  'zh-TW': { real: '真實', ideal: '理想', theory: '理論參考', group: '組' },
-  en: { real: 'Real', ideal: 'Ideal', theory: 'Theory', group: 'group' },
+  'zh-CN': { real: '真实', ideal: '理想', air: '空气', helium: '氦气', theory: '理论参考', group: '组' },
+  'zh-TW': { real: '真實', ideal: '理想', air: '空氣', helium: '氦氣', theory: '理論參考', group: '組' },
+  en: { real: 'Real', ideal: 'Ideal', air: 'Air', helium: 'Helium', theory: 'Theory', group: 'group' },
 } as const;
 
 export const HeatCapacityAllGroupsOverviewChart = ({
@@ -48,6 +48,7 @@ export const HeatCapacityAllGroupsOverviewChart = ({
       {model.points.map((point, index) => {
         const uncertainty = point.typeAStandardUncertainty ?? 0;
         const label = point.scheme === 'ideal' ? copy.ideal : copy.real;
+        const gas = point.gasType === 'helium' ? copy.helium : copy.air;
         return (
           <g key={point.groupId}>
             {uncertainty > 0 ? (
@@ -63,10 +64,10 @@ export const HeatCapacityAllGroupsOverviewChart = ({
               r={point.completed ? 6 : 5}
               className={`studio-heat-chart-dot studio-heat-chart-dot-${point.scheme} ${point.completed ? '' : 'studio-heat-chart-dot-in-progress'}`}
             >
-              <title>{`${label} ${copy.group} ${point.schemeGroupNumber}: γ̄ = ${point.meanGamma.toFixed(5)}`}</title>
+              <title>{`${label} · ${gas} · ${copy.group} ${point.schemeGroupNumber}: γ̄ = ${point.meanGamma.toFixed(5)}`}</title>
             </circle>
             <text x={x(index)} y={height - 30} textAnchor="middle" className="studio-heat-chart-axis-label">
-              {label}{point.schemeGroupNumber}
+              {label}{point.schemeGroupNumber}·{gas}
             </text>
           </g>
         );

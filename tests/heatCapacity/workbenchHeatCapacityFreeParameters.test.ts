@@ -18,6 +18,7 @@ import {
   restartHeatCapacityFreeBatchWorkbenchState,
   prepareNextHeatCapacityFreeExperimentWorkbenchState,
   selectHeatCapacityFreeActiveRunConfigSnapshot,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
   shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
   stepHeatCapacityWorkbenchFile,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -416,6 +417,39 @@ assert.equal(
   heliumGasFile.heatCapacityFreeInstrumentConfig.physics.leakage.ratePerS,
   HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
   'helium physics config should use the tuned monatomic leakage rate',
+);
+
+const idealHeliumFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
+  setHeatCapacityFreeParameterSchemeWorkbenchState(defaultFile, 'ideal', 2900),
+  {
+    ...defaultFile.heatCapacityFreeParameterDraft,
+    gasType: 'helium',
+  },
+  2901,
+);
+assert.equal(idealHeliumFile.heatCapacityFreeParameterScheme, 'ideal');
+assert.equal(idealHeliumFile.heatCapacityFreeGasType, 'helium');
+assert.equal(idealHeliumFile.heatCapacityFreeIdealDomain.gasType, 'helium');
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
+assert.equal(idealHeliumFile.theoreticalGamma, 5 / 3);
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.sensor.quantizationMv, 0);
+assert.equal(
+  idealHeliumFile.heatCapacityFreeInstrumentConfig.sensor.minSampleIntervalS,
+  idealHeliumFile.heatCapacityFreeInstrumentConfig.sensor.maxSampleIntervalS,
+);
+assert.equal(
+  idealHeliumFile.heatCapacityFreeInstrumentState.sensor.pressureInitialBiasMv,
+  0,
+);
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.physics.leakage.enabled, false);
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.physics.leakage.ratePerS, 0);
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.physics.environmentDisturbance?.enabled, false);
+assert.equal(idealHeliumFile.heatCapacityFreeInstrumentConfig.physics.pumpValveExchange?.enabled, false);
+assert.equal(
+  idealHeliumFile.heatCapacityFreeRealDomain.gasType,
+  'air',
+  'changing Ideal gas must not overwrite the independent Real parameter domain',
 );
 
 const gasTypeFrozenFile = freezeHeatCapacityFreeParametersForCurrentGroup(

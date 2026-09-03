@@ -26,7 +26,6 @@ export type HeatCapacityModeTransitionIntent = {
   sourceMode: HeatCapacityMode | null;
   targetMode: HeatCapacityMode;
   reason: HeatCapacityModeTransitionReason;
-  discardSource: boolean;
 };
 
 export type HeatCapacityModeTransitionState = {
@@ -138,7 +137,6 @@ const normalizeIntent = (
     sourceMode,
     targetMode,
     reason: isReason(value.reason) ? value.reason : fallback.reason,
-    discardSource: value.discardSource === true,
   };
 };
 
@@ -252,7 +250,6 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
     sourceMode: value.sourceMode,
     targetMode: value.targetMode,
     reason: 'mode-control',
-    discardSource: false,
   });
   if (
     activeIntent.requestId !== requestId ||
@@ -268,7 +265,6 @@ export const normalizeHeatCapacityModeTransitionCheckpoint = (
         sourceMode: visibleMode,
         targetMode: queuedMode,
         reason: 'mode-control',
-        discardSource: false,
       });
   if (
     queuedIntent &&

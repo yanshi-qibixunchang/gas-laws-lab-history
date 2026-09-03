@@ -16,7 +16,6 @@ export type HeatCapacityModeTransitionRequest = {
   sourceMode: HeatCapacityMode | null;
   targetMode: HeatCapacityMode;
   reason: HeatCapacityModeTransitionReason;
-  discardSource: boolean;
 };
 
 export type HeatCapacityModeTransitionWatchdogEvent = {

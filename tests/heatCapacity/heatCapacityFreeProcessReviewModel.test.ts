@@ -202,13 +202,13 @@ const idealReview = selectHeatCapacityFreeProcessReview({
 assert.equal(idealReview.status, 'ready');
 assert.equal(
   idealReview.summary?.relativeErrorPercent,
-  0.29,
-  'ideal parameter reviews should calculate result error against the fixed air gamma 1.4',
+  15.93,
+  'ideal parameter reviews should calculate result error against the selected gas theory value',
 );
 assert.equal(
   idealReview.summary?.upperBoundGamma,
-  1.4,
-  'ideal parameter reviews should use fixed air gamma 1.4 as the operation upper bound',
+  1.67,
+  'ideal parameter reviews should use the selected gas theory value as the operation upper bound',
 );
 assert.equal(
   idealReview.summary?.upperBoundRelativeErrorPercent,
@@ -217,8 +217,8 @@ assert.equal(
 );
 assert.equal(
   idealReview.summary?.upperBoundGapPercent,
-  0.29,
-  'ideal operation upper bound gap should still compare the actual result against gamma 1.4',
+  15.93,
+  'ideal operation upper bound gap should compare the actual result against the selected gas theory value',
 );
 const oldIdealReferenceTraceField = 'ideal' + 'Reference' + 'Trace';
 assert.equal(

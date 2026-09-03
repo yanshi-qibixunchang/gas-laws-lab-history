@@ -145,8 +145,8 @@ assert.equal(
 );
 assert.match(
   workspaceSource,
-  /const PISTON_LIVE_PRESENTATION_INTERVAL_MS = 1_000 \/ 60;[\s\S]*const publishSensorClock[\s\S]*observedAtMs - lastPublishedAtMs[\s\S]*PISTON_LIVE_PRESENTATION_INTERVAL_MS[\s\S]*const advancePressThermalClock[\s\S]*observedAtMs - previousUpdatedAtMs[\s\S]*PISTON_LIVE_PRESENTATION_INTERVAL_MS/,
-  'high-refresh displays must not make the interaction and pressure UI render faster than 60 Hz',
+  /const PISTON_PHYSICS_PRESENTATION_INTERVAL_MS = 1_000 \/ 60;[\s\S]*const PISTON_LIVE_PRESSURE_PRESENTATION_INTERVAL_MS = 1_000 \/ 30;[\s\S]*const publishSensorClock[\s\S]*observedAtMs - lastPublishedAtMs[\s\S]*PISTON_LIVE_PRESSURE_PRESENTATION_INTERVAL_MS[\s\S]*const advancePressThermalClock[\s\S]*observedAtMs - previousUpdatedAtMs[\s\S]*PISTON_PHYSICS_PRESENTATION_INTERVAL_MS/,
+  'the 60 Hz interaction clock must remain independent from the 30 Hz pressure presentation clock',
 );
 assert.match(workspaceSource, /data-piston-focus-operation-mirror="true"/);
 assert.match(workspaceSource, /data-piston-focus-exit-panel="true"/);
