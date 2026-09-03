@@ -70,7 +70,8 @@
 9. 将 Free/Guide 运行默认值、Free 热状态合并、轨迹清理和完整运行重置迁入无反向依赖的专用模块。（已完成）
 10. 将 Demo、Guide、Free 的计算会话创建、逐步作答、实验结束启动和最终结果/评分回写迁入统一协调器。（已完成）
 11. 将 Free 尝试、轨迹证据、记录/重录、回滚、运行步进和仪器操作协调迁入专用模块，并保留旧入口兼容重导出。（已完成）
-12. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
+12. 将 Guide 状态合并、物理步进、控件与记录，Demo 运行映射，跨模式运行连接，教学预热/切换和完成结果迁入无反向依赖的专用模块。（已完成）
+13. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
 
 ## 4. 下一大改动断点
 
@@ -116,6 +117,17 @@ Free 实验操作与证据链的职责拆分已经完成。`workbenchHeatCapacit
 `workbenchHeatCapacityDisplayState.ts`。主界面直接依赖这些模块，兼容入口只做重导出。总协调器由
 4867 行降为 2723 行；“不可逆操作”、试次证据、Real 评分输入及存档格式均未改变。
 
-下一大改动断点是 Demo/Guide 教学运行协调的职责拆分。教学物理步进、工作流门禁、旋塞/气阀/打气、
-记录 U0/U1/U2、预热与教学模式切换仍集中在总协调器中；这些逻辑共同决定教学步骤、暂停恢复和已完成
-结果，迁移时应作为一个大批次审查，并继续保持 Guide 可回看、Free 会话保留及模式切换清空规则。
+Demo/Guide 教学运行协调的职责拆分已经完成。`workbenchHeatCapacityGuideRuntimeState.ts` 负责 Guide
+物理状态到仪器现场的合并及工作流动作上下文，`workbenchHeatCapacityGuideRuntimeCoordinator.ts`
+负责分段物理/温度传感器步进、释放边界和暂停时钟，`workbenchHeatCapacityGuideControlState.ts` 负责
+调零、旋塞、气阀、打气、电源及 U0/U1/U2 记录门禁。`workbenchHeatCapacityTeachingRuntimeState.ts`
+负责 Demo 旧教学内核与当前仪器字段之间的映射，`workbenchHeatCapacityRuntimeCoordinator.ts` 统一连接
+Demo/Guide/Free 步进、脚本控件、采样和实时提交判断；预热、Demo/Guide 启动与模式切换进入
+`workbenchHeatCapacityTeachingLifecycleState.ts`，已完成结果及退出进入
+`workbenchHeatCapacityTeachingResultState.ts`。主界面直接依赖这些专用模块，兼容入口只做重导出；
+总协调器由 2723 行降为 825 行。原有 Guide 可回看、Free 会话保留、模式切换清空、暂停恢复和存档格式
+均未改变。
+
+下一大改动断点是 `workbenchState.ts` 兼容入口收尾。剩余实现主要是绝热膨胀默认文件工厂、跨模式调零
+入口、Free 实验组重置/下一组生命周期和通用参数校验；应按构造、运行命令与通用类型三个边界迁移，
+完成后让该文件只承担稳定类型/API 转发，再转向 `WorkbenchStudioPrototype.tsx` 的界面协调拆分。

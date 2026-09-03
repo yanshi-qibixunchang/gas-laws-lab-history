@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   applyHeatCapacityFreeParameterDraftWorkbenchState as applyParameterDraftFromFacade,
+  applyHeatCapacityGuideRecordWorkbenchState as applyGuideRecordFromFacade,
+  completeHeatCapacityTeachingModeWorkbenchState as completeTeachingFromFacade,
   completeHeatCapacityCalculationWorkflowWorkbenchState as completeCalculationFromFacade,
   configureHeatCapacityFreeBatchWorkbenchState as configureBatchFromFacade,
   createDefaultHeatCapacityFreeParameterState as createDefaultParameterStateFromFacade,
@@ -21,6 +23,8 @@ import {
   setHeatCapacityFreeStopcockOpen as setFreeStopcockFromFacade,
   resetHeatCapacityFreeRunWorkbenchState as resetFreeRunFromFacade,
   setHeatCapacityFreeParameterSchemeWorkbenchState as setParameterSchemeFromFacade,
+  prepareHeatCapacityAutoDemoStart as prepareAutoDemoStartFromFacade,
+  stepHeatCapacityWorkbenchFile as stepHeatCapacityFromFacade,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
   completeHeatCapacityCalculationWorkflowWorkbenchState,
@@ -68,6 +72,18 @@ import {
 import {
   setHeatCapacityFreeStopcockOpen,
 } from '../../src/features/workbench/workbenchHeatCapacityFreeRuntimeCoordinator.ts';
+import {
+  applyHeatCapacityGuideRecordWorkbenchState,
+} from '../../src/features/workbench/workbenchHeatCapacityGuideControlState.ts';
+import {
+  completeHeatCapacityTeachingModeWorkbenchState,
+} from '../../src/features/workbench/workbenchHeatCapacityTeachingResultState.ts';
+import {
+  prepareHeatCapacityAutoDemoStart,
+} from '../../src/features/workbench/workbenchHeatCapacityTeachingLifecycleState.ts';
+import {
+  stepHeatCapacityWorkbenchFile,
+} from '../../src/features/workbench/workbenchHeatCapacityRuntimeCoordinator.ts';
 
 const facadeSource = readFileSync(
   new URL('../../src/features/workbench/workbenchState.ts', import.meta.url),
@@ -139,6 +155,34 @@ const freeControlStateSource = readFileSync(
 );
 const heatCapacityDisplayStateSource = readFileSync(
   new URL('../../src/features/workbench/workbenchHeatCapacityDisplayState.ts', import.meta.url),
+  'utf8',
+);
+const guideRuntimeStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityGuideRuntimeState.ts', import.meta.url),
+  'utf8',
+);
+const guideRuntimeCoordinatorSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityGuideRuntimeCoordinator.ts', import.meta.url),
+  'utf8',
+);
+const guideControlStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityGuideControlState.ts', import.meta.url),
+  'utf8',
+);
+const teachingRuntimeStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityTeachingRuntimeState.ts', import.meta.url),
+  'utf8',
+);
+const teachingResultStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityTeachingResultState.ts', import.meta.url),
+  'utf8',
+);
+const teachingLifecycleStateSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityTeachingLifecycleState.ts', import.meta.url),
+  'utf8',
+);
+const heatCapacityRuntimeCoordinatorSource = readFileSync(
+  new URL('../../src/features/workbench/workbenchHeatCapacityRuntimeCoordinator.ts', import.meta.url),
   'utf8',
 );
 const calculationCoordinatorSource = readFileSync(
@@ -256,6 +300,26 @@ assert.equal(
   setHeatCapacityFreeStopcockOpen,
   'the compatibility facade should forward the extracted Free runtime control API',
 );
+assert.equal(
+  applyGuideRecordFromFacade,
+  applyHeatCapacityGuideRecordWorkbenchState,
+  'the compatibility facade should forward the extracted Guide record API',
+);
+assert.equal(
+  completeTeachingFromFacade,
+  completeHeatCapacityTeachingModeWorkbenchState,
+  'the compatibility facade should forward the extracted teaching-result completion API',
+);
+assert.equal(
+  prepareAutoDemoStartFromFacade,
+  prepareHeatCapacityAutoDemoStart,
+  'the compatibility facade should forward the extracted teaching lifecycle API',
+);
+assert.equal(
+  stepHeatCapacityFromFacade,
+  stepHeatCapacityWorkbenchFile,
+  'the compatibility facade should forward the extracted cross-mode runtime coordinator',
+);
 assert.match(
   facadeSource,
   /from '\.\/workbenchHeatCapacityStateTypes\.ts'/,
@@ -313,6 +377,13 @@ for (const [source, moduleName] of [
   [freeRuntimeCoordinatorSource, 'Free runtime coordinator'],
   [freeControlStateSource, 'Free control state'],
   [heatCapacityDisplayStateSource, 'heat-capacity display state'],
+  [guideRuntimeStateSource, 'Guide runtime state'],
+  [guideRuntimeCoordinatorSource, 'Guide runtime coordinator'],
+  [guideControlStateSource, 'Guide control state'],
+  [teachingRuntimeStateSource, 'teaching runtime state'],
+  [teachingResultStateSource, 'teaching result state'],
+  [teachingLifecycleStateSource, 'teaching lifecycle state'],
+  [heatCapacityRuntimeCoordinatorSource, 'cross-mode runtime coordinator'],
 ] as const) {
   assert.doesNotMatch(
     source,
@@ -351,6 +422,10 @@ for (const directUiDependency of [
   'workbenchHeatCapacityFreeRollbackState',
   'workbenchHeatCapacityFreeRuntimeCoordinator',
   'workbenchHeatCapacityDisplayState',
+  'workbenchHeatCapacityGuideControlState',
+  'workbenchHeatCapacityTeachingLifecycleState',
+  'workbenchHeatCapacityTeachingResultState',
+  'workbenchHeatCapacityRuntimeCoordinator',
 ]) {
   assert.match(
     workbenchUiSource,
@@ -447,8 +522,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*Free 实验操作与证据链的职责拆分已经完成[\s\S]*下一大改动断点是 Demo\/Guide 教学运行协调/,
-  'the authority table should record the completed Free evidence boundary and next teaching-runtime breakpoint',
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*Demo\/Guide 教学运行协调的职责拆分已经完成[\s\S]*下一大改动断点是 `workbenchState\.ts` 兼容入口收尾/,
+  'the authority table should record the completed teaching runtime boundary and next facade-cleanup breakpoint',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');

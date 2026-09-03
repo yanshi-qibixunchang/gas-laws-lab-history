@@ -41,6 +41,41 @@ const freeRuntimeCoordinatorPath = join(
   'workbench',
   'workbenchHeatCapacityFreeRuntimeCoordinator.ts',
 );
+const guideRuntimeCoordinatorPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityGuideRuntimeCoordinator.ts',
+);
+const guideControlStatePath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityGuideControlState.ts',
+);
+const heatCapacityRuntimeCoordinatorPath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityRuntimeCoordinator.ts',
+);
+const teachingResultStatePath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityTeachingResultState.ts',
+);
+const teachingLifecycleStatePath = join(
+  process.cwd(),
+  'src',
+  'features',
+  'workbench',
+  'workbenchHeatCapacityTeachingLifecycleState.ts',
+);
 const freeTraceStatePath = join(
   process.cwd(),
   'src',
@@ -131,6 +166,11 @@ const modeControlModelSource = readFileSync(modeControlModelPath, 'utf8');
 const defaultConfigSource = readFileSync(defaultConfigPath, 'utf8');
 const stateSource = readFileSync(statePath, 'utf8');
 const freeRuntimeCoordinatorSource = readFileSync(freeRuntimeCoordinatorPath, 'utf8');
+const guideRuntimeCoordinatorSource = readFileSync(guideRuntimeCoordinatorPath, 'utf8');
+const guideControlStateSource = readFileSync(guideControlStatePath, 'utf8');
+const heatCapacityRuntimeCoordinatorSource = readFileSync(heatCapacityRuntimeCoordinatorPath, 'utf8');
+const teachingResultStateSource = readFileSync(teachingResultStatePath, 'utf8');
+const teachingLifecycleStateSource = readFileSync(teachingLifecycleStatePath, 'utf8');
 const freeTraceStateSource = readFileSync(freeTraceStatePath, 'utf8');
 const freeRunResetSource = readFileSync(freeRunResetPath, 'utf8');
 const stateTypesSource = readFileSync(stateTypesPath, 'utf8');
@@ -1142,8 +1182,8 @@ assert.match(hardSphereLayerSource, /gasAmountRatio\?:\s*number/, 'hard-sphere p
 assert.match(hardSphereModelSource, /const actualOutflow = input\.glassStopcockOpen === true &&[\s\S]*Math\.abs\(pressureDeltaKPa\) > HEAT_CAPACITY_HARD_SPHERE_OUTFLOW_EQUILIBRIUM_KPA/, 'hard-sphere directed drift should depend only on glass stopcock angle and pressure difference');
 assert.match(hardSphereLayerSource, /material\.emissiveIntensity = clampNumber\(\s*particleColors\.emissiveBase \+ visualState\.emissiveIntensity \* particleColors\.emissiveScale/, 'hard-sphere particle brightness should be theme-specific instead of sharing one dark-scene formula');
 assert.match(stateSource, /HEAT_CAPACITY_RELEASE_PRESSURE_DELTA_THRESHOLD_KPA/, 'workbench state should use an explicit pressure-difference threshold for stopcock release');
-assert.doesNotMatch(stateSource, /prepareHeatCapacityAutoDemoStart[\s\S]{0,2600}hardSphereViewEnabled:\s*false/, 'auto demo start should not clear the hard-sphere teaching toggle');
-assert.doesNotMatch(stateSource, /completeHeatCapacityTeachingModeWorkbenchState[\s\S]{0,1800}hardSphereViewEnabled:\s*false/, 'returning from teaching mode should not clear the hard-sphere teaching toggle');
+assert.doesNotMatch(teachingLifecycleStateSource, /prepareHeatCapacityAutoDemoStart[\s\S]{0,2600}hardSphereViewEnabled:\s*false/, 'auto demo start should not clear the hard-sphere teaching toggle');
+assert.doesNotMatch(teachingResultStateSource, /completeHeatCapacityTeachingModeWorkbenchState[\s\S]{0,1800}hardSphereViewEnabled:\s*false/, 'returning from teaching mode should not clear the hard-sphere teaching toggle');
 assert.match(sceneSource, /heatCapacitySceneCopies/, 'instrument scene should localize its internal labels and hints');
 assert.match(sceneSource, /getHeatCapacityInteractionHints\(focusMode, sceneCopy\)/, 'instrument hints should use localized copy');
 assert.match(sceneSource, /getHeatCapacityHoverTooltip\(hoveredControl, props\.pumpValveOpen, sceneCopy\)/, 'hover tooltips should use localized copy');
@@ -1261,7 +1301,7 @@ assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_KNOB_ANGLE_MAX_
 assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_ZERO_TOLERANCE_MV = 0\.1/, 'pressure zero readiness should use the strict +-0.1 mV tolerance');
 assert.match(stateSource, /pressureInitialBiasMv/, 'heat-capacity state should keep the per-run initial zero bias');
 assert.match(stateSource, /pressureZeroDisplayedSamples/, 'heat-capacity state should keep a displayed Uₚ zeroing window');
-assert.match(stateSource, /createSeededFreePressureInitialBiasMv/, 'initial pressure-zero bias should use the deterministic sensor helper');
+assert.match(teachingLifecycleStateSource, /createSeededFreePressureInitialBiasMv/, 'initial pressure-zero bias should use the deterministic sensor helper');
 assert.doesNotMatch(stateSource, /createHeatCapacityInitialPressureBiasMv/, 'the old non-deterministic pressure-bias helper should not remain');
 assert.match(stateSource, /isHeatCapacityPressureZeroWithinTolerance/, 'U0 readiness should be based on the displayed sample window');
 assert.doesNotMatch(stateSource, /HEAT_CAPACITY_MANUAL_INITIAL_PRESSURE_BIAS_MV\s*=\s*0\.6/, 'guide experiments must not use the old fixed +0.6 mV zero bias');
@@ -1606,7 +1646,7 @@ assert.match(workbenchSource, /guideHeatCapacityActiveFileId !== activeFile\.id\
 assert.match(workbenchSource, /'data-heat-capacity-guide-step-hint': 'true'/, 'guide heat-capacity guard should surface a centered shared viewport hint in the 3D preview');
 assert.match(workbenchSource, /studio-heat-record-controls-pulse/, 'guide heat-capacity guard should pulse the record entry when recording is the next required action');
 assert.match(workbenchSource, /const recordHeatCapacityGuideSample = \(kind: HeatCapacityGuideRecordKind\)[\s\S]*const currentFile = filesRef\.current\.find\(\(file\) => file\.id === activeFile\.id\);[\s\S]*applyHeatCapacityGuideRecordWorkbenchState\(currentFile,\s*kind,\s*now\)/, 'direct record buttons should route through the guide domain guard using the latest active file');
-assert.match(stateSource, /const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay\(currentFile\);[\s\S]*displayPressureMv:\s*activeDisplay\.pressureMv[\s\S]*displayTemperatureMv:\s*activeDisplay\.temperatureMv/, 'guided U0/U1/U2 recording should write the current instrument readings into the single guide trial');
+assert.match(guideControlStateSource, /const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay\(currentFile\);[\s\S]*displayPressureMv:\s*activeDisplay\.pressureMv[\s\S]*displayTemperatureMv:\s*activeDisplay\.temperatureMv/, 'guided U0/U1/U2 recording should write the current instrument readings into the single guide trial');
 assert.match(workbenchSource, /if \(attempt\.accepted\) \{[\s\S]*showHeatCapacityRecordButtonExit\(kind\);[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null;[\s\S]*showHeatCapacityRecordSuccessSequence/, 'successful guided U0/U1/U2 recording should automatically leave the focus view before the next guided target pulse');
 assert.match(workbenchSource, /guideHeatCapacityActiveFileId === activeFile\.id[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'guide mode should only show the record button required by the current workflow step');
 assert.doesNotMatch(workbenchSource, /guideHeatCapacityActiveFileId === activeFile\.id && activeFile\.powerOn[\s\S]*recordU0Required/, 'record buttons should not depend on a second powerOn gate once the guide workflow has reached a record step');
@@ -1618,9 +1658,9 @@ assert.doesNotMatch(workbenchSource, /const getActiveHeatCapacityTrial =|const i
 assert.match(workbenchSource, /const getActiveTrialRecordedU1Mv =/, 'guide U2 readiness should use the active trial U1 value');
 assert.match(workbenchSource, /const getGuideHeatCapacityDecisionPressureMv =[\s\S]*pressureSignalTargetMv/, 'guide record readiness should prefer target pressure over display jitter');
 assert.match(workbenchSource, /const getGuideHeatCapacityDecisionTemperatureMv =[\s\S]*temperatureSignalTargetMv/, 'guide record readiness should prefer target temperature over display jitter');
-assert.doesNotMatch(stateSource, /const profilePressureSignalMv = profile[\s\S]*pressureSignalMv: profilePressureSignalMv \?\? file\.pressureSignalMv/, 'guide record input must not substitute profile pressure for the current instrument reading');
-assert.doesNotMatch(stateSource, /const profileTemperatureSignalMv = profile[\s\S]*temperatureSignalMv: profileTemperatureSignalMv \?\? file\.temperatureSignalMv/, 'guide record input must not substitute profile temperature for the current instrument reading');
-assert.match(stateSource, /recordGuideU1\(currentFile\.heatCapacityGuideTrial,\s*recordInput\)[\s\S]*recordGuideU2\(currentFile\.heatCapacityGuideTrial,\s*recordInput,\s*now/, 'guide U1 and U2 recording should preserve actual display readings in the single guide trial');
+assert.doesNotMatch(guideControlStateSource, /const profilePressureSignalMv = profile[\s\S]*pressureSignalMv: profilePressureSignalMv \?\? file\.pressureSignalMv/, 'guide record input must not substitute profile pressure for the current instrument reading');
+assert.doesNotMatch(guideControlStateSource, /const profileTemperatureSignalMv = profile[\s\S]*temperatureSignalMv: profileTemperatureSignalMv \?\? file\.temperatureSignalMv/, 'guide record input must not substitute profile temperature for the current instrument reading');
+assert.match(guideControlStateSource, /recordGuideU1\(currentFile\.heatCapacityGuideTrial,\s*recordInput\)[\s\S]*recordGuideU2\(currentFile\.heatCapacityGuideTrial,\s*recordInput,\s*now/, 'guide U1 and U2 recording should preserve actual display readings in the single guide trial');
 assert.match(workbenchSource, /const isGuideHeatCapacityTemperatureAtAmbient =/, 'guide U1/U2 readiness should verify Uₜ has returned near room temperature');
 assert.match(workbenchSource, /const isGuideHeatCapacityReleaseCompleteForU2 =/, 'guide U2 flow should verify quick release is complete before allowing stopcock closure and recovery');
 assert.match(workbenchSource, /if \(file\.heatCapacityPhase === 'recovering'\) return true;/, 'guide U2 release completion should remain true after the process has entered recovery');
@@ -1863,7 +1903,7 @@ assert.match(workbenchSource, /setPendingHeatCapacityToast\(nextState\.pending\)
 assert.doesNotMatch(workbenchSource, /setHeatCapacityToastPending/, 'the ref-only pending toast queue should not trigger redundant React state updates');
 assert.doesNotMatch(workbenchSource, /autoDemoToastMessage|guideHeatCapacityHintMessage/, 'old independent heat-capacity toast states should not remain');
 assert.match(workbenchSource, /prepareHeatCapacityAutoDemoStart/, 'auto demo should initialize with a non-zero pressure display bias without changing gas pressure');
-assert.doesNotMatch(stateSource, /prepareHeatCapacityAutoDemoStart[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG/, 'auto demo start must not silently open the stopcock during the power-on step');
+assert.doesNotMatch(teachingLifecycleStateSource, /prepareHeatCapacityAutoDemoStart[\s\S]*stopcockAngleDeg:\s*HEAT_CAPACITY_STOPCOCK_OPEN_ANGLE_DEG/, 'auto demo start must not silently open the stopcock during the power-on step');
 assert.match(workbenchSource, /setHeatCapacityStopcockOpenByFileId\(fileId, true\)/, 'auto demo should request open stopcock movement through the shared two-state helper');
 assert.match(workbenchSource, /setHeatCapacityStopcockOpenByFileId\(fileId, false\)/, 'auto demo should request closed stopcock movement through the shared two-state helper');
 assert.doesNotMatch(workbenchSource, /animateHeatCapacityStopcockAngle/, 'auto demo should not write continuous stopcock angles that fight the scene-level smooth two-state animation');
@@ -1941,9 +1981,9 @@ assert.doesNotMatch(workbenchSource, /filter\(\(tabId\) => tabId !== 'records'/,
 assert.doesNotMatch(workbenchSource, /tabId === 'review'[\s\S]{0,180}activeHeatCapacityCalculationSession\?\.status !== 'completed'/, 'process review should open for a new group and render its empty current-group state');
 assert.doesNotMatch(workbenchSource, /recordHeatCapacityU1|recordHeatCapacityU2|calculateHeatCapacityMeanResult|createHeatCapacityTrialFromAutoDemoSamples/, 'Heat Capacity should not keep the legacy multi-trial processing helpers');
 assert.doesNotMatch(workbenchSource, /heatCapacityExpectedTrialCount|heatCapacityExpectedTrialCountMode|heatCapacityTrials|heatCapacityActiveTrialIndex/, 'Heat Capacity files should not carry legacy expected-trial table state');
-assert.doesNotMatch(stateSource, /createHeatCapacityDemoTrialFromPreset/, 'Workbench teaching completion should not reintroduce the old retained Demo result helper');
-assert.doesNotMatch(stateSource, /const demoTrial = createHeatCapacityDemoTrialFromProcessSamples/, 'auto demo completion should not calculate its final result from transient process samples');
-assert.match(stateSource, /createHeatCapacityAutoDemoResultTrial/, 'auto demo completion should build a clean single-trial result from the fixed teaching profile');
+assert.doesNotMatch(teachingResultStateSource, /createHeatCapacityDemoTrialFromPreset/, 'Workbench teaching completion should not reintroduce the old retained Demo result helper');
+assert.doesNotMatch(teachingResultStateSource, /const demoTrial = createHeatCapacityDemoTrialFromProcessSamples/, 'auto demo completion should not calculate its final result from transient process samples');
+assert.match(teachingResultStateSource, /createHeatCapacityAutoDemoResultTrial/, 'auto demo completion should build a clean single-trial result from the fixed teaching profile');
 assert.match(workbenchSource, /if \(action === 'completeTeachingMode'\)[\s\S]*completeHeatCapacityTeachingModeWorkbenchState\(file, now\)[\s\S]*heatCapacityMaterialsExpanded:\s*true/, 'auto demo completion should leave the completed teaching result visible until the user explicitly exits');
 assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-teaching"/, 'completed Demo and Guide modes should replace stop controls with one explicit exit action');
 assert.match(leftPanelSource, /formalExperimentMultiTrialNotice:\s*'正式实验需要进行多次测量，并对各次实验的 γᵢ 取平均值。'/, 'demo Data & Results page should teach that formal experiments require multiple averaged trials');
@@ -1993,10 +2033,10 @@ const guidePauseStepSection = guideStepModelSource.match(/export const isGuideHe
 assert.match(guidePauseStepSection, /recordU1Required[\s\S]*recordU2Required[\s\S]*closePowerRequired/, 'guide mode should pause physics at guided record and final-close checkpoints');
 assert.match(guidePauseStepSection, /closeStopcockAfterReleaseRequired/, 'guide mode should freeze all physics while waiting for the user to close the stopcock');
 assert.doesNotMatch(workbenchSource, /guideHeatCapacityActiveFileIdRef\.current === file\.id[\s\S]*isGuideHeatCapacityPauseStep\(getHeatCapacityGuideStep\(file\)\)[\s\S]*return file;/, 'guide pause ownership should stay inside the workflow engine so wall-clock time is rebased safely');
-assert.match(stateSource, /if \(guideWorkflow\.paused\)[\s\S]*lastUpdateMs:\s*now/, 'guide workflow pauses should rebase wall-clock time without advancing physical state');
+assert.match(guideRuntimeCoordinatorSource, /if \(guideWorkflow\.paused\)[\s\S]*lastUpdateMs:\s*now/, 'guide workflow pauses should rebase wall-clock time without advancing physical state');
 assert.match(workbenchSource, /const heatCapacityHardSpherePaused =[\s\S]*heatCapacityGuideWorkflow\.paused/, 'guide release equilibrium should freeze the molecular visualization together with the physical state');
 assert.match(workbenchSource, /shouldCommitHeatCapacityRealtimeTick\(file, steppedFile\)/, 'the realtime UI loop should delegate runtime commit decisions to the shared state comparator');
-assert.match(stateSource, /export const shouldCommitHeatCapacityRealtimeTick =[\s\S]*heatCapacityReleaseState !== previousFile\.heatCapacityReleaseState[\s\S]*heatCapacityGuideWorkflow !== previousFile\.heatCapacityGuideWorkflow/, 'the shared realtime comparator should preserve release-state and pure guide-workflow transitions while physics is paused');
+assert.match(heatCapacityRuntimeCoordinatorSource, /export const shouldCommitHeatCapacityRealtimeTick =[\s\S]*heatCapacityReleaseState !== previousFile\.heatCapacityReleaseState[\s\S]*heatCapacityGuideWorkflow !== previousFile\.heatCapacityGuideWorkflow/, 'the shared realtime comparator should preserve release-state and pure guide-workflow transitions while physics is paused');
 assert.match(workbenchSource, /overlayCenter=\{heatCapacityCenterOverlay\}[\s\S]*overlayCenterAboveGuideMask/, 'all centered viewport feedback should stay raised above guide chrome and a simultaneous strong reminder');
 assert.match(styleSource, /\[data-preview-overlay-item="heat-parent-top-right"\]\s*\{[\s\S]*z-index:\s*18;[\s\S]*\.studio-preview-overlay-center-above-guide-mask\s*\{[\s\S]*z-index:\s*20;/, 'viewport feedback should sit above the right guide panel at layer 18 and strong reminder at layer 11');
 assert.match(styleSource, /\.studio-heat-guide-lesson-layer\s*\{[\s\S]*z-index:\s*22;/, 'time-freeze lesson cards should remain above viewport feedback');
@@ -2089,7 +2129,7 @@ assert.match(heatCapacityRealtimeCopySource, /pumpAction:\s*'双击聚焦打气�
 assert.doesNotMatch(workbenchSource, /guidePumpInputLockedRef/, 'the removed guide pump synchronization lock must not leave a second rejection path beside focus and guide guards');
 assert.match(workbenchSource, /const guidePumpTargetReached = [\s\S]*getGuideHeatCapacityDisplayedPressureMv\(nextHeatCapacityFile\)[\s\S]*HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV/, 'Guide pump-target decisions should use the same one-decimal displayed pressure that the user sees');
 assert.match(workbenchSource, /showGuideHeatCapacityGuidance\([\s\S]*getGuideStepGuidance\('closePumpValveRequired'[\s\S]*'pumpValve'[\s\S]*'guide'/, 'Guide should immediately show the close-pump-valve prompt after auto-exiting pump focus');
-assert.match(stateSource, /setHeatCapacityGuideStopcockOpen[\s\S]*purpose:[\s\S]*beginHeatCapacityReleaseOpening[\s\S]*heatCapacityGuideTrial[\s\S]*eventLog/, 'opening the stopcock for guided release should record the release start in the independent Guide trial');
+assert.match(guideControlStateSource, /setHeatCapacityGuideStopcockOpen[\s\S]*purpose:[\s\S]*beginHeatCapacityReleaseOpening[\s\S]*heatCapacityGuideTrial[\s\S]*eventLog/, 'opening the stopcock for guided release should record the release start in the independent Guide trial');
 assert.match(workbenchSource, /hasGuideHeatCapacityWaitElapsed\(file,\s*'u1'\)/, 'guided U1 readiness should require the five-minute wait gate');
 assert.match(workbenchSource, /hasGuideHeatCapacityWaitElapsed\(file,\s*'u2'\)/, 'guided U2 readiness should require the five-minute wait gate');
 assert.match(workbenchSource, /hasGuideHeatCapacityFormedRelease\(file\)/, 'guided recovery checks should require an actual release without imposing a fixed close time');
@@ -2247,7 +2287,7 @@ assert.match(leftPanelSource, /pendingRemoveTrialRecord/, 'Heat Capacity recordi
 assert.match(leftPanelSource, /studio-table-action-row[\s\S]*studio-table-action-confirm[\s\S]*studio-table-action-cancel/, 'Heat Capacity recording table should reuse the existing two-step table deletion styles');
 assert.match(leftPanelSource, /deleteTrial:\s*'删除本次实验'/, 'whole-experiment deletion should use the confirmed Simplified Chinese copy');
 assert.doesNotMatch(leftPanelSource, /renderProcessSampleStatus = \([\s\S]*renderRemoveRecordButton|calculateHeatCapacityTrialResult\(trial/, 'legacy teaching record table should not remain after rebuilding mode-specific data pages');
-assert.match(stateSource, /const currentFile = stepHeatCapacityGuideWorkbenchFile\(file,\s*now\);[\s\S]*const context = getHeatCapacityGuideActionContext\(currentFile,\s*action\);[\s\S]*const guard = getHeatCapacityGuideActionGuard\(currentFile\.heatCapacityGuideWorkflow,\s*context\);[\s\S]*if \(!guard\.allowed\)/, 'record U0/U1/U2 actions should obey the latest guide-step validation and block stale visible buttons');
+assert.match(guideControlStateSource, /const currentFile = stepHeatCapacityGuideWorkbenchFile\(file,\s*now\);[\s\S]*const context = getHeatCapacityGuideActionContext\(currentFile,\s*action\);[\s\S]*const guard = getHeatCapacityGuideActionGuard\(currentFile\.heatCapacityGuideWorkflow,\s*context\);[\s\S]*if \(!guard\.allowed\)/, 'record U0/U1/U2 actions should obey the latest guide-step validation and block stale visible buttons');
 assert.doesNotMatch(workbenchSource, /latestStep !== requiredStep && stepAtClick !== requiredStep/, 'stale record-ready state must not allow recording after the ideal-range guard has moved back to a waiting step');
 assert.doesNotMatch(leftPanelSource, /actionVisible:\s*file\.heatCapacityProcessSamples\.recoverySample !== null/, 'U2 delete should not be controlled by a stale or placeholder recovery sample');
 assert.match(leftPanelSource, /renderRemoveRecordButton\(\s*index,\s*'trial'/, 'the lower trial table should delete only the whole group');
