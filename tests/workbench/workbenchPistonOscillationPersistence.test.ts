@@ -61,6 +61,44 @@ assert.equal(fullyResetFreeFile.pistonOscillationOperationVisualizationEnabled, 
 assert.equal(fullyResetFreeFile.pistonOscillationFreeSession.experimentPlan, null);
 assert.equal(fullyResetFreeFile.pistonOscillationFreeSession.parameterDraft.sampleRateHz, null);
 assert.equal(fullyResetFreeFile.pistonOscillationFreeSession.experimentGroup.lock, null);
+let selectedConditionsFile = transitionPistonOscillationFreeWorkbenchState(activeFreeFile, {
+  type: 'setExperimentScheme',
+  scheme: 'ideal',
+  nowMs: 1_026,
+});
+selectedConditionsFile = transitionPistonOscillationFreeWorkbenchState(selectedConditionsFile, {
+  type: 'setGasType',
+  gasType: 'helium',
+  nowMs: 1_027,
+});
+const selectedConditionsPayload = createPistonOscillationPersistencePayload(
+  selectedConditionsFile,
+  1_028,
+);
+const restoredSelectedConditions = restorePistonOscillationFileFromPersistencePayload(
+  {
+    schemaFamily: WORKBENCH_EXPERIMENT_FILE_SCHEMA_FAMILY,
+    fileSchemaVersion: WORKBENCH_FILE_SCHEMA_VERSION,
+    id: selectedConditionsFile.id,
+    kind: 'heatCapacityPistonOscillation',
+    name: selectedConditionsFile.name,
+    createdAt: selectedConditionsFile.createdAt,
+    updatedAt: selectedConditionsFile.updatedAt,
+    lastOpenedAt: selectedConditionsFile.lastOpenedAt,
+    layout: {
+      visiblePanels: selectedConditionsFile.visiblePanels,
+      liveWorkspaceSplitRatio: selectedConditionsFile.liveWorkspaceSplitRatio,
+    },
+    payload: selectedConditionsPayload as unknown as Record<string, unknown>,
+  },
+  selectedConditionsPayload,
+);
+assert.equal(restoredSelectedConditions.pistonOscillationFreeSession.experimentGroup.scheme, 'ideal');
+assert.equal(
+  restoredSelectedConditions.pistonOscillationFreeSession.experimentGroup
+    .gasMaterialSnapshot.gasType,
+  'helium',
+);
 const retainedFreePlan = activeFreeFile.pistonOscillationFreeSession.experimentPlan;
 const guideStartedOverFree = startPistonOscillationGuideWorkbenchState(activeFreeFile, 1_030);
 assert.equal(guideStartedOverFree.pistonOscillationGuideSession.status, 'active');

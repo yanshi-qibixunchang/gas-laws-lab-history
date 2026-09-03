@@ -83,9 +83,9 @@ const baselineHash = createHash('sha256')
 
 assert.equal(
   baselineHash,
-  // Baseline updated when legacy piston sessions began migrating their former
-  // top-level parameter lock into the single experiment-group authority.
-  '4ba6a68020093589cdfa45eb7aaea750c8ce42d10e2f3d5c4d93b6e4bdc491b3',
+  // Baseline updated after piston sessions and raw records gained versioned
+  // experiment-context metadata; legacy records still migrate by inference.
+  'b4473dd464e1f3a23f83a7f3aeab3a6577cb98f6e24f18e44ec80ac1edc1f9a8',
   'legacy migration output changed; review the compatibility support matrix and bump its baseline deliberately',
 );
 

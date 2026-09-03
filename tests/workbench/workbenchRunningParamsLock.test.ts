@@ -21,7 +21,7 @@ assert.match(
 );
 assert.match(
   pistonParameterPanelSource,
-  /const physicsLocked = !freeMode[\s\S]*isPistonOscillationFreeExperimentLocked\(session\)/,
+  /const conditionLocked = !freeMode[\s\S]*isPistonOscillationFreeExperimentLocked\(session\);[\s\S]*const idealReadonly = freeMode && session\.experimentGroup\.scheme === 'ideal';[\s\S]*const physicsLocked = conditionLocked \|\| idealReadonly;/,
   'Piston Oscillation should lock its profile from the first irreversible experiment event',
 );
 assert.match(

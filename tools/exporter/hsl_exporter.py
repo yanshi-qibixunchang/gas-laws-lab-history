@@ -2610,6 +2610,16 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "file": "实验文件",
         "experiment": "实验名称",
         "experiment_mode": "实验模式",
+        "experiment_scheme": "实验方案",
+        "gas_type": "气体类型",
+        "parameter_profile": "参数档案版本",
+        "scoring_eligibility": "评分资格",
+        "real": "真实实验条件",
+        "ideal": "理想实验过程",
+        "air": "空气",
+        "helium": "氦气",
+        "scored": "参与评分",
+        "not_scored": "不参与评分",
         "file_created": "文件创建时间",
         "first_started": "首次实验开始时间",
         "last_completed": "最终计算完成时间",
@@ -2688,6 +2698,16 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "process_score": "過程與評分摘要",
         "process_evidence": "關鍵過程證據",
         "score_results": "評分結果",
+        "experiment_scheme": "實驗方案",
+        "gas_type": "氣體類型",
+        "parameter_profile": "參數檔案版本",
+        "scoring_eligibility": "評分資格",
+        "real": "真實實驗條件",
+        "ideal": "理想實驗過程",
+        "air": "空氣",
+        "helium": "氦氣",
+        "scored": "參與評分",
+        "not_scored": "不參與評分",
     },
     "en": {
         "title": "Air Heat-Capacity Ratio by Piston Oscillation",
@@ -2705,6 +2725,16 @@ PISTON_OSCILLATION_REPORT_COPY = {
         "process_score": "Process and score summary",
         "process_evidence": "Key process evidence",
         "score_results": "Scores",
+        "experiment_scheme": "Experiment scheme",
+        "gas_type": "Gas type",
+        "parameter_profile": "Parameter profile version",
+        "scoring_eligibility": "Scoring eligibility",
+        "real": "Real experiment conditions",
+        "ideal": "Ideal experiment process",
+        "air": "Air",
+        "helium": "Helium",
+        "scored": "Scored",
+        "not_scored": "Not scored",
     },
 }
 
@@ -3117,6 +3147,7 @@ def build_piston_oscillation_report(
         story.append(paragraph(f"图 {figure_number} {caption}", caption_style))
 
     summary = data.get("summary") or {}
+    experiment_group = data.get("experimentGroup") or {}
     measurements = [item for item in (data.get("measurements") or []) if isinstance(item, dict)]
     fit = data.get("linearFitResult") or {}
     calculation = data.get("calculationSession") or {}
@@ -3124,7 +3155,7 @@ def build_piston_oscillation_report(
     knowns = calculation.get("knowns") or {}
     story: list[Any] = []
 
-    story.append(paragraph(copy["title"], title_style))
+    story.append(paragraph(data.get("experimentName") or copy["title"], title_style))
     story.append(paragraph(f"1 {copy['file_information']}", chapter_style))
     story.append(paragraph(f"1.1 {copy['basic_information']}", section_style))
     append_table(
@@ -3135,6 +3166,19 @@ def build_piston_oscillation_report(
             [copy["file"], data.get("fileName")],
             [copy["experiment"], data.get("experimentName")],
             [copy["experiment_mode"], copy["mode"]],
+            [
+                copy["experiment_scheme"],
+                copy["ideal"] if experiment_group.get("scheme") == "ideal" else copy["real"],
+            ],
+            [
+                copy["gas_type"],
+                copy["helium"] if summary.get("gasType") == "helium" else copy["air"],
+            ],
+            [copy["parameter_profile"], experiment_group.get("parameterProfileVersion")],
+            [
+                copy["scoring_eligibility"],
+                copy["scored"] if summary.get("scoringEligible") is True else copy["not_scored"],
+            ],
             [copy["file_created"], format_piston_datetime(data.get("fileCreatedAtMs"))],
             [copy["first_started"], format_piston_datetime(data.get("sessionStartedAtMs"))],
             [copy["last_completed"], format_piston_datetime(data.get("sessionCompletedAtMs"))],

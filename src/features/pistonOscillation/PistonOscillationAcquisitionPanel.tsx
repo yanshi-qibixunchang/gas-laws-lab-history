@@ -73,6 +73,7 @@ import type {
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
+  canRunPistonOscillationFreeExperiment,
   getPistonOscillationFreeEffectiveParameters,
   isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
@@ -535,6 +536,11 @@ PistonOscillationAcquisitionPanelProps
   const freeParametersLocked = freeSession
     ? isPistonOscillationFreeExperimentLocked(freeSession)
     : false;
+  const freeParametersReadonly = freeParametersLocked
+    || freeSession?.experimentGroup.scheme === 'ideal';
+  const freeExperimentRunnable = freeSession
+    ? canRunPistonOscillationFreeExperiment(freeSession)
+    : true;
   const configuredTriggerKpa = guideSelected
     ? Number(guideSession?.parameterDrafts.triggerThresholdKpa)
       || PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA
@@ -1964,6 +1970,10 @@ PistonOscillationAcquisitionPanelProps
   const handleStart = () => {
     if (!effectivePowerOn) return;
     if (freeSelected) {
+      if (!freeExperimentRunnable) {
+        showFreeParameterFeedback(copy.experimentProfileUnavailable);
+        return;
+      }
       if (freeCommitRejectedRef.current) {
         freeCommitRejectedRef.current = false;
         return;
@@ -2246,7 +2256,7 @@ PistonOscillationAcquisitionPanelProps
   const commitFreeParameter = (
     field: 'sampleRateHz' | 'triggerThresholdKpa',
   ): boolean => {
-    if (!freeSelected || freeParametersLocked) return false;
+    if (!freeSelected || freeParametersReadonly) return false;
     const draft = field === 'sampleRateHz' ? sampleRateDraft : triggerDraft;
     const value = field === 'sampleRateHz'
       ? parsePistonOscillationFreeSampleRate(draft)
@@ -2364,7 +2374,7 @@ PistonOscillationAcquisitionPanelProps
               disabled={!demoActive && !guideActive && (
                 phase === 'armed'
                 || phase === 'recording'
-                || freeParametersLocked
+                || freeParametersReadonly
               )}
               aria-invalid={guideSession?.parameterStatus.sampleRateHz === 'invalid'
                 || (freeSelected
@@ -2434,7 +2444,7 @@ PistonOscillationAcquisitionPanelProps
               disabled={!demoActive && !guideActive && (
                 phase === 'armed'
                 || phase === 'recording'
-                || freeParametersLocked
+                || freeParametersReadonly
               )}
               aria-invalid={guideSession?.parameterStatus.triggerThresholdKpa === 'invalid'
                 || (freeSelected

@@ -5,6 +5,13 @@ import {
   getConsistentPistonOscillationGasMaterialSnapshot,
 } from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
+  createPistonOscillationFreeExperimentContextSnapshot,
+  doPistonOscillationGasMaterialSnapshotsAgree,
+} from '../../domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
+import {
+  doPistonOscillationExperimentContextsAgree,
+} from '../../domain/pistonOscillation/pistonOscillationExperimentContextModel.ts';
+import {
   selectPistonOscillationProcessReviewModels,
 } from '../processReview/pistonOscillationProcessReviewModel.ts';
 import type { PistonOscillationLanguage } from '../pistonOscillation/pistonOscillationCopy.ts';
@@ -63,9 +70,28 @@ export const isPistonOscillationReportReady = (
   ) return false;
   if (processing.runs.length !== session.savedMeasurements.length) return false;
   if (processing.runs.some((run) => run.result === null || run.selection === null)) return false;
-  if (!getConsistentPistonOscillationGasMaterialSnapshot(session.savedMeasurements)) {
+  const gasMaterial = getConsistentPistonOscillationGasMaterialSnapshot(
+    session.savedMeasurements,
+  );
+  if (
+    !gasMaterial
+    || !doPistonOscillationGasMaterialSnapshotsAgree(
+      gasMaterial,
+      session.experimentGroup.gasMaterialSnapshot,
+    )
+  ) {
     return false;
   }
+  const experimentContext = createPistonOscillationFreeExperimentContextSnapshot(
+    session.experimentGroup,
+  );
+  if (session.savedMeasurements.some((measurement) => (
+    !measurement.experimentContext
+    || !doPistonOscillationExperimentContextsAgree(
+      measurement.experimentContext,
+      experimentContext,
+    )
+  ))) return false;
   return selectPistonOscillationProcessReviewModels(session, 'zh-CN').length
     === processing.runs.length;
 };
@@ -106,6 +132,24 @@ export const createPistonOscillationReportExportPayload = (
   if (!gasMaterial) {
     throw new Error('Piston-oscillation gas-material evidence is inconsistent.');
   }
+  if (!doPistonOscillationGasMaterialSnapshotsAgree(
+    gasMaterial,
+    session.experimentGroup.gasMaterialSnapshot,
+  )) {
+    throw new Error('Piston-oscillation experiment-group material is inconsistent.');
+  }
+  const experimentContext = createPistonOscillationFreeExperimentContextSnapshot(
+    session.experimentGroup,
+  );
+  if (session.savedMeasurements.some((measurement) => (
+    !measurement.experimentContext
+    || !doPistonOscillationExperimentContextsAgree(
+      measurement.experimentContext,
+      experimentContext,
+    )
+  ))) {
+    throw new Error('Piston-oscillation experiment-group context is inconsistent.');
+  }
 
   const measurements = processing.runs.map((run, runIndex) => {
     const record = session.savedMeasurements.find((candidate) => (
@@ -143,6 +187,9 @@ export const createPistonOscillationReportExportPayload = (
         maximum: Math.max(...pressureValues),
       } : null,
       samples: record.samples,
+      experimentContext: record.experimentContext
+        ? { ...record.experimentContext }
+        : null,
       gasMaterial: { ...record.physicsSnapshot.gasMaterial },
       pressOperationEvidence: record.pressOperationEvidence,
       selection: run.selection,
@@ -195,6 +242,13 @@ export const createPistonOscillationReportExportPayload = (
   const calculation = processing.calculationSession;
   const completedAtMs = getSessionCompletionTime(session);
   const exportedAtMs = Date.now();
+  const scheme = session.experimentGroup.scheme;
+  const gasType = gasMaterial.gasType;
+  const experimentName = language === 'en'
+    ? `${gasType === 'helium' ? 'Helium' : 'Air'} heat-capacity ratio by piston oscillation`
+    : language === 'zh-TW'
+      ? `活塞振動法測${gasType === 'helium' ? '氦氣' : '空氣'}比熱容比`
+      : `活塞振动法测${gasType === 'helium' ? '氦气' : '空气'}比热容比`;
 
   return {
     kind: 'json',
@@ -202,16 +256,25 @@ export const createPistonOscillationReportExportPayload = (
     filename: `${sanitizeFilenamePart(file.name)}-piston-oscillation-report-${formatTimestamp(completedAtMs)}.json`,
     data: {
       exportKind: PISTON_OSCILLATION_REPORT_EXPORT_KIND,
-      schemaVersion: 2,
+      schemaVersion: 3,
       language,
       fileId: file.id,
       fileName: file.name,
-      experimentName: language === 'en'
-        ? 'Air heat-capacity ratio by piston oscillation'
-        : language === 'zh-TW'
-          ? '活塞振動法測空氣比熱容比'
-          : '活塞振动法测空气比热容比',
+      experimentName,
       experimentMode: 'free',
+      experimentGroup: {
+        groupId: session.experimentGroup.groupId,
+        scheme,
+        gasMaterial: { ...session.experimentGroup.gasMaterialSnapshot },
+        parameterProfileVersion: session.experimentGroup.parameterProfileVersion,
+        parameterSnapshot: session.experimentGroup.parameterSnapshot
+          ? structuredClone(session.experimentGroup.parameterSnapshot)
+          : null,
+        provenance: session.experimentGroup.provenance,
+        createdAtMs: session.experimentGroup.createdAtMs,
+        lockedAtMs: session.experimentGroup.lock?.lockedAtMs ?? null,
+        lockReason: session.experimentGroup.lock?.reason ?? null,
+      },
       gasMaterial: { ...gasMaterial },
       fileCreatedAtMs: file.createdAt,
       fileUpdatedAtMs: file.updatedAt,
@@ -224,7 +287,10 @@ export const createPistonOscillationReportExportPayload = (
         fitPointCount: processing.linearFitResult?.selectedRunIndices.length ?? 0,
         areaM2: calculation?.answers.area.expectedValue ?? null,
         gamma: calculation?.answers.gamma.expectedValue ?? null,
-        gasType: gasMaterial.gasType,
+        scheme,
+        gasType,
+        scoringEligible: scheme === 'real',
+        parameterProfileVersion: session.experimentGroup.parameterProfileVersion,
         referenceGamma: calculation?.knowns.referenceGamma ?? null,
         relativeErrorPercent: calculation?.answers.relativeError.expectedValue ?? null,
         rSquared: processing.linearFitResult?.rSquared ?? null,

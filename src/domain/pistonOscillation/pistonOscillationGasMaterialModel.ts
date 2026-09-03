@@ -6,6 +6,10 @@ export const PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION =
   'piston-oscillation-dry-air-material-v1' as const;
 export const PISTON_OSCILLATION_DRY_AIR_MATERIAL_ID = 'dry-air' as const;
 export const PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX = 1.4 as const;
+export const PISTON_OSCILLATION_HELIUM_MATERIAL_MODEL_VERSION =
+  'piston-oscillation-helium-reference-v1' as const;
+export const PISTON_OSCILLATION_HELIUM_MATERIAL_ID = 'helium-4' as const;
+export const PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX = 5 / 3;
 
 export interface PistonOscillationGasMaterialSnapshot {
   schemaVersion: typeof PISTON_OSCILLATION_GAS_MATERIAL_SCHEMA_VERSION;
@@ -24,7 +28,18 @@ export const PISTON_OSCILLATION_DRY_AIR_MATERIAL = Object.freeze({
   adiabaticIndex: PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
 });
 
-const CAPTURED_GAS_MATERIALS = [PISTON_OSCILLATION_DRY_AIR_MATERIAL] as const;
+export const PISTON_OSCILLATION_HELIUM_MATERIAL = Object.freeze({
+  schemaVersion: PISTON_OSCILLATION_GAS_MATERIAL_SCHEMA_VERSION,
+  gasType: 'helium' as const,
+  modelVersion: PISTON_OSCILLATION_HELIUM_MATERIAL_MODEL_VERSION,
+  materialId: PISTON_OSCILLATION_HELIUM_MATERIAL_ID,
+  adiabaticIndex: PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX,
+});
+
+const CAPTURED_GAS_MATERIALS = [
+  PISTON_OSCILLATION_DRY_AIR_MATERIAL,
+  PISTON_OSCILLATION_HELIUM_MATERIAL,
+] as const;
 
 export const createPistonOscillationGasMaterialSnapshot = (
   gasType: PistonOscillationGasType = 'air',

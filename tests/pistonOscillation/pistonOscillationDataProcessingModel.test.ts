@@ -137,7 +137,10 @@ assert.equal(
   PISTON_OSCILLATION_EQUIVALENT_LOSS_MODEL_VERSION,
 );
 
-const legacyBaselineCapturedRecord = structuredClone(records[0]);
+const legacyBaselineCapturedRecord = {
+  ...structuredClone(records[0]),
+  schemaVersion: 6,
+};
 legacyBaselineCapturedRecord.physicsSnapshot.config.linearDampingNsPerM =
   PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M;
 legacyBaselineCapturedRecord.physicsSnapshot.equivalentLoss = {
@@ -151,7 +154,10 @@ assert.ok(
   normalizePistonOscillationRawMeasurementRecord(legacyBaselineCapturedRecord),
   'records captured with the prior 0.434 loss snapshot must remain readable',
 );
-const legacyReviewCapturedRecord = structuredClone(records[0]);
+const legacyReviewCapturedRecord = {
+  ...structuredClone(records[0]),
+  schemaVersion: 6,
+};
 legacyReviewCapturedRecord.physicsSnapshot.equivalentLoss = {
   schemaVersion: 1,
   modelVersion: PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION,
@@ -853,7 +859,8 @@ const validCurrentRecord = normalizePistonOscillationRawMeasurementRecord(
   structuredClone(records[0]),
 );
 assert.ok(validCurrentRecord);
-assert.equal(validCurrentRecord.schemaVersion, 6);
+assert.equal(validCurrentRecord.schemaVersion, 7);
+assert.equal(validCurrentRecord.experimentContext, null);
 assert.equal(validCurrentRecord.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(validCurrentRecord.acquisitionSettings.releaseOffsetS, null);
 
@@ -1135,7 +1142,8 @@ const legacy = normalizePistonOscillationRawMeasurementRecord({
   ],
 });
 assert.ok(legacy);
-assert.equal(legacy.schemaVersion, 6);
+assert.equal(legacy.schemaVersion, 7);
+assert.equal(legacy.experimentContext, null);
 assert.equal(legacy.pressOperationEvidence.provenance, 'legacy-unknown');
 assert.equal(legacy.acquisitionSettings.recordingPath, 'falling-trigger');
 assert.equal(legacy.acquisitionSettings.releaseOffsetS, null);

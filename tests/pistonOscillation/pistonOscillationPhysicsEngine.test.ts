@@ -30,6 +30,8 @@ import {
 import {
   PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
   PISTON_OSCILLATION_DRY_AIR_MATERIAL_MODEL_VERSION,
+  PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX,
+  PISTON_OSCILLATION_HELIUM_MATERIAL_MODEL_VERSION,
   createPistonOscillationGasMaterialSnapshot,
   isPistonOscillationGasMaterialSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
@@ -62,13 +64,15 @@ assert.equal(
     provenance: 'legacy-inferred',
   }),
   false,
-  'helium must remain disabled until a versioned piston-specific profile is introduced',
+  'legacy migration must not infer helium from an air snapshot',
 );
-assert.throws(
-  () => createPistonOscillationGasMaterialSnapshot('helium'),
-  /No captured piston-oscillation material profile exists for helium/,
-  'the generic contract must not silently invent a helium profile before calibration exists',
+const heliumGasMaterial = createPistonOscillationGasMaterialSnapshot('helium');
+assert.equal(
+  heliumGasMaterial.modelVersion,
+  PISTON_OSCILLATION_HELIUM_MATERIAL_MODEL_VERSION,
 );
+assert.equal(heliumGasMaterial.adiabaticIndex, PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX);
+assert.ok(isPistonOscillationGasMaterialSnapshot(heliumGasMaterial));
 assert.equal(
   PISTON_OSCILLATION_LEGACY_BASELINE_EQUIVALENT_LOSS_MODEL_VERSION,
   'piston-oscillation-temporary-equivalent-linear-loss-v1',

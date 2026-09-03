@@ -11,6 +11,13 @@ import {
   isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import {
+  isPistonOscillationFreeExperimentProfileImplemented,
+  type PistonOscillationExperimentScheme,
+} from '../../domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
+import type {
+  PistonOscillationGasType,
+} from '../../domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
@@ -50,6 +57,16 @@ const text = {
     off: '关',
     advanced: '高级设置',
     restore: '恢复默认参数',
+    scheme: '实验方案',
+    real: '真实实验条件',
+    ideal: '理想实验过程',
+    gasType: '气体类型',
+    air: '空气',
+    helium: '氦气',
+    schemeHelp: '真实方案保留实验损失与观测误差；理想方案使用系统内置条件，但仍由用户操作和处理数据。',
+    gasHelp: '气体类型决定材料快照和理论比热容比。',
+    idealReadonly: '理想实验过程仅允许选择气体；其余参数由系统内置档案统一管理，不参与评分。',
+    profilePending: '当前条件已保存，但完整物理参数档案尚未接入，暂不能开始正式采集。',
     freeOnly: '当前参数仅可在自由模式中打开和调整。',
     locked: '当前实验已留下不可逆记录；完整重置或新建文件后可重新设置参数。',
     editable: '开始正式采集或发生不可逆操作后，整套参数将锁定。',
@@ -76,6 +93,12 @@ const text = {
     sampleRate: '取樣頻率', trigger: '下降觸發閾值', sensorFluctuation: '感測器波動',
     tailIrregularity: '尾段不規則', operationVisualization: '鍵鼠操作視覺化', on: '開', off: '關',
     advanced: '進階設定', restore: '恢復預設參數', locked: '目前實驗已留下不可逆記錄；完整重設或建立新檔案後可重新設定參數。',
+    scheme: '實驗方案', real: '真實實驗條件', ideal: '理想實驗過程',
+    gasType: '氣體類型', air: '空氣', helium: '氦氣',
+    schemeHelp: '真實方案保留實驗損失與觀測誤差；理想方案使用系統內建條件，但仍由使用者操作和處理資料。',
+    gasHelp: '氣體類型決定材料快照和理論比熱容比。',
+    idealReadonly: '理想實驗過程僅允許選擇氣體；其餘參數由系統內建檔案統一管理，不參與評分。',
+    profilePending: '目前條件已儲存，但完整物理參數檔案尚未接入，暫不能開始正式採集。',
     freeOnly: '目前參數僅可在自由模式中開啟和調整。',
     editable: '開始正式採集或發生不可逆操作後，整套參數將鎖定。', advancedTitle: '活塞振動法進階設定',
     cancel: '取消', apply: '儲存設定', confirm: '確認並繼續', riskTitle: '確認調整進階參數',
@@ -90,6 +113,12 @@ const text = {
     sampleRate: 'Sample rate', trigger: 'Falling trigger', sensorFluctuation: 'Sensor fluctuation',
     tailIrregularity: 'Tail irregularity', operationVisualization: 'Input visualization', on: 'On', off: 'Off', freeOnly: 'Current parameters are available only in Free mode.',
     advanced: 'Advanced settings', restore: 'Restore defaults', locked: 'This experiment contains an irreversible record. Fully reset it or create a new file to change parameters.',
+    scheme: 'Experiment scheme', real: 'Real conditions', ideal: 'Ideal process',
+    gasType: 'Gas type', air: 'Air', helium: 'Helium',
+    schemeHelp: 'Real conditions retain experimental loss and observation error. The Ideal process uses a built-in condition profile while the user still performs the experiment and processes the data.',
+    gasHelp: 'The gas type determines the material snapshot and theoretical heat-capacity ratio.',
+    idealReadonly: 'The Ideal process allows gas selection only. All other parameters use the built-in profile and are not scored.',
+    profilePending: 'This condition is saved, but its complete physical profile is not connected yet, so formal acquisition is temporarily unavailable.',
     editable: 'The complete profile freezes when formal acquisition starts or another irreversible operation occurs.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
     riskTitle: 'Confirm advanced-parameter editing', riskBody: 'Advanced parameters affect this file’s physical process, sensor readings, and acquisition results. After confirmation, this file will not show the warning again.',
     restoreTitle: 'Restore piston-oscillation defaults?', restoreBody: 'All basic and advanced Free parameters will be restored, and input visualization will be turned off.',
@@ -276,6 +305,8 @@ export interface PistonOscillationParameterPanelProps {
   onOperationVisualizationChange: (enabled: boolean) => void;
   onAcknowledgeAdvancedParametersRisk: () => void;
   onRestoreDefaults: () => void;
+  onExperimentSchemeChange: (scheme: PistonOscillationExperimentScheme) => void;
+  onGasTypeChange: (gasType: PistonOscillationGasType) => void;
   onLockedInteraction?: () => void;
 }
 
@@ -289,17 +320,25 @@ export const PistonOscillationParameterPanel = ({
   onOperationVisualizationChange,
   onAcknowledgeAdvancedParametersRisk,
   onRestoreDefaults,
+  onExperimentSchemeChange,
+  onGasTypeChange,
   onLockedInteraction,
 }: PistonOscillationParameterPanelProps) => {
   const copy = text[language];
   const effects = parameterEffects[language];
   const parameters = getPistonOscillationFreeEffectiveParameters(session);
   const freeMode = mode === 'free';
-  const physicsLocked = !freeMode
+  const conditionLocked = !freeMode
     || isPistonOscillationFreeExperimentLocked(session);
+  const idealReadonly = freeMode && session.experimentGroup.scheme === 'ideal';
+  const physicsLocked = conditionLocked || idealReadonly;
+  const profileImplemented = isPistonOscillationFreeExperimentProfileImplemented(
+    session.experimentGroup,
+  );
   const lockMessage = !freeMode
     ? getPistonOscillationParameterSidebarFreeOnlyMessage(language)
     : getPistonOscillationParameterLockMessage(session, language);
+  const physicsLockMessage = idealReadonly ? copy.idealReadonly : lockMessage;
   const [basicDrafts, setBasicDrafts] = useState<Record<string, string>>({});
   const [basicErrors, setBasicErrors] = useState<Record<string, string>>({});
   const [advancedOpen, setAdvancedOpen] = useState(false);
@@ -445,6 +484,7 @@ export const PistonOscillationParameterPanel = ({
         key={definition.key}
         className={`studio-heat-free-param-row ${physicsLocked ? 'studio-heat-free-param-row-locked' : ''} ${error ? 'studio-heat-free-param-row-error' : ''}`}
         data-piston-oscillation-param-id={definition.key}
+        title={physicsLocked ? physicsLockMessage : undefined}
       >
         {renderParameterLabel(
           definition.key,
@@ -540,12 +580,12 @@ export const PistonOscillationParameterPanel = ({
   return (
     <>
       <section
-        className={`studio-heat-free-params ${physicsLocked ? 'is-locked' : ''}`}
+        className={`studio-heat-free-params ${conditionLocked ? 'is-locked' : ''}`}
         data-piston-oscillation-parameter-panel="true"
-        aria-disabled={physicsLocked}
-        title={physicsLocked ? lockMessage : undefined}
+        aria-disabled={conditionLocked}
+        title={conditionLocked ? lockMessage : undefined}
         onPointerDownCapture={(event) => {
-          if (!physicsLocked) return;
+          if (!conditionLocked) return;
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest('[data-piston-oscillation-param-id="operationVisualizationEnabled"]')) return;
           if (target?.closest('[data-heat-capacity-param-help-button="true"]')) return;
@@ -553,18 +593,75 @@ export const PistonOscillationParameterPanel = ({
           onLockedInteraction?.();
         }}
       >
-        <div className={`studio-heat-free-default-row ${physicsLocked ? 'studio-heat-free-default-row-locked' : ''}`}>
+        <div className={`studio-heat-free-default-row ${conditionLocked ? 'studio-heat-free-default-row-locked' : ''}`}>
+          {freeMode ? (
+            <button
+              type="button"
+              className={`studio-heat-free-scheme-button ${session.experimentGroup.scheme === 'ideal' ? 'studio-heat-free-scheme-button-active' : ''} ${conditionLocked ? 'studio-heat-free-scheme-button-locked' : ''}`}
+              data-piston-oscillation-scheme={session.experimentGroup.scheme}
+              disabled={conditionLocked}
+              aria-pressed={session.experimentGroup.scheme === 'ideal'}
+              title={conditionLocked ? lockMessage : copy.schemeHelp}
+              onClick={() => onExperimentSchemeChange(
+                session.experimentGroup.scheme === 'ideal' ? 'real' : 'ideal',
+              )}
+            >
+              <span>
+                {session.experimentGroup.scheme === 'ideal' ? copy.ideal : copy.real}
+              </span>
+            </button>
+          ) : null}
           <button
             type="button"
             className="studio-heat-free-default-button"
             disabled={physicsLocked}
-            title={physicsLocked ? lockMessage : copy.restore}
+            title={physicsLocked ? physicsLockMessage : copy.restore}
             onClick={() => setRestoreOpen(true)}
           >
             <RotateCcw size={13} />
             <span>{copy.restore}</span>
           </button>
         </div>
+        {freeMode ? (
+          <div
+            className={`studio-heat-free-param-row studio-heat-free-gas-type-row ${conditionLocked ? 'studio-heat-free-param-row-locked' : ''}`}
+            data-piston-oscillation-param-id="gasType"
+          >
+            {renderParameterLabel('gasType', copy.gasType, copy.gasHelp)}
+            <span
+              className={`studio-heat-free-gas-type-control studio-heat-free-gas-type-control-${session.experimentGroup.gasMaterialSnapshot.gasType}`}
+              role="group"
+              aria-label={copy.gasType}
+            >
+              <span className="studio-heat-free-gas-type-thumb" aria-hidden="true" />
+              {(['air', 'helium'] as const).map((gasType) => (
+                <button
+                  key={gasType}
+                  type="button"
+                  className="studio-heat-free-gas-type-option"
+                  data-piston-oscillation-gas-type={gasType}
+                  aria-pressed={session.experimentGroup.gasMaterialSnapshot.gasType === gasType}
+                  aria-disabled={conditionLocked}
+                  disabled={conditionLocked}
+                  title={conditionLocked ? lockMessage : copy.gasHelp}
+                  onClick={() => onGasTypeChange(gasType)}
+                >
+                  <span>{gasType === 'helium' ? copy.helium : copy.air}</span>
+                </button>
+              ))}
+            </span>
+          </div>
+        ) : null}
+        {idealReadonly ? (
+          <div className="studio-panel-note" data-piston-oscillation-ideal-readonly="true">
+            {copy.idealReadonly}
+          </div>
+        ) : null}
+        {!profileImplemented ? (
+          <div className="studio-panel-note" data-piston-oscillation-profile-pending="true">
+            {copy.profilePending}
+          </div>
+        ) : null}
         {basic.map((definition) => renderNumberRow(definition, 'basic'))}
         {renderCheckbox(
           copy.sensorFluctuation,
@@ -613,7 +710,7 @@ export const PistonOscillationParameterPanel = ({
             type="button"
             className="studio-heat-free-advanced-button"
             disabled={physicsLocked}
-            title={physicsLocked ? lockMessage : copy.advanced}
+            title={physicsLocked ? physicsLockMessage : copy.advanced}
             onClick={() => setAdvancedOpen(true)}
           >
             <Wrench size={14} />

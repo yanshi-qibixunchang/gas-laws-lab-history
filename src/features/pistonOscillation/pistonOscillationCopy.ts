@@ -154,6 +154,7 @@ export interface PistonOscillationShellCopy {
     sampleRateRangeWarning: string;
     triggerThresholdRangeWarning: string;
     acquisitionParametersRequired: string;
+    experimentProfileUnavailable: string;
     demoSaved: string;
     saved: string;
     virtualKeyboard: string;
@@ -496,6 +497,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       sampleRateRangeWarning: '请输入 1 至 1000 Hz 的整数采样频率。',
       triggerThresholdRangeWarning: '请输入当前环境压强对应范围内的有效监测值：',
       acquisitionParametersRequired: '请先输入有效的采样频率和监测值，再开始采集。',
+      experimentProfileUnavailable: '当前条件的完整参数档案尚未接入。为避免生成科学含义错误的记录，请暂时切回“真实实验条件 + 空气”。',
       demoSaved: '保存操作已完成',
       saved: '本次曲线已保存',
       virtualKeyboard: '屏幕数字键盘',
@@ -843,6 +845,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       sampleRateRangeWarning: '請輸入 1 至 1000 Hz 的整數採樣頻率。',
       triggerThresholdRangeWarning: '請輸入目前環境壓強對應範圍內的有效監測值：',
       acquisitionParametersRequired: '請先輸入有效的採樣頻率和監測值，再開始採集。',
+      experimentProfileUnavailable: '目前條件的完整參數檔案尚未接入。為避免產生科學含義錯誤的記錄，請暫時切回「真實實驗條件 + 空氣」。',
       demoSaved: '儲存操作已完成',
       saved: '本次曲線已儲存',
       virtualKeyboard: '螢幕數字鍵盤',
@@ -1190,6 +1193,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       sampleRateRangeWarning: 'Enter an integer sample rate from 1 to 1000 Hz.',
       triggerThresholdRangeWarning: 'Enter a valid monitoring value for the current ambient pressure:',
       acquisitionParametersRequired: 'Enter a valid sample rate and monitoring value before starting acquisition.',
+      experimentProfileUnavailable: 'The complete profile for this condition is not connected yet. To prevent scientifically invalid records, switch back to Real experiment conditions + Air for now.',
       demoSaved: 'Save action complete',
       saved: 'Measurement curve saved',
       virtualKeyboard: 'On-screen numeric keypad',

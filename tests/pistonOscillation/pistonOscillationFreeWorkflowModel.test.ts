@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  canRunPistonOscillationFreeExperiment,
   createDefaultPistonOscillationFreeSession,
   createPistonOscillationFreeExperimentPlan,
   getPistonOscillationFreeCurrentTargetHeightMm,
@@ -10,6 +11,12 @@ import {
   normalizePistonOscillationFreeSession,
   transitionPistonOscillationFreeSession,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import {
+  createPistonOscillationFreeExperimentContextSnapshot,
+  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
+} from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
   createPistonOscillationRawMeasurementRecord,
   type PistonOscillationRawMeasurementRecord,
@@ -150,6 +157,78 @@ assert.equal(active.startedAtMs, 100);
 assert.equal(active.audit.length, 1);
 assert.equal(active.audit[0]?.type, 'session-started');
 assert.equal(active.experimentGroup.groupId, 'piston-free-group:100');
+
+const idealAirSelection = transitionPistonOscillationFreeSession(active, {
+  type: 'setExperimentScheme',
+  scheme: 'ideal',
+  nowMs: 101,
+});
+assert.equal(idealAirSelection.experimentGroup.scheme, 'ideal');
+assert.equal(
+  idealAirSelection.experimentGroup.parameterProfileVersion,
+  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+);
+assert.equal(canRunPistonOscillationFreeExperiment(idealAirSelection), false);
+assert.equal(idealAirSelection.audit.at(-1)?.type, 'experiment-scheme-changed');
+assert.equal(
+  transitionPistonOscillationFreeSession(idealAirSelection, {
+    type: 'setParameterDraft',
+    parameterDraft: {
+      ...idealAirSelection.parameterDraft,
+      sensorFluctuationEnabled: false,
+    },
+    nowMs: 102,
+  }),
+  idealAirSelection,
+  'the fixed Ideal profile must not accept manual physical-parameter edits',
+);
+assert.equal(
+  transitionPistonOscillationFreeSession(idealAirSelection, {
+    type: 'observeOperation',
+    operation: 'startAcquisition',
+    nowMs: 103,
+  }),
+  idealAirSelection,
+  'an unavailable profile must not start or lock a formal acquisition',
+);
+const idealHeliumSelection = transitionPistonOscillationFreeSession(idealAirSelection, {
+  type: 'setGasType',
+  gasType: 'helium',
+  nowMs: 104,
+});
+assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.gasType, 'helium');
+assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.adiabaticIndex, 5 / 3);
+assert.equal(
+  idealHeliumSelection.experimentGroup.parameterProfileVersion,
+  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+);
+const realHeliumSelection = transitionPistonOscillationFreeSession(idealHeliumSelection, {
+  type: 'setExperimentScheme',
+  scheme: 'real',
+  nowMs: 105,
+});
+assert.equal(
+  realHeliumSelection.experimentGroup.parameterProfileVersion,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+);
+assert.equal(canRunPistonOscillationFreeExperiment(realHeliumSelection), false);
+const realAirSelection = transitionPistonOscillationFreeSession(realHeliumSelection, {
+  type: 'setGasType',
+  gasType: 'air',
+  nowMs: 106,
+});
+assert.equal(
+  realAirSelection.experimentGroup.parameterProfileVersion,
+  PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
+);
+assert.equal(canRunPistonOscillationFreeExperiment(realAirSelection), true);
+assert.equal(
+  normalizePistonOscillationFreeSession(
+    JSON.parse(JSON.stringify(idealHeliumSelection)),
+  ).experimentGroup.gasMaterialSnapshot.gasType,
+  'helium',
+  'an unlocked draft selection must survive persistence normalization',
+);
 
 const advancedAcknowledged = transitionPistonOscillationFreeSession(active, {
   type: 'acknowledgeAdvancedParametersRisk',
@@ -495,6 +574,13 @@ collection = transitionPistonOscillationFreeSession(collection, {
   nowMs: 303,
 });
 const firstCandidate = createMeasurement(0, 80, 310);
+const mismatchedContextCandidate: PistonOscillationRawMeasurementRecord = {
+  ...firstCandidate,
+  experimentContext: {
+    ...createPistonOscillationFreeExperimentContextSnapshot(collection.experimentGroup),
+    groupId: 'piston-free-group:other',
+  },
+};
 const mismatchedGasCandidate: PistonOscillationRawMeasurementRecord = {
   ...firstCandidate,
   physicsSnapshot: {
@@ -515,6 +601,15 @@ const mismatchedGasCandidate: PistonOscillationRawMeasurementRecord = {
 assert.equal(
   transitionPistonOscillationFreeSession(collection, {
     type: 'freezeAcquisition',
+    measurement: mismatchedContextCandidate,
+    nowMs: 308,
+  }),
+  collection,
+  'a measurement from a different experiment group must not enter this group',
+);
+assert.equal(
+  transitionPistonOscillationFreeSession(collection, {
+    type: 'freezeAcquisition',
     measurement: mismatchedGasCandidate,
     nowMs: 309,
   }),
@@ -527,6 +622,10 @@ collection = transitionPistonOscillationFreeSession(collection, {
   nowMs: 310,
 });
 assert.equal(collection.acquisitionCandidate?.recordId, firstCandidate.recordId);
+assert.deepEqual(
+  collection.acquisitionCandidate?.experimentContext,
+  createPistonOscillationFreeExperimentContextSnapshot(collection.experimentGroup),
+);
 collection = transitionPistonOscillationFreeSession(collection, {
   type: 'pause',
   nowMs: 320,
@@ -560,6 +659,16 @@ assert.equal(collection.dataProcessing, null);
 assert.equal(collection.experimentGroup.parameterSnapshot?.parameters.sampleRateHz, 1000);
 assert.equal(collection.experimentGroup.parameterSnapshot?.parameters.triggerThresholdKpa, 120);
 assert.equal(collection.experimentGroup.lock?.reason, 'measurement-frozen');
+assert.equal(collection.savedMeasurements[0]?.experimentContext?.provenance, 'captured');
+assert.equal(
+  transitionPistonOscillationFreeSession(collection, {
+    type: 'setGasType',
+    gasType: 'helium',
+    nowMs: 340.5,
+  }),
+  collection,
+  'a locked experiment group must reject gas changes',
+);
 const rejectedLockedParameterEdit = transitionPistonOscillationFreeSession(collection, {
   type: 'setParameterDraft',
   parameterDraft: {
@@ -622,6 +731,14 @@ assert.ok(restoredCollection.experimentGroup.lock);
 
 const legacyLockedCollection = structuredClone(collection) as unknown as Record<string, unknown>;
 legacyLockedCollection.experimentGroup = undefined;
+for (const measurement of legacyLockedCollection.savedMeasurements as Array<Record<string, unknown>>) {
+  delete measurement.experimentContext;
+}
+for (const attempt of legacyLockedCollection.excludedAttempts as Array<{
+  measurement: Record<string, unknown>;
+}>) {
+  delete attempt.measurement.experimentContext;
+}
 legacyLockedCollection.frozenParameterSnapshot = structuredClone(
   collection.experimentGroup.parameterSnapshot,
 );
@@ -630,6 +747,11 @@ const restoredLegacyLockedCollection = normalizePistonOscillationFreeSession(
 );
 assert.equal(restoredLegacyLockedCollection.experimentGroup.provenance, 'legacy-inferred');
 assert.equal(restoredLegacyLockedCollection.experimentGroup.lock?.reason, 'legacy-evidence');
+assert.equal(restoredLegacyLockedCollection.savedMeasurements.length, 3);
+assert.equal(
+  restoredLegacyLockedCollection.savedMeasurements[0]?.experimentContext?.provenance,
+  'legacy-inferred',
+);
 assert.equal(
   Object.hasOwn(restoredLegacyLockedCollection, 'frozenParameterSnapshot'),
   false,

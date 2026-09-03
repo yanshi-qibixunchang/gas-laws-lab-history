@@ -30,13 +30,24 @@ import {
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
 import {
+  createPistonOscillationFreeExperimentContextSnapshot,
   createPistonOscillationFreeExperimentGroup,
   doPistonOscillationGasMaterialSnapshotsAgree,
+  isPistonOscillationFreeExperimentProfileImplemented,
   lockPistonOscillationFreeExperimentGroup,
   normalizePistonOscillationFreeExperimentGroup,
+  selectPistonOscillationFreeExperimentScheme,
+  selectPistonOscillationFreeGasType,
   type PistonOscillationFreeExperimentGroup,
   type PistonOscillationFreeExperimentLockReason,
+  type PistonOscillationExperimentScheme,
 } from './pistonOscillationFreeExperimentGroupModel.ts';
+import {
+  doPistonOscillationExperimentContextsAgree,
+} from './pistonOscillationExperimentContextModel.ts';
+import type {
+  PistonOscillationGasType,
+} from './pistonOscillationGasMaterialModel.ts';
 import {
   createPistonOscillationAtmosphericLockedState,
   normalizePistonOscillationThermodynamicState,
@@ -60,13 +71,13 @@ import {
   type PistonOscillationFreeParameterDraft,
 } from './pistonOscillationFreeParameterConfig.ts';
 
-export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 9 as const;
+export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 10 as const;
 export const PISTON_OSCILLATION_FREE_PLAN_SCHEMA_VERSION = 3 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_EXCLUDED_ATTEMPT_SCHEMA_VERSION = 2 as const;
 export const PISTON_OSCILLATION_FREE_REACQUISITION_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_FREE_INSTRUMENT_STATE_SCHEMA_VERSION = 2 as const;
-export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 3 as const;
+export const PISTON_OSCILLATION_FREE_EVENT_SCHEMA_VERSION = 4 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT = 3 as const;
 export const PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT = 6 as const;
 export const PISTON_OSCILLATION_FREE_TARGET_HEIGHTS_MM = [80, 70, 60, 50, 40, 30] as const;
@@ -158,6 +169,8 @@ export type PistonOscillationFreeAuditEventType =
   | 'session-paused'
   | 'session-reset'
   | 'experiment-locked'
+  | 'experiment-scheme-changed'
+  | 'experiment-gas-changed'
   | 'plan-updated'
   | 'power-changed'
   | 'parameter-changed'
@@ -216,6 +229,14 @@ interface PistonOscillationFreeTimedEvent {
 
 export type PistonOscillationFreeEvent =
   | ({ type: 'start' | 'pause' | 'reset' } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'setExperimentScheme';
+      scheme: PistonOscillationExperimentScheme;
+    } & PistonOscillationFreeTimedEvent)
+  | ({
+      type: 'setGasType';
+      gasType: PistonOscillationGasType;
+    } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'setPlan';
       targetHeightsMm: readonly number[];
@@ -312,6 +333,8 @@ const FREE_EVENT_TYPES: readonly PistonOscillationFreeAuditEventType[] = [
   'session-paused',
   'session-reset',
   'experiment-locked',
+  'experiment-scheme-changed',
+  'experiment-gas-changed',
   'plan-updated',
   'power-changed',
   'parameter-changed',
@@ -581,6 +604,39 @@ export const getPistonOscillationFreeEffectiveParameters = (
   session: PistonOscillationFreeSession,
 ) => session.experimentGroup.parameterSnapshot?.parameters ?? session.parameterDraft;
 
+export const canRunPistonOscillationFreeExperiment = (
+  session: PistonOscillationFreeSession,
+) => isPistonOscillationFreeExperimentProfileImplemented(session.experimentGroup);
+
+const bindMeasurementToFreeExperimentGroup = (
+  measurement: PistonOscillationRawMeasurementRecord,
+  group: PistonOscillationFreeExperimentGroup,
+  provenance: 'captured' | 'legacy-inferred',
+): PistonOscillationRawMeasurementRecord | null => {
+  if (!doPistonOscillationGasMaterialSnapshotsAgree(
+    measurement.physicsSnapshot.gasMaterial,
+    group.gasMaterialSnapshot,
+  )) return null;
+  const expectedContext = createPistonOscillationFreeExperimentContextSnapshot(
+    group,
+    provenance,
+  );
+  const existingContext = measurement.experimentContext ?? null;
+  if (
+    existingContext !== null
+    && !doPistonOscillationExperimentContextsAgree(
+      existingContext,
+      expectedContext,
+    )
+  ) return null;
+  return {
+    ...measurement,
+    experimentContext: existingContext
+      ? { ...existingContext }
+      : expectedContext,
+  };
+};
+
 const IRREVERSIBLE_OPERATION_LOCK_REASON: Partial<Record<
   PistonOscillationFreeObservedOperation,
   PistonOscillationFreeExperimentLockReason
@@ -717,6 +773,50 @@ export const transitionPistonOscillationFreeSession = (
   if (event.type === 'reset') {
     return createFreshActiveSession(event.nowMs, 'session-reset');
   }
+  if (event.type === 'setExperimentScheme') {
+    if (
+      session.status !== 'active'
+      || isPistonOscillationFreeExperimentLocked(session)
+    ) return session;
+    const experimentGroup = selectPistonOscillationFreeExperimentScheme(
+      session.experimentGroup,
+      event.scheme,
+    );
+    if (experimentGroup === session.experimentGroup) return session;
+    const next = {
+      ...session,
+      experimentGroup,
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'experiment-scheme-changed', event.nowMs, {
+        payload: { scheme: experimentGroup.scheme },
+      }),
+    };
+  }
+  if (event.type === 'setGasType') {
+    if (
+      session.status !== 'active'
+      || isPistonOscillationFreeExperimentLocked(session)
+    ) return session;
+    const experimentGroup = selectPistonOscillationFreeGasType(
+      session.experimentGroup,
+      event.gasType,
+    );
+    if (experimentGroup === session.experimentGroup) return session;
+    const next = {
+      ...session,
+      experimentGroup,
+      updatedAtMs: event.nowMs,
+    };
+    return {
+      ...next,
+      audit: appendAudit(next, 'experiment-gas-changed', event.nowMs, {
+        payload: { gasType: experimentGroup.gasMaterialSnapshot.gasType },
+      }),
+    };
+  }
   if (event.type === 'pause') {
     if (session.status !== 'active') return session;
     const next = {
@@ -735,7 +835,10 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
   if (event.type === 'setParameterDraft') {
-    if (isPistonOscillationFreeExperimentLocked(session)) return session;
+    if (
+      isPistonOscillationFreeExperimentLocked(session)
+      || session.experimentGroup.scheme === 'ideal'
+    ) return session;
     let parameterDraft = normalizePistonOscillationFreeParameterDraft(
       event.parameterDraft,
       session.parameterDraft,
@@ -806,7 +909,10 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'restoreDefaultParameters') {
-    if (isPistonOscillationFreeExperimentLocked(session)) return session;
+    if (
+      isPistonOscillationFreeExperimentLocked(session)
+      || session.experimentGroup.scheme === 'ideal'
+    ) return session;
     const parameterDraft = createDefaultPistonOscillationFreeParameterDraft();
     const next = {
       ...session,
@@ -832,7 +938,10 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'setAcquisitionSetting') {
-    if (isPistonOscillationFreeExperimentLocked(session)) return session;
+    if (
+      isPistonOscillationFreeExperimentLocked(session)
+      || session.experimentGroup.scheme === 'ideal'
+    ) return session;
     const valueValid = event.field === 'sampleRateHz'
       ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
       : isPistonOscillationFreeTriggerThresholdKpa(
@@ -941,6 +1050,10 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'observeOperation') {
+    if (
+      event.operation === 'startAcquisition'
+      && !canRunPistonOscillationFreeExperiment(session)
+    ) return session;
     const measurementIndex = isNonNegativeInteger(event.measurementIndex)
       ? event.measurementIndex
       : session.measurementIndex;
@@ -964,6 +1077,7 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'freezeAcquisition') {
+    if (!canRunPistonOscillationFreeExperiment(session)) return session;
     const measurementIndex = session.measurementIndex;
     const target = session.experimentPlan?.targets[measurementIndex];
     if (!target) return session;
@@ -971,14 +1085,17 @@ export const transitionPistonOscillationFreeSession = (
       event.measurement,
       measurementIndex,
     );
+    const contextualized = normalized
+      ? bindMeasurementToFreeExperimentGroup(
+          normalized,
+          session.experimentGroup,
+          'captured',
+        )
+      : null;
     if (
-      !normalized
-      || normalized.measurementIndex !== measurementIndex
-      || normalized.targetHeightMm !== target.heightMm
-      || !doPistonOscillationGasMaterialSnapshotsAgree(
-        normalized.physicsSnapshot.gasMaterial,
-        session.experimentGroup.gasMaterialSnapshot,
-      )
+      !contextualized
+      || contextualized.measurementIndex !== measurementIndex
+      || contextualized.targetHeightMm !== target.heightMm
     ) return session;
     const lockedSession = lockFreeExperiment(
       session,
@@ -987,7 +1104,7 @@ export const transitionPistonOscillationFreeSession = (
     );
     return {
       ...lockedSession,
-      acquisitionCandidate: clonePistonOscillationRawMeasurementRecord(normalized),
+      acquisitionCandidate: clonePistonOscillationRawMeasurementRecord(contextualized),
       acquisitionCandidateTargetId: target.targetId,
       updatedAtMs: event.nowMs,
     };
@@ -1033,6 +1150,7 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'saveMeasurement') {
+    if (!canRunPistonOscillationFreeExperiment(session)) return session;
     const measurementIndex = event.measurement.measurementIndex;
     const target = session.experimentPlan?.targets[measurementIndex];
     if (!target || event.measurement.targetHeightMm !== target.heightMm) {
@@ -1042,17 +1160,17 @@ export const transitionPistonOscillationFreeSession = (
       event.measurement,
       measurementIndex,
     );
-    if (
-      !normalized
-      || normalized.targetHeightMm !== target.heightMm
-      || !doPistonOscillationGasMaterialSnapshotsAgree(
-        normalized.physicsSnapshot.gasMaterial,
-        session.experimentGroup.gasMaterialSnapshot,
-      )
-    ) return session;
+    const contextualized = normalized
+      ? bindMeasurementToFreeExperimentGroup(
+          normalized,
+          session.experimentGroup,
+          'captured',
+        )
+      : null;
+    if (!contextualized || contextualized.targetHeightMm !== target.heightMm) return session;
     const frozenParameters = getPistonOscillationFreeEffectiveParameters(session);
     if (!doesPistonOscillationMeasurementMatchFreeParameters(
-      normalized,
+      contextualized,
       frozenParameters,
     )) return session;
     const lockedSession = lockFreeExperiment(
@@ -1064,7 +1182,7 @@ export const transitionPistonOscillationFreeSession = (
       ...session.savedMeasurements.filter((measurement) => (
         measurement.measurementIndex !== measurementIndex
       )),
-      clonePistonOscillationRawMeasurementRecord(normalized),
+      clonePistonOscillationRawMeasurementRecord(contextualized),
     ].sort((first, second) => first.measurementIndex - second.measurementIndex);
     const experimentPlan = session.experimentPlan;
     if (!experimentPlan) return session;
@@ -1097,21 +1215,23 @@ export const transitionPistonOscillationFreeSession = (
         recordId !== replacedMeasurement?.recordId
       )),
     );
-    savedMeasurementTargetIds[normalized.recordId] = target.targetId;
-    const primaryCycleEligibility = analyzePistonOscillationPrimaryCycleEligibility(normalized);
+    savedMeasurementTargetIds[contextualized.recordId] = target.targetId;
+    const primaryCycleEligibility = analyzePistonOscillationPrimaryCycleEligibility(
+      contextualized,
+    );
     const primaryCycleEligibilityByRecordId = Object.fromEntries(
       Object.entries(session.primaryCycleEligibilityByRecordId).filter(([recordId]) => (
         recordId !== replacedMeasurement?.recordId
       )),
     );
-    primaryCycleEligibilityByRecordId[normalized.recordId] = primaryCycleEligibility;
+    primaryCycleEligibilityByRecordId[contextualized.recordId] = primaryCycleEligibility;
     const dataProcessing = planComplete
       ? reacquisition && session.dataProcessing
         ? replacePistonOscillationProcessingMeasurement(
             session.dataProcessing,
             savedMeasurements,
             reacquisition.returnRunIndex,
-            normalized,
+            contextualized,
             event.nowMs,
           )
         : createPistonOscillationDataProcessingSession(
@@ -1140,14 +1260,14 @@ export const transitionPistonOscillationFreeSession = (
         targetHeightMm: target.heightMm,
         operation: 'saveMeasurement',
         payload: {
-          recordId: normalized.recordId,
+          recordId: contextualized.recordId,
           targetId: target.targetId,
-          confirmedHeightMm: normalized.confirmedHeightMm,
-          sampleRateHz: normalized.acquisitionSettings.sampleRateHz,
-          triggerThresholdKpa: normalized.acquisitionSettings.triggerThresholdKpa,
-          recordedDurationS: normalized.acquisitionSettings.recordedDurationS,
-          recordingPath: normalized.acquisitionSettings.recordingPath,
-          releaseOffsetS: normalized.acquisitionSettings.releaseOffsetS,
+          confirmedHeightMm: contextualized.confirmedHeightMm,
+          sampleRateHz: contextualized.acquisitionSettings.sampleRateHz,
+          triggerThresholdKpa: contextualized.acquisitionSettings.triggerThresholdKpa,
+          recordedDurationS: contextualized.acquisitionSettings.recordedDurationS,
+          recordingPath: contextualized.acquisitionSettings.recordingPath,
+          releaseOffsetS: contextualized.acquisitionSettings.releaseOffsetS,
           primaryCycleEligibilityStatus: primaryCycleEligibility.status,
           primaryCycleEligibilityReason: primaryCycleEligibility.reason,
           reacquisition: reacquisition !== null,
@@ -1812,15 +1932,6 @@ export const normalizePistonOscillationFreeSession = (
       ))
       .sort((first, second) => first.measurementIndex - second.measurementIndex)
     : [];
-  const savedMeasurementTargetIds = savedMeasurements.reduce<Record<string, string>>(
-    (targetIds, measurement) => {
-      const target = experimentPlan?.targets[measurement.measurementIndex];
-      if (!target) return targetIds;
-      targetIds[measurement.recordId] = target.targetId;
-      return targetIds;
-    },
-    {},
-  );
   const startedAtMs = isFiniteNumber(value.startedAtMs) ? value.startedAtMs : null;
   const persistedStatus = value.status === 'active' || value.status === 'paused'
     ? value.status
@@ -1907,10 +2018,6 @@ export const normalizePistonOscillationFreeSession = (
   const normalizedAcquisitionCandidate = acquisitionCandidate?.targetHeightMm
     === candidateTargetHeightMm
     ? acquisitionCandidate
-    : null;
-  const candidateTarget = experimentPlan?.targets[measurementIndex] ?? null;
-  const acquisitionCandidateTargetId = normalizedAcquisitionCandidate && candidateTarget
-    ? candidateTarget.targetId
     : null;
   const dataProcessing = experimentPlan
     && savedMeasurements.length >= experimentPlan.targetHeightsMm.length
@@ -2000,6 +2107,65 @@ export const normalizePistonOscillationFreeSession = (
         ?? 0,
     },
   );
+  const contextualizedSavedMeasurements = savedMeasurements
+    .map((measurement) => bindMeasurementToFreeExperimentGroup(
+      measurement,
+      experimentGroup,
+      measurement.experimentContext?.provenance ?? 'legacy-inferred',
+    ))
+    .filter((measurement): measurement is PistonOscillationRawMeasurementRecord => (
+      measurement !== null
+    ));
+  const allSavedMeasurementEvidenceAccepted = contextualizedSavedMeasurements.length
+    === savedMeasurements.length;
+  const contextualizedCandidate = normalizedAcquisitionCandidate
+    ? bindMeasurementToFreeExperimentGroup(
+        normalizedAcquisitionCandidate,
+        experimentGroup,
+        normalizedAcquisitionCandidate.experimentContext?.provenance ?? 'legacy-inferred',
+      )
+    : null;
+  const contextualizedExcludedAttempts = excludedAttempts.flatMap((attempt) => {
+    const measurement = bindMeasurementToFreeExperimentGroup(
+      attempt.measurement,
+      experimentGroup,
+      attempt.measurement.experimentContext?.provenance ?? 'legacy-inferred',
+    );
+    return measurement ? [{ ...attempt, measurement }] : [];
+  });
+  const contextualizedSavedMeasurementTargetIds = contextualizedSavedMeasurements.reduce<
+    Record<string, string>
+  >((targetIds, measurement) => {
+    const target = experimentPlan?.targets[measurement.measurementIndex];
+    if (target) targetIds[measurement.recordId] = target.targetId;
+    return targetIds;
+  }, {});
+  const contextualizedEligibilityByRecordId = Object.fromEntries(
+    Object.entries(primaryCycleEligibilityByRecordId).filter(([recordId]) => (
+      contextualizedSavedMeasurements.some((measurement) => measurement.recordId === recordId)
+    )),
+  );
+  const contextualizedReacquisition = reacquisition
+    && contextualizedSavedMeasurements.some((measurement) => (
+      measurement.recordId === reacquisition.excludedRecordId
+    ))
+      ? reacquisition
+      : null;
+  const contextualizedMeasurementIndex = contextualizedReacquisition?.measurementIndex
+    ?? (experimentPlan
+      ? getFirstMissingMeasurementIndex(experimentPlan, contextualizedSavedMeasurements)
+      : 0);
+  const contextualizedCandidateTarget = experimentPlan
+    ?.targets[contextualizedMeasurementIndex] ?? null;
+  const contextualizedCandidateTargetId = contextualizedCandidate
+    && contextualizedCandidateTarget
+    && contextualizedCandidate.measurementIndex === contextualizedMeasurementIndex
+    && contextualizedCandidate.targetHeightMm === contextualizedCandidateTarget.heightMm
+      ? contextualizedCandidateTarget.targetId
+      : null;
+  const contextualizedDataProcessing = allSavedMeasurementEvidenceAccepted
+    ? dataProcessing
+    : null;
   const parameterDraft = experimentGroup.parameterSnapshot?.parameters
     ?? synchronizedParameterDraft;
   return {
@@ -2009,26 +2175,30 @@ export const normalizePistonOscillationFreeSession = (
     updatedAtMs: isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : startedAtMs,
     experimentGroup,
     experimentPlan,
-    measurementIndex,
-    powerOn: status === 'active' && (reacquisition !== null || value.powerOn === true),
+    measurementIndex: contextualizedMeasurementIndex,
+    powerOn: status === 'active' && (
+      contextualizedReacquisition !== null || value.powerOn === true
+    ),
     advancedParametersRiskAcknowledged:
       value.advancedParametersRiskAcknowledged === true,
     parameterDraft,
     sampleRateHz: parameterDraft.sampleRateHz,
     triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
-    acquisitionCandidate: normalizedAcquisitionCandidate,
-    acquisitionCandidateTargetId,
-    savedMeasurements,
-    savedMeasurementTargetIds,
-    excludedAttempts,
-    primaryCycleEligibilityByRecordId,
-    reacquisition,
+    acquisitionCandidate: contextualizedCandidateTargetId === null
+      ? null
+      : contextualizedCandidate,
+    acquisitionCandidateTargetId: contextualizedCandidateTargetId,
+    savedMeasurements: contextualizedSavedMeasurements,
+    savedMeasurementTargetIds: contextualizedSavedMeasurementTargetIds,
+    excludedAttempts: contextualizedExcludedAttempts,
+    primaryCycleEligibilityByRecordId: contextualizedEligibilityByRecordId,
+    reacquisition: contextualizedReacquisition,
     instrumentState: normalizeInstrumentState(
       value.instrumentState,
       true,
       parameterDraft,
     ),
-    dataProcessing,
+    dataProcessing: contextualizedDataProcessing,
     audit,
   };
 };

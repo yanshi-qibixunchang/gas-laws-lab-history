@@ -176,6 +176,21 @@ assert.doesNotMatch(
   'the Piston advanced dialog should expose only editable parameters',
 );
 assert.match(
+  parameterPanelSource,
+  /freeMode \? \([\s\S]*data-piston-oscillation-scheme=\{session\.experimentGroup\.scheme\}[\s\S]*onExperimentSchemeChange[\s\S]*data-piston-oscillation-param-id="gasType"[\s\S]*onGasTypeChange/,
+  'the Free-only parameter panel must expose persisted scheme and gas selectors',
+);
+assert.match(
+  parameterPanelSource,
+  /const idealReadonly = freeMode && session\.experimentGroup\.scheme === 'ideal';[\s\S]*disabled=\{physicsLocked\}/,
+  'the Ideal preset must keep its physical and acquisition parameters read-only',
+);
+assert.match(
+  acquisitionSource,
+  /if \(!freeExperimentRunnable\) \{[\s\S]*showFreeParameterFeedback\(copy\.experimentProfileUnavailable\);[\s\S]*return;[\s\S]*if \(freeSelected\) onFreeAcquisitionStarted\?\.\(\);/,
+  'an unavailable scheme or gas profile must be stopped before formal acquisition starts',
+);
+assert.match(
   workbenchSource,
   /renderParameterHelpButton=\{\(parameterId, modelEffect\) => \([\s\S]*renderHeatCapacityParameterHelpButton/,
   'Piston parameters should reuse the established Heat Capacity help-button and popover implementation',

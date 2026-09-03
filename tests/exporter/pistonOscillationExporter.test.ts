@@ -18,6 +18,9 @@ import {
   createPistonOscillationGasMaterialSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts';
 import {
+  createPistonOscillationFreeExperimentContextSnapshot,
+} from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
+import {
   createDefaultHeatCapacityPistonOscillationFile,
 } from '../../src/features/workbench/workbenchState.ts';
 import {
@@ -38,6 +41,15 @@ const workbenchSource = readFileSync(join(
   'workbench',
   'WorkbenchStudioPrototype.tsx',
 ), 'utf8');
+const defaultPistonFile = createDefaultHeatCapacityPistonOscillationFile(1);
+const exportExperimentGroup = {
+  ...defaultPistonFile.pistonOscillationFreeSession.experimentGroup,
+  groupId: 'piston-free-group:export',
+  createdAtMs: 1_725_079_700_000,
+};
+const exportExperimentContext = createPistonOscillationFreeExperimentContextSnapshot(
+  exportExperimentGroup,
+);
 
 const heights = [80, 70, 60];
 const slope = 61.19357;
@@ -55,7 +67,7 @@ const records = heights.map((heightMm, measurementIndex) => {
     return { timeS, absolutePressureKpa: pressure };
   });
   return {
-    schemaVersion: 6,
+    schemaVersion: 7,
     recordId: `piston-export-${measurementIndex + 1}`,
     capturedAtMs: 1_725_080_000_000 + measurementIndex * 120_000,
     measurementIndex,
@@ -73,6 +85,7 @@ const records = heights.map((heightMm, measurementIndex) => {
       signedReleaseGapS: [0.028, -0.041, 0.076][measurementIndex]!,
       releaseOrder: ['space-first', 'mouse-first', 'space-first'][measurementIndex],
     },
+    experimentContext: { ...exportExperimentContext },
     sensorObservationSnapshot: {},
     physicsSnapshot: {
       gasMaterial: createPistonOscillationGasMaterialSnapshot(),
@@ -160,10 +173,11 @@ const calculationAnswers = {
 };
 
 const session = {
-  schemaVersion: 6,
+  schemaVersion: 10,
   status: 'active',
   startedAtMs: 1_725_079_700_000,
   updatedAtMs: 1_725_080_540_000,
+  experimentGroup: exportExperimentGroup,
   experimentPlan: {
     schemaVersion: 3,
     planId: 'piston-export-plan',
@@ -192,7 +206,7 @@ const session = {
   instrumentState: {},
   audit: [
     ...records.map((record, index) => ({
-      schemaVersion: 2,
+      schemaVersion: 4,
       sequence: index + 1,
       eventId: `measurement-saved-${index + 1}`,
       occurredAtMs: record.capturedAtMs + 30_000,
@@ -268,13 +282,28 @@ const payload = createPistonOscillationReportExportPayload(file, 'zh-CN');
 assert.equal(payload.kind, 'json');
 assert.equal(payload.mode, 'report');
 assert.equal(payload.data.exportKind, PISTON_OSCILLATION_REPORT_EXPORT_KIND);
-assert.equal(payload.data.schemaVersion, 2);
+assert.equal(payload.data.schemaVersion, 3);
+assert.equal(payload.data.experimentGroup.groupId, exportExperimentGroup.groupId);
+assert.equal(payload.data.summary.scheme, 'real');
+assert.equal(payload.data.summary.gasType, 'air');
+assert.equal(payload.data.summary.scoringEligible, true);
 assert.equal(payload.data.gasMaterial.gasType, 'air');
 assert.equal(payload.data.gasMaterial.adiabaticIndex, 1.4);
 assert.equal(payload.data.measurements.length, 3);
 assert.equal(payload.data.measurements[0].gasMaterial.gasType, 'air');
+assert.deepEqual(payload.data.measurements[0].experimentContext, exportExperimentContext);
 assert.equal(payload.data.measurements[0].samples.length, 701);
 assert.equal(records[0]?.samples.length, 701, 'building a report must not mutate saved samples');
+const mismatchedContextFile = structuredClone(file);
+mismatchedContextFile.pistonOscillationFreeSession.savedMeasurements[0]!.experimentContext = {
+  ...exportExperimentContext,
+  groupId: 'piston-free-group:other',
+};
+assert.equal(isPistonOscillationReportReady(mismatchedContextFile), false);
+assert.throws(
+  () => createPistonOscillationReportExportPayload(mismatchedContextFile, 'zh-CN'),
+  /experiment-group context is inconsistent/,
+);
 const commonPayload = createWorkbenchExportPayload(file, 'report', 'zh-CN');
 assert.equal(commonPayload.kind, 'json');
 if (commonPayload.kind !== 'json') throw new Error('Expected JSON report payload.');
@@ -379,7 +408,9 @@ if (pythonCheck.status !== 0) {
     });
     if (textResult.status === 0) {
       const reportText = readFileSync(reportTextPath, 'utf8');
-      assert.match(reportText, /活塞振动法测空气比热容比实验报告/);
+      assert.match(reportText, /活塞振动法测空气比热容比/);
+      assert.match(reportText, /实验方案\s+真实实验条件/);
+      assert.match(reportText, /气体类型\s+空气/);
       assert.match(reportText, /1 实验文件信息/);
       assert.match(reportText, /2 实际记录数据/);
       assert.match(reportText, /3 实验计算结果/);

@@ -9,12 +9,17 @@ import {
   isPistonOscillationGasMaterialSnapshot,
   type PistonOscillationGasMaterialSnapshot,
 } from './pistonOscillationGasMaterialModel.ts';
+import {
+  createPistonOscillationExperimentContextSnapshot,
+  type PistonOscillationExperimentContextSnapshot,
+  type PistonOscillationExperimentScheme,
+} from './pistonOscillationExperimentContextModel.ts';
+
+export type { PistonOscillationExperimentScheme } from './pistonOscillationExperimentContextModel.ts';
 
 export const PISTON_OSCILLATION_FREE_EXPERIMENT_GROUP_SCHEMA_VERSION = 1 as const;
 export const PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION =
   'piston-oscillation-real-parameter-profile-v1' as const;
-
-export type PistonOscillationExperimentScheme = 'real' | 'ideal';
 
 export type PistonOscillationFreeExperimentLockReason =
   | 'bottom-impact'
@@ -44,6 +49,11 @@ export interface PistonOscillationFreeExperimentGroup {
   lock: PistonOscillationFreeExperimentLock | null;
 }
 
+export const PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION =
+  'piston-oscillation-ideal-parameter-profile-v1' as const;
+export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION =
+  'piston-oscillation-real-helium-parameter-profile-v1' as const;
+
 const LOCK_REASONS: readonly PistonOscillationFreeExperimentLockReason[] = [
   'bottom-impact',
   'formal-acquisition-started',
@@ -63,6 +73,15 @@ const isFiniteTimestamp = (value: unknown): value is number => (
   typeof value === 'number' && Number.isFinite(value) && value >= 0
 );
 
+export const getPistonOscillationParameterProfileVersion = (
+  scheme: PistonOscillationExperimentScheme,
+  gasType: PistonOscillationGasMaterialSnapshot['gasType'],
+) => scheme === 'ideal'
+  ? PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
+  : gasType === 'helium'
+    ? PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION
+    : PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION;
+
 export const createPistonOscillationFreeExperimentGroup = (options: {
   groupId?: string;
   createdAtMs?: number | null;
@@ -70,20 +89,68 @@ export const createPistonOscillationFreeExperimentGroup = (options: {
   scheme?: PistonOscillationExperimentScheme;
   gasMaterialSnapshot?: PistonOscillationGasMaterialSnapshot;
   parameterProfileVersion?: string;
-} = {}): PistonOscillationFreeExperimentGroup => ({
-  schemaVersion: PISTON_OSCILLATION_FREE_EXPERIMENT_GROUP_SCHEMA_VERSION,
-  groupId: options.groupId?.trim() || 'piston-free-group:unstarted',
-  createdAtMs: options.createdAtMs ?? null,
-  provenance: options.provenance ?? 'created',
-  scheme: options.scheme ?? 'real',
-  gasMaterialSnapshot: {
+} = {}): PistonOscillationFreeExperimentGroup => {
+  const scheme = options.scheme ?? 'real';
+  const gasMaterialSnapshot = {
     ...(options.gasMaterialSnapshot ?? createPistonOscillationGasMaterialSnapshot()),
-  },
-  parameterProfileVersion: options.parameterProfileVersion?.trim()
-    || PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
-  parameterSnapshot: null,
-  lock: null,
+  };
+  return {
+    schemaVersion: PISTON_OSCILLATION_FREE_EXPERIMENT_GROUP_SCHEMA_VERSION,
+    groupId: options.groupId?.trim() || 'piston-free-group:unstarted',
+    createdAtMs: options.createdAtMs ?? null,
+    provenance: options.provenance ?? 'created',
+    scheme,
+    gasMaterialSnapshot,
+    parameterProfileVersion: options.parameterProfileVersion?.trim()
+      || getPistonOscillationParameterProfileVersion(scheme, gasMaterialSnapshot.gasType),
+    parameterSnapshot: null,
+    lock: null,
+  };
+};
+
+export const createPistonOscillationFreeExperimentContextSnapshot = (
+  group: PistonOscillationFreeExperimentGroup,
+  provenance: PistonOscillationExperimentContextSnapshot['provenance'] = 'captured',
+) => createPistonOscillationExperimentContextSnapshot({
+  groupId: group.groupId,
+  scheme: group.scheme,
+  parameterProfileVersion: group.parameterProfileVersion,
+  provenance,
 });
+
+export const selectPistonOscillationFreeExperimentScheme = (
+  group: PistonOscillationFreeExperimentGroup,
+  scheme: PistonOscillationExperimentScheme,
+): PistonOscillationFreeExperimentGroup => {
+  if (group.lock !== null || group.scheme === scheme) return group;
+  return {
+    ...group,
+    scheme,
+    parameterProfileVersion: getPistonOscillationParameterProfileVersion(
+      scheme,
+      group.gasMaterialSnapshot.gasType,
+    ),
+  };
+};
+
+export const selectPistonOscillationFreeGasType = (
+  group: PistonOscillationFreeExperimentGroup,
+  gasType: PistonOscillationGasMaterialSnapshot['gasType'],
+): PistonOscillationFreeExperimentGroup => {
+  if (group.lock !== null || group.gasMaterialSnapshot.gasType === gasType) return group;
+  return {
+    ...group,
+    gasMaterialSnapshot: createPistonOscillationGasMaterialSnapshot(gasType),
+    parameterProfileVersion: getPistonOscillationParameterProfileVersion(
+      group.scheme,
+      gasType,
+    ),
+  };
+};
+
+export const isPistonOscillationFreeExperimentProfileImplemented = (
+  group: PistonOscillationFreeExperimentGroup,
+) => group.scheme === 'real' && group.gasMaterialSnapshot.gasType === 'air';
 
 export const lockPistonOscillationFreeExperimentGroup = (
   group: PistonOscillationFreeExperimentGroup,
@@ -135,10 +202,8 @@ export const normalizePistonOscillationFreeExperimentGroup = (
     && persisted.groupId.trim().length > 0
     && (persisted.createdAtMs === null || isFiniteTimestamp(persisted.createdAtMs))
     && (persisted.provenance === 'created' || persisted.provenance === 'legacy-inferred')
-    // Ideal is not accepted from persistence until its effective profile is implemented.
-    && persisted.scheme === 'real'
+    && (persisted.scheme === 'real' || persisted.scheme === 'ideal')
     && isPistonOscillationGasMaterialSnapshot(persistedGasMaterial)
-    && persistedGasMaterial.gasType === 'air'
     && (
       options.fallbackGasMaterialSnapshot === undefined
       || doPistonOscillationGasMaterialSnapshotsAgree(
@@ -147,13 +212,16 @@ export const normalizePistonOscillationFreeExperimentGroup = (
       )
     )
     && typeof persisted.parameterProfileVersion === 'string'
-    && persisted.parameterProfileVersion.length > 0;
+    && persisted.parameterProfileVersion === getPistonOscillationParameterProfileVersion(
+      persisted.scheme as PistonOscillationExperimentScheme,
+      (persistedGasMaterial as PistonOscillationGasMaterialSnapshot).gasType,
+    );
   const group = validCurrentGroup
     ? createPistonOscillationFreeExperimentGroup({
         groupId: persisted.groupId as string,
         createdAtMs: persisted.createdAtMs as number | null,
         provenance: persisted.provenance as PistonOscillationFreeExperimentGroup['provenance'],
-        scheme: 'real',
+        scheme: persisted.scheme as PistonOscillationExperimentScheme,
         gasMaterialSnapshot: persistedGasMaterial as PistonOscillationGasMaterialSnapshot,
         parameterProfileVersion: persisted.parameterProfileVersion as string,
       })

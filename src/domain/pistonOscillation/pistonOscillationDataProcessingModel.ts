@@ -67,8 +67,12 @@ import {
   createLegacyPistonOscillationEquivalentLossSnapshot,
   createLegacyUnknownPistonOscillationPressOperationEvidence,
 } from './pistonOscillationLegacyCompatibility.ts';
+import {
+  normalizePistonOscillationExperimentContextSnapshot,
+  type PistonOscillationExperimentContextSnapshot,
+} from './pistonOscillationExperimentContextModel.ts';
 
-export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 6 as const;
+export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 7 as const;
 export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 6 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
   'alternating-observed-local-extrema-v2' as const;
@@ -135,6 +139,7 @@ export interface PistonOscillationRawMeasurementRecord {
   measurementIndex: number;
   targetHeightMm: number;
   confirmedHeightMm: number;
+  experimentContext: PistonOscillationExperimentContextSnapshot | null;
   acquisitionSettings: PistonOscillationAcquisitionSettingsSnapshot;
   samples: PistonOscillationRawSample[];
   pressOperationEvidence: PistonOscillationPressOperationEvidence;
@@ -867,7 +872,14 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   pressOperationEvidence: PistonOscillationPressOperationEvidence;
   sensorObservationSnapshot: PistonOscillationSensorObservationSnapshot;
   physicsSnapshot: PistonOscillationPhysicsSnapshot;
+  experimentContext?: PistonOscillationExperimentContextSnapshot | null;
 }): PistonOscillationRawMeasurementRecord => {
+  const experimentContext = options.experimentContext == null
+    ? null
+    : normalizePistonOscillationExperimentContextSnapshot(options.experimentContext);
+  if (options.experimentContext != null && experimentContext === null) {
+    throw new RangeError('The experiment context snapshot is invalid.');
+  }
   if (!Number.isSafeInteger(options.sampleRateHz) || options.sampleRateHz <= 0) {
     throw new RangeError('sampleRateHz must be a positive safe integer.');
   }
@@ -1027,6 +1039,7 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
     measurementIndex: options.measurementIndex,
     targetHeightMm: options.targetHeightMm,
     confirmedHeightMm: options.confirmedHeightMm,
+    experimentContext,
     acquisitionSettings: {
       sampleRateHz: options.sampleRateHz,
       triggerThresholdKpa: options.triggerThresholdKpa,
@@ -1070,6 +1083,9 @@ export const clonePistonOscillationRawMeasurementRecord = (
   record: PistonOscillationRawMeasurementRecord,
 ): PistonOscillationRawMeasurementRecord => ({
   ...record,
+  experimentContext: record.experimentContext
+    ? { ...record.experimentContext }
+    : null,
   acquisitionSettings: { ...record.acquisitionSettings },
   samples: record.samples.map((sample) => ({ ...sample })),
   pressOperationEvidence: clonePistonOscillationPressOperationEvidence(
@@ -1654,6 +1670,10 @@ export const normalizePistonOscillationRawMeasurementRecord = (
       )
     )
   ) return null;
+  const experimentContext = value.experimentContext == null
+    ? null
+    : normalizePistonOscillationExperimentContextSnapshot(value.experimentContext);
+  if (value.experimentContext != null && experimentContext === null) return null;
   return {
     schemaVersion: PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION,
     recordId: typeof value.recordId === 'string' && value.recordId.length > 0
@@ -1663,6 +1683,7 @@ export const normalizePistonOscillationRawMeasurementRecord = (
     measurementIndex,
     targetHeightMm,
     confirmedHeightMm,
+    experimentContext,
     acquisitionSettings: {
       sampleRateHz,
       triggerThresholdKpa,

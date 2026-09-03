@@ -7694,6 +7694,30 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : file);
   };
 
+  const setPistonOscillationFreeExperimentScheme = (
+    scheme: 'real' | 'ideal',
+  ) => {
+    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, {
+          type: 'setExperimentScheme',
+          scheme,
+          nowMs: Date.now(),
+        })
+      : file);
+  };
+
+  const setPistonOscillationFreeGasType = (
+    gasType: 'air' | 'helium',
+  ) => {
+    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, {
+          type: 'setGasType',
+          gasType,
+          nowMs: Date.now(),
+        })
+      : file);
+  };
+
   const restorePistonOscillationFreeParameters = () => {
     updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
       ? {
@@ -24745,6 +24769,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                         acknowledgePistonOscillationAdvancedParametersRisk
                       }
                       onRestoreDefaults={restorePistonOscillationFreeParameters}
+                      onExperimentSchemeChange={
+                        setPistonOscillationFreeExperimentScheme
+                      }
+                      onGasTypeChange={setPistonOscillationFreeGasType}
                       onLockedInteraction={showPistonOscillationParameterLockHint}
                     />
                   ) : activeFile.kind === 'heatCapacity' ? (
