@@ -80,7 +80,7 @@ import {
 export const PISTON_OSCILLATION_RAW_MEASUREMENT_SCHEMA_VERSION = 7 as const;
 export const PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION = 7 as const;
 export const PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION =
-  'alternating-observed-local-extrema-v2' as const;
+  'signal-autocorrelation-primary-extrema-v1' as const;
 export const PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION =
   'multi-scale-primary-extrema-selection-v1' as const;
 export const PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION =
@@ -199,9 +199,42 @@ export interface PistonOscillationPrimaryCycleEligibilityReport {
   primaryExtrema: PistonOscillationExtremum[];
 }
 
+export type PistonOscillationGuidedPeriodAnalysisStatus =
+  | 'usable'
+  | 'insufficient'
+  | 'ambiguous';
+
+export type PistonOscillationGuidedPeriodAnalysisReason =
+  | 'primary-period-found'
+  | 'insufficient-samples'
+  | 'dominant-period-not-found'
+  | 'insufficient-primary-extrema'
+  | 'inconsistent-primary-period';
+
+export interface PistonOscillationGuidedPeriodAnalysis {
+  algorithmVersion: typeof PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION;
+  rawMeasurementRecordId: string;
+  status: PistonOscillationGuidedPeriodAnalysisStatus;
+  reason: PistonOscillationGuidedPeriodAnalysisReason;
+  dominantPeriodSamples: number | null;
+  dominantPeriodCorrelation: number;
+  smoothingWindowSamples: number;
+  estimatedNoiseFloorKpa: number;
+  minimumProminenceKpa: number;
+  medianPeriodSamples: number | null;
+  periodMadRatio: number | null;
+  primaryExtrema: PistonOscillationExtremum[];
+}
+
+export interface PistonOscillationGuidedPeriodAnalysisOptions {
+  rangeStartTimeS?: number;
+  rangeEndTimeS?: number;
+}
+
 export type PistonOscillationPeriodSelectionIssue =
   | 'insufficient-extrema'
-  | 'below-guided-minimum';
+  | 'below-guided-minimum'
+  | 'ambiguous-primary-period';
 
 export interface PistonOscillationPeriodSelection {
   algorithmVersion:
@@ -2229,6 +2262,392 @@ export const findPistonOscillationPrimaryExtrema = (
   record: PistonOscillationRawMeasurementRecord,
 ) => analyzePistonOscillationPrimaryCycleEligibility(record).primaryExtrema;
 
+const detrendPistonOscillationPressure = (
+  values: readonly number[],
+) => {
+  if (values.length <= 1) return values.map(() => 0);
+  const centerIndex = (values.length - 1) / 2;
+  const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+  let covariance = 0;
+  let indexVariance = 0;
+  for (let index = 0; index < values.length; index += 1) {
+    const centeredIndex = index - centerIndex;
+    covariance += centeredIndex * ((values[index] ?? mean) - mean);
+    indexVariance += centeredIndex * centeredIndex;
+  }
+  const slope = indexVariance > 0 ? covariance / indexVariance : 0;
+  return values.map((value, index) => (
+    value - (mean + slope * (index - centerIndex))
+  ));
+};
+
+const getNormalizedPistonOscillationAutocorrelation = (
+  values: readonly number[],
+  lag: number,
+) => {
+  const overlap = values.length - lag;
+  if (overlap < 3) return 0;
+  let leftMean = 0;
+  let rightMean = 0;
+  for (let index = 0; index < overlap; index += 1) {
+    leftMean += values[index] ?? 0;
+    rightMean += values[index + lag] ?? 0;
+  }
+  leftMean /= overlap;
+  rightMean /= overlap;
+  let covariance = 0;
+  let leftEnergy = 0;
+  let rightEnergy = 0;
+  for (let index = 0; index < overlap; index += 1) {
+    const left = (values[index] ?? 0) - leftMean;
+    const right = (values[index + lag] ?? 0) - rightMean;
+    covariance += left * right;
+    leftEnergy += left * left;
+    rightEnergy += right * right;
+  }
+  const denominator = Math.sqrt(leftEnergy * rightEnergy);
+  return denominator > Number.EPSILON ? covariance / denominator : 0;
+};
+
+interface PistonOscillationDominantPeriodEstimate {
+  periodSamples: number | null;
+  correlation: number;
+}
+
+const estimatePistonOscillationDominantPeriod = (
+  detrendedPressureKpa: readonly number[],
+  sampleRateHz: number,
+): PistonOscillationDominantPeriodEstimate => {
+  const minimumPeriodSamples = Math.max(6, Math.round(sampleRateHz * 0.008));
+  const maximumPeriodSamples = Math.min(
+    Math.floor((detrendedPressureKpa.length - 1) / 2),
+    Math.max(minimumPeriodSamples + 1, Math.round(sampleRateHz * 0.12)),
+  );
+  if (maximumPeriodSamples <= minimumPeriodSamples) {
+    return { periodSamples: null, correlation: 0 };
+  }
+  const correlations = new Map<number, number>();
+  for (let lag = minimumPeriodSamples - 1; lag <= maximumPeriodSamples + 1; lag += 1) {
+    correlations.set(
+      lag,
+      getNormalizedPistonOscillationAutocorrelation(detrendedPressureKpa, lag),
+    );
+  }
+  const candidates: Array<{ lag: number; correlation: number; score: number }> = [];
+  for (let lag = minimumPeriodSamples; lag <= maximumPeriodSamples; lag += 1) {
+    const correlation = correlations.get(lag) ?? 0;
+    const previous = correlations.get(lag - 1) ?? Number.NEGATIVE_INFINITY;
+    const next = correlations.get(lag + 1) ?? Number.NEGATIVE_INFINITY;
+    if (correlation <= 0 || correlation < previous || correlation <= next) continue;
+    candidates.push({
+      lag,
+      correlation,
+      score: correlation * Math.sqrt((detrendedPressureKpa.length - lag)
+        / detrendedPressureKpa.length),
+    });
+  }
+  if (candidates.length === 0) {
+    return { periodSamples: null, correlation: 0 };
+  }
+  const bestScore = candidates.reduce(
+    (maximum, candidate) => Math.max(maximum, candidate.score),
+    Number.NEGATIVE_INFINITY,
+  );
+  const selected = candidates
+    .filter((candidate) => candidate.score >= bestScore * 0.85)
+    .sort((first, second) => first.lag - second.lag)[0];
+  if (!selected || selected.correlation < 0.2) {
+    return { periodSamples: null, correlation: selected?.correlation ?? 0 };
+  }
+  return {
+    periodSamples: selected.lag,
+    correlation: selected.correlation,
+  };
+};
+
+interface PistonOscillationProminentExtremumCandidate
+  extends PistonOscillationSmoothedExtremumCandidate {
+  prominenceKpa: number;
+}
+
+const getPistonOscillationCandidateProminence = (
+  candidate: PistonOscillationSmoothedExtremumCandidate,
+  smoothedPressureKpa: readonly number[],
+  radiusSamples: number,
+) => {
+  const start = Math.max(0, candidate.localIndex - radiusSamples);
+  const end = Math.min(smoothedPressureKpa.length - 1, candidate.localIndex + radiusSamples);
+  const left = smoothedPressureKpa.slice(start, candidate.localIndex + 1);
+  const right = smoothedPressureKpa.slice(candidate.localIndex, end + 1);
+  if (left.length === 0 || right.length === 0) return 0;
+  if (candidate.type === 'peak') {
+    const leftMinimum = Math.min(...left);
+    const rightMinimum = Math.min(...right);
+    return candidate.smoothedPressureKpa - Math.max(leftMinimum, rightMinimum);
+  }
+  const leftMaximum = Math.max(...left);
+  const rightMaximum = Math.max(...right);
+  return Math.min(leftMaximum, rightMaximum) - candidate.smoothedPressureKpa;
+};
+
+const selectPistonOscillationGuidedExtremumChain = (
+  candidates: readonly PistonOscillationProminentExtremumCandidate[],
+  samples: readonly PistonOscillationRawSample[],
+  dominantPeriodSamples: number,
+) => {
+  type CandidateChain = {
+    indices: number[];
+    intervalDeviation: number;
+    prominence: number;
+  };
+  const expectedHalfPeriodSamples = dominantPeriodSamples / 2;
+  const minimumSeparationSamples = dominantPeriodSamples * 0.28;
+  const maximumSeparationSamples = dominantPeriodSamples * 0.72;
+  const chains: CandidateChain[] = [];
+  candidates.forEach((candidate, candidateIndex) => {
+    let best: CandidateChain = {
+      indices: [candidateIndex],
+      intervalDeviation: 0,
+      prominence: candidate.prominenceKpa,
+    };
+    for (let previousIndex = 0; previousIndex < candidateIndex; previousIndex += 1) {
+      const previousCandidate = candidates[previousIndex];
+      const previousChain = chains[previousIndex];
+      if (!previousCandidate || !previousChain || previousCandidate.type === candidate.type) continue;
+      const separationSamples = candidate.localIndex - previousCandidate.localIndex;
+      if (
+        separationSamples < minimumSeparationSamples
+        || separationSamples > maximumSeparationSamples
+      ) continue;
+      const extended: CandidateChain = {
+        indices: [...previousChain.indices, candidateIndex],
+        intervalDeviation: previousChain.intervalDeviation
+          + Math.abs(separationSamples - expectedHalfPeriodSamples)
+            / expectedHalfPeriodSamples,
+        prominence: previousChain.prominence + candidate.prominenceKpa,
+      };
+      const extendedIsBetter = extended.indices.length > best.indices.length
+        || (
+          extended.indices.length === best.indices.length
+          && (
+            extended.intervalDeviation < best.intervalDeviation - 1e-9
+            || (
+              Math.abs(extended.intervalDeviation - best.intervalDeviation) <= 1e-9
+              && extended.prominence > best.prominence
+            )
+          )
+      );
+      if (extendedIsBetter) best = extended;
+    }
+    chains.push(best);
+  });
+  const best = chains.reduce<CandidateChain | null>((current, candidate) => {
+    if (!current || candidate.indices.length > current.indices.length) return candidate;
+    if (candidate.indices.length < current.indices.length) return current;
+    if (candidate.intervalDeviation < current.intervalDeviation - 1e-9) return candidate;
+    if (
+      Math.abs(candidate.intervalDeviation - current.intervalDeviation) <= 1e-9
+      && candidate.prominence > current.prominence
+    ) return candidate;
+    return current;
+  }, null);
+  return (best?.indices ?? []).flatMap((candidateIndex) => {
+    const candidate = candidates[candidateIndex];
+    const sample = candidate ? samples[candidate.localIndex] : null;
+    return candidate && sample
+      ? [{
+          ordinal: 0,
+          sampleIndex: sample.sampleIndex,
+          type: candidate.type,
+          timeS: sample.timeS,
+          absolutePressureKpa: sample.absolutePressureKpa,
+        } satisfies PistonOscillationExtremum]
+      : [];
+  }).map((extremum, ordinal) => ({ ...extremum, ordinal }));
+};
+
+export const analyzePistonOscillationGuidedPeriod = (
+  record: PistonOscillationRawMeasurementRecord,
+  options: PistonOscillationGuidedPeriodAnalysisOptions = {},
+): PistonOscillationGuidedPeriodAnalysis => {
+  const recordingEndS = record.samples.at(-1)?.timeS
+    ?? record.acquisitionSettings.recordedDurationS;
+  const rangeStartTimeS = Math.max(
+    0,
+    Math.min(recordingEndS, Math.min(
+      options.rangeStartTimeS ?? 0,
+      options.rangeEndTimeS ?? recordingEndS,
+    )),
+  );
+  const rangeEndTimeS = Math.max(
+    rangeStartTimeS,
+    Math.min(recordingEndS, Math.max(
+      options.rangeStartTimeS ?? 0,
+      options.rangeEndTimeS ?? recordingEndS,
+    )),
+  );
+  const hasExplicitRange = options.rangeStartTimeS !== undefined
+    || options.rangeEndTimeS !== undefined;
+  const rangeContextS = hasExplicitRange
+    ? Math.min(0.12, Math.max(0.008, (rangeEndTimeS - rangeStartTimeS) * 0.25))
+    : 0;
+  const analysisStartTimeS = Math.max(0, rangeStartTimeS - rangeContextS);
+  const analysisEndTimeS = Math.min(recordingEndS, rangeEndTimeS + rangeContextS);
+  const samples = record.samples.filter((sample) => (
+    sample.timeS >= analysisStartTimeS && sample.timeS <= analysisEndTimeS
+  ));
+  const sampleRateHz = record.acquisitionSettings.sampleRateHz;
+  const pressureResolutionKpa = record.sensorObservationSnapshot.pressureResolutionKpa
+    ?? Number.EPSILON * Math.max(
+      1,
+      ...samples.map((sample) => Math.abs(sample.absolutePressureKpa)),
+    ) * 16;
+  const estimatedNoiseFloorKpa = estimatePistonOscillationNoiseFloorKpa(
+    samples,
+    pressureResolutionKpa,
+  );
+  const createReport = (
+    status: PistonOscillationGuidedPeriodAnalysisStatus,
+    reason: PistonOscillationGuidedPeriodAnalysisReason,
+    options: Partial<Omit<
+      PistonOscillationGuidedPeriodAnalysis,
+      'algorithmVersion' | 'rawMeasurementRecordId' | 'status' | 'reason'
+    >> = {},
+  ): PistonOscillationGuidedPeriodAnalysis => ({
+    algorithmVersion: PISTON_OSCILLATION_PERIOD_SELECTION_ALGORITHM_VERSION,
+    rawMeasurementRecordId: record.recordId,
+    status,
+    reason,
+    dominantPeriodSamples: options.dominantPeriodSamples ?? null,
+    dominantPeriodCorrelation: options.dominantPeriodCorrelation ?? 0,
+    smoothingWindowSamples: options.smoothingWindowSamples ?? 1,
+    estimatedNoiseFloorKpa,
+    minimumProminenceKpa: options.minimumProminenceKpa ?? 0,
+    medianPeriodSamples: options.medianPeriodSamples ?? null,
+    periodMadRatio: options.periodMadRatio ?? null,
+    primaryExtrema: options.primaryExtrema ?? [],
+  });
+  if (samples.length < 12 || !Number.isSafeInteger(sampleRateHz) || sampleRateHz <= 0) {
+    return createReport('insufficient', 'insufficient-samples');
+  }
+  const pressureValues = samples.map((sample) => sample.absolutePressureKpa);
+  const initialSmoothingWindowSamples = Math.max(
+    1,
+    Math.min(Math.floor(samples.length / 8), Math.round(sampleRateHz * 0.003)),
+  );
+  const initiallySmoothed = smoothPistonOscillationPressure(
+    pressureValues,
+    initialSmoothingWindowSamples,
+  );
+  const dominantPeriod = estimatePistonOscillationDominantPeriod(
+    detrendPistonOscillationPressure(initiallySmoothed),
+    sampleRateHz,
+  );
+  if (dominantPeriod.periodSamples === null) {
+    return createReport('ambiguous', 'dominant-period-not-found', {
+      smoothingWindowSamples: initialSmoothingWindowSamples,
+      dominantPeriodCorrelation: dominantPeriod.correlation,
+    });
+  }
+  const smoothingWindowSamples = Math.max(
+    1,
+    Math.min(
+      Math.floor(samples.length / 8),
+      Math.round(dominantPeriod.periodSamples * 0.12),
+    ),
+  );
+  const smoothedPressureKpa = smoothPistonOscillationPressure(
+    pressureValues,
+    smoothingWindowSamples,
+  );
+  const pressureRangeKpa = Math.max(
+    0,
+    getSortedQuantile(pressureValues, 0.95) - getSortedQuantile(pressureValues, 0.05),
+  );
+  const minimumProminenceKpa = Math.max(
+    pressureResolutionKpa * 4,
+    estimatedNoiseFloorKpa * 3,
+    pressureRangeKpa * 0.025,
+  );
+  const slopeEpsilonKpa = Math.max(
+    Number.EPSILON,
+    pressureResolutionKpa / Math.max(2, smoothingWindowSamples * 3),
+  );
+  const prominenceRadiusSamples = Math.max(
+    2,
+    Math.round(dominantPeriod.periodSamples * 0.45),
+  );
+  const prominentCandidates = findSmoothedPistonOscillationExtrema(
+    smoothedPressureKpa,
+    slopeEpsilonKpa,
+    pressureValues,
+  ).map((candidate) => ({
+    ...candidate,
+    prominenceKpa: getPistonOscillationCandidateProminence(
+      candidate,
+      smoothedPressureKpa,
+      prominenceRadiusSamples,
+    ),
+  })).filter((candidate) => candidate.prominenceKpa >= minimumProminenceKpa);
+  const contextualPrimaryExtrema = selectPistonOscillationGuidedExtremumChain(
+    prominentCandidates,
+    samples,
+    dominantPeriod.periodSamples,
+  );
+  const primaryExtrema = contextualPrimaryExtrema.filter((extremum) => (
+    extremum.timeS >= rangeStartTimeS && extremum.timeS <= rangeEndTimeS
+  )).map((extremum, ordinal) => ({ ...extremum, ordinal }));
+  if (primaryExtrema.length < 3) {
+    return createReport('insufficient', 'insufficient-primary-extrema', {
+      dominantPeriodSamples: dominantPeriod.periodSamples,
+      dominantPeriodCorrelation: dominantPeriod.correlation,
+      smoothingWindowSamples,
+      minimumProminenceKpa,
+      primaryExtrema,
+    });
+  }
+  const samePhasePeriodSamples = primaryExtrema.slice(0, -2).flatMap((extremum, index) => {
+    const following = primaryExtrema[index + 2];
+    return following && following.type === extremum.type
+      ? [following.sampleIndex - extremum.sampleIndex]
+      : [];
+  });
+  const medianPeriodSamples = getSortedQuantile(samePhasePeriodSamples, 0.5);
+  const periodMadSamples = getSortedQuantile(
+    samePhasePeriodSamples.map((periodSamples) => Math.abs(
+      periodSamples - medianPeriodSamples,
+    )),
+    0.5,
+  );
+  const periodMadRatio = medianPeriodSamples > 0
+    ? periodMadSamples / medianPeriodSamples
+    : Number.POSITIVE_INFINITY;
+  const dominantPeriodDisagreement = dominantPeriod.periodSamples > 0
+    ? Math.abs(medianPeriodSamples - dominantPeriod.periodSamples)
+      / dominantPeriod.periodSamples
+    : Number.POSITIVE_INFINITY;
+  const consistent = samePhasePeriodSamples.length > 0
+    && dominantPeriodDisagreement <= 0.12
+    && periodMadRatio <= 0.12;
+  return createReport(
+    consistent ? 'usable' : 'ambiguous',
+    consistent ? 'primary-period-found' : 'inconsistent-primary-period',
+    {
+      dominantPeriodSamples: dominantPeriod.periodSamples,
+      dominantPeriodCorrelation: dominantPeriod.correlation,
+      smoothingWindowSamples,
+      minimumProminenceKpa,
+      medianPeriodSamples,
+      periodMadRatio,
+      primaryExtrema,
+    },
+  );
+};
+
+export const findPistonOscillationGuidedPrimaryExtrema = (
+  record: PistonOscillationRawMeasurementRecord,
+) => analyzePistonOscillationGuidedPeriod(record).primaryExtrema;
+
 const getSelectionPeriodCount = (
   leftEndpoint: PistonOscillationExtremum,
   rightEndpoint: PistonOscillationExtremum,
@@ -2267,7 +2686,7 @@ export const createPistonOscillationPeriodSelection = (
   minimumPeriodCount: number,
   nowMs: number,
   freeMinimumPeriodCount: number = PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT,
-  extremaMode: 'observed' | 'primary' = 'observed',
+  extremaMode: 'guided' | 'observed' | 'primary' = 'guided',
 ): PistonOscillationPeriodSelection => {
   const recordingEndS = record.samples.at(-1)?.timeS
     ?? record.acquisitionSettings.recordedDurationS;
@@ -2279,13 +2698,43 @@ export const createPistonOscillationPeriodSelection = (
     rangeStartTimeS,
     Math.min(recordingEndS, Math.max(rawRangeStartTimeS, rawRangeEndTimeS)),
   );
-  const extrema = (extremaMode === 'primary'
+  const guidedAnalysis = extremaMode === 'guided'
+    ? analyzePistonOscillationGuidedPeriod(record, {
+        rangeStartTimeS,
+        rangeEndTimeS,
+      })
+    : null;
+  let extrema = (extremaMode === 'primary'
     ? findPistonOscillationPrimaryExtrema(record)
-    : findPistonOscillationExtrema(record.samples)).filter((extremum) => (
+    : extremaMode === 'guided'
+      ? guidedAnalysis!.primaryExtrema
+      : findPistonOscillationExtrema(record.samples)).filter((extremum) => (
     extremum.timeS >= rangeStartTimeS && extremum.timeS <= rangeEndTimeS
   ));
-  const leftEndpoint = extrema[0] ?? null;
-  const rightEndpoint = extrema.at(-1) ?? null;
+  let leftEndpoint = extrema[0] ?? null;
+  let rightEndpoint = extrema.at(-1) ?? null;
+  if (extremaMode === 'guided') {
+    const samePhasePairs = (['peak', 'trough'] as const).flatMap((type) => {
+      const matching = extrema.filter((extremum) => extremum.type === type);
+      const left = matching[0];
+      const right = matching.at(-1);
+      return left && right && right.ordinal > left.ordinal
+        ? [{ left, right }]
+        : [];
+    });
+    const longestPair = samePhasePairs.sort((first, second) => (
+      (second.right.ordinal - second.left.ordinal)
+      - (first.right.ordinal - first.left.ordinal)
+    ))[0] ?? null;
+    leftEndpoint = longestPair?.left ?? null;
+    rightEndpoint = longestPair?.right ?? null;
+    extrema = leftEndpoint && rightEndpoint
+      ? extrema.filter((extremum) => (
+          extremum.ordinal >= leftEndpoint!.ordinal
+          && extremum.ordinal <= rightEndpoint!.ordinal
+        ))
+      : [];
+  }
   const periodCount = leftEndpoint && rightEndpoint
     ? getSelectionPeriodCount(leftEndpoint, rightEndpoint)
     : 0;
@@ -2293,6 +2742,8 @@ export const createPistonOscillationPeriodSelection = (
     ? 'insufficient-extrema' as const
     : periodCount < minimumPeriodCount
       ? 'below-guided-minimum' as const
+      : guidedAnalysis?.status === 'ambiguous'
+        ? 'ambiguous-primary-period' as const
       : null;
   return {
     algorithmVersion: extremaMode === 'primary'
@@ -2505,7 +2956,7 @@ const selectPistonOscillationPeriodRangeWithMinimum = (
   rangeEndTimeS: number,
   minimumPeriodCount: number,
   nowMs: number,
-  extremaMode: 'observed' | 'primary' = 'observed',
+  extremaMode: 'guided' | 'observed' | 'primary' = 'guided',
 ): PistonOscillationDataProcessingSession => {
   const run = session.runs[runIndex];
   const record = run
@@ -2579,7 +3030,7 @@ export const selectPistonOscillationPeriodRange = (
   rangeEndTimeS,
   session.processingPolicy.guidedMinimumPeriodCount,
   nowMs,
-  'observed',
+  'guided',
 );
 
 export const selectPistonOscillationFreePeriodRange = (
@@ -4206,7 +4657,7 @@ const restoreSelection = (
   const persistedExtremaMode = value.algorithmVersion
     === PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION
     ? 'primary' as const
-    : 'observed' as const;
+    : 'guided' as const;
   const regenerated = createPistonOscillationPeriodSelection(
     record,
     value.rangeStartTimeS,
@@ -4236,6 +4687,8 @@ const restoreSelection = (
     : processingPolicy.answerValidationMode === 'stepwise'
       && periodCount < processingPolicy.guidedMinimumPeriodCount
       ? 'below-guided-minimum' as const
+      : regenerated.issue === 'ambiguous-primary-period'
+        ? 'ambiguous-primary-period' as const
       : null;
   return {
     algorithmVersion: regenerated.algorithmVersion,

@@ -191,6 +191,10 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     language === 'zh-CN' ? /至少两个/ : language === 'zh-TW' ? /至少兩個/ : /at least two/i,
     `${language} should state the new two-period Guide minimum`,
   );
+  assert.ok(
+    copy.processing.unstableSelection.length > 0,
+    `${language} should explain an unstable primary-period selection`,
+  );
   assert.doesNotMatch(
     copy.guide.multiPeriodLessonBody,
     /t_[12]|T\^2|\\frac|\$\$/,

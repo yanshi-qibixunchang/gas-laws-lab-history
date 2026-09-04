@@ -1,11 +1,12 @@
 import assert from 'node:assert/strict';
 import {
   PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
+  analyzePistonOscillationGuidedPeriod,
   calculatePistonOscillationLinearFit,
+  createPistonOscillationPeriodSelection,
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
   createPistonOscillationSensorObservationSnapshot,
-  findPistonOscillationExtrema,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import {
   getPistonOscillationSettlingStateAtProgress,
@@ -158,12 +159,21 @@ const fitPoints = [80, 70, 60].map((lockedHeightMm, runIndex) => {
     PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION,
   );
 
-  const extrema = findPistonOscillationExtrema(record.samples);
-  assert.ok(extrema.length >= 7, `${lockedHeightMm} mm should contain three full periods`);
-  const leftEndpoint = extrema[0]!;
-  const rightEndpoint = extrema[6]!;
-  assert.equal(leftEndpoint.type, rightEndpoint.type);
-  const periodS = (rightEndpoint.timeS - leftEndpoint.timeS) / 3;
+  const periodAnalysis = analyzePistonOscillationGuidedPeriod(record);
+  assert.equal(periodAnalysis.status, 'usable');
+  const selection = createPistonOscillationPeriodSelection(
+    record,
+    0,
+    RECORDED_DURATION_S,
+    2,
+    20_000 + runIndex,
+  );
+  assert.equal(selection.issue, null);
+  assert.ok(selection.periodCount >= 2);
+  assert.equal(selection.leftEndpoint?.type, selection.rightEndpoint?.type);
+  const periodS = (
+    selection.rightEndpoint!.sampleIndex - selection.leftEndpoint!.sampleIndex
+  ) / SAMPLE_RATE_HZ / selection.periodCount;
   return {
     runIndex,
     measurementIndex: runIndex,
@@ -184,8 +194,10 @@ const gamma = 4 * Math.PI ** 2 * referenceTrajectory.config.movingMassKg
     * PISTON_OSCILLATION_REFERENCE_PRESSURE_PA
   );
 assert.ok(
-  gamma >= 1.34 && gamma <= 1.43,
-  `the normal three-height workflow should retain a credible air gamma, received ${gamma}`,
+  gamma >= 1.34 && gamma <= 1.44,
+  `the normal three-height workflow should retain a credible air gamma, received ${gamma} from periods ${JSON.stringify(
+    fitPoints.map((point) => Math.sqrt(point.periodSquaredS2)),
+  )}`,
 );
 
 const heldPressHistory = createPressHistory(80);

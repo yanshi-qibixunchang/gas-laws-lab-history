@@ -926,6 +926,16 @@ assert.match(
   'the accepted final shutdown should clear stale suppression before entering calculation',
 );
 assert.match(
+  dataProcessingSource,
+  /findPistonOscillationGuidedPrimaryExtrema\(record\)/,
+  'Guide chart markers and keyboard selection should use the signal-only primary extrema',
+);
+assert.doesNotMatch(
+  dataProcessingSource,
+  /findPistonOscillationExtrema\(record\.samples\)/,
+  'Guide presentation must not restore raw local-extrema counting',
+);
+assert.match(
   workbenchSource,
   /showPistonOscillationGuideFeedback\(message, 'warning', 'guide'\)/,
   'ordinary piston guide rejections should use the shared warning feedback channel',

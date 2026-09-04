@@ -244,6 +244,7 @@ export interface PistonOscillationShellCopy {
     insufficientRecordTitle: string;
     insufficientRecordBody: string;
     guidedMinimumWarning: (minimumPeriods: number) => string;
+    unstableSelection: string;
     selectionAccepted: (extremaCount: number, periodCount: string) => string;
     dragHint: string;
     preprocessingTitle: string;
@@ -591,6 +592,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       insufficientRecordTitle: '本次记录不足以完成周期计算',
       insufficientRecordBody: '系统未在整条曲线中确认到至少半个可信的主振动周期。本次记录已保留为实验过程证据，并已自动返回仪器。软管已断开、活塞已复位到 0 mm、锁紧螺钉已完全松开，电源、采样率和触发阈值保持不变；请重新调节本组高度、接通软管并采集替代曲线。',
       guidedMinimumWarning: (minimumPeriods) => `本次测量需要选取至少 ${minimumPeriods} 个完整周期。请扩大时间范围后重新框选。`,
+      unstableSelection: '当前选区内的主振动周期不够稳定。请优先选择较早的稳定振动段，或扩大选区后重新框选。',
       selectionAccepted: (extremaCount, periodCount) => `已标记 ${extremaCount} 个波峰与波谷；两端极值点之间包含 ${periodCount} 个周期。`,
       dragHint: '点击手型工具切换为十字框选，再在图中横向拖动。',
       preprocessingTitle: '本幅曲线预处理',
@@ -939,6 +941,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       insufficientRecordTitle: '本次記錄不足以完成週期計算',
       insufficientRecordBody: '系統未在整條曲線中確認到至少半個可信的主振動週期。本次記錄已保留為實驗過程證據，並已自動返回儀器。軟管已斷開、活塞已復位到 0 mm、鎖緊螺釘已完全鬆開，電源、取樣率和觸發閾值保持不變；請重新調節本組高度、接通軟管並採集替代曲線。',
       guidedMinimumWarning: (minimumPeriods) => `本次測量需要選取至少 ${minimumPeriods} 個完整週期。請擴大時間範圍後重新框選。`,
+      unstableSelection: '目前選區內的主振動週期不夠穩定。請優先選擇較早的穩定振動段，或擴大選區後重新框選。',
       selectionAccepted: (extremaCount, periodCount) => `已標記 ${extremaCount} 個波峰與波谷；兩端極值點之間包含 ${periodCount} 個週期。`,
       dragHint: '點擊手型工具切換為十字框選，再在圖中橫向拖動。',
       preprocessingTitle: '本幅曲線預處理',
@@ -1287,6 +1290,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       insufficientRecordTitle: 'This recording is too short for period calculation',
       insufficientRecordBody: 'No credible half-cycle of the primary oscillation was confirmed in the full curve. The recording remains archived as process evidence, and the instrument has returned automatically. The hose is disconnected, the piston is at 0 mm, and the locking screw is fully loose; power, sample rate, and trigger threshold are unchanged. Reset this run\'s height, reconnect the hose, and acquire a replacement curve.',
       guidedMinimumWarning: (minimumPeriods) => `This measurement requires at least ${minimumPeriods} complete periods. Expand the time range and select again.`,
+      unstableSelection: 'The primary oscillation is not stable enough in this range. Prefer an earlier stable segment or expand the range and select again.',
       selectionAccepted: (extremaCount, periodCount) => `${extremaCount} peaks and troughs marked; the two endpoint extrema span ${periodCount} periods.`,
       dragHint: 'Select the hand tool to switch to the crosshair, then drag horizontally in the chart.',
       preprocessingTitle: 'Preprocess this curve',

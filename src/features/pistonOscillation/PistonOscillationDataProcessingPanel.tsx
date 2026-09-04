@@ -22,7 +22,7 @@ import {
   PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   createPistonOscillationFreePeriodSelection,
   createPistonOscillationPeriodSelection,
-  findPistonOscillationExtrema,
+  findPistonOscillationGuidedPrimaryExtrema,
   findPistonOscillationPrimaryExtrema,
   formatPistonOscillationEndpointTime,
   formatPistonOscillationPeriod,
@@ -669,7 +669,7 @@ export const PistonOscillationDataProcessingPanel = ({
     () => record
       ? freeProcessingActive
         ? findPistonOscillationPrimaryExtrema(record)
-        : findPistonOscillationExtrema(record.samples)
+        : findPistonOscillationGuidedPrimaryExtrema(record)
       : [],
     [freeProcessingActive, record],
   );
@@ -1179,6 +1179,8 @@ export const PistonOscillationDataProcessingPanel = ({
       )
       : preview.issue === 'below-guided-minimum'
         ? copy.guidedMinimumWarning(minimumPeriodCount)
+        : preview.issue === 'ambiguous-primary-period'
+          ? copy.unstableSelection
         : copy.selectionTooShort);
     setChartMode('pan');
     resetKeyboardSelection();
@@ -1591,7 +1593,9 @@ export const PistonOscillationDataProcessingPanel = ({
             <strong>
               {selection.issue === 'insufficient-extrema'
                 ? copy.selectionTooShort
-                : copy.guidedMinimumWarning(minimumPeriodCount)}
+                : selection.issue === 'ambiguous-primary-period'
+                  ? copy.unstableSelection
+                  : copy.guidedMinimumWarning(minimumPeriodCount)}
             </strong>
           </div>
         ) : (

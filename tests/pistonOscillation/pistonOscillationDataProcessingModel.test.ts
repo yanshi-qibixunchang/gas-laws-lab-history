@@ -271,7 +271,7 @@ const belowNewGuidedMinimumSelection = createPistonOscillationPeriodSelection(
   PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   2_002,
 );
-assert.equal(belowNewGuidedMinimumSelection.periodCount, 1.5);
+assert.equal(belowNewGuidedMinimumSelection.periodCount, 1);
 assert.equal(belowNewGuidedMinimumSelection.issue, 'below-guided-minimum');
 
 const fractionalGridSamples: PistonOscillationRawSample[] = Array.from(
