@@ -912,6 +912,21 @@ assert.doesNotMatch(
 );
 assert.match(
   workbenchSource,
+  /step === 'calculationReady'[\s\S]*setPistonOscillationCalculationSuppressedFileId\(null\)/,
+  'entering offline calculation should release any stale calculation-window suppression',
+);
+assert.doesNotMatch(
+  workbenchSource,
+  /pistonGuidePowerTargetActive[\s\S]{0,240}!activePistonOscillationGuideSession\.powerOn/,
+  'power state alone must not turn a completed shutdown into another power-button target',
+);
+assert.match(
+  workbenchSource,
+  /completesGuideShutdown[\s\S]*setPistonOscillationCalculationSuppressedFileId\(null\)[\s\S]*type: 'setPower'/,
+  'the accepted final shutdown should clear stale suppression before entering calculation',
+);
+assert.match(
+  workbenchSource,
   /showPistonOscillationGuideFeedback\(message, 'warning', 'guide'\)/,
   'ordinary piston guide rejections should use the shared warning feedback channel',
 );
@@ -942,7 +957,7 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /event\.reason === 'underpressure'[\s\S]*pistonOscillationGuidePressureRangeLessonTimerRef\.current = window\.setTimeout[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'redoOverpressureAttempt'[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'selectPeriodRange'[\s\S]*selection\?\.issue === null && selection\.periodCount >= 3[\s\S]*openPistonOscillationGuideOneTimeLesson\('multiPeriod'\)/,
+  /event\.reason === 'underpressure'[\s\S]*pistonOscillationGuidePressureRangeLessonTimerRef\.current = window\.setTimeout[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'redoOverpressureAttempt'[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'selectPeriodRange'[\s\S]*selection\?\.issue === null[\s\S]*selection\.periodCount >= minimumPeriodCount[\s\S]*openPistonOscillationGuideOneTimeLesson\('multiPeriod'\)/,
   'each new lesson must open once at its approved completed-action checkpoint',
 );
 assert.match(

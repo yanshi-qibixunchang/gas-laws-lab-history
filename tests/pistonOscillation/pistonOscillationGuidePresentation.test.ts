@@ -44,6 +44,7 @@ for (const step of [
   'parameterSetup',
   'hoseReconnect',
   'crossRunDisconnect',
+  'calculationReady',
   'completed',
 ] satisfies PistonOscillationGuideStep[]) {
   assert.equal(
@@ -52,6 +53,12 @@ for (const step of [
     `${step} should automatically use the overview`,
   );
 }
+
+assert.equal(
+  getPistonOscillationGuideStrongTargetId('calculationReady', 'readingHeight'),
+  null,
+  'offline calculation must not retain a power-button strong reminder',
+);
 
 for (const step of ['powerOn', 'powerOff'] satisfies PistonOscillationGuideStep[]) {
   assert.equal(getPistonOscillationGuideRequestedFocusMode(step), 'powerFocus');

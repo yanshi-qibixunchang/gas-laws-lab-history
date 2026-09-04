@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   advancePistonOscillationPeriodRun,
   completePistonOscillationCalculation,
   continuePistonOscillationCalculationAnswer,
@@ -253,6 +254,26 @@ assert.equal(validSelection.rightEndpoint?.sampleIndex, 140);
 assert.equal(validSelection.periodCount, 3);
 assert.equal(validSelection.extrema.length, 7);
 
+assert.equal(PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT, 2);
+const exactGuidedMinimumSelection = createPistonOscillationPeriodSelection(
+  records[0],
+  extrema[0]!.timeS,
+  extrema[4]!.timeS,
+  PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
+  2_001,
+);
+assert.equal(exactGuidedMinimumSelection.periodCount, 2);
+assert.equal(exactGuidedMinimumSelection.issue, null);
+const belowNewGuidedMinimumSelection = createPistonOscillationPeriodSelection(
+  records[0],
+  extrema[0]!.timeS,
+  extrema[3]!.timeS,
+  PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
+  2_002,
+);
+assert.equal(belowNewGuidedMinimumSelection.periodCount, 1.5);
+assert.equal(belowNewGuidedMinimumSelection.issue, 'below-guided-minimum');
+
 const fractionalGridSamples: PistonOscillationRawSample[] = Array.from(
   { length: 124 },
   (_, sampleIndex) => ({
@@ -358,7 +379,7 @@ assert.equal(insufficientSelection.periodCount, 0);
 assert.equal(insufficientSelection.issue, 'insufficient-extrema');
 
 let processing = createPistonOscillationDataProcessingSession(records, 3_000);
-assert.equal(processing.processingPolicy.guidedMinimumPeriodCount, 3);
+assert.equal(processing.processingPolicy.guidedMinimumPeriodCount, 2);
 assert.equal(processing.processingPolicy.freeMinimumPeriodCount, 0.5);
 assert.equal(processing.schemaVersion, 7);
 assert.deepEqual(processing.scoringPolicy, {
@@ -902,7 +923,7 @@ const invalidPolicyRestored = normalizePistonOscillationDataProcessingSession(
   records,
   3_460,
 );
-assert.equal(invalidPolicyRestored?.processingPolicy.guidedMinimumPeriodCount, 3);
+assert.equal(invalidPolicyRestored?.processingPolicy.guidedMinimumPeriodCount, 2);
 assert.equal(invalidPolicyRestored?.processingPolicy.freeMinimumPeriodCount, 0.5);
 
 const oldSessionWithoutPolicy = structuredClone(processing) as unknown as Record<string, unknown>;
@@ -912,7 +933,7 @@ const oldSessionRestored = normalizePistonOscillationDataProcessingSession(
   records,
   3_470,
 );
-assert.equal(oldSessionRestored?.processingPolicy.guidedMinimumPeriodCount, 3);
+assert.equal(oldSessionRestored?.processingPolicy.guidedMinimumPeriodCount, 2);
 
 const validCurrentRecord = normalizePistonOscillationRawMeasurementRecord(
   structuredClone(records[0]),

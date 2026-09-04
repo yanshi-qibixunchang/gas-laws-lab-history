@@ -186,6 +186,11 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
   }
   assert.match(copy.guide.pressureRangeLessonBody, /120[\s\S]*130/);
   assert.match(copy.guide.multiPeriodLessonBody, /1000[\s\S]*0\.001[\s\S]*t₂[\s\S]*t₁/);
+  assert.match(
+    copy.processing.selectionReminder,
+    language === 'zh-CN' ? /至少两个/ : language === 'zh-TW' ? /至少兩個/ : /at least two/i,
+    `${language} should state the new two-period Guide minimum`,
+  );
   assert.doesNotMatch(
     copy.guide.multiPeriodLessonBody,
     /t_[12]|T\^2|\\frac|\$\$/,

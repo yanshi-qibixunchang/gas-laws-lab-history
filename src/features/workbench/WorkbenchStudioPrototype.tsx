@@ -3408,6 +3408,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     status: 'idle' | 'active' | 'completed';
     step: PistonOscillationGuideStep;
   } | null>(null);
+  const pistonOscillationGuideShutdownCompletedFileIdRef = useRef<string | null>(null);
   const pistonOscillationGuideFeedbackCurrentRef =
     useRef<PistonOscillationGuideFeedbackState | null>(null);
   const pistonOscillationGuideFeedbackPendingRef =
@@ -4569,6 +4570,20 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       window.clearTimeout(pistonOscillationGuidePressureRangeLessonTimerRef.current);
       pistonOscillationGuidePressureRangeLessonTimerRef.current = null;
     }
+    if (
+      activePistonOscillationGuideSession?.status === 'active'
+      && activePistonOscillationGuideSession.step === 'calculationReady'
+    ) {
+      setPistonOscillationCalculationSuppressedFileId(null);
+      if (pistonOscillationGuideShutdownCompletedFileIdRef.current === activeFile.id) {
+        pistonOscillationGuideShutdownCompletedFileIdRef.current = null;
+        showPistonOscillationGuideFeedback(
+          getPistonOscillationShellCopy(settingsLanguagePreference).guide.powerOffSuccess,
+          'success',
+          'guide',
+        );
+      }
+    }
   }, [
     activeFile.id,
     activePistonOscillationGuideSession?.startedAtMs,
@@ -4964,8 +4979,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const pistonGuidePowerTargetActive = Boolean(
     activePistonOscillationGuideSession?.status === 'active'
     && (
-      !activePistonOscillationGuideSession.powerOn
-      || pistonGuideStep === 'powerOn'
+      pistonGuideStep === 'powerOn'
       || pistonGuideStep === 'powerOff'
     )
   );
@@ -5010,10 +5024,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const pistonGuideRequestedFocusMode =
     activePistonOscillationGuideSession?.status === 'active'
     || activePistonOscillationGuideSession?.status === 'completed'
-      ? activePistonOscillationGuideSession.status === 'active'
-        && !activePistonOscillationGuideSession.powerOn
-        ? 'powerFocus'
-        : getPistonOscillationGuideHeightResetPresentation(
+      ? getPistonOscillationGuideHeightResetPresentation(
         activePistonOscillationGuideSession.heightReset,
       )?.focusMode ?? getPistonOscillationGuideRequestedFocusMode(
         activePistonOscillationGuideSession.step,
@@ -5021,9 +5032,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : undefined;
   const pistonGuideExpectedStrongTargetId =
     activePistonOscillationGuideSession?.status === 'active'
-      ? !activePistonOscillationGuideSession.powerOn
-        ? 'powerButton'
-        : pistonOscillationGuidePressureIssue === 'overpressure'
+      ? pistonOscillationGuidePressureIssue === 'overpressure'
         ? 'redo'
         : getPistonOscillationGuideStrongTargetId(
           activePistonOscillationGuideSession.step,
@@ -6556,6 +6565,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       )
     ) return;
     if (liveFile.pistonOscillationGuideSession.status === 'active') {
+      const completesGuideShutdown = (
+        liveFile.pistonOscillationGuideSession.step === 'powerOff'
+        && liveFile.pistonOscillationGuideSession.powerOn
+        && !powerOn
+      );
+      if (completesGuideShutdown) {
+        pistonOscillationGuideShutdownCompletedFileIdRef.current = fileId;
+        setPistonOscillationCalculationSuppressedFileId(null);
+      }
       updateFileById(fileId, (file) => applyPistonOscillationGuideEvents(file, [{
         type: 'setPower',
         powerOn,
@@ -7596,7 +7614,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     ) {
       const selection = nextFile.pistonOscillationGuideSession
         .dataProcessing?.runs[event.runIndex]?.selection;
-      if (selection?.issue === null && selection.periodCount >= 3) {
+      const minimumPeriodCount = nextFile.pistonOscillationGuideSession
+        .dataProcessing?.processingPolicy.guidedMinimumPeriodCount;
+      if (
+        selection?.issue === null
+        && minimumPeriodCount !== undefined
+        && selection.periodCount >= minimumPeriodCount
+      ) {
         window.setTimeout(() => {
           openPistonOscillationGuideOneTimeLesson('multiPeriod');
         }, 0);

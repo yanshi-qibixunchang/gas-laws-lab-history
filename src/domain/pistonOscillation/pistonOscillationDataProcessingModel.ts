@@ -89,7 +89,7 @@ export const PISTON_OSCILLATION_LINEAR_FIT_ALGORITHM_VERSION =
   'ordinary-least-squares-v1' as const;
 export const PISTON_OSCILLATION_CALCULATION_MODEL_VERSION =
   'piston-slope-calculation-v1' as const;
-export const PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT = 3 as const;
+export const PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT = 2 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT = 0.5 as const;
 export const PISTON_OSCILLATION_PROCESSING_POLICY_VERSION =
   'piston-oscillation-processing-policy-v2' as const;
