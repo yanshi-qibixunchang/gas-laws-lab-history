@@ -5,7 +5,9 @@ import {
   type NumericAnswerSpec,
 } from '../calculation/numericAnswerValidation.ts';
 import {
+  roundDecimalPlacesHalfEven,
   roundRatioSignificantFiguresHalfEven,
+  roundSignificantFiguresHalfEven,
 } from '../calculation/decimalHalfEven.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,
@@ -86,9 +88,9 @@ export const PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION =
 export const PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION =
   'multi-scale-primary-half-cycle-v1' as const;
 export const PISTON_OSCILLATION_LINEAR_FIT_ALGORITHM_VERSION =
-  'ordinary-least-squares-v1' as const;
+  'display-rounded-ordinary-least-squares-v2' as const;
 export const PISTON_OSCILLATION_CALCULATION_MODEL_VERSION =
-  'piston-slope-calculation-v1' as const;
+  'display-rounded-piston-slope-calculation-v2' as const;
 export const PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT = 2 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT = 0.5 as const;
 export const PISTON_OSCILLATION_PROCESSING_POLICY_VERSION =
@@ -488,17 +490,17 @@ export type PistonOscillationPeriodAnswerField = 't1' | 't2' | 'period';
 export const PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS = {
   area: {
     precision: { type: 'significant-figures', digits: 4 },
-    tolerance: { type: 'last-significant-digit' },
+    tolerance: { type: 'absolute', value: 0 },
     roundingMode: 'half-even',
   },
   gamma: {
     precision: { type: 'significant-figures', digits: 4 },
-    tolerance: { type: 'absolute', value: 0.01 },
+    tolerance: { type: 'absolute', value: 0 },
     roundingMode: 'half-even',
   },
   relativeError: {
     precision: { type: 'significant-figures', digits: 3 },
-    tolerance: { type: 'absolute', value: 0.1 },
+    tolerance: { type: 'absolute', value: 0 },
     roundingMode: 'half-even',
   },
 } as const satisfies Record<PistonOscillationCalculationFieldId, NumericAnswerSpec>;
@@ -569,6 +571,42 @@ export const formatPistonOscillationCalculationAnswer = (
   value,
   PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS[fieldId],
 );
+
+const calculateDisplayedPistonAreaM2 = (
+  knowns: PistonOscillationCalculationKnownsSnapshot,
+) => {
+  const cylinderDiameterM = roundDecimalPlacesHalfEven(
+    knowns.cylinderDiameterM * 1_000,
+    1,
+  ) / 1_000;
+  return roundSignificantFiguresHalfEven(
+    Math.PI * cylinderDiameterM ** 2 / 4,
+    PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS.area.precision.digits,
+  );
+};
+
+const createPistonOscillationCalculationExpectedValues = (
+  knowns: PistonOscillationCalculationKnownsSnapshot,
+  fit: PistonOscillationLinearFitResultSnapshot,
+) => {
+  // Each operand is rounded exactly as it is displayed to the learner. This
+  // keeps the reference calculation identical to the written calculation
+  // chain instead of silently reusing higher-precision simulation values.
+  const movingMassKg = roundDecimalPlacesHalfEven(knowns.movingMassKg, 4);
+  const pressurePa = roundSignificantFiguresHalfEven(knowns.pressurePa, 3);
+  const slopeMPerS2 = roundSignificantFiguresHalfEven(fit.slopeMPerS2, 5);
+  const referenceGamma = roundDecimalPlacesHalfEven(knowns.referenceGamma, 2);
+  const areaM2 = calculateDisplayedPistonAreaM2(knowns);
+  const gamma = roundSignificantFiguresHalfEven(
+    4 * Math.PI ** 2 * movingMassKg * slopeMPerS2 / (areaM2 * pressurePa),
+    PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS.gamma.precision.digits,
+  );
+  const relativeErrorPercent = roundSignificantFiguresHalfEven(
+    Math.abs(gamma - referenceGamma) / referenceGamma * 100,
+    PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS.relativeError.precision.digits,
+  );
+  return { areaM2, gamma, relativeErrorPercent };
+};
 
 export const getConsistentPistonOscillationGasMaterialSnapshot = (
   records: readonly PistonOscillationRawMeasurementRecord[],
@@ -2846,7 +2884,7 @@ export const createPistonOscillationCalculationSession = (
   nowMs: number,
 ): PistonOscillationCalculationSessionSnapshot => {
   const knowns = createPistonOscillationCalculationKnownsSnapshot(records);
-  const areaM2 = Math.PI * knowns.cylinderDiameterM ** 2 / 4;
+  const areaM2 = calculateDisplayedPistonAreaM2(knowns);
   return {
     schemaVersion: 2,
     status: 'selecting-points',
@@ -3805,13 +3843,18 @@ const getLinearFitPoint = (
   runIndex: number,
 ): PistonOscillationLinearFitPointSnapshot | null => {
   if (!run.result) return null;
+  const periodSquaredS2 = roundSignificantFiguresHalfEven(
+    run.result.periodSquaredS2,
+    5,
+  );
+  const heightMm = roundSignificantFiguresHalfEven(run.fitHeightMm, 4);
   return {
     runIndex,
     measurementIndex: run.measurementIndex,
     rawMeasurementRecordId: run.rawMeasurementRecordId,
-    periodSquaredS2: run.result.periodSquaredS2,
-    heightMm: run.fitHeightMm,
-    heightM: run.fitHeightMm / 1000,
+    periodSquaredS2,
+    heightMm,
+    heightM: heightMm / 1000,
   };
 };
 
@@ -3930,15 +3973,11 @@ export const submitPistonOscillationLinearFit = (
   });
   const linearFitResult = calculatePistonOscillationLinearFit(points, nowMs);
   if (!linearFitResult) return session;
-  const areaM2 = calculationSession.answers.area.expectedValue
-    ?? Math.PI * calculationSession.knowns.cylinderDiameterM ** 2 / 4;
-  const gamma = 4 * Math.PI ** 2
-    * calculationSession.knowns.movingMassKg
-    * linearFitResult.slopeMPerS2
-    / (areaM2 * calculationSession.knowns.pressurePa);
-  const relativeErrorPercent = Math.abs(
-    gamma - calculationSession.knowns.referenceGamma,
-  ) / calculationSession.knowns.referenceGamma * 100;
+  const { areaM2, gamma, relativeErrorPercent } =
+    createPistonOscillationCalculationExpectedValues(
+      calculationSession.knowns,
+      linearFitResult,
+    );
   if (!Number.isFinite(gamma) || !Number.isFinite(relativeErrorPercent)) return session;
   return {
     ...session,
@@ -4872,21 +4911,23 @@ const normalizeCalculationSession = (
             : []
         )).filter((runIndex, index, indices) => indices.indexOf(runIndex) === index)
       : []);
-  const areaM2 = Math.PI * knowns.cylinderDiameterM ** 2 / 4;
+  const initialAreaM2 = calculateDisplayedPistonAreaM2(knowns);
   if (!fitResult) {
     return {
       ...fallback,
       knowns,
       selectedRunIndices,
+      answers: {
+        ...fallback.answers,
+        area: createCalculationAnswer(initialAreaM2),
+      },
       startedAtMs: isFiniteNumber(persisted?.startedAtMs)
         ? persisted.startedAtMs
         : fallback.startedAtMs,
     };
   }
-  const gamma = 4 * Math.PI ** 2 * knowns.movingMassKg * fitResult.slopeMPerS2
-    / (areaM2 * knowns.pressurePa);
-  const relativeErrorPercent = Math.abs(gamma - knowns.referenceGamma)
-    / knowns.referenceGamma * 100;
+  const { areaM2, gamma, relativeErrorPercent } =
+    createPistonOscillationCalculationExpectedValues(knowns, fitResult);
   const persistedAnswers = isPlainRecord(persisted?.answers) ? persisted.answers : null;
   const area = normalizeCalculationAnswer(persistedAnswers?.area, areaM2, 'area');
   let gammaAnswer = normalizeCalculationAnswer(

@@ -103,6 +103,17 @@ const formatFitCoefficient = (value: number) => {
   return formatSignificantFiguresHalfEven(value, 5);
 };
 
+const toSuperscriptInteger = (value: number) => String(value)
+  .replace('-', '⁻')
+  .replace(/\d/g, (digit) => '⁰¹²³⁴⁵⁶⁷⁸⁹'[Number(digit)]!);
+
+const formatKnownPressure = (value: number) => {
+  const formatted = formatSignificantFiguresHalfEven(value, 3);
+  const scientificMatch = /^(.+)e([+-]?\d+)$/.exec(formatted);
+  if (!scientificMatch) return formatted;
+  return `${scientificMatch[1]} × 10${toSuperscriptInteger(Number(scientificMatch[2]))}`;
+};
+
 const distanceFromPointToRect = (
   point: { x: number; y: number },
   rect: FitChartRect,
@@ -195,9 +206,9 @@ const buildKnownConstantRows = (
   if (!calculationSession) return [];
   const { knowns } = calculationSession;
   return [[
-    { key: 'mass', label: 'm（kg）', value: knowns.movingMassKg.toFixed(4) },
-    { key: 'diameter', label: 'd（mm）', value: (knowns.cylinderDiameterM * 1000).toFixed(1) },
-    { key: 'pressure', label: 'P（Pa）', value: '1.01 × 10⁵' },
+    { key: 'mass', label: 'm（kg）', value: formatDecimalPlacesHalfEven(knowns.movingMassKg, 4) },
+    { key: 'diameter', label: 'd（mm）', value: formatDecimalPlacesHalfEven(knowns.cylinderDiameterM * 1000, 1) },
+    { key: 'pressure', label: 'P（Pa）', value: formatKnownPressure(knowns.pressurePa) },
   ]];
 };
 
@@ -206,14 +217,15 @@ const buildFitDataRows = (
 ): CalculationKnownDatum[][] => processing.runs.map((run, runIndex) => {
   const period = run.result?.periodS ?? Number.NaN;
   const periodSquared = run.result?.periodSquaredS2 ?? Number.NaN;
+  const fitHeightMm = run.fitHeightMm;
   return [
     { key: `run-${runIndex}-period`, label: 'T（s）', value: formatDataValue(period, 4) },
     { key: `run-${runIndex}-period2`, label: 'T²（s²）', value: formatDataValue(periodSquared, 5) },
-    { key: `run-${runIndex}-height`, label: 'h（mm）', value: formatDataValue(run.targetHeightMm, 4) },
+    { key: `run-${runIndex}-height`, label: 'h（mm）', value: formatDataValue(fitHeightMm, 4) },
     {
       key: `run-${runIndex}-coordinate`,
       label: '（T², h）',
-      value: `(${formatDataValue(periodSquared, 5)}, ${formatDataValue(run.targetHeightMm, 4)})`,
+      value: `(${formatDataValue(periodSquared, 5)}, ${formatDataValue(fitHeightMm, 4)})`,
     },
   ];
 });
@@ -232,7 +244,7 @@ const getFormula = (
 ) => {
   if (fieldId === 'area') return 'A = πd² / 4 =';
   if (fieldId === 'gamma') return 'γ = 4π²ms / (AP) =';
-  const formattedReferenceGamma = referenceGamma.toFixed(2);
+  const formattedReferenceGamma = formatDecimalPlacesHalfEven(referenceGamma, 2);
   return `Eᵣ = |γ − ${formattedReferenceGamma}| / ${formattedReferenceGamma} × 100% =`;
 };
 
@@ -410,8 +422,8 @@ const PistonOscillationFitChart = ({
     run.result
       ? [{
           runIndex,
-          x: run.result.periodSquaredS2,
-          y: run.targetHeightMm / 1000,
+          x: Number(formatDataValue(run.result.periodSquaredS2, 5)),
+          y: Number(formatDataValue(run.fitHeightMm, 4)) / 1000,
           selected: selectedRunIndices.has(runIndex),
         }]
       : []

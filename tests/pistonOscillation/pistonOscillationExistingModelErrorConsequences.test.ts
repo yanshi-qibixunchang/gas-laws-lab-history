@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
 import {
+  roundSignificantFiguresHalfEven,
+} from '../../src/domain/calculation/decimalHalfEven.ts';
+import {
   PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
   advancePistonOscillationPeriodRun,
   analyzePistonOscillationPrimaryCycleEligibility,
@@ -406,8 +409,10 @@ const idealMismatchRecords = createScenarioRecords(
 const idealMismatchFit = processFreeRecordsThroughFit(idealMismatchRecords);
 assert.deepEqual(
   idealMismatchFit.points.map((point) => point.heightMm),
-  idealMismatchRecords.map((record) => record.confirmedHeightMm),
-  'Ideal processing must fit the exact captured equilibrium heights',
+  idealMismatchRecords.map((record) => (
+    roundSignificantFiguresHalfEven(record.confirmedHeightMm, 4)
+  )),
+  'Ideal processing must fit the displayed captured equilibrium heights',
 );
 
 const normalCapture = getCapture(80);

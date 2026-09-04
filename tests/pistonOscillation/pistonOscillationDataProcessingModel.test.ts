@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS,
   PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   advancePistonOscillationPeriodRun,
   completePistonOscillationCalculation,
@@ -30,6 +31,10 @@ import {
   type PistonOscillationRawMeasurementRecord,
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import {
+  formatDecimalPlacesHalfEven,
+  formatSignificantFiguresHalfEven,
+} from '../../src/domain/calculation/decimalHalfEven.ts';
 import {
   PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
   PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
@@ -591,8 +596,50 @@ assert.deepEqual(calculationProcessing.linearFitResult.selectedRunIndices, [0, 1
 assert.ok(calculationProcessing.linearFitResult.slopeMPerS2 > 0);
 assert.ok(calculationProcessing.linearFitResult.rSquared > 0.99);
 assert.equal(calculationProcessing.calculationSession?.activeFieldId, 'area');
+assert.deepEqual(
+  Object.values(PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS).map((spec) => spec.tolerance),
+  [
+    { type: 'absolute', value: 0 },
+    { type: 'absolute', value: 0 },
+    { type: 'absolute', value: 0 },
+  ],
+  'every piston calculation field must require the unique rounded reference value',
+);
+
+const knowns = calculationProcessing.calculationSession!.knowns;
+const displayMassKg = Number(formatDecimalPlacesHalfEven(knowns.movingMassKg, 4));
+const displayDiameterM = Number(
+  formatDecimalPlacesHalfEven(knowns.cylinderDiameterM * 1_000, 1),
+) / 1_000;
+const displayPressurePa = Number(formatSignificantFiguresHalfEven(knowns.pressurePa, 3));
+const displaySlopeMPerS2 = Number(formatSignificantFiguresHalfEven(
+  calculationProcessing.linearFitResult.slopeMPerS2,
+  5,
+));
+assert.deepEqual(
+  calculationProcessing.linearFitResult.points.map((point) => ({
+    periodSquaredS2: point.periodSquaredS2,
+    heightMm: point.heightMm,
+  })),
+  calculationProcessing.runs.map((run) => ({
+    periodSquaredS2: Number(formatSignificantFiguresHalfEven(
+      run.result!.periodSquaredS2,
+      5,
+    )),
+    heightMm: Number(formatSignificantFiguresHalfEven(run.fitHeightMm, 4)),
+  })),
+  'the fit must use the same rounded coordinates shown in the calculation window',
+);
 
 const areaExpected = calculationProcessing.calculationSession!.answers.area.expectedValue!;
+assert.equal(
+  areaExpected,
+  Number(formatPistonOscillationCalculationAnswer(
+    'area',
+    Math.PI * displayDiameterM ** 2 / 4,
+  )),
+  'the area reference must be calculated from the displayed diameter',
+);
 calculationProcessing = updatePistonOscillationCalculationDraft(
   calculationProcessing,
   'area',
@@ -626,6 +673,15 @@ calculationProcessing = continuePistonOscillationCalculationAnswer(
   3_343,
 );
 const gammaExpected = calculationProcessing.calculationSession!.answers.gamma.expectedValue!;
+assert.equal(
+  gammaExpected,
+  Number(formatPistonOscillationCalculationAnswer(
+    'gamma',
+    4 * Math.PI ** 2 * displayMassKg * displaySlopeMPerS2
+      / (areaExpected * displayPressurePa),
+  )),
+  'the gamma reference must use only displayed operands and the rounded area answer',
+);
 calculationProcessing = updatePistonOscillationCalculationDraft(
   calculationProcessing,
   'gamma',
@@ -636,6 +692,17 @@ calculationProcessing = submitPistonOscillationCalculationField(
   calculationProcessing,
   'gamma',
   3_345,
+);
+const relativeErrorExpected = calculationProcessing
+  .calculationSession!.answers.relativeError.expectedValue!;
+const displayReferenceGamma = Number(formatDecimalPlacesHalfEven(knowns.referenceGamma, 2));
+assert.equal(
+  relativeErrorExpected,
+  Number(formatPistonOscillationCalculationAnswer(
+    'relativeError',
+    Math.abs(gammaExpected - displayReferenceGamma) / displayReferenceGamma * 100,
+  )),
+  'the relative-error reference must use the rounded gamma and displayed reference gamma',
 );
 calculationProcessing = updatePistonOscillationCalculationDraft(
   calculationProcessing,
@@ -798,8 +865,8 @@ const migratedMissingFitVersion = normalizePistonOscillationDataProcessingSessio
 );
 assert.equal(
   migratedMissingFitVersion?.linearFitResult?.algorithmVersion,
-  'ordinary-least-squares-v1',
-  'the only pre-versioned fit representation must migrate explicitly to OLS v1',
+  'display-rounded-ordinary-least-squares-v2',
+  'the only pre-versioned fit representation must migrate to the current display-rounded fit',
 );
 
 const unsupportedFitVersion = structuredClone(

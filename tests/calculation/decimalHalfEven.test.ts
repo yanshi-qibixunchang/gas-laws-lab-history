@@ -10,6 +10,7 @@ import {
 import {
   formatNumericAnswerReference,
   type NumericAnswerSpec,
+  validateNumericAnswer,
 } from '../../src/domain/calculation/numericAnswerValidation.ts';
 
 // Exact decimal ties must use the retained digit's parity, not a binary-float
@@ -98,6 +99,16 @@ const halfEvenSignificantSpec: NumericAnswerSpec = {
 assert.equal(
   formatNumericAnswerReference(0.030505, halfEvenSignificantSpec),
   '0.03050',
+);
+assert.equal(
+  validateNumericAnswer('1.447', 1.447, halfEvenSignificantSpec).correct,
+  true,
+  'a zero-tolerance answer must accept the exact reference at the required precision',
+);
+assert.equal(
+  validateNumericAnswer('1.451', 1.447, halfEvenSignificantSpec).correct,
+  false,
+  'a zero-tolerance answer must reject every numerically different value',
 );
 
 console.log('decimalHalfEven tests passed');

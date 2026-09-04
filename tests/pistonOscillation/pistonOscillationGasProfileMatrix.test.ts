@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {
   roundRatioSignificantFiguresHalfEven,
+  roundSignificantFiguresHalfEven,
 } from '../../src/domain/calculation/decimalHalfEven.ts';
 import {
   PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
@@ -374,9 +375,12 @@ for (const scheme of ['real', 'ideal'] as const) {
     assert.deepEqual(
       matrixProcessing.linearFitResult?.points.map((point) => point.heightMm),
       matrixRecords.map((record) => (
-        scheme === 'ideal' ? record.confirmedHeightMm : record.targetHeightMm
+        roundSignificantFiguresHalfEven(
+          scheme === 'ideal' ? record.confirmedHeightMm : record.targetHeightMm,
+          4,
+        )
       )),
-      `${scheme} ${gasType} must use its authoritative height source`,
+      `${scheme} ${gasType} must use its displayed authoritative height source`,
     );
     assert.equal(matrixProcessing.calculationSession?.knowns.gasType, gasType);
     assert.equal(

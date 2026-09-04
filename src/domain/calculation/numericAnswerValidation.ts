@@ -224,9 +224,11 @@ export const validateNumericAnswer = (
   }
 
   const absoluteError = Math.abs(parseResult.parsed.value - expectedValue);
-  const comparisonEpsilon =
-    Number.EPSILON * Math.max(1, Math.abs(expectedValue), tolerance) * 16;
-  const numericCorrect = absoluteError <= tolerance + comparisonEpsilon;
+  const numericCorrect = tolerance === 0
+    ? parseResult.parsed.value === expectedValue
+    : absoluteError <= tolerance + (
+      Number.EPSILON * Math.max(1, Math.abs(expectedValue), tolerance) * 16
+    );
   const precisionCorrect = hasRequiredNumericAnswerPrecision(
     parseResult.parsed,
     spec.precision,

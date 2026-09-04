@@ -62,9 +62,10 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /knowns\.movingMassKg\.toFixed\(4\)/,
+  /formatDecimalPlacesHalfEven\(knowns\.movingMassKg, 4\)/,
   'the nameplate mass must render as 0.0485 kg instead of rounding to 0.049 kg',
 );
+assert.match(componentSource, /formatKnownPressure\(knowns\.pressurePa\)/);
 assert.match(
   componentSource,
   /const buildFitDataRows =[\s\S]*label: 'T（s）'[\s\S]*label: 'T²（s²）'[\s\S]*label: 'h（mm）'[\s\S]*label: '（T², h）'/,
@@ -133,7 +134,10 @@ assert.match(styleSource, /\.studio-piston-fit-callout rect[\s\S]*stroke:\s*var\
 
 assert.match(componentSource, /A = πd² \/ 4 =/);
 assert.match(componentSource, /γ = 4π²ms \/ \(AP\) =/);
-assert.match(componentSource, /const formattedReferenceGamma = referenceGamma\.toFixed\(2\)/);
+assert.match(
+  componentSource,
+  /const formattedReferenceGamma = formatDecimalPlacesHalfEven\(referenceGamma, 2\)/,
+);
 assert.match(
   componentSource,
   /Eᵣ = \|γ − \$\{formattedReferenceGamma\}\| \/ \$\{formattedReferenceGamma\} × 100% =/,
@@ -148,7 +152,14 @@ assert.match(componentSource, /getInvalidPistonOscillationCalculationBatchFields
 assert.match(modelSource, /visibleFieldIds: PistonOscillationCalculationFieldId\[\]/);
 assert.match(modelSource, /batchAttempts: PistonOscillationCalculationBatchAttemptSnapshot\[\]/);
 assert.match(modelSource, /attemptedAtMs:\s*number \| null;[\s\S]*draftRaw:\s*string \| null;[\s\S]*resolution:\s*PistonOscillationAnswerResolution/);
-assert.match(modelSource, /ordinary-least-squares-v1/);
+assert.match(modelSource, /display-rounded-ordinary-least-squares-v2/);
+assert.match(modelSource, /display-rounded-piston-slope-calculation-v2/);
+assert.match(componentSource, /const fitHeightMm = run\.fitHeightMm/);
+assert.match(
+  componentSource,
+  /x: Number\(formatDataValue\(run\.result\.periodSquaredS2, 5\)\)[\s\S]*y: Number\(formatDataValue\(run\.fitHeightMm, 4\)\) \/ 1000/,
+  'the chart points must use the same displayed coordinates as the fitted data table',
+);
 assert.match(
   modelSource,
   /const firstConfig = records\[0\]\?\.physicsSnapshot\.config;[\s\S]*records\.some\(\(record\) => \([\s\S]*record\.physicsSnapshot\.config\.ambientPressurePa,[\s\S]*firstConfig\.ambientPressurePa[\s\S]*throw new RangeError\('All fitted runs must use the same saved apparatus parameters\.'\)[\s\S]*pressurePa: firstConfig\?\.ambientPressurePa[\s\S]*\?\? PISTON_OSCILLATION_REFERENCE_PRESSURE_PA/,
@@ -164,6 +175,8 @@ assert.match(copySource, /查看并继续/);
 assert.match(copySource, /Select every data group first/);
 assert.match(copySource, /实验已知量/);
 assert.match(copySource, /以下全部数据均已参与本次拟合；拟合函数与 R² 显示在下方图中。/);
+assert.match(copySource, /后续步骤仅使用前一步已显示、已舍入的数值继续计算/);
+assert.doesNotMatch(copySource, /数值落在允许容差内即可判定正确/);
 
 assert.match(workbenchSource, /pistonOscillationCalculationAutoOpen/);
 assert.match(workbenchSource, /pistonOscillationCalculationReviewOpen/);
