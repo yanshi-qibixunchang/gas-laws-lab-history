@@ -145,8 +145,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const activePistonOscillationParameterSidebarAvailable =[\s\S]*activePistonOscillationParameterMode === 'free'/,
-  'only Piston Free Mode should make its parameter sidebar available',
+  /parameterSidebarAvailable: activePistonOscillationParameterSidebarAvailable[\s\S]*selectWorkbenchPistonOscillationViewState\(/,
+  'the sidebar must use the independently tested mode selection',
 );
 assert.match(
   workbenchSource,
@@ -553,8 +553,8 @@ assert.doesNotMatch(
 );
 assert.match(
   workbenchSource,
-  /activePistonOscillationDemoPlaybackPhase[\s\S]*pistonOscillationDemoPlayback\.fileId === activeFile\.id[\s\S]*demoPlaybackPhase=\{activePistonOscillationDemoPlaybackPhase\}/,
-  'demo completion and termination feedback should stay scoped to the piston file that owns the playback',
+  /demoPlaybackPhase: activePistonOscillationDemoPlaybackPhase[\s\S]*selectWorkbenchPistonOscillationViewState\(\{\s*file: activeFile,\s*demoPlayback: pistonOscillationDemoPlayback,[\s\S]*demoPlaybackPhase=\{activePistonOscillationDemoPlaybackPhase\}/,
+  'demo feedback must use the file-scoped playback selection',
 );
 assert.match(workbenchSource, /PISTON_OSCILLATION_DEMO_DURATION_MS/);
 assert.match(
@@ -578,8 +578,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /activePistonOscillationFreeSession\.dataProcessing\.status !== 'completed'[\s\S]*pistonOscillationCompletedDataProcessingReview/,
-  'completed Free processing should leave the instrument workspace unless the user explicitly opens review',
+  /completedDataProcessingReview: pistonOscillationCompletedDataProcessingReview,[\s\S]*dataProcessingOpen: activePistonOscillationDataProcessing,[\s\S]*dataProcessingReviewRequested: pistonOscillationDataProcessingReviewOpen,[\s\S]*reviewMode=\{pistonOscillationCompletedDataProcessingReview\}/,
+  'completed processing review must use the shared view selection and explicit UI request',
 );
 assert.match(
   workbenchSource,
@@ -895,20 +895,6 @@ assert.match(
   workbenchSource,
   /showPistonOscillationGuideCompletionToast[\s\S]*HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS[\s\S]*className="studio-heat-demo-complete-toast"[\s\S]*data-piston-oscillation-guide-complete-toast="true"[\s\S]*role="status"/,
   'the final piston Guide notice should reuse the heat-capacity completion toast timing, styling, and accessibility semantics',
-);
-const mandatoryProcessingBlock = workbenchSource.match(
-  /const pistonOscillationMandatoryDataProcessing = Boolean\(([\s\S]*?)\n  \);/,
-)?.[1];
-assert.ok(mandatoryProcessingBlock, 'the mandatory processing workspace gate should exist');
-assert.match(
-  mandatoryProcessingBlock,
-  /step === 'periodProcessing'[\s\S]*step === 'completionReview'/,
-  'period selection and the completion explanation should keep the enlarged processing workspace',
-);
-assert.doesNotMatch(
-  mandatoryProcessingBlock,
-  /step === 'powerOff'|step === 'calculationReady'/,
-  'shutdown and offline calculation should restore the split instrument/realtime layout',
 );
 assert.match(
   workbenchSource,

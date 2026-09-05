@@ -178,7 +178,7 @@ assert.match(copySource, /以下全部数据均已参与本次拟合；拟合函
 assert.match(copySource, /后续步骤仅使用前一步已显示、已舍入的数值继续计算/);
 assert.doesNotMatch(copySource, /数值落在允许容差内即可判定正确/);
 
-assert.match(workbenchSource, /pistonOscillationCalculationAutoOpen/);
+assert.match(workbenchSource, /calculationWindowOpen: pistonOscillationCalculationWindowOpen[\s\S]*selectWorkbenchPistonOscillationViewState\(/);
 assert.match(workbenchSource, /pistonOscillationCalculationReviewOpen/);
 assert.match(workbenchSource, /openPistonOscillationCalculationReview/);
 assert.match(workbenchSource, /<PistonOscillationCalculationWindow[\s\S]*onCompleteAndExit=\{completeAndExitPistonOscillationCalculation\}/);

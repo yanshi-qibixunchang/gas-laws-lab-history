@@ -89,6 +89,9 @@ import type {
   WorkbenchFileState,
 } from './workbenchFileUnion.ts';
 import {
+  selectWorkbenchPistonOscillationViewState,
+} from './workbenchPistonOscillationViewState.ts';
+import {
   applyHeatCapacityGuideRecordWorkbenchState,
   getHeatCapacityGuideRecordButtonState,
   setHeatCapacityGuideEquilibriumSpeedMultiplier,
@@ -4375,126 +4378,33 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     PistonOscillationAcquisitionPanelHandle | null
   >(null);
   const pistonOscillationContentRenderRecoveryHostRef = useRef<HTMLDivElement | null>(null);
-  const activePistonOscillationDemoPlaybackPhase =
-    activeFile.kind === 'heatCapacityPistonOscillation'
-    && pistonOscillationDemoPlayback.fileId === activeFile.id
-      ? pistonOscillationDemoPlayback.phase
-      : 'idle';
-  const activePistonOscillationGuideSession =
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession
-      : null;
-  const activePistonOscillationFreeSession =
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationFreeSession
-      : null;
-  const activePistonOscillationFreeSelected =
-    activePistonOscillationFreeSession?.status === 'active';
-  const pistonOscillationFreeSetupOpen =
-    activeFile.kind === 'heatCapacityPistonOscillation'
-    && pistonOscillationFreeSetupRequestedFileId === activeFile.id
-    && (
-      activeFile.pistonOscillationFreeSession.status === 'idle'
-      || (
-        activeFile.pistonOscillationFreeSession.status === 'active'
-        && activeFile.pistonOscillationFreeSession.experimentPlan === null
-      )
-    );
-  const pistonOscillationMandatoryDataProcessing = Boolean(
-    activePistonOscillationGuideSession?.status === 'active'
-    && (
-      activePistonOscillationGuideSession.step === 'periodProcessing'
-      || activePistonOscillationGuideSession.step === 'completionReview'
-    )
-  );
-  const pistonOscillationCompletedDataProcessingReview = Boolean(
-    pistonOscillationDataProcessingReviewOpen
-    && (
-      (
-        activePistonOscillationGuideSession?.status === 'completed'
-        && activePistonOscillationGuideSession.dataProcessing?.status === 'completed'
-      )
-      || (
-        activePistonOscillationFreeSelected
-        && activePistonOscillationFreeSession?.dataProcessing?.status === 'completed'
-      )
-    )
-  );
-  const pistonOscillationProcessingDisplaySuppressed =
-    pistonOscillationProcessingSuppressedFileId === activeFile.id;
-  const activePistonOscillationDataProcessing = Boolean(
-    !pistonOscillationProcessingDisplaySuppressed
-    && (
-    (
-      activePistonOscillationGuideSession?.dataProcessing
-      && (
-        pistonOscillationMandatoryDataProcessing
-        || pistonOscillationCompletedDataProcessingReview
-      )
-    )
-    || (
-      activePistonOscillationFreeSelected
-      && activePistonOscillationFreeSession?.dataProcessing
-      && activePistonOscillationFreeSession.reacquisition === null
-      && (
-        activePistonOscillationFreeSession.dataProcessing.status !== 'completed'
-        || pistonOscillationCompletedDataProcessingReview
-      )
-    )
-    )
-  );
-  const activePistonOscillationProcessReview = Boolean(
-    pistonOscillationProcessReviewOpen
-    && activePistonOscillationFreeSelected
-    && activePistonOscillationFreeSession?.status === 'active'
-    && activePistonOscillationFreeSession.dataProcessing?.status === 'completed'
-  );
-  const activePistonOscillationExpandedRealtime =
-    activePistonOscillationDataProcessing || activePistonOscillationProcessReview;
-  const activePistonOscillationCalculationSession =
-    activePistonOscillationFreeSelected
-      ? activePistonOscillationFreeSession?.dataProcessing?.calculationSession ?? null
-      : activePistonOscillationGuideSession?.dataProcessing?.calculationSession ?? null;
-  const pistonOscillationCalculationAutoOpen = Boolean(
-    (
-      (
-        activePistonOscillationGuideSession?.status === 'active'
-        && activePistonOscillationGuideSession.step === 'calculationReady'
-      )
-      || (
-        activePistonOscillationFreeSelected
-        && activePistonOscillationFreeSession?.reacquisition === null
-        && activePistonOscillationFreeSession?.dataProcessing?.status === 'calculation-ready'
-      )
-    )
-    && activePistonOscillationCalculationSession
-    && activePistonOscillationCalculationSession.status !== 'completed'
-  );
-  const pistonOscillationCalculationWindowOpen = Boolean(
-    activePistonOscillationCalculationSession
-    && pistonOscillationCalculationSuppressedFileId !== activeFile.id
-    && (
-      pistonOscillationCalculationAutoOpen
-      || pistonOscillationCalculationReviewOpen
-    )
-  );
-  const activePistonOscillationGuideSelected =
-    activePistonOscillationGuideSession?.status === 'active'
-    || (
-      activePistonOscillationGuideSession?.status === 'completed'
-      && !activePistonOscillationGuideSession.completionExited
-    );
-  const activePistonOscillationParameterMode =
-    activePistonOscillationDemoPlaybackPhase !== 'idle'
-      ? 'demo' as const
-      : activePistonOscillationGuideSelected
-        ? 'guide' as const
-        : activePistonOscillationFreeSelected
-          ? 'free' as const
-          : 'explore' as const;
-  const activePistonOscillationParameterSidebarAvailable =
-    activeFile.kind === 'heatCapacityPistonOscillation'
-    && activePistonOscillationParameterMode === 'free';
+  const {
+    demoPlaybackPhase: activePistonOscillationDemoPlaybackPhase,
+    guideSession: activePistonOscillationGuideSession,
+    freeSession: activePistonOscillationFreeSession,
+    freeSelected: activePistonOscillationFreeSelected,
+    freeSetupOpen: pistonOscillationFreeSetupOpen,
+    completedDataProcessingReview: pistonOscillationCompletedDataProcessingReview,
+    dataProcessingOpen: activePistonOscillationDataProcessing,
+    processReviewOpen: activePistonOscillationProcessReview,
+    expandedRealtime: activePistonOscillationExpandedRealtime,
+    calculationSession: activePistonOscillationCalculationSession,
+    calculationWindowOpen: pistonOscillationCalculationWindowOpen,
+    guideSelected: activePistonOscillationGuideSelected,
+    parameterMode: activePistonOscillationParameterMode,
+    parameterSidebarAvailable: activePistonOscillationParameterSidebarAvailable,
+    powerOn: activePistonOscillationPowerOn,
+  } = selectWorkbenchPistonOscillationViewState({
+    file: activeFile,
+    demoPlayback: pistonOscillationDemoPlayback,
+    freeSetupRequestedFileId: pistonOscillationFreeSetupRequestedFileId,
+    dataProcessingReviewRequested: pistonOscillationDataProcessingReviewOpen,
+    processReviewRequested: pistonOscillationProcessReviewOpen,
+    calculationReviewRequested: pistonOscillationCalculationReviewOpen,
+    processingSuppressedFileId: pistonOscillationProcessingSuppressedFileId,
+    calculationSuppressedFileId: pistonOscillationCalculationSuppressedFileId,
+    explorePowerOn: pistonOscillationPowerOnByFileId[activeFile.id],
+  });
   const activeExperimentMaterialsPanelKeys = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityMaterialsTabOrder(activeFile).map(heatCapacityTabIdToPanelKey)
     : activeFile.kind === 'heatCapacityPistonOscillation'
@@ -4520,15 +4430,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.kind,
     selectedPanel,
   ]);
-  const activePistonOscillationPowerOn = activeFile.kind === 'heatCapacityPistonOscillation'
-    ? activePistonOscillationDemoPlaybackPhase !== 'idle'
-      ? false
-      : activePistonOscillationGuideSelected
-        ? activeFile.pistonOscillationGuideSession.powerOn
-        : activePistonOscillationFreeSelected
-          ? activeFile.pistonOscillationFreeSession.powerOn
-          : pistonOscillationPowerOnByFileId[activeFile.id] ?? false
-    : false;
   const activePistonOscillationGuideTimeFrozen =
     activePistonOscillationGuideSession?.heightReset !== null;
   const activePistonOscillationGuideInstrumentRestoreState =
