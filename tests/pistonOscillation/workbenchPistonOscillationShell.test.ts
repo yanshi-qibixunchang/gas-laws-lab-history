@@ -195,11 +195,6 @@ assert.match(
   'the Ideal preset must keep its physical and acquisition parameters read-only',
 );
 assert.match(
-  parameterPanelSource,
-  /session\.experimentGroup\.scheme === 'real'[\s\S]*gasMaterialSnapshot\.gasType === 'helium'[\s\S]*data-piston-oscillation-helium-profile-note="true"[\s\S]*heliumRealProfileNote/,
-  'Real helium must disclose that its apparatus-specific preset is a software teaching candidate rather than a physical calibration',
-);
-assert.match(
   acquisitionSource,
   /if \(!freeExperimentRunnable\) \{[\s\S]*showFreeParameterFeedback\(copy\.experimentProfileUnavailable\);[\s\S]*return;[\s\S]*if \(freeSelected\) onFreeAcquisitionStarted\?\.\(\);/,
   'an unavailable scheme or gas profile must be stopped before formal acquisition starts',

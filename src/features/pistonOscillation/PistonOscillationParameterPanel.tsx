@@ -66,7 +66,6 @@ const text = {
     schemeHelp: '真实方案保留实验损失与观测误差；理想方案使用系统内置条件，但仍由用户操作和处理数据。',
     gasHelp: '气体类型决定材料快照和理论比热容比。',
     idealReadonly: '理想实验过程仅允许选择气体；其余参数由系统内置档案统一管理，不参与评分。',
-    heliumRealProfileNote: '当前使用活塞装置专属的氦气教学候选预设；它用于软件模型验收，不代表实物仪器标定。',
     profilePending: '当前条件已保存，但完整物理参数档案尚未接入，暂不能开始正式采集。',
     freeOnly: '当前参数仅可在自由模式中打开和调整。',
     locked: '当前实验已留下不可逆记录；完整重置或新建文件后可重新设置参数。',
@@ -99,7 +98,6 @@ const text = {
     schemeHelp: '真實方案保留實驗損失與觀測誤差；理想方案使用系統內建條件，但仍由使用者操作和處理資料。',
     gasHelp: '氣體類型決定材料快照和理論比熱容比。',
     idealReadonly: '理想實驗過程僅允許選擇氣體；其餘參數由系統內建檔案統一管理，不參與評分。',
-    heliumRealProfileNote: '目前使用活塞裝置專屬的氦氣教學候選預設；它用於軟體模型驗收，不代表實體儀器標定。',
     profilePending: '目前條件已儲存，但完整物理參數檔案尚未接入，暫不能開始正式採集。',
     freeOnly: '目前參數僅可在自由模式中開啟和調整。',
     editable: '開始正式採集或發生不可逆操作後，整套參數將鎖定。', advancedTitle: '活塞振動法進階設定',
@@ -120,7 +118,6 @@ const text = {
     schemeHelp: 'Real conditions retain experimental loss and observation error. The Ideal process uses a built-in condition profile while the user still performs the experiment and processes the data.',
     gasHelp: 'The gas type determines the material snapshot and theoretical heat-capacity ratio.',
     idealReadonly: 'The Ideal process allows gas selection only. All other parameters use the built-in profile and are not scored.',
-    heliumRealProfileNote: 'This uses the piston apparatus-specific helium teaching candidate. It validates the software model and is not a physical-apparatus calibration.',
     profilePending: 'This condition is saved, but its complete physical profile is not connected yet, so formal acquisition is temporarily unavailable.',
     editable: 'The complete profile freezes when formal acquisition starts or another irreversible operation occurs.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
     riskTitle: 'Confirm advanced-parameter editing', riskBody: 'Advanced parameters affect this file’s physical process, sensor readings, and acquisition results. After confirmation, this file will not show the warning again.',
@@ -663,16 +660,6 @@ export const PistonOscillationParameterPanel = ({
             {copy.idealReadonly}
           </div>
         ) : null}
-        {freeMode
-          && session.experimentGroup.scheme === 'real'
-          && session.experimentGroup.gasMaterialSnapshot.gasType === 'helium' ? (
-            <div
-              className="studio-panel-note"
-              data-piston-oscillation-helium-profile-note="true"
-            >
-              {copy.heliumRealProfileNote}
-            </div>
-          ) : null}
         {!profileImplemented ? (
           <div className="studio-panel-note" data-piston-oscillation-profile-pending="true">
             {copy.profilePending}
