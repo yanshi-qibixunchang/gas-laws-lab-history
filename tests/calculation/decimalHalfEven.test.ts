@@ -4,6 +4,7 @@ import {
   formatRatioSignificantFiguresHalfEven,
   formatSignificantFiguresHalfEven,
   roundDecimalPlacesHalfEven,
+  roundProductSignificantFiguresHalfEven,
   roundRatioSignificantFiguresHalfEven,
   roundSignificantFiguresHalfEven,
 } from '../../src/domain/calculation/decimalHalfEven.ts';
@@ -44,6 +45,16 @@ assert.equal(formatSignificantFiguresHalfEven('1.25e-7', 2), '1.2e-7');
 assert.equal(formatSignificantFiguresHalfEven('1.35e-7', 2), '1.4e-7');
 assert.equal(formatSignificantFiguresHalfEven('0', 4), '0.000');
 assert.equal(roundSignificantFiguresHalfEven('0.030505', 4), 0.0305);
+assert.equal(roundProductSignificantFiguresHalfEven('0.03250', '0.03250', 5), 0.0010562);
+assert.equal(roundProductSignificantFiguresHalfEven(0.03250, 0.03250, 5), 0.0010562);
+assert.equal(roundProductSignificantFiguresHalfEven('0.03725', '0.03725', 5), 0.0013876);
+assert.equal(roundProductSignificantFiguresHalfEven('1.5', '1.5', 2), 2.2);
+assert.equal(roundProductSignificantFiguresHalfEven('1.25', '1.9', 3), 2.38);
+assert.equal(roundProductSignificantFiguresHalfEven('-1.25e-2', '1.9e2', 3), -2.38);
+assert.equal(roundProductSignificantFiguresHalfEven('-0', '2.5', 3), 0);
+assert.throws(() => roundProductSignificantFiguresHalfEven('NaN', '1', 3), SyntaxError);
+assert.throws(() => roundProductSignificantFiguresHalfEven('1', Infinity, 3), RangeError);
+assert.throws(() => roundProductSignificantFiguresHalfEven('1', '2', 0), RangeError);
 assert.equal(formatDecimalPlacesHalfEven('1e-12', 12), '0.000000000001');
 assert.equal(formatRatioSignificantFiguresHalfEven(183n, 6000n, 4), '0.03050');
 assert.equal(formatRatioSignificantFiguresHalfEven(1n, 3n, 4), '0.3333');

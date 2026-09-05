@@ -6,6 +6,7 @@ import {
 } from '../calculation/numericAnswerValidation.ts';
 import {
   roundDecimalPlacesHalfEven,
+  roundProductSignificantFiguresHalfEven,
   roundRatioSignificantFiguresHalfEven,
   roundSignificantFiguresHalfEven,
 } from '../calculation/decimalHalfEven.ts';
@@ -88,9 +89,9 @@ export const PISTON_OSCILLATION_FREE_PERIOD_SELECTION_ALGORITHM_VERSION =
 export const PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION =
   'multi-scale-primary-half-cycle-v1' as const;
 export const PISTON_OSCILLATION_LINEAR_FIT_ALGORITHM_VERSION =
-  'display-rounded-ordinary-least-squares-v2' as const;
+  'display-rounded-ordinary-least-squares-v3' as const;
 export const PISTON_OSCILLATION_CALCULATION_MODEL_VERSION =
-  'display-rounded-piston-slope-calculation-v2' as const;
+  'display-rounded-piston-slope-calculation-v3' as const;
 export const PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT = 2 as const;
 export const PISTON_OSCILLATION_FREE_MINIMUM_PERIOD_COUNT = 0.5 as const;
 export const PISTON_OSCILLATION_PROCESSING_POLICY_VERSION =
@@ -314,7 +315,7 @@ export interface PistonOscillationPeriodAnswerState {
 }
 
 export interface PistonOscillationPeriodResult {
-  resultVersion: 1;
+  resultVersion: 2;
   leftSampleIndex: number;
   rightSampleIndex: number;
   leftPhase: PistonOscillationExtremumType;
@@ -3296,7 +3297,7 @@ const createPeriodResult = (
   );
   if (periodS === null) return null;
   return {
-    resultVersion: 1,
+    resultVersion: 2,
     leftSampleIndex: selection.leftEndpoint.sampleIndex,
     rightSampleIndex: selection.rightEndpoint.sampleIndex,
     leftPhase: selection.leftEndpoint.type,
@@ -3309,7 +3310,7 @@ const createPeriodResult = (
       selection.rightEndpoint.sampleIndex - selection.leftEndpoint.sampleIndex
     ) / run.sampleRateHz,
     periodS,
-    periodSquaredS2: periodS ** 2,
+    periodSquaredS2: roundProductSignificantFiguresHalfEven(periodS, periodS, 5),
     completedAtMs,
   };
 };

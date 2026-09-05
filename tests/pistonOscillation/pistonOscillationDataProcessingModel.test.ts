@@ -360,7 +360,64 @@ fractionalGridProcessing = submitPistonOscillationPeriod(
 assert.equal(fractionalGridProcessing.runs[0].result?.periodS, 0.03067);
 assert.equal(
   fractionalGridProcessing.runs[0].result?.periodSquaredS2,
-  0.03067 ** 2,
+  0.00094065,
+);
+
+// Reproduce the displayed 0.03250 s period seen in the fresh Guide acceptance.
+// Its exact square is 0.00105625: the retained even digit must not round up
+// because a binary multiplication produces 0.0010562500000000001.
+const squareTieSamples: PistonOscillationRawSample[] = Array.from(
+  { length: 131 },
+  (_, sampleIndex) => ({
+    sampleIndex,
+    timeS: sampleIndex / SAMPLE_RATE_HZ,
+    absolutePressureKpa: Number((
+      101 + 3 * Math.cos(2 * Math.PI * (sampleIndex - 30) / 32.5)
+    ).toFixed(2)),
+  }),
+);
+const squareTieArtifacts = createPistonOscillationCurrentRecordTestArtifacts({
+  lockedHeightMm: 60,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  samples: squareTieSamples,
+});
+const squareTieRecord = createPistonOscillationRawMeasurementRecord({
+  recordId: 'displayed-period-square-half-even-tie',
+  capturedAtMs: 1_500,
+  measurementIndex: 0,
+  targetHeightMm: 60,
+  sampleRateHz: SAMPLE_RATE_HZ,
+  triggerThresholdKpa: 105,
+  recordedDurationS: 0.130,
+  recordingPath: 'falling-trigger',
+  releaseOffsetS: null,
+  samples: squareTieSamples,
+  ...squareTieArtifacts,
+});
+let squareTieProcessing = createPistonOscillationDataProcessingSession([squareTieRecord], 2_020);
+squareTieProcessing = selectPistonOscillationPeriodRange(
+  squareTieProcessing, [squareTieRecord], 0, 0.028, 0.100, 2, 2_021,
+);
+assert.equal(squareTieProcessing.runs[0].selection?.periodCount, 2);
+for (const [field, draft] of [['t1', '0.030'], ['t2', '0.095']] as const) {
+  squareTieProcessing = updatePistonOscillationPeriodAnswerDraft(
+    squareTieProcessing, 0, field, draft, 2_022,
+  );
+}
+squareTieProcessing = submitPistonOscillationPeriodEndpoints(squareTieProcessing, 0, 2_023);
+squareTieProcessing = updatePistonOscillationPeriodAnswerDraft(
+  squareTieProcessing, 0, 'period', '0.03250', 2_024,
+);
+squareTieProcessing = submitPistonOscillationPeriod(squareTieProcessing, 0, 2_025);
+assert.equal(squareTieProcessing.runs[0].result?.periodS, 0.03250);
+assert.equal(squareTieProcessing.runs[0].result?.periodSquaredS2, 0.0010562);
+const staleSquare = structuredClone(squareTieProcessing);
+staleSquare.runs[0].result!.periodSquaredS2 = 0.0010563;
+assert.equal(
+  normalizePistonOscillationDataProcessingSession(staleSquare, [squareTieRecord], 2_026)
+    ?.runs[0].result?.periodSquaredS2,
+  0.0010562,
+  'restoration must regenerate the square from the accepted displayed period',
 );
 
 const belowGuidedMinimum = createPistonOscillationPeriodSelection(
@@ -865,7 +922,7 @@ const migratedMissingFitVersion = normalizePistonOscillationDataProcessingSessio
 );
 assert.equal(
   migratedMissingFitVersion?.linearFitResult?.algorithmVersion,
-  'display-rounded-ordinary-least-squares-v2',
+  'display-rounded-ordinary-least-squares-v3',
   'the only pre-versioned fit representation must migrate to the current display-rounded fit',
 );
 
@@ -908,6 +965,25 @@ assert.equal(
 assert.equal(
   unsupportedCalculationRestored?.calculationSession?.status,
   'selecting-points',
+);
+
+const binarySquareCalculation = structuredClone(calculationProcessing);
+const binarySquarePersisted = binarySquareCalculation as unknown as Record<string, unknown>;
+(binarySquarePersisted.linearFitResult as Record<string, unknown>).algorithmVersion =
+  'display-rounded-ordinary-least-squares-v2';
+((binarySquarePersisted.calculationSession as Record<string, unknown>)
+  .knowns as Record<string, unknown>).modelVersion =
+  'display-rounded-piston-slope-calculation-v2';
+const restoredBinarySquareCalculation = normalizePistonOscillationDataProcessingSession(
+  binarySquarePersisted, records, 3_409,
+);
+assert.equal(restoredBinarySquareCalculation?.status, 'calculation-ready');
+assert.equal(restoredBinarySquareCalculation?.linearFitResult, null);
+assert.equal(restoredBinarySquareCalculation?.calculationSession?.status, 'selecting-points');
+assert.deepEqual(
+  restoredBinarySquareCalculation?.runs.map((run) => run.result),
+  calculationProcessing.runs.map((run) => run.result),
+  'v2 downstream calculations must reset while valid displayed period results survive',
 );
 
 const staleCorrectPersistence = structuredClone(calculationProcessing) as unknown as Record<string, unknown>;

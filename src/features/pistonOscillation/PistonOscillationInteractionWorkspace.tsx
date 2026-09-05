@@ -100,6 +100,7 @@ import {
 } from './pistonOscillationFocusViews.ts';
 import {
   getPistonOscillationAutomaticOperationMirrorView,
+  getPistonOscillationOperationMirrorRaycast,
   togglePistonOscillationOperationMirrorView,
   type PistonOscillationHeightAdjustmentStage,
   type PistonOscillationOperationMirrorView,
@@ -1014,7 +1015,7 @@ const OperationMirrorScrewControl = ({
     <mesh
       ref={hitTargetRef}
       name="HIT_PistonLockingScrew_OperationMirror"
-      raycast={interactionEnabled ? undefined : () => undefined}
+      raycast={getPistonOscillationOperationMirrorRaycast(interactionEnabled)}
       userData={{
         hitTargetId: 'piston_locking_screw_operation_mirror',
         semanticRole: 'tighten_or_loosen',

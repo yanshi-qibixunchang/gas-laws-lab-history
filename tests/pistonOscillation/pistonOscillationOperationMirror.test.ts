@@ -1,11 +1,30 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { applyProps } from '@react-three/fiber';
+import { BoxGeometry, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import {
   getPistonOscillationAutomaticOperationMirrorView,
+  getPistonOscillationOperationMirrorRaycast,
   togglePistonOscillationOperationMirrorView,
   type PistonOscillationAutomaticOperationMirrorState,
 } from '../../src/features/pistonOscillation/pistonOscillationOperationMirror.ts';
+
+const interactionTarget = new Mesh(new BoxGeometry(), new MeshBasicMaterial());
+const pointerRaycaster = new Raycaster(new Vector3(0, 0, 2), new Vector3(0, 0, -1));
+for (const interactionEnabled of [true, false, true, false, true]) {
+  applyProps(interactionTarget, {
+    raycast: getPistonOscillationOperationMirrorRaycast(interactionEnabled),
+  });
+  assert.equal(typeof interactionTarget.raycast, 'function');
+  assert.equal(
+    pointerRaycaster.intersectObject(interactionTarget).length > 0,
+    interactionEnabled,
+    'closing a Guide explanation must restore pointer hits after repeated disable/enable transitions',
+  );
+}
+interactionTarget.geometry.dispose();
+interactionTarget.material.dispose();
 
 const automaticView = (
   overrides: Partial<PistonOscillationAutomaticOperationMirrorState> = {},
@@ -172,7 +191,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /interactionEnabled\?: boolean;[\s\S]*onHitPointReady\(\[projectedCenter\.x, projectedCenter\.y\]\)[\s\S]*raycast=\{interactionEnabled \? undefined : \(\) => undefined\}/,
+  /interactionEnabled\?: boolean;[\s\S]*onHitPointReady\(\[projectedCenter\.x, projectedCenter\.y\]\)[\s\S]*raycast=\{getPistonOscillationOperationMirrorRaycast\(interactionEnabled\)\}/,
   'a disabled Demo screw target should still report the projected knob center without intercepting pointer input',
 );
 assert.match(

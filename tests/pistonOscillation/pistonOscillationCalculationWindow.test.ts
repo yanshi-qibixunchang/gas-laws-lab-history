@@ -152,8 +152,8 @@ assert.match(componentSource, /getInvalidPistonOscillationCalculationBatchFields
 assert.match(modelSource, /visibleFieldIds: PistonOscillationCalculationFieldId\[\]/);
 assert.match(modelSource, /batchAttempts: PistonOscillationCalculationBatchAttemptSnapshot\[\]/);
 assert.match(modelSource, /attemptedAtMs:\s*number \| null;[\s\S]*draftRaw:\s*string \| null;[\s\S]*resolution:\s*PistonOscillationAnswerResolution/);
-assert.match(modelSource, /display-rounded-ordinary-least-squares-v2/);
-assert.match(modelSource, /display-rounded-piston-slope-calculation-v2/);
+assert.match(modelSource, /display-rounded-ordinary-least-squares-v3/);
+assert.match(modelSource, /display-rounded-piston-slope-calculation-v3/);
 assert.match(componentSource, /const fitHeightMm = run\.fitHeightMm/);
 assert.match(
   componentSource,

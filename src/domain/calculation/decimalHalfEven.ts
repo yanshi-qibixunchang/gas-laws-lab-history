@@ -262,6 +262,23 @@ export const roundSignificantFiguresHalfEven = (
   formatSignificantFiguresHalfEven(input, significantFigures),
 );
 
+/** Multiply the written decimals exactly before applying half-even rounding. */
+export const roundProductSignificantFiguresHalfEven = (
+  left: ExactDecimalInput,
+  right: ExactDecimalInput,
+  significantFigures: number,
+): number => {
+  const leftDecimal = parseExactDecimal(left);
+  const rightDecimal = parseExactDecimal(right);
+  const coefficient = leftDecimal.coefficient * rightDecimal.coefficient;
+  const exponent = leftDecimal.exponent + rightDecimal.exponent;
+  const sign = leftDecimal.sign === rightDecimal.sign ? '' : '-';
+  return roundSignificantFiguresHalfEven(
+    `${sign}${coefficient}e${exponent}`,
+    significantFigures,
+  );
+};
+
 const normalizeExactRatio = (numerator: bigint, denominator: bigint) => {
   if (denominator === BIGINT_ZERO) {
     throw new RangeError('Ratio denominator must not be zero.');

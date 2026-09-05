@@ -129,7 +129,7 @@ const runs = records.map((record, measurementIndex) => {
     },
     batchAttempts: measurementIndex === 2 ? [{ allCorrect: false }] : [],
     result: {
-      resultVersion: 1,
+      resultVersion: 2,
       leftSampleIndex: extrema[0]!.sampleIndex,
       rightSampleIndex: extrema.at(-1)!.sampleIndex,
       leftPhase: 'peak',
@@ -232,7 +232,7 @@ const session = {
     runs,
     linearFitResult: {
       schemaVersion: 1,
-      algorithmVersion: 'display-rounded-ordinary-least-squares-v2',
+      algorithmVersion: 'display-rounded-ordinary-least-squares-v3',
       slopeMPerS2: slope,
       interceptM: intercept,
       rSquared: 0.9996,
@@ -252,7 +252,7 @@ const session = {
       status: 'completed',
       knowns: {
         schemaVersion: 2,
-        modelVersion: 'display-rounded-piston-slope-calculation-v2',
+        modelVersion: 'display-rounded-piston-slope-calculation-v3',
         gasType: 'air',
         gasMaterialModelVersion: 'piston-oscillation-dry-air-material-v1',
         gasMaterialId: 'dry-air',

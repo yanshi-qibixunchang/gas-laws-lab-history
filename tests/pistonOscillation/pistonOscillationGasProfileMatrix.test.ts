@@ -342,7 +342,7 @@ for (const scheme of ['real', 'ideal'] as const) {
         return {
           ...run,
           result: {
-            resultVersion: 1,
+            resultVersion: 2,
             leftSampleIndex: 0,
             rightSampleIndex: Math.round(periodS * SAMPLE_RATE_HZ * 3),
             leftPhase: 'peak',
