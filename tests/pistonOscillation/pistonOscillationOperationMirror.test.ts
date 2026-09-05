@@ -5,6 +5,7 @@ import { applyProps } from '@react-three/fiber';
 import { BoxGeometry, Mesh, MeshBasicMaterial, Raycaster, Vector3 } from 'three';
 import {
   getPistonOscillationAutomaticOperationMirrorView,
+  getPistonOscillationOperationMirrorFrameLoop,
   getPistonOscillationOperationMirrorRaycast,
   togglePistonOscillationOperationMirrorView,
   type PistonOscillationAutomaticOperationMirrorState,
@@ -25,6 +26,21 @@ for (const interactionEnabled of [true, false, true, false, true]) {
 }
 interactionTarget.geometry.dispose();
 interactionTarget.material.dispose();
+
+for (const visibility of ['hidden', 'visible', 'exiting'] as const) {
+  assert.equal(
+    getPistonOscillationOperationMirrorFrameLoop(visibility, false),
+    'demand',
+    'resident models and the initial view must finish preparing before hidden drawing stops',
+  );
+}
+assert.deepEqual(
+  (['hidden', 'visible', 'exiting', 'hidden', 'visible'] as const).map(
+    (visibility) => getPistonOscillationOperationMirrorFrameLoop(visibility, true),
+  ),
+  ['never', 'demand', 'demand', 'never', 'demand'],
+  'a prepared mirror must resume on every reveal and only stop after its exit animation finishes',
+);
 
 const automaticView = (
   overrides: Partial<PistonOscillationAutomaticOperationMirrorState> = {},
@@ -168,8 +184,8 @@ assert.doesNotMatch(
 );
 assert.match(
   workspaceSource,
-  /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop="demand"[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
-  'one demand-rendered resident Canvas must switch between preloaded normal and scale-enhanced models plus persistent cameras',
+  /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop=\{getPistonOscillationOperationMirrorFrameLoop\(\s*operationMirrorMode,\s*operationMirrorInitialFrameReady,[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
+  'one resident Canvas must pause hidden rendering while retaining both preloaded models and cameras',
 );
 const screwModelGroup = workspaceSource.match(
   /<group visible=\{screwOperationMirrorActive\}>([\s\S]*?)<\/group>/,

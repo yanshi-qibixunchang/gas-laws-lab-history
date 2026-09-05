@@ -100,6 +100,7 @@ import {
 } from './pistonOscillationFocusViews.ts';
 import {
   getPistonOscillationAutomaticOperationMirrorView,
+  getPistonOscillationOperationMirrorFrameLoop,
   getPistonOscillationOperationMirrorRaycast,
   togglePistonOscillationOperationMirrorView,
   type PistonOscillationHeightAdjustmentStage,
@@ -4028,7 +4029,10 @@ export const PistonOscillationInteractionWorkspace = ({
             }}
             events={createPistonOscillationPointerEvents}
             dpr={[1, 1.5]}
-            frameloop="demand"
+            frameloop={getPistonOscillationOperationMirrorFrameLoop(
+              operationMirrorMode,
+              operationMirrorInitialFrameReady,
+            )}
             shadows="soft"
             gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
             onCreated={({ gl }) => {

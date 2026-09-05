@@ -10,6 +10,15 @@ export const getPistonOscillationOperationMirrorRaycast = (
   interactionEnabled ? Mesh.prototype.raycast : ignoreOperationMirrorRaycast
 );
 
+// Prepare resident models once, then stop hidden drawing. Keep the exit frame
+// loop alive until the existing fade finishes; showing the mirror resumes it.
+export const getPistonOscillationOperationMirrorFrameLoop = (
+  visibility: 'hidden' | 'visible' | 'exiting',
+  initialFrameReady: boolean,
+): 'demand' | 'never' => (
+  visibility === 'hidden' && initialFrameReady ? 'never' : 'demand'
+);
+
 export type PistonOscillationOperationMirrorView =
   | 'scaleReadingView'
   | 'screwOperationView';
