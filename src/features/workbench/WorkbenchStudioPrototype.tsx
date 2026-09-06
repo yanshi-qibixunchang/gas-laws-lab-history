@@ -104,7 +104,6 @@ import {
 import {
   completeHeatCapacityFreePreheatWorkbenchState,
   completeHeatCapacityGuidePreheatWorkbenchState,
-  enterHeatCapacityFreeModeWorkbenchState,
   isHeatCapacityFreePreheatRequired,
   prepareHeatCapacityAutoDemoReset,
   prepareHeatCapacityAutoDemoStart,
@@ -262,8 +261,6 @@ import {
   createHeatCapacityModeTransitionCheckpoint,
   getHeatCapacityModeTransitionVisualRemainingMs,
   normalizeHeatCapacityModeTransitionCheckpoint,
-  type HeatCapacityModeTransitionEvent,
-  type HeatCapacityModeTransitionReason,
 } from '../heatCapacity/heatCapacityModeTransitionModel.ts';
 import {
   captureHeatCapacityModeTransitionDemoClock,
@@ -703,12 +700,16 @@ import {
   type HeatCapacityLessonCloseTimerPlan,
   type HeatCapacityRecordSuccessTimerPlan,
 } from './workbenchHeatCapacityUiCheckpoint.ts';
+import { createHeatCapacityModeActions } from './workbenchHeatCapacityModeActions.ts';
+import {
+  resolveHeatCapacityModeTarget,
+  shouldConfirmHeatCapacityTeachingProgressReset,
+} from './workbenchHeatCapacityModeActivation.ts';
 import {
   clearHeatCapacityModeSession,
   enterHeatCapacityExploreModeWorkbenchState,
   prepareHeatCapacityFileForExploreOnOpen,
   prepareHeatCapacityModeSessionForExit,
-  restoreHeatCapacityModeSession,
   suspendHeatCapacityModeSession,
 } from './workbenchHeatCapacityModeSession.ts';
 import {
@@ -13269,19 +13270,49 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     });
   };
 
-  const applyHeatCapacityModeTransitionEvent = (
-    event: HeatCapacityModeTransitionEvent,
-  ) => {
-    const nextState = dispatchHeatCapacityModeTransition(event);
-    window.requestAnimationFrame(() => {
-      if (
-        desktopExitQuiescedRef.current ||
-        heatCapacityRuntimeFailureFileIdRef.current !== null
-      ) return;
-      heatCapacityRefreshPersistRef.current();
-    });
-    return nextState;
-  };
+  const {
+    applyTransitionEvent: applyHeatCapacityModeTransitionEvent,
+    activateFromExplore: activateHeatCapacityModeFromExplore,
+    exitToExplore: exitHeatCapacityFormalModeToExplore,
+    switchMode: switchHeatCapacityMode,
+    activateFile: activateHeatCapacityFileMode,
+  } = createHeatCapacityModeActions({
+    now: Date.now,
+    getActiveFile: () => filesRef.current.find((file) => file.id === activeFileIdRef.current),
+    getFile: (fileId) => filesRef.current.find((file) => file.id === fileId),
+    commitFile: (file) => commitHeatCapacityFileProjection(file),
+    hasRuntimeFailure: () => heatCapacityRuntimeFailureFileIdRef.current !== null,
+    isDesktopExitQuiesced: () => desktopExitQuiescedRef.current,
+    transition: {
+      getState: () => heatCapacityModeTransitionStateRef.current,
+      dispatch: dispatchHeatCapacityModeTransition,
+      request: requestHeatCapacityModeTransition,
+      getMotionReasons: () => heatCapacitySceneDiscreteMotionRef.current.reasons,
+      schedulePreparation: (requestId) => scheduleHeatCapacityModeTargetPreparation(requestId),
+    },
+    persistence: {
+      requestFrame: (callback) => { window.requestAnimationFrame(callback); },
+      refresh: () => heatCapacityRefreshPersistRef.current(),
+      flush: () => flushWorkspacePersistenceRef.current(),
+    },
+    ui: {
+      applyMode: (file, checkpoint) => applyHeatCapacityModeUiProjection(file, checkpoint),
+      collapsePanels: () => { setLeftCollapsed(true); setParametersCollapsed(true); },
+      expandFiles: () => setLeftCollapsed(false),
+      resetScene: () => resetHeatCapacitySceneUiState(),
+      startDemo: (file) => startHeatCapacityAutoDemoUi(file.id, file.name),
+      showGuideStart: () => showHeatCapacityAutoDemoCompletionToast(
+        heatCapacityRealtimeCopy.guideModeStartingToast,
+        HEAT_CAPACITY_GUIDE_START_NOTICE_MS,
+      ),
+      requestTeachingReset: (onConfirm) => requestHeatCapacityTeachingProgressReset(onConfirm),
+    },
+    demo: {
+      isRunning: () => autoDemoRunning,
+      quiesce: (fileId) => quiesceHeatCapacityAutoDemoForModeTransition(fileId),
+      resume: (fileId) => resumeQuiescedHeatCapacityAutoDemo(fileId),
+    },
+  });
 
   const setHeatCapacityModeSceneCheckpoint = (
     checkpoint: HeatCapacityModeUiCheckpoint | null,
@@ -13323,16 +13354,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (modeTransitionRequestId === null) setHeatCapacitySceneReadyFileId(null);
     setHeatCapacitySceneRestoreAcknowledged(true);
   };
-
-  const isValidHeatCapacityDemoSessionCheckpoint = (
-    checkpoint: HeatCapacityModeUiCheckpoint | null,
-  ) => Boolean(
-    checkpoint &&
-    checkpoint.mode === 'demo' &&
-    checkpoint.payload.demo.phase !== 'idle' &&
-    Number.isFinite(checkpoint.payload.demo.elapsedMs) &&
-    checkpoint.payload.demo.elapsedMs >= 0,
-  );
 
   const restoreHeatCapacityGuideUiCheckpoint = (
     fileId: string,
@@ -13503,148 +13524,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     const nextFiles = filesRef.current.map((file) => file.id === nextFile.id ? nextFile : file);
     filesRef.current = nextFiles;
     setFiles(nextFiles);
-  };
-
-  const resolveStoredHeatCapacityMode = (
-    file: WorkbenchHeatCapacityState,
-    mode: HeatCapacityMode,
-    now = Date.now(),
-  ): { file: WorkbenchHeatCapacityState; checkpoint: HeatCapacityModeUiCheckpoint | null } | null => {
-    const restoredFile = restoreHeatCapacityModeSession(file, mode, now);
-    if (!restoredFile) return null;
-    const checkpoint = restoredFile.heatCapacityModeSessions[mode].uiCheckpoint;
-    if (mode === 'demo' && !isValidHeatCapacityDemoSessionCheckpoint(checkpoint)) return null;
-    return { file: restoredFile, checkpoint };
-  };
-
-  const resolveHeatCapacityFreeFallback = (
-    file: WorkbenchHeatCapacityState,
-    now = Date.now(),
-  ) => {
-    const storedFree = resolveStoredHeatCapacityMode(file, 'free', now);
-    if (storedFree) return storedFree;
-    return {
-      file: enterHeatCapacityFreeModeWorkbenchState(file, now),
-      checkpoint: null,
-    };
-  };
-
-  const resolveHeatCapacityModeTarget = (
-    suspendedFile: WorkbenchHeatCapacityState,
-    targetMode: HeatCapacityMode,
-    now: number,
-  ): {
-    file: WorkbenchHeatCapacityState;
-    checkpoint: HeatCapacityModeUiCheckpoint | null;
-    activation: 'resume' | 'fresh-demo' | 'fresh-guide' | 'fresh-free';
-  } => {
-    const storedTarget = resolveStoredHeatCapacityMode(suspendedFile, targetMode, now);
-    if (storedTarget) {
-      const resumeRunningDemo = targetMode === 'demo' &&
-        storedTarget.checkpoint?.mode === 'demo' &&
-        storedTarget.checkpoint.payload.demo.phase === 'running';
-      return {
-        file: resumeRunningDemo
-          ? {
-              ...storedTarget.file,
-              runState: 'running' as const,
-              lastUpdateMs: now,
-              displayResponseLastUpdateMs: now,
-              updatedAt: now,
-            }
-          : storedTarget.file,
-        checkpoint: storedTarget.checkpoint,
-        activation: 'resume' as const,
-      };
-    }
-    if (targetMode === 'demo') {
-      const resetDemo = prepareHeatCapacityAutoDemoReset(suspendedFile, now);
-      return {
-        file: {
-          ...resetDemo,
-          runState: 'idle',
-          updatedAt: now,
-        },
-        checkpoint: null,
-        activation: 'fresh-demo',
-      };
-    }
-    if (targetMode === 'guide') {
-      return {
-        file: startHeatCapacityGuideWorkbenchState(suspendedFile, now),
-        checkpoint: null,
-        activation: 'fresh-guide',
-      };
-    }
-    const freeTarget = resolveHeatCapacityFreeFallback(suspendedFile, now);
-    return { ...freeTarget, activation: 'fresh-free' };
-  };
-
-  const activateHeatCapacityModeFromExplore = (
-    targetMode: HeatCapacityMode,
-    freeBatchGroupCount: HeatCapacityBatchGroupCount | null = null,
-  ) => {
-    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (!currentFile || currentFile.kind !== 'heatCapacity' || currentFile.heatCapacityMode !== null) {
-      return false;
-    }
-    const now = Date.now();
-    const sourceFile = targetMode === 'free' || (
-      targetMode === 'guide' &&
-      currentFile.heatCapacityModeSessions.guide.status === 'completed'
-    )
-      ? currentFile
-      : clearHeatCapacityModeSession(currentFile, targetMode);
-    const target = resolveHeatCapacityModeTarget(sourceFile, targetMode, now);
-    const configuredTargetFile = targetMode === 'free' && freeBatchGroupCount !== null
-      ? configureHeatCapacityFreeBatchWorkbenchState(
-          target.file,
-          freeBatchGroupCount,
-          now,
-        )
-      : target.file;
-    commitHeatCapacityFileProjection(configuredTargetFile);
-    applyHeatCapacityModeUiProjection(configuredTargetFile, target.checkpoint);
-    applyHeatCapacityModeTransitionEvent({
-      type: 'synchronize',
-      visibleMode: targetMode,
-    });
-    if (target.activation === 'fresh-demo') {
-      startHeatCapacityAutoDemoUi(configuredTargetFile.id, configuredTargetFile.name);
-    } else if (target.activation === 'fresh-guide') {
-      showHeatCapacityAutoDemoCompletionToast(
-        heatCapacityRealtimeCopy.guideModeStartingToast,
-        HEAT_CAPACITY_GUIDE_START_NOTICE_MS,
-      );
-    }
-    setLeftCollapsed(true);
-    setParametersCollapsed(true);
-    return true;
-  };
-
-  const exitHeatCapacityFormalModeToExplore = (
-    sourceMode: HeatCapacityMode,
-  ) => {
-    if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return false;
-    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (
-      !currentFile ||
-      currentFile.kind !== 'heatCapacity' ||
-      currentFile.heatCapacityMode !== sourceMode
-    ) return false;
-    const now = Date.now();
-    const preparedFile = prepareHeatCapacityModeSessionForExit(currentFile, null, now);
-    const exploreFile = enterHeatCapacityExploreModeWorkbenchState(
-      preparedFile,
-      createDefaultHeatCapacityFile(1),
-      now,
-    );
-    resetHeatCapacitySceneUiState();
-    commitHeatCapacityFileProjection(exploreFile);
-    applyHeatCapacityModeUiProjection(exploreFile, null);
-    applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: null });
-    setLeftCollapsed(false);
-    return true;
   };
 
   function finishHeatCapacityModeTransitionAnimation() {
@@ -13966,21 +13845,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     heatCapacityModeTransitionDemoClockRef.current = null;
   };
 
-  const shouldConfirmHeatCapacityTeachingProgressReset = (
-    file: WorkbenchHeatCapacityState,
-    targetMode: HeatCapacityMode,
-  ) => {
-    if (
-      file.heatCapacityMode !== 'demo' &&
-      file.heatCapacityMode !== 'guide'
-    ) return false;
-    if (
-      file.heatCapacityMode === targetMode ||
-      file.heatCapacityTeachingStatus === 'completed'
-    ) return false;
-    return true;
-  };
-
   const requestHeatCapacityTeachingProgressReset = (onConfirm: () => void) => {
     requestPromptConfirmation({
       id: 'switch-heat-capacity-teaching-mode',
@@ -13989,58 +13853,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       closeLabel: workbenchPromptCopy.closeLabel,
       onConfirm,
     });
-  };
-
-  const switchHeatCapacityMode = (
-    targetMode: HeatCapacityMode,
-    reason: HeatCapacityModeTransitionReason = 'mode-control',
-    teachingResetConfirmed = false,
-  ) => {
-    if (heatCapacityRuntimeFailureFileIdRef.current !== null) return;
-    const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (!currentFile || currentFile.kind !== 'heatCapacity') return;
-    if (
-      !teachingResetConfirmed &&
-      reason === 'mode-control' &&
-      shouldConfirmHeatCapacityTeachingProgressReset(currentFile, targetMode)
-    ) {
-      requestHeatCapacityTeachingProgressReset(() => {
-        switchHeatCapacityMode(targetMode, reason, true);
-      });
-      return;
-    }
-    if (reason === 'mode-control' && currentFile.heatCapacityMode !== targetMode) {
-      setLeftCollapsed(true);
-      setParametersCollapsed(true);
-    }
-    if (currentFile.heatCapacityMode === 'demo' && targetMode !== 'demo' && autoDemoRunning) {
-      quiesceHeatCapacityAutoDemoForModeTransition(currentFile.id);
-    }
-    const transition = heatCapacityModeTransitionStateRef.current;
-    if (transition.phase === 'idle' && transition.visibleMode !== currentFile.heatCapacityMode) {
-      applyHeatCapacityModeTransitionEvent({
-        type: 'synchronize',
-        visibleMode: currentFile.heatCapacityMode,
-      });
-    }
-    const nextState = requestHeatCapacityModeTransition({
-      sourceMode: heatCapacityModeTransitionStateRef.current.visibleMode,
-      targetMode,
-      reason,
-    }, heatCapacitySceneDiscreteMotionRef.current.reasons);
-    window.requestAnimationFrame(() => {
-      if (
-        desktopExitQuiescedRef.current ||
-        heatCapacityRuntimeFailureFileIdRef.current !== null
-      ) return;
-      heatCapacityRefreshPersistRef.current();
-      flushWorkspacePersistenceRef.current();
-    });
-    if (nextState.phase === 'preparing-target') {
-      scheduleHeatCapacityModeTargetPreparation(nextState.requestId);
-    } else if (nextState.phase === 'idle' && targetMode === currentFile.heatCapacityMode) {
-      resumeQuiescedHeatCapacityAutoDemo(currentFile.id);
-    }
   };
 
   const handleHeatCapacitySceneDiscreteMotionChange = useCallback((
@@ -14232,59 +14044,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
 
   const activateHeatCapacityFileModeSession = (fileId: string) => {
-    const targetFile = filesRef.current.find((file) => file.id === fileId);
-    if (!targetFile || targetFile.kind !== 'heatCapacity') return undefined;
-    const now = Date.now();
-    if (targetFile.heatCapacityMode === null) {
-      const exploreFile = enterHeatCapacityExploreModeWorkbenchState(
-        targetFile,
-        createDefaultHeatCapacityFile(1),
-        now,
-      );
-      commitHeatCapacityFileProjection(exploreFile);
-      applyHeatCapacityModeUiProjection(exploreFile, null);
-      applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: null });
-      return undefined;
-    }
-    const storedMode = resolveStoredHeatCapacityMode(targetFile, targetFile.heatCapacityMode, now);
-    if (storedMode) {
-      commitHeatCapacityFileProjection(storedMode.file);
-      applyHeatCapacityModeUiProjection(storedMode.file, storedMode.checkpoint);
-      applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: storedMode.file.heatCapacityMode });
-      return createWorkbenchActiveModeCheckpointOverride(
-        storedMode.file.id,
-        storedMode.file.heatCapacityMode,
-        storedMode.checkpoint,
-      );
-    }
-    if (targetFile.heatCapacityMode === 'demo') {
-      const clearedFile = clearHeatCapacityModeSession(targetFile, 'demo');
-      const freeTarget = resolveHeatCapacityFreeFallback(clearedFile, now);
-      commitHeatCapacityFileProjection(freeTarget.file);
-      applyHeatCapacityModeUiProjection(freeTarget.file, freeTarget.checkpoint);
-      applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: freeTarget.file.heatCapacityMode });
-      return createWorkbenchActiveModeCheckpointOverride(
-        freeTarget.file.id,
-        freeTarget.file.heatCapacityMode,
-        freeTarget.checkpoint,
-      );
-    }
-    const rebasedFile = targetFile.runState === 'running'
-      ? {
-          ...targetFile,
-          lastUpdateMs: now,
-          displayResponseLastUpdateMs: now,
-          updatedAt: now,
-        }
-      : targetFile;
-    commitHeatCapacityFileProjection(rebasedFile);
-    applyHeatCapacityModeUiProjection(rebasedFile, null);
-    applyHeatCapacityModeTransitionEvent({ type: 'synchronize', visibleMode: rebasedFile.heatCapacityMode });
-    return createWorkbenchActiveModeCheckpointOverride(
-      rebasedFile.id,
-      rebasedFile.heatCapacityMode,
-      null,
-    );
+    const target = activateHeatCapacityFileMode(fileId);
+    return target ? createWorkbenchActiveModeCheckpointOverride(
+      target.file.id,
+      target.file.heatCapacityMode,
+      target.checkpoint,
+    ) : undefined;
   };
 
   const exitHeatCapacityTeachingModeToExplore = (

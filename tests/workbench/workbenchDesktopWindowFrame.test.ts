@@ -143,8 +143,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /const applyHeatCapacityModeTransitionEvent =[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?desktopExitQuiescedRef\.current[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*?const switchHeatCapacityMode =[\s\S]*?requestAnimationFrame\(\(\) => \{[\s\S]*?desktopExitQuiescedRef\.current[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null/,
-  'both mode-transition persistence frames must stay inert while desktop exit or runtime failure owns the scene',
+  /createHeatCapacityModeActions\(\{[\s\S]*hasRuntimeFailure: \(\) => heatCapacityRuntimeFailureFileIdRef\.current !== null,[\s\S]*isDesktopExitQuiesced: \(\) => desktopExitQuiescedRef\.current,[\s\S]*requestFrame: \(callback\) => \{ window\.requestAnimationFrame\(callback\); \},[\s\S]*refresh: \(\) => heatCapacityRefreshPersistRef\.current\(\),[\s\S]*flush: \(\) => flushWorkspacePersistenceRef\.current\(\)/,
+  'mode actions must receive live exit/failure guards and live persistence readers for their deferred frames',
 );
 assert.match(
   workbenchSource,

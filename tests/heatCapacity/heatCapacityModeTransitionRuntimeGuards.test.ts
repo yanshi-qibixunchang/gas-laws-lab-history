@@ -234,7 +234,7 @@ assert.match(
 const demoResumeSection = sourceBetween(
   workbenchSource,
   'const resumeQuiescedHeatCapacityAutoDemo = (fileId: string) => {',
-  'const switchHeatCapacityMode = (',
+  'const requestHeatCapacityTeachingProgressReset = (',
   'Demo transaction clock resume',
 );
 assert.match(

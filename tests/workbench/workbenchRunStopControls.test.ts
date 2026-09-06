@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const modeActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatCapacityModeActions.ts', import.meta.url), 'utf8');
+const modeActivationSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatCapacityModeActivation.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 const electronSource = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 
@@ -78,12 +80,18 @@ assert.match(
 
 assert.match(
   source,
-  /const switchHeatCapacityMode = \([\s\S]*targetMode: HeatCapacityMode,[\s\S]*reason: HeatCapacityModeTransitionReason[\s\S]*requestHeatCapacityModeTransition\(\{[\s\S]*sourceMode:[\s\S]*targetMode,[\s\S]*reason,[\s\S]*scheduleHeatCapacityModeTargetPreparation\(nextState\.requestId\)/,
+  /switchMode: switchHeatCapacityMode,[\s\S]*request: requestHeatCapacityModeTransition,[\s\S]*schedulePreparation: \(requestId\) => scheduleHeatCapacityModeTargetPreparation\(requestId\)/,
+  'mode actions should use the existing transition state and scene preparation owner',
+);
+
+assert.match(
+  modeActionsSource,
+  /const switchMode = \([\s\S]*targetMode: HeatCapacityMode,[\s\S]*reason: HeatCapacityModeTransitionReason[\s\S]*ports\.transition\.request\(\{[\s\S]*sourceMode:[\s\S]*targetMode,[\s\S]*reason,[\s\S]*ports\.transition\.schedulePreparation\(nextState\.requestId\)/,
   'mode switching should submit a strongly typed intent to the shared transition coordinator instead of projecting a target synchronously',
 );
 
 assert.match(
-  source,
+  modeActivationSource,
   /const resolveHeatCapacityModeTarget[\s\S]*?if \(targetMode === 'guide'\) \{[\s\S]*?startHeatCapacityGuideWorkbenchState\(suspendedFile, now\)[\s\S]*?activation: 'fresh-guide'/,
   'Guide mode should create a fresh guide runtime only when no resumable Guide checkpoint exists',
 );

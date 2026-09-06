@@ -19,7 +19,7 @@ assert.match(
 );
 assert.match(
   workbench,
-  /const activateHeatCapacityModeFromExplore =[\s\S]*setLeftCollapsed\(true\);[\s\S]*setParametersCollapsed\(true\);/,
+  /activateFromExplore: activateHeatCapacityModeFromExplore[\s\S]*collapsePanels: \(\) => \{ setLeftCollapsed\(true\); setParametersCollapsed\(true\); \}/,
   'starting a Heat teaching mode should collapse both sidebars once for the experiment workspace',
 );
 assert.doesNotMatch(

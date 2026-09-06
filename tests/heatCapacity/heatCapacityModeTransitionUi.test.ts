@@ -131,13 +131,13 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /currentFile\.heatCapacityMode === 'demo' && targetMode !== 'demo' && autoDemoRunning[\s\S]*quiesceHeatCapacityAutoDemoForModeTransition\(currentFile\.id\)/,
-  'leaving a running demo should stop future scripted actions without cutting off the discrete action already in motion',
+  /createHeatCapacityModeActions\(\{[\s\S]*isRunning: \(\) => autoDemoRunning,[\s\S]*quiesce: \(fileId\) => quiesceHeatCapacityAutoDemoForModeTransition\(fileId\)/,
+  'mode actions must use the existing Demo clock quiescence owner',
 );
 assert.match(
   workbenchSource,
-  /const resumeQuiescedHeatCapacityAutoDemo[\s\S]*scheduleHeatCapacityAutoDemoTimeline[\s\S]*nextState\.phase === 'idle' && targetMode === currentFile\.heatCapacityMode[\s\S]*resumeQuiescedHeatCapacityAutoDemo/,
-  'canceling a queued switch back to the visible demo should resume the quiesced timeline',
+  /resume: \(fileId\) => resumeQuiescedHeatCapacityAutoDemo\(fileId\)[\s\S]*const resumeQuiescedHeatCapacityAutoDemo[\s\S]*scheduleHeatCapacityAutoDemoTimeline/,
+  'mode actions must resume the existing Demo timeline through its preserved clock owner',
 );
 assert.match(
   workbenchSource,

@@ -27,6 +27,7 @@ const modeTypesPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heat
 const modeControlModelPath = join(process.cwd(), 'src', 'features', 'heatCapacity', 'heatCapacityModeControlModel.ts');
 const defaultConfigPath = join(process.cwd(), 'src', 'domain', 'heatCapacity', 'heatCapacityDefaultConfig.ts');
 const workbenchPath = join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx');
+const modeActivationSource = readFileSync(join(process.cwd(), 'src/features/workbench/workbenchHeatCapacityModeActivation.ts'), 'utf8');
 const workbenchCopyPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchStudioCopy.ts');
 const heatCapacityRealtimeCopyPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityRealtimeCopy.ts');
 const heatCapacityUiCheckpointPath = join(process.cwd(), 'src', 'features', 'workbench', 'workbenchHeatCapacityUiCheckpoint.ts');
@@ -1728,7 +1729,7 @@ assert.doesNotMatch(workbenchSource, /GUIDE_HEAT_CAPACITY_IDLE_HINT_DELAY_MS|GUI
 assert.doesNotMatch(workbenchSource, /scheduleManualIdleHint/, 'guide workflow should not keep legacy idle-hint validation markers after moving to ten-second strong reminders');
 assert.match(workbenchSource, /activeHeatCapacityGuideStep/, 'guide idle hint scheduling should depend on a stable guide step value instead of the whole active file object');
 assert.doesNotMatch(workbenchSource, /useEffect\(\(\) => \{[\s\S]*guideHeatCapacityIdleTimerRef[\s\S]*\}, \[\s*activeFile,/, 'guide idle hint timer must not depend on the full activeFile object that ticks every 100ms');
-assert.match(workbenchSource, /const resolveHeatCapacityModeTarget = \([\s\S]*if \(targetMode === 'guide'\) \{[\s\S]*startHeatCapacityGuideWorkbenchState\(suspendedFile, now\)[\s\S]*activation: 'fresh-guide'/, 'activating Guide Mode should create a fresh tutorial state only when no resumable checkpoint exists');
+assert.match(modeActivationSource, /const resolveHeatCapacityModeTarget = \([\s\S]*if \(targetMode === 'guide'\) \{[\s\S]*startHeatCapacityGuideWorkbenchState\(suspendedFile, now\)[\s\S]*activation: 'fresh-guide'/, 'activating Guide Mode should create a fresh tutorial state only when no resumable checkpoint exists');
 assert.match(workbenchSource, /target\.activation === 'fresh-guide'[\s\S]*showHeatCapacityAutoDemoCompletionToast\([\s\S]*heatCapacityRealtimeCopy\.guideModeStartingToast,[\s\S]*HEAT_CAPACITY_GUIDE_START_NOTICE_MS/, 'starting a fresh Guide Mode should show the localized centered start notice as part of the prepared target projection');
 assert.doesNotMatch(workbenchSource, /const activateHeatCapacityGuideExperiment|const startHeatCapacityGuideExperiment/, 'Guide Mode should not retain the old delayed activation wrappers after switching to checkpoint-aware mode sessions');
 assert.match(workbenchSource, /setGuideHeatCapacityActiveFileId\(null\)/, 'starting auto demo should disable the guide tutorial state machine');
@@ -1929,7 +1930,7 @@ assert.doesNotMatch(workbenchSource, /animateHeatCapacityStopcockAngle/, 'auto d
 assert.match(workbenchSource, /commitHeatCapacityAutoDemoPressureZero/, 'auto demo should commit pressure-zero logical state once instead of writing Workbench state through RAF');
 assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset/, 'auto demo default reset should commit the target logical state once while the scene owns local motion');
 assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'auto demo reset should replace source-mode runtime with a canonical powered-off Demo state');
-assert.match(workbenchSource, /targetMode === 'demo'[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'fresh Demo mode preparation should be canonical before its first scripted action');
+assert.match(modeActivationSource, /targetMode === 'demo'[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'fresh Demo mode preparation should be canonical before its first scripted action');
 assert.doesNotMatch(workbenchSource, /animateHeatCapacityPressureZero|animateHeatCapacityDefaultReset/, 'auto demo should not keep the old Workbench-owned reset or pressure-zero animation functions');
 assert.match(workbenchSource, /data-heat-capacity-mode="demo"/, 'preview header should expose heat-capacity demo mode through the unified mode bar');
 assert.match(workbenchSource, /stepHeatCapacityWorkbenchFile/, 'workbench should step the heat capacity process model from the shared file state');
