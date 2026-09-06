@@ -1,3 +1,12 @@
+const contractWorkbenchPistonModeActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchPistonModeActions.ts', import.meta.url), 'utf8');
+const contractWorkbenchPistonOscillationModeControlSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationModeControl.tsx', import.meta.url), 'utf8');
+import { readFileSync as readContractModule } from 'node:fs';
+const runtimeWorkbenchPistonFreeActionsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchPistonFreeActions.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonGuideRuntimeSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPistonOscillationPreviewSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -22,13 +31,7 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 
-const sourceSlice = (start: string, end: string) => {
-  const startIndex = workbenchSource.indexOf(start);
-  const endIndex = workbenchSource.indexOf(end, startIndex);
-  assert.notEqual(startIndex, -1, `missing source marker: ${start}`);
-  assert.notEqual(endIndex, -1, `missing source marker: ${end}`);
-  return workbenchSource.slice(startIndex, endIndex);
-};
+
 
 assert.match(
   dialogSource,
@@ -112,15 +115,9 @@ assert.match(
   'the count unit should remain visually separated from the dropdown arrow',
 );
 
-const modeControlSource = sourceSlice(
-  'const renderPistonOscillationModeControl = () => {',
-  'const renderPistonOscillationGuideStepPanel = () => {',
-);
-assert.match(
-  modeControlSource,
-  /const startFree = \(\) => \{[\s\S]*requestFreeSetup[\s\S]*data-piston-oscillation-mode="free"[\s\S]*onClick=\{startFree\}/,
-  'the Piston Free button should now open setup instead of remaining disabled',
-);
+const modeControlSource = readFileSync(new URL('../../src/features/workbench/WorkbenchPistonOscillationModeControl.tsx', import.meta.url), 'utf8');
+assert.match(contractWorkbenchPistonModeActionsSource, /const startFree = \(\) => \{[\s\S]*requestFreeSetup/, 'the Piston Free button should now open setup instead of remaining disabled');
+assert.match(contractWorkbenchPistonOscillationModeControlSource, /data-piston-oscillation-mode="free"[\s\S]*onClick=\{startFree\}/, 'the Piston Free button should now open setup instead of remaining disabled');
 assert.doesNotMatch(
   modeControlSource,
   /data-piston-oscillation-mode="free"[\s\S]{0,240}(?:disabled=\{true\}|labels\.unavailable)/,
@@ -131,11 +128,8 @@ assert.match(
   /data-piston-oscillation-mode="free"[\s\S]{0,240}disabled=\{interactionLocked\}/,
   'the Free button should only lock while the secondary calculation window is active',
 );
-assert.match(
-  modeControlSource,
-  /const exitFree = \(\) => \{[\s\S]*pausePistonOscillationFreeMode\(\)[\s\S]*data-piston-oscillation-mode-action="exit-free"/,
-  'an active Free session should remain selected until explicitly exited',
-);
+assert.match(contractWorkbenchPistonModeActionsSource, /const exitFree = \(\) => \{[\s\S]*pausePistonOscillationFreeMode\(\)/, 'an active Free session should remain selected until explicitly exited');
+assert.match(contractWorkbenchPistonOscillationModeControlSource, /data-piston-oscillation-mode-action="exit-free"/, 'an active Free session should remain selected until explicitly exited');
 
 assert.match(
   workbenchSource,
@@ -143,19 +137,21 @@ assert.match(
   'the confirmed plan should be passed into the persisted Free session',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonFreeActionsSource,
   /startPistonOscillationFreeWorkbenchState\(nextFile, nowMs\)[\s\S]*type: 'setPlan'[\s\S]*targetHeightsMm/,
   'Free activation should start the session before storing its selected plan',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonOscillationFreeSession\.status === 'active'[\s\S]*type: 'setPower'/,
   'Free-mode power changes should be persisted and audited',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationPreviewSource,
   /const replacing = session\.reacquisition\?\.measurementIndex[\s\S]*const saved = !replacing[\s\S]*statusLabel: saved[\s\S]*: current/,
   'the excluded record being reacquired must appear as the current target, not as a saved result',
 );
 
 console.log('pistonOscillationFreeSetupDialog tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);

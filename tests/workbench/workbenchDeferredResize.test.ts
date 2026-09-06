@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -19,7 +23,7 @@ const arrowFunctionBody = (source: string, name: string) => {
 };
 
 const sidebarResizeHandler = between(
-  studioSource,
+  layoutActionSource,
   'const startSidebarResize',
   'const startIdealResultWindowResize',
 );
@@ -27,7 +31,7 @@ const sidebarMoveHandler = arrowFunctionBody(sidebarResizeHandler, 'handleMove')
 
 assert.match(
   sidebarResizeHandler,
-  /const startSidebarResize = \(side: 'left' \| 'params', event: React\.MouseEvent\) => \{\s*if \(openTopMenu\) return;\s*event\.preventDefault\(\);/,
+  /const startSidebarResize = \(side: 'left' \| 'params', event: React\.MouseEvent\) => \{\s*const \{ openTopMenu, leftSidebarWidth, parameterSidebarWidth \} = ports\.getView\(\);\s*if \(openTopMenu\) return;\s*event\.preventDefault\(\);/,
   'sidebar resize should not start from accidental hits while a top command menu is open',
 );
 
@@ -50,7 +54,7 @@ assert.match(
 );
 
 const liveResizeHandler = between(
-  studioSource,
+  layoutActionSource,
   'const startLiveWorkspaceResize',
   'const startConsoleResize',
 );
@@ -75,7 +79,7 @@ assert.match(
 );
 
 const consoleResizeHandler = between(
-  studioSource,
+  layoutActionSource,
   'const startConsoleResize',
   'const saveCurrentWorkbenchLayoutAsDefault',
 );
@@ -100,7 +104,7 @@ assert.match(
 );
 
 assert.match(
-  studioSource,
+  workbenchCenterWorkspaceSource,
   /ref=\{liveWorkspaceResizeGhostRef\}[\s\S]*className="studio-resize-ghost-divider studio-live-workspace-resize-ghost"/,
   '3D / Realtime workspace should render a ghost splitter for drag previews',
 );
@@ -136,3 +140,5 @@ assert.match(
 );
 
 console.log('workbenchDeferredResize tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);

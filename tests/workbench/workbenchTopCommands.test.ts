@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -24,11 +28,17 @@ assert.match(
 );
 assert.doesNotMatch(componentSource, /setFiles|setUndoStack|setWorkbenchLayoutDefaults/, 'top command view should not mutate workbench domain state directly');
 
-assert.match(workbenchSource, /<WorkbenchTopCommands/, 'workbench should mount the extracted top commands component');
-assert.match(workbenchSource, /onCreateFile=\{createFile\}/, 'workbench should connect file creation behavior');
-assert.match(workbenchSource, /onToggleWindowPanel=\{\(panelKey\) => runWindowMenuSwitch\(\(\) => toggleWindowPanel\(panelKey\)\)\}/, 'workbench should preserve window-menu undo behavior');
+assert.match(workbenchMenuBarSource, /<WorkbenchTopCommands/, 'workbench should mount the extracted top commands component');
+assert.match(workbenchCenterWorkspaceSource, /onCreateFile=\{createFile\}/, 'workbench should connect file creation behavior');
+assert.match(workbenchMenuBarSource, /onCreateFile=\{createFile\}/, 'workbench should connect file creation behavior');
+assert.match(workbenchMenuBarSource, /onToggleWindowPanel=\{\(panelKey\) => runWindowMenuSwitch\(\(\) => toggleWindowPanel\(panelKey\)\)\}/, 'workbench should preserve window-menu undo behavior');
 assert.match(workbenchSource, /const topMenuResultChildren: WorkbenchTopMenuResultChild\[\]/, 'workbench should build a typed result-child view model');
 assert.doesNotMatch(workbenchSource, /renderWindowResultsChildRows|childRows:/, 'workbench should not retain embedded Window-menu child-row rendering');
 assert.doesNotMatch(workbenchSource, /const renderTopMenu|const renderTopCommand|TopCommandSubmenu/, 'workbench should not retain legacy top-menu rendering state');
 
 console.log('workbenchTopCommands tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);

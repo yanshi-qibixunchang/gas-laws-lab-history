@@ -187,7 +187,7 @@ assert.match(workbenchStudioCopySource, /heatCapacityPistonOscillationStudy:\s*'
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-air-result/, 'this batch must not render a formal heat capacity result panel');
 assert.match(workbenchSource, /createHeatCapacityPanels/);
 assert.match(
-  workbenchSource,
+  readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'),
   /const selectFile = \(file: WorkbenchFileState\) => \{[\s\S]*setLeftCollapsed\(false\);[\s\S]*setParametersCollapsed\(true\);/,
   'all experiment files should share the same activation layout: left open and right collapsed',
 );
@@ -195,7 +195,7 @@ assert.match(
   presentationWorkbenchPanelAvailabilitySource,
   /file\?\.kind === 'heatCapacity'[\s\S]*file\?\.kind === 'heatCapacityPistonOscillation'/,
 );
-assert.match(workbenchSource, /workbenchLayoutDefaults\.heatCapacity\.liveWorkspaceSplitRatio/);
+assert.match(readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8'), /workbenchLayoutDefaults\.heatCapacity\.liveWorkspaceSplitRatio/);
 
 console.log('workbenchHeatCapacityFile tests passed');
 

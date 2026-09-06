@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchHeatCapacityAdvancedParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityAdvancedParameters.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -80,10 +83,8 @@ for (const relativePath of migratedTaskWindows) {
   assert.match(source, /<PromptDialogShell/, `${relativePath} should reuse the shared task shell`);
 }
 
-const workbenchSource = readFileSync(
-  new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
-  'utf8',
-);
-assert.match(workbenchSource, /<PromptDialogShell[\s\S]*dialogClassName=\{`studio-heat-advanced-window/, 'the advanced parameter window should reuse the shared task shell');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /<PromptDialogShell[\s\S]*dialogClassName=\{`studio-heat-advanced-window/, 'the advanced parameter window should reuse the shared task shell');
 
 console.log('workbenchPromptNoticeAndTaskShell tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityAdvancedParameters \} from '\.\/WorkbenchHeatCapacityAdvancedParameters\.tsx';/);

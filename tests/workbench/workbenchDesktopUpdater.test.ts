@@ -1,3 +1,4 @@
+const updaterActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchUpdaterActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -100,13 +101,13 @@ const workbenchSource = readFileSync(
 assert.match(workbenchSource, /from '\.\/workbenchDesktopUpdater\.ts'/);
 assert.doesNotMatch(workbenchSource, /interface WorkbenchUpdateState|const mergeWorkbenchUpdateState\s*=/);
 assert.doesNotMatch(
-  workbenchSource,
-  /showAboutResultNotice\(workbenchCopy\.about\.updateResultTitle,\s*(?:result\.)?message/,
+  updaterActionsSource,
+  /showAboutResultNotice\(aboutCopy\.updateResultTitle,\s*(?:result\.)?message/,
   'desktop updater failures should not expose unlocalized bridge error text in the UI',
 );
 assert.match(
-  workbenchSource,
-  /showAboutResultNotice\(\s*workbenchCopy\.about\.updateResultTitle,\s*workbenchCopy\.about\.updateErrorStatus,\s*'danger',?\s*\)/,
+  updaterActionsSource,
+  /showAboutResultNotice\(\s*aboutCopy\.updateResultTitle,\s*aboutCopy\.updateErrorStatus,\s*'danger',?\s*\)/,
   'manual updater failures should use the active localized error copy and danger feedback level',
 );
 

@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchSimulationParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterRow.tsx', import.meta.url), 'utf8');
+const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchParameterPresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchParameterPresentation.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
@@ -15,7 +19,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const commitWorkbenchParameterInput = \([\s\S]*?param: WorkbenchParameterRow[\s\S]*?rawValue: string[\s\S]*?\) => \{[\s\S]*?if \(parameterControlsLocked\)[\s\S]*?Number\(rawValue\)[\s\S]*?validateWorkbenchParams\(nextParams\)[\s\S]*?rejectLockedIdealControlledVariables\(nextParams\)[\s\S]*?applyActiveFileParams\(nextParams\)/,
   'committing a direct parameter input should validate, honor ideal locks, and apply through the existing parameter path',
 );
@@ -26,13 +30,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const clearWorkbenchParameterInputDraft = \(paramKey: string\) => \{[\s\S]*?setParameterInputDrafts\(\(current\) => \{[\s\S]*?\[paramKey\]: _removed[\s\S]*?const revertWorkbenchParameterInput = \(paramKey: string\) => \{[\s\S]*?clearWorkbenchParameterInputDraft\(paramKey\)/,
   'Escape should be able to drop the focused transient draft without mutating file parameters',
 );
 
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /onBlur=\{\(\) => commitWorkbenchParameterInput\(param, parameterValue\)\}[\s\S]*?event\.key === 'Enter'[\s\S]*?event\.preventDefault\(\)[\s\S]*?commitWorkbenchParameterInput\(param, parameterValue\)[\s\S]*?event\.key === 'Escape'[\s\S]*?event\.preventDefault\(\)[\s\S]*?revertWorkbenchParameterInput\(param\.key\)/,
   'direct parameter rows should commit on blur or Enter and revert the focused draft on Escape',
 );
@@ -49,13 +53,13 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /renderWorkbenchParameterHelpButton\(param\.key, detail\.help\[settingsLanguagePreference\]\)/,
   'standard and ideal parameter rows should expose the same circular help affordance as heat-capacity rows',
 );
 
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /renderWorkbenchParameterSymbol\(detail\.symbol\)/,
   'standard and ideal parameter rows should render symbols through a reusable symbol renderer',
 );
@@ -67,7 +71,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /const displayUnit = getWorkbenchParameterDisplayUnit\(param, settingsLanguagePreference\);[\s\S]*?displayUnit \? <span className="studio-param-input-unit">\{displayUnit\}<\/span> : null/,
   'standard and ideal parameter rows should render the localized display unit instead of the raw model unit',
 );
@@ -105,3 +109,5 @@ assert.match(
 console.log('workbenchDirectParameterInputs tests passed');
 
 assert.ok(source.includes("from './workbenchParameterPresentation.ts'"), 'workbenchParameterPresentation must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);

@@ -1,3 +1,10 @@
+const runtimeUseWorkbenchPistonGuideRuntimeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+const runtimeWorkbenchTeachingUiTimingSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchTeachingUiTiming.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationPreviewSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchPistonGuideMaskDomSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPistonGuideMaskDom.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
@@ -252,9 +259,9 @@ const workspaceCss = readFileSync(
   'utf8',
 );
 
-assert.match(workbenchSource, /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS\s*=\s*\n?\s*GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS/);
-assert.match(workbenchSource, /data-piston-guide-strong-mask-blocking="true"/);
-assert.match(workbenchSource, /guideRequestedFocusMode=\{pistonGuideRequestedFocusMode\}/);
+assert.match(runtimeWorkbenchTeachingUiTimingSource, /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS\s*=\s*\n?\s*GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS/);
+assert.match(workbenchCenterWorkspaceSource, /data-piston-guide-strong-mask-blocking="true"/);
+assert.match(workbenchPistonOscillationPreviewSource, /guideRequestedFocusMode=\{pistonGuideRequestedFocusMode\}/);
 assert.match(sceneSource, /guideRequestedFocusMode=\{guideRequestedFocusMode\}/);
 assert.match(
   workspaceSource,
@@ -310,9 +317,9 @@ assert.match(
 );
 const maskGeometrySource = readFileSync(new URL('../../src/features/workbench/workbenchPistonGuideMaskGeometry.ts', import.meta.url), 'utf8');
 assert.match(maskGeometrySource, /getPistonOscillationGuideStrongDimPath[\s\S]*contextCutouts\.map\(getPistonOscillationGuideRoundedRectPath\)/);
-assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskGeometry.ts'"));
+assert.ok(workbenchCenterWorkspaceSource.includes("from './workbenchPistonGuideMaskGeometry.ts'"));
 assert.match(
-  workbenchSource,
+  workbenchCenterWorkspaceSource,
   /data-piston-guide-strong-mask-blocking="true"[\s\S]*fillRule="evenodd"[\s\S]*studio-piston-guide-strong-card-compact/,
   'the reminder should block the dimmed region while adapting its card around all protected context regions',
 );
@@ -334,4 +341,9 @@ assert.match(
 
 console.log('pistonOscillationGuidePresentation.test.ts passed');
 
-assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskDom.ts'"), 'workbenchPistonGuideMaskDom must remain connected to the shell');
+assert.ok(runtimeUseWorkbenchPistonGuideRuntimeSource.includes("from './workbenchPistonGuideMaskDom.ts'"), 'guide runtime must consume the DOM layout model');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);
+
+assert.match(workbenchSource, /useWorkbenchPistonController\(/, 'the root must keep the singleton piston controller connected');

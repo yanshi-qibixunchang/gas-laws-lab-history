@@ -1,3 +1,4 @@
+const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -20,12 +21,12 @@ assert.doesNotMatch(
   'unused Apply button styles should be removed with the action',
 );
 assert.match(
-  source,
+  parameterActionSource,
   /const prepareActiveFileForRun = \(\): boolean => \{[\s\S]*?parametersDirty[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
   'Start should apply saved pending parameter changes instead of warning users to press Reset',
 );
 assert.match(
-  source,
+  parameterActionSource,
   /activeFile\.kind === 'ideal' && activeFile\.needsReset[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
   'Start should rebuild ideal runtimes that need applied scan parameters',
 );

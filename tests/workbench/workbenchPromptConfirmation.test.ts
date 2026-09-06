@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchHeatCapacityCenterFeedbackSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityCenterFeedback.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -80,11 +83,11 @@ for (const promptId of [
   'switch-heat-capacity-teaching-mode',
   'close-running-workbench-file:',
 ]) {
-  assert.ok(workbenchSource.includes(promptId), `workbench must route ${promptId} through the internal confirmation`);
+  assert.ok((promptId === 'close-running-workbench-file:' ? readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8') : workbenchSource).includes(promptId), `workbench must route ${promptId} through the internal confirmation`);
 }
 assert.match(workbenchSource, /id: 'restart-current-experiment'[\s\S]*onSelect: requestRestartHeatCapacityFreeExperiment/, 'the current-experiment restart should request confirmation from the shared progress menu');
 assert.match(workbenchSource, /id: 'restart-experiment-group'[\s\S]*onSelect: requestRestartHeatCapacityFreeGroup/, 'the whole-group restart should request a separate confirmation from the shared progress menu');
-assert.match(workbenchSource, /onReset=\{restartHeatCapacityFreeExperiment\}/, 'the invalid-flow dialog should execute the scoped current-experiment restart directly');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /onReset=\{restartHeatCapacityFreeExperiment\}/, 'the invalid-flow dialog should execute the scoped current-experiment restart directly');
 assert.match(workbenchSource, /<PromptConfirmDialog[\s\S]*request=\{activePromptConfirmation\}/);
 
 const sourceRoot = fileURLToPath(new URL('../../src', import.meta.url));
@@ -101,3 +104,5 @@ assert.deepEqual(nativePromptUsages, [], 'renderer business code must not call b
 assert.match(electronSafetySource, /dialog\.showMessageBox/, 'the desktop exit persistence safety fallback must remain native');
 
 console.log('workbenchPromptConfirmation tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityCenterFeedback \} from '\.\/WorkbenchHeatCapacityCenterFeedback\.tsx';/);

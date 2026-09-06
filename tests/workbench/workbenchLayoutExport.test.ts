@@ -1,3 +1,9 @@
+const exportActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchExportActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -57,25 +63,25 @@ assert.match(
 );
 
 assert.match(
-  studioSource,
+  fileActionSource,
   /createDefaultStandardFile\(index, workbenchLayoutDefaults\.standard\)/,
   'new standard files should apply saved standard layout defaults',
 );
 
 assert.match(
-  studioSource,
+  fileActionSource,
   /createDefaultIdealFile\(index, workbenchLayoutDefaults\.ideal\)/,
   'new ideal files should apply saved ideal layout defaults',
 );
 
 assert.match(
-  studioSource,
+  layoutActionSource,
   /const startLiveWorkspaceResize = \(event: React\.PointerEvent<HTMLButtonElement>\) => \{/,
   '3D / Realtime splitter should have a pointer drag handler',
 );
 
 assert.match(
-  studioSource,
+  workbenchCenterWorkspaceSource,
   /className="studio-live-workspace-resizer"/,
   '3D / Realtime splitter should render between the two live panels',
 );
@@ -87,13 +93,13 @@ assert.match(
 );
 
 assert.match(
-  studioSource,
+  layoutActionSource,
   /const availableWidth = workspaceRect\.width - resizerWidth;/,
   'drag math should use the available content width after subtracting the splitter',
 );
 
 assert.match(
-  studioSource,
+  layoutActionSource,
   /\(clientX - workspaceRect\.left - resizerWidth \/ 2\) \/ availableWidth/,
   'drag math should compute the split from the pointer position instead of accumulating deltas',
 );
@@ -129,9 +135,11 @@ assert.match(
 );
 
 assert.match(
-  studioSource,
+  exportActionsSource,
   /createWorkbenchExportPayload\(\s*activeFile,\s*mode,\s*settingsLanguagePreference,/,
   'export payload should follow current Workbench language',
 );
 
 console.log('workbenchLayoutExport tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);

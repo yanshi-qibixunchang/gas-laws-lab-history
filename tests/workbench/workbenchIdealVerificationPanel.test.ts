@@ -1,3 +1,4 @@
+const panelContentSource = readFileSync(new URL('../../src/features/workbench/WorkbenchPanelContent.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import type { IdealGasAnalysis } from '../../src/domain/idealGas/idealGasExperiment.ts';
@@ -102,7 +103,7 @@ assert.doesNotMatch(chartSource, /React|document\.|window\./);
 
 assert.match(idealWindowsSource, /from '\.\/WorkbenchIdealVerificationPanel\.tsx'/);
 assert.match(idealWindowsSource, /<WorkbenchIdealVerificationPanel/);
-assert.match(workbenchSource, /from '\.\/WorkbenchIdealResultsWindows\.tsx'/);
+assert.match(panelContentSource, /from '\.\/WorkbenchIdealResultsWindows\.tsx'/);
 assert.doesNotMatch(workbenchSource, /const renderIdealValidationChart =/);
 assert.doesNotMatch(workbenchSource, /const renderVerificationPanel =/);
 

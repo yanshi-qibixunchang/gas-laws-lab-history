@@ -1,3 +1,10 @@
+const auxiliaryActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchAuxiliaryWindowActions.ts', import.meta.url), 'utf8');
+const auxiliarySource = readFileSync(new URL('../../src/features/workbench/useWorkbenchAuxiliaryWindows.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
+const settingsActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchSettingsActions.ts', import.meta.url), 'utf8');
+const preferencesSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchSettingsPreferences.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -54,38 +61,38 @@ assert.match(
 );
 
 assert.match(
-  source,
+  auxiliarySource,
   /const \[settingsGeneralOpen, setSettingsGeneralOpen\] = useState\(\(\) => \([\s\S]*?getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshWindows, 'settingsGeneralOpen'\)/,
   'general settings window should have independent state restored from the active heat-capacity refresh session',
 );
 
 assert.match(
-  source,
+  preferencesSource,
   /const \[settingsThemePreference, setSettingsThemePreference\] = useState<WorkbenchThemePreference>\(\(\) => initialGeneralSettings\.theme\);/,
   'theme preference state should initialize from persisted general settings',
 );
 
 assert.match(
-  source,
+  preferencesSource,
   /const \[systemWorkbenchTheme, setSystemWorkbenchTheme\] = useState<WorkbenchResolvedTheme>\(\(\) => getSystemWorkbenchTheme\(\)\);/,
   'system theme state should initialize from the real OS color-scheme preference',
 );
 
 assert.match(
-  source,
+  preferencesSource,
   /const \[settingsLanguagePreference, setSettingsLanguagePreference\] = useState<WorkbenchLanguagePreference>\(\(\) => initialGeneralSettings\.language\);/,
   'language preference state should initialize from persisted general settings',
 );
 
 assert.match(
-  source,
+  auxiliaryActionsSource,
   /const openGeneralSettings = \(\) => \{[\s\S]*?setOpenTopMenu\(null\);[\s\S]*?setSettingsGeneralOpen\(true\);[\s\S]*?\};/,
   'Settings > General should open the independent settings window and close the top menu',
 );
 
 assert.match(
-  source,
-  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme,[\s\S]*?language: settingsLanguagePreference,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: audioSettings\.enabled,[\s\S]*?audioVolume: audioSettings\.volume,[\s\S]*?\}\);[\s\S]*?\};/,
+  settingsActionsSource,
+  /const updateSettingsThemePreference = \(theme: WorkbenchThemePreference\) => \{[\s\S]*?setSettingsThemePreference\(theme\);[\s\S]*?persist\(\{[\s\S]*?theme,[\s\S]*?language: settingsLanguagePreference,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: audioSettings\.enabled,[\s\S]*?audioVolume: audioSettings\.volume,[\s\S]*?\}\);[\s\S]*?\};/,
   'theme option clicks should update state and persist immediately',
 );
 
@@ -135,14 +142,14 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  preferencesSource,
   /window\.matchMedia\('\(prefers-color-scheme: dark\)'\)[\s\S]*?addEventListener\('change', updateSystemTheme\)[\s\S]*?removeEventListener\('change', updateSystemTheme\)/,
   'system theme preference should update when the OS color-scheme preference changes',
 );
 
 assert.match(
-  source,
-  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persistWorkbenchGeneralSettings\(\{[\s\S]*?theme: settingsThemePreference,[\s\S]*?language,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: audioSettings\.enabled,[\s\S]*?audioVolume: audioSettings\.volume,[\s\S]*?\}\);[\s\S]*?\};/,
+  settingsActionsSource,
+  /const updateSettingsLanguagePreference = \(language: WorkbenchLanguagePreference\) => \{[\s\S]*?setSettingsLanguagePreference\(language\);[\s\S]*?setSettingsLanguageMenuOpen\(false\);[\s\S]*?persist\(\{[\s\S]*?theme: settingsThemePreference,[\s\S]*?language,[\s\S]*?performanceMode: settingsPerformanceMode,[\s\S]*?audioEnabled: audioSettings\.enabled,[\s\S]*?audioVolume: audioSettings\.volume,[\s\S]*?\}\);[\s\S]*?\};/,
   'language option clicks should update state, close the capsule menu, and persist immediately',
 );
 
@@ -172,7 +179,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchMenuBarSource,
   /settingsSummary=\{`\$\{workbenchCopy\.settings\.themeOptions\[settingsThemePreference\]\.label\} \/ \$\{workbenchCopy\.settings\.languageOptions\[settingsLanguagePreference\]\.label\} \/ \$\{workbenchCopy\.settings\.performanceModeSummary\[settingsPerformanceMode\]\}`\}/,
   'top-menu settings summary should display localized labels instead of internal preference keys',
 );
@@ -350,3 +357,8 @@ assert.match(
 );
 
 console.log('workbenchSettingsGeneral tests passed');
+
+assert.match(source, /useWorkbenchSettingsPreferences\(\{/, 'main composes the preferences owner');
+assert.match(preferencesSource, /createWorkbenchSettingsActions\(\{[\s\S]*persist: persistWorkbenchGeneralSettings/, 'preferences commands keep the existing persistence adapter');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);

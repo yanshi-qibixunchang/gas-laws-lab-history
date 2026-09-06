@@ -1,3 +1,5 @@
+const runtimeUseWorkbenchPistonDemoRuntimeSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonDemoRuntime.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,7 +41,7 @@ const acquisitionSource = readFileSync(
 );
 
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonDemoRuntimeSource,
   /window\.setInterval\(\(\) => \{[\s\S]*pistonOscillationDemoPlaybackChannel\.publish\([\s\S]*if \(!completed\) return;[\s\S]*setPistonOscillationDemoPlayback/,
   'the high-frequency Demo tick must avoid Workbench state updates until playback completes',
 );
@@ -49,3 +51,5 @@ for (const source of [instrumentSceneSource, acquisitionSource]) {
 }
 
 console.log('pistonOscillationDemoPlaybackChannel tests passed');
+
+assert.match(workbenchSource, /useWorkbenchPistonController\(/, 'the root must keep the singleton piston controller connected');

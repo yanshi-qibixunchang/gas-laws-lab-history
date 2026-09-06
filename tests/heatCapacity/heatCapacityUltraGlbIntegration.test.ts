@@ -1,3 +1,8 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchHeatCapacityModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityModeControl.tsx', import.meta.url), 'utf8');
+const projectionSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchPersistenceProjection.ts', import.meta.url), 'utf8');
+const collectionActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchFileCollectionActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -142,12 +147,12 @@ assert.match(
   'ordinary autosaves should refresh the semantic Ultra and hard-sphere checkpoint with debounce and bounded max wait',
 );
 assert.match(
-  workbenchSource,
+  collectionActionsSource,
   /const setWorkbenchFiles = [\s\S]*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);\s*scheduleWorkspacePersistenceRef\.current\('semantic'\);\s*setFiles/,
   'a semantic Heat Capacity state update should schedule scene capture before its bounded persistence debounce',
 );
 assert.match(
-  workbenchSource,
+  projectionSource,
   /const runtimeCheckpointAccepted =\s*scheduleWorkspacePersistenceRef\.current\('runtime-checkpoint'\);[\s\S]*runtimeCheckpointAccepted &&[\s\S]*activePersistenceFile\?\.kind === 'heatCapacity'[\s\S]*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);/,
   'continuous experiment refreshes should only schedule scene capture when the 15-second runtime checkpoint is accepted',
 );
@@ -1200,12 +1205,12 @@ assert.match(
   'Ultra GLB host body double-clicks should enter instrument focus without requiring the user to hit the small switch or knob',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityModeControlSource,
   /data-heat-capacity-mode="demo"[\s\S]*handleHeatCapacityModeSegmentClick\('demo'\)/,
   'Demo mode should start or restore directly now every quality profile supports teaching highlights',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityModeControlSource,
   /data-heat-capacity-mode="guide"[\s\S]*handleHeatCapacityModeSegmentClick\('guide'\)/,
   'Guide mode should start or restore directly now every quality profile supports teaching highlights',
 );
@@ -1216,3 +1221,5 @@ assert.doesNotMatch(
 );
 
 console.log('heatCapacityUltraGlbIntegration tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityModeControl \} from '\.\/WorkbenchHeatCapacityModeControl\.tsx';/);

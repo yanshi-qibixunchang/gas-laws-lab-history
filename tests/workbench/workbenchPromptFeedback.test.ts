@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchFileTabsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTabs.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityCenterFeedbackSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityCenterFeedback.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { PROMPT_FEEDBACK_COPY } from '../../src/components/prompts/promptFeedbackCopy.ts';
@@ -18,7 +22,6 @@ const viewportFeedbackControllerSource = readSource('src/components/prompts/prom
 const tooltipSource = readSource('src/components/prompts/PromptTooltipProvider.tsx');
 const tooltipStyles = readSource('src/components/prompts/PromptTooltipProvider.css');
 const appSource = readSource('src/app/App.tsx');
-const workbenchSource = readSource('src/features/workbench/WorkbenchStudioPrototype.tsx');
 const windowControlsSource = readSource('src/features/workbench/WorkbenchWindowControls.tsx');
 const workbenchStyles = readSource('src/features/workbench/WorkbenchStudioPrototype.css');
 const simulationCanvasSource = readSource('src/components/SimulationCanvas.tsx');
@@ -190,15 +193,15 @@ assert.match(simulationCanvasSource, /data-prompt-tooltip=\{t\.tooltips\.resetCa
 assert.match(buildNoticeSource, /<iframe[\s\S]*title=\{activeMaterial\.title\}/, 'embedded legal material should retain its semantic iframe title');
 assert.match(calculationWindowSource, /data-prompt-tooltip=\{disabled \? copy\.futureGroup : undefined\}/, 'disabled calculation actions should use the internal tooltip');
 assert.match(windowControlsSource, /data-prompt-tooltip=\{copy\.minimize\}/, 'desktop window controls should use the internal tooltip');
-assert.match(workbenchSource, /data-prompt-tooltip=\{file\.name\}/, 'file tabs should use the internal tooltip');
+assert.match(workbenchFileTabsSource, /data-prompt-tooltip=\{file\.name\}/, 'file tabs should use the internal tooltip');
 
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityCenterFeedbackSource,
   /data-heat-capacity-pressure-warning="true"[\s\S]*data-prompt-feedback-kind="danger"[\s\S]*data-prompt-feedback-persistent="true"[\s\S]*role="alert"/,
   'the pressure over-limit alarm should remain persistent and scoped inside the experiment viewport',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityCenterFeedbackSource,
   /data-heat-capacity-demo-complete-toast="true"[\s\S]*data-prompt-feedback-kind="success"[\s\S]*role="status"/,
   'teaching completion feedback should keep its viewport scope while sharing formal status semantics',
 );
@@ -216,3 +219,6 @@ assert.match(workbenchStyles, /\.studio-theme-light \.studio-heat-guide-step-hea
 assert.doesNotMatch(workbenchStyles, /\.studio-heat-guide-step-fade-(?:top|bottom)\s*\{[^}]*rgba\(15, 23, 42/, 'guide fades must not restore the obsolete darker navy band');
 
 console.log('workbenchPromptFeedback tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTabs \} from '\.\/WorkbenchFileTabs\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityCenterFeedback \} from '\.\/WorkbenchHeatCapacityCenterFeedback\.tsx';/);

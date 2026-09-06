@@ -1,3 +1,7 @@
+const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchIdealResultsRegionSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealResultsRegion.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -58,12 +62,12 @@ assert.match(
   'ideal child result window resize should measure the usable result window region, not the padded center workspace',
 );
 assert.match(
-  source,
+  layoutActionSource,
   /clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*IDEAL_RESULT_MAX_HEIGHT_RATIO\)/,
   'ideal child result window resize should clamp height between one-quarter and full workspace height',
 );
 assert.match(
-  source,
+  layoutActionSource,
   /createEditSnapshot\('resized ideal result window',\s*'presentation'\)[\s\S]*?pushUndoSnapshot\(snapshot\)/,
   'resizing an ideal child result window should enter undo history once with the pre-drag snapshot',
 );
@@ -74,7 +78,7 @@ assert.match(
   'ideal result window should expose a normal vertical resize affordance on its top edge',
 );
 assert.match(
-  source,
+  workbenchIdealResultsRegionSource,
   /className="studio-results-tabs studio-ideal-results-tabs"[\s\S]*?role="tablist"/,
   'ideal result window should render its tabs as the same full-width tab row used by standard Results',
 );
@@ -100,3 +104,5 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchIdealResultStacking tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealResultsRegion \} from '\.\/WorkbenchIdealResultsRegion\.tsx';/);

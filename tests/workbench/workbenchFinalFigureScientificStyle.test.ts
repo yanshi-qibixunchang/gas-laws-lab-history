@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchStandardResultsWindowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStandardResultsWindow.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -107,8 +110,10 @@ assert.match(
   'light theme should cover the scientific result chart styles',
 );
 
-assert.match(workbenchSource, /from '\.\/WorkbenchStandardFiguresPanel\.tsx'/);
-assert.match(workbenchSource, /<WorkbenchStandardFiguresPanel/);
+assert.match(workbenchStandardResultsWindowSource, /from '\.\/WorkbenchStandardFiguresPanel\.tsx'/);
+assert.match(workbenchStandardResultsWindowSource, /<WorkbenchStandardFiguresPanel/);
 assert.doesNotMatch(workbenchSource, /const renderFinalFigurePreview =/);
 
 console.log('workbenchFinalFigureScientificStyle tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchStandardResultsWindow \} from '\.\/WorkbenchStandardResultsWindow\.tsx';/);

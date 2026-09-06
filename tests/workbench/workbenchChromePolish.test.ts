@@ -1,3 +1,14 @@
+const registrySource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereRuntimeRegistry.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchFileTabsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTabs.tsx', import.meta.url), 'utf8');
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityPanelTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityPanelTree.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationPanelTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPanelTree.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const workbenchFileTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTree.tsx', import.meta.url), 'utf8');
+const workbenchPanelNavigationSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelNavigation.tsx', import.meta.url), 'utf8');
+const workbenchSectionTitleSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSectionTitle.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -59,7 +70,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchCenterWorkspaceSource,
   /<WorkbenchEmptyWorkspace/,
   'main empty workspace should offer opening cached experiments in addition to creating new ones',
 );
@@ -71,19 +82,19 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /<strong>\{workbenchCopy\.files\.noOpenFileState\}<\/strong>\s*<span>\{workbenchCopy\.files\.emptyHint\}<\/span>/,
   'left empty file section should use a dedicated current-state message instead of acting as a launcher',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /renderSectionTitle\(\s*isWorkbenchEmpty\s*\? workbenchCopy\.files\.panels/,
   'empty workbench panel section should keep a simple Panels title instead of repeating the no-open-files state',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /<span>\{workbenchCopy\.files\.noOpenPanelState\}<\/span>/,
   'left empty panel section should tell the user that panels appear after an experiment is opened',
 );
@@ -107,7 +118,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  registrySource,
   /lastOpenedAt: Date\.now\(\),/,
   'reopened cached files should refresh their true last-opened timestamp',
 );
@@ -136,8 +147,15 @@ assert.match(
   'cached-open entries should render as command rows, not boxed buttons',
 );
 
-assert.match(
-  source,
+assert.match(workbenchFileTreeSource,
+  /getWorkbenchFileKindLabel\(file\.kind, workbenchCopy\.files\)/,
+  'visible file kind suffixes should use the centralized localized label helper',
+);
+assert.match(workbenchFileTabsSource,
+  /getWorkbenchFileKindLabel\(file\.kind, workbenchCopy\.files\)/,
+  'visible file kind suffixes should use the centralized localized label helper',
+);
+assert.match(workbenchMenuBarSource,
   /getWorkbenchFileKindLabel\(file\.kind, workbenchCopy\.files\)/,
   'visible file kind suffixes should use the centralized localized label helper',
 );
@@ -239,7 +257,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /className=\{`studio-tree-row studio-file-row [\s\S]*?\$\{file\.id === activeFile\.id \? 'studio-file-row-active' : ''\}/,
   'left file rows should use a dedicated strong active-file class instead of the generic panel active class',
 );
@@ -256,20 +274,27 @@ assert.doesNotMatch(
   'obsolete brand, panel, settings, tree, and empty-workspace selectors should not remain in the shared stylesheet',
 );
 
-assert.match(
-  source,
+assert.match(workbenchHeatCapacityPanelTreeSource,
+  /className=\{`studio-tree-row studio-tree-row-child \$\{selectedPanel === panel\.key \? 'studio-panel-row-active' : ''\}`\}/,
+  'left panel rows should use a weaker secondary active-panel class',
+);
+assert.match(workbenchPistonOscillationPanelTreeSource,
+  /className=\{`studio-tree-row studio-tree-row-child \$\{selectedPanel === panel\.key \? 'studio-panel-row-active' : ''\}`\}/,
+  'left panel rows should use a weaker secondary active-panel class',
+);
+assert.match(workbenchPanelNavigationSource,
   /className=\{`studio-tree-row studio-tree-row-child \$\{selectedPanel === panel\.key \? 'studio-panel-row-active' : ''\}`\}/,
   'left panel rows should use a weaker secondary active-panel class',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /className=\{selectedPanel === childPanel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}/,
   'ideal result child rows should share the secondary panel active treatment',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /className=\{getStandardResultsTabState\(section\.key\) === 'active' && selectedPanel === 'results' \? 'studio-results-nav-active studio-panel-row-active' : ''\}/,
   'standard result child rows should share the secondary panel active treatment',
 );
@@ -382,26 +407,25 @@ assert.doesNotMatch(
   'light theme nested command submenus should not reintroduce a framed border',
 );
 
-assert.match(
-  source,
-  /const renderSectionTitle = \(\s*label: string,\s*collapsed: boolean,\s*onToggle: \(\) => void,\s*kind: 'files' \| 'panels' = 'files',\s*\) =>/,
-  'left tree section headings should distinguish true file sections from panel sections',
-);
+assert.match(workbenchSectionTitleSource, /kind\?: \"files\" \| \"panels\";[\s\S]*kind = 'files'/, "left tree section headings should distinguish true file sections from panel sections");
 
 assert.match(
-  source,
+  workbenchSectionTitleSource,
   /kind === 'panels' \? <PanelLeft size=\{14\} \/> : \(\s*<span className="studio-tree-folder-icon">/,
   'Panels section should use a panel/layout icon instead of the same open-folder icon as real files',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /renderSectionTitle\(\s*isWorkbenchEmpty\s*\?\s*workbenchCopy\.files\.panels[\s\S]*?'panels',?\s*\)/,
   'Panels section heading should opt into panel semantics',
 );
 
-assert.match(
-  source,
+assert.match(workbenchPistonOscillationPanelTreeSource,
+  /<span className="studio-results-expander-icon">[\s\S]*?<ChevronRight size=\{13\} \/>[\s\S]*?<span className="studio-results-folder-label">/,
+  'panel-internal expandable groups should use chevron disclosure instead of folder open/closed icons',
+);
+assert.match(workbenchPanelNavigationSource,
   /<span className="studio-results-expander-icon">[\s\S]*?<ChevronRight size=\{13\} \/>[\s\S]*?<span className="studio-results-folder-label">/,
   'panel-internal expandable groups should use chevron disclosure instead of folder open/closed icons',
 );
@@ -449,3 +473,15 @@ assert.match(
 );
 
 console.log('workbenchChromePolish tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelNavigation \} from '\.\/WorkbenchPanelNavigation\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSectionTitle \} from '\.\/WorkbenchSectionTitle\.tsx';/);
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTabs \} from '\.\/WorkbenchFileTabs\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityPanelTree \} from '\.\/WorkbenchHeatCapacityPanelTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPanelTree \} from '\.\/WorkbenchPistonOscillationPanelTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelNavigation \} from '\.\/WorkbenchPanelNavigation\.tsx';/);

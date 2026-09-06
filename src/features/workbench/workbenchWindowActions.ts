@@ -586,7 +586,19 @@ export const createWorkbenchWindowActions = (ports: WorkbenchWindowActionPorts) 
     return selectStandardResultsTabState(activeFile, tab);
   };
 
+  const toggleHeatCapacityMaterialsExpanded = () => {
+    updateActiveFile(file => file.kind === 'heatCapacity'
+      ? { ...file, heatCapacityMaterialsExpanded: !file.heatCapacityMaterialsExpanded, updatedAt: Date.now() }
+      : file);
+  };
+  const togglePistonOscillationMaterialsExpanded = () => {
+    updateActiveFile(file => file.kind === 'heatCapacityPistonOscillation'
+      ? { ...file, pistonOscillationMaterialsExpanded: !file.pistonOscillationMaterialsExpanded, updatedAt: Date.now() }
+      : file);
+  };
+
   return {
+    toggleHeatCapacityMaterialsExpanded, togglePistonOscillationMaterialsExpanded,
     handleLockedPanel,
     setActiveIdealResultTab,
     openIdealResultTab,

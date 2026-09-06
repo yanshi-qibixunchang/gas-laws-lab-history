@@ -287,11 +287,15 @@ assert.match(
   'the deferred fresh-Demo transaction must register its timeline and clock as one commit resource',
 );
 
-assert.equal(
-  [...workbenchSource.matchAll(/releaseHeatCapacityRuntimeForFileExit\(/g)].length,
-  3,
-  'file-exit cleanup should remain owned only by navigation, close, and delete call sites',
-);
+const fileActionSource = readSource('src/features/workbench/workbenchFileActions.ts');
+assert.equal([...workbenchSource.matchAll(/releaseHeatCapacityRuntimeForFileExit\(/g)].length, 2,
+  'the shell retains navigation cleanup and one forwarding file-action port');
+assert.match(workbenchSource, /releaseHeatCapacityRuntimeForFileExit: \(fileId\) => releaseHeatCapacityRuntimeForFileExit\(fileId\)/);
+assert.equal([...fileActionSource.matchAll(/releaseHeatCapacityRuntimeForFileExit\(/g)].length, 2,
+  'file actions retain exactly the inactive-close and inactive-delete cleanup sites');
+assert.match(fileActionSource, /const closeWorkbenchFile = [\s\S]*?file\.kind === 'heatCapacity' && !isClosingActiveFile\) releaseHeatCapacityRuntimeForFileExit\(fileId\)/);
+assert.match(fileActionSource, /const deleteWorkbenchFile = [\s\S]*?file\.kind === 'heatCapacity' && !deletingActiveFile\) \{\s*releaseHeatCapacityRuntimeForFileExit\(fileId\)/);
+
 const navigationSuspendSection = sourceBetween(
   workbenchSource,
   'const suspendActiveHeatCapacityModeForNavigation = () => {',

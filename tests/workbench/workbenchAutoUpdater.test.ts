@@ -1,3 +1,5 @@
+const updaterControllerSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchUpdaterController.ts', import.meta.url), 'utf8');
+const updaterActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchUpdaterActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -167,21 +169,21 @@ assert.ok(electronTypes.includes("hardSphereLabUpdater?: {"), 'desktop TypeScrip
 assert.ok(electronTypes.includes('openManualDownload'), 'desktop TypeScript declarations should type the manual download bridge');
 
 assert.doesNotMatch(source, /interface WorkbenchDesktopUpdaterBridge/, 'workbench should rely on the shared desktop bridge declaration instead of duplicating it locally');
-assert.ok(source.includes('const [updateDialogOpen, setUpdateDialogOpen]'), 'workbench should keep dialog visibility separate from the authoritative updater state');
-assert.ok(source.includes('const updateDialogState = updateDialogOpen ? updaterState : null;'), 'the update dialog should render directly from the authoritative updater state');
+assert.ok(updaterControllerSource.includes('const [updateDialogOpen, setUpdateDialogOpen]'), 'workbench should keep dialog visibility separate from the authoritative updater state');
+assert.ok(updaterControllerSource.includes('const updateDialogState = updateDialogOpen ? updaterState : null;'), 'the update dialog should render directly from the authoritative updater state');
 assert.ok(updaterModule.includes("WORKBENCH_IGNORED_UPDATE_VERSION_KEY = 'hslIgnoredUpdateVersion'"), 'updater boundary should own the ignored-version storage key');
-assert.ok(source.includes('WORKBENCH_IGNORED_UPDATE_VERSION_KEY'), 'workbench should persist ignored update versions through the updater boundary');
-assert.ok(source.includes('window.hardSphereLabUpdater?.checkForUpdates'), 'About > Check for Updates should call the desktop update bridge');
-assert.ok(source.includes('window.hardSphereLabUpdater?.downloadUpdate'), 'update dialog should start downloads through the desktop bridge');
-assert.ok(source.includes('window.hardSphereLabUpdater?.quitAndInstall'), 'downloaded updates should offer restart-and-install');
-assert.ok(source.includes('window.hardSphereLabUpdater?.openManualDownload'), 'failed updates should offer the direct manual installer download');
+assert.ok(updaterControllerSource.includes('WORKBENCH_IGNORED_UPDATE_VERSION_KEY'), 'workbench should persist ignored update versions through the updater boundary');
+assert.ok(updaterActionsSource.includes('readUpdaterBridge()?.checkForUpdates'), 'About > Check for Updates should call the desktop update bridge');
+assert.ok(updaterActionsSource.includes('readUpdaterBridge()?.downloadUpdate'), 'update dialog should start downloads through the desktop bridge');
+assert.ok(updaterActionsSource.includes('readUpdaterBridge()?.quitAndInstall'), 'downloaded updates should offer restart-and-install');
+assert.ok(updaterActionsSource.includes('readUpdaterBridge()?.openManualDownload'), 'failed updates should offer the direct manual installer download');
 assert.match(
-  source,
-  /nextState\.status === 'error' && hasDesktopUpdaterBridge\(\)/,
+  updaterActionsSource,
+  /nextState\.status === 'error' && hasUpdaterBridge\(\)/,
   'a first update-check failure must still open the recovery dialog because the desktop bridge has a trusted latest-release fallback',
 );
 assert.match(
-  source,
+  updaterActionsSource,
   /isWorkbenchUpdateCheckFailure\(updateDialogState\)[\s\S]*setUpdateDialogOpen\(false\);[\s\S]*runAboutUpdateCheck\(\);/,
   'retrying any update-check failure must rerun discovery even when an earlier not-available result left stale metadata',
 );
@@ -191,7 +193,7 @@ assert.match(
   'renderer updater state should preserve release identity and structured notes across partial events',
 );
 assert.match(
-  source,
+  updaterActionsSource,
   /setUpdaterState\(\(currentState\) => mergeWorkbenchUpdateState\(nextState, currentState\)\)/,
   'renderer should merge partial downloading and retrying events into one authoritative updater state',
 );
@@ -259,3 +261,7 @@ for (const scriptName of ['desktop:installer', 'desktop:portable']) {
 }
 
 console.log('workbenchAutoUpdater tests passed');
+
+assert.match(source, /useWorkbenchUpdaterController\(\{/, 'main installs the single updater owner');
+assert.match(updaterControllerSource, /readUpdaterBridge: \(\) => window\.hardSphereLabUpdater/, 'commands read the live desktop bridge');
+assert.match(updaterControllerSource, /onStatus\?\.\([\s\S]*actions\.applyUpdaterState\(state\)[\s\S]*if \(unsubscribe\) unsubscribe\(\)/, 'status listener releases its own subscription');

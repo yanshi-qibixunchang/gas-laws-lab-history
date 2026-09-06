@@ -1,643 +1,255 @@
+import { buildNoticeLegalMaterialFiles } from './workbenchBuildNoticeContent.ts';
+import { useWorkbenchExportEnvironment } from './useWorkbenchExportEnvironment.ts';
+import { useWorkbenchExportController } from './useWorkbenchExportController.ts';
+import { createWorkbenchHardSphereRuntimeRegistry, snapshotParticles } from './workbenchHardSphereRuntimeRegistry.ts';
+import { createWorkbenchHardSphereFrameLoop } from './workbenchHardSphereFrameLoop.ts';
+import { createWorkbenchExperimentRunActions } from './workbenchExperimentRunActions.ts';
+import { useWorkbenchHardSphereRuntimeInitialization } from './useWorkbenchHardSphereRuntimeInitialization.ts';
+import { useWorkbenchAuxiliaryWindows } from './useWorkbenchAuxiliaryWindows.ts';
+import { WorkbenchMenuBar } from './WorkbenchMenuBar.tsx';
+import { WorkbenchPanelContent } from './WorkbenchPanelContent.tsx';
+import { WorkbenchRealtimeBoundary } from './WorkbenchRealtimeBoundary.tsx';
+import { WorkbenchCurrentParameters } from './WorkbenchCurrentParameters.tsx';
+import { WorkbenchCenterWorkspace } from './WorkbenchCenterWorkspace.tsx';
+import { WorkbenchFileSidebar } from './WorkbenchFileSidebar.tsx';
+import { WorkbenchHeatCapacityModeControl } from './WorkbenchHeatCapacityModeControl.tsx';
+import { useWorkbenchUpdaterController } from './useWorkbenchUpdaterController.ts';
+import { WorkbenchPistonOscillationPreview } from './WorkbenchPistonOscillationPreview.tsx';
+import { WorkbenchPistonOscillationRealtime } from './WorkbenchPistonOscillationRealtime.tsx';
+import { WorkbenchHeatCapacityDemoSteps } from './WorkbenchHeatCapacityDemoSteps.tsx';
+import { WorkbenchHeatCapacityGuideSteps } from './WorkbenchHeatCapacityGuideSteps.tsx';
+import { WorkbenchHeatCapacityWaitOverlay } from './WorkbenchHeatCapacityWaitOverlay.tsx';
+import { WorkbenchHeatCapacityRecordControls } from './WorkbenchHeatCapacityRecordControls.tsx';
+import { WorkbenchHeatCapacityCenterFeedback } from './WorkbenchHeatCapacityCenterFeedback.tsx';
+import { WorkbenchHeatCapacityPreheatLock } from './WorkbenchHeatCapacityPreheatLock.tsx';
+import { WorkbenchHeatCapacityStrongMask } from './WorkbenchHeatCapacityStrongMask.tsx';
+import { WorkbenchHeatCapacityGuideMask } from './WorkbenchHeatCapacityGuideMask.tsx';
+import { WorkbenchHeatCapacityGuideLesson } from './WorkbenchHeatCapacityGuideLesson.tsx';
+import { WorkbenchPistonOscillationModeControl } from './WorkbenchPistonOscillationModeControl.tsx';
+import { WorkbenchPistonOscillationGuideSteps } from './WorkbenchPistonOscillationGuideSteps.tsx';
+import { WorkbenchPistonOscillationGuideLesson } from './WorkbenchPistonOscillationGuideLesson.tsx';
+import { WorkbenchHeatCapacityRealtimeReadings } from './WorkbenchHeatCapacityRealtimeReadings.tsx';
+import { WorkbenchStandardResultsWindow } from './WorkbenchStandardResultsWindow.tsx';
+import { WorkbenchFileTree } from './WorkbenchFileTree.tsx';
+import { WorkbenchPanelNavigation } from './WorkbenchPanelNavigation.tsx';
+import { WorkbenchFileTabs } from './WorkbenchFileTabs.tsx';
+import { useWorkbenchSettingsPreferences } from './useWorkbenchSettingsPreferences.ts';
+import { WorkbenchParameterSymbol } from './WorkbenchParameterSymbol.tsx';
+import { WorkbenchSimulationParameterHelp } from './WorkbenchSimulationParameterHelp.tsx';
+import { WorkbenchSimulationParameterRow } from './WorkbenchSimulationParameterRow.tsx';
+import { WorkbenchHeatCapacityParameterHelp } from './WorkbenchHeatCapacityParameterHelp.tsx';
+import { WorkbenchHeatCapacityParameterLabel } from './WorkbenchHeatCapacityParameterLabel.tsx';
+import { WorkbenchHeatCapacityNumberParameterRow } from './WorkbenchHeatCapacityNumberParameterRow.tsx';
+import { WorkbenchHeatCapacityCheckboxParameterRow } from './WorkbenchHeatCapacityCheckboxParameterRow.tsx';
+import { WorkbenchHeatCapacityGasParameterRow } from './WorkbenchHeatCapacityGasParameterRow.tsx';
+import { WorkbenchHeatCapacityBasicParameters } from './WorkbenchHeatCapacityBasicParameters.tsx';
+import { WorkbenchHeatCapacityParameters } from './WorkbenchHeatCapacityParameters.tsx';
+import { WorkbenchHeatCapacityAdvancedParameters } from './WorkbenchHeatCapacityAdvancedParameters.tsx';
+import { WorkbenchIdealControls } from './WorkbenchIdealControls.tsx';
+import { createWorkbenchLayoutActions } from './workbenchLayoutActions.ts';
+import { createWorkbenchParameterScrollActions, useWorkbenchParameterScroll } from './useWorkbenchParameterScroll.ts';
+import { LEFT_SIDEBAR_MIN, LEFT_SIDEBAR_MAX, PARAM_SIDEBAR_MIN, PARAM_SIDEBAR_MAX } from './workbenchLayoutConstants.ts';
+import { useWorkbenchPersistenceProjection } from './useWorkbenchPersistenceProjection.ts';
+import { createWorkbenchIdealExperimentActions } from './workbenchIdealExperimentActions.ts';
+import { useWorkbenchWorkspacePersistenceScheduler } from './useWorkbenchWorkspacePersistenceScheduler.ts';
+import { createWorkbenchParameterActions } from './workbenchParameterActions.ts';
+import { getChangedIdealParamKeys } from './workbenchIdealParameterState.ts';
+import { WorkbenchHeatCapacityPanelTree } from './WorkbenchHeatCapacityPanelTree.tsx';
+import { WorkbenchPistonOscillationPanelTree } from './WorkbenchPistonOscillationPanelTree.tsx';
+import { createWorkbenchFileCollectionActions } from './workbenchFileCollectionActions.ts';
+import { useWorkbenchPistonController } from './useWorkbenchPistonController.ts';
+import { GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS, GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS, HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS, HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS, HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE, HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS } from './workbenchTeachingUiTiming.ts';
+import { useWorkbenchFileMenuInteractions, useWorkbenchRenameFocus } from './useWorkbenchFileMenuInteractions.ts';
+import { WorkbenchConsole } from './WorkbenchConsole.tsx';
+import { WorkbenchStatusBar } from './WorkbenchStatusBar.tsx';
+import { createWorkbenchFileActions } from './workbenchFileActions.ts';
+import { createWorkbenchFileRenameActions } from './workbenchFileRenameActions.ts';
+import type { StandardEngineRuntime } from './workbenchSimulationRuntimeTypes.ts';
+import { WorkbenchDockHeader } from './WorkbenchDockHeader.tsx';
+import { WorkbenchDockPanel } from './WorkbenchDockPanel.tsx';
+import { WorkbenchIdealResultsRegion } from './WorkbenchIdealResultsRegion.tsx';
+import { WorkbenchHeatCapacityMaterialsWindow } from './WorkbenchHeatCapacityMaterialsWindow.tsx';
+import { WorkbenchSectionTitle } from './WorkbenchSectionTitle.tsx';
+import { useWorkbenchInitialWorkspace } from './useWorkbenchInitialWorkspace.ts';
+import { normalizeWorkbenchInitialFiles } from './workbenchInitialFilePresentation.ts';
 import { createWorkbenchWorkspaceSnapshotCapture, createWorkbenchWorkspacePersistenceRequests } from './workbenchWorkspacePersistenceActions.ts';
 import { createWorkbenchWindowActions } from './workbenchWindowActions.ts';
 import { createExperimentTutorialRuntimeFile, type TutorialOrdinaryWorkspace, mergeArchivedNamespacesIntoTutorialWorkspace } from './workbenchExperimentTutorialWorkspace.ts';
 import { type HeatCapacityGuideLessonDialogState, type HeatCapacityGuideLessonView, HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS, getHeatCapacityGuideChecklistIndex, HEAT_CAPACITY_GUIDE_LESSON_TRIGGER_BY_COMPLETED_STEP, getHeatCapacityGuideStrongTargetSpec } from './workbenchHeatCapacityGuidePresentation.ts';
 import { type ConsoleLog, createInitialLogs, type ConsoleTab, type LogKind, createConsoleLog } from './workbenchConsolePresentation.ts';
 import { createExperimentTutorialLogs, type ExperimentTutorialNoticeKind, EXPERIMENT_TUTORIAL_COPY } from './workbenchExperimentTutorialPresentation.ts';
-import { hasDesktopExportBridge, hasDesktopUpdaterBridge, hasDesktopLegalReadBridge, hasDesktopLegalBridge, getAboutEnvironmentResultBody, isExportEnvironmentAvailableStatus, getFreshWorkbenchWindowUrl, WORKBENCH_USER_GUIDE_URLS, getAboutEnvironmentStatusLabel } from './workbenchDesktopCapabilities.ts';
-import { type PistonOscillationGuideFeedbackState, type PistonOscillationGuidePressureIssue, type PistonOscillationGuideLessonDialogState, type PistonOscillationGuideLessonView, type PistonOscillationGuideCompletionToastState, type PistonOscillationGuideFeedbackSource, getPistonOscillationGuideReminderText, getPistonOscillationGuideGuardFeedbackText } from './workbenchPistonGuidePresentation.ts';
-import { type PistonOscillationGuideStrongMaskLayout, getPistonOscillationGuideStrongDimPath } from './workbenchPistonGuideMaskGeometry.ts';
+import { hasDesktopUpdaterBridge, hasDesktopLegalReadBridge, hasDesktopLegalBridge, isExportEnvironmentAvailableStatus, getFreshWorkbenchWindowUrl, WORKBENCH_USER_GUIDE_URLS, getAboutEnvironmentStatusLabel } from './workbenchDesktopCapabilities.ts';
+
+
 import { type HeatCapacityGuideStrongCutout, createHeatCapacityGuideStrongDimPath } from './workbenchHeatCapacityGuideMaskGeometry.ts';
-import { getHeatCapacityFreeParameterLockMessage, getLocalizedWorkbenchValidationErrors, getWorkbenchParameterDisplayLabel, type WorkbenchParameterSymbolPart, getWorkbenchParameterDetail, getWorkbenchParameterDisplayUnit } from './workbenchParameterPresentation.ts';
+import { getHeatCapacityFreeParameterLockMessage, getLocalizedWorkbenchValidationErrors, type WorkbenchParameterSymbolPart } from './workbenchParameterPresentation.ts';
 import { createStandardPanels, createIdealPanels, createHeatCapacityPanels, createPistonOscillationPanels, createResultsSections, type PanelDefinition, getLocalizedWorkbenchPanelTitle } from './workbenchPanelDefinitions.tsx';
-import { getPistonOscillationGuideStrongMaskLayout } from './workbenchPistonGuideMaskDom.ts';
-import { renderScientificText, renderHeatCapacityParameterSymbol } from './WorkbenchScientificText.tsx';
+
+import { renderScientificText } from './WorkbenchScientificText.tsx';
 import { LOCKED_PANEL_KEYS } from './workbenchPanelAvailability.ts';
 import { getLocalizedWorkbenchEditLabel } from './workbenchEditLabelLocalization.ts';
 import { isEditableElement } from './workbenchEditableTarget.ts';
 import { getHeatCapacityGuideStrongCutouts } from './workbenchHeatCapacityGuideMaskDom.ts';
-import { renderHeatCapacityGuideStrongCutoutOutline } from './WorkbenchGuideCutoutOutline.tsx';
+
 import { SHARED_EXPERIMENT_PROGRESS_COPY } from './workbenchExperimentProgressCopy.ts';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { Activity, ChevronDown, ChevronRight, Download, FileArchive, FlaskConical, Folder, FolderOpen, Gauge, LockKeyhole, LogOut, MoreHorizontal, PanelLeft, Pause, Pencil, Play, RotateCcw, ShieldAlert, Square, Trash2, Wrench, X } from 'lucide-react';
+
 import { createPortal } from 'react-dom';
-import type { ExperimentRelation, IdealGasExperimentPoint, Particle, SimulationParams } from '../../shared/types';
-import { PhysicsEngine, type PhysicsEngineSnapshotV2 } from '../../domain/hardSphere/PhysicsEngine';
+import type { SimulationParams } from '../../shared/types';
+
 import { translations } from '../../i18n/translations';
 import SimulationCanvas from '../../components/SimulationCanvas';
-import {
-  PromptConfirmDialog,
-  type PromptConfirmationRequest,
-  usePromptConfirmation,
-} from '../../components/prompts/PromptConfirmDialog.tsx';
-import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
-import {
-  PromptForcedNoticeDialog,
-  PromptNoticeDialog,
-  type PromptForcedNoticeRequest,
-  type PromptNoticeRequest,
-} from '../../components/prompts/PromptNoticeDialog.tsx';
-import {
-  PromptToastRegion,
-  type PromptToastMessage,
-} from '../../components/prompts/PromptFeedback.tsx';
-import { PromptViewportFeedback } from '../../components/prompts/PromptViewportFeedback.tsx';
+import { PromptConfirmDialog, type PromptConfirmationRequest, usePromptConfirmation } from '../../components/prompts/PromptConfirmDialog.tsx';
+
+import { PromptForcedNoticeDialog, PromptNoticeDialog, type PromptForcedNoticeRequest, type PromptNoticeRequest } from '../../components/prompts/PromptNoticeDialog.tsx';
+import { PromptToastRegion, type PromptToastMessage } from '../../components/prompts/PromptFeedback.tsx';
+
 import { PROMPT_FEEDBACK_COPY } from '../../components/prompts/promptFeedbackCopy.ts';
-import {
-  PROMPT_TOAST_DURATION_MS,
-  type PromptFeedbackKind,
-} from '../../components/prompts/promptFeedbackPolicy.ts';
-import { createPromptViewportFeedbackMessage, resolvePromptViewportFeedbackAdvance, resolvePromptViewportFeedbackShow } from '../../components/prompts/promptViewportFeedbackController.ts';
-import {
-  adjustHeatCapacityPressureZeroCoarse,
-  adjustHeatCapacityPressureZeroFine,
-  setHeatCapacityPressureZeroOffset,
-} from './workbenchHeatCapacityCalibrationCoordinator.ts';
-import {
-  acknowledgeHeatCapacityFreeFileNoticeWorkbenchState,
-  createDefaultHeatCapacityFile,
-  normalizeHeatCapacityFileName,
-} from './workbenchHeatCapacityFileFactory.ts';
-import {
-  restartHeatCapacityFreeBatchWorkbenchState,
-  restartCurrentHeatCapacityFreeExperimentWorkbenchState,
-  prepareNextHeatCapacityFreeExperimentWorkbenchState,
-} from './workbenchHeatCapacityFreeGroupLifecycle.ts';
-import {
-  selectHeatCapacityFreeAppliedParameterDraft,
-  selectHeatCapacityFreeGasType,
-} from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
-import {
-  areWorkbenchParamsEqual,
-  getWorkbenchParameterRows,
-  validateWorkbenchParams,
-  type WorkbenchParameterRow,
-} from './workbenchParameterState.ts';
-import type {
-  WorkbenchFileState,
-} from './workbenchFileUnion.ts';
-import {
-  selectWorkbenchPistonOscillationViewState,
-} from './workbenchPistonOscillationViewState.ts';
-import {
-  applyHeatCapacityGuideRecordWorkbenchState,
-  getHeatCapacityGuideRecordButtonState,
-  setHeatCapacityGuideEquilibriumSpeedMultiplier,
-  setHeatCapacityGuidePumpValveOpen,
-  setHeatCapacityGuideStopcockOpen,
-} from './workbenchHeatCapacityGuideControlState.ts';
-import {
-  completeHeatCapacityTeachingModeWorkbenchState,
-} from './workbenchHeatCapacityTeachingResultState.ts';
-import {
-  completeHeatCapacityFreePreheatWorkbenchState,
-  completeHeatCapacityGuidePreheatWorkbenchState,
-  isHeatCapacityFreePreheatRequired,
-  prepareHeatCapacityAutoDemoReset,
-  prepareHeatCapacityAutoDemoStart,
-  startHeatCapacityGuideWorkbenchState,
-} from './workbenchHeatCapacityTeachingLifecycleState.ts';
-import {
-  captureHeatCapacityWorkbenchSample,
-  powerHeatCapacityWorkbenchFile,
-  refreshHeatCapacityPumpFrequency,
-  registerHeatCapacityPumpStroke,
-  setHeatCapacityScriptedPumpValveOpen,
-  setHeatCapacityScriptedStopcockOpen,
-  shouldCommitHeatCapacityRealtimeTick,
-  stepHeatCapacityWorkbenchFile,
-} from './workbenchHeatCapacityRuntimeCoordinator.ts';
-import {
-  deriveHeatCapacityFreeWorkbenchAttemptWaitTimer,
-  dismissHeatCapacityFreeInvalidAttemptPromptWorkbenchState,
-  evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState,
-  getHeatCapacityFreeDisplayPhase,
-} from './workbenchHeatCapacityFreeAttemptState.ts';
-import {
-  applyHeatCapacityFreeRecordWorkbenchState,
-  getHeatCapacityFreeRecordButtonState,
-} from './workbenchHeatCapacityFreeRecordState.ts';
-import {
-  removeHeatCapacityFreeTrialRecordWorkbenchState,
-} from './workbenchHeatCapacityFreeRollbackState.ts';
-import {
-  selectActiveHeatCapacityWorkbenchDisplay,
-} from './workbenchHeatCapacityDisplayState.ts';
-import {
-  setHeatCapacityFreeEquilibriumSpeedMultiplier,
-  setHeatCapacityFreePumpValveOpen,
-  setHeatCapacityFreeStopcockOpen,
-} from './workbenchHeatCapacityFreeRuntimeCoordinator.ts';
-import {
-  completeHeatCapacityCalculationWorkflowWorkbenchState,
-  continueHeatCapacityCalculationAnswerWorkbenchState,
-  getHeatCapacityCalculationSession,
-  revealHeatCapacityCalculationAnswerWorkbenchState,
-  selectHeatCapacityCalculationAggregateWorkbenchState,
-  selectHeatCapacityCalculationGroupWorkbenchState,
-  submitHeatCapacityCalculationStepWorkbenchState,
-  updateHeatCapacityCalculationDraftWorkbenchState,
-} from './workbenchHeatCapacityCalculationCoordinator.ts';
-import {
-  applyHeatCapacityFreeParameterDraftWorkbenchState,
-  canOpenHeatCapacityParameterSidebar,
-  freezeHeatCapacityFreeParametersForCurrentGroup,
-  getHeatCapacityFreeParameterLockReason,
-  getHeatCapacityParameterSidebarBlockReason,
-  hasCompletedHeatCapacityFreeRecordSet,
-  isHeatCapacityFreeGasTypeEditingAvailable,
-  resetHeatCapacityFreeParametersToDefaultWorkbenchState,
-  shouldPromptHeatCapacityFreePowerOffBeforeNextGroup,
-} from './workbenchHeatCapacityFreeParameterState.ts';
-import {
-  getActiveHeatCapacityFreeTrialIndex,
-} from './workbenchHeatCapacityFreeTrialState.ts';
-import {
-  abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState,
-  configureHeatCapacityFreeBatchWorkbenchState,
-  getHeatCapacityFreeBatchProgress,
-  isHeatCapacityFreeExperimentStarted,
-  selectHeatCapacityFreeViewedExperimentGroupWorkbenchState,
-  selectHeatCapacityFreeViewedTrialWorkbenchState,
-  setHeatCapacityFreeParameterSchemeWorkbenchState,
-} from './workbenchHeatCapacityFreeExperimentGroupState.ts';
-import {
-  HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV,
-  canZeroHeatCapacityPressure,
-  getHeatCapacityPressureThresholdsMv,
-  getHeatCapacityPressureZeroKnobAngleForOffset,
-  getHeatCapacityPumpFrequencyState,
-  getHeatCapacityStopcockState,
-  getHeatCapacityStopcockTargetAngle,
-  isHeatCapacityPhysicalKernelMode,
-  isHeatCapacityPressureZeroWithinTolerance,
-} from './workbenchHeatCapacityInstrumentState.ts';
-import type {
-  HeatCapacityFreeDisplayScheme,
-  HeatCapacityMode,
-  WorkbenchHeatCapacityState,
-} from './workbenchHeatCapacityStateTypes.ts';
-import type {
-  WorkbenchFileKind,
-} from './workbenchFileKind.ts';
-import { WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO, WORKBENCH_LIVE_SPLIT_MAX_RATIO, WORKBENCH_LIVE_SPLIT_MIN_RATIO, clampWorkbenchLiveSplitRatio, cloneParams, createDefaultIdealFile, createDefaultIdealWindowLayout, createDefaultStandardFile, createDefaultStandardResultsLayout, type WorkbenchExportEnvironmentStatus, type WorkbenchHeatCapacityTabId, type WorkbenchIdealResultWindowKey, type WorkbenchIdealState, type WorkbenchPanelKey, type WorkbenchRunState } from './workbenchFileState.ts';
-import {
-  commitPistonOscillationGuideParameterWorkbenchState,
-  createDefaultHeatCapacityPistonOscillationFile,
-  editPistonOscillationGuideParameterWorkbenchState,
-  startPistonOscillationFreeWorkbenchState,
-  startPistonOscillationGuideWorkbenchState,
-  transitionPistonOscillationFreeWorkbenchState,
-  transitionPistonOscillationGuideWorkbenchState,
-} from './workbenchPistonOscillationState.ts';
-import { WORKBENCH_TRACKED_PARAMETER_KEYS, assignWorkbenchParameterValue } from './workbenchParameterRegistry.ts';
+import { PROMPT_TOAST_DURATION_MS } from '../../components/prompts/promptFeedbackPolicy.ts';
+import { adjustHeatCapacityPressureZeroCoarse, adjustHeatCapacityPressureZeroFine, setHeatCapacityPressureZeroOffset } from './workbenchHeatCapacityCalibrationCoordinator.ts';
+import { acknowledgeHeatCapacityFreeFileNoticeWorkbenchState, createDefaultHeatCapacityFile } from './workbenchHeatCapacityFileFactory.ts';
+import { restartHeatCapacityFreeBatchWorkbenchState, restartCurrentHeatCapacityFreeExperimentWorkbenchState, prepareNextHeatCapacityFreeExperimentWorkbenchState } from './workbenchHeatCapacityFreeGroupLifecycle.ts';
+import { selectHeatCapacityFreeAppliedParameterDraft, selectHeatCapacityFreeGasType } from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
+import { areWorkbenchParamsEqual, getWorkbenchParameterRows, type WorkbenchParameterRow } from './workbenchParameterState.ts';
+import type { WorkbenchFileState } from './workbenchFileUnion.ts';
+
+import { applyHeatCapacityGuideRecordWorkbenchState, getHeatCapacityGuideRecordButtonState, setHeatCapacityGuideEquilibriumSpeedMultiplier, setHeatCapacityGuidePumpValveOpen, setHeatCapacityGuideStopcockOpen } from './workbenchHeatCapacityGuideControlState.ts';
+import { completeHeatCapacityTeachingModeWorkbenchState } from './workbenchHeatCapacityTeachingResultState.ts';
+import { completeHeatCapacityFreePreheatWorkbenchState, completeHeatCapacityGuidePreheatWorkbenchState, isHeatCapacityFreePreheatRequired, prepareHeatCapacityAutoDemoReset, prepareHeatCapacityAutoDemoStart, startHeatCapacityGuideWorkbenchState } from './workbenchHeatCapacityTeachingLifecycleState.ts';
+import { captureHeatCapacityWorkbenchSample, powerHeatCapacityWorkbenchFile, refreshHeatCapacityPumpFrequency, registerHeatCapacityPumpStroke, setHeatCapacityScriptedPumpValveOpen, setHeatCapacityScriptedStopcockOpen, shouldCommitHeatCapacityRealtimeTick, stepHeatCapacityWorkbenchFile } from './workbenchHeatCapacityRuntimeCoordinator.ts';
+import { deriveHeatCapacityFreeWorkbenchAttemptWaitTimer, dismissHeatCapacityFreeInvalidAttemptPromptWorkbenchState, evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState, getHeatCapacityFreeDisplayPhase } from './workbenchHeatCapacityFreeAttemptState.ts';
+import { applyHeatCapacityFreeRecordWorkbenchState, getHeatCapacityFreeRecordButtonState } from './workbenchHeatCapacityFreeRecordState.ts';
+import { removeHeatCapacityFreeTrialRecordWorkbenchState } from './workbenchHeatCapacityFreeRollbackState.ts';
+import { selectActiveHeatCapacityWorkbenchDisplay } from './workbenchHeatCapacityDisplayState.ts';
+import { setHeatCapacityFreeEquilibriumSpeedMultiplier, setHeatCapacityFreePumpValveOpen, setHeatCapacityFreeStopcockOpen } from './workbenchHeatCapacityFreeRuntimeCoordinator.ts';
+import { completeHeatCapacityCalculationWorkflowWorkbenchState, continueHeatCapacityCalculationAnswerWorkbenchState, getHeatCapacityCalculationSession, revealHeatCapacityCalculationAnswerWorkbenchState, selectHeatCapacityCalculationAggregateWorkbenchState, selectHeatCapacityCalculationGroupWorkbenchState, submitHeatCapacityCalculationStepWorkbenchState, updateHeatCapacityCalculationDraftWorkbenchState } from './workbenchHeatCapacityCalculationCoordinator.ts';
+import { applyHeatCapacityFreeParameterDraftWorkbenchState, canOpenHeatCapacityParameterSidebar, freezeHeatCapacityFreeParametersForCurrentGroup, getHeatCapacityFreeParameterLockReason, getHeatCapacityParameterSidebarBlockReason, hasCompletedHeatCapacityFreeRecordSet, isHeatCapacityFreeGasTypeEditingAvailable, resetHeatCapacityFreeParametersToDefaultWorkbenchState, shouldPromptHeatCapacityFreePowerOffBeforeNextGroup } from './workbenchHeatCapacityFreeParameterState.ts';
+import { getActiveHeatCapacityFreeTrialIndex } from './workbenchHeatCapacityFreeTrialState.ts';
+import { abandonHeatCapacityFreeExperimentGroupDraftWorkbenchState, configureHeatCapacityFreeBatchWorkbenchState, getHeatCapacityFreeBatchProgress, isHeatCapacityFreeExperimentStarted, selectHeatCapacityFreeViewedExperimentGroupWorkbenchState, selectHeatCapacityFreeViewedTrialWorkbenchState, setHeatCapacityFreeParameterSchemeWorkbenchState } from './workbenchHeatCapacityFreeExperimentGroupState.ts';
+import { HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV, getHeatCapacityPressureThresholdsMv, getHeatCapacityPressureZeroKnobAngleForOffset, getHeatCapacityPumpFrequencyState, getHeatCapacityStopcockState, getHeatCapacityStopcockTargetAngle, isHeatCapacityPhysicalKernelMode, isHeatCapacityPressureZeroWithinTolerance } from './workbenchHeatCapacityInstrumentState.ts';
+import type { HeatCapacityFreeDisplayScheme, HeatCapacityMode, WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
+import type { WorkbenchFileKind } from './workbenchFileKind.ts';
+import { clampWorkbenchLiveSplitRatio, createDefaultStandardFile, type WorkbenchIdealResultWindowKey, type WorkbenchPanelKey, type WorkbenchRunState } from './workbenchFileState.ts';
+import { createDefaultHeatCapacityPistonOscillationFile } from './workbenchPistonOscillationState.ts';
+
 import { projectWorkbenchRunStateForRuntimeFailure } from './workbenchRuntimePersistence.ts';
-import HeatCapacityInstrumentScene, {
-  normalizeHeatCapacityCameraTransitionState,
-  type HeatCapacityCameraPose,
-  type HeatCapacityCameraTransitionState,
-  type HeatCapacitySceneDiscreteMotionState,
-  type HeatCapacitySceneCheckpointMetadata,
-  type HeatCapacitySceneCheckpointProvider,
-  type HeatCapacitySceneModeRestoreRequest,
-  type HeatCapacitySceneModeTransitionController,
-} from '../heatCapacity/HeatCapacityInstrumentScene';
-import {
-  normalizeHeatCapacityHardSphereVisualCheckpoint,
-  type HeatCapacityHardSphereVisualCheckpoint,
-} from '../heatCapacity/HeatCapacityHardSphereLayer.tsx';
-import {
-  normalizeHeatCapacityUltraVisualState,
-  type HeatCapacityUltraVisualState,
-} from '../heatCapacity/HeatCapacityUltraInstrumentModel.tsx';
-import { HeatCapacityLeftPanel } from '../heatCapacity/HeatCapacityLeftPanel.tsx';
-import HeatCapacityBatchSetupDialog, {
-  type HeatCapacityBatchGroupCount,
-} from '../heatCapacity/HeatCapacityBatchSetupDialog.tsx';
+import HeatCapacityInstrumentScene, { normalizeHeatCapacityCameraTransitionState, type HeatCapacityCameraPose, type HeatCapacityCameraTransitionState, type HeatCapacitySceneDiscreteMotionState, type HeatCapacitySceneCheckpointMetadata, type HeatCapacitySceneCheckpointProvider, type HeatCapacitySceneModeRestoreRequest, type HeatCapacitySceneModeTransitionController } from '../heatCapacity/HeatCapacityInstrumentScene';
+import { normalizeHeatCapacityHardSphereVisualCheckpoint, type HeatCapacityHardSphereVisualCheckpoint } from '../heatCapacity/HeatCapacityHardSphereLayer.tsx';
+import { normalizeHeatCapacityUltraVisualState, type HeatCapacityUltraVisualState } from '../heatCapacity/HeatCapacityUltraInstrumentModel.tsx';
+
+import HeatCapacityBatchSetupDialog, { type HeatCapacityBatchGroupCount } from '../heatCapacity/HeatCapacityBatchSetupDialog.tsx';
 import { FreeExperimentProgress } from '../../components/experiments/FreeExperimentProgress.tsx';
 import HeatCapacityCalculationWindow from '../heatCapacity/HeatCapacityCalculationWindow.tsx';
-import HeatCapacityExperimentGroupContextBar from '../heatCapacity/HeatCapacityExperimentGroupContextBar.tsx';
-import HeatCapacityGroupResultsPanel from '../heatCapacity/HeatCapacityGroupResultsPanel.tsx';
-import HeatCapacityReportExportDialog from '../heatCapacity/HeatCapacityReportExportDialog.tsx';
-import HeatCapacityPreheatOverlay from '../heatCapacity/HeatCapacityPreheatOverlay.tsx';
-import HeatCapacityInvalidAttemptDialog from '../heatCapacity/HeatCapacityInvalidAttemptDialog.tsx';
-import { HeatCapacityWaitController } from '../heatCapacity/HeatCapacityWaitController.tsx';
-import HeatCapacityProcessReviewPanel from '../heatCapacity/HeatCapacityProcessReviewPanel.tsx';
-import {
-  createHeatCapacityModeTransitionCheckpoint,
-  getHeatCapacityModeTransitionVisualRemainingMs,
-  normalizeHeatCapacityModeTransitionCheckpoint,
-} from '../heatCapacity/heatCapacityModeTransitionModel.ts';
-import {
-  captureHeatCapacityModeTransitionDemoClock,
-  resolveHeatCapacityModeTransitionDemoResume,
-} from '../heatCapacity/heatCapacityModeTransitionDemoClock.ts';
-import {
-  resolveHeatCapacityGuidePulseRestore,
-} from '../heatCapacity/heatCapacityGuidePulseClock.ts';
-import {
-  normalizeHeatCapacityAutoDemoResumeCursor,
-} from '../heatCapacity/heatCapacityAutoDemoPreheatResume.ts';
-import {
-  useHeatCapacityModeSessionCoordinator,
-  type HeatCapacityModeTransitionWatchdogEvent,
-} from './useHeatCapacityModeSessionCoordinator.ts';
-import { formatHeatCapacityFreeParameterValue, getHeatCapacityFreeParameterDraftValue, getHeatCapacityFreeParameterInputValue, heatCapacityFreeAdvancedNumberParameters, heatCapacityFreeAdvancedParameterGroups, heatCapacityFreeBasicCheckboxes, heatCapacityFreeBasicNumberParameters, heatCapacityFreeGasTypeOptions, heatCapacityFreeSharedText, type HeatCapacityFreeBasicCheckboxKey, type HeatCapacityFreeCheckboxDefinition, type HeatCapacityFreeDraftNumberKey, type HeatCapacityFreeGasTypeOptionDefinition, type HeatCapacityFreeNumberParameterDefinition, type HeatCapacityFreeParameterSymbolPart } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
-import type {
-  HeatCapacityFreeGasType,
-} from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
-import {
-  canProceedAfterPumping,
-  getGuideHeatCapacityDisplayedPressureMv,
-  getGuideHeatCapacityThresholdPressureMv,
-  getHeatCapacityGuideStep as selectHeatCapacityGuideStep,
-  getHeatCapacityPressureSafetyStatusFromMv,
-  hasGuideHeatCapacityReachedPumpTarget,
-  isGuideU0ZeroReady,
-} from './workbenchHeatCapacityGuideDecisions.ts';
-import { getGuideStepGuidance as selectGuideStepGuidance } from './workbenchHeatCapacityGuideGuidance.ts';
-import {
-  createHeatCapacityToastMessage,
-  HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS,
-  isHeatCapacityGuideToast,
-  isHeatCapacityPressureToast,
-  resolveHeatCapacityToastAdvance,
-  resolveHeatCapacityToastClear,
-  resolveHeatCapacityToastShow,
-  type HeatCapacityToastLevel,
-  type HeatCapacityToastMessage,
-  type HeatCapacityToastSource,
-} from '../heatCapacity/heatCapacityToastController.ts';
-import {
-  getHeatCapacityToastPolicySpec,
-  type HeatCapacityToastPolicy,
-} from '../heatCapacity/heatCapacityToastPolicy.ts';
-import {
-  selectHeatCapacityModeControlState,
-  type HeatCapacityAutoDemoPhase,
-  type HeatCapacityModeControlAction,
-} from '../heatCapacity/heatCapacityModeControlModel.ts';
-import {
-  getHeatCapacityGuideAllowedActions,
-  getHeatCapacityGuideRollbackAnimation,
-  isGuideHeatCapacityPauseStep,
-  isHeatCapacityGuideRecordStep,
-  type GuideHeatCapacityAction,
-  type GuideHeatCapacityStep,
-} from '../heatCapacity/heatCapacityGuideStepModel.ts';
-import {
-  getHeatCapacityGuideRollbackAnimationForControl,
-  type HeatCapacityGuideRollbackAnimation,
-  type HeatCapacityInstrumentControl,
-} from '../../domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
-import {
-  HeatCapacityRejectedInteractionTracker,
-  type HeatCapacityControlInteractionId,
-} from '../heatCapacity/heatCapacityControlInteraction.ts';
-import {
-  createHeatCapacityAutoDemoSteps,
-  deriveHeatCapacityAutoDemoZeroKnobMotion,
-  deriveHeatCapacityAutoDemoWaitTimer,
-  getHeatCapacityAutoDemoTimelineItemKey,
-  getHeatCapacityAutoDemoTimeline,
-  HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
-  HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS,
-  type HeatCapacityAutoDemoAction,
-  type HeatCapacityAutoDemoStep,
-  type HeatCapacityAutoDemoTimelineItem,
-} from '../../domain/heatCapacity/heatCapacityAutoDemo.ts';
-import {
-  formatHeatCapacitySignalMv,
-} from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
-import type {
-  HeatCapacityFreeRecordRejectReason,
-} from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
-import type {
-  HeatCapacityFreeTrialRecordRemovalKind,
-} from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
-import {
-  deriveHeatCapacityGuideExperimentTimer,
-} from '../../domain/heatCapacity/heatCapacityGuideExperimentTimerModel.ts';
-import type {
-  HeatCapacityGuideRecordKind,
-} from '../../domain/heatCapacity/heatCapacityGuideTrialModel.ts';
-import {
-  HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA,
-} from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
-import {
-  HEAT_CAPACITY_RELEASE_TIMING,
-} from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
-import {
-  getHeatCapacityReleaseDurationS,
-  HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA,
-  isHeatCapacityReleaseFlowOpen,
-  isHeatCapacityMainReleaseFlowOpen,
-} from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
-import {
-  HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE,
-  clampNumber as clampHeatCapacityHardSphereNumber,
-  type HeatCapacityHardSphereReleaseTimeline,
-} from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
-import {
-  getHeatCapacityFreePressureDangerUpperLimitMv,
-  type HeatCapacityFreeParameterDraft,
-} from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
-import {
-  selectHeatCapacityFreeProcessReview,
-} from '../../domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
-import {
-  selectCurrentHeatCapacityFreeExperimentGroup,
-  selectViewedHeatCapacityFreeExperimentGroup,
-} from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
-import {
-  createHeatCapacityAutoDemoProfile,
-} from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
-import {
-  createWorkbenchExportPayload,
-  createWorkbenchFigureSpecs,
-  createWorkbenchResultSummary,
-  type WorkbenchExportMode,
-} from './workbenchResults';
-import {
-  getDefaultHeatCapacityReportGroupIds,
-  isHeatCapacityExportModeReady,
-} from './workbenchHeatCapacityExport.ts';
-import {
-  isPistonOscillationReportReady,
-} from './workbenchPistonOscillationExport.ts';
-import {
-  loadClosedWorkbenchFiles,
-  loadWorkbenchSession,
-} from './workbenchSession.ts';
-import { createWorkbenchActiveModeCheckpointOverride, initializeWorkbenchIndexedDbPersistence, saveWorkbenchWorkspaceToIndexedDb, type WorkbenchActiveModeCheckpointOverride, type WorkbenchWorkspacePersistenceSnapshot } from './workbenchIndexedDbPersistence.ts';
-import {
-  createWorkbenchPersistenceScheduler,
-  type WorkbenchPersistenceReason,
-  type WorkbenchPersistenceScheduler,
-  type WorkbenchPersistenceStatus,
-} from './workbenchPersistenceScheduler.ts';
-import {
-  loadWorkbenchSidebarRefreshState,
-  persistWorkbenchSidebarRefreshState,
-} from './workbenchSidebarRefreshState.ts';
-import {
-  assertUniqueWorkbenchFileCollections,
-  createUniqueWorkbenchFileId,
-  getNextWorkbenchFileDisplayIndex,
-} from './workbenchFileIdentity.ts';
-import {
-  applyWorkbenchFileRename,
-  createWorkbenchFileClosePlan,
-  createWorkbenchFileDeletePlan,
-  createWorkbenchFileReopenPlan,
-  createWorkbenchFileSelectionPlan,
-  resolveWorkbenchFileRename,
-} from './workbenchFileLifecycleCoordinator.ts';
 
-import { assertNeverWorkbenchFileKind } from './workbenchFileKind.ts';
+
+import HeatCapacityReportExportDialog from '../heatCapacity/HeatCapacityReportExportDialog.tsx';
+
+
+
+
+import { createHeatCapacityModeTransitionCheckpoint, getHeatCapacityModeTransitionVisualRemainingMs, normalizeHeatCapacityModeTransitionCheckpoint } from '../heatCapacity/heatCapacityModeTransitionModel.ts';
+import { captureHeatCapacityModeTransitionDemoClock, resolveHeatCapacityModeTransitionDemoResume } from '../heatCapacity/heatCapacityModeTransitionDemoClock.ts';
+import { resolveHeatCapacityGuidePulseRestore } from '../heatCapacity/heatCapacityGuidePulseClock.ts';
+import { normalizeHeatCapacityAutoDemoResumeCursor } from '../heatCapacity/heatCapacityAutoDemoPreheatResume.ts';
+import { useHeatCapacityModeSessionCoordinator, type HeatCapacityModeTransitionWatchdogEvent } from './useHeatCapacityModeSessionCoordinator.ts';
+import { formatHeatCapacityFreeParameterValue, getHeatCapacityFreeParameterDraftValue, getHeatCapacityFreeParameterInputValue, heatCapacityFreeAdvancedNumberParameters, heatCapacityFreeBasicNumberParameters, heatCapacityFreeGasTypeOptions, heatCapacityFreeSharedText, type HeatCapacityFreeBasicCheckboxKey, type HeatCapacityFreeCheckboxDefinition, type HeatCapacityFreeDraftNumberKey, type HeatCapacityFreeNumberParameterDefinition, type HeatCapacityFreeParameterSymbolPart } from '../heatCapacity/heatCapacityFreeParameterPanelModel.ts';
+import type { HeatCapacityFreeGasType } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+import { canProceedAfterPumping, getGuideHeatCapacityDisplayedPressureMv, getGuideHeatCapacityThresholdPressureMv, getHeatCapacityGuideStep as selectHeatCapacityGuideStep, getHeatCapacityPressureSafetyStatusFromMv, hasGuideHeatCapacityReachedPumpTarget, isGuideU0ZeroReady } from './workbenchHeatCapacityGuideDecisions.ts';
+import { getGuideStepGuidance as selectGuideStepGuidance } from './workbenchHeatCapacityGuideGuidance.ts';
+import { createHeatCapacityToastMessage, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS, isHeatCapacityGuideToast, isHeatCapacityPressureToast, resolveHeatCapacityToastAdvance, resolveHeatCapacityToastClear, resolveHeatCapacityToastShow, type HeatCapacityToastLevel, type HeatCapacityToastMessage, type HeatCapacityToastSource } from '../heatCapacity/heatCapacityToastController.ts';
+import { getHeatCapacityToastPolicySpec, type HeatCapacityToastPolicy } from '../heatCapacity/heatCapacityToastPolicy.ts';
+import { type HeatCapacityAutoDemoPhase } from '../heatCapacity/heatCapacityModeControlModel.ts';
+import { getHeatCapacityGuideAllowedActions, getHeatCapacityGuideRollbackAnimation, isGuideHeatCapacityPauseStep, isHeatCapacityGuideRecordStep, type GuideHeatCapacityAction, type GuideHeatCapacityStep } from '../heatCapacity/heatCapacityGuideStepModel.ts';
+import { getHeatCapacityGuideRollbackAnimationForControl, type HeatCapacityGuideRollbackAnimation, type HeatCapacityInstrumentControl } from '../../domain/heatCapacity/heatCapacityInstrumentFeedback.ts';
+import { HeatCapacityRejectedInteractionTracker, type HeatCapacityControlInteractionId } from '../heatCapacity/heatCapacityControlInteraction.ts';
+import { createHeatCapacityAutoDemoSteps, deriveHeatCapacityAutoDemoZeroKnobMotion, deriveHeatCapacityAutoDemoWaitTimer, getHeatCapacityAutoDemoTimelineItemKey, getHeatCapacityAutoDemoTimeline, HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER, HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS, type HeatCapacityAutoDemoAction, type HeatCapacityAutoDemoStep, type HeatCapacityAutoDemoTimelineItem } from '../../domain/heatCapacity/heatCapacityAutoDemo.ts';
+
+import type { HeatCapacityFreeRecordRejectReason } from '../../domain/heatCapacity/heatCapacityFreeRecordModel.ts';
+import type { HeatCapacityFreeTrialRecordRemovalKind } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import { deriveHeatCapacityGuideExperimentTimer } from '../../domain/heatCapacity/heatCapacityGuideExperimentTimerModel.ts';
+import type { HeatCapacityGuideRecordKind } from '../../domain/heatCapacity/heatCapacityGuideTrialModel.ts';
+import { HEAT_CAPACITY_FREE_ABSOLUTE_PRESSURE_LIMIT_KPA } from '../../domain/heatCapacity/heatCapacityFreePhysicsEngine.ts';
+import { HEAT_CAPACITY_RELEASE_TIMING } from '../../domain/heatCapacity/heatCapacityDefaultConfig.ts';
+import { getHeatCapacityReleaseDurationS, HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA, isHeatCapacityReleaseFlowOpen, isHeatCapacityMainReleaseFlowOpen } from '../../domain/heatCapacity/heatCapacityReleaseModel.ts';
+import { HEAT_CAPACITY_HARD_SPHERE_IDLE_RELEASE_TIMELINE, clampNumber as clampHeatCapacityHardSphereNumber, type HeatCapacityHardSphereReleaseTimeline } from '../../domain/heatCapacity/heatCapacityHardSphereModel.ts';
+import { getHeatCapacityFreePressureDangerUpperLimitMv, type HeatCapacityFreeParameterDraft } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
+
+import { selectCurrentHeatCapacityFreeExperimentGroup } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import { createHeatCapacityAutoDemoProfile } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
+import { createWorkbenchFigureSpecs, createWorkbenchResultSummary } from './workbenchResults';
+
+
+import { loadClosedWorkbenchFiles, loadWorkbenchSession } from './workbenchSession.ts';
+import { createWorkbenchActiveModeCheckpointOverride, initializeWorkbenchIndexedDbPersistence, type WorkbenchActiveModeCheckpointOverride } from './workbenchIndexedDbPersistence.ts';
+import { type WorkbenchPersistenceReason } from './workbenchPersistenceScheduler.ts';
+import { loadWorkbenchSidebarRefreshState, persistWorkbenchSidebarRefreshState } from './workbenchSidebarRefreshState.ts';
+import { createUniqueWorkbenchFileId, getNextWorkbenchFileDisplayIndex } from './workbenchFileIdentity.ts';
+
+
+
 import { createWorkbenchEditHistoryActions } from './workbenchEditHistoryActions.ts';
 import type { WorkbenchEditSnapshot } from './workbenchEditSnapshot.ts';
-import {
-  IDEAL_RESULT_MAX_HEIGHT_RATIO,
-  IDEAL_RESULT_MIN_HEIGHT_RATIO,
-  clampIdealResultHeightRatio,
-  isWorkbenchFileLayoutDefault,
-  isIdealResultWindowKey,
-  loadWorkbenchLayoutDefaults,
-  normalizeIdealWindowLayoutState,
-  normalizeStandardResultsLayout,
-  persistWorkbenchLayoutDefaults,
-  sanitizeWorkbenchLayoutDefaultState,
-  sanitizeWorkbenchLayoutDefaults,
-  type WorkbenchLayoutDefaults,
-} from './workbenchLayoutCompatibility.ts';
+import { isIdealResultWindowKey, loadWorkbenchLayoutDefaults, normalizeStandardResultsLayout, type WorkbenchLayoutDefaults } from './workbenchLayoutCompatibility.ts';
 
-import {
-  createIdealGasExperimentPoint,
-  getIdealGasAnalysis,
-  getPresetSequence,
-  getRelationLabel,
-  getRelationVariableKey,
-  getRelationVariableNumericValue,
-  isVariableKeyForRelation,
-  type ExperimentParamKey,
-  type IdealGasAnalysis,
-} from '../../domain/idealGas/idealGasExperiment';
-import {
-  HEAT_CAPACITY_QUALITY_PROFILES,
-} from '../heatCapacity/heatCapacityQualityProfiles';
+import { getIdealGasAnalysis, getRelationLabel, getRelationVariableNumericValue, isVariableKeyForRelation, type ExperimentParamKey, type IdealGasAnalysis } from '../../domain/idealGas/idealGasExperiment';
+import { HEAT_CAPACITY_QUALITY_PROFILES } from '../heatCapacity/heatCapacityQualityProfiles';
 import { cloneWorkbenchFiles } from './workbenchFileSnapshot.ts';
-import {
-  getSystemWorkbenchTheme,
-  loadWorkbenchGeneralSettings,
-  persistWorkbenchGeneralSettings,
-  type WorkbenchGeneralSettings,
-  type WorkbenchLanguagePreference,
-  type WorkbenchPerformanceMode,
-  type WorkbenchResolvedTheme,
-  type WorkbenchThemePreference,
-} from './workbenchGeneralSettings.ts';
+import { loadWorkbenchGeneralSettings, type WorkbenchGeneralSettings, type WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
 import { workbenchCopies } from './workbenchStudioCopy.ts';
 import { workbenchPromptCopies } from './workbenchPromptCopies.ts';
-import { getWorkbenchAppBrandName } from './workbenchBrand.ts';
-import { clampAudioVolume } from '../../audio/core/audioSettings.ts';
+
+
 import { useAudioEngine } from '../../audio/react/useAudioEngine.ts';
-import { normalizeWorkbenchConsoleMessageTranslations, resolveWorkbenchConsoleMessage, type WorkbenchConsoleMessageFactory, type WorkbenchConsoleMessageInput } from './workbenchConsoleLocalization.ts';
-import {
-  findKnownConsoleMessageTranslations,
-  getHeatCapacityFreeRecordRejectMessage,
-  getHeatCapacityRealtimeCopy,
-  getLocalizedHeatCapacityGuideRecordFailure,
-  getLocalizedHeatCapacityPumpHint,
-} from './workbenchHeatCapacityRealtimeCopy.ts';
-import {
-  WORKBENCH_IGNORED_UPDATE_VERSION_KEY,
-  getAboutUpdateStatusLabel,
-  isWorkbenchUpdateCheckFailure,
-  mergeWorkbenchUpdateState,
-  type WorkbenchUpdateState,
-} from './workbenchDesktopUpdater.ts';
+import { normalizeWorkbenchConsoleMessageTranslations, type WorkbenchConsoleMessageFactory, type WorkbenchConsoleMessageInput } from './workbenchConsoleLocalization.ts';
+import { findKnownConsoleMessageTranslations, getHeatCapacityFreeRecordRejectMessage, getHeatCapacityRealtimeCopy, getLocalizedHeatCapacityGuideRecordFailure, getLocalizedHeatCapacityPumpHint } from './workbenchHeatCapacityRealtimeCopy.ts';
+import { getAboutUpdateStatusLabel } from './workbenchDesktopUpdater.ts';
 import { WorkbenchUpdateDialog } from './WorkbenchUpdateDialog.tsx';
-import { WorkbenchEmptyWorkspace } from './WorkbenchEmptyWorkspace.tsx';
+
 import { WorkbenchGeneralSettingsWindow } from './WorkbenchGeneralSettingsWindow.tsx';
 import { WorkbenchAboutWindow } from './WorkbenchAboutWindow.tsx';
-import {
-  WorkbenchIdealPointsWindow,
-  WorkbenchIdealVerificationWindow,
-} from './WorkbenchIdealResultsWindows.tsx';
+
 import { WorkbenchSimulationRealtimePanel } from './WorkbenchSimulationRealtimePanel.tsx';
-import {
-  WorkbenchStandardResultsDataTable,
-  WorkbenchStandardResultsSummary,
-} from './WorkbenchStandardResultsContent.tsx';
-import { WorkbenchStandardFiguresPanel } from './WorkbenchStandardFiguresPanel.tsx';
-import {
-  formatMetric,
-  getLocalizedStatusValue,
-} from './workbenchPresentationFormatting.ts';
-import { PistonOscillationAcquisitionPanel, PistonOscillationCalculationWindow, PistonOscillationDataProcessingPanel, PistonOscillationFreeSetupDialog, PistonOscillationInstrumentScene, PISTON_OSCILLATION_DEMO_DURATION_MS, createPistonOscillationDemoPlaybackChannel, createPistonOscillationLivePressureChannel, getPistonOscillationGuideHeightResetPresentation, getPistonOscillationGuideInstrumentRestoreState, getPistonOscillationGuideRequestedFocusMode, getPistonOscillationGuideScrewInteractionMode, getPistonOscillationGuideStrongTargetId, getPistonOscillationShellCopy, transitionPistonOscillationGuideAcquisitionSession, type PistonOscillationGuideAcquisitionEvent, type PistonOscillationAcquisitionPanelHandle, type PistonOscillationGuideAcquisitionCue, type PistonOscillationGuideInstrumentSnapshot, type PistonOscillationGuideScrewDirectionFeedback, type PistonOscillationGuideSupportLossEvent, type PistonOscillationGuideVisualCue, type PistonOscillationPressStartEvent, type PistonOscillationReleaseEvent } from '../pistonOscillation/index.ts';
-import {
-  PistonOscillationProcessReviewPanel,
-} from '../processReview/PistonOscillationProcessReviewPanel.tsx';
-import type {
-  PistonOscillationGuideAction,
-  PistonOscillationGuideActionContext,
-  PistonOscillationGuideEvent,
-  PistonOscillationGuideGuardResult,
-  PistonOscillationGuideSession,
-  PistonOscillationGuideStep,
-} from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
-import {
-  getPistonOscillationGuideActionGuard,
-  PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ,
-  PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
-  PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA,
-  PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
-} from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
-import {
-  completePistonOscillationDemoSession,
-  createDefaultPistonOscillationDemoSession,
-  pausePistonOscillationDemoSession,
-  resolvePistonOscillationDemoSession,
-  resumePistonOscillationDemoSession,
-  startPistonOscillationDemoSession,
-} from '../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
-import {
-  PistonOscillationFreeEvent,
-} from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
-import {
-  type PistonOscillationFreeParameterDraft,
-} from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
-import {
-  resolvePistonOscillationFreeEffectiveConfig,
-} from '../../domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
-import {
-  getPistonOscillationParameterLockMessage,
-  getPistonOscillationParameterSidebarFreeOnlyMessage,
-  PistonOscillationParameterPanel,
-} from '../pistonOscillation/PistonOscillationParameterPanel.tsx';
-import {
-  WorkbenchTopCommands,
-  type WorkbenchTopMenuId,
-  type WorkbenchTopMenuResultChild,
-} from './WorkbenchTopCommands.tsx';
-import {
-  WorkbenchHeatCapacityAdvancedRiskDialog,
-  WorkbenchHeatCapacityIdealProfileIntroDialog,
-  WorkbenchHeatCapacityRestoreDefaultDialog,
-} from './WorkbenchHeatCapacityParameterDialogs.tsx';
-import {
-  WorkbenchBuildNoticeWindow,
-} from './WorkbenchBuildNoticeWindow.tsx';
-import type {
-  WorkbenchBuildNoticeFilePreview,
-  WorkbenchLegalMaterialId,
-} from './workbenchBuildNoticeContract.ts';
-import {
-  buildNoticeLegalMaterialFiles,
-  buildNoticeSections,
-} from './workbenchBuildNoticeContent.ts';
-import {
-  getWorkbenchFileKindLabel,
-  getWorkbenchSessionCacheSummary,
-} from './workbenchFilePresentation.ts';
-import {
-  IDEAL_SCAN_SNAP_THRESHOLD,
-  IDEAL_SCAN_THUMB_HIT_RADIUS,
-  IDEAL_SCAN_THUMB_SIZE,
-  getIdealScanDecimals,
-  getIdealScanInputLabel,
-  getIdealScanPositionPercent,
-  getIdealScanStep,
-  getIdealScanStepLabel,
-  idealRelationOptions,
-  idealSamplingPresets,
-  isIdealScanValueOnStep,
-  type IdealSamplingPreset,
-} from './workbenchIdealControls.ts';
-import { HEAT_CAPACITY_TAB_IDS, getHeatCapacityMaterialsTabOrder, getPistonOscillationMaterialsPanelOrder, heatCapacityTabIdToPanelKey, isHeatCapacityPanelKey } from './workbenchHeatCapacityTabRegistry.ts';
-import { getHeatCapacityMaterialsWindowState } from './workbenchHeatCapacityMaterialsWindowCoordinator.ts';
-import {
-  createWorkbenchHeatCapacityRefreshSession,
-  loadWorkbenchHeatCapacityRefreshSession,
-  resolveWorkbenchHeatCapacityPressureAlertRefreshProjection,
-  type WorkbenchHeatCapacityRefreshSession,
-} from './workbenchHeatCapacityRefreshSession.ts';
-import {
-  asWorkbenchHeatCapacityRefreshJsonObject,
-  getHeatCapacityRefreshBoolean,
-  getHeatCapacityRefreshNumber,
-  getHeatCapacityRefreshObject,
-  getHeatCapacityRefreshOptionalNumber,
-  getHeatCapacityRefreshRunState,
-  getHeatCapacityRefreshString,
-  getHeatCapacityRefreshStringMap,
-  isHeatCapacityRefreshRecord,
-  mapHeatCapacityAutoDemoCameraFocusMode,
-  normalizeHeatCapacityFocusSession,
-  normalizeHeatCapacityLessonCloseTimerPlan,
-  normalizeHeatCapacityRecordSuccessTimerPlan,
-  type HeatCapacityFocusControlSnapshot,
-  type HeatCapacityFocusMode,
-  type HeatCapacityFocusSession,
-  type HeatCapacityLessonCloseTimerPlan,
-  type HeatCapacityRecordSuccessTimerPlan,
-} from './workbenchHeatCapacityUiCheckpoint.ts';
+
+
+import { formatMetric, getLocalizedStatusValue } from './workbenchPresentationFormatting.ts';
+import { PistonOscillationCalculationWindow, PistonOscillationFreeSetupDialog } from '../pistonOscillation/index.ts';
+
+
+
+
+
+
+
+import { getPistonOscillationParameterSidebarFreeOnlyMessage } from '../pistonOscillation/PistonOscillationParameterPanel.tsx';
+import { type WorkbenchTopMenuId, type WorkbenchTopMenuResultChild } from './WorkbenchTopCommands.tsx';
+import { WorkbenchHeatCapacityIdealProfileIntroDialog, WorkbenchHeatCapacityRestoreDefaultDialog } from './WorkbenchHeatCapacityParameterDialogs.tsx';
+import { WorkbenchBuildNoticeWindow } from './WorkbenchBuildNoticeWindow.tsx';
+
+import { buildNoticeSections } from './workbenchBuildNoticeContent.ts';
+import { getWorkbenchSessionCacheSummary } from './workbenchFilePresentation.ts';
+import { getIdealScanDecimals } from './workbenchIdealControls.ts';
+import { getHeatCapacityMaterialsTabOrder, getPistonOscillationMaterialsPanelOrder, heatCapacityTabIdToPanelKey, isHeatCapacityPanelKey } from './workbenchHeatCapacityTabRegistry.ts';
+
+import { createWorkbenchHeatCapacityRefreshSession, resolveWorkbenchHeatCapacityPressureAlertRefreshProjection, type WorkbenchHeatCapacityRefreshSession } from './workbenchHeatCapacityRefreshSession.ts';
+import { asWorkbenchHeatCapacityRefreshJsonObject, getHeatCapacityRefreshBoolean, getHeatCapacityRefreshNumber, getHeatCapacityRefreshObject, getHeatCapacityRefreshOptionalNumber, getHeatCapacityRefreshString, getHeatCapacityRefreshStringMap, isHeatCapacityRefreshRecord, mapHeatCapacityAutoDemoCameraFocusMode, normalizeHeatCapacityFocusSession, normalizeHeatCapacityLessonCloseTimerPlan, normalizeHeatCapacityRecordSuccessTimerPlan, type HeatCapacityFocusControlSnapshot, type HeatCapacityFocusMode, type HeatCapacityFocusSession, type HeatCapacityLessonCloseTimerPlan, type HeatCapacityRecordSuccessTimerPlan } from './workbenchHeatCapacityUiCheckpoint.ts';
 import { createHeatCapacityModeActions } from './workbenchHeatCapacityModeActions.ts';
-import {
-  resolveHeatCapacityModeTarget,
-  shouldConfirmHeatCapacityTeachingProgressReset,
-} from './workbenchHeatCapacityModeActivation.ts';
+import { resolveHeatCapacityModeTarget, shouldConfirmHeatCapacityTeachingProgressReset } from './workbenchHeatCapacityModeActivation.ts';
 import { clearHeatCapacityModeSession, enterHeatCapacityExploreModeWorkbenchState, prepareHeatCapacityFileForExploreOnOpen, prepareHeatCapacityModeSessionForExit } from './workbenchHeatCapacityModeSession.ts';
-import {
-  completeExperimentTutorialProfile,
-  EXPERIMENT_LEARNING_ORDER,
-  isExperimentTutorialActive,
-  skipExperimentTutorialProfile,
-  startExperimentTutorialProfile,
-  unlockExperimentGuideProfile,
-  type AppExperienceProfile,
-  type ExperimentLearningId,
-  type ExperimentLearningMilestone,
-} from '../learning/experimentLearningModel.ts';
-import {
-  APP_EXPERIENCE_PROFILE_STORAGE_KEY,
-  loadAppExperienceProfile,
-  persistAppExperienceProfile,
-} from '../learning/experimentLearningStore.ts';
-import {
-  claimExperimentTutorialOwnership,
-  createExperimentLearningChannel,
-  EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY,
-  releaseExperimentTutorialOwnership,
-  takeOverExperimentTutorialOwnership,
-} from '../learning/experimentLearningChannel.ts';
-import {
-  evaluateWorkbenchTutorialAccess,
-  isExperimentTutorialModeUnlocked,
-  type WorkbenchTutorialAccessAction,
-} from '../learning/workbenchTutorialAccessPolicy.ts';
-import { clearExperimentTutorialHandoff, isExperimentTutorialFileId, loadExperimentTutorialHandoff, persistExperimentTutorialHandoff, shouldReconstructExperimentTutorial } from '../learning/workbenchTutorialCoordinator.ts';
-import {
-  hasSameHeatCapacityRuntimeRecoveryState,
-  rebaseHeatCapacityFileAfterSuspendedWallClock,
-} from './workbenchHeatCapacityTimeRebase.ts';
+import { completeExperimentTutorialProfile, EXPERIMENT_LEARNING_ORDER, isExperimentTutorialActive, skipExperimentTutorialProfile, startExperimentTutorialProfile, unlockExperimentGuideProfile, type AppExperienceProfile, type ExperimentLearningId, type ExperimentLearningMilestone } from '../learning/experimentLearningModel.ts';
+import { APP_EXPERIENCE_PROFILE_STORAGE_KEY, persistAppExperienceProfile } from '../learning/experimentLearningStore.ts';
+import { claimExperimentTutorialOwnership, createExperimentLearningChannel, EXPERIMENT_TUTORIAL_OWNER_STORAGE_KEY, releaseExperimentTutorialOwnership, takeOverExperimentTutorialOwnership } from '../learning/experimentLearningChannel.ts';
+import { evaluateWorkbenchTutorialAccess, isExperimentTutorialModeUnlocked, type WorkbenchTutorialAccessAction } from '../learning/workbenchTutorialAccessPolicy.ts';
+import { clearExperimentTutorialHandoff, isExperimentTutorialFileId, persistExperimentTutorialHandoff } from '../learning/workbenchTutorialCoordinator.ts';
+import { hasSameHeatCapacityRuntimeRecoveryState, rebaseHeatCapacityFileAfterSuspendedWallClock } from './workbenchHeatCapacityTimeRebase.ts';
 import { WelcomeProductIntroFlow } from '../onboarding/WelcomeProductIntroFlow.tsx';
 import { LearningNeedsPage } from '../onboarding/LearningNeedsPage.tsx';
 import { firstRunCopies } from '../onboarding/firstRunCopy.ts';
 import { useReducedMotionPreference } from '../onboarding/useReducedMotionPreference.ts';
 import type { ExperimentFamiliarityAnswer } from '../onboarding/firstRunExperienceModel.ts';
 import { RecoverableRenderErrorBoundary } from '../../components/errors/RecoverableRenderErrorBoundary.tsx';
-import {
-  WORKBENCH_WINDOW_CONTROL_COPY,
-  WorkbenchWindowControls,
-} from './WorkbenchWindowControls.tsx';
+import { WORKBENCH_WINDOW_CONTROL_COPY } from './WorkbenchWindowControls.tsx';
 import { WorkbenchContentRenderErrorFallback } from './WorkbenchRenderErrorFallback.tsx';
-import {
-  DevelopmentRenderFault,
-  isDevelopmentRenderFaultRequested,
-  recoverDevelopmentRenderFault,
-} from '../../development/DevelopmentRenderFault.tsx';
+
 import { createHeatCapacityModeDeferredTimer, createHeatCapacityModeUiCheckpoint, getHeatCapacityModeDeferredTimerRemainingMs, type HeatCapacityModeCameraPoseCheckpoint, type HeatCapacityModeDemoCheckpoint, type HeatCapacityModeGuideCheckpoint, type HeatCapacityModeJsonObject, type HeatCapacityModeLessonDialogCheckpoint, type HeatCapacityModePauseReason, type HeatCapacityModePumpAnimationCheckpoint, type HeatCapacityModeSceneCheckpoint, type HeatCapacityModeUiCheckpoint } from '../heatCapacity/heatCapacityModeUiCheckpoint.ts';
 import './WorkbenchStudioPrototype.css';
 
@@ -663,9 +275,9 @@ interface GuideHeatCapacityGuardResult {
   suppressStrongReminder?: boolean;
 }
 
-const GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000;
-const GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000;
-const PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS = 3000;
+
+
+
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_TOAST_DEDUPE_MS = 250;
 const HEAT_CAPACITY_AUTO_DEMO_LOCKED_POINTER_FALLBACK_MS = 320;
 const HEAT_CAPACITY_GUIDE_START_NOTICE_MS = 1000;
@@ -676,74 +288,46 @@ const HEAT_CAPACITY_MODE_TRANSITION_VISUAL_MS = 380;
 const HEAT_CAPACITY_MODE_TRANSITION_SETTLE_DEADLINE_MS = 250;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX = 48;
 const HEAT_CAPACITY_GUIDE_CHECKLIST_CENTER_OFFSET_PX = 42;
-const HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS = 120;
-const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;
-const HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE = 0.72;
-const HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS = 2;
-const PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX = 64;
-const PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX = 52;
-const PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS =
-  GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS;
-const PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS = 250;
-const PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS =
-  HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS;
-const HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS = 180 as const;
 
 
-interface StandardEngineRuntime {
-  engine: PhysicsEngine;
-  frameCount: number;
-  simulationTimerId: number | null;
-}
-
-interface ApplyActiveFileParamsOptions {
-  silent?: boolean;
-  forceReset?: boolean;
-}
-
-interface UpdateIdealScanVariableOptions {
-  snap?: boolean;
-}
 
 
-const LEFT_SIDEBAR_MIN = 220;
-const LEFT_SIDEBAR_MAX = 420;
-const PARAM_SIDEBAR_MIN = 240;
-const PARAM_SIDEBAR_MAX = 420;
-const SIMULATION_TICK_INTERVAL_MS = 16;
-const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;
-const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;
-const STANDARD_RESULTS_BOTTOM_INSET = 10;
-const RESIZER_GRAB_SAFE_SPACE = 14;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const HEAT_CAPACITY_AUTO_DEMO_RESET_MS = 1_800;
 const HEAT_CAPACITY_AUTO_DEMO_STEP_PANEL_EXIT_MS = 560;
 
 
-const snapshotParticles = (engine: PhysicsEngine): Particle[] => (
-  engine.particles.map((particle) => ({ ...particle }))
-);
+
 
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 
-const getChangedIdealParamKeys = (
-  previousParams: SimulationParams,
-  nextParams: SimulationParams,
-): ExperimentParamKey[] => (
-  WORKBENCH_TRACKED_PARAMETER_KEYS.filter((key) => {
-    const previousValue = previousParams[key as keyof SimulationParams];
-    const nextValue = nextParams[key as keyof SimulationParams];
-    return previousValue !== nextValue;
-  })
-);
 
-const getIdealVerificationState = (
-  analysis: IdealGasAnalysis,
-): WorkbenchIdealState['verificationState'] => {
-  if (analysis.isVerified) return 'verified';
-  if (analysis.verdictState === 'insufficient') return 'collecting';
-  return analysis.sortedPoints.length === 0 ? 'not-started' : 'failed';
-};
+
+
 
 
 interface WorkbenchStudioPrototypeProps {
@@ -756,119 +340,20 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   initialTutorialEntryKind = 'resume',
 }) => {
   const { settings: audioSettings, updateSettings: updateAudioSettings } = useAudioEngine();
-  const [initialExperienceProfileLoad] = useState(() => loadAppExperienceProfile());
+  const {
+    initialExperienceProfileLoad,
+    initialTutorialHandoff,
+    initialActiveTutorialExperiment,
+    initialTutorialReconstruction,
+    initialTutorialHandoffRecovery,
+    initialOrdinarySession,
+    initialOrdinaryClosedFiles,
+    initialSession,
+    initialHeatCapacityRefreshSession,
+  } = useWorkbenchInitialWorkspace();
   const [experienceProfile, setExperienceProfile] = useState<AppExperienceProfile>(
     initialExperienceProfileLoad.profile,
   );
-  const [initialTutorialHandoff] = useState(() => loadExperimentTutorialHandoff());
-  const initialActiveTutorialExperiment = initialExperienceProfileLoad.profile.activeTutorialExperiment;
-  const initialTutorialReconstruction = shouldReconstructExperimentTutorial(
-    initialExperienceProfileLoad.profile,
-  );
-  const initialTutorialHandoffRecovery = (
-    initialTutorialHandoff.status === 'loaded' &&
-    initialExperienceProfileLoad.profile.learning[initialTutorialHandoff.marker.experiment] === 'unlocked' &&
-    initialExperienceProfileLoad.profile.activeTutorialExperiment === null
-  );
-  const [initialOrdinarySession] = useState(() => {
-    const session = loadWorkbenchSession();
-    const now = Date.now();
-    return {
-      ...session,
-      files: session.files.map((file, index) => (
-        file.kind === 'heatCapacity'
-          ? prepareHeatCapacityFileForExploreOnOpen(
-              file,
-              createDefaultHeatCapacityFile(index + 1),
-              now,
-            )
-          : file
-      )),
-    };
-  });
-  const [initialOrdinaryClosedFiles] = useState(() => {
-    const now = Date.now();
-    return loadClosedWorkbenchFiles().map((file, index) => (
-      file.kind === 'heatCapacity'
-        ? prepareHeatCapacityFileForExploreOnOpen(
-            file,
-            createDefaultHeatCapacityFile(index + 1),
-            now,
-          )
-        : file
-    ));
-  });
-  const [initialSession] = useState(() => {
-    if (initialTutorialReconstruction && initialActiveTutorialExperiment) {
-      const tutorialFile = createExperimentTutorialRuntimeFile(
-        initialActiveTutorialExperiment,
-        loadWorkbenchLayoutDefaults(),
-      );
-      return {
-        files: [tutorialFile],
-        activeFileId: tutorialFile.id,
-        selectedPanel: 'preview' as const,
-      };
-    }
-    if (initialTutorialHandoffRecovery) {
-      const ordinaryFiles = [...initialOrdinarySession.files, ...initialOrdinaryClosedFiles];
-      const targetFileId = initialTutorialHandoff.status === 'loaded'
-        ? initialTutorialHandoff.marker.targetFileId
-        : '';
-      const existingTargetFile = ordinaryFiles.find((file) => file.id === targetFileId);
-      if (existingTargetFile) {
-        return {
-          files: [existingTargetFile],
-          activeFileId: existingTargetFile.id,
-          selectedPanel: 'preview' as const,
-        };
-      }
-      const completedExperiment = initialTutorialHandoff.status === 'loaded'
-        ? initialTutorialHandoff.marker.experiment
-        : 'heatCapacity';
-      const completedFileKind = completedExperiment === 'heatCapacity'
-        ? 'heatCapacity'
-        : 'heatCapacityPistonOscillation';
-      const index = getNextWorkbenchFileDisplayIndex(completedFileKind, ordinaryFiles);
-      const defaults = loadWorkbenchLayoutDefaults();
-      const freshFile = completedExperiment === 'heatCapacity'
-        ? enterHeatCapacityExploreModeWorkbenchState({
-            ...createDefaultHeatCapacityFile(index, defaults.heatCapacity),
-            id: targetFileId,
-          }, createDefaultHeatCapacityFile(index, defaults.heatCapacity))
-        : {
-            ...createDefaultHeatCapacityPistonOscillationFile(
-              index,
-              defaults.heatCapacityPistonOscillation,
-            ),
-            id: targetFileId,
-          };
-      return {
-        files: [freshFile],
-        activeFileId: freshFile.id,
-        selectedPanel: 'preview' as const,
-      };
-    }
-    return initialOrdinarySession;
-  });
-  const [loadedHeatCapacityRefreshSession] = useState(() => (
-    initialTutorialReconstruction ? null : loadWorkbenchHeatCapacityRefreshSession()
-  ));
-  const initialHeatCapacityRefreshSession = useMemo(() => {
-    if (!loadedHeatCapacityRefreshSession) return null;
-    if (initialSession.activeFileId !== loadedHeatCapacityRefreshSession.activeHeatCapacityFileId) return null;
-    const heatCapacityFile = initialSession.files.find((file) => (
-      file.id === loadedHeatCapacityRefreshSession.activeHeatCapacityFileId
-    ));
-    if (
-      !heatCapacityFile ||
-      heatCapacityFile.kind !== 'heatCapacity' ||
-      heatCapacityFile.heatCapacityMode !== loadedHeatCapacityRefreshSession.mode
-    ) {
-      return null;
-    }
-    return loadedHeatCapacityRefreshSession;
-  }, [initialSession, loadedHeatCapacityRefreshSession]);
   const initialHeatCapacityRefreshWindows = initialHeatCapacityRefreshSession?.ui.windows ?? {};
   const initialHeatCapacityRefreshDrafts = initialHeatCapacityRefreshSession?.ui.drafts ?? {};
   const initialHeatCapacityRefreshLayout = initialHeatCapacityRefreshSession?.ui.layout ?? {};
@@ -969,67 +454,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : []
   ), [initialHeatCapacityRefreshSession]);
   const [workbenchLayoutDefaults, setWorkbenchLayoutDefaults] = useState<WorkbenchLayoutDefaults>(() => loadWorkbenchLayoutDefaults());
-  const [files, setFiles] = useState<WorkbenchFileState[]>(() => {
-    const defaults = loadWorkbenchLayoutDefaults();
-    return initialSession.files.map((file) => {
-      if (file.kind === 'ideal') {
-        return {
-          ...file,
-          liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
-          idealWindowLayout: normalizeIdealWindowLayoutState(file.idealWindowLayout, defaults.ideal),
-        };
-      }
-      if (file.kind === 'heatCapacity') {
-        const openHeatCapacityTabs = Array.from(new Set(
-          file.openHeatCapacityTabs.filter((tab) => HEAT_CAPACITY_TAB_IDS.includes(tab)),
-        ));
-        const activeHeatCapacityTabId = file.activeHeatCapacityTabId && openHeatCapacityTabs.includes(file.activeHeatCapacityTabId)
-          ? file.activeHeatCapacityTabId
-          : openHeatCapacityTabs[0] ?? null;
-        const normalizedFile: WorkbenchHeatCapacityState = {
-          ...file,
-          name: normalizeHeatCapacityFileName(file.name),
-          visiblePanels: ['preview', 'realtime', ...openHeatCapacityTabs.map(heatCapacityTabIdToPanelKey)] as WorkbenchPanelKey[],
-          openHeatCapacityTabs,
-          activeHeatCapacityTabId,
-          heatCapacityMaterialsExpanded: file.heatCapacityMaterialsExpanded !== false,
-          heatCapacityTabContainerHeight: file.heatCapacityTabContainerHeight || 0.5,
-          liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio ?? defaults.heatCapacity.liveWorkspaceSplitRatio),
-        };
-        if (file.id !== initialHeatCapacityRefreshSession?.activeHeatCapacityFileId) return normalizedFile;
-        const restoredRunState = getHeatCapacityRefreshRunState(
-          initialHeatCapacityRefreshLayout.runState,
-          initialHeatCapacityRefreshSession.mode === 'demo'
-            ? initialHeatCapacityRefreshSession.demo.phase === 'running'
-              ? 'running'
-              : initialHeatCapacityRefreshSession.demo.phase === 'paused'
-                ? 'paused'
-                : normalizedFile.runState
-            : normalizedFile.runState,
-        );
-        return {
-          ...normalizedFile,
-          runState: restoredRunState,
-        };
-      }
-      if (file.kind === 'heatCapacityPistonOscillation') {
-        const storedSplitRatio = clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio);
-        return {
-          ...file,
-          runState: 'idle' as const,
-          liveWorkspaceSplitRatio:
-            storedSplitRatio === WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO
-              ? defaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio
-              : storedSplitRatio,
-        };
-      }
-      return {
-        ...file,
-        liveWorkspaceSplitRatio: clampWorkbenchLiveSplitRatio(file.liveWorkspaceSplitRatio),
-        standardResultsLayout: normalizeStandardResultsLayout(file.standardResultsLayout, defaults.standard),
-      };
-    });
-  });
+  const [files, setFiles] = useState<WorkbenchFileState[]>(() => normalizeWorkbenchInitialFiles(
+    initialSession.files,
+    loadWorkbenchLayoutDefaults(),
+    initialHeatCapacityRefreshSession,
+  ));
   const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(() => (
     initialTutorialReconstruction
       ? []
@@ -1052,26 +481,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       : initialSession.activeFileId;
   });
   const [selectedPanel, setSelectedPanel] = useState<WorkbenchPanelKey>(initialSession.selectedPanel);
-  const [workspacePersistenceStatus, setWorkspacePersistenceStatus] = useState<WorkbenchPersistenceStatus>({
-    state: 'idle',
-    savedAtMs: null,
-  });
-  const workspacePersistenceSchedulerRef = useRef<WorkbenchPersistenceScheduler<
-    WorkbenchWorkspacePersistenceSnapshot
-  > | null>(null);
-  useEffect(() => {
-    const scheduler = createWorkbenchPersistenceScheduler<WorkbenchWorkspacePersistenceSnapshot>({
-      save: saveWorkbenchWorkspaceToIndexedDb,
-      onStatus: setWorkspacePersistenceStatus,
-    });
-    workspacePersistenceSchedulerRef.current = scheduler;
-    return () => {
-      if (workspacePersistenceSchedulerRef.current === scheduler) {
-        workspacePersistenceSchedulerRef.current = null;
-      }
-      scheduler.dispose();
-    };
-  }, []);
+  const { workspacePersistenceStatus, workspacePersistenceSchedulerRef } = useWorkbenchWorkspacePersistenceScheduler();
   const [logs, setLogs] = useState<ConsoleLog[]>(() => {
     const restoredLogs = initialHeatCapacityRefreshLayout.logs;
     if (!Array.isArray(restoredLogs)) return createInitialLogs(initialGeneralSettings.language);
@@ -1106,10 +516,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
     return normalizedLogs.length > 0 ? normalizedLogs : createInitialLogs(initialGeneralSettings.language);
   });
-  const [exportEnvironmentStatus, setExportEnvironmentStatus] = useState<WorkbenchExportEnvironmentStatus>(() => (
-    hasDesktopExportBridge() ? 'checking' : 'unavailable'
-  ));
-  const [exportInProgress, setExportInProgress] = useState(false);
+
+
   const [consoleTab, setConsoleTab] = useState<ConsoleTab>(() => {
     const restored = getHeatCapacityRefreshString(initialHeatCapacityRefreshLayout, 'consoleTab');
     return restored === 'warnings' || restored === 'summary' ? restored : 'logs';
@@ -1129,72 +537,26 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const [topMenuLeft, setTopMenuLeft] = useState(() => (
     getHeatCapacityRefreshNumber(initialHeatCapacityRefreshWindows, 'topMenuLeft', 10)
   ));
-  const [settingsGeneralOpen, setSettingsGeneralOpen] = useState(() => (
-    getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'settingsGeneralOpen')
-  ));
-  const [aboutWindowOpen, setAboutWindowOpen] = useState(() => (
-    getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'aboutWindowOpen')
-  ));
-  const [buildNoticeWindowOpen, setBuildNoticeWindowOpen] = useState(() => (
-    getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'buildNoticeWindowOpen')
-  ));
-  const [buildNoticeNavOpen, setBuildNoticeNavOpen] = useState(() => (
-    getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'buildNoticeNavOpen')
-  ));
-  const [activeBuildNoticeMaterialId, setActiveBuildNoticeMaterialId] = useState<WorkbenchLegalMaterialId | null>(() => (
-    getHeatCapacityRefreshString(initialHeatCapacityRefreshWindows, 'activeBuildNoticeMaterialId') as WorkbenchLegalMaterialId | null
-  ));
-  const [buildNoticeFilePreview, setBuildNoticeFilePreview] = useState<WorkbenchBuildNoticeFilePreview | null>(() => (
-    getHeatCapacityRefreshObject(initialHeatCapacityRefreshWindows, 'buildNoticeFilePreview') as unknown as WorkbenchBuildNoticeFilePreview | null
-  ));
-  const [buildNoticeOpenError, setBuildNoticeOpenError] = useState<string | null>(() => (
-    getHeatCapacityRefreshString(initialHeatCapacityRefreshWindows, 'buildNoticeOpenError')
-  ));
-  const [aboutResultNotice, setAboutResultNotice] = useState<{
-    title: string;
-    body: string;
-    kind: PromptFeedbackKind;
-  } | null>(() => {
-    const restored = getHeatCapacityRefreshObject(
-      initialHeatCapacityRefreshWindows,
-      'aboutResultNotice',
-    ) as Partial<{ title: string; body: string; kind: PromptFeedbackKind }> | null;
-    if (typeof restored?.title !== 'string' || typeof restored.body !== 'string') return null;
-    const restoredKind = restored.kind === 'success' || restored.kind === 'warning' || restored.kind === 'danger'
-      ? restored.kind
-      : 'info';
-    return { title: restored.title, body: restored.body, kind: restoredKind };
+
+
+  const {
+    settingsThemePreference,
+    systemWorkbenchTheme,
+    settingsLanguagePreference,
+    settingsPerformanceMode,
+    settingsLanguageMenuOpen,
+    setSettingsLanguageMenuOpen,
+    settingsLanguageTriggerRef,
+    updateSettingsThemePreference,
+    updateSettingsLanguagePreference,
+    updateSettingsPerformanceMode,
+    updateSettingsAudioEnabled,
+    updateSettingsAudioVolume,
+  } = useWorkbenchSettingsPreferences({
+    initialGeneralSettings, initialHeatCapacityRefreshWindows, audioSettings, updateAudioSettings,
+    readExperienceProfile: () => experienceProfileRef.current,
+    commitExperienceProfile: (profile) => commitExperienceProfile(profile),
   });
-  const [updaterState, setUpdaterState] = useState<WorkbenchUpdateState>(() => ({
-    status: hasDesktopUpdaterBridge() ? 'idle' : 'unsupported',
-    currentVersion: WORKBENCH_APP_VERSION,
-    latestVersion: null,
-    releaseName: null,
-    releaseDate: null,
-    releaseNotes: null,
-    releaseSummary: null,
-    releaseSections: null,
-    releasePageUrl: null,
-    manualDownloadUrl: null,
-    downloadAttempt: null,
-    maxDownloadAttempts: null,
-    retrying: false,
-    errorKind: null,
-    percent: null,
-    message: '',
-  }));
-  const [updateDialogOpen, setUpdateDialogOpen] = useState(() => (
-    getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'updateDialogOpen')
-  ));
-  const aboutUpdateChecking = updaterState.status === 'checking';
-  const updateDialogState = updateDialogOpen ? updaterState : null;
-  const [settingsThemePreference, setSettingsThemePreference] = useState<WorkbenchThemePreference>(() => initialGeneralSettings.theme);
-  const [systemWorkbenchTheme, setSystemWorkbenchTheme] = useState<WorkbenchResolvedTheme>(() => getSystemWorkbenchTheme());
-  const [settingsLanguagePreference, setSettingsLanguagePreference] = useState<WorkbenchLanguagePreference>(() => initialGeneralSettings.language);
-  const [settingsPerformanceMode, setSettingsPerformanceMode] = useState<WorkbenchPerformanceMode>(() => initialGeneralSettings.performanceMode);
-  const [settingsLanguageMenuOpen, setSettingsLanguageMenuOpen] = useState(() => (
-    getHeatCapacityRefreshBoolean(initialHeatCapacityRefreshWindows, 'settingsLanguageMenuOpen')
-  ));
   const {
     activeRequest: activePromptConfirmation,
     requestConfirmation: requestPromptConfirmation,
@@ -1235,15 +597,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const activeTutorialExperiment = experienceProfile.activeTutorialExperiment;
   const tutorialActive = isExperimentTutorialActive(experienceProfile);
   const tutorialActiveRef = useRef(tutorialActive);
-  const settingsLanguageTriggerRef = useRef<HTMLButtonElement | null>(null);
+
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
+  const auxiliaryWindows = useWorkbenchAuxiliaryWindows({
+    initialHeatCapacityRefreshWindows, aboutCopy: workbenchCopy.about, setSettingsLanguageMenuOpen, setOpenTopMenu,
+  });
+  const { settingsGeneralOpen, aboutWindowOpen, buildNoticeWindowOpen, buildNoticeNavOpen, activeBuildNoticeMaterialId, buildNoticeFilePreview, buildNoticeOpenError, aboutResultNotice } = auxiliaryWindows.view;
+  const { closeGeneralSettings, openGeneralSettings, showAboutResultNotice, closeAboutWindow, openAboutWindow, openBuildNoticeWindow, closeBuildNoticeWindow, jumpToBuildNoticeSection, openBuildNoticeMaterial, closeBuildNoticeMaterial, openBuildNoticeLegalFile, hideGeneralSettings, setBuildNoticeNavigationOpen, dismissAboutResultNotice } = auxiliaryWindows.actions;
+
   const workbenchPromptCopy = workbenchPromptCopies[settingsLanguagePreference];
   const windowControlCopy = WORKBENCH_WINDOW_CONTROL_COPY[settingsLanguagePreference];
   const heatCapacityQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[settingsPerformanceMode];
-  useEffect(() => {
-    document.documentElement.lang = settingsLanguagePreference;
-    document.title = getWorkbenchAppBrandName(settingsLanguagePreference);
-  }, [settingsLanguagePreference]);
+
   const [initialHeatCapacityCameraTransition] = useState<HeatCapacityCameraTransitionState | null>(() => (
     normalizeHeatCapacityCameraTransitionState(initialHeatCapacityRefreshLayout.cameraTransition)
   ));
@@ -1395,238 +760,77 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const [idealAdvancedSettingsOpen, setIdealAdvancedSettingsOpen] = useState(false);
   const [idealAdvancedSettingsBodyVisible, setIdealAdvancedSettingsBodyVisible] = useState(false);
   const [parameterInputDrafts, setParameterInputDrafts] = useState<Record<string, string>>({});
-  const [pistonOscillationReleaseEventsByFileId, setPistonOscillationReleaseEventsByFileId] =
-    useState<Record<string, PistonOscillationReleaseEvent>>({});
-  const [pistonOscillationPressStartEventsByFileId,
-    setPistonOscillationPressStartEventsByFileId] =
-    useState<Record<string, PistonOscillationPressStartEvent>>({});
-  const [pistonOscillationMeasurementCyclesByFileId, setPistonOscillationMeasurementCyclesByFileId] =
-    useState<Record<string, number>>({});
-  const [pistonOscillationPowerOnByFileId, setPistonOscillationPowerOnByFileId] =
-    useState<Record<string, boolean>>({});
-  const [pistonOscillationGuidePulseElapsedMs, setPistonOscillationGuidePulseElapsedMs] =
-    useState(0);
-  const [pistonOscillationPeriodSelectionToolActive, setPistonOscillationPeriodSelectionToolActive] =
-    useState(false);
-  const [pistonOscillationGuideFeedback, setPistonOscillationGuideFeedback] =
-    useState<PistonOscillationGuideFeedbackState | null>(null);
-  const [pistonOscillationGuideStrongReminderActiveContext, setPistonOscillationGuideStrongReminderActiveContext] =
-    useState<string | null>(null);
-  const [pistonOscillationGuideStrongReminderClockContext, setPistonOscillationGuideStrongReminderClockContext] =
-    useState<string | null>(null);
-  const [pistonOscillationGuidePressureIssue, setPistonOscillationGuidePressureIssueState] =
-    useState<PistonOscillationGuidePressureIssue | null>(null);
-  const [pistonOscillationGuideLessonDialog, setPistonOscillationGuideLessonDialog] =
-    useState<PistonOscillationGuideLessonDialogState | null>(null);
-  const [pistonOscillationGuideLessonOutgoingView, setPistonOscillationGuideLessonOutgoingView] =
-    useState<PistonOscillationGuideLessonView | null>(null);
-  const [pistonOscillationGuideCompletionToast, setPistonOscillationGuideCompletionToast] =
-    useState<PistonOscillationGuideCompletionToastState | null>(null);
-  const [pistonOscillationGuideStrongMaskLayout, setPistonOscillationGuideStrongMaskLayout] =
-    useState<PistonOscillationGuideStrongMaskLayout | null>(null);
-  const [pistonOscillationGuideHeightAdjustmentStage, setPistonOscillationGuideHeightAdjustmentStage] =
-    useState<PistonOscillationGuideInstrumentSnapshot['heightAdjustmentStage']>('readingHeight');
-  const [pistonOscillationGuideTargetHeightReady, setPistonOscillationGuideTargetHeightReady] =
-    useState(false);
-  const [pistonOscillationGuideHeightHandoffComplete, setPistonOscillationGuideHeightHandoffComplete] =
-    useState(false);
-  const [pistonOscillationGuideHoseDragging, setPistonOscillationGuideHoseDragging] =
-    useState(false);
-  const [pistonOscillationGuideHoseState, setPistonOscillationGuideHoseState] =
-    useState<PistonOscillationGuideInstrumentSnapshot['hoseState'] | null>(null);
-  const [pistonOscillationGuidePistonStable, setPistonOscillationGuidePistonStable] =
-    useState(false);
-  const [pistonOscillationGuideResetFeedback, setPistonOscillationGuideResetFeedback] =
-    useState(false);
-  const [pistonOscillationGuideChecklistViewedIndex, setPistonOscillationGuideChecklistViewedIndex] =
-    useState(0);
-  const pistonOscillationGuideResetFeedbackTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuidePreviousSessionRef = useRef<{
-    fileId: string;
-    status: 'idle' | 'active' | 'completed';
-    step: PistonOscillationGuideStep;
-  } | null>(null);
-  const pistonOscillationGuideShutdownCompletedFileIdRef = useRef<string | null>(null);
-  const pistonOscillationGuideFeedbackCurrentRef =
-    useRef<PistonOscillationGuideFeedbackState | null>(null);
-  const pistonOscillationGuideFeedbackPendingRef =
-    useRef<PistonOscillationGuideFeedbackState | null>(null);
-  const pistonOscillationGuideFeedbackTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuideFeedbackTimerGenerationRef = useRef(0);
-  const pistonOscillationGuideStrongReminderTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuidePressureRangeLessonTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuidePressureIssueRef =
-    useRef<PistonOscillationGuidePressureIssue | null>(null);
-  const pistonOscillationGuidePreviousPressureIssueRef =
-    useRef<PistonOscillationGuidePressureIssue | null>(null);
-  const pistonOscillationGuidePressureMissCountRef = useRef<
-    Record<PistonOscillationGuidePressureIssue, number>
-  >({ underpressure: 0, overpressure: 0 });
-  const pistonOscillationGuideLessonShownRef = useRef<Set<string>>(new Set());
-  const clearPistonOscillationGuideFeedbackRef = useRef<() => void>(() => undefined);
-  const pistonOscillationGuideLessonCloseTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuideLessonTransitionTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuideCompletionToastTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuideLessonDialogRef = useRef<HTMLElement | null>(null);
-  const pistonOscillationGuideLessonReturnFocusRef = useRef<HTMLElement | null>(null);
-  const pistonOscillationGuideMissCountRef = useRef(0);
-  const pistonOscillationGuideInstrumentSnapshotRef =
-    useRef<PistonOscillationGuideInstrumentSnapshot | null>(null);
-  const pistonOscillationGuideTargetHeightReadyRef = useRef(false);
-  const pistonOscillationGuideHeightHandoffCompleteRef = useRef(false);
-  const pistonOscillationGuideStrongTargetContextRef = useRef<string | null>(null);
-  const pistonOscillationGuideResumeStrongReminderAfterLessonRef = useRef(false);
-  const pistonOscillationDemoResumeAfterLessonRef = useRef(false);
-  const pistonOscillationGuideStrongReminderActiveContextRef = useRef<string | null>(null);
-  const setPistonOscillationGuidePressureIssue = (
-    issue: PistonOscillationGuidePressureIssue | null,
-  ) => {
-    pistonOscillationGuidePressureIssueRef.current = issue;
-    setPistonOscillationGuidePressureIssueState(issue);
-  };
-  const setPistonOscillationGuideStrongReminderActive = (
-    active: boolean,
-    expectedContext?: string | null,
-  ) => {
-    if (active) {
-      if (
-        !expectedContext
-        || expectedContext !== pistonOscillationGuideStrongTargetContextRef.current
-      ) return;
-      clearPistonOscillationGuideFeedbackRef.current();
-      pistonOscillationGuideStrongReminderActiveContextRef.current = expectedContext;
-      setPistonOscillationGuideStrongReminderActiveContext(expectedContext);
-      return;
-    }
-    pistonOscillationGuideStrongReminderActiveContextRef.current = null;
-    setPistonOscillationGuideStrongReminderActiveContext(null);
-  };
-  const isPistonOscillationGuideStrongReminderActive = () => (
-    pistonOscillationGuideStrongReminderActiveContextRef.current !== null
-    && pistonOscillationGuideStrongReminderActiveContextRef.current
-      === pistonOscillationGuideStrongTargetContextRef.current
-  );
-  const setPistonOscillationGuideFeedbackCurrent = (
-    message: PistonOscillationGuideFeedbackState | null,
-  ) => {
-    pistonOscillationGuideFeedbackCurrentRef.current = message;
-    setPistonOscillationGuideFeedback(message);
-  };
-  const setPistonOscillationGuideFeedbackPending = (
-    message: PistonOscillationGuideFeedbackState | null,
-  ) => {
-    pistonOscillationGuideFeedbackPendingRef.current = message;
-  };
-  const clearPistonOscillationGuideFeedback = () => {
-    pistonOscillationGuideFeedbackTimerGenerationRef.current += 1;
-    if (pistonOscillationGuideFeedbackTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideFeedbackTimerRef.current);
-      pistonOscillationGuideFeedbackTimerRef.current = null;
-    }
-    setPistonOscillationGuideFeedbackCurrent(null);
-    setPistonOscillationGuideFeedbackPending(null);
-  };
-  clearPistonOscillationGuideFeedbackRef.current = clearPistonOscillationGuideFeedback;
-  const schedulePistonOscillationGuideFeedbackAdvance = (delayMs: number) => {
-    if (pistonOscillationGuideFeedbackTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideFeedbackTimerRef.current);
-      pistonOscillationGuideFeedbackTimerRef.current = null;
-    }
-    const timerGeneration = ++pistonOscillationGuideFeedbackTimerGenerationRef.current;
-    pistonOscillationGuideFeedbackTimerRef.current = window.setTimeout(() => {
-      if (timerGeneration !== pistonOscillationGuideFeedbackTimerGenerationRef.current) return;
-      pistonOscillationGuideFeedbackTimerRef.current = null;
-      const nextState = resolvePromptViewportFeedbackAdvance({
-        current: pistonOscillationGuideFeedbackCurrentRef.current,
-        pending: pistonOscillationGuideFeedbackPendingRef.current,
-      }, Date.now());
-      setPistonOscillationGuideFeedbackPending(nextState.pending);
-      setPistonOscillationGuideFeedbackCurrent(nextState.current);
-      if (nextState.shouldContinueTimer && nextState.current) {
-        schedulePistonOscillationGuideFeedbackAdvance(nextState.current.durationMs);
-      }
-    }, Math.max(0, delayMs));
-  };
-  const showPistonOscillationGuideFeedback = (
-    text: string,
-    kind: PromptFeedbackKind,
-    source: PistonOscillationGuideFeedbackSource,
-    options: { durationMs?: number; priority?: number } = {},
-  ) => {
-    const nextMessage = createPromptViewportFeedbackMessage(text, kind, {
-      source,
-      durationMs: options.durationMs,
-      priority: options.priority,
-    });
-    const nextState = resolvePromptViewportFeedbackShow({
-      current: pistonOscillationGuideFeedbackCurrentRef.current,
-      pending: pistonOscillationGuideFeedbackPendingRef.current,
-    }, nextMessage, { interrupt: true });
-    if (!nextState.changed) return;
-    setPistonOscillationGuideFeedbackCurrent(nextState.current);
-    setPistonOscillationGuideFeedbackPending(nextState.pending);
-    if (nextState.shouldRestartTimer && nextState.current) {
-      schedulePistonOscillationGuideFeedbackAdvance(nextState.current.durationMs);
-    }
-  };
-  const clearPistonOscillationGuideCompletionToast = () => {
-    if (pistonOscillationGuideCompletionToastTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideCompletionToastTimerRef.current);
-      pistonOscillationGuideCompletionToastTimerRef.current = null;
-    }
-    setPistonOscillationGuideCompletionToast(null);
-  };
-  const showPistonOscillationGuideCompletionToast = (
-    fileId: string,
-    kicker: string,
-    message: string,
-  ) => {
-    if (pistonOscillationGuideCompletionToastTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideCompletionToastTimerRef.current);
-    }
-    setPistonOscillationGuideCompletionToast({
-      id: Date.now(),
-      fileId,
-      kicker,
-      message,
-    });
-    pistonOscillationGuideCompletionToastTimerRef.current = window.setTimeout(() => {
-      pistonOscillationGuideCompletionToastTimerRef.current = null;
-      setPistonOscillationGuideCompletionToast(null);
-    }, HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS);
-  };
-  const pistonOscillationGuideChecklistTrackRef = useRef<HTMLDivElement | null>(null);
-  const pistonOscillationGuideChecklistFrameRef = useRef<number | null>(null);
-  const pistonOscillationGuideChecklistSnapTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuideChecklistReturnTimerRef = useRef<number | null>(null);
-  const pistonOscillationGuideChecklistPendingWheelDeltaRef = useRef(0);
-  const pistonOscillationGuideChecklistVisualOffsetRef = useRef(0);
-  const pistonOscillationGuideChecklistViewedIndexRef = useRef(0);
-  const pistonOscillationGuideChecklistCurrentIndexRef = useRef(0);
-  const pistonOscillationGuideChecklistPageLengthRef = useRef(1);
-  const [pistonOscillationDemoPlayback, setPistonOscillationDemoPlayback] = useState<{
-    fileId: string | null;
-    phase: 'idle' | 'running' | 'paused' | 'terminated' | 'completed';
-    elapsedMs: number;
-  }>(() => {
-    if (initialActiveWorkbenchFile?.kind !== 'heatCapacityPistonOscillation') {
-      return { fileId: null, phase: 'idle', elapsedMs: 0 };
-    }
-    const restored = resolvePistonOscillationDemoSession(
-      initialActiveWorkbenchFile.pistonOscillationDemoSession,
-      PISTON_OSCILLATION_DEMO_DURATION_MS,
-      Date.now(),
-    );
-    return {
-      fileId: restored.status === 'idle' ? null : initialActiveWorkbenchFile.id,
-      phase: restored.status,
-      elapsedMs: restored.elapsedMs,
-    };
-  });
-  const pistonOscillationDemoPlaybackChannel = useMemo(
-    () => createPistonOscillationDemoPlaybackChannel(),
-    [],
-  );
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const [parameterErrors, setParameterErrors] = useState<string[]>([]);
   const [heatCapacityBasicInputDrafts, setHeatCapacityBasicInputDrafts] = useState<Record<string, string>>(() => (
     getHeatCapacityRefreshStringMap(initialHeatCapacityRefreshDrafts, 'heatCapacityBasicInputDrafts')
@@ -1653,22 +857,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     useState<HeatCapacityBatchGroupCount | null>(null);
   const [heatCapacityBatchSetupRequestedFileId, setHeatCapacityBatchSetupRequestedFileId] =
     useState<string | null>(null);
-  const [pistonOscillationFreeSetupRequestedFileId, setPistonOscillationFreeSetupRequestedFileId] =
-    useState<string | null>(null);
+
   const [heatCapacityCalculationReviewOpen, setHeatCapacityCalculationReviewOpen] =
     useState(false);
-  const [pistonOscillationCalculationReviewOpen, setPistonOscillationCalculationReviewOpen] =
-    useState(false);
-  const [pistonOscillationDataProcessingReviewOpen, setPistonOscillationDataProcessingReviewOpen] =
-    useState(false);
-  const [pistonOscillationProcessReviewOpen, setPistonOscillationProcessReviewOpen] =
-    useState(false);
-  const [pistonOscillationProcessingSuppressedFileId,
-    setPistonOscillationProcessingSuppressedFileId] = useState<string | null>(null);
-  const [pistonOscillationCalculationSuppressedFileId,
-    setPistonOscillationCalculationSuppressedFileId] = useState<string | null>(null);
-  const [heatCapacityReportExportOpen, setHeatCapacityReportExportOpen] = useState(false);
-  const [heatCapacityReportSelectedGroupIds, setHeatCapacityReportSelectedGroupIds] = useState<string[]>([]);
+
+
+
+
+
+
+
   const [hoveredHeatCapacityParamHelpId, setHoveredHeatCapacityParamHelpId] = useState<string | null>(null);
   const [pinnedHeatCapacityParamHelpId, setPinnedHeatCapacityParamHelpId] = useState<string | null>(() => (
     getHeatCapacityRefreshString(initialHeatCapacityRefreshWindows, 'pinnedHeatCapacityParamHelpId')
@@ -1793,8 +991,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const consoleBodyRef = useRef<HTMLDivElement | null>(null);
   const currentParametersBodyRef = useRef<HTMLDivElement | null>(null);
   const heatCapacityParamHelpSuppressClickRef = useRef(false);
-  const buildNoticeReturnScrollTopRef = useRef(0);
-  const buildNoticeRestoreScrollOnReturnRef = useRef(false);
+
+
   const idealAdvancedSettingsBodyRef = useRef<HTMLDivElement | null>(null);
   const idealAdvancedSettingsPreviousScrollTopRef = useRef(0);
   const idealAdvancedScrollFrameRef = useRef<number | null>(null);
@@ -2061,7 +1259,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const heatCapacityLifecycleFlushPromiseRef = useRef<Promise<boolean> | null>(null);
   const heatCapacityLifecycleLastCompletedFlushAtMsRef = useRef<number | null>(null);
   const skipInitialConsoleScrollRef = useRef(initialHeatCapacityRefreshSession !== null);
-  const aboutResultNoticeTimerRef = useRef<number | null>(null);
+
   const [heatCapacitySceneReadyFileId, setHeatCapacitySceneReadyFileId] = useState<string | null>(null);
   const heatCapacitySceneReadyFileIdRef = useRef<string | null>(null);
   const recoverHeatCapacityRuntimeIfReadyRef = useRef<(fileId: string) => void>(() => undefined);
@@ -2273,68 +1471,25 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
   }, []);
 
-  useLayoutEffect(() => {
-    const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
-    if (!container) return;
 
-    if (activeBuildNoticeMaterialId) {
-      container.scrollTo({ top: 0, behavior: 'auto' });
-      return;
-    }
 
-    if (buildNoticeRestoreScrollOnReturnRef.current) {
-      const restoredScrollTop = buildNoticeReturnScrollTopRef.current;
-      buildNoticeRestoreScrollOnReturnRef.current = false;
-      container.scrollTo({ top: restoredScrollTop, behavior: 'auto' });
-    }
-  }, [activeBuildNoticeMaterialId]);
 
-  useEffect(() => {
-    if (!activeBuildNoticeMaterialId) {
-      setBuildNoticeFilePreview(null);
-      return;
-    }
-
-    const fileConfig = buildNoticeLegalMaterialFiles[activeBuildNoticeMaterialId];
-    const previewKind = fileConfig.previewKind;
-    if (!previewKind || fileConfig.largeFile || !fileConfig.previewPath) {
-      setBuildNoticeFilePreview(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const loadPreview = async () => {
-      if (hasDesktopLegalReadBridge()) {
-        const result = await window.hardSphereLabLegal!.readLegalFile(activeBuildNoticeMaterialId);
-        if (!cancelled && result.status === 'ok' && typeof result.content === 'string') {
-          setBuildNoticeFilePreview({ id: activeBuildNoticeMaterialId, kind: previewKind, content: result.content });
-        } else if (!cancelled) {
-          setBuildNoticeFilePreview(null);
-        }
-        return;
-      }
-
-      const response = await fetch(fileConfig.previewPath!);
-      if (!response.ok) throw new Error(response.statusText);
-      const content = await response.text();
-      if (!cancelled) {
-        setBuildNoticeFilePreview({ id: activeBuildNoticeMaterialId, kind: previewKind, content });
-      }
-    };
-
-    loadPreview().catch(() => {
-      if (!cancelled) setBuildNoticeFilePreview(null);
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeBuildNoticeMaterialId]);
 
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  const pistonController = useWorkbenchPistonController({
+    activeFile, initialActiveWorkbenchFile, settingsLanguagePreference,
+    files: { filesRef, activeFileIdRef, setFiles, setWorkbenchFiles: (...args) => setWorkbenchFiles(...args), updateActiveFile: (...args) => updateActiveFile(...args), updateFileById: (...args) => updateFileById(...args), updateRuntimeFileById: (...args) => updateRuntimeFileById(...args) },
+    lifecycle: { desktopExitQuiescedRef, scheduleHeatCapacitySemanticSceneCheckpointRef, scheduleWorkspacePersistenceRef, flushWorkspacePersistenceRef },
+    history: { createEditSnapshot: (...args) => createEditSnapshot(...args), pushUndoSnapshot: (...args) => pushUndoSnapshot(...args) },
+    ui: { liveWorkspaceRef, requestPromptConfirmation, setLeftCollapsed, setParametersCollapsed, setSelectedPanel, showParameterSidebarBlockReason: (...args) => showParameterSidebarBlockReason(...args) },
+    tutorial: { activeTutorialExperiment, experienceProfileRef },
+  });
+  const { pistonModeControl, pistonOscillationReleaseEventsByFileId, pistonOscillationPressStartEventsByFileId, pistonOscillationMeasurementCyclesByFileId, pistonOscillationGuidePulseElapsedMs, pistonOscillationGuideFeedback, pistonOscillationGuideLessonDialog, pistonOscillationGuideLessonOutgoingView, pistonOscillationGuideCompletionToast, pistonOscillationGuideStrongMaskLayout, pistonOscillationGuidePistonStable, pistonOscillationGuideResetFeedback, pistonOscillationGuideChecklistViewedIndex, pistonOscillationDemoPlayback, pistonOscillationCalculationReviewOpen, pistonOscillationDataProcessingReviewOpen, pistonOscillationProcessReviewOpen, activePistonOscillationEffectiveConfig, activePistonOscillationPhysicsConfig, activePistonOscillationThermalConfig, activePistonOscillationReleaseAsymmetryConfig, activePistonOscillationParameterSignature, activePistonOscillationDemoPlaybackPhase, activePistonOscillationGuideSession, activePistonOscillationFreeSession, activePistonOscillationFreeSelected, pistonOscillationFreeSetupOpen, pistonOscillationCompletedDataProcessingReview, activePistonOscillationDataProcessing, activePistonOscillationProcessReview, activePistonOscillationExpandedRealtime, pistonOscillationCalculationWindowOpen, activePistonOscillationGuideSelected, activePistonOscillationParameterMode, activePistonOscillationParameterSidebarAvailable, activePistonOscillationPowerOn, activePistonOscillationGuideTimeFrozen, activePistonOscillationGuideInstrumentRestoreState, activePistonOscillationGuideSnapTargetHeightMm, pistonOscillationCopy, pistonGuidePulseActive, pistonGuideVisualCue, pistonGuideScrewInteractionMode, pistonGuideAcquisitionCue, pistonGuideRequestedFocusMode, pistonGuideExpectedStrongTargetId, pistonGuideStrongTargetContext, pistonOscillationGuideStrongReminderActive, pistonGuideStrongTargetId, pistonGuideStrongReminderText, getPistonOscillationGuideLessonView,  } = pistonController.view;
+  const { pistonOscillationGuideLessonDialogRef, pistonOscillationGuideChecklistTrackRef, pistonOscillationGuideChecklistVisualOffsetRef, pistonOscillationDemoPlaybackChannel, pistonOscillationLivePressureChannel, pistonOscillationAcquisitionPanelRef, pistonOscillationContentRenderRecoveryHostRef } = pistonController.bindings;
+  const { restorePistonOscillationFreeParameters, cancelPistonOscillationFreeSetup, requestPistonOscillationFreeSetup, changePistonOscillationPeriodSelectionMode, clearPistonOscillationTutorialPlayback, clearPistonOscillationReviewWindows, handlePistonOscillationReleaseEvent, handlePistonOscillationPressStartEvent, handlePistonOscillationFreeOperationObserved, editPistonOscillationGuideParameter, commitPistonOscillationGuideParameter, commitPistonOscillationFreeAcquisitionSetting, changePistonOscillationFreeCandidate, startPistonOscillationFreeAcquisition, savePistonOscillationFreeMeasurement, retainPistonOscillationRun, handlePistonOscillationPowerToggle, activatePistonOscillationFreeMode, deletePistonOscillationFreeMeasurement, requestPistonOscillationFreeReset, handlePistonOscillationFreeInstrumentSnapshot, handlePistonOscillationGuideActionAttempt, handlePistonOscillationGuideScrewDirectionFeedback, handlePistonOscillationGuideHeightConfirmed, handlePistonOscillationGuideSupportLoss, handlePistonOscillationGuideHeightResetComplete, closePistonOscillationGuideLessonDialog, openPistonOscillationGuideLessonIntro, advancePistonOscillationGuideLessonDialog, handlePistonOscillationGuideLessonDialogKeyDown, handlePistonOscillationGuideInstrumentSnapshot, handlePistonOscillationGuideAcquisitionEvent, handlePistonOscillationProcessingEvent, handlePistonOscillationFreeUnusableMeasurement, completeAndExitPistonOscillationCalculation, closePistonOscillationCalculationReview, openPistonOscillationDataProcessingReview, openPistonOscillationCalculationReview, closePistonOscillationDataProcessingReview, openPistonOscillationProcessReview, closePistonOscillationProcessReview, returnToPistonOscillationInstrumentAfterDisplayError, handlePistonOscillationGuideProcessingInteractionStart, handlePistonOscillationGuideInvalidPeriodSelection, togglePistonOscillationOperationVisualization, setPistonOscillationOperationVisualization, updatePistonOscillationFreeParameterDraft, setPistonOscillationFreeExperimentScheme, setPistonOscillationFreeGasType, acknowledgePistonOscillationAdvancedParametersRisk, showPistonOscillationParameterLockHint, handlePistonOscillationGuideChecklistWheel, handlePistonOscillationGuideChecklistKeyDown, activatePistonOscillationTutorialMode,  } = pistonController.commands;
+
   const activeTeachingCompletionKey = activeFile.kind === 'heatCapacity'
     && activeFile.heatCapacityMode !== null
     && activeFile.heatCapacityTeachingStatus === 'completed'
@@ -2357,89 +1512,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   }
   previousActiveTeachingCompletionKeyRef.current = activeTeachingCompletionKey;
   }, [activeTeachingCompletionKey]);
-  const activePistonOscillationConfigGroup = activeFile.kind
-    === 'heatCapacityPistonOscillation'
-    && activeFile.pistonOscillationFreeSession.status === 'active'
-    ? activeFile.pistonOscillationFreeSession.experimentGroup
-    : null;
-  const activePistonOscillationConfigDraft = activeFile.kind
-    === 'heatCapacityPistonOscillation'
-    && activeFile.pistonOscillationFreeSession.status === 'active'
-    ? activeFile.pistonOscillationFreeSession.parameterDraft
-    : null;
-  const activePistonOscillationEffectiveConfig = useMemo(
-    () => activePistonOscillationConfigGroup && activePistonOscillationConfigDraft
-      ? resolvePistonOscillationFreeEffectiveConfig(
-          activePistonOscillationConfigGroup,
-          activePistonOscillationConfigDraft,
-        )
-      : null,
-    [activePistonOscillationConfigDraft, activePistonOscillationConfigGroup],
-  );
-  const activePistonOscillationPhysicsConfig = useMemo(
-    () => activePistonOscillationEffectiveConfig?.physicsConfig,
-    [activePistonOscillationEffectiveConfig],
-  );
-  const activePistonOscillationThermalConfig = useMemo(
-    () => activePistonOscillationEffectiveConfig?.thermalConfig,
-    [activePistonOscillationEffectiveConfig],
-  );
-  const activePistonOscillationReleaseAsymmetryConfig = useMemo(
-    () => activePistonOscillationEffectiveConfig?.releaseAsymmetryConfig,
-    [activePistonOscillationEffectiveConfig],
-  );
-  const activePistonOscillationSensorConfig = useMemo(
-    () => activePistonOscillationEffectiveConfig?.sensorConfig,
-    [activePistonOscillationEffectiveConfig],
-  );
-  const activePistonOscillationParameterSignature = activePistonOscillationEffectiveConfig
-    ? JSON.stringify(activePistonOscillationEffectiveConfig.parameters)
-    : 'teaching-defaults';
-  const pistonOscillationLivePressureChannel = useMemo(
-    () => createPistonOscillationLivePressureChannel(
-      activePistonOscillationSensorConfig,
-      {
-        exactObservation:
-          activePistonOscillationEffectiveConfig?.exactSensorObservation,
-      },
-    ),
-    [
-      activeFile.id,
-      activePistonOscillationEffectiveConfig?.exactSensorObservation,
-      activePistonOscillationSensorConfig,
-    ],
-  );
-  const pistonOscillationAcquisitionPanelRef = useRef<
-    PistonOscillationAcquisitionPanelHandle | null
-  >(null);
-  const pistonOscillationContentRenderRecoveryHostRef = useRef<HTMLDivElement | null>(null);
-  const {
-    demoPlaybackPhase: activePistonOscillationDemoPlaybackPhase,
-    guideSession: activePistonOscillationGuideSession,
-    freeSession: activePistonOscillationFreeSession,
-    freeSelected: activePistonOscillationFreeSelected,
-    freeSetupOpen: pistonOscillationFreeSetupOpen,
-    completedDataProcessingReview: pistonOscillationCompletedDataProcessingReview,
-    dataProcessingOpen: activePistonOscillationDataProcessing,
-    processReviewOpen: activePistonOscillationProcessReview,
-    expandedRealtime: activePistonOscillationExpandedRealtime,
-    calculationSession: activePistonOscillationCalculationSession,
-    calculationWindowOpen: pistonOscillationCalculationWindowOpen,
-    guideSelected: activePistonOscillationGuideSelected,
-    parameterMode: activePistonOscillationParameterMode,
-    parameterSidebarAvailable: activePistonOscillationParameterSidebarAvailable,
-    powerOn: activePistonOscillationPowerOn,
-  } = selectWorkbenchPistonOscillationViewState({
-    file: activeFile,
-    demoPlayback: pistonOscillationDemoPlayback,
-    freeSetupRequestedFileId: pistonOscillationFreeSetupRequestedFileId,
-    dataProcessingReviewRequested: pistonOscillationDataProcessingReviewOpen,
-    processReviewRequested: pistonOscillationProcessReviewOpen,
-    calculationReviewRequested: pistonOscillationCalculationReviewOpen,
-    processingSuppressedFileId: pistonOscillationProcessingSuppressedFileId,
-    calculationSuppressedFileId: pistonOscillationCalculationSuppressedFileId,
-    explorePowerOn: pistonOscillationPowerOnByFileId[activeFile.id],
-  });
+
+
+
+
+
+
+
+
+
+
+
+
   const activeExperimentMaterialsPanelKeys = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityMaterialsTabOrder(activeFile).map(heatCapacityTabIdToPanelKey)
     : activeFile.kind === 'heatCapacityPistonOscillation'
@@ -2465,299 +1549,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.kind,
     selectedPanel,
   ]);
-  const activePistonOscillationGuideTimeFrozen =
-    activePistonOscillationGuideSession?.heightReset !== null;
-  const activePistonOscillationGuideInstrumentRestoreState =
-    activePistonOscillationGuideSession
-      ? getPistonOscillationGuideInstrumentRestoreState(
-        activePistonOscillationGuideSession,
-      )
-      : null;
-  const activePistonOscillationGuideSnapTargetHeightMm =
-    activePistonOscillationGuideSession?.status === 'active'
-    && (
-      activePistonOscillationGuideSession.step === 'firstHeightAdjustment'
-      || activePistonOscillationGuideSession.step === 'nextHeightAdjustment'
-    )
-      ? PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
-        activePistonOscillationGuideSession.measurementIndex
-      ]
-      : activePistonOscillationFreeSelected
-        && activePistonOscillationEffectiveConfig?.heightSnapEnabled
-        ? activePistonOscillationFreeSession?.experimentPlan
-            ?.targets[activePistonOscillationFreeSession.measurementIndex]
-            ?.heightMm ?? null
-        : null;
-  useEffect(() => {
-    setPistonOscillationGuidePulseElapsedMs(0);
-    clearPistonOscillationGuideFeedback();
-    setPistonOscillationGuideStrongReminderActive(false);
-    setPistonOscillationGuidePressureIssue(null);
-    pistonOscillationGuidePressureMissCountRef.current = {
-      underpressure: 0,
-      overpressure: 0,
-    };
-    pistonOscillationGuideMissCountRef.current = 0;
-    if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-      pistonOscillationGuideStrongReminderTimerRef.current = null;
-    }
-    if (pistonOscillationGuidePressureRangeLessonTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuidePressureRangeLessonTimerRef.current);
-      pistonOscillationGuidePressureRangeLessonTimerRef.current = null;
-    }
-    if (
-      activePistonOscillationGuideSession?.status === 'active'
-      && activePistonOscillationGuideSession.step === 'calculationReady'
-    ) {
-      setPistonOscillationCalculationSuppressedFileId(null);
-      if (pistonOscillationGuideShutdownCompletedFileIdRef.current === activeFile.id) {
-        pistonOscillationGuideShutdownCompletedFileIdRef.current = null;
-        showPistonOscillationGuideFeedback(
-          getPistonOscillationShellCopy(settingsLanguagePreference).guide.powerOffSuccess,
-          'success',
-          'guide',
-        );
-      }
-    }
-  }, [
-    activeFile.id,
-    activePistonOscillationGuideSession?.startedAtMs,
-    activePistonOscillationGuideSession?.measurementIndex,
-    activePistonOscillationGuideSession?.step,
-  ]);
-  useEffect(() => {
-    setPistonOscillationCalculationReviewOpen(false);
-    setPistonOscillationDataProcessingReviewOpen(false);
-    setPistonOscillationProcessReviewOpen(false);
-    setPistonOscillationProcessingSuppressedFileId(null);
-    setPistonOscillationCalculationSuppressedFileId(null);
-  }, [
-    activeFile.id,
-    activePistonOscillationGuideSession?.startedAtMs,
-    activePistonOscillationFreeSession?.startedAtMs,
-  ]);
-  useEffect(() => {
-    if (
-      activeFile.kind !== 'heatCapacityPistonOscillation'
-      || activeFile.pistonOscillationGuideSession.status === 'completed'
-    ) return;
-    setPistonOscillationDataProcessingReviewOpen(false);
-  }, [
-    activeFile.kind,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession.status
-      : null,
-  ]);
-  useEffect(() => {
-    const reviewAvailable = activeFile.kind === 'heatCapacityPistonOscillation'
-      && activeFile.pistonOscillationFreeSession.status === 'active'
-      && activeFile.pistonOscillationFreeSession.dataProcessing?.status === 'completed';
-    if (!reviewAvailable) setPistonOscillationProcessReviewOpen(false);
-  }, [
-    activeFile.kind,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationFreeSession.status
-      : null,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationFreeSession.dataProcessing?.status ?? null
-      : null,
-  ]);
-  useEffect(() => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') {
-      setPistonOscillationGuideLessonDialog(null);
-      setPistonOscillationGuideLessonOutgoingView(null);
-      return;
-    }
-    setPistonOscillationGuideLessonOutgoingView(null);
-    const session = activeFile.pistonOscillationGuideSession;
-    if (session.heightReset?.phase === 'explaining') {
-      setPistonOscillationGuideLessonDialog((current) => (
-        current?.kind === 'heightReset' && current.fileId === activeFile.id
-          ? current
-          : { kind: 'heightReset', fileId: activeFile.id, closing: false }
-      ));
-      return;
-    }
-    setPistonOscillationGuideLessonDialog((current) => (
-      current?.kind === 'heightReset' ? null : current
-    ));
-    if (!activeFile.pistonOscillationLessonIntroAutoShown) {
-      setPistonOscillationGuideLessonOutgoingView(null);
-      setPistonOscillationGuideLessonDialog({
-        kind: 'intro',
-        fileId: activeFile.id,
-        pageIndex: 0,
-        closing: false,
-      });
-      updateFileById(activeFile.id, (file) => (
-        file.kind === 'heatCapacityPistonOscillation'
-          ? {
-              ...file,
-              pistonOscillationLessonIntroAutoShown: true,
-              updatedAt: Date.now(),
-            }
-          : file
-      ));
-      return;
-    }
-    setPistonOscillationGuideLessonDialog((current) => (
-      current && current.fileId !== activeFile.id ? null : current
-    ));
-  }, [
-    activeFile.id,
-    activeFile.kind,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationLessonIntroAutoShown
-      : null,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationGuideSession.heightReset?.phase
-      : null,
-  ]);
-  useEffect(() => {
-    if (
-      activePistonOscillationGuideSession?.status === 'idle'
-      || activePistonOscillationGuideSession?.step === 'firstHeightAdjustment'
-      || activePistonOscillationGuideSession?.step === 'nextHeightAdjustment'
-    ) {
-      setPistonOscillationGuideHeightAdjustmentStage('readingHeight');
-    } else if (activePistonOscillationGuideSession?.step === 'screwLock') {
-      setPistonOscillationGuideHeightAdjustmentStage('lockingHeight');
-    }
-    pistonOscillationGuideTargetHeightReadyRef.current = false;
-    setPistonOscillationGuideTargetHeightReady(false);
-    pistonOscillationGuideHeightHandoffCompleteRef.current = false;
-    setPistonOscillationGuideHeightHandoffComplete(false);
-    setPistonOscillationGuideHoseDragging(false);
-  }, [
-    activeFile.id,
-    activePistonOscillationGuideSession?.measurementIndex,
-    activePistonOscillationGuideSession?.startedAtMs,
-    activePistonOscillationGuideSession?.status,
-    activePistonOscillationGuideSession?.step,
-  ]);
-  useEffect(() => {
-    if (
-      activePistonOscillationGuideSession?.status !== 'active'
-      || activePistonOscillationGuideTimeFrozen
-      || pistonOscillationGuideLessonDialog !== null
-    ) return undefined;
-    let previousAtMs = performance.now();
-    const timer = window.setInterval(() => {
-      const nowMs = performance.now();
-      const deltaMs = nowMs - previousAtMs;
-      previousAtMs = nowMs;
-      setPistonOscillationGuidePulseElapsedMs((elapsedMs) => elapsedMs + deltaMs);
-    }, PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS);
-    return () => window.clearInterval(timer);
-  }, [
-    activeFile.id,
-    activePistonOscillationGuideSession?.status,
-    activePistonOscillationGuideTimeFrozen,
-    pistonOscillationGuideLessonDialog,
-  ]);
-  useEffect(() => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
-    const resolved = resolvePistonOscillationDemoSession(
-      activeFile.pistonOscillationDemoSession,
-      PISTON_OSCILLATION_DEMO_DURATION_MS,
-      Date.now(),
-    );
-    const snapshot = {
-      fileId: resolved.status === 'idle' ? null : activeFile.id,
-      phase: resolved.status,
-      elapsedMs: resolved.elapsedMs,
-    } as const;
-    pistonOscillationDemoPlaybackChannel.publish(snapshot);
-    setPistonOscillationDemoPlayback((current) => {
-      if (
-        current.fileId === snapshot.fileId
-        && current.phase === snapshot.phase
-        && snapshot.phase === 'running'
-      ) return current;
-      return snapshot;
-    });
-    if (
-      resolved.status === 'completed'
-      && activeFile.pistonOscillationDemoSession.status !== 'completed'
-    ) {
-      setWorkbenchFiles((current) => current.map((file) => (
-        file.id === activeFile.id && file.kind === 'heatCapacityPistonOscillation'
-          ? {
-              ...file,
-              pistonOscillationDemoSession: resolved,
-              updatedAt: Date.now(),
-            }
-          : file
-      )));
-      setLeftCollapsed(false);
-      window.setTimeout(() => {
-        void flushWorkspacePersistenceRef.current();
-      }, 0);
-    }
-  }, [
-    activeFile.id,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationDemoSession.status
-      : null,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? activeFile.pistonOscillationDemoSession.updatedAtMs
-      : null,
-    pistonOscillationDemoPlaybackChannel,
-  ]);
-  useEffect(() => {
-    if (
-      pistonOscillationDemoPlayback.phase !== 'running'
-      || pistonOscillationGuideLessonDialog !== null
-    ) return undefined;
-    const playbackFileId = pistonOscillationDemoPlayback.fileId;
-    const currentSnapshot = pistonOscillationDemoPlaybackChannel.getSnapshot();
-    const resumedElapsedMs = currentSnapshot.fileId === playbackFileId
-      ? currentSnapshot.elapsedMs
-      : pistonOscillationDemoPlayback.elapsedMs;
-    const startedAtMs = performance.now() - resumedElapsedMs;
-    const timer = window.setInterval(() => {
-      const elapsedMs = Math.min(
-        PISTON_OSCILLATION_DEMO_DURATION_MS,
-        performance.now() - startedAtMs,
-      );
-      const completed = elapsedMs >= PISTON_OSCILLATION_DEMO_DURATION_MS;
-      pistonOscillationDemoPlaybackChannel.publish({
-        fileId: playbackFileId,
-        phase: completed ? 'completed' : 'running',
-        elapsedMs,
-      });
-      if (!completed) return;
-      const completedAtMs = Date.now();
-      setPistonOscillationDemoPlayback((current) => (
-        current.phase === 'running' && current.fileId === playbackFileId
-          ? { ...current, elapsedMs, phase: 'completed' }
-          : current
-      ));
-      setWorkbenchFiles((current) => current.map((file) => (
-        file.id === playbackFileId && file.kind === 'heatCapacityPistonOscillation'
-          ? {
-              ...file,
-              updatedAt: completedAtMs,
-              pistonOscillationDemoSession: completePistonOscillationDemoSession(
-                PISTON_OSCILLATION_DEMO_DURATION_MS,
-                completedAtMs,
-              ),
-            }
-          : file
-      )));
-      if (activeFileIdRef.current === playbackFileId) setLeftCollapsed(false);
-      window.setTimeout(() => {
-        void flushWorkspacePersistenceRef.current();
-      }, 0);
-    }, 50);
-    return () => window.clearInterval(timer);
-  }, [
-    pistonOscillationDemoPlayback.fileId,
-    pistonOscillationDemoPlayback.phase,
-    pistonOscillationDemoPlaybackChannel,
-    pistonOscillationGuideLessonDialog,
-  ]);
+
+
+
+
+
+
+
+
+
+
+
+
   const activeHeatCapacityFreeBatchProgress = activeFile.kind === 'heatCapacity'
     ? getHeatCapacityFreeBatchProgress(activeFile)
     : null;
@@ -2828,9 +1631,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeFile.id,
     activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMode : null,
   ]);
-  useEffect(() => {
-    setPistonOscillationFreeSetupRequestedFileId(null);
-  }, [activeFile.id]);
+
   const effectiveParametersCollapsed = parametersCollapsed;
   const activeHeatCapacityPressureAlarmVisible = heatCapacityPressureAlarmVisible &&
     activeFile.kind === 'heatCapacity' &&
@@ -2881,275 +1682,30 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const activeHeatCapacityPreviewMountAria = activeHeatCapacityUsesSelectableGas
     ? heatCapacityRealtimeCopy.gasPreviewMountAria(activeHeatCapacityGasLabel)
     : heatCapacityRealtimeCopy.previewMountAria;
-  const pistonOscillationCopy = getPistonOscillationShellCopy(settingsLanguagePreference);
-  const pistonGuideStep = activePistonOscillationGuideSession?.step ?? null;
-  const pistonGuideHeightConfirmationReady = Boolean(
-    pistonOscillationGuideTargetHeightReady
-    && (
-      pistonGuideStep === 'firstHeightAdjustment'
-      || pistonGuideStep === 'nextHeightAdjustment'
-    )
-  );
-  const pistonGuideHeightHandoffComplete = Boolean(
-    pistonGuideHeightConfirmationReady
-    && pistonOscillationGuideHeightHandoffComplete
-  );
-  const pistonGuidePulseDelayMs = pistonGuideHeightConfirmationReady
-    ? PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS
-    : GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS;
-  const pistonGuidePulseCycleElapsedMs = Math.max(
-    0,
-    pistonOscillationGuidePulseElapsedMs - pistonGuidePulseDelayMs,
-  );
-  const pistonGuidePulseWithinCycleMs = pistonGuidePulseCycleElapsedMs % 4_000;
-  const pistonGuidePulseActive = Boolean(
-    activePistonOscillationGuideSession?.status === 'active'
-    && (
-      pistonOscillationGuideStrongReminderActiveContext !== null
-      || (
-        pistonOscillationGuidePulseElapsedMs >= pistonGuidePulseDelayMs
-        && pistonGuidePulseWithinCycleMs < 2_200
-      )
-    ),
-  );
-  const pistonGuidePowerTargetActive = Boolean(
-    activePistonOscillationGuideSession?.status === 'active'
-    && (
-      pistonGuideStep === 'powerOn'
-      || pistonGuideStep === 'powerOff'
-    )
-  );
-  const pistonGuideVisualCue: PistonOscillationGuideVisualCue = !pistonGuidePulseActive
-    ? null
-    : pistonGuidePowerTargetActive
-      ? 'power'
-    : pistonGuideStep === 'firstHeightAdjustment'
-      || pistonGuideStep === 'nextHeightAdjustment'
-        ? pistonGuideHeightConfirmationReady ? 'heightStageAction' : 'platform'
-        : pistonGuideStep === 'waitingTrigger'
-          ? pistonOscillationGuidePressureIssue === 'overpressure' ? null : 'platform'
-        : pistonGuideStep === 'screwLock'
-          ? 'screw'
-          : pistonGuideStep === 'screwLoosen'
-            ? 'screw'
-          : pistonGuideStep === 'hoseReconnect'
-            ? 'hoseReconnect'
-            : pistonGuideStep === 'crossRunDisconnect'
-              ? 'hoseDisconnect'
-            : null;
-  const pistonGuideScrewInteractionMode =
-    activePistonOscillationGuideSession?.status === 'active'
-      ? getPistonOscillationGuideScrewInteractionMode(
-          activePistonOscillationGuideSession.step,
-        )
-      : null;
-  const pistonGuideAcquisitionCue: PistonOscillationGuideAcquisitionCue =
-    !pistonGuidePulseActive
-      ? null
-      : pistonGuideStep === 'parameterSetup'
-        ? 'settings'
-        : pistonOscillationGuidePressureIssue === 'overpressure'
-          ? 'redo'
-        : pistonGuideStep === 'acquisitionReady'
-          ? 'start'
-          : pistonGuideStep === 'pauseAvailable'
-            ? 'pause'
-            : pistonGuideStep === 'awaitingSaveOrRedo'
-              ? 'save'
-              : null;
-  const pistonGuideRequestedFocusMode =
-    activePistonOscillationGuideSession?.status === 'active'
-    || activePistonOscillationGuideSession?.status === 'completed'
-      ? getPistonOscillationGuideHeightResetPresentation(
-        activePistonOscillationGuideSession.heightReset,
-      )?.focusMode ?? getPistonOscillationGuideRequestedFocusMode(
-        activePistonOscillationGuideSession.step,
-      )
-      : undefined;
-  const pistonGuideExpectedStrongTargetId =
-    activePistonOscillationGuideSession?.status === 'active'
-      ? pistonOscillationGuidePressureIssue === 'overpressure'
-        ? 'redo'
-        : getPistonOscillationGuideStrongTargetId(
-          activePistonOscillationGuideSession.step,
-          pistonOscillationGuideHeightAdjustmentStage,
-          pistonGuideHeightHandoffComplete,
-          activePistonOscillationGuideSession,
-          pistonOscillationPeriodSelectionToolActive,
-        )
-      : null;
-  const pistonGuideStrongTargetContext = pistonGuideExpectedStrongTargetId
-    && activePistonOscillationGuideSession
-      ? [
-          activeFile.id,
-          activePistonOscillationGuideSession.startedAtMs,
-          activePistonOscillationGuideSession.measurementIndex,
-          activePistonOscillationGuideSession.step,
-          activePistonOscillationGuideSession.dataProcessing?.activeRunIndex ?? 'none',
-          pistonGuideExpectedStrongTargetId,
-        ].join(':')
-      : null;
-  const pistonOscillationGuideStrongReminderActive =
-    pistonOscillationGuideStrongReminderActiveContext !== null
-    && pistonOscillationGuideStrongReminderActiveContext === pistonGuideStrongTargetContext;
-  const pistonGuideStrongTargetContextChanged =
-    pistonOscillationGuideStrongTargetContextRef.current !== pistonGuideStrongTargetContext;
-  useEffect(() => {
-    if (pistonOscillationGuideStrongTargetContextRef.current === pistonGuideStrongTargetContext) {
-      return;
-    }
-    const pressureIssueChanged = pistonOscillationGuidePreviousPressureIssueRef.current
-      !== pistonOscillationGuidePressureIssue;
-    pistonOscillationGuidePreviousPressureIssueRef.current = pistonOscillationGuidePressureIssue;
-    pistonOscillationGuideStrongTargetContextRef.current = pistonGuideStrongTargetContext;
-    setPistonOscillationGuideStrongReminderClockContext(null);
-    setPistonOscillationGuideStrongReminderActive(false);
-    setPistonOscillationGuidePulseElapsedMs(0);
-    if (!pressureIssueChanged) {
-      clearPistonOscillationGuideFeedback();
-      pistonOscillationGuideMissCountRef.current = 0;
-    }
-    if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-      pistonOscillationGuideStrongReminderTimerRef.current = null;
-    }
-  }, [pistonGuideStrongTargetContext, pistonOscillationGuidePressureIssue]);
-  useEffect(() => {
-    if (
-      pistonGuideStrongTargetContext === null
-      || pistonOscillationGuidePressureIssue !== null
-      || pistonOscillationGuideStrongReminderClockContext !== null
-      || pistonOscillationGuidePulseElapsedMs
-        >= PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS
-    ) return;
-    setPistonOscillationGuideStrongReminderClockContext(
-      pistonGuideStrongTargetContext,
-    );
-  }, [
-    pistonGuideStrongTargetContext,
-    pistonOscillationGuidePressureIssue,
-    pistonOscillationGuidePulseElapsedMs,
-    pistonOscillationGuideStrongReminderClockContext,
-  ]);
-  useEffect(() => {
-    if (
-      activePistonOscillationGuideSession?.status !== 'active'
-      || pistonGuideStrongTargetContextChanged
-      || pistonGuideExpectedStrongTargetId === null
-      || pistonOscillationGuideStrongReminderClockContext
-        !== pistonGuideStrongTargetContext
-      || pistonOscillationGuidePressureIssue !== null
-      || pistonOscillationGuideStrongReminderActive
-      || activePistonOscillationGuideTimeFrozen
-      || pistonOscillationGuideLessonDialog !== null
-      || pistonOscillationGuidePulseElapsedMs
-        < PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS
-    ) return;
-    setPistonOscillationGuideStrongReminderActive(
-      true,
-      pistonGuideStrongTargetContext,
-    );
-  }, [
-    activePistonOscillationGuideSession?.status,
-    activePistonOscillationGuideTimeFrozen,
-    pistonGuideExpectedStrongTargetId,
-    pistonOscillationGuideStrongReminderActive,
-    pistonOscillationGuideStrongReminderClockContext,
-    pistonOscillationGuidePressureIssue,
-    pistonGuideStrongTargetContextChanged,
-    pistonOscillationGuideLessonDialog,
-    pistonOscillationGuidePulseElapsedMs,
-  ]);
-  const pistonGuideStrongHoseInteractionHidden = Boolean(
-    (pistonGuideExpectedStrongTargetId === 'hoseDisconnect'
-      || pistonGuideExpectedStrongTargetId === 'hoseReconnect')
-    && (
-      pistonOscillationGuideHoseDragging
-      || (
-        pistonGuideExpectedStrongTargetId === 'hoseDisconnect'
-        && pistonOscillationGuideHoseState === 'disconnected'
-      )
-      || (
-        pistonGuideExpectedStrongTargetId === 'hoseReconnect'
-        && pistonOscillationGuideHoseState === 'connected'
-      )
-    )
-  );
-  const pistonGuideStrongTargetId =
-    activePistonOscillationGuideSession?.status === 'active'
-    && pistonOscillationGuideStrongReminderActive
-    && !activePistonOscillationGuideTimeFrozen
-    && pistonOscillationGuideLessonDialog === null
-    && !pistonGuideStrongHoseInteractionHidden
-      ? pistonGuideExpectedStrongTargetId
-      : null;
-  const pistonGuideStrongReminderText = activePistonOscillationGuideSession
-    ? pistonOscillationGuidePressureIssue === 'underpressure'
-      ? pistonOscillationCopy.guide.pressureTooLowStrongReminder
-      : pistonOscillationGuidePressureIssue === 'overpressure'
-        ? pistonOscillationCopy.guide.pressureTooHighStrongReminder
-        : getPistonOscillationGuideReminderText(
-          pistonOscillationCopy,
-          activePistonOscillationGuideSession.step,
-          activePistonOscillationGuideSession.measurementIndex,
-          pistonGuideExpectedStrongTargetId,
-        )
-    : '';
-  useLayoutEffect(() => {
-    if (!pistonGuideStrongTargetId) {
-      setPistonOscillationGuideStrongMaskLayout(null);
-      return undefined;
-    }
-    const root = liveWorkspaceRef.current;
-    if (!root) return undefined;
-    const updateLayout = () => {
-      const nextLayout = getPistonOscillationGuideStrongMaskLayout(
-        root,
-        pistonGuideStrongTargetId,
-      );
-      setPistonOscillationGuideStrongMaskLayout((currentLayout) => {
-        if (
-          !nextLayout
-          || !currentLayout
-          || pistonGuideStrongTargetId !== 'platform'
-          || currentLayout.top !== nextLayout.top
-          || currentLayout.width !== nextLayout.width
-          || currentLayout.height !== nextLayout.height
-        ) return nextLayout;
-        const renderedCard = root.querySelector<HTMLElement>(
-          '.studio-piston-guide-strong-mask .studio-heat-guide-strong-card',
-        );
-        const stableCardHeight = renderedCard?.offsetHeight
-          ?? (currentLayout.card.compact ? 168 : 112);
-        const stableCardRight = currentLayout.card.x + currentLayout.card.width;
-        const stableCardBottom = currentLayout.card.y + stableCardHeight;
-        const cutoutRight = nextLayout.cutout.x + nextLayout.cutout.width;
-        const cutoutBottom = nextLayout.cutout.y + nextLayout.cutout.height;
-        const overlapsMovingCutout = !(
-          stableCardRight + 8 <= nextLayout.cutout.x
-          || cutoutRight + 8 <= currentLayout.card.x
-          || stableCardBottom + 8 <= nextLayout.cutout.y
-          || cutoutBottom + 8 <= currentLayout.card.y
-        );
-        return overlapsMovingCutout
-          ? nextLayout
-          : { ...nextLayout, card: currentLayout.card };
-      });
-    };
-    updateLayout();
-    const observer = new ResizeObserver(updateLayout);
-    observer.observe(root);
-    root.addEventListener('scroll', updateLayout, true);
-    const timer = window.setInterval(
-      updateLayout,
-      pistonGuideStrongTargetId === 'platform' ? 32 : 120,
-    );
-    return () => {
-      observer.disconnect();
-      root.removeEventListener('scroll', updateLayout, true);
-      window.clearInterval(timer);
-    };
-  }, [pistonGuideStrongTargetId]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   const heatCapacityPanels = useMemo(
     () => createHeatCapacityPanels(workbenchCopy, heatCapacityRealtimeCopy),
     [heatCapacityRealtimeCopy, workbenchCopy],
@@ -3289,428 +1845,20 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     };
   }, [activeFile, idealAnalysis?.verdictState, isWorkbenchEmpty, logs, workbenchCopy]);
 
-  const animateCurrentParametersScroll = (
-    targetTop: number,
-    onComplete?: () => void,
-    duration = IDEAL_ADVANCED_SCROLL_DURATION_MS,
-  ) => {
-    const container = currentParametersBodyRef.current;
+  const { animateCurrentParametersScroll, toggleIdealAdvancedSettings } = createWorkbenchParameterScrollActions({
+    window, currentParametersBodyRef, idealAdvancedScrollFrameRef,
+    idealAdvancedSettingsPreviousScrollTopRef, setIdealAdvancedSettingsOpen, setIdealAdvancedSettingsBodyVisible,
+  });
 
-    if (!container) {
-      onComplete?.();
-      return;
-    }
 
-    if (idealAdvancedScrollFrameRef.current !== null) {
-      window.cancelAnimationFrame(idealAdvancedScrollFrameRef.current);
-    }
 
-    const startTop = container.scrollTop;
-    const distance = targetTop - startTop;
-    const startTime = window.performance.now();
-    const easeInOut = (value: number) => (
-      value < 0.5
-        ? 4 * value * value * value
-        : 1 - Math.pow(-2 * value + 2, 3) / 2
-    );
-
-    const step = (time: number) => {
-      const progress = Math.min(1, (time - startTime) / duration);
-      container.scrollTop = startTop + distance * easeInOut(progress);
-
-      if (progress < 1) {
-        idealAdvancedScrollFrameRef.current = window.requestAnimationFrame(step);
-        return;
-      }
-
-      idealAdvancedScrollFrameRef.current = null;
-      container.scrollTop = targetTop;
-      onComplete?.();
-    };
-
-    idealAdvancedScrollFrameRef.current = window.requestAnimationFrame(step);
-  };
-
-  const toggleIdealAdvancedSettings = () => {
-    setIdealAdvancedSettingsOpen((current) => {
-      if (!current) {
-        idealAdvancedSettingsPreviousScrollTopRef.current = currentParametersBodyRef.current?.scrollTop ?? 0;
-        setIdealAdvancedSettingsBodyVisible(true);
-      }
-      return !current;
-    });
-  };
-
-  const closeGeneralSettings = () => {
-    setSettingsGeneralOpen(false);
-    setSettingsLanguageMenuOpen(false);
-  };
-
-  const openGeneralSettings = () => {
-    setOpenTopMenu(null);
-    setAboutWindowOpen(false);
-    setSettingsLanguageMenuOpen(false);
-    setSettingsGeneralOpen(true);
-  };
-
-  const showAboutResultNotice = (
-    title: string,
-    body: string,
-    kind: PromptFeedbackKind = 'info',
-  ) => {
-    if (aboutResultNoticeTimerRef.current !== null) {
-      window.clearTimeout(aboutResultNoticeTimerRef.current);
-    }
-    setAboutResultNotice({ title, body, kind });
-    aboutResultNoticeTimerRef.current = window.setTimeout(() => {
-      setAboutResultNotice(null);
-      aboutResultNoticeTimerRef.current = null;
-    }, PROMPT_TOAST_DURATION_MS.short);
-  };
-
-  const closeAboutWindow = () => {
-    setAboutWindowOpen(false);
-    setBuildNoticeWindowOpen(false);
-    resetBuildNoticeTransientState();
-    setAboutResultNotice(null);
-    if (aboutResultNoticeTimerRef.current !== null) {
-      window.clearTimeout(aboutResultNoticeTimerRef.current);
-      aboutResultNoticeTimerRef.current = null;
-    }
-  };
-
-  const openAboutWindow = () => {
-    setOpenTopMenu(null);
-    setSettingsGeneralOpen(false);
-    setSettingsLanguageMenuOpen(false);
-    setBuildNoticeWindowOpen(false);
-    resetBuildNoticeTransientState();
-    setAboutWindowOpen(true);
-  };
-
-  const resetBuildNoticeTransientState = () => {
-    setBuildNoticeNavOpen(false);
-    setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeFilePreview(null);
-    setBuildNoticeOpenError(null);
-    buildNoticeReturnScrollTopRef.current = 0;
-    buildNoticeRestoreScrollOnReturnRef.current = false;
-  };
-
-  const openBuildNoticeWindow = () => {
-    setBuildNoticeWindowOpen(true);
-    resetBuildNoticeTransientState();
-  };
-
-  const closeBuildNoticeWindow = () => {
-    setBuildNoticeWindowOpen(false);
-    resetBuildNoticeTransientState();
-  };
-
-  const jumpToBuildNoticeSection = (sectionId: string) => {
-    setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeOpenError(null);
-    setBuildNoticeNavOpen(false);
-    window.setTimeout(() => {
-      const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
-      const target = document.getElementById(`studio-build-notice-section-${sectionId}`);
-      if (!container || !target) return;
-
-      const containerTop = container.getBoundingClientRect().top;
-      const targetTop = target.getBoundingClientRect().top;
-      const scrollMarginTop = Number.parseFloat(window.getComputedStyle(target).scrollMarginTop) || 0;
-      const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-      const nextScrollTop = Math.min(
-        maxScrollTop,
-        Math.max(0, container.scrollTop + targetTop - containerTop - scrollMarginTop),
-      );
-      container.scrollTo({ top: nextScrollTop, behavior: 'smooth' });
-    }, 90);
-  };
-
-  const openBuildNoticeMaterial = (materialId: WorkbenchLegalMaterialId) => {
-    const container = document.querySelector<HTMLDivElement>('.studio-build-notice-body');
-    buildNoticeReturnScrollTopRef.current = container?.scrollTop ?? 0;
-    buildNoticeRestoreScrollOnReturnRef.current = false;
-    setActiveBuildNoticeMaterialId(materialId);
-    setBuildNoticeNavOpen(false);
-    setBuildNoticeOpenError(null);
-  };
-
-  const closeBuildNoticeMaterial = () => {
-    buildNoticeRestoreScrollOnReturnRef.current = true;
-    setActiveBuildNoticeMaterialId(null);
-    setBuildNoticeFilePreview(null);
-    setBuildNoticeOpenError(null);
-  };
-
-  const openBuildNoticeLegalFile = async (materialId: WorkbenchLegalMaterialId) => {
-    setBuildNoticeOpenError(null);
-    const fileConfig = buildNoticeLegalMaterialFiles[materialId];
-
-    if (hasDesktopLegalBridge()) {
-      const result = await window.hardSphereLabLegal!.openLegalFile(materialId);
-      if (result.status === 'error') {
-        console.error('[Workbench] Failed to open legal material:', result.message);
-        setBuildNoticeOpenError(workbenchCopy.about.buildNoticeOpenUnavailable);
-      }
-      return;
-    }
-
-    if (fileConfig.previewPath) {
-      window.open(fileConfig.previewPath, '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    setBuildNoticeOpenError(workbenchCopy.about.buildNoticeOpenUnavailable);
-  };
-
-  const getIgnoredUpdateVersion = () => (
-    typeof window === 'undefined'
-      ? null
-      : window.localStorage.getItem(WORKBENCH_IGNORED_UPDATE_VERSION_KEY)
-  );
-
-  const rememberIgnoredUpdateVersion = (version: string) => {
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(WORKBENCH_IGNORED_UPDATE_VERSION_KEY, version);
-    }
-  };
-
-  const applyUpdaterState = (nextState: WorkbenchUpdateState, options: { manual?: boolean } = {}) => {
-    setUpdaterState((currentState) => mergeWorkbenchUpdateState(nextState, currentState));
-
-    if (nextState.status === 'available') {
-      const latestVersion = nextState.latestVersion || '';
-      if (latestVersion && getIgnoredUpdateVersion() === latestVersion) {
-        setUpdateDialogOpen(false);
-        if (options.manual) {
-          showAboutResultNotice(
-            workbenchCopy.about.ignoredVersionTitle,
-            workbenchCopy.about.ignoredVersionBody(latestVersion),
-            'info',
-          );
-        }
-        return;
-      }
-      setUpdateDialogOpen(true);
-      return;
-    }
-
-    if (
-      nextState.status === 'downloading'
-      || nextState.status === 'retrying'
-      || nextState.status === 'downloaded'
-      || nextState.status === 'installing'
-      || (nextState.status === 'error' && hasDesktopUpdaterBridge())
-    ) {
-      setUpdateDialogOpen(true);
-      return;
-    }
-
-    setUpdateDialogOpen(false);
-
-    if (nextState.status === 'not-available' && options.manual) {
-      showAboutResultNotice(
-        workbenchCopy.about.updateResultTitle,
-        workbenchCopy.about.upToDateStatus,
-        'success',
-      );
-      return;
-    }
-
-    if ((nextState.status === 'unsupported' || nextState.status === 'error') && options.manual) {
-      showAboutResultNotice(
-        workbenchCopy.about.updateResultTitle,
-        getAboutUpdateStatusLabel(nextState, workbenchCopy.about, hasDesktopUpdaterBridge()),
-        nextState.status === 'error' ? 'danger' : 'warning',
-      );
-    }
-  };
-
-  const runAboutUpdateCheck = () => {
-    if (aboutUpdateChecking) return;
-    const updateCheckRequest = window.hardSphereLabUpdater?.checkForUpdates?.();
-    if (!updateCheckRequest) {
-      const unsupportedState: WorkbenchUpdateState = {
-        ...updaterState,
-        status: 'unsupported',
-        currentVersion: WORKBENCH_APP_VERSION,
-        message: workbenchCopy.about.unsupportedUpdateStatus,
-      };
-      applyUpdaterState(unsupportedState, { manual: true });
-      return;
-    }
-    setUpdaterState((currentState) => ({
-      ...currentState,
-      status: 'checking',
-      message: '',
-      errorStage: null,
-    }));
-    void updateCheckRequest
-      .then((result) => applyUpdaterState(result, { manual: true }))
-      .catch((error) => {
-        console.error('[Workbench] Update check failed:', error);
-        applyUpdaterState({
-          ...updaterState,
-          status: 'error',
-          currentVersion: WORKBENCH_APP_VERSION,
-          message: workbenchCopy.about.updateErrorStatus,
-          errorStage: 'check',
-        }, { manual: true });
-      });
-  };
-
-  const ignoreUpdateDialogVersion = () => {
-    const version = updaterState.latestVersion;
-    if (version) {
-      rememberIgnoredUpdateVersion(version);
-      showAboutResultNotice(
-        workbenchCopy.about.ignoredVersionTitle,
-        workbenchCopy.about.ignoredVersionBody(version),
-        'info',
-      );
-    }
-    setUpdateDialogOpen(false);
-  };
-
-  const startUpdateDownload = () => {
-    if (!updateDialogState) return;
-    if (isWorkbenchUpdateCheckFailure(updateDialogState)) {
-      setUpdateDialogOpen(false);
-      runAboutUpdateCheck();
-      return;
-    }
-    const downloadRequest = window.hardSphereLabUpdater?.downloadUpdate?.();
-    if (!downloadRequest) return;
-    setUpdaterState((currentState) => ({
-      ...currentState,
-      status: 'downloading',
-      percent: 0,
-      errorStage: null,
-    }));
-    void downloadRequest
-      .then((result) => applyUpdaterState(result))
-      .catch((error) => {
-        console.error('[Workbench] Update download failed:', error);
-        applyUpdaterState({
-          ...updaterState,
-          status: 'error',
-          currentVersion: WORKBENCH_APP_VERSION,
-          message: workbenchCopy.about.updateErrorStatus,
-          errorStage: 'download',
-        }, { manual: true });
-      });
-  };
-
-  const restartAndInstallUpdate = () => {
-    if (!updateDialogState) return;
-    const installRequest = window.hardSphereLabUpdater?.quitAndInstall?.();
-    if (!installRequest) return;
-    setUpdaterState((currentState) => ({ ...currentState, status: 'installing', percent: 100 }));
-    void installRequest
-      .then((result) => applyUpdaterState(result))
-      .catch((error) => {
-        console.error('[Workbench] Restart and install failed:', error);
-        setUpdaterState((currentState) => ({
-          ...currentState,
-          status: 'error',
-          message: workbenchCopy.about.updateErrorStatus,
-        }));
-      });
-  };
-
-  const updateSettingsThemePreference = (theme: WorkbenchThemePreference) => {
-    setSettingsThemePreference(theme);
-    persistWorkbenchGeneralSettings({
-      theme,
-      language: settingsLanguagePreference,
-      performanceMode: settingsPerformanceMode,
-      audioEnabled: audioSettings.enabled,
-      audioVolume: audioSettings.volume,
-    });
-  };
-
-  const updateSettingsLanguagePreference = (language: WorkbenchLanguagePreference) => {
-    const currentProfile = experienceProfileRef.current;
-    if (
-      currentProfile.firstRunCompleted &&
-      currentProfile.committedLanguage !== language &&
-      !commitExperienceProfile({ ...currentProfile, committedLanguage: language })
-    ) return;
-    setSettingsLanguagePreference(language);
-    setSettingsLanguageMenuOpen(false);
-    persistWorkbenchGeneralSettings({
-      theme: settingsThemePreference,
-      language,
-      performanceMode: settingsPerformanceMode,
-      audioEnabled: audioSettings.enabled,
-      audioVolume: audioSettings.volume,
-    });
-    window.setTimeout(() => settingsLanguageTriggerRef.current?.focus(), 0);
-  };
-
-  const updateSettingsPerformanceMode = (performanceMode: WorkbenchPerformanceMode) => {
-    setSettingsPerformanceMode(performanceMode);
-    persistWorkbenchGeneralSettings({
-      theme: settingsThemePreference,
-      language: settingsLanguagePreference,
-      performanceMode,
-      audioEnabled: audioSettings.enabled,
-      audioVolume: audioSettings.volume,
-    });
-  };
-
-  const updateSettingsAudioEnabled = (audioEnabled: boolean) => {
-    updateAudioSettings({ enabled: audioEnabled, volume: audioSettings.volume });
-    persistWorkbenchGeneralSettings({
-      theme: settingsThemePreference,
-      language: settingsLanguagePreference,
-      performanceMode: settingsPerformanceMode,
-      audioEnabled,
-      audioVolume: audioSettings.volume,
-    });
-  };
-
-  const updateSettingsAudioVolume = (volume: number) => {
-    const audioVolume = clampAudioVolume(volume);
-    updateAudioSettings({ enabled: audioSettings.enabled, volume: audioVolume });
-    persistWorkbenchGeneralSettings({
-      theme: settingsThemePreference,
-      language: settingsLanguagePreference,
-      performanceMode: settingsPerformanceMode,
-      audioEnabled: audioSettings.enabled,
-      audioVolume,
-    });
-  };
-
-  useEffect(() => {
-    if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const updateSystemTheme = () => {
-      setSystemWorkbenchTheme(mediaQuery.matches ? 'dark' : 'light');
-    };
-
-    updateSystemTheme();
-
-    if (typeof mediaQuery.addEventListener === 'function') {
-      mediaQuery.addEventListener('change', updateSystemTheme);
-      return () => mediaQuery.removeEventListener('change', updateSystemTheme);
-    }
-
-    mediaQuery.addListener(updateSystemTheme);
-    return () => mediaQuery.removeListener(updateSystemTheme);
-  }, []);
-
-  useEffect(() => {
-    const unsubscribe = window.hardSphereLabUpdater?.onStatus?.((state) => {
-      applyUpdaterState(state);
-    });
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [workbenchCopy]);
+  const {
+    updaterState, updateDialogOpen, updateDialogState, aboutUpdateChecking, closeUpdateDialog, openManualUpdateDownload,
+    runAboutUpdateCheck, ignoreUpdateDialogVersion, startUpdateDownload, restartAndInstallUpdate,
+  } = useWorkbenchUpdaterController({
+    appVersion: WORKBENCH_APP_VERSION, initialHeatCapacityRefreshWindows, aboutCopy: workbenchCopy.about,
+    showAboutResultNotice: (title, body, kind) => showAboutResultNotice(title, body, kind),
+  });
 
   useEffect(() => {
     filesRef.current = files;
@@ -3984,87 +2132,32 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setSelectedFileId(activeFileId);
   }, [activeFileId, files, selectedFileId]);
 
-  useEffect(() => {
-    closedFilesRef.current = closedFiles;
-    selectedPanelRef.current = selectedPanel;
-    scheduleWorkspacePersistenceRef.current('semantic');
-  }, [activeFileId, closedFiles, selectedPanel]);
-
-  useEffect(() => {
-    const activePersistenceFile = files.find((file) => file.id === activeFileId);
-    const runtimeCheckpointAccepted =
-      scheduleWorkspacePersistenceRef.current('runtime-checkpoint');
-    if (
-      runtimeCheckpointAccepted &&
-      activePersistenceFile?.kind === 'heatCapacity'
-    ) {
-      scheduleHeatCapacitySemanticSceneCheckpointRef.current();
-    }
-    const nextLocation = {
-      fileId: activeFileId,
-      mode: activePersistenceFile?.kind === 'heatCapacity'
-        ? activePersistenceFile.heatCapacityMode
-        : null,
-    };
-    const previousLocation = workspacePersistenceLocationRef.current;
-    workspacePersistenceLocationRef.current = nextLocation;
-    if (
-      previousLocation.fileId !== nextLocation.fileId ||
-      previousLocation.mode !== nextLocation.mode
-    ) {
-      flushWorkspacePersistenceRef.current();
-    }
-  }, [activeFileId, files]);
+  useWorkbenchPersistenceProjection({
+    activeFileId,
+    files,
+    closedFiles,
+    selectedPanel,
+    closedFilesRef,
+    selectedPanelRef,
+    scheduleWorkspacePersistenceRef,
+    scheduleHeatCapacitySemanticSceneCheckpointRef,
+    workspacePersistenceLocationRef,
+    flushWorkspacePersistenceRef,
+  });
 
   useEffect(() => {
     renamingFileIdRef.current = renamingFileId;
   }, [renamingFileId]);
 
-  useEffect(() => {
-    if (activeFile.kind !== 'ideal') return undefined;
-    if (!idealAdvancedSettingsOpen && !idealAdvancedSettingsBodyVisible) return undefined;
+  useWorkbenchParameterScroll({
+    activeFileKind: activeFile.kind, idealAdvancedSettingsOpen, idealAdvancedSettingsBodyVisible,
+    currentParametersBodyRef, idealAdvancedSettingsBodyRef, idealAdvancedSettingsPreviousScrollTopRef,
+    idealAdvancedScrollFrameRef, animateCurrentParametersScroll, setIdealAdvancedSettingsBodyVisible,
+  });
 
-    const frameId = window.requestAnimationFrame(() => {
-      if (idealAdvancedSettingsOpen) {
-        const container = currentParametersBodyRef.current;
-        const body = idealAdvancedSettingsBodyRef.current;
-        if (!container || !body) return;
 
-        const containerRect = container.getBoundingClientRect();
-        const bodyRect = body.getBoundingClientRect();
-        const maxScrollTop = Math.max(0, container.scrollHeight - container.clientHeight);
-        const targetTop = clamp(container.scrollTop + bodyRect.top - containerRect.top, 0, maxScrollTop);
-        animateCurrentParametersScroll(targetTop);
-        return;
-      }
 
-      animateCurrentParametersScroll(
-        idealAdvancedSettingsPreviousScrollTopRef.current,
-        () => setIdealAdvancedSettingsBodyVisible(false),
-      );
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-      if (idealAdvancedScrollFrameRef.current !== null) {
-        window.cancelAnimationFrame(idealAdvancedScrollFrameRef.current);
-        idealAdvancedScrollFrameRef.current = null;
-      }
-    };
-  }, [idealAdvancedSettingsOpen, idealAdvancedSettingsBodyVisible, activeFile.kind]);
-
-  useEffect(() => {
-    if (!renamingFileId) return undefined;
-
-    const frameId = window.requestAnimationFrame(() => {
-      renameInputRef.current?.focus();
-      renameInputRef.current?.select();
-    });
-
-    return () => {
-      window.cancelAnimationFrame(frameId);
-    };
-  }, [renamingFileId]);
+  useWorkbenchRenameFocus(renamingFileId, renameInputRef);
 
   const activeIdealRelation = activeFile.kind === 'ideal' ? activeFile.relation : null;
 
@@ -4176,16 +2269,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   }, [samplingPresetMenuOpen]);
 
   useEffect(() => () => {
-    Object.values(standardRuntimeRef.current).forEach((runtime) => {
-      if (runtime.simulationTimerId !== null) {
-        window.clearTimeout(runtime.simulationTimerId);
-      }
-    });
-    Object.values(idealRuntimeRef.current).forEach((runtime) => {
-      if (runtime.simulationTimerId !== null) {
-        window.clearTimeout(runtime.simulationTimerId);
-      }
-    });
+    disposeHardSphereRuntimeTimers();
     clearHeatCapacityAutoDemoTimers();
     clearHeatCapacityPumpAnimationTimers();
     if (heatCapacityToastTimerRef.current !== null) {
@@ -4221,10 +2305,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
     heatCapacityRecordSuccessToastTimersRef.current.forEach((timerId) => window.clearTimeout(timerId));
     heatCapacityRecordSuccessToastTimersRef.current = [];
-    if (aboutResultNoticeTimerRef.current !== null) {
-      window.clearTimeout(aboutResultNoticeTimerRef.current);
-      aboutResultNoticeTimerRef.current = null;
-    }
   }, []);
 
   const pushLog = (message: WorkbenchConsoleMessageInput, kind: LogKind = 'info') => {
@@ -4252,116 +2332,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     ));
   };
 
-  useEffect(() => {
-    const bridge = window.hardSphereLabExporter;
-    if (!bridge) {
-      setExportEnvironmentStatus('unavailable');
-      return;
-    }
+  const { exportEnvironmentStatus, runAboutEnvironmentCheck } = useWorkbenchExportEnvironment({
+    tutorialActiveRef, settingsLanguagePreference, workbenchCopy, setLogs, pushLog, showAboutResultNotice,
+  });
+  const idealPointCount = idealAnalysis?.sortedPoints.length ?? 0;
+  const { exportInProgress, heatCapacityReportExportOpen, heatCapacityReportSelectedGroupIds, isExportModeDataReady, handleExportAction, openHeatCapacityReportExport, confirmHeatCapacityReportExport, closeHeatCapacityReportExport, selectHeatCapacityReportGroups } = useWorkbenchExportController({
+    activeFile, idealPointCount, resultSummary, settingsLanguagePreference, workbenchCopy, exportEnvironmentStatus, guardWorkbenchTutorialAction, pushLog,
+  });
 
-    let cancelled = false;
-    setExportEnvironmentStatus('checking');
 
-    bridge.checkExportEnvironment()
-      .then((result) => {
-        if (cancelled) return;
-        const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
-        setExportEnvironmentStatus(nextStatus);
-        if (tutorialActiveRef.current) return;
-        setLogs((current) => [
-          ...current,
-          createConsoleLog(
-            current.length + 1,
-            nextStatus === 'available-system' || nextStatus === 'available-bundled' ? 'success' : 'warning',
-            (language) => workbenchCopies[language].exportEnvironment[nextStatus].detail,
-            settingsLanguagePreference,
-          ),
-        ]);
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setExportEnvironmentStatus('error');
-        if (tutorialActiveRef.current) return;
-        setLogs((current) => [
-          ...current,
-          createConsoleLog(
-            current.length + 1,
-            'error',
-            (language) => workbenchCopies[language].exportEnvironment.error.detail,
-            settingsLanguagePreference,
-          ),
-        ]);
-      });
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
-  const runAboutEnvironmentCheck = () => {
-    const bridge = window.hardSphereLabExporter;
-    setExportEnvironmentStatus('checking');
-
-    if (!bridge) {
-      window.setTimeout(() => {
-        const nextStatus: WorkbenchExportEnvironmentStatus = 'unavailable';
-        setExportEnvironmentStatus(nextStatus);
-        showAboutResultNotice(
-          workbenchCopy.about.environmentResultTitle,
-          getAboutEnvironmentResultBody(nextStatus, workbenchCopy),
-          'warning',
-        );
-      }, 650);
-      return;
-    }
-
-    bridge.checkExportEnvironment()
-      .then((result) => {
-        const nextStatus = result.status === 'available-bundled' ? 'available-bundled' : result.status;
-        setExportEnvironmentStatus(nextStatus);
-        pushLog(
-          (language) => workbenchCopies[language].exportEnvironment[nextStatus].detail,
-          isExportEnvironmentAvailableStatus(nextStatus) ? 'success' : 'warning',
-        );
-        showAboutResultNotice(
-          workbenchCopy.about.environmentResultTitle,
-          getAboutEnvironmentResultBody(nextStatus, workbenchCopy),
-          isExportEnvironmentAvailableStatus(nextStatus) ? 'success' : 'warning',
-        );
-      })
-      .catch(() => {
-        const nextStatus: WorkbenchExportEnvironmentStatus = 'error';
-        setExportEnvironmentStatus(nextStatus);
-        pushLog((language) => workbenchCopies[language].exportEnvironment[nextStatus].detail, 'error');
-        showAboutResultNotice(
-          workbenchCopy.about.environmentResultTitle,
-          getAboutEnvironmentResultBody(nextStatus, workbenchCopy),
-          'danger',
-        );
-      });
-  };
-
-  const openManualUpdateDownload = () => {
-    const manualDownloadRequest = window.hardSphereLabUpdater?.openManualDownload?.();
-    if (!manualDownloadRequest) return;
-    void manualDownloadRequest.then((result) => {
-      if (result.status === 'error') {
-        console.error('[Workbench] Manual update page failed to open:', result.message);
-        showAboutResultNotice(
-          workbenchCopy.about.updateResultTitle,
-          workbenchCopy.about.updateErrorStatus,
-          'danger',
-        );
-      }
-    }).catch((error) => {
-      console.error('[Workbench] Manual update page failed to open:', error);
-      showAboutResultNotice(
-        workbenchCopy.about.updateResultTitle,
-        workbenchCopy.about.updateErrorStatus,
-        'danger',
-      );
-    });
-  };
 
   useEffect(() => {
     if (consoleTab === 'summary') return;
@@ -4427,1278 +2408,86 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     heatCapacityRuntimeFailureFileId,
   ]);
 
-  const setWorkbenchFiles = (updater: (current: WorkbenchFileState[]) => WorkbenchFileState[]) => {
-    if (desktopExitQuiescedRef.current) return;
-    scheduleHeatCapacitySemanticSceneCheckpointRef.current();
-    scheduleWorkspacePersistenceRef.current('semantic');
-    setFiles((current) => {
-      const next = updater(current);
-      filesRef.current = next;
-      return next;
-    });
-  };
+  const { setWorkbenchFiles, commitWorkbenchFileCollections, updateFileById, updateRuntimeFileById, updateActiveFile } = createWorkbenchFileCollectionActions({
+    desktopExitQuiescedRef,
+    scheduleHeatCapacitySemanticSceneCheckpointRef,
+    scheduleWorkspacePersistenceRef,
+    setFiles,
+    filesRef,
+    closedFilesRef,
+    activeFileIdRef,
+    setClosedFiles,
+    setActiveFileId,
+    issuedWorkbenchFileIdsRef,
+  });
 
-  const commitWorkbenchFileCollections = (
-    nextFiles: WorkbenchFileState[],
-    nextClosedFiles: WorkbenchFileState[],
-    nextActiveFileId: string,
-  ) => {
-    assertUniqueWorkbenchFileCollections(nextFiles, nextClosedFiles, nextActiveFileId);
-    [...nextFiles, ...nextClosedFiles].forEach((file) => {
-      issuedWorkbenchFileIdsRef.current.add(file.id);
-    });
-    filesRef.current = nextFiles;
-    closedFilesRef.current = nextClosedFiles;
-    activeFileIdRef.current = nextActiveFileId;
-    setFiles(nextFiles);
-    setClosedFiles(nextClosedFiles);
-    setActiveFileId(nextActiveFileId);
-    scheduleHeatCapacitySemanticSceneCheckpointRef.current();
-    scheduleWorkspacePersistenceRef.current('semantic');
-  };
 
-  const updateFileById = (fileId: string, updater: (file: WorkbenchFileState) => WorkbenchFileState) => {
-    setWorkbenchFiles((current) => current.map((file) => (file.id === fileId ? updater(file) : file)));
-  };
 
-  const updateRuntimeFileById = (
-    fileId: string,
-    updater: (file: WorkbenchFileState) => WorkbenchFileState,
-  ) => {
-    if (desktopExitQuiescedRef.current) return;
-    setFiles((current) => {
-      const next = current.map((file) => (
-        file.id === fileId ? updater(file) : file
-      ));
-      filesRef.current = next;
-      return next;
-    });
-  };
 
-  const updateActiveFile = (updater: (file: WorkbenchFileState) => WorkbenchFileState) => {
-    updateFileById(activeFileIdRef.current, updater);
-  };
 
-  const applyPistonOscillationGuideEvents = (
-    file: WorkbenchFileState,
-    events: readonly PistonOscillationGuideEvent[],
-  ): WorkbenchFileState => events.reduce<WorkbenchFileState>(
-    (current, event) => current.kind === 'heatCapacityPistonOscillation'
-      ? transitionPistonOscillationGuideWorkbenchState(current, event)
-      : current,
-    file,
-  );
 
-  const handlePistonOscillationPowerToggle = (powerOn: boolean) => {
-    const fileId = activeFileIdRef.current;
-    const liveFile = filesRef.current.find((file) => file.id === fileId);
-    if (
-      !liveFile
-      || liveFile.kind !== 'heatCapacityPistonOscillation'
-      || (
-        pistonOscillationDemoPlayback.fileId === fileId
-        && pistonOscillationDemoPlayback.phase !== 'idle'
-      )
-    ) return;
-    if (liveFile.pistonOscillationGuideSession.status === 'active') {
-      const completesGuideShutdown = (
-        liveFile.pistonOscillationGuideSession.step === 'powerOff'
-        && liveFile.pistonOscillationGuideSession.powerOn
-        && !powerOn
-      );
-      if (completesGuideShutdown) {
-        pistonOscillationGuideShutdownCompletedFileIdRef.current = fileId;
-        setPistonOscillationCalculationSuppressedFileId(null);
-      }
-      updateFileById(fileId, (file) => applyPistonOscillationGuideEvents(file, [{
-        type: 'setPower',
-        powerOn,
-        nowMs: Date.now(),
-      }]));
-      return;
-    }
-    if (liveFile.pistonOscillationFreeSession.status === 'active') {
-      updateFileById(fileId, (file) => file.kind === 'heatCapacityPistonOscillation'
-        ? transitionPistonOscillationFreeWorkbenchState(file, {
-            type: 'setPower',
-            powerOn,
-            nowMs: Date.now(),
-          })
-        : file);
-      return;
-    }
-    setPistonOscillationPowerOnByFileId((current) => ({
-      ...current,
-      [fileId]: powerOn,
-    }));
-  };
 
-  const activatePistonOscillationFreeMode = (
-    targetHeightsMm: readonly number[] | null,
-    customHeightCandidatesMm: readonly number[] = [],
-  ) => {
-    if (desktopExitQuiescedRef.current) return;
-    const fileId = activeFileIdRef.current;
-    const liveFile = filesRef.current.find((file) => file.id === fileId);
-    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
-    const nowMs = Date.now();
-    const demoSession = createDefaultPistonOscillationDemoSession(nowMs);
-    const nextFiles = filesRef.current.map((file) => {
-      if (file.id !== fileId || file.kind !== 'heatCapacityPistonOscillation') return file;
-      const guideSelected = file.pistonOscillationGuideSession.status === 'active'
-        || (
-          file.pistonOscillationGuideSession.status === 'completed'
-          && !file.pistonOscillationGuideSession.completionExited
-        );
-      let nextFile = guideSelected
-        ? transitionPistonOscillationGuideWorkbenchState(file, {
-            type: 'exitSession',
-            nowMs,
-          })
-        : file;
-      nextFile = startPistonOscillationFreeWorkbenchState(nextFile, nowMs);
-      if (targetHeightsMm !== null) {
-        nextFile = transitionPistonOscillationFreeWorkbenchState(nextFile, {
-          type: 'setPlan',
-          targetHeightsMm,
-          customHeightCandidatesMm,
-          nowMs,
-        });
-      }
-      return {
-        ...nextFile,
-        pistonOscillationDemoSession: demoSession,
-        updatedAt: nowMs,
-      };
-    });
-    clearPistonOscillationGuideCompletionToast();
-    filesRef.current = nextFiles;
-    setFiles(nextFiles);
-    scheduleWorkspacePersistenceRef.current('semantic');
-    void flushWorkspacePersistenceRef.current();
-    pistonOscillationDemoPlaybackChannel.publish({
-      fileId: null,
-      phase: 'idle',
-      elapsedMs: 0,
-    });
-    setPistonOscillationDemoPlayback({ fileId: null, phase: 'idle', elapsedMs: 0 });
-    setPistonOscillationPowerOnByFileId((current) => ({
-      ...current,
-      [fileId]: false,
-    }));
-    setPistonOscillationMeasurementCyclesByFileId((current) => ({
-      ...current,
-      [fileId]: (current[fileId] ?? 0) + 1,
-    }));
-    setPistonOscillationFreeSetupRequestedFileId(null);
-    setLeftCollapsed(true);
-    setParametersCollapsed(true);
-  };
 
-  const pausePistonOscillationFreeMode = () => {
-    const fileId = activeFileIdRef.current;
-    const nowMs = Date.now();
-    const acquisitionCandidate = pistonOscillationAcquisitionPanelRef.current
-      ?.pauseAndCaptureFreeRun() ?? null;
-    updateFileById(fileId, (file) => {
-      if (file.kind !== 'heatCapacityPistonOscillation') return file;
-      const withFrozenAcquisition = acquisitionCandidate
-        ? transitionPistonOscillationFreeWorkbenchState(file, {
-            type: 'freezeAcquisition',
-            measurement: acquisitionCandidate,
-            nowMs,
-          })
-        : file;
-      return transitionPistonOscillationFreeWorkbenchState(withFrozenAcquisition, {
-        type: 'pause',
-        nowMs,
-      });
-    });
-    setPistonOscillationPowerOnByFileId((current) => ({
-      ...current,
-      [fileId]: false,
-    }));
-    setLeftCollapsed(false);
-  };
 
-  const deletePistonOscillationFreeMeasurement = (measurementIndex: number) => {
-    const fileId = activeFileIdRef.current;
-    updateFileById(fileId, (file) => file.kind === 'heatCapacityPistonOscillation'
-      ? transitionPistonOscillationFreeWorkbenchState(file, {
-          type: 'deleteMeasurement',
-          measurementIndex,
-          nowMs: Date.now(),
-        })
-      : file);
-    setPistonOscillationMeasurementCyclesByFileId((current) => ({
-      ...current,
-      [fileId]: (current[fileId] ?? 0) + 1,
-    }));
-  };
 
-  const requestPistonOscillationFreeReset = () => {
-    const fileId = activeFileIdRef.current;
-    const copy = settingsLanguagePreference === 'en'
-      ? {
-          eyebrow: 'Free mode',
-          title: 'Reset the entire Free-mode experiment?',
-          body: 'The current plan, custom candidates, saved and unsaved curves, processing progress, and instrument state will be cleared.',
-          consequence: 'The current parameter profile is retained and unlocked. Demo mode, Guide mode, and global settings are not affected. You can undo this reset from the Edit menu.',
-          cancel: 'Cancel',
-          confirm: 'Reset Free mode',
-          close: 'Close',
-        }
-      : settingsLanguagePreference === 'zh-TW'
-        ? {
-            eyebrow: '自由模式',
-            title: '重設整個自由模式實驗？',
-            body: '目前計畫、自訂候選、已儲存與未儲存曲線、資料處理進度和儀器狀態都會被清空。',
-            consequence: '目前參數組會保留並解除鎖定；演示模式、引導模式和軟體全域設定不受影響。可從「編輯」選單復原本次重設。',
-            cancel: '取消',
-            confirm: '重設自由模式',
-            close: '關閉',
-          }
-        : {
-            eyebrow: '自由模式',
-            title: '重置整个自由模式实验？',
-            body: '当前计划、自定义候选、已保存与未保存曲线、数据处理进度和仪器状态都会被清空。',
-            consequence: '当前参数组会保留并解除锁定；演示模式、引导模式和软件全局设置不受影响。可以从“编辑”菜单撤销本次重置。',
-            cancel: '取消',
-            confirm: '重置自由模式',
-            close: '关闭',
-          };
-    requestPromptConfirmation({
-      id: `reset-piston-oscillation-free-session:${fileId}`,
-      tone: 'warning',
-      eyebrow: copy.eyebrow,
-      title: copy.title,
-      body: copy.body,
-      consequence: copy.consequence,
-      cancelLabel: copy.cancel,
-      confirmLabel: copy.confirm,
-      closeLabel: copy.close,
-      onConfirm: () => {
-        const liveFile = filesRef.current.find((file) => file.id === fileId);
-        if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
-        pushUndoSnapshot(createEditSnapshot(
-          'reset piston-oscillation free session',
-          'file',
-          fileId,
-        ));
-        updateFileById(fileId, (file) => file.kind === 'heatCapacityPistonOscillation'
-          ? transitionPistonOscillationFreeWorkbenchState(file, {
-              type: 'reset',
-              nowMs: Date.now(),
-            })
-          : file);
-        pistonOscillationLivePressureChannel.clear();
-        setPistonOscillationPowerOnByFileId((current) => ({
-          ...current,
-          [fileId]: false,
-        }));
-        setPistonOscillationMeasurementCyclesByFileId((current) => ({
-          ...current,
-          [fileId]: (current[fileId] ?? 0) + 1,
-        }));
-        setPistonOscillationFreeSetupRequestedFileId(null);
-      },
-    });
-  };
 
-  const handlePistonOscillationFreeInstrumentSnapshot = (
-    snapshot: PistonOscillationGuideInstrumentSnapshot,
-  ) => {
-    // Press, hold, fall, and rebound are transient actions. Persisting every
-    // animation frame forced the entire workbench to render and serialize at
-    // pointer frequency. The final idle snapshot contains the stable physical
-    // state that free-mode restore is designed to retain.
-    if (snapshot.pistonPhase !== 'idle') return;
-    const fileId = activeFileIdRef.current;
-    updateRuntimeFileById(fileId, (file) => {
-      if (
-        file.kind !== 'heatCapacityPistonOscillation'
-        || file.pistonOscillationFreeSession.status !== 'active'
-      ) return file;
-      return transitionPistonOscillationFreeWorkbenchState(file, {
-        type: 'setInstrumentState',
-        instrumentState: {
-          focusMode: snapshot.focusMode,
-          hoseState: snapshot.hoseState,
-          nominalHeightMm: snapshot.nominalHeightMm,
-          equilibriumHeightMm: snapshot.equilibriumHeightMm,
-          pistonOffsetMm: snapshot.pistonOffsetMm,
-          lockingScrewProgress: snapshot.lockingScrewProgress,
-          heightAdjustmentStage: snapshot.heightAdjustmentStage,
-          pistonPhase: snapshot.pistonPhase,
-          thermodynamicState: snapshot.thermodynamicState,
-        },
-        nowMs: Date.now(),
-      });
-    });
-    scheduleWorkspacePersistenceRef.current('semantic');
-  };
 
-  const handlePistonOscillationGuideActionAttempt = (
-    action: PistonOscillationGuideAction,
-    context: PistonOscillationGuideActionContext,
-  ): PistonOscillationGuideGuardResult => {
-    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') {
-      return { allowed: true, reason: 'allowed' };
-    }
-    const session = liveFile.pistonOscillationGuideSession;
-    const guard = getPistonOscillationGuideActionGuard(session, action, context);
-    const releaseOnly = action === 'platformRelease' || action === 'leftHandRelease';
-    if (guard.allowed) {
-      if (
-        !releaseOnly
-        && !isPistonOscillationGuideStrongReminderActive()
-      ) {
-        setPistonOscillationGuidePulseElapsedMs(0);
-      }
-      if (!releaseOnly) {
-        clearPistonOscillationGuideFeedback();
-      }
-      return guard;
-    }
 
-    const heightSubmitRequiresReset = action === 'confirmHeight'
-      && (
-        session.step === 'firstHeightAdjustment'
-        || session.step === 'nextHeightAdjustment'
-      )
-      && (
-        guard.reason === 'wrongTargetHeight'
-        || guard.reason === 'leftHandRequired'
-        || guard.reason === 'rightHandMustBeReleased'
-      );
-    if (heightSubmitRequiresReset) {
-      const heightMm = typeof context.heightMm === 'number' && Number.isFinite(context.heightMm)
-        ? Math.max(0, context.heightMm)
-        : 0;
-      pistonOscillationGuideResumeStrongReminderAfterLessonRef.current =
-        isPistonOscillationGuideStrongReminderActive();
-      pistonOscillationGuideMissCountRef.current = 0;
-      clearPistonOscillationGuideFeedback();
-      setPistonOscillationGuideStrongReminderActive(false);
-      setPistonOscillationGuidePulseElapsedMs(0);
-      setPistonOscillationGuideTargetHeightReady(false);
-      pistonOscillationGuideTargetHeightReadyRef.current = false;
-      setPistonOscillationGuideHeightHandoffComplete(false);
-      pistonOscillationGuideHeightHandoffCompleteRef.current = false;
-      setPistonOscillationGuideHeightAdjustmentStage('readingHeight');
-      updateFileById(liveFile.id, (file) => applyPistonOscillationGuideEvents(file, [{
-        type: 'beginHeightReset',
-        reason: 'wrongHeightConfirmation',
-        heightMm,
-        nowMs: Date.now(),
-      }]));
-      return guard;
-    }
 
-    if (isPistonOscillationGuideStrongReminderActive()) return guard;
 
-    const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex];
-    const message = getPistonOscillationGuideGuardFeedbackText(
-      pistonOscillationCopy,
-      action,
-      guard,
-      targetHeightMm,
-    );
-    showPistonOscillationGuideFeedback(message, 'warning', 'guide');
-    if (!isPistonOscillationGuideStrongReminderActive()) {
-      setPistonOscillationGuidePulseElapsedMs(0);
-    }
 
-    pistonOscillationGuideMissCountRef.current += 1;
-    if (
-      pistonOscillationGuideMissCountRef.current >= 2
-      && !isPistonOscillationGuideStrongReminderActive()
-    ) {
-      const expectedFileId = liveFile.id;
-      const expectedStep = session.step;
-      const expectedTargetContext = pistonOscillationGuideStrongTargetContextRef.current;
-      if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-      }
-      pistonOscillationGuideStrongReminderTimerRef.current = window.setTimeout(() => {
-        pistonOscillationGuideStrongReminderTimerRef.current = null;
-        const currentFile = filesRef.current.find((file) => file.id === expectedFileId);
-        if (
-          currentFile?.kind === 'heatCapacityPistonOscillation'
-          && currentFile.pistonOscillationGuideSession.status === 'active'
-          && currentFile.pistonOscillationGuideSession.step === expectedStep
-          && currentFile.pistonOscillationGuideSession.heightReset === null
-          && pistonOscillationGuideStrongTargetContextRef.current === expectedTargetContext
-        ) {
-          setPistonOscillationGuideStrongReminderActive(
-            true,
-            expectedTargetContext,
-          );
-        }
-      }, PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS);
-    }
-    return guard;
-  };
 
-  const handlePistonOscillationGuideScrewDirectionFeedback = (
-    feedback: PistonOscillationGuideScrewDirectionFeedback,
-  ) => {
-    const expectsTightening = feedback.expectedDirection === 'clockwise';
-    const text = feedback.kind === 'boundaryBlocked'
-      ? expectsTightening
-        ? pistonOscillationCopy.guide.screwBoundaryBlockedTighten
-        : pistonOscillationCopy.guide.screwBoundaryBlockedLoosen
-      : expectsTightening
-        ? pistonOscillationCopy.guide.screwWrongDirectionTighten
-        : pistonOscillationCopy.guide.screwWrongDirectionLoosen;
-    showPistonOscillationGuideFeedback(
-      text,
-      feedback.kind === 'boundaryBlocked' ? 'warning' : 'info',
-      'guide',
-      { durationMs: PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS },
-    );
-  };
 
-  const handlePistonOscillationGuideHeightConfirmed = (
-    snapshot: PistonOscillationGuideInstrumentSnapshot,
-  ) => {
-    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
-      type: 'confirmHeight',
-      heightMm: snapshot.equilibriumHeightMm,
-      leftHandSupporting: snapshot.spaceHeld,
-      rightHandReleased: !snapshot.mouseHeld,
-      nowMs: Date.now(),
-    }]));
-  };
 
-  const handlePistonOscillationGuideSupportLoss = (
-    event: PistonOscillationGuideSupportLossEvent,
-  ) => {
-    pistonOscillationGuideResumeStrongReminderAfterLessonRef.current =
-      isPistonOscillationGuideStrongReminderActive();
-    clearPistonOscillationGuideFeedback();
-    setPistonOscillationGuideStrongReminderActive(false);
-    setPistonOscillationGuidePulseElapsedMs(0);
-    setPistonOscillationGuideTargetHeightReady(false);
-    pistonOscillationGuideTargetHeightReadyRef.current = false;
-    setPistonOscillationGuideHeightHandoffComplete(false);
-    pistonOscillationGuideHeightHandoffCompleteRef.current = false;
-    setPistonOscillationGuideHeightAdjustmentStage('readingHeight');
-    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
-      type: 'beginHeightReset',
-      reason: 'supportLost',
-      heightMm: event.heightMm,
-      nowMs: Date.now(),
-    }]));
-  };
 
-  const handlePistonOscillationGuideHeightResetComplete = () => {
-    updateActiveFile((file) => applyPistonOscillationGuideEvents(file, [{
-      type: 'heightResetComplete',
-      nowMs: Date.now(),
-    }]));
-  };
 
-  const closePistonOscillationGuideLessonDialog = () => {
-    if (!pistonOscillationGuideLessonDialog || pistonOscillationGuideLessonDialog.closing) return;
-    const closingKind = pistonOscillationGuideLessonDialog.kind;
-    const closingFileId = pistonOscillationGuideLessonDialog.fileId;
-    setPistonOscillationGuideLessonDialog((current) => (
-      current ? { ...current, closing: true } : current
-    ));
-    if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
-      pistonOscillationGuideLessonTransitionTimerRef.current = null;
-    }
-    setPistonOscillationGuideLessonOutgoingView(null);
-    if (pistonOscillationGuideLessonCloseTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideLessonCloseTimerRef.current);
-    }
-    pistonOscillationGuideLessonCloseTimerRef.current = window.setTimeout(() => {
-      pistonOscillationGuideLessonCloseTimerRef.current = null;
-      setPistonOscillationGuideLessonDialog(null);
-      if (closingKind === 'intro' && pistonOscillationDemoResumeAfterLessonRef.current) {
-        pistonOscillationDemoResumeAfterLessonRef.current = false;
-        const liveFile = filesRef.current.find((file) => file.id === closingFileId);
-        if (
-          liveFile?.kind === 'heatCapacityPistonOscillation'
-          && liveFile.pistonOscillationDemoSession.status === 'paused'
-        ) {
-          const nowMs = Date.now();
-          const resumedSession = resumePistonOscillationDemoSession(
-            liveFile.pistonOscillationDemoSession,
-            nowMs,
-          );
-          updateFileById(closingFileId, (file) => (
-            file.kind === 'heatCapacityPistonOscillation'
-              ? {
-                  ...file,
-                  pistonOscillationDemoSession: resumedSession,
-                  updatedAt: nowMs,
-                }
-              : file
-          ));
-          const snapshot = {
-            fileId: closingFileId,
-            phase: resumedSession.status,
-            elapsedMs: resumedSession.elapsedMs,
-          } as const;
-          pistonOscillationDemoPlaybackChannel.publish(snapshot);
-          setPistonOscillationDemoPlayback(snapshot);
-          window.setTimeout(() => {
-            void flushWorkspacePersistenceRef.current();
-          }, 0);
-        }
-      }
-      if (closingKind === 'heightReset') {
-        updateFileById(closingFileId, (file) => applyPistonOscillationGuideEvents(file, [{
-          type: 'dismissHeightReset',
-          nowMs: Date.now(),
-        }]));
-        if (pistonOscillationGuideResumeStrongReminderAfterLessonRef.current) {
-          pistonOscillationGuideResumeStrongReminderAfterLessonRef.current = false;
-          setPistonOscillationGuideStrongReminderActive(
-            true,
-            pistonOscillationGuideStrongTargetContextRef.current,
-          );
-        }
-      } else if (closingKind === 'completion') {
-        const liveFile = filesRef.current.find((file) => file.id === closingFileId);
-        if (
-          liveFile?.kind === 'heatCapacityPistonOscillation'
-          && liveFile.pistonOscillationGuideSession.status === 'active'
-          && liveFile.pistonOscillationGuideSession.step === 'completionReview'
-          && liveFile.pistonOscillationGuideSession.dataProcessing?.status === 'completed'
-        ) {
-          updateFileById(closingFileId, (file) => applyPistonOscillationGuideEvents(file, [{
-            type: 'acknowledgeCompletion',
-            nowMs: Date.now(),
-          }]));
-          if (activeFileIdRef.current === closingFileId) {
-            setLeftCollapsed(false);
-          }
-          showPistonOscillationGuideCompletionToast(
-            closingFileId,
-            pistonOscillationCopy.guide.completionToastKicker,
-            pistonOscillationCopy.guide.completionToast,
-          );
-          window.setTimeout(() => {
-            void flushWorkspacePersistenceRef.current();
-          }, 0);
-        }
-      }
-    }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
-  };
 
-  const openPistonOscillationGuideLessonIntro = () => {
-    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
-    if (pistonOscillationGuideLessonDialog?.kind === 'heightReset') return;
-    if (pistonOscillationGuideLessonCloseTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideLessonCloseTimerRef.current);
-      pistonOscillationGuideLessonCloseTimerRef.current = null;
-    }
-    if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
-      pistonOscillationGuideLessonTransitionTimerRef.current = null;
-    }
-    setPistonOscillationGuideLessonOutgoingView(null);
-    const nowMs = Date.now();
-    const resolvedDemoSession = resolvePistonOscillationDemoSession(
-      liveFile.pistonOscillationDemoSession,
-      PISTON_OSCILLATION_DEMO_DURATION_MS,
-      nowMs,
-    );
-    pistonOscillationDemoResumeAfterLessonRef.current =
-      resolvedDemoSession.status === 'running';
-    if (resolvedDemoSession.status === 'running') {
-      const pausedSession = pausePistonOscillationDemoSession(
-        resolvedDemoSession,
-        PISTON_OSCILLATION_DEMO_DURATION_MS,
-        nowMs,
-      );
-      updateFileById(liveFile.id, (file) => (
-        file.kind === 'heatCapacityPistonOscillation'
-          ? {
-              ...file,
-              pistonOscillationDemoSession: pausedSession,
-              updatedAt: nowMs,
-            }
-          : file
-      ));
-      const snapshot = {
-        fileId: liveFile.id,
-        phase: pausedSession.status,
-        elapsedMs: pausedSession.elapsedMs,
-      } as const;
-      pistonOscillationDemoPlaybackChannel.publish(snapshot);
-      setPistonOscillationDemoPlayback(snapshot);
-      window.setTimeout(() => {
-        void flushWorkspacePersistenceRef.current();
-      }, 0);
-    }
-    setPistonOscillationGuideLessonDialog({
-      kind: 'intro',
-      fileId: liveFile.id,
-      pageIndex: 0,
-      closing: false,
-    });
-  };
 
-  const openPistonOscillationGuideOneTimeLesson = (
-    kind: Extract<
-      PistonOscillationGuideLessonDialogState['kind'],
-      'pressureRange' | 'lockingScrew' | 'multiPeriod'
-    >,
-  ) => {
-    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (
-      !liveFile
-      || liveFile.kind !== 'heatCapacityPistonOscillation'
-      || liveFile.pistonOscillationGuideSession.status !== 'active'
-      || pistonOscillationGuideLessonDialog !== null
-    ) return;
-    const lessonKey = [
-      liveFile.id,
-      liveFile.pistonOscillationGuideSession.startedAtMs,
-      kind,
-    ].join(':');
-    if (pistonOscillationGuideLessonShownRef.current.has(lessonKey)) return;
-    pistonOscillationGuideLessonShownRef.current.add(lessonKey);
-    clearPistonOscillationGuideFeedback();
-    setPistonOscillationGuideStrongReminderActive(false);
-    setPistonOscillationGuidePulseElapsedMs(0);
-    setPistonOscillationGuideLessonOutgoingView(null);
-    setPistonOscillationGuideLessonDialog({
-      kind,
-      fileId: liveFile.id,
-      closing: false,
-    });
-  };
 
-  const getPistonOscillationGuideLessonView = (
-    dialog: PistonOscillationGuideLessonDialogState,
-  ): PistonOscillationGuideLessonView | null => {
-    if (dialog.kind === 'intro') {
-      const pageIndex = Math.max(
-        0,
-        Math.min(pistonOscillationCopy.lesson.pages.length - 1, dialog.pageIndex),
-      );
-      const page = pistonOscillationCopy.lesson.pages[pageIndex];
-      return {
-        key: `intro-${pageIndex}`,
-        title: page.title,
-        body: page.body,
-      };
-    }
-    if (dialog.kind === 'completion') {
-      return {
-        key: 'guide-completion',
-        title: pistonOscillationCopy.guide.completedTitle,
-        body: pistonOscillationCopy.guide.completedDetail,
-      };
-    }
-    if (dialog.kind === 'pressureRange') {
-      return {
-        key: 'guide-pressure-range',
-        title: pistonOscillationCopy.guide.pressureRangeLessonTitle,
-        body: pistonOscillationCopy.guide.pressureRangeLessonBody,
-      };
-    }
-    if (dialog.kind === 'lockingScrew') {
-      return {
-        key: 'guide-locking-screw',
-        title: pistonOscillationCopy.guide.lockingScrewLessonTitle,
-        body: pistonOscillationCopy.guide.lockingScrewLessonBody,
-      };
-    }
-    if (dialog.kind === 'multiPeriod') {
-      return {
-        key: 'guide-multi-period',
-        title: pistonOscillationCopy.guide.multiPeriodLessonTitle,
-        body: pistonOscillationCopy.guide.multiPeriodLessonBody,
-      };
-    }
-    if (dialog.kind === 'freeReacquisition') {
-      return {
-        key: 'free-reacquisition',
-        title: pistonOscillationCopy.processing.insufficientRecordTitle,
-        body: pistonOscillationCopy.processing.insufficientRecordBody,
-      };
-    }
-    const heightReset = activePistonOscillationGuideSession?.heightReset;
-    if (!heightReset) return null;
-    return heightReset.reason === 'wrongHeightConfirmation'
-      ? {
-          key: `height-reset-wrong-${heightReset.targetHeightMm}`,
-          title: pistonOscillationCopy.recovery.wrongHeightTitle,
-          body: pistonOscillationCopy.recovery.wrongHeightBody(heightReset.targetHeightMm),
-        }
-      : {
-          key: `height-reset-support-${heightReset.targetHeightMm}`,
-          title: pistonOscillationCopy.recovery.supportLostTitle,
-          body: pistonOscillationCopy.recovery.supportLostBody(heightReset.targetHeightMm),
-        };
-  };
 
-  const advancePistonOscillationGuideLessonDialog = () => {
-    if (!pistonOscillationGuideLessonDialog) return;
-    if (pistonOscillationGuideLessonDialog.kind === 'intro') {
-      const pageIndex = pistonOscillationGuideLessonDialog.pageIndex;
-      if (pageIndex < pistonOscillationCopy.lesson.pages.length - 1) {
-        const outgoingView = getPistonOscillationGuideLessonView(
-          pistonOscillationGuideLessonDialog,
-        );
-        setPistonOscillationGuideLessonOutgoingView(outgoingView);
-        setPistonOscillationGuideLessonDialog({
-          ...pistonOscillationGuideLessonDialog,
-          pageIndex: pageIndex + 1,
-        });
-        if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
-          window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
-        }
-        pistonOscillationGuideLessonTransitionTimerRef.current = window.setTimeout(() => {
-          pistonOscillationGuideLessonTransitionTimerRef.current = null;
-          setPistonOscillationGuideLessonOutgoingView(null);
-        }, HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS);
-        return;
-      }
-      closePistonOscillationGuideLessonDialog();
-      return;
-    }
-    closePistonOscillationGuideLessonDialog();
-  };
 
-  const handlePistonOscillationGuideLessonDialogKeyDown = (
-    event: React.KeyboardEvent<HTMLElement>,
-  ) => {
-    if (event.key === 'Tab') {
-      const dialog = pistonOscillationGuideLessonDialogRef.current;
-      if (!dialog) return;
-      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>(
-        'button:not(:disabled), [href], input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])',
-      )).filter((element) => !element.hasAttribute('hidden'));
-      if (focusable.length === 0) {
-        event.preventDefault();
-        dialog.focus();
-        return;
-      }
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      const activeElement = document.activeElement;
-      if (
-        event.shiftKey
-          ? activeElement === first || !dialog.contains(activeElement)
-          : activeElement === last || !dialog.contains(activeElement)
-      ) {
-        event.preventDefault();
-        (event.shiftKey ? last : first).focus();
-      }
-      return;
-    }
-    if (event.key === 'Escape') {
-      event.stopPropagation();
-      closePistonOscillationGuideLessonDialog();
-      return;
-    }
-    if (event.target instanceof HTMLElement && event.target.closest('button')) return;
-    if (event.key === 'Enter' || event.key === ' ') {
-      event.preventDefault();
-      event.stopPropagation();
-      advancePistonOscillationGuideLessonDialog();
-    }
-  };
 
-  useEffect(() => {
-    if (!pistonOscillationGuideLessonDialog) {
-      const returnTarget = pistonOscillationGuideLessonReturnFocusRef.current;
-      pistonOscillationGuideLessonReturnFocusRef.current = null;
-      if (returnTarget?.isConnected) {
-        window.requestAnimationFrame(() => returnTarget.focus());
-      }
-      return undefined;
-    }
-    if (
-      pistonOscillationGuideLessonReturnFocusRef.current === null
-      && document.activeElement instanceof HTMLElement
-      && !pistonOscillationGuideLessonDialogRef.current?.contains(document.activeElement)
-    ) {
-      pistonOscillationGuideLessonReturnFocusRef.current = document.activeElement;
-    }
-    const frame = window.requestAnimationFrame(() => {
-      pistonOscillationGuideLessonDialogRef.current?.focus();
-    });
-    return () => window.cancelAnimationFrame(frame);
-  }, [
-    pistonOscillationGuideLessonDialog?.kind,
-    pistonOscillationGuideLessonDialog?.kind === 'intro'
-      ? pistonOscillationGuideLessonDialog.pageIndex
-      : null,
-  ]);
 
-  const handlePistonOscillationGuideInstrumentSnapshot = (
-    snapshot: PistonOscillationGuideInstrumentSnapshot,
-  ) => {
-    const previousSnapshot = pistonOscillationGuideInstrumentSnapshotRef.current;
-    const previousHeightAdjustmentStage = previousSnapshot?.heightAdjustmentStage;
-    pistonOscillationGuideInstrumentSnapshotRef.current = snapshot;
-    setPistonOscillationGuidePistonStable(snapshot.pistonPhase === 'idle');
-    if (previousHeightAdjustmentStage !== snapshot.heightAdjustmentStage) {
-      setPistonOscillationGuideHeightAdjustmentStage(snapshot.heightAdjustmentStage);
-    }
-    if (previousSnapshot?.hoseDragging !== snapshot.hoseDragging) {
-      setPistonOscillationGuideHoseDragging(snapshot.hoseDragging);
-    }
-    if (previousSnapshot?.hoseState !== snapshot.hoseState) {
-      setPistonOscillationGuideHoseState(snapshot.hoseState);
-    }
-    const currentFile = filesRef.current.find(
-      (file) => file.id === activeFileIdRef.current,
-    );
-    if (
-      !currentFile
-      || currentFile.kind !== 'heatCapacityPistonOscillation'
-      || currentFile.pistonOscillationGuideSession.status !== 'active'
-    ) return;
-    const currentSession = currentFile.pistonOscillationGuideSession;
-    const currentStep = currentSession.step;
-    const isAtHeight = (heightMm: number) => (
-      Math.abs(snapshot.equilibriumHeightMm - heightMm) <= 0.25
-    );
-    const currentTargetHeightMm =
-      PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[currentSession.measurementIndex];
-    const targetHeightReady = (
-      currentStep === 'firstHeightAdjustment'
-      || currentStep === 'nextHeightAdjustment'
-    ) && isAtHeight(currentTargetHeightMm);
-    if (pistonOscillationGuideTargetHeightReadyRef.current !== targetHeightReady) {
-      pistonOscillationGuideTargetHeightReadyRef.current = targetHeightReady;
-      setPistonOscillationGuideTargetHeightReady(targetHeightReady);
-      setPistonOscillationGuidePulseElapsedMs(0);
-    }
-    const heightHandoffComplete = Boolean(
-      targetHeightReady
-      && snapshot.spaceHeld
-      && !snapshot.mouseHeld
-    );
-    if (
-      pistonOscillationGuideHeightHandoffCompleteRef.current
-      !== heightHandoffComplete
-    ) {
-      pistonOscillationGuideHeightHandoffCompleteRef.current = heightHandoffComplete;
-      setPistonOscillationGuideHeightHandoffComplete(heightHandoffComplete);
-    }
-    const snapshotCanAdvance = (
-      (currentStep === 'screwLock' && snapshot.lockingScrewState === 'locked')
-      || (currentStep === 'hoseReconnect' && snapshot.hoseState === 'connected')
-      || (currentStep === 'screwLoosen' && snapshot.lockingScrewState === 'loose')
-      || (currentStep === 'crossRunDisconnect'
-        && snapshot.spaceHeld
-        && snapshot.hoseState === 'disconnected')
-    );
-    const shouldOpenLockingScrewLesson = (
-      currentStep === 'screwLoosen'
-      && previousSnapshot?.lockingScrewState !== 'loose'
-      && snapshot.lockingScrewState === 'loose'
-      && !snapshot.lockingScrewDragging
-    ) || (
-      currentStep === 'acquisitionReady'
-      && previousSnapshot?.lockingScrewDragging === true
-      && !snapshot.lockingScrewDragging
-      && snapshot.lockingScrewState === 'loose'
-    );
-    if (!snapshotCanAdvance) {
-      if (shouldOpenLockingScrewLesson) {
-        window.setTimeout(() => {
-          openPistonOscillationGuideOneTimeLesson('lockingScrew');
-        }, 0);
-      }
-      return;
-    }
-    setPistonOscillationGuideStrongReminderActive(false);
-    setPistonOscillationGuidePulseElapsedMs(0);
-    pistonOscillationGuideMissCountRef.current = 0;
-    const nowMs = Date.now();
-    updateActiveFile((file) => {
-      if (
-        file.kind !== 'heatCapacityPistonOscillation'
-        || file.pistonOscillationGuideSession.status !== 'active'
-      ) return file;
-      let nextFile: WorkbenchFileState = file;
-      for (let guard = 0; guard < 8; guard += 1) {
-        if (nextFile.kind !== 'heatCapacityPistonOscillation') break;
-        const nextSession = nextFile.pistonOscillationGuideSession;
-        const step = nextSession.step;
-        let event: PistonOscillationGuideEvent | null = null;
-        if (step === 'screwLock' && snapshot.lockingScrewState === 'locked') {
-          event = { type: 'lockScrew', nowMs };
-        } else if (step === 'hoseReconnect' && snapshot.hoseState === 'connected') {
-          event = { type: 'reconnectHose', nowMs };
-        } else if (step === 'screwLoosen' && snapshot.lockingScrewState === 'loose') {
-          event = { type: 'loosenScrew', nowMs };
-        } else if (
-          step === 'crossRunDisconnect'
-          && snapshot.spaceHeld
-          && snapshot.hoseState === 'disconnected'
-        ) {
-          event = { type: 'disconnectHose', nowMs };
-        }
-        if (!event) break;
-        const advanced = applyPistonOscillationGuideEvents(nextFile, [event]);
-        if (advanced === nextFile) break;
-        nextFile = advanced;
-      }
-      return nextFile;
-    });
-    if (shouldOpenLockingScrewLesson) {
-      window.setTimeout(() => {
-        openPistonOscillationGuideOneTimeLesson('lockingScrew');
-      }, 0);
-    }
-  };
 
-  const commitPistonOscillationGuideAcquisitionSession = (
-    liveFile: Extract<WorkbenchFileState, { kind: 'heatCapacityPistonOscillation' }>,
-    nextSession: PistonOscillationGuideSession,
-    nowMs: number,
-  ): boolean => {
-    if (desktopExitQuiescedRef.current) return false;
-    const currentFiles = filesRef.current;
-    const fileIndex = currentFiles.findIndex((file) => file.id === liveFile.id);
-    if (fileIndex < 0 || currentFiles[fileIndex] !== liveFile) return false;
-    const nextFile = {
-      ...liveFile,
-      updatedAt: nowMs,
-      pistonOscillationGuideSession: nextSession,
-    };
-    const nextFiles = [...currentFiles];
-    nextFiles[fileIndex] = nextFile;
-    scheduleHeatCapacitySemanticSceneCheckpointRef.current();
-    scheduleWorkspacePersistenceRef.current('semantic');
-    filesRef.current = nextFiles;
-    setFiles(nextFiles);
-    return true;
-  };
 
-  const handlePistonOscillationGuideAcquisitionEvent = (
-    event: PistonOscillationGuideAcquisitionEvent,
-  ): boolean => {
-    const nowMs = Date.now();
-    if (event.type === 'pressureAttemptRejected') {
-      const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-      const rejectionStep = liveFile?.kind === 'heatCapacityPistonOscillation'
-        ? liveFile.pistonOscillationGuideSession.step
-        : null;
-      const rejectionMatchesStep = event.reason === 'underpressure'
-        ? rejectionStep === 'waitingTrigger'
-        : rejectionStep === 'recording' || rejectionStep === 'pauseAvailable';
-      if (
-        !liveFile
-        || liveFile.kind !== 'heatCapacityPistonOscillation'
-        || liveFile.pistonOscillationGuideSession.status !== 'active'
-        || !rejectionMatchesStep
-      ) return false;
-      setPistonOscillationGuideStrongReminderActive(false);
-      setPistonOscillationGuideStrongReminderClockContext(null);
-      setPistonOscillationGuidePressureIssue(event.reason);
-      setPistonOscillationGuidePulseElapsedMs(0);
-      showPistonOscillationGuideFeedback(
-        event.reason === 'underpressure'
-          ? pistonOscillationCopy.guide.pressureTooLowFeedback
-          : pistonOscillationCopy.guide.pressureTooHighFeedback,
-        'warning',
-        'guide',
-        { durationMs: PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS },
-      );
-      const nextMissCount = pistonOscillationGuidePressureMissCountRef.current[event.reason] + 1;
-      pistonOscillationGuidePressureMissCountRef.current[event.reason] = nextMissCount;
-      if (
-        event.reason === 'underpressure'
-        && nextMissCount === 1
-      ) {
-        const expectedFileId = liveFile.id;
-        const expectedSessionStartMs = liveFile.pistonOscillationGuideSession.startedAtMs;
-        const expectedMeasurementIndex = liveFile.pistonOscillationGuideSession.measurementIndex;
-        if (pistonOscillationGuidePressureRangeLessonTimerRef.current !== null) {
-          window.clearTimeout(pistonOscillationGuidePressureRangeLessonTimerRef.current);
-        }
-        pistonOscillationGuidePressureRangeLessonTimerRef.current = window.setTimeout(() => {
-          pistonOscillationGuidePressureRangeLessonTimerRef.current = null;
-          const currentFile = filesRef.current.find((file) => file.id === expectedFileId);
-          if (
-            currentFile?.kind === 'heatCapacityPistonOscillation'
-            && currentFile.pistonOscillationGuideSession.status === 'active'
-            && currentFile.pistonOscillationGuideSession.startedAtMs === expectedSessionStartMs
-            && currentFile.pistonOscillationGuideSession.measurementIndex === expectedMeasurementIndex
-            && currentFile.pistonOscillationGuideSession.step === 'waitingTrigger'
-            && pistonOscillationGuidePressureIssueRef.current === 'underpressure'
-          ) {
-            openPistonOscillationGuideOneTimeLesson('pressureRange');
-          }
-        }, PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS);
-      }
-      if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-        pistonOscillationGuideStrongReminderTimerRef.current = null;
-      }
-      if (nextMissCount >= 2) {
-        const expectedFileId = liveFile.id;
-        const expectedSessionStartMs = liveFile.pistonOscillationGuideSession.startedAtMs;
-        const expectedMeasurementIndex = liveFile.pistonOscillationGuideSession.measurementIndex;
-        const expectedStep = liveFile.pistonOscillationGuideSession.step;
-        pistonOscillationGuideStrongReminderTimerRef.current = window.setTimeout(() => {
-          pistonOscillationGuideStrongReminderTimerRef.current = null;
-          const currentFile = filesRef.current.find((file) => file.id === expectedFileId);
-          if (
-            currentFile?.kind === 'heatCapacityPistonOscillation'
-            && currentFile.pistonOscillationGuideSession.status === 'active'
-            && currentFile.pistonOscillationGuideSession.startedAtMs === expectedSessionStartMs
-            && currentFile.pistonOscillationGuideSession.measurementIndex === expectedMeasurementIndex
-            && currentFile.pistonOscillationGuideSession.step === expectedStep
-            && pistonOscillationGuidePressureIssueRef.current === event.reason
-          ) {
-            setPistonOscillationGuideStrongReminderActive(
-              true,
-              pistonOscillationGuideStrongTargetContextRef.current,
-            );
-          }
-        }, PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS);
-      }
-      return true;
-    }
-    if (event.type === 'pressureAttemptAccepted') {
-      const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-      if (
-        !liveFile
-        || liveFile.kind !== 'heatCapacityPistonOscillation'
-        || liveFile.pistonOscillationGuideSession.status !== 'active'
-        || liveFile.pistonOscillationGuideSession.step !== 'waitingTrigger'
-      ) return false;
-      setPistonOscillationGuidePressureIssue(null);
-      pistonOscillationGuidePressureMissCountRef.current = {
-        underpressure: 0,
-        overpressure: 0,
-      };
-      clearPistonOscillationGuideFeedback();
-      setPistonOscillationGuideStrongReminderActive(false);
-      setPistonOscillationGuidePulseElapsedMs(0);
-      if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-        pistonOscillationGuideStrongReminderTimerRef.current = null;
-      }
-      if (pistonOscillationGuidePressureRangeLessonTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuidePressureRangeLessonTimerRef.current);
-        pistonOscillationGuidePressureRangeLessonTimerRef.current = null;
-      }
-      return true;
-    }
-    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return false;
-    const nextSession = transitionPistonOscillationGuideAcquisitionSession(
-      liveFile.pistonOscillationGuideSession,
-      event,
-      nowMs,
-    );
-    if (
-      nextSession === null
-      || !commitPistonOscillationGuideAcquisitionSession(liveFile, nextSession, nowMs)
-    ) return false;
 
-    if (
-      event.type === 'redoOverpressureAttempt'
-      || event.type === 'restoreInterruptedAcquisition'
-    ) {
-      setPistonOscillationGuidePressureIssue(null);
-      clearPistonOscillationGuideFeedback();
-      setPistonOscillationGuideStrongReminderActive(false);
-      setPistonOscillationGuidePulseElapsedMs(0);
-      if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-        pistonOscillationGuideStrongReminderTimerRef.current = null;
-      }
-    }
-    if (event.type === 'redoOverpressureAttempt') {
-      window.setTimeout(() => {
-        openPistonOscillationGuideOneTimeLesson('pressureRange');
-      }, 0);
-    }
-    return true;
-  };
 
-  const handlePistonOscillationProcessingEvent = (
-    event: PistonOscillationGuideEvent | PistonOscillationFreeEvent,
-  ) => {
-    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    if (!liveFile) return;
-    const freeProcessingActive = liveFile.kind === 'heatCapacityPistonOscillation'
-      && liveFile.pistonOscillationFreeSession.status === 'active'
-      && liveFile.pistonOscillationFreeSession.dataProcessing !== null
-      && liveFile.pistonOscillationFreeSession.reacquisition === null;
-    const nextFile = freeProcessingActive
-      ? transitionPistonOscillationFreeWorkbenchState(
-          liveFile,
-          event as PistonOscillationFreeEvent,
-        )
-      : applyPistonOscillationGuideEvents(liveFile, [event as PistonOscillationGuideEvent]);
-    updateFileById(liveFile.id, () => nextFile);
-    if (
-      !freeProcessingActive
-      &&
-      event.type === 'selectPeriodRange'
-      && nextFile.kind === 'heatCapacityPistonOscillation'
-    ) {
-      const selection = nextFile.pistonOscillationGuideSession
-        .dataProcessing?.runs[event.runIndex]?.selection;
-      const minimumPeriodCount = nextFile.pistonOscillationGuideSession
-        .dataProcessing?.processingPolicy.guidedMinimumPeriodCount;
-      if (
-        selection?.issue === null
-        && minimumPeriodCount !== undefined
-        && selection.periodCount >= minimumPeriodCount
-      ) {
-        window.setTimeout(() => {
-          openPistonOscillationGuideOneTimeLesson('multiPeriod');
-        }, 0);
-      }
-    }
-  };
 
-  const handlePistonOscillationFreeUnusableMeasurement = (runIndex: number) => {
-    const fileId = activeFileIdRef.current;
-    const liveFile = filesRef.current.find((file) => file.id === fileId);
-    if (
-      !liveFile
-      || liveFile.kind !== 'heatCapacityPistonOscillation'
-      || liveFile.pistonOscillationFreeSession.status !== 'active'
-      || liveFile.pistonOscillationFreeSession.reacquisition !== null
-    ) return;
-    const nextFile = transitionPistonOscillationFreeWorkbenchState(liveFile, {
-      type: 'requestUnusableMeasurementRedo',
-      runIndex,
-      nowMs: Date.now(),
-    });
-    if (nextFile.pistonOscillationFreeSession.reacquisition === null) return;
-    updateFileById(fileId, () => nextFile);
-    pistonOscillationLivePressureChannel.clear();
-    setPistonOscillationMeasurementCyclesByFileId((current) => ({
-      ...current,
-      [fileId]: (current[fileId] ?? 0) + 1,
-    }));
-    setPistonOscillationGuideLessonOutgoingView(null);
-    setPistonOscillationGuideLessonDialog({
-      kind: 'freeReacquisition',
-      fileId,
-      closing: false,
-    });
-  };
 
-  const completeAndExitPistonOscillationCalculation = () => {
-    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
-    const completingFreeSession = Boolean(
-      liveFile?.kind === 'heatCapacityPistonOscillation'
-      && liveFile.pistonOscillationFreeSession.status === 'active'
-      && liveFile.pistonOscillationFreeSession.dataProcessing !== null,
-    );
-    updateActiveFile((file) => {
-      if (file.kind !== 'heatCapacityPistonOscillation') return file;
-      const event = { type: 'completeCalculation' as const, nowMs: Date.now() };
-      return file.pistonOscillationFreeSession.status === 'active'
-        && file.pistonOscillationFreeSession.dataProcessing !== null
-        ? transitionPistonOscillationFreeWorkbenchState(file, event)
-        : applyPistonOscillationGuideEvents(file, [event]);
-    });
-    setPistonOscillationCalculationReviewOpen(false);
-    if (completingFreeSession) {
-      setPistonOscillationDataProcessingReviewOpen(false);
-      setSelectedPanel('preview');
-      setLeftCollapsed(false);
-    }
-    window.setTimeout(() => {
-      void flushWorkspacePersistenceRef.current();
-    }, 0);
-  };
 
-  const closePistonOscillationCalculationReview = () => {
-    const calculationStatus = activePistonOscillationCalculationSession?.status ?? null;
-    if (calculationStatus !== 'completed') return;
-    setPistonOscillationCalculationReviewOpen(false);
-  };
 
-  const openPistonOscillationDataProcessingReview = () => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
-    const dataProcessing = activeFile.pistonOscillationFreeSession.status === 'active'
-      ? activeFile.pistonOscillationFreeSession.dataProcessing
-      : activeFile.pistonOscillationGuideSession.dataProcessing;
-    if (!dataProcessing) return;
-    setSelectedPanel('heatCapacityGuide');
-    setPistonOscillationProcessReviewOpen(false);
-    setPistonOscillationCalculationReviewOpen(false);
-    setPistonOscillationCalculationSuppressedFileId(activeFile.id);
-    setPistonOscillationProcessingSuppressedFileId(null);
-    setPistonOscillationDataProcessingReviewOpen(true);
-  };
 
-  const openPistonOscillationCalculationReview = () => {
-    if (
-      activeFile.kind !== 'heatCapacityPistonOscillation'
-      || !activePistonOscillationCalculationSession
-    ) return;
-    setSelectedPanel('heatCapacityGuide');
-    setPistonOscillationProcessReviewOpen(false);
-    setPistonOscillationDataProcessingReviewOpen(true);
-    setPistonOscillationProcessingSuppressedFileId(null);
-    setPistonOscillationCalculationSuppressedFileId(null);
-    setPistonOscillationCalculationReviewOpen(true);
-  };
 
-  const closePistonOscillationDataProcessingReview = () => {
-    setPistonOscillationCalculationReviewOpen(false);
-    setPistonOscillationDataProcessingReviewOpen(false);
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-  };
 
-  const openPistonOscillationProcessReview = () => {
-    if (
-      activeFile.kind !== 'heatCapacityPistonOscillation'
-      || !activePistonOscillationFreeSelected
-      || activeFile.pistonOscillationFreeSession.status !== 'active'
-      || activeFile.pistonOscillationFreeSession.dataProcessing?.status !== 'completed'
-    ) return;
-    setSelectedPanel('heatCapacityReview');
-    setPistonOscillationDataProcessingReviewOpen(false);
-    setPistonOscillationCalculationReviewOpen(false);
-    setPistonOscillationProcessReviewOpen(true);
-  };
 
-  const closePistonOscillationProcessReview = () => {
-    setPistonOscillationProcessReviewOpen(false);
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-  };
 
-  const returnToPistonOscillationInstrumentAfterDisplayError = () => {
-    setPistonOscillationProcessingSuppressedFileId(activeFile.id);
-    setPistonOscillationCalculationSuppressedFileId(activeFile.id);
-    setPistonOscillationCalculationReviewOpen(false);
-    setPistonOscillationDataProcessingReviewOpen(false);
-    setPistonOscillationProcessReviewOpen(false);
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-  };
 
-  const handlePistonOscillationGuideProcessingInteractionStart = () => {
-    clearPistonOscillationGuideFeedback();
-    setPistonOscillationGuideStrongReminderActive(false);
-    setPistonOscillationGuidePulseElapsedMs(0);
-  };
 
-  const handlePistonOscillationGuideInvalidPeriodSelection = () => {
-    const targetContext = pistonOscillationGuideStrongTargetContextRef.current;
-    if (!targetContext) return;
-    setPistonOscillationGuideStrongReminderActive(true, targetContext);
-  };
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   const updateHeatCapacityFreeEquilibriumSpeedMultiplier = (multiplier: number) => {
     if (heatCapacityModeTransitionStateRef.current.phase !== 'idle') return;
@@ -5718,80 +2507,19 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setHeatCapacityHardSphereViewEnabled(!activeFile.hardSphereViewEnabled);
   };
 
-  const togglePistonOscillationOperationVisualization = () => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
-    setPistonOscillationOperationVisualization(
-      !activeFile.pistonOscillationOperationVisualizationEnabled,
-    );
-  };
 
-  const setPistonOscillationOperationVisualization = (enabled: boolean) => {
-    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-      ? {
-          ...file,
-          pistonOscillationOperationVisualizationEnabled: enabled,
-          updatedAt: Date.now(),
-        }
-      : file);
-  };
 
-  const updatePistonOscillationFreeParameterDraft = (
-    parameterDraft: PistonOscillationFreeParameterDraft,
-  ) => {
-    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-      ? transitionPistonOscillationFreeWorkbenchState(file, {
-          type: 'setParameterDraft',
-          parameterDraft,
-          nowMs: Date.now(),
-        })
-      : file);
-  };
 
-  const setPistonOscillationFreeExperimentScheme = (
-    scheme: 'real' | 'ideal',
-  ) => {
-    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-      ? transitionPistonOscillationFreeWorkbenchState(file, {
-          type: 'setExperimentScheme',
-          scheme,
-          nowMs: Date.now(),
-        })
-      : file);
-  };
 
-  const setPistonOscillationFreeGasType = (
-    gasType: 'air' | 'helium',
-  ) => {
-    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-      ? transitionPistonOscillationFreeWorkbenchState(file, {
-          type: 'setGasType',
-          gasType,
-          nowMs: Date.now(),
-        })
-      : file);
-  };
 
-  const restorePistonOscillationFreeParameters = () => {
-    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-      ? {
-          ...transitionPistonOscillationFreeWorkbenchState(file, {
-            type: 'restoreDefaultParameters',
-            nowMs: Date.now(),
-          }),
-          pistonOscillationOperationVisualizationEnabled: false,
-          updatedAt: Date.now(),
-        }
-      : file);
-  };
 
-  const acknowledgePistonOscillationAdvancedParametersRisk = () => {
-    updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-      ? transitionPistonOscillationFreeWorkbenchState(file, {
-          type: 'acknowledgeAdvancedParametersRisk',
-          nowMs: Date.now(),
-        })
-      : file);
-  };
+
+
+
+
+
+
+
 
   const showParameterSidebarBlockReason = (
     getMessage: (language: WorkbenchLanguagePreference) => string | null,
@@ -5828,15 +2556,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setParametersCollapsed(false);
   };
 
-  const showPistonOscillationParameterLockHint = () => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') return;
-    showParameterSidebarBlockReason((language) => (
-      getPistonOscillationParameterLockMessage(
-        activeFile.pistonOscillationFreeSession,
-        language,
-      )
-    ));
-  };
+
 
   const collapseHeatCapacityFreeParameterSidebarForExperimentAction = () => {
     const currentFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
@@ -7786,270 +4506,23 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     activeHeatCapacityGuideStep,
   ]);
 
-  const applyPistonOscillationGuideChecklistView = (
-    viewedIndex: number,
-    visualOffsetPx = 0,
-    animate = true,
-  ) => {
-    const clampedIndex = Math.max(
-      0,
-      Math.min(pistonOscillationGuideChecklistPageLengthRef.current - 1, viewedIndex),
-    );
-    const clampedOffset = Math.max(
-      -PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX * 0.48,
-      Math.min(
-        PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX * 0.48,
-        visualOffsetPx,
-      ),
-    );
-    pistonOscillationGuideChecklistViewedIndexRef.current = clampedIndex;
-    pistonOscillationGuideChecklistVisualOffsetRef.current = clampedOffset;
-    setPistonOscillationGuideChecklistViewedIndex((current) => (
-      current === clampedIndex ? current : clampedIndex
-    ));
-    const track = pistonOscillationGuideChecklistTrackRef.current;
-    if (!track) return;
-    const baseOffset = PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX
-      - clampedIndex * PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
-    track.style.setProperty('--studio-heat-guide-step-base-offset', `${baseOffset}px`);
-    track.style.setProperty('--studio-heat-guide-step-visual-offset', `${clampedOffset}px`);
-    track.classList.toggle('studio-heat-guide-step-track-snapping', animate);
-  };
 
-  const clearPistonOscillationGuideChecklistTimers = () => {
-    if (pistonOscillationGuideChecklistFrameRef.current !== null) {
-      window.cancelAnimationFrame(pistonOscillationGuideChecklistFrameRef.current);
-      pistonOscillationGuideChecklistFrameRef.current = null;
-    }
-    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
-      pistonOscillationGuideChecklistSnapTimerRef.current = null;
-    }
-    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
-      pistonOscillationGuideChecklistReturnTimerRef.current = null;
-    }
-  };
 
-  const returnPistonOscillationGuideChecklistToCurrentStep = () => {
-    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
-    applyPistonOscillationGuideChecklistView(
-      pistonOscillationGuideChecklistCurrentIndexRef.current,
-      0,
-      true,
-    );
-  };
 
-  const processPistonOscillationGuideChecklistWheelFrame = () => {
-    pistonOscillationGuideChecklistFrameRef.current = null;
-    const pendingDelta = pistonOscillationGuideChecklistPendingWheelDeltaRef.current;
-    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
-    if (!pendingDelta) return;
 
-    let nextIndex = pistonOscillationGuideChecklistViewedIndexRef.current;
-    let nextOffset = pistonOscillationGuideChecklistVisualOffsetRef.current
-      - pendingDelta * HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE;
-    let committedSteps = 0;
-    const rowHeight = PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
-    const halfRow = rowHeight / 2;
-    while (
-      nextOffset <= -halfRow
-      && nextIndex < pistonOscillationGuideChecklistPageLengthRef.current - 1
-      && committedSteps < HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS
-    ) {
-      nextIndex += 1;
-      nextOffset += rowHeight;
-      committedSteps += 1;
-    }
-    while (
-      nextOffset >= halfRow
-      && nextIndex > 0
-      && committedSteps < HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS
-    ) {
-      nextIndex -= 1;
-      nextOffset -= rowHeight;
-      committedSteps += 1;
-    }
-    if (nextIndex <= 0 && nextOffset > 0) nextOffset = 0;
-    if (
-      nextIndex >= pistonOscillationGuideChecklistPageLengthRef.current - 1
-      && nextOffset < 0
-    ) nextOffset = 0;
 
-    applyPistonOscillationGuideChecklistView(nextIndex, nextOffset, false);
-    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
-    }
-    pistonOscillationGuideChecklistSnapTimerRef.current = window.setTimeout(() => {
-      pistonOscillationGuideChecklistSnapTimerRef.current = null;
-      applyPistonOscillationGuideChecklistView(
-        pistonOscillationGuideChecklistViewedIndexRef.current,
-        0,
-        true,
-      );
-    }, HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS);
-    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
-    }
-    pistonOscillationGuideChecklistReturnTimerRef.current = window.setTimeout(() => {
-      pistonOscillationGuideChecklistReturnTimerRef.current = null;
-      returnPistonOscillationGuideChecklistToCurrentStep();
-    }, HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS);
-  };
 
-  const handlePistonOscillationGuideChecklistWheel = (
-    event: React.WheelEvent<HTMLDivElement>,
-  ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const deltaModeScale = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? 120 : 1;
-    const normalizedDelta = Math.max(-180, Math.min(180, event.deltaY * deltaModeScale));
-    pistonOscillationGuideChecklistPendingWheelDeltaRef.current += normalizedDelta;
-    if (pistonOscillationGuideChecklistFrameRef.current === null) {
-      pistonOscillationGuideChecklistFrameRef.current = window.requestAnimationFrame(
-        processPistonOscillationGuideChecklistWheelFrame,
-      );
-    }
-  };
 
-  const handlePistonOscillationGuideChecklistKeyDown = (
-    event: React.KeyboardEvent<HTMLDivElement>,
-  ) => {
-    const currentIndex = pistonOscillationGuideChecklistViewedIndexRef.current;
-    const lastIndex = Math.max(
-      0,
-      pistonOscillationGuideChecklistPageLengthRef.current - 1,
-    );
-    const nextIndex = event.key === 'ArrowDown'
-      ? Math.min(lastIndex, currentIndex + 1)
-      : event.key === 'ArrowUp'
-        ? Math.max(0, currentIndex - 1)
-        : event.key === 'PageDown'
-          ? Math.min(lastIndex, currentIndex + 3)
-          : event.key === 'PageUp'
-            ? Math.max(0, currentIndex - 3)
-            : event.key === 'Home'
-              ? 0
-              : event.key === 'End'
-                ? lastIndex
-                : null;
-    if (nextIndex === null) return;
-    event.preventDefault();
-    event.stopPropagation();
-    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
-    if (pistonOscillationGuideChecklistFrameRef.current !== null) {
-      window.cancelAnimationFrame(pistonOscillationGuideChecklistFrameRef.current);
-      pistonOscillationGuideChecklistFrameRef.current = null;
-    }
-    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
-      pistonOscillationGuideChecklistSnapTimerRef.current = null;
-    }
-    applyPistonOscillationGuideChecklistView(nextIndex, 0, true);
-    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
-    }
-    pistonOscillationGuideChecklistReturnTimerRef.current = window.setTimeout(() => {
-      pistonOscillationGuideChecklistReturnTimerRef.current = null;
-      returnPistonOscillationGuideChecklistToCurrentStep();
-    }, HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS);
-  };
 
-  useLayoutEffect(() => {
-    const track = pistonOscillationGuideChecklistTrackRef.current;
-    if (!activePistonOscillationGuideSelected || !track) {
-      clearPistonOscillationGuideChecklistTimers();
-      return;
-    }
-    const currentIndex = Number(track.dataset.pistonGuideCurrentIndex ?? 0);
-    const pageLength = Number(track.dataset.pistonGuidePageLength ?? 1);
-    pistonOscillationGuideChecklistPageLengthRef.current = Math.max(1, pageLength);
-    pistonOscillationGuideChecklistCurrentIndexRef.current = Math.max(0, currentIndex);
-    pistonOscillationGuideChecklistPendingWheelDeltaRef.current = 0;
-    if (pistonOscillationGuideChecklistSnapTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistSnapTimerRef.current);
-      pistonOscillationGuideChecklistSnapTimerRef.current = null;
-    }
-    if (pistonOscillationGuideChecklistReturnTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideChecklistReturnTimerRef.current);
-      pistonOscillationGuideChecklistReturnTimerRef.current = null;
-    }
-    applyPistonOscillationGuideChecklistView(currentIndex, 0, true);
-  }, [
-    activeFile.id,
-    activePistonOscillationGuideSelected,
-    activePistonOscillationGuideSession?.measurementIndex,
-    activePistonOscillationGuideSession?.status,
-    activePistonOscillationGuideSession?.step,
-  ]);
 
-  useLayoutEffect(() => {
-    const currentSession = activeFile.kind === 'heatCapacityPistonOscillation'
-      ? {
-          fileId: activeFile.id,
-          status: activeFile.pistonOscillationGuideSession.status,
-          step: activeFile.pistonOscillationGuideSession.step,
-        }
-      : null;
-    const previousSession = pistonOscillationGuidePreviousSessionRef.current;
-    pistonOscillationGuidePreviousSessionRef.current = currentSession;
 
-    const completionReviewEntered = currentSession?.status === 'active'
-      && currentSession.step === 'completionReview'
-      && (
-        previousSession?.fileId !== currentSession.fileId
-        || previousSession.step !== 'completionReview'
-      );
-    if (completionReviewEntered) {
-      clearPistonOscillationGuideFeedback();
-      setPistonOscillationGuideLessonOutgoingView(null);
-      setPistonOscillationGuideLessonDialog({
-        kind: 'completion',
-        fileId: currentSession.fileId,
-        closing: false,
-      });
-      return;
-    }
-    setPistonOscillationGuideLessonDialog((current) => (
-      current?.kind === 'completion'
-      && (
-        currentSession?.fileId !== current.fileId
-        || currentSession.status !== 'active'
-        || currentSession.step !== 'completionReview'
-      )
-        ? null
-        : current
-    ));
-  }, [
-    activeFile.id,
-    activeFile.kind,
-    activeFile.kind === 'heatCapacityPistonOscillation'
-      ? `${activeFile.pistonOscillationGuideSession.status}:${activeFile.pistonOscillationGuideSession.step}`
-      : null,
-  ]);
 
-  useEffect(() => () => {
-    clearPistonOscillationGuideChecklistTimers();
-    pistonOscillationGuideFeedbackTimerGenerationRef.current += 1;
-    if (pistonOscillationGuideFeedbackTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideFeedbackTimerRef.current);
-    }
-    if (pistonOscillationGuideStrongReminderTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideStrongReminderTimerRef.current);
-    }
-    if (pistonOscillationGuidePressureRangeLessonTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuidePressureRangeLessonTimerRef.current);
-    }
-    if (pistonOscillationGuideLessonCloseTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideLessonCloseTimerRef.current);
-    }
-    if (pistonOscillationGuideLessonTransitionTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideLessonTransitionTimerRef.current);
-    }
-    if (pistonOscillationGuideCompletionToastTimerRef.current !== null) {
-      window.clearTimeout(pistonOscillationGuideCompletionToastTimerRef.current);
-    }
-  }, []);
+
+
+
+
+
+
 
   useEffect(() => {
     const activeGuideLessonFile = activeFile.kind === 'heatCapacity' &&
@@ -8591,62 +5064,21 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const renderHeatCapacityGuideLessonOverlay = () => {
     if (!heatCapacityGuideLessonDialog) return null;
-    const lessonView = getHeatCapacityGuideLessonView(heatCapacityGuideLessonDialog);
     return (
-      <div
-        className={`studio-heat-guide-lesson-layer studio-heat-guide-lesson-layer-${heatCapacityGuideLessonClosing ? 'closing' : 'open'}`}
-        data-heat-capacity-guide-lesson-layer="true"
-        role="presentation"
-        onMouseDown={handleHeatCapacityGuideLessonDialogAdvance}
-      >
-        <section
-          ref={heatCapacityGuideLessonDialogRef}
-          className={`studio-heat-guide-lesson-card studio-heat-guide-lesson-card-${heatCapacityGuideLessonDialog.kind}`}
-          data-heat-capacity-guide-lesson-dialog="true"
-          role="dialog"
-          aria-label={heatCapacityRealtimeCopy.guideLessonDialogAria}
-          aria-modal="true"
-          tabIndex={-1}
-          onMouseDown={(event) => event.stopPropagation()}
-          onKeyDown={handleHeatCapacityGuideLessonDialogKeyDown}
-        >
-          <button
-            type="button"
-            className="studio-heat-guide-lesson-close"
-            data-heat-capacity-guide-lesson-close="true"
-            aria-label={windowControlCopy.close}
-            onMouseDown={handleHeatCapacityGuideLessonCloseButtonMouseDown}
-            onClick={handleHeatCapacityGuideLessonCloseButtonClick}
-          >
-            <X size={13} strokeWidth={2.7} />
-          </button>
-          <div className="studio-heat-guide-lesson-kicker">
-            <span>{heatCapacityRealtimeCopy.guideLessonButtonLabel}</span>
-          </div>
-          <div className="studio-heat-guide-lesson-content-stack">
-            {heatCapacityGuideLessonOutgoingView ? (
-              <div
-                key={`outgoing-${heatCapacityGuideLessonOutgoingView.key}`}
-                className="studio-heat-guide-lesson-content studio-heat-guide-lesson-content-outgoing"
-              >
-                <strong>{renderScientificText(heatCapacityGuideLessonOutgoingView.title)}</strong>
-                <p>{renderScientificText(heatCapacityGuideLessonOutgoingView.body)}</p>
-              </div>
-            ) : null}
-            <div
-              key={`current-${lessonView.key}`}
-              className="studio-heat-guide-lesson-content studio-heat-guide-lesson-content-current"
-            >
-              <strong>{renderScientificText(lessonView.title)}</strong>
-              <p>{renderScientificText(lessonView.body)}</p>
-            </div>
-          </div>
-          <div className="studio-heat-guide-lesson-hint" data-heat-capacity-guide-lesson-hint="true">
-            {heatCapacityRealtimeCopy.guideLessonContinueHint}
-          </div>
-        </section>
-      </div>
-    );
+    <WorkbenchHeatCapacityGuideLesson
+      heatCapacityGuideLessonDialog={heatCapacityGuideLessonDialog}
+      getHeatCapacityGuideLessonView={getHeatCapacityGuideLessonView}
+      heatCapacityGuideLessonClosing={heatCapacityGuideLessonClosing}
+      handleHeatCapacityGuideLessonDialogAdvance={handleHeatCapacityGuideLessonDialogAdvance}
+      heatCapacityGuideLessonDialogRef={heatCapacityGuideLessonDialogRef}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      handleHeatCapacityGuideLessonDialogKeyDown={handleHeatCapacityGuideLessonDialogKeyDown}
+      windowControlCopy={windowControlCopy}
+      handleHeatCapacityGuideLessonCloseButtonMouseDown={handleHeatCapacityGuideLessonCloseButtonMouseDown}
+      handleHeatCapacityGuideLessonCloseButtonClick={handleHeatCapacityGuideLessonCloseButtonClick}
+      heatCapacityGuideLessonOutgoingView={heatCapacityGuideLessonOutgoingView}
+    />
+  );
   };
 
   const showHeatCapacityRecordButtonExit = (kind: HeatCapacityGuideRecordKind) => {
@@ -12417,44 +8849,14 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   });
 
 
-  const reconcileRuntimesAfterRestore = (restoredFiles: WorkbenchFileState[]) => {
-    Object.keys(standardRuntimeRef.current).forEach((fileId) => {
-      cancelRuntimeFrame(fileId);
-    });
-    Object.keys(idealRuntimeRef.current).forEach((fileId) => {
-      cancelRuntimeFrame(fileId);
-    });
-    standardRuntimeRef.current = {};
-    idealRuntimeRef.current = {};
+  const { cancelRuntimeFrame, createStandardRuntime, createIdealRuntime, prepareReopenedWorkbenchFile,
+    getStandardRuntime, getIdealRuntime, reconcileRuntimesAfterRestore, reconcileRuntimeAfterFileRestore,
+    initializeExistingRuntimes, disposeHardSphereRuntimeTimers } = createWorkbenchHardSphereRuntimeRegistry({
+    window, filesRef, standardRuntimeRef, idealRuntimeRef,
+    updateFileById: (fileId, update) => updateFileById(fileId, update),
+  });
 
-    restoredFiles.forEach((file) => {
-      if (file.kind === 'standard') {
-        const runtime = createStandardRuntime(file);
-        if (runtime) {
-          standardRuntimeRef.current[file.id] = runtime;
-        }
-        return;
-      }
 
-      if (file.kind !== 'ideal') return;
-      const runtime = createIdealRuntime(file);
-      if (runtime) idealRuntimeRef.current[file.id] = runtime;
-    });
-  };
-
-  const reconcileRuntimeAfterFileRestore = (file: WorkbenchFileState) => {
-    cancelRuntimeFrame(file.id);
-    delete standardRuntimeRef.current[file.id];
-    delete idealRuntimeRef.current[file.id];
-    if (file.kind !== 'standard' && file.kind !== 'ideal') return;
-    const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
-    if (!runtime) return;
-    if (file.kind === 'standard') {
-      standardRuntimeRef.current[file.id] = runtime;
-    } else {
-      idealRuntimeRef.current[file.id] = runtime;
-    }
-  };
 
   const clearEditRestoreTransientUi = () => {
     setParameterInputDrafts({});
@@ -12465,7 +8867,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setPendingDeleteFileId(null);
     setPendingRemovePointId(null);
     setPendingClearRelationKey(null);
-    setPistonOscillationFreeSetupRequestedFileId(null);
+    cancelPistonOscillationFreeSetup();
     renamingFileIdRef.current = null;
     setRenamingFileId(null);
     setRenameDraft('');
@@ -12500,699 +8902,66 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     };
   }, [undoStack, redoStack, selectedPanel, activeHeatCapacityModalLocked]);
 
-  const startSidebarResize = (side: 'left' | 'params', event: React.MouseEvent) => {
-    if (openTopMenu) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const startX = event.clientX;
-    const startWidth = side === 'left' ? leftSidebarWidth : parameterSidebarWidth;
-    const workspaceShellWidth = workspaceShellRef.current?.getBoundingClientRect().width ?? 0;
-    let pendingSidebarWidth = startWidth;
-    let didResize = false;
-
-    const updateSidebarGhost = () => {
-      if (side === 'left') {
-        sidebarResizeGhostRef.current?.style.setProperty('--studio-left-resize-ghost-x', `${pendingSidebarWidth}px`);
-        return;
-      }
-      parameterSidebarResizeGhostRef.current?.style.setProperty(
-        '--studio-params-resize-ghost-x',
-        `${Math.max(0, workspaceShellWidth - pendingSidebarWidth)}px`,
-      );
-    };
-    updateSidebarGhost();
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      const delta = moveEvent.clientX - startX;
-      pendingSidebarWidth = side === 'left'
-        ? clamp(startWidth + delta, LEFT_SIDEBAR_MIN, LEFT_SIDEBAR_MAX)
-        : clamp(startWidth - delta, PARAM_SIDEBAR_MIN, PARAM_SIDEBAR_MAX);
-      didResize = true;
-      scheduleResizeGhostUpdate(updateSidebarGhost);
-    };
-
-    const finishResize = (commit: boolean) => {
-      cancelResizeGhostFrame();
-      document.body.classList.remove('studio-resizing');
-      workbenchBodyRef.current?.classList.remove('studio-left-sidebar-resizing');
-      workspaceShellRef.current?.classList.remove('studio-params-sidebar-resizing');
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      if (commit && didResize) {
-        if (side === 'left') {
-          setLeftSidebarWidth(pendingSidebarWidth);
-        } else {
-          setParameterSidebarWidth(pendingSidebarWidth);
-        }
-      }
-    };
-
-    const handleUp = () => finishResize(true);
-
-    document.body.classList.add('studio-resizing');
-    if (side === 'left') {
-      workbenchBodyRef.current?.classList.add('studio-left-sidebar-resizing');
-    } else {
-      workspaceShellRef.current?.classList.add('studio-params-sidebar-resizing');
-    }
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
-  const startIdealResultWindowResize = (event: React.MouseEvent) => {
-    if (activeFile.kind !== 'ideal') return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const workspaceHeight = idealResultWindowRegionRef.current?.getBoundingClientRect().height
-      ?? centerWorkspaceRef.current?.getBoundingClientRect().height
-      ?? 0;
-    if (workspaceHeight <= 0) return;
-
-    const snapshot = createEditSnapshot('resized ideal result window', 'presentation');
-    const startY = event.clientY;
-    const startRatio = activeFile.idealWindowLayout.heightRatio;
-    let didResize = false;
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      const deltaRatio = (startY - moveEvent.clientY) / workspaceHeight;
-      const nextRatio = startRatio + deltaRatio;
-      const clampedRatio = clamp(nextRatio, IDEAL_RESULT_MIN_HEIGHT_RATIO, IDEAL_RESULT_MAX_HEIGHT_RATIO);
-      didResize = true;
-      updateActiveFile((file) => {
-        if (file.kind !== 'ideal') return file;
-        return {
-          ...file,
-          idealWindowLayout: {
-            ...file.idealWindowLayout,
-            heightRatio: clampedRatio,
-            hasCustomHeight: true,
-          },
-          updatedAt: Date.now(),
-        };
-      });
-    };
-
-    const handleUp = () => {
-      document.body.classList.remove('studio-vertical-resizing');
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      if (didResize) {
-        pushUndoSnapshot(snapshot);
-      }
-    };
-
-    document.body.classList.add('studio-vertical-resizing');
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
-  const getStandardResultsMaxHeightRatio = () => {
-    const workspaceRect = centerWorkspaceRef.current?.getBoundingClientRect();
-    const fileTabsRect = fileTabsRef.current?.getBoundingClientRect();
-    if (!workspaceRect || workspaceRect.height <= 0) return IDEAL_RESULT_MAX_HEIGHT_RATIO;
-
-    const fileTabOverlap = fileTabsRect
-      ? Math.max(0, fileTabsRect.bottom - workspaceRect.top)
-      : 0;
-    const reservedTopSpace = Math.max(RESIZER_GRAB_SAFE_SPACE, fileTabOverlap + RESIZER_GRAB_SAFE_SPACE);
-    const availableHeight = workspaceRect.height - STANDARD_RESULTS_BOTTOM_INSET - reservedTopSpace;
-    return clamp(
-      availableHeight / workspaceRect.height,
-      IDEAL_RESULT_MIN_HEIGHT_RATIO,
-      IDEAL_RESULT_MAX_HEIGHT_RATIO,
-    );
-  };
-
-  const getHeatCapacityMaterialsMaxHeightRatio = () => {
-    const workspaceRect = centerWorkspaceRef.current?.getBoundingClientRect();
-    if (!workspaceRect || workspaceRect.height <= 0) return IDEAL_RESULT_MAX_HEIGHT_RATIO;
-
-    const liveWorkspaceRect = liveWorkspaceRef.current?.getBoundingClientRect();
-    if (liveWorkspaceRect && liveWorkspaceRect.height > 0) {
-      const liveWorkspaceCoverageHeight = liveWorkspaceRect.height;
-      return clamp(
-        liveWorkspaceCoverageHeight / workspaceRect.height,
-        HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-        IDEAL_RESULT_MAX_HEIGHT_RATIO,
-      );
-    }
-
-    const fileTabsRect = fileTabsRef.current?.getBoundingClientRect();
-    const fileTabOverlap = fileTabsRect
-      ? Math.max(0, fileTabsRect.bottom - workspaceRect.top)
-      : 0;
-    const reservedTopSpace = Math.max(RESIZER_GRAB_SAFE_SPACE, fileTabOverlap + RESIZER_GRAB_SAFE_SPACE);
-    const availableHeight = workspaceRect.height - STANDARD_RESULTS_BOTTOM_INSET - reservedTopSpace;
-    return clamp(
-      availableHeight / workspaceRect.height,
-      HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-      IDEAL_RESULT_MAX_HEIGHT_RATIO,
-    );
-  };
-
-  const startStandardResultsResize = (event: React.MouseEvent) => {
-    if (activeFile.kind !== 'standard') return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const workspaceHeight = centerWorkspaceRef.current?.getBoundingClientRect().height ?? 0;
-    if (workspaceHeight <= 0) return;
-
-    const snapshot = createEditSnapshot('resized standard Results window', 'presentation');
-    const startY = event.clientY;
-    const startRatio = normalizeStandardResultsLayout(activeFile.standardResultsLayout).heightRatio;
-    const maxHeightRatio = getStandardResultsMaxHeightRatio();
-    let didResize = false;
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      const deltaRatio = (startY - moveEvent.clientY) / workspaceHeight;
-      const nextRatio = startRatio + deltaRatio;
-      didResize = true;
-      updateActiveFile((file) => {
-        if (file.kind !== 'standard') return file;
-        return {
-          ...file,
-          standardResultsLayout: {
-            ...normalizeStandardResultsLayout(file.standardResultsLayout),
-            heightRatio: clamp(nextRatio, IDEAL_RESULT_MIN_HEIGHT_RATIO, maxHeightRatio),
-          },
-          updatedAt: Date.now(),
-        };
-      });
-    };
-
-    const handleUp = () => {
-      document.body.classList.remove('studio-vertical-resizing');
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      if (didResize) {
-        pushUndoSnapshot(snapshot);
-      }
-    };
-
-    document.body.classList.add('studio-vertical-resizing');
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
-  const startHeatCapacityMaterialsResize = (event: React.MouseEvent) => {
-    if (activeFile.kind !== 'heatCapacity') return;
-    event.preventDefault();
-    event.stopPropagation();
-
-    const workspaceHeight = centerWorkspaceRef.current?.getBoundingClientRect().height ?? 0;
-    if (workspaceHeight <= 0) return;
-
-    const snapshot = createEditSnapshot('resized heat-capacity materials window', 'presentation');
-    const startY = event.clientY;
-    const maxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio();
-    const startRatio = clamp(
-      activeFile.heatCapacityTabContainerHeight || 0.5,
-      HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-      maxHeightRatio,
-    );
-    let didResize = false;
-
-    const handleMove = (moveEvent: MouseEvent) => {
-      const deltaRatio = (startY - moveEvent.clientY) / workspaceHeight;
-      const nextRatio = clamp(
-        startRatio + deltaRatio,
-        HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-        maxHeightRatio,
-      );
-      didResize = true;
-      updateActiveFile((file) => (
-        file.kind === 'heatCapacity'
-          ? { ...file, heatCapacityTabContainerHeight: nextRatio, updatedAt: Date.now() }
-          : file
-      ));
-    };
-
-    const handleUp = () => {
-      document.body.classList.remove('studio-vertical-resizing');
-      window.removeEventListener('mousemove', handleMove);
-      window.removeEventListener('mouseup', handleUp);
-      if (didResize) pushUndoSnapshot(snapshot);
-    };
-
-    document.body.classList.add('studio-vertical-resizing');
-    window.addEventListener('mousemove', handleMove);
-    window.addEventListener('mouseup', handleUp);
-  };
-
-  const cancelResizeGhostFrame = () => {
-    if (resizeGhostFrameRef.current === null) return;
-    window.cancelAnimationFrame(resizeGhostFrameRef.current);
-    resizeGhostFrameRef.current = null;
-  };
-
-  const scheduleResizeGhostUpdate = (updateGhost: () => void) => {
-    cancelResizeGhostFrame();
-    resizeGhostFrameRef.current = window.requestAnimationFrame(() => {
-      resizeGhostFrameRef.current = null;
-      updateGhost();
-    });
-  };
-
-  const startLiveWorkspaceResize = (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (isWorkbenchEmpty) return;
-    const workspace = liveWorkspaceRef.current ?? event.currentTarget.parentElement;
-    if (!workspace) return;
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const initialWorkspaceRect = workspace.getBoundingClientRect();
-    const resizerWidth = event.currentTarget.getBoundingClientRect().width || 8;
-    if (initialWorkspaceRect.width <= resizerWidth) return;
-
-    const getNextRatio = (clientX: number) => {
-      const workspaceRect = workspace.getBoundingClientRect();
-      const availableWidth = workspaceRect.width - resizerWidth;
-      if (availableWidth <= 0) return clampWorkbenchLiveSplitRatio(activeFile.liveWorkspaceSplitRatio);
-      return clamp(
-        (clientX - workspaceRect.left - resizerWidth / 2) / availableWidth,
-        WORKBENCH_LIVE_SPLIT_MIN_RATIO,
-        WORKBENCH_LIVE_SPLIT_MAX_RATIO,
-      );
-    };
-
-    let pendingLiveWorkspaceSplitRatio = liveWorkspaceSplitRatio;
-    let didResize = false;
-    liveWorkspaceResizeGhostRef.current?.style.setProperty(
-      '--studio-live-resize-ghost-x',
-      `${(pendingLiveWorkspaceSplitRatio * 100).toFixed(3)}%`,
-    );
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      pendingLiveWorkspaceSplitRatio = getNextRatio(moveEvent.clientX);
-      didResize = true;
-      scheduleResizeGhostUpdate(() => {
-        liveWorkspaceResizeGhostRef.current?.style.setProperty(
-          '--studio-live-resize-ghost-x',
-          `${(pendingLiveWorkspaceSplitRatio * 100).toFixed(3)}%`,
-        );
-      });
-    };
-
-    const finishResize = (commit: boolean) => {
-      cancelResizeGhostFrame();
-      setLiveWorkspaceResizing(false);
-      document.body.classList.remove('studio-horizontal-resizing');
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleCancel);
-      if (commit && didResize) {
-        updateActiveFile((file) => ({
-          ...file,
-          liveWorkspaceSplitRatio: pendingLiveWorkspaceSplitRatio,
-          updatedAt: Date.now(),
-        }));
-      }
-    };
-    const handleUp = () => finishResize(true);
-    const handleCancel = () => finishResize(false);
-
-    setLiveWorkspaceResizing(true);
-    document.body.classList.add('studio-horizontal-resizing');
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleCancel);
-  };
-
-  const startConsoleResize = (event: React.PointerEvent<HTMLDivElement>) => {
-    if (consoleCollapsed) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const shellRect = shellRef.current?.getBoundingClientRect();
-    const consoleRect = event.currentTarget.parentElement?.getBoundingClientRect();
-    const shellHeight = shellRect?.height ?? window.innerHeight;
-    const footerHeight = shellRect && consoleRect ? Math.max(0, shellRect.bottom - consoleRect.bottom) : 24;
-    consoleResizeRef.current = {
-      startY: event.clientY,
-      startHeight: consoleHeightPx,
-      shellHeight,
-      footerHeight,
-    };
-    let pendingConsoleHeightPx = consoleHeightPx;
-    let didResize = false;
-    shellRef.current?.classList.add('studio-console-resizing');
-    consoleResizeGhostRef.current?.style.setProperty(
-      '--studio-console-resize-ghost-y',
-      `${shellHeight - footerHeight - pendingConsoleHeightPx}px`,
-    );
-
-    const handleMove = (moveEvent: PointerEvent) => {
-      const resizeState = consoleResizeRef.current;
-      if (!resizeState) return;
-      const maxHeight = Math.max(180, Math.min(420, Math.round(window.innerHeight * 0.48)));
-      pendingConsoleHeightPx = clamp(resizeState.startHeight + resizeState.startY - moveEvent.clientY, 96, maxHeight);
-      didResize = true;
-      scheduleResizeGhostUpdate(() => {
-        consoleResizeGhostRef.current?.style.setProperty(
-          '--studio-console-resize-ghost-y',
-          `${resizeState.shellHeight - resizeState.footerHeight - pendingConsoleHeightPx}px`,
-        );
-      });
-    };
-
-    const finishResize = (commit: boolean) => {
-      cancelResizeGhostFrame();
-      consoleResizeRef.current = null;
-      shellRef.current?.classList.remove('studio-console-resizing');
-      document.body.classList.remove('studio-vertical-resizing');
-      window.removeEventListener('pointermove', handleMove);
-      window.removeEventListener('pointerup', handleUp);
-      window.removeEventListener('pointercancel', handleCancel);
-      if (commit && didResize) {
-        setConsoleHeightPx(pendingConsoleHeightPx);
-      }
-    };
-    const handleUp = () => finishResize(true);
-    const handleCancel = () => finishResize(false);
-
-    document.body.classList.add('studio-vertical-resizing');
-    window.addEventListener('pointermove', handleMove);
-    window.addEventListener('pointerup', handleUp);
-    window.addEventListener('pointercancel', handleCancel);
-  };
-
-  const saveCurrentWorkbenchLayoutAsDefault = () => {
-    if (isWorkbenchEmpty) {
-      pushLog((language) => workbenchCopies[language].logs.layoutSaveNeedsFile, 'warning');
-      return;
-    }
-
-    const nextFileDefaults = sanitizeWorkbenchLayoutDefaultState({
-      resultsHeightRatio: activeFile.kind === 'ideal'
-        ? normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal).heightRatio
-        : activeFile.kind === 'standard'
-          ? normalizeStandardResultsLayout(activeFile.standardResultsLayout, workbenchLayoutDefaults.standard).heightRatio
-          : activeFile.kind === 'heatCapacity'
-            ? workbenchLayoutDefaults.heatCapacity.resultsHeightRatio
-            : workbenchLayoutDefaults.heatCapacityPistonOscillation.resultsHeightRatio,
-      liveWorkspaceSplitRatio: activeFile.liveWorkspaceSplitRatio,
-    });
-    const nextDefaults = sanitizeWorkbenchLayoutDefaults({
-      ...workbenchLayoutDefaults,
-      [activeFile.kind]: nextFileDefaults,
-    });
-
-    setWorkbenchLayoutDefaults(nextDefaults);
-    persistWorkbenchLayoutDefaults(nextDefaults);
-    setOpenTopMenu(null);
-    pushLog(
-      (language) => workbenchCopies[language].logs.layoutDefaultSaved(activeFile.name),
-      'success',
-    );
-  };
-
-  const cancelRuntimeFrame = (fileId: string) => {
-    const runtime = standardRuntimeRef.current[fileId] ?? idealRuntimeRef.current[fileId];
-    if (!runtime || runtime.simulationTimerId === null) return;
-
-    window.clearTimeout(runtime.simulationTimerId);
-    runtime.simulationTimerId = null;
-  };
-
-  const createHardSphereEngine = (
-    params: SimulationParams,
-    snapshot: PhysicsEngineSnapshotV2 | null,
-  ): PhysicsEngine => (
-    snapshot && areWorkbenchParamsEqual(snapshot.params, params)
-      ? PhysicsEngine.fromSnapshot(snapshot)
-      : new PhysicsEngine(cloneParams(params))
-  );
-
-  const createStandardRuntime = (file: WorkbenchFileState): StandardEngineRuntime | null => {
-    if (file.kind !== 'standard') return null;
-    return {
-      engine: createHardSphereEngine(file.appliedParams, file.hardSphereEngineSnapshot),
-      frameCount: 0,
-      simulationTimerId: null,
-    };
-  };
-
-  const createIdealRuntime = (file: WorkbenchFileState): StandardEngineRuntime | null => {
-    if (file.kind !== 'ideal') return null;
-
-    return {
-      engine: createHardSphereEngine(file.activeParams, file.hardSphereEngineSnapshot),
-      frameCount: 0,
-      simulationTimerId: null,
-    };
-  };
-
-  const prepareReopenedWorkbenchFile = (file: WorkbenchFileState): WorkbenchFileState => {
-    const baseFile = {
-      ...file,
-      runState: file.kind === 'heatCapacity'
-        ? file.runState
-        : file.runState === 'running' ? 'paused' : file.runState,
-      updatedAt: Date.now(),
-      lastOpenedAt: Date.now(),
-    };
-
-    if (baseFile.kind !== 'standard' && baseFile.kind !== 'ideal') {
-      return baseFile;
-    }
-
-    const runtime = baseFile.kind === 'standard'
-      ? createStandardRuntime(baseFile)
-      : createIdealRuntime(baseFile);
-    if (!runtime) return baseFile;
-
-    if (baseFile.kind === 'standard') {
-      standardRuntimeRef.current[baseFile.id] = runtime;
-    } else {
-      idealRuntimeRef.current[baseFile.id] = runtime;
-    }
-
-    return {
-      ...baseFile,
-      stats: runtime.engine.getStats(),
-      chartData: runtime.engine.getHistogramData(false),
-      particles: snapshotParticles(runtime.engine),
-      hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-      ...(baseFile.kind === 'ideal' ? { latestPressureSummary: runtime.engine.getPressureMeasurementSummary() } : {}),
-    };
-  };
-
-  const getStandardRuntime = (file: WorkbenchFileState): StandardEngineRuntime | null => {
-    if (file.kind !== 'standard') return null;
-
-    const existingRuntime = standardRuntimeRef.current[file.id];
-    if (existingRuntime && areWorkbenchParamsEqual(existingRuntime.engine.params, file.appliedParams)) {
-      return existingRuntime;
-    }
-
-    cancelRuntimeFrame(file.id);
-    const nextRuntime = createStandardRuntime(file);
-    if (nextRuntime) {
-      standardRuntimeRef.current[file.id] = nextRuntime;
-    }
-    return nextRuntime;
-  };
-
-  const getIdealRuntime = (file: WorkbenchFileState): StandardEngineRuntime | null => {
-    if (file.kind !== 'ideal') return null;
-
-    const existingRuntime = idealRuntimeRef.current[file.id];
-    if (existingRuntime && areWorkbenchParamsEqual(existingRuntime.engine.params, file.activeParams)) {
-      return existingRuntime;
-    }
-
-    cancelRuntimeFrame(file.id);
-    const nextRuntime = createIdealRuntime(file);
-    if (nextRuntime) {
-      idealRuntimeRef.current[file.id] = nextRuntime;
-    }
-    return nextRuntime;
-  };
-
-  const pauseRunningFilesExcept = (fileId: string) => {
-    const runningFiles = filesRef.current.filter(
-      (file) => file.id !== fileId && file.runState === 'running',
-    );
-
-    runningFiles.forEach((file) => {
-      cancelRuntimeFrame(file.id);
-      updateFileById(file.id, (currentFile) => ({
-        ...currentFile,
-        runState: 'paused',
-        updatedAt: Date.now(),
-      }));
-        pushLog(
-          (language) => workbenchCopies[language].logs.autoPausedSingleRuntime(file.name),
-          'warning',
-        );
-    });
-  };
-
-  const scheduleStandardFrame = (fileId: string) => {
-    if (desktopExitQuiescedRef.current) return;
-    const runtime = standardRuntimeRef.current[fileId];
-    if (!runtime || runtime.simulationTimerId !== null) return;
-
-    runtime.simulationTimerId = window.setTimeout(() => {
-      runtime.simulationTimerId = null;
-      runStandardFrame(fileId);
-    }, SIMULATION_TICK_INTERVAL_MS);
-  };
-
-  const runStandardFrame = (fileId: string) => {
-    if (desktopExitQuiescedRef.current) return;
-    const file = filesRef.current.find((candidate) => candidate.id === fileId);
-    const runtime = file ? standardRuntimeRef.current[file.id] : null;
-    if (!file || file.kind !== 'standard' || !runtime || file.runState !== 'running') return;
-
-    for (let stepIndex = 0; stepIndex < 5; stepIndex += 1) {
-      runtime.engine.step();
-      if (
-        runtime.engine.time >= runtime.engine.params.equilibriumTime &&
-        runtime.engine.time < runtime.engine.params.equilibriumTime + runtime.engine.params.statsDuration
-      ) {
-        runtime.engine.collectSamples();
-      }
-    }
-
-    const stats = runtime.engine.getStats();
-    const particles = snapshotParticles(runtime.engine);
-    runtime.frameCount += 1;
-    const shouldRefreshChart = runtime.frameCount % 5 === 0 || stats.phase === 'finished';
-    const chartData = shouldRefreshChart ? runtime.engine.getHistogramData(false) : file.chartData;
-    const finished = stats.phase === 'finished';
-    const finalChartData = finished ? runtime.engine.getHistogramData(true) : file.finalChartData;
-
-    const updateStandardFrameFile = finished
-      ? updateFileById
-      : updateRuntimeFileById;
-    updateStandardFrameFile(file.id, (currentFile) => {
-      if (currentFile.kind !== 'standard') return currentFile;
-      return {
-        ...currentFile,
-        runState: finished ? 'finished' : 'running',
-        stats,
-        chartData,
-        finalChartData,
-        particles,
-        hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-        updatedAt: Date.now(),
-      };
-    });
-
-    if (finished) {
-      cancelRuntimeFrame(file.id);
-      pushLog(
-        (language) => workbenchCopies[language].logs.standardFinished(file.name),
-        'success',
-      );
-      pushLog(
-        (language) => workbenchCopies[language].logs.standardResultsReady(file.name),
-        'success',
-      );
-      return;
-    }
-
-    scheduleStandardFrame(file.id);
-  };
-
-  const scheduleIdealFrame = (fileId: string) => {
-    if (desktopExitQuiescedRef.current) return;
-    const runtime = idealRuntimeRef.current[fileId];
-    if (!runtime || runtime.simulationTimerId !== null) return;
-
-    runtime.simulationTimerId = window.setTimeout(() => {
-      runtime.simulationTimerId = null;
-      runIdealFrame(fileId);
-    }, SIMULATION_TICK_INTERVAL_MS);
-  };
-
-  const runIdealFrame = (fileId: string) => {
-    if (desktopExitQuiescedRef.current) return;
-    const file = filesRef.current.find((candidate) => candidate.id === fileId);
-    const runtime = file ? idealRuntimeRef.current[file.id] : null;
-    if (!file || file.kind !== 'ideal' || !runtime || file.runState !== 'running') return;
-
-    for (let stepIndex = 0; stepIndex < 5; stepIndex += 1) {
-      runtime.engine.step();
-      if (
-        runtime.engine.time >= runtime.engine.params.equilibriumTime &&
-        runtime.engine.time < runtime.engine.params.equilibriumTime + runtime.engine.params.statsDuration
-      ) {
-        runtime.engine.collectSamples();
-      }
-    }
-
-    const stats = runtime.engine.getStats();
-    const particles = snapshotParticles(runtime.engine);
-    runtime.frameCount += 1;
-    const shouldRefreshChart = runtime.frameCount % 5 === 0 || stats.phase === 'finished';
-    const chartData = shouldRefreshChart ? runtime.engine.getHistogramData(false) : file.chartData;
-    const finished = stats.phase === 'finished';
-
-    if (!finished) {
-      const latestPressureSummary = runtime.engine.getPressureMeasurementSummary();
-      updateRuntimeFileById(file.id, (currentFile) => {
-        if (currentFile.kind !== 'ideal') return currentFile;
-        return {
-          ...currentFile,
-          runState: 'running',
-          stats,
-          chartData,
-          latestPressureSummary,
-          particles,
-          hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-          verificationState: 'collecting',
-          updatedAt: Date.now(),
-        };
-      });
-      scheduleIdealFrame(file.id);
-      return;
-    }
-
-    runtime.engine.flushPressureMeasurement();
-    const latestPressureSummary = runtime.engine.getPressureMeasurementSummary();
-    const recordedPoint = createIdealGasExperimentPoint(file.relation, file.activeParams, latestPressureSummary);
-
-    updateFileById(file.id, (currentFile) => {
-      if (currentFile.kind !== 'ideal') return currentFile;
-
-      const nextPointsByRelation = recordedPoint
-        ? {
-            ...currentFile.pointsByRelation,
-            [currentFile.relation]: [...currentFile.pointsByRelation[currentFile.relation], recordedPoint],
-          }
-        : currentFile.pointsByRelation;
-      const analysis = getIdealGasAnalysis(currentFile.relation, nextPointsByRelation, currentFile.activeParams);
-      const verificationState = getIdealVerificationState(analysis);
-
-      return {
-        ...currentFile,
-        runState: 'finished',
-        stats,
-        chartData: runtime.engine.getHistogramData(false),
-        latestPressureSummary,
-        particles,
-        hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-        pointsByRelation: nextPointsByRelation,
-        verificationState,
-        historyUnlocked: analysis.isVerified,
-        updatedAt: Date.now(),
-      };
-    });
-
-    cancelRuntimeFrame(file.id);
-    pushLog(
-      (language) => recordedPoint
-        ? workbenchCopies[language].logs.idealPointRecorded(file.name, getRelationLabel(file.relation), formatMetric(getRelationVariableNumericValue(file.relation, file.activeParams), 3))
-        : workbenchCopies[language].logs.idealPointMissingSummary(file.name),
-      recordedPoint ? 'success' : 'warning',
-    );
-  };
+  const { startSidebarResize, startIdealResultWindowResize, getHeatCapacityMaterialsMaxHeightRatio, startStandardResultsResize, startHeatCapacityMaterialsResize, startLiveWorkspaceResize, startConsoleResize, saveCurrentWorkbenchLayoutAsDefault, resetLayout } = createWorkbenchLayoutActions({
+    getView: () => ({ activeFile, workbenchLayoutDefaults, openTopMenu, leftSidebarWidth,
+      parameterSidebarWidth, isWorkbenchEmpty, liveWorkspaceSplitRatio, consoleCollapsed, consoleHeightPx }),
+    window, document, workspaceShellRef, workbenchBodyRef, sidebarResizeGhostRef,
+    parameterSidebarResizeGhostRef, idealResultWindowRegionRef, centerWorkspaceRef, fileTabsRef,
+    liveWorkspaceRef, liveWorkspaceResizeGhostRef, shellRef, consoleResizeGhostRef, resizeGhostFrameRef,
+    consoleResizeRef, createEditSnapshot, pushUndoSnapshot, captureUndoSnapshot,
+    updateActiveFile: (update) => updateActiveFile(update), setWorkbenchFiles: (update) => setWorkbenchFiles(update),
+    setLeftSidebarWidth, setParameterSidebarWidth, setLiveWorkspaceResizing,
+    setConsoleHeightPx, setWorkbenchLayoutDefaults, setOpenTopMenu, pushLog,
+  });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const { pauseRunningFilesExcept, scheduleStandardFrame, scheduleIdealFrame } = createWorkbenchHardSphereFrameLoop({
+    window, desktopExitQuiescedRef, filesRef, standardRuntimeRef, idealRuntimeRef,
+    updateFileById: (fileId, update) => updateFileById(fileId, update),
+    updateRuntimeFileById: (fileId, update) => updateRuntimeFileById(fileId, update),
+    cancelRuntimeFrame, pushLog,
+  });
+
+
+
+
+
+
+
+
 
   prepareDesktopExitQuiescenceRef.current = (blockInput = true) => {
     if (desktopExitQuiescedRef.current) {
@@ -13327,356 +9096,38 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     scheduleWorkspacePersistenceRef.current();
   };
 
-  const rejectLockedIdealControlledVariables = (nextParams: SimulationParams) => {
-    if (activeFile.kind !== 'ideal') return false;
-    const lockedKeys = getLockedIdealControlledVariableKeys(nextParams);
-    if (lockedKeys.length === 0) return false;
+  const { revertWorkbenchParameterInput, commitWorkbenchParameterInput, applyActiveFileParams, prepareActiveFileForRun } = createWorkbenchParameterActions({
+    getActiveFile: () => activeFile,
+    getParameterControlsLocked: () => parameterControlsLocked,
+    getParametersDirty: () => parametersDirty,
+    workbenchCopy, getLockedIdealControlledVariableKeys, showWorkbenchValidationErrors,
+    captureUndoSnapshot, updateActiveFile: (update) => updateActiveFile(update),
+    standardRuntimeRef, idealRuntimeRef, cancelRuntimeFrame, getStandardRuntime, getIdealRuntime,
+    snapshotParticles, setParameterInputDrafts, setParameterErrors, pushLog,
+  });
 
-    const message = workbenchCopy.logs.controlledVariablesLocked(activeFile.name, getRelationLabel(activeFile.relation), lockedKeys.join(', '));
-    setParameterErrors([message]);
-    pushLog(
-      (language) => workbenchCopies[language].logs.controlledVariablesLocked(activeFile.name, getRelationLabel(activeFile.relation), lockedKeys.join(', ')),
-      'warning',
-    );
-    return true;
-  };
 
-  const clearWorkbenchParameterInputDraft = (paramKey: string) => {
-    setParameterInputDrafts((current) => {
-      const { [paramKey]: _removed, ...rest } = current;
-      return rest;
-    });
-  };
 
-  const revertWorkbenchParameterInput = (paramKey: string) => {
-    clearWorkbenchParameterInputDraft(paramKey);
-    setParameterErrors([]);
-  };
 
-  const commitWorkbenchParameterInput = (
-    param: WorkbenchParameterRow,
-    rawValue: string,
-  ) => {
-    if (parameterControlsLocked) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.pauseBeforeEditingParameters(activeFile.name),
-        'warning',
-      );
-      return;
-    }
 
-    if (!param.editable) {
-      clearWorkbenchParameterInputDraft(param.key);
-      return;
-    }
 
-    const parsedValue = Number(rawValue);
-    if (!Number.isFinite(parsedValue)) {
-      setParameterErrors([workbenchCopy.logs.invalidParameter(activeFile.name, param.label, rawValue)]);
-      pushLog(
-        (language) => workbenchCopies[language].logs.invalidParameter(
-          activeFile.name,
-          getWorkbenchParameterDisplayLabel(param, workbenchCopies[language]),
-          rawValue,
-        ),
-        'error',
-      );
-      return;
-    }
 
-    const nextParams = cloneParams(activeFile.params);
-    assignWorkbenchParameterValue(nextParams, param.key, parsedValue);
 
-    if (areWorkbenchParamsEqual(nextParams, activeFile.params)) {
-      clearWorkbenchParameterInputDraft(param.key);
-      setParameterErrors([]);
-      return;
-    }
 
-    const validation = validateWorkbenchParams(nextParams);
-    if (!validation.valid) {
-      showWorkbenchValidationErrors(validation);
-      return;
-    }
 
-    if (rejectLockedIdealControlledVariables(nextParams)) return;
 
-    const appliedRuntime = applyActiveFileParams(nextParams);
-    if (appliedRuntime || activeFile.kind !== 'standard') {
-      clearWorkbenchParameterInputDraft(param.key);
-    }
-  };
-
-  const applyActiveFileParams = (
-    paramsOverride?: SimulationParams,
-    options: ApplyActiveFileParamsOptions = {},
-  ): StandardEngineRuntime | null => {
-    if (activeFile.kind === 'heatCapacityPistonOscillation') {
-      setParameterErrors([]);
-      return null;
-    }
-    if (activeFile.runState === 'running') {
-      if (!options.silent) pushLog(
-        (language) => workbenchCopies[language].logs.pauseBeforeApplyingParameters(activeFile.name),
-        'warning',
-      );
-      return null;
-    }
-
-    const nextParams = paramsOverride ? cloneParams(paramsOverride) : cloneParams(activeFile.params);
-    if (rejectLockedIdealControlledVariables(nextParams)) return null;
-    const parameterValidation = validateWorkbenchParams(nextParams);
-    if (!parameterValidation.valid) {
-      showWorkbenchValidationErrors(parameterValidation);
-      return null;
-    }
-
-    const hasOverride = Boolean(paramsOverride);
-    const nextParamsAlreadyApplied = areWorkbenchParamsEqual(nextParams, activeFile.appliedParams);
-    const willChangeSavedParams = !areWorkbenchParamsEqual(nextParams, activeFile.params);
-    const willChangeAppliedParams = !nextParamsAlreadyApplied;
-    const forceReset = options.forceReset === true;
-
-    if (activeFile.kind === 'ideal' && !forceReset && !hasOverride && !parametersDirty && !activeFile.needsReset) {
-      if (!options.silent) pushLog(
-        (language) => workbenchCopies[language].logs.idealRuntimeAlreadyApplied(activeFile.name),
-      );
-      return getIdealRuntime(activeFile);
-    }
-
-    if (activeFile.kind === 'standard' && !forceReset && !hasOverride && !parametersDirty) {
-      if (!options.silent) pushLog(
-        (language) => workbenchCopies[language].logs.noSavedParameterChanges(activeFile.name),
-      );
-      return getStandardRuntime(activeFile);
-    }
-
-    if (activeFile.kind === 'heatCapacity') {
-      const validation = validateWorkbenchParams(nextParams);
-      if (!validation.valid) {
-        showWorkbenchValidationErrors(validation);
-        return null;
-      }
-
-      if (willChangeSavedParams || willChangeAppliedParams) {
-        captureUndoSnapshot(hasOverride ? 'saved heat capacity parameters' : 'applied heat capacity parameters');
-      }
-      updateActiveFile((file) => {
-        if (file.kind !== 'heatCapacity') return file;
-        return {
-          ...file,
-          params: nextParams,
-          appliedParams: cloneParams(nextParams),
-          updatedAt: Date.now(),
-        };
-      });
-      setParameterErrors([]);
-      if (!options.silent) {
-        pushLog((language) => {
-          if (language === 'zh-CN') return `${activeFile.name}：热容比界面参数已保存；未启动模拟运行时。`;
-          if (language === 'zh-TW') return `${activeFile.name}：熱容比介面參數已儲存；未啟動模擬執行階段。`;
-          return `${activeFile.name}: heat-capacity UI parameters saved; no simulation runtime started.`;
-        }, 'success');
-      }
-      return null;
-    }
-
-    if (activeFile.kind === 'standard' && !forceReset && hasOverride && nextParamsAlreadyApplied) {
-      if (willChangeSavedParams) {
-        captureUndoSnapshot('saved parameters');
-      }
-      updateActiveFile((file) => ({
-        ...file,
-        params: nextParams,
-        updatedAt: Date.now(),
-      }));
-      setParameterErrors([]);
-      if (!options.silent) pushLog((language) => {
-        if (language === 'zh-CN') return `${activeFile.name}：编辑后的参数与已应用运行时一致，无需重建。`;
-        if (language === 'zh-TW') return `${activeFile.name}：編輯後的參數與已套用執行階段一致，無需重建。`;
-        return `${activeFile.name}: edited parameters match the applied runtime. No rebuild needed.`;
-      });
-      return getStandardRuntime(activeFile);
-    }
-
-    if (activeFile.kind === 'ideal') {
-      const validation = validateWorkbenchParams(nextParams);
-      if (!validation.valid) {
-        showWorkbenchValidationErrors(validation);
-        return null;
-      }
-
-      const changedKeys = getChangedIdealParamKeys(activeFile.activeParams, nextParams);
-      const nextActiveParams = cloneParams(nextParams);
-      const nextRuntime: StandardEngineRuntime = {
-        engine: new PhysicsEngine(nextActiveParams),
-        frameCount: 0,
-        simulationTimerId: null,
-      };
-      const nextPointsByRelation = activeFile.pointsByRelation;
-      const analysis = getIdealGasAnalysis(activeFile.relation, nextPointsByRelation, nextActiveParams);
-
-      if (willChangeSavedParams || willChangeAppliedParams || activeFile.needsReset || forceReset) {
-        captureUndoSnapshot(hasOverride ? 'saved and applied ideal parameters' : 'applied ideal parameters');
-      }
-
-      cancelRuntimeFrame(activeFile.id);
-      idealRuntimeRef.current[activeFile.id] = nextRuntime;
-      updateActiveFile((file) => {
-        if (file.kind !== 'ideal') return file;
-        return {
-          ...file,
-          params: nextParams,
-          appliedParams: cloneParams(nextActiveParams),
-          activeParams: nextActiveParams,
-          runState: 'idle',
-          stats: nextRuntime.engine.getStats(),
-          chartData: nextRuntime.engine.getHistogramData(false),
-          finalChartData: null,
-          latestPressureSummary: nextRuntime.engine.getPressureMeasurementSummary(),
-          needsReset: false,
-          particles: snapshotParticles(nextRuntime.engine),
-          hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
-          pointsByRelation: nextPointsByRelation,
-          verificationState: getIdealVerificationState(analysis),
-          historyUnlocked: analysis.isVerified,
-          updatedAt: Date.now(),
-        };
-      });
-      setParameterErrors([]);
-      if (!options.silent) {
-        pushLog(
-          (language) => workbenchCopies[language].logs.idealRuntimeApplied(
-            activeFile.name,
-            getRelationLabel(activeFile.relation),
-            changedKeys.length > 0 ? changedKeys.join(', ') : workbenchCopies[language].results.noneValue,
-          ),
-          'success',
-        );
-      }
-      return nextRuntime;
-    }
-
-    const nextAppliedParams = cloneParams(nextParams);
-    const nextRuntime: StandardEngineRuntime = {
-      engine: new PhysicsEngine(nextAppliedParams),
-      frameCount: 0,
-      simulationTimerId: null,
-    };
-
-    if (willChangeSavedParams || willChangeAppliedParams || forceReset) {
-      captureUndoSnapshot(hasOverride ? 'saved and applied parameters' : 'applied parameters');
-    }
-    cancelRuntimeFrame(activeFile.id);
-    standardRuntimeRef.current[activeFile.id] = nextRuntime;
-    updateActiveFile((file) => ({
-      ...file,
-      params: nextParams,
-      appliedParams: nextAppliedParams,
-      runState: 'idle',
-      stats: nextRuntime.engine.getStats(),
-      chartData: nextRuntime.engine.getHistogramData(false),
-      finalChartData: null,
-      particles: snapshotParticles(nextRuntime.engine),
-      hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
-      updatedAt: Date.now(),
-    }));
-    setParameterErrors([]);
-    if (!options.silent) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.standardParametersApplied(
-          activeFile.name,
-          hasOverride
-            ? workbenchCopies[language].logs.parametersSavedAndApplied
-            : workbenchCopies[language].logs.parametersApplied,
-        ),
-        'success',
-      );
-    }
-    return nextRuntime;
-  };
-
-  const prepareActiveFileForRun = (): boolean => {
-    if (activeFile.runState === 'paused') return true;
-
-    if (parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) || activeFile.runState === 'finished') {
-      const appliedRuntime = applyActiveFileParams(undefined, { silent: true, forceReset: activeFile.runState === 'finished' });
-      if (!appliedRuntime) return false;
-      return true;
-    }
-
-    return true;
-  };
-
-  const runActiveFile = () => {
-    if (activeFile.kind === 'heatCapacityPistonOscillation') {
-      setParameterErrors([]);
-      setSamplingPresetMenuOpen(false);
-      return;
-    }
-    if (activeFile.kind === 'heatCapacity') {
-      if (parametersDirty) {
-        applyActiveFileParams(undefined, { silent: true });
-      }
-      setParameterErrors([]);
-      setSamplingPresetMenuOpen(false);
-      runHeatCapacityAutoDemo();
-      return;
-    }
-
-    if (!prepareActiveFileForRun()) {
-      return;
-    }
-
-    setParameterErrors([]);
-    setSamplingPresetMenuOpen(false);
-    pauseRunningFilesExcept(activeFile.id);
-    const runtime = activeFile.kind === 'standard'
-      ? standardRuntimeRef.current[activeFile.id] ?? getStandardRuntime(activeFile)
-      : idealRuntimeRef.current[activeFile.id] ?? getIdealRuntime(activeFile);
-    if (!runtime) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.runtimeCreateFailed(
-          activeFile.name,
-          activeFile.kind === 'standard'
-            ? workbenchCopies[language].parameters.standardSimulation
-            : workbenchCopies[language].parameters.idealSimulation,
-        ),
-        'error',
-      );
-      return;
-    }
-
-    updateActiveFile((file) => {
-      const baseFile = {
-        ...file,
-        runState: 'running' as const,
-        stats: runtime.engine.getStats(),
-        chartData: runtime.engine.getHistogramData(false),
-        particles: snapshotParticles(runtime.engine),
-        hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-        updatedAt: Date.now(),
-      };
-
-      if (file.kind !== 'ideal') return baseFile;
-      return {
-        ...baseFile,
-        latestPressureSummary: runtime.engine.getPressureMeasurementSummary(),
-        verificationState: 'collecting' as const,
-      };
-    });
-    pushLog(
-      (language) => activeFile.kind === 'standard'
-        ? workbenchCopies[language].logs.standardStarted(activeFile.name)
-        : workbenchCopies[language].logs.idealStarted(activeFile.name, getRelationLabel(activeFile.relation)),
-      'success',
-    );
-    if (activeFile.kind === 'standard') {
-      scheduleStandardFrame(activeFile.id);
-    } else {
-      scheduleIdealFrame(activeFile.id);
-    }
-  };
+  const { toggleActiveFileRunState, stopActiveFile } = createWorkbenchExperimentRunActions({
+    getActiveFile: () => activeFile, getParametersDirty: () => parametersDirty,
+    standardRuntimeRef, idealRuntimeRef, createStandardRuntime, createIdealRuntime, getStandardRuntime, getIdealRuntime,
+    cancelRuntimeFrame, pauseRunningFilesExcept, scheduleStandardFrame, scheduleIdealFrame,
+    prepareActiveFileForRun, applyActiveFileParams,
+    updateActiveFile: (update) => updateActiveFile(update),
+    flushWorkspaceAfterRunStateCommit: () => flushWorkspaceAfterRunStateCommit(),
+    runHeatCapacityAutoDemo: () => runHeatCapacityAutoDemo(),
+    pauseHeatCapacityAutoDemo: () => pauseHeatCapacityAutoDemo(),
+    terminateHeatCapacityAutoDemo: () => terminateHeatCapacityAutoDemo(),
+    setParameterErrors, setSamplingPresetMenuOpen, pushLog,
+  });
 
   const flushWorkspaceAfterRunStateCommit = () => {
     window.setTimeout(() => {
@@ -13959,143 +9410,13 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
   };
 
-  const pauseActiveFile = () => {
-    if (activeFile.kind === 'heatCapacityPistonOscillation') return;
-    if (activeFile.kind === 'heatCapacity') {
-      pauseHeatCapacityAutoDemo();
-      return;
-    }
 
-    cancelRuntimeFrame(activeFile.id);
-    updateActiveFile((file) => ({
-      ...file,
-      runState: file.runState === 'running' ? 'paused' : file.runState,
-      updatedAt: Date.now(),
-    }));
-    flushWorkspaceAfterRunStateCommit();
-    pushLog(
-      (language) => workbenchCopies[language].logs.simulationPaused(
-        activeFile.name,
-        activeFile.kind === 'standard'
-          ? workbenchCopies[language].parameters.standardSimulation
-          : workbenchCopies[language].parameters.idealSimulation,
-      ),
-      'warning',
-    );
-  };
 
-  const toggleActiveFileRunState = () => {
-    if (activeFile.runState === 'running') {
-      pauseActiveFile();
-      return;
-    }
 
-    runActiveFile();
-  };
 
-  const stopActiveFile = () => {
-    cancelRuntimeFrame(activeFile.id);
 
-    if (activeFile.kind === 'heatCapacityPistonOscillation') return;
 
-    if (activeFile.kind === 'heatCapacity') {
-      terminateHeatCapacityAutoDemo();
-      flushWorkspaceAfterRunStateCommit();
-      return;
-    }
-
-    if (activeFile.kind === 'standard') {
-      const nextRuntime = createStandardRuntime(activeFile);
-      if (!nextRuntime) return;
-
-      standardRuntimeRef.current[activeFile.id] = nextRuntime;
-      updateActiveFile((file) => {
-        if (file.kind !== 'standard') return file;
-        return {
-          ...file,
-          runState: 'idle',
-          stats: nextRuntime.engine.getStats(),
-          chartData: nextRuntime.engine.getHistogramData(false),
-          finalChartData: null,
-          particles: snapshotParticles(nextRuntime.engine),
-          hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
-          updatedAt: Date.now(),
-        };
-      });
-      flushWorkspaceAfterRunStateCommit();
-      pushLog(
-        (language) => workbenchCopies[language].logs.standardTerminated(activeFile.name),
-        'warning',
-      );
-      return;
-    }
-
-    const nextRuntime = createIdealRuntime(activeFile);
-    if (!nextRuntime) return;
-
-    idealRuntimeRef.current[activeFile.id] = nextRuntime;
-    updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      const analysis = getIdealGasAnalysis(file.relation, file.pointsByRelation, file.activeParams);
-      return {
-        ...file,
-        runState: 'idle',
-        stats: nextRuntime.engine.getStats(),
-        chartData: nextRuntime.engine.getHistogramData(false),
-        finalChartData: null,
-        latestPressureSummary: nextRuntime.engine.getPressureMeasurementSummary(),
-        needsReset: false,
-        particles: snapshotParticles(nextRuntime.engine),
-        hardSphereEngineSnapshot: nextRuntime.engine.createSnapshot(),
-        verificationState: getIdealVerificationState(analysis),
-        historyUnlocked: analysis.isVerified,
-        updatedAt: Date.now(),
-      };
-    });
-    flushWorkspaceAfterRunStateCommit();
-    pushLog(
-      (language) => workbenchCopies[language].logs.idealTerminated(activeFile.name),
-      'warning',
-    );
-  };
-
-  useEffect(() => {
-    filesRef.current
-      .forEach((file) => {
-        if (file.kind !== 'standard' && file.kind !== 'ideal') return;
-        const runtimeExists = file.kind === 'standard'
-          ? Boolean(standardRuntimeRef.current[file.id])
-          : Boolean(idealRuntimeRef.current[file.id]);
-        if (runtimeExists) return;
-
-        const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
-        if (!runtime) return;
-
-        if (file.kind === 'standard') {
-          standardRuntimeRef.current[file.id] = runtime;
-        } else {
-          idealRuntimeRef.current[file.id] = runtime;
-        }
-        if (file.hardSphereEngineSnapshot !== null && file.particles.length > 0) return;
-
-        updateFileById(file.id, (currentFile) => {
-          const initializedFile = {
-            ...currentFile,
-            stats: runtime.engine.getStats(),
-            chartData: runtime.engine.getHistogramData(false),
-            particles: snapshotParticles(runtime.engine),
-            hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-            updatedAt: Date.now(),
-          };
-
-          if (currentFile.kind !== 'ideal') return initializedFile;
-          return {
-            ...initializedFile,
-            latestPressureSummary: runtime.engine.getPressureMeasurementSummary(),
-          };
-        });
-      });
-  }, []);
+  useWorkbenchHardSphereRuntimeInitialization(initializeExistingRuntimes);
 
   const commitExperienceProfile = (nextProfile: AppExperienceProfile) => {
     const result = persistAppExperienceProfile(nextProfile);
@@ -14130,13 +9451,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (experiment === 'heatCapacity') {
       resetHeatCapacitySceneUiState();
     } else {
-      clearPistonOscillationGuideCompletionToast();
-      pistonOscillationDemoPlaybackChannel.publish({
-        fileId: null,
-        phase: 'idle',
-        elapsedMs: 0,
-      });
-      setPistonOscillationDemoPlayback({ fileId: null, phase: 'idle', elapsedMs: 0 });
+      clearPistonOscillationTutorialPlayback();
     }
     selectedPanelRef.current = 'preview';
     commitWorkbenchFileCollections([tutorialFile], [], tutorialFile.id);
@@ -14153,8 +9468,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     setOpenFileMenuId(null);
     setPendingDeleteFileId(null);
     setHeatCapacityCalculationReviewOpen(false);
-    setPistonOscillationCalculationReviewOpen(false);
-    setPistonOscillationDataProcessingReviewOpen(false);
+    clearPistonOscillationReviewWindows();
     setHeatCapacityBatchSetupRequestedFileId(null);
     setLogs(createExperimentTutorialLogs(milestone, settingsLanguagePreference));
   };
@@ -14354,7 +9668,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     tutorialOrdinaryWorkspaceRef.current = mergedOrdinaryWorkspace;
     setTutorialOperationError(null);
     setRemoteTutorialOwnerActive(false);
-    setSettingsGeneralOpen(false);
+    hideGeneralSettings();
     replaceVisibleWorkspaceWithExperimentTutorial(experiment, 'demo');
     await finalizeExperimentTutorialActivation(archivedNamespaces);
   };
@@ -14391,7 +9705,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const openProductIntroReplay = () => {
     if (!guardWorkbenchTutorialAction('replay-product-intro')) return;
     prepareDesktopExitQuiescenceRef.current(false);
-    setSettingsGeneralOpen(false);
+    hideGeneralSettings();
     setLearningNeedsReselectOpen(false);
     setProductIntroReplayPhase('welcome');
   };
@@ -14399,7 +9713,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const openLearningNeedsReselect = () => {
     if (!guardWorkbenchTutorialAction('reselect-learning-needs')) return;
     prepareDesktopExitQuiescenceRef.current(false);
-    setSettingsGeneralOpen(false);
+    hideGeneralSettings();
     setProductIntroReplayPhase(null);
     const profile = experienceProfileRef.current;
     setLearningNeedsDraft({
@@ -14470,7 +9784,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       closeLabel: copy.cancel,
       onConfirm: () => {
         const simulate = async () => {
-          setSettingsGeneralOpen(false);
+          hideGeneralSettings();
           prepareDesktopExitQuiescenceRef.current();
           const saved = await flushWorkspacePersistenceRef.current();
           if (!saved) {
@@ -14503,42 +9817,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     });
   };
 
-  const activatePistonOscillationTutorialMode = (mode: 'demo' | 'guide') => {
-    const experiment = experienceProfileRef.current.activeTutorialExperiment;
-    const fileId = activeFileIdRef.current;
-    const liveFile = filesRef.current.find((file) => file.id === fileId);
-    if (
-      experiment !== 'pistonOscillation' ||
-      !liveFile ||
-      liveFile.kind !== 'heatCapacityPistonOscillation' ||
-      !isExperimentTutorialFileId(fileId, experiment)
-    ) return;
-    const nowMs = Date.now();
-    const demoSession = mode === 'demo'
-      ? startPistonOscillationDemoSession(nowMs)
-      : createDefaultPistonOscillationDemoSession(nowMs);
-    const nextFile = mode === 'guide'
-      ? startPistonOscillationGuideWorkbenchState({
-          ...liveFile,
-          pistonOscillationDemoSession: demoSession,
-        }, nowMs)
-      : {
-          ...liveFile,
-          pistonOscillationDemoSession: demoSession,
-          updatedAt: nowMs,
-        };
-    updateFileById(fileId, () => nextFile);
-    const playback = {
-      fileId: mode === 'demo' ? fileId : null,
-      phase: demoSession.status,
-      elapsedMs: demoSession.elapsedMs,
-    } as const;
-    pistonOscillationDemoPlaybackChannel.publish(playback);
-    setPistonOscillationDemoPlayback(playback);
-    setPistonOscillationPowerOnByFileId((current) => ({ ...current, [fileId]: false }));
-    setLeftCollapsed(true);
-    setParametersCollapsed(true);
-  };
+
 
   const handleExperimentTutorialNoticeAction = () => {
     const noticeKind = tutorialNoticeKindRef.current;
@@ -14784,9 +10063,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       suspendActiveHeatCapacityModeForNavigation();
       resetHeatCapacitySceneUiState();
     } else {
-      clearPistonOscillationGuideCompletionToast();
-      pistonOscillationDemoPlaybackChannel.publish({ fileId: null, phase: 'idle', elapsedMs: 0 });
-      setPistonOscillationDemoPlayback({ fileId: null, phase: 'idle', elapsedMs: 0 });
+      clearPistonOscillationTutorialPlayback();
     }
     selectedPanelRef.current = 'preview';
     commitWorkbenchFileCollections([freshFile], uniqueOrdinaryFiles, freshFile.id);
@@ -14826,7 +10103,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     if (!experiment) return false;
     const skippedProfile = skipExperimentTutorialProfile(experienceProfileRef.current, experiment);
     if (!skippedProfile) return false;
-    setSettingsGeneralOpen(false);
+    hideGeneralSettings();
     return handoffUnlockedExperimentTutorial(
       experiment,
       skippedProfile,
@@ -14904,107 +10181,22 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     tutorialActive,
   ]);
 
-  const createFile = (kind: WorkbenchFileKind) => {
-    if (!guardWorkbenchTutorialAction('create-file')) return;
-    captureUndoSnapshot(`created ${kind} file`, 'workspace');
-    const currentFiles = [...filesRef.current, ...closedFilesRef.current];
-    const index = getNextWorkbenchFileDisplayIndex(kind, currentFiles);
-    const fileId = createUniqueWorkbenchFileId(kind, issuedWorkbenchFileIdsRef.current);
-    issuedWorkbenchFileIdsRef.current.add(fileId);
-    let file: WorkbenchFileState;
-    switch (kind) {
-      case 'standard':
-        file = createDefaultStandardFile(index, workbenchLayoutDefaults.standard);
-        break;
-      case 'ideal':
-        file = createDefaultIdealFile(index, workbenchLayoutDefaults.ideal);
-        break;
-      case 'heatCapacity':
-        file = createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity);
-        break;
-      case 'heatCapacityPistonOscillation':
-        file = createDefaultHeatCapacityPistonOscillationFile(
-          index,
-          workbenchLayoutDefaults.heatCapacityPistonOscillation,
-        );
-        break;
-      default:
-        file = assertNeverWorkbenchFileKind(kind);
-    }
-    file = {
-      ...file,
-      id: fileId,
-    };
-
-    if (file.kind === 'heatCapacity') {
-      file = enterHeatCapacityExploreModeWorkbenchState(
-        file,
-        createDefaultHeatCapacityFile(index, workbenchLayoutDefaults.heatCapacity),
-      );
-    }
-
-    if (file.kind === 'standard' || file.kind === 'ideal') {
-      const runtime = file.kind === 'standard' ? createStandardRuntime(file) : createIdealRuntime(file);
-      if (runtime) {
-        if (file.kind === 'standard') {
-          standardRuntimeRef.current[file.id] = runtime;
-        } else {
-          idealRuntimeRef.current[file.id] = runtime;
-        }
-        file = {
-          ...file,
-          stats: runtime.engine.getStats(),
-          chartData: runtime.engine.getHistogramData(false),
-          particles: snapshotParticles(runtime.engine),
-          hardSphereEngineSnapshot: runtime.engine.createSnapshot(),
-          ...(file.kind === 'ideal' ? { latestPressureSummary: runtime.engine.getPressureMeasurementSummary() } : {}),
-        };
-      }
-    }
-
-    const currentActiveFile = filesRef.current.find(
-      (candidate) => candidate.id === activeFileIdRef.current,
-    );
-    if (currentActiveFile?.kind === 'heatCapacity') {
-      suspendActiveHeatCapacityModeForNavigation();
-    } else if (currentActiveFile?.runState === 'running') {
-      cancelRuntimeFrame(currentActiveFile.id);
-      const pausedFiles = filesRef.current.map((candidate) => candidate.id === currentActiveFile.id
-        ? {
-            ...candidate,
-            runState: 'paused' as const,
-            updatedAt: Date.now(),
-          }
-        : candidate);
-      filesRef.current = pausedFiles;
-      setFiles(pausedFiles);
-      pushLog(
-        (language) => workbenchCopies[language].logs.autoPausedCreateFile(currentActiveFile.name),
-        'warning',
-      );
-    }
-
-    const nextFiles = [...filesRef.current, file];
-    selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(nextFiles, closedFilesRef.current, file.id);
-    let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (file.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(file.id);
-    }
-    heatCapacityRefreshPersistRef.current();
-    void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-    setParametersCollapsed(true);
-    setParameterErrors([]);
-    setIdealAdvancedSettingsOpen(false);
-    setIdealAdvancedSettingsBodyVisible(false);
-    setOpenTopMenu(null);
-    pushLog(
-      (language) => workbenchCopies[language].logs.fileCreated(file.name),
-      'success',
-    );
-  };
+  const { createFile, requestCloseWorkbenchFile, openClosedWorkbenchFile, requestDeleteWorkbenchFile, cancelDeleteWorkbenchFile, selectFile } = createWorkbenchFileActions({
+    getActiveFile: () => activeFile, getPendingDeleteFileId: () => pendingDeleteFileId,
+    filesRef, closedFilesRef, activeFileIdRef, selectedPanelRef, issuedWorkbenchFileIdsRef,
+    renamingFileIdRef, standardRuntimeRef, idealRuntimeRef, workbenchLayoutDefaults, workbenchPromptCopy,
+    captureUndoSnapshot, guardWorkbenchTutorialAction, createStandardRuntime, createIdealRuntime,
+    snapshotParticles, cancelRuntimeFrame, prepareReopenedWorkbenchFile,
+    suspendActiveHeatCapacityModeForNavigation: () => suspendActiveHeatCapacityModeForNavigation(),
+    releaseHeatCapacityRuntimeForFileExit: (fileId) => releaseHeatCapacityRuntimeForFileExit(fileId),
+    activateHeatCapacityFileModeSession: (fileId) => activateHeatCapacityFileModeSession(fileId),
+    commitWorkbenchFileCollections: (nextFiles, nextClosedFiles, nextActiveId) => commitWorkbenchFileCollections(nextFiles, nextClosedFiles, nextActiveId),
+    heatCapacityRefreshPersistRef, flushWorkspacePersistenceRef, requestPromptConfirmation,
+    setFiles, setSelectedFileId, setSelectedPanel, setLeftCollapsed, setParametersCollapsed,
+    setParameterErrors, setIdealAdvancedSettingsOpen, setIdealAdvancedSettingsBodyVisible,
+    setOpenTopMenu, setOpenFileMenuId, setPendingDeleteFileId, setPendingRemovePointId,
+    setPendingClearRelationKey, setRenamingFileId, setSamplingPresetMenuOpen, pushLog,
+  });
 
   const openNewWorkbenchWindow = () => {
     if (!guardWorkbenchTutorialAction('new-window')) return;
@@ -15072,6 +10264,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     window.open(WORKBENCH_USER_GUIDE_URLS[settingsLanguagePreference], '_blank', 'noopener,noreferrer');
   };
 
+
+
+  const getLocalizedTreeState = (state: 'locked' | 'shown' | 'open' | 'active' | 'off') => workbenchCopy.files[state];
+
   const {
     handleLockedPanel,
     setActiveIdealResultTab,
@@ -15099,7 +10295,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     runWindowMenuSwitch,
     selectResultsSection,
     getIdealResultTabState,
-    getStandardResultsTabState
+    getStandardResultsTabState,
+    toggleHeatCapacityMaterialsExpanded, togglePistonOscillationMaterialsExpanded,
   } = createWorkbenchWindowActions({
     getActiveFile: () => activeFile,
     getSelectedPanel: () => selectedPanel,
@@ -15112,469 +10309,71 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     pushLog, getLocalizedWorkbenchPanelTitle, createIdealPanels, createResultsSections,
   });
 
-  const getLocalizedTreeState = (state: 'locked' | 'shown' | 'open' | 'active' | 'off') => workbenchCopy.files[state];
+  const { changeIdealRelation, applyIdealSamplingPreset, clearScanInputError, validateIdealScanDraft, updateIdealScanVariable, commitIdealScanInput, isPointerOnIdealScanThumb, requestRemoveIdealPoint, cancelRemoveIdealPoint, cancelClearIdealRelation, requestClearIdealRelation } = createWorkbenchIdealExperimentActions({
+    getActiveFile: () => activeFile, getParameterControlsLocked: () => parameterControlsLocked,
+    getScanInputDraft: () => scanInputDraft, getPendingRemovePointId: () => pendingRemovePointId,
+    getPendingClearRelationKey: () => pendingClearRelationKey,
+    settingsLanguagePreference, captureUndoSnapshot,
+    updateActiveFile: (update) => updateActiveFile(update),
+    applyActiveFileParams: (params) => applyActiveFileParams(params), showWorkbenchValidationErrors,
+    scanInputRef, lastScanInputErrorRef, deferInputFocus: (callback) => { window.setTimeout(callback, 0); },
+    setPendingRemovePointId, setPendingClearRelationKey, setSamplingPresetMenuOpen,
+    setScanInputError, setParameterErrors, setScanInputToast, setScanInputDraft, setScanInputFocused, pushLog,
+  });
 
-  const changeIdealRelation = (nextRelation: ExperimentRelation) => {
-    if (activeFile.kind !== 'ideal') return;
-    if (activeFile.runState === 'running') {
-      pushLog(
-        (language) => workbenchCopies[language].logs.pauseBeforeSwitchingRelation(activeFile.name),
-        'warning',
-      );
-      return;
-    }
-    if (activeFile.relation === nextRelation) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.relationAlreadyActive(activeFile.name, getRelationLabel(nextRelation)),
-      );
-      return;
-    }
 
-    captureUndoSnapshot('changed ideal relation');
-    updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      const analysis = getIdealGasAnalysis(nextRelation, file.pointsByRelation, file.activeParams);
-      return {
-        ...file,
-        relation: nextRelation,
-        verificationState: getIdealVerificationState(analysis),
-        historyUnlocked: analysis.isVerified,
-        updatedAt: Date.now(),
-      };
-    });
-    setPendingRemovePointId(null);
-    setPendingClearRelationKey(null);
-    setSamplingPresetMenuOpen(false);
-    pushLog(
-      (language) => workbenchCopies[language].logs.relationSwitched(activeFile.name, getRelationLabel(nextRelation)),
-      'success',
-    );
-  };
 
-  const applyIdealSamplingPreset = (preset: IdealSamplingPreset) => {
-    if (activeFile.kind !== 'ideal') return;
-    if (activeFile.runState === 'running') {
-      pushLog(
-        (language) => workbenchCopies[language].logs.pauseBeforeChangingSamplingPreset(activeFile.name),
-        'warning',
-      );
-      return;
-    }
 
-    applyActiveFileParams({
-      ...activeFile.params,
-      equilibriumTime: preset.equilibriumTime,
-      statsDuration: preset.statsDuration,
-    });
-  };
 
-  const getSnappedIdealScanValue = (relation: ExperimentRelation, rawValue: number) => {
-    const presetSequence = getPresetSequence(relation);
-    const threshold = IDEAL_SCAN_SNAP_THRESHOLD[relation];
-    const closest = presetSequence.reduce(
-      (best, preset) => {
-        const distance = Math.abs(preset - rawValue);
-        return distance < best.distance ? { value: preset, distance } : best;
-      },
-      { value: rawValue, distance: Number.POSITIVE_INFINITY },
-    );
 
-    return closest.distance <= threshold ? closest.value : rawValue;
-  };
 
-  const showScanInputError = (
-    message: string,
-    getMessage: WorkbenchConsoleMessageFactory,
-    options: { refocus?: boolean; rawValue?: string } = {},
-  ) => {
-    setScanInputError(message);
-    setParameterErrors([message]);
-    setScanInputToast(message);
-    const errorKey = `${message}\n${options.rawValue ?? ''}`;
-    if (lastScanInputErrorRef.current !== errorKey) {
-      lastScanInputErrorRef.current = errorKey;
-      pushLog((language) => `${activeFile.name}: ${getMessage(language)}`, 'error');
-    }
-    if (options.refocus) {
-      window.setTimeout(() => {
-        scanInputRef.current?.focus();
-        scanInputRef.current?.select();
-      }, 0);
-    }
-  };
 
-  const clearScanInputError = () => {
-    lastScanInputErrorRef.current = null;
-    setScanInputError(null);
-    setParameterErrors([]);
-  };
 
-  const parseIdealScanInput = (
-    rawValue: string,
-    relation: ExperimentRelation,
-    scanMin: number,
-    scanMax: number,
-  ): { valid: true; value: number } | { valid: false; message: string; getMessage: WorkbenchConsoleMessageFactory } => {
-    const trimmedValue = rawValue.trim();
-    const relationKey = getRelationVariableKey(relation);
-    const decimalPattern = /^(?:\d+(?:\.\d*)?|\.\d+)$/;
-    const integerPattern = /^\d+$/;
-    const decimals = getIdealScanDecimals(relation);
-    const invalid = (getMessage: WorkbenchConsoleMessageFactory) => ({
-      valid: false as const,
-      message: getMessage(settingsLanguagePreference),
-      getMessage,
-    });
 
-    if (!trimmedValue) {
-      return invalid((language) => workbenchCopies[language].logs.scanInputRequired(
-        String(relationKey),
-        relationKey === 'N'
-          ? workbenchCopies[language].logs.formatPositiveInteger
-          : workbenchCopies[language].logs.formatDecimalNumber,
-      ));
-    }
 
-    if (relationKey === 'N' && !integerPattern.test(trimmedValue)) {
-      return invalid((language) => workbenchCopies[language].logs.scanInputIntegerOnly);
-    }
 
-    if (relationKey !== 'N' && !decimalPattern.test(trimmedValue)) {
-      return invalid((language) => workbenchCopies[language].logs.scanInputDecimalOnly(String(relationKey)));
-    }
 
-    const parsedValue = Number(trimmedValue);
-    if (!Number.isFinite(parsedValue) || parsedValue <= 0) {
-      return invalid((language) => workbenchCopies[language].logs.scanInputGreaterThanZero(String(relationKey)));
-    }
 
-    if (!isIdealScanValueOnStep(trimmedValue, relation)) {
-      return invalid((language) => workbenchCopies[language].logs.scanInputStep(
-        getIdealScanInputLabel(relation),
-        getIdealScanStepLabel(relation),
-      ));
-    }
 
-    if (parsedValue < scanMin || parsedValue > scanMax) {
-      return invalid((language) => workbenchCopies[language].logs.scanInputRange(
-        String(relationKey),
-        formatMetric(scanMin, decimals),
-        formatMetric(scanMax, decimals),
-      ));
-    }
 
-    return { valid: true, value: relationKey === 'N' ? Math.round(parsedValue) : parsedValue };
-  };
 
-  const validateIdealScanDraft = (rawValue: string) => {
-    if (activeFile.kind !== 'ideal') return true;
-    const presetSequence = getPresetSequence(activeFile.relation);
-    const relationVariableValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
-    const scanMin = Math.min(...presetSequence, relationVariableValue);
-    const scanMax = Math.max(...presetSequence, relationVariableValue);
-    const parsed = parseIdealScanInput(rawValue, activeFile.relation, scanMin, scanMax);
 
-    if (parsed.valid === false) {
-      showScanInputError(parsed.message, parsed.getMessage, { rawValue });
-      return false;
-    }
 
-    clearScanInputError();
-    return true;
-  };
 
-  const updateIdealScanVariable = (rawValue: number, options: UpdateIdealScanVariableOptions = {}) => {
-    if (activeFile.kind !== 'ideal') return;
-    if (activeFile.runState === 'running') {
-      pushLog(
-        (language) => workbenchCopies[language].logs.pauseBeforeChangingScanVariable(activeFile.name),
-        'warning',
-      );
-      return;
-    }
 
-    const relationKey = getRelationVariableKey(activeFile.relation);
-    const nextParams = cloneParams(activeFile.params);
-    const snappedValue = options.snap === false ? rawValue : getSnappedIdealScanValue(activeFile.relation, rawValue);
-    const nextValue = relationKey === 'N' ? Math.round(snappedValue) : snappedValue;
-    const currentValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
 
-    if (Math.abs(nextValue - currentValue) <= 1e-6) return;
 
-    if (relationKey === 'targetTemperature') nextParams.targetTemperature = nextValue;
-    if (relationKey === 'L') nextParams.L = nextValue;
-    if (relationKey === 'N') nextParams.N = Math.round(nextValue);
 
-    const validation = validateWorkbenchParams(nextParams);
-    if (!validation.valid) {
-      showWorkbenchValidationErrors(validation);
-      return;
-    }
 
-    captureUndoSnapshot('changed ideal scan variable');
-    updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      return {
-        ...file,
-        params: nextParams,
-        needsReset: true,
-        updatedAt: Date.now(),
-      };
-    });
-    setParameterErrors([]);
-    setScanInputError(null);
-    setScanInputDraft(formatMetric(nextValue, getIdealScanDecimals(activeFile.relation)));
-  };
 
-  const commitIdealScanInput = () => {
-    if (activeFile.kind !== 'ideal') return;
-    if (parameterControlsLocked) return;
 
-    const presetSequence = getPresetSequence(activeFile.relation);
-    const relationVariableValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
-    const scanMin = Math.min(...presetSequence, relationVariableValue);
-    const scanMax = Math.max(...presetSequence, relationVariableValue);
-    const parsed = parseIdealScanInput(scanInputDraft, activeFile.relation, scanMin, scanMax);
+  const { beginRenameFile, selectRenameNumericSuffix, commitRenameFile, cancelRenameFile, commitRenameFileFromOutside } = createWorkbenchFileRenameActions({
+    getFiles: () => files, getRenameDraft: () => renameDraft,
+    filesRef, renamingFileIdRef, renameSelectionModeRef, guardWorkbenchTutorialAction,
+    captureUndoSnapshot, updateFileById: (fileId, update) => updateFileById(fileId, update),
+    setOpenFileMenuId, setPendingDeleteFileId, setRenamingFileId, setRenameDraft, pushLog,
+  });
 
-    if (parsed.valid === false) {
-      showScanInputError(parsed.message, parsed.getMessage, { refocus: true, rawValue: scanInputDraft });
-      return;
-    }
 
-    updateIdealScanVariable(parsed.value, { snap: false });
-    scanInputRef.current?.blur();
-    setScanInputFocused(false);
-    clearScanInputError();
-  };
 
-  const isPointerOnIdealScanThumb = (
-    event: React.PointerEvent<HTMLInputElement>,
-    scanProgressPercent: number,
-  ) => {
-    const rect = event.currentTarget.getBoundingClientRect();
-    const thumbCenterX = rect.left
-      + (IDEAL_SCAN_THUMB_SIZE / 2)
-      + ((rect.width - IDEAL_SCAN_THUMB_SIZE) * scanProgressPercent) / 100;
-    return Math.abs(event.clientX - thumbCenterX) <= IDEAL_SCAN_THUMB_HIT_RADIUS;
-  };
 
-  const requestRemoveIdealPoint = (point: IdealGasExperimentPoint) => {
-    if (activeFile.kind !== 'ideal') return;
 
-    if (pendingRemovePointId !== point.id) {
-      setPendingRemovePointId(point.id);
-      pushLog(
-        (language) => workbenchCopies[language].logs.confirmRemoveIdealPoint(activeFile.name, getRelationLabel(point.relation)),
-        'warning',
-      );
-      return;
-    }
 
-    captureUndoSnapshot('removed ideal experiment point');
-    updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      const nextPointsByRelation = {
-        ...file.pointsByRelation,
-        [point.relation]: file.pointsByRelation[point.relation].filter((candidate) => candidate.id !== point.id),
-      };
-      const analysis = getIdealGasAnalysis(file.relation, nextPointsByRelation, file.activeParams);
-      return {
-        ...file,
-        pointsByRelation: nextPointsByRelation,
-        verificationState: getIdealVerificationState(analysis),
-        historyUnlocked: analysis.isVerified,
-        updatedAt: Date.now(),
-      };
-    });
-    setPendingRemovePointId(null);
-    pushLog(
-      (language) => workbenchCopies[language].logs.idealPointRemoved(activeFile.name),
-      'warning',
-    );
-  };
 
-  const cancelRemoveIdealPoint = () => {
-    setPendingRemovePointId(null);
-  };
 
-  const cancelClearIdealRelation = () => {
-    setPendingClearRelationKey(null);
-  };
 
-  const requestClearIdealRelation = () => {
-    if (activeFile.kind !== 'ideal') return;
 
-    const points = activeFile.pointsByRelation[activeFile.relation];
-    if (points.length === 0) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.relationHasNoPoints(activeFile.name, getRelationLabel(activeFile.relation)),
-      );
-      return;
-    }
 
-    const clearKey = `${activeFile.id}:${activeFile.relation}`;
-    if (pendingClearRelationKey !== clearKey) {
-      setPendingClearRelationKey(clearKey);
-      pushLog(
-        (language) => workbenchCopies[language].logs.confirmClear(activeFile.name, getRelationLabel(activeFile.relation)),
-        'warning',
-      );
-      return;
-    }
 
-    captureUndoSnapshot('cleared ideal relation points');
-    updateActiveFile((file) => {
-      if (file.kind !== 'ideal') return file;
-      const nextPointsByRelation = {
-        ...file.pointsByRelation,
-        [file.relation]: [],
-      };
-      const analysis = getIdealGasAnalysis(file.relation, nextPointsByRelation, file.activeParams);
-      return {
-        ...file,
-        pointsByRelation: nextPointsByRelation,
-        verificationState: getIdealVerificationState(analysis),
-        historyUnlocked: analysis.isVerified,
-        updatedAt: Date.now(),
-      };
-    });
-    setPendingClearRelationKey(null);
-    setPendingRemovePointId(null);
-    pushLog(
-      (language) => workbenchCopies[language].logs.clearedRelation(activeFile.name, getRelationLabel(activeFile.relation)),
-      'warning',
-    );
-  };
 
-  const beginRenameFile = (file: WorkbenchFileState) => {
-    if (!guardWorkbenchTutorialAction('rename-file')) return;
-    setOpenFileMenuId(null);
-    setPendingDeleteFileId(null);
-    renamingFileIdRef.current = file.id;
-    renameSelectionModeRef.current = 'initial';
-    setRenamingFileId(file.id);
-    setRenameDraft(file.name);
-  };
 
-  const selectRenameNumericSuffix = (input: HTMLInputElement) => {
-    const numericSuffix = input.value.match(/\d+$/);
-    if (!numericSuffix || numericSuffix.index === undefined) {
-      input.setSelectionRange(input.value.length, input.value.length);
-      return;
-    }
 
-    input.setSelectionRange(numericSuffix.index, input.value.length);
-  };
-
-  const commitRenameFile = (fileId: string) => {
-    const renameDecision = resolveWorkbenchFileRename(files, fileId, renameDraft);
-    if (renameDecision.kind === 'empty') {
-      pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
-      return;
-    }
-    if (renameDecision.kind === 'missing') {
-      cancelRenameFile();
-      return;
-    }
-    if (renameDecision.kind === 'unchanged') {
-      cancelRenameFile();
-      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(renameDecision.name));
-      return;
-    }
-
-    captureUndoSnapshot('renamed file', 'file', fileId);
-    updateFileById(fileId, (file) => applyWorkbenchFileRename(file, renameDecision.name, Date.now()));
-    renamingFileIdRef.current = null;
-    renameSelectionModeRef.current = 'normal';
-    setRenamingFileId(null);
-    setRenameDraft('');
-    pushLog((language) => workbenchCopies[language].logs.fileRenamed(renameDecision.name), 'success');
-  };
-
-  const cancelRenameFile = () => {
-    renamingFileIdRef.current = null;
-    renameSelectionModeRef.current = 'normal';
-    setRenamingFileId(null);
-    setRenameDraft('');
-  };
-
-  const commitRenameFileFromOutside = () => {
-    const fileId = renamingFileIdRef.current;
-    if (!fileId) return;
-
-    const renameDecision = resolveWorkbenchFileRename(filesRef.current, fileId, renameDraft);
-    if (renameDecision.kind === 'empty') {
-      pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
-      renamingFileIdRef.current = null;
-      renameSelectionModeRef.current = 'normal';
-      setRenamingFileId(null);
-      setRenameDraft('');
-      return;
-    }
-    if (renameDecision.kind === 'missing') {
-      cancelRenameFile();
-      return;
-    }
-    if (renameDecision.kind === 'unchanged') {
-      cancelRenameFile();
-      pushLog((language) => workbenchCopies[language].logs.fileNameUnchanged(renameDecision.name));
-      return;
-    }
-
-    captureUndoSnapshot('renamed file', 'file', fileId);
-    updateFileById(fileId, (file) => applyWorkbenchFileRename(file, renameDecision.name, Date.now()));
-    renamingFileIdRef.current = null;
-    renameSelectionModeRef.current = 'normal';
-    setRenamingFileId(null);
-    setRenameDraft('');
-    pushLog((language) => workbenchCopies[language].logs.fileRenamed(renameDecision.name), 'success');
-  };
-
-  useEffect(() => {
-    if (!openTopMenu) return undefined;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (topMenuRef.current?.contains(target) || topCommandsRef.current?.contains(target)) return;
-      setOpenTopMenu(null);
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, [openTopMenu]);
-
-  useEffect(() => {
-    if (!openFileMenuId) return undefined;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (fileMenuRef.current?.contains(target) || fileMenuButtonRef.current?.contains(target)) return;
-      setOpenFileMenuId(null);
-      setPendingDeleteFileId(null);
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, [openFileMenuId]);
-
-  useEffect(() => {
-    if (!renamingFileId) return undefined;
-
-    const handlePointerDown = (event: PointerEvent) => {
-      const target = event.target as Node;
-      if (renameInputRef.current?.contains(target)) return;
-      commitRenameFileFromOutside();
-    };
-
-    document.addEventListener('pointerdown', handlePointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, [renamingFileId, renameDraft]);
+  useWorkbenchFileMenuInteractions({
+    openTopMenu, openFileMenuId, renamingFileId, renameDraft,
+    topMenuRef, topCommandsRef, fileMenuRef, fileMenuButtonRef, renameInputRef,
+    setOpenTopMenu, setOpenFileMenuId, setPendingDeleteFileId,
+    commitRenameFileFromOutside: () => commitRenameFileFromOutside(),
+  });
 
   const releaseHeatCapacityRuntimeForFileExit = (fileId: string) => {
     if (heatCapacityRuntimeFailureFileIdRef.current === fileId) {
@@ -15620,621 +10419,121 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     heatCapacityFocusSessionRef.current = null;
   };
 
-  const closeWorkbenchFile = (fileId: string) => {
-    let file = filesRef.current.find((candidate) => candidate.id === fileId);
-    if (!file) return;
-    captureUndoSnapshot('closed file', 'workspace');
 
-    const isClosingActiveFile = fileId === activeFileIdRef.current;
-    if (isClosingActiveFile && file.kind === 'heatCapacity') {
-      suspendActiveHeatCapacityModeForNavigation();
-      file = filesRef.current.find((candidate) => candidate.id === fileId) ?? file;
-    }
 
-    cancelRuntimeFrame(fileId);
-    delete standardRuntimeRef.current[fileId];
-    delete idealRuntimeRef.current[fileId];
-    if (file.kind === 'heatCapacity' && !isClosingActiveFile) releaseHeatCapacityRuntimeForFileExit(fileId);
 
-    const closePlan = createWorkbenchFileClosePlan(
-      filesRef.current,
-      closedFilesRef.current,
-      activeFileIdRef.current,
-      fileId,
-      Date.now(),
-    );
-    if (closePlan.kind !== 'ready') return;
-    file = closePlan.file;
 
-    if (isClosingActiveFile) selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(
-      closePlan.nextFiles,
-      closePlan.nextClosedFiles,
-      closePlan.nextActiveFileId,
-    );
-    let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (isClosingActiveFile && closePlan.nextActiveFile?.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(closePlan.nextActiveFile.id);
-    }
-    heatCapacityRefreshPersistRef.current();
-    void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
-    setOpenFileMenuId(null);
-    setPendingDeleteFileId(null);
-    if (isClosingActiveFile) {
-      setSelectedPanel('preview');
-      setLeftCollapsed(false);
-      setParametersCollapsed(true);
-      setPendingRemovePointId(null);
-      setPendingClearRelationKey(null);
-      renamingFileIdRef.current = null;
-      setRenamingFileId(null);
-      setParameterErrors([]);
-      setIdealAdvancedSettingsOpen(false);
-      setIdealAdvancedSettingsBodyVisible(false);
-    }
-    pushLog((language) => workbenchCopies[language].logs.fileClosed(file.name), 'warning');
-  };
 
-  const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {
-    if (!guardWorkbenchTutorialAction('close-file')) return;
-    if (file.runState === 'running') {
-      requestPromptConfirmation({
-        id: `close-running-workbench-file:${file.id}`,
-        tone: 'warning',
-        ...workbenchPromptCopy.closeRunningExperiment(file.name),
-        closeLabel: workbenchPromptCopy.closeLabel,
-        onConfirm: () => closeWorkbenchFile(file.id),
-      });
-      return;
-    }
 
-    closeWorkbenchFile(file.id);
-  };
 
-  const openClosedWorkbenchFile = (fileId: string) => {
-    if (!guardWorkbenchTutorialAction('open-file')) return;
-    const file = closedFilesRef.current.find((candidate) => candidate.id === fileId);
-    if (!file || filesRef.current.some((candidate) => candidate.id === fileId)) return;
-    captureUndoSnapshot('reopened file', 'workspace');
 
-    const currentActiveFile = filesRef.current.find(
-      (candidate) => candidate.id === activeFileIdRef.current,
-    );
-    if (currentActiveFile?.kind === 'heatCapacity') {
-      suspendActiveHeatCapacityModeForNavigation();
-    } else if (currentActiveFile?.runState === 'running') {
-      cancelRuntimeFrame(currentActiveFile.id);
-      const pausedFiles = filesRef.current.map((candidate) => candidate.id === currentActiveFile.id
-        ? {
-            ...candidate,
-            runState: 'paused' as const,
-            updatedAt: Date.now(),
-          }
-        : candidate);
-      filesRef.current = pausedFiles;
-      setFiles(pausedFiles);
-      pushLog(
-        (language) => workbenchCopies[language].logs.autoPausedSwitchFile(currentActiveFile.name),
-        'warning',
-      );
-    }
 
-    const reopenedFile = prepareReopenedWorkbenchFile(file);
-    const reopenPlan = createWorkbenchFileReopenPlan(
-      filesRef.current,
-      closedFilesRef.current,
-      reopenedFile,
-    );
-    if (reopenPlan.kind !== 'ready') return;
-    selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(
-      reopenPlan.nextFiles,
-      reopenPlan.nextClosedFiles,
-      reopenPlan.nextActiveFileId,
-    );
-    let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (reopenPlan.nextActiveFile.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(reopenPlan.nextActiveFile.id);
-    }
-    heatCapacityRefreshPersistRef.current();
-    void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-    setParametersCollapsed(true);
-    setParameterErrors([]);
-    setIdealAdvancedSettingsOpen(false);
-    setIdealAdvancedSettingsBodyVisible(false);
-    setOpenTopMenu(null);
-    pushLog(
-      (language) => workbenchCopies[language].logs.fileOpenedFromCache(reopenedFile.name),
-      'success',
-    );
-  };
 
-  const deleteWorkbenchFile = (fileId: string) => {
-    const deletePlan = createWorkbenchFileDeletePlan(
-      filesRef.current,
-      closedFilesRef.current,
-      activeFileIdRef.current,
-      fileId,
-    );
-    if (deletePlan.kind !== 'ready') return;
-    const { file } = deletePlan;
-    const deletingActiveFile = deletePlan.wasActive;
 
-    captureUndoSnapshot('deleted file', 'workspace');
-    if (deletingActiveFile && file.kind === 'heatCapacity') {
-      suspendActiveHeatCapacityModeForNavigation();
-    }
-    cancelRuntimeFrame(fileId);
-    delete standardRuntimeRef.current[fileId];
-    delete idealRuntimeRef.current[fileId];
-    if (file.kind === 'heatCapacity' && !deletingActiveFile) {
-      releaseHeatCapacityRuntimeForFileExit(fileId);
-    }
 
-    selectedPanelRef.current = 'preview';
-    commitWorkbenchFileCollections(
-      deletePlan.nextFiles,
-      deletePlan.nextClosedFiles,
-      deletePlan.nextActiveFileId,
-    );
-    let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (deletingActiveFile && deletePlan.nextActiveFile?.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(deletePlan.nextActiveFile.id);
-    }
-    heatCapacityRefreshPersistRef.current();
-    void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-    setParametersCollapsed(true);
-    setOpenFileMenuId(null);
-    setPendingDeleteFileId(null);
-    setPendingRemovePointId(null);
-    setPendingClearRelationKey(null);
-    renamingFileIdRef.current = null;
-    setRenamingFileId(null);
-    setParameterErrors([]);
-    setIdealAdvancedSettingsOpen(false);
-    setIdealAdvancedSettingsBodyVisible(false);
-    pushLog((language) => workbenchCopies[language].logs.fileRemoved(file.name), 'warning');
-  };
 
-  const requestDeleteWorkbenchFile = (file: WorkbenchFileState) => {
-    if (!guardWorkbenchTutorialAction('delete-file')) return;
-    if (pendingDeleteFileId === file.id) {
-      deleteWorkbenchFile(file.id);
-      return;
-    }
 
-    setPendingDeleteFileId(file.id);
-    pushLog((language) => workbenchCopies[language].logs.confirmDeleteFile(file.name), 'warning');
-  };
 
-  const cancelDeleteWorkbenchFile = () => {
-    setPendingDeleteFileId(null);
-    setOpenFileMenuId(null);
-  };
-
-  const resetLayout = () => {
-    if (isWorkbenchFileLayoutDefault(activeFile, workbenchLayoutDefaults)) {
-      setOpenTopMenu(null);
-      pushLog((language) => workbenchCopies[language].logs.layoutAlreadyDefault(activeFile.name));
-      return;
-    }
-
-    captureUndoSnapshot('reset layout', 'presentation');
-    setWorkbenchFiles((current) =>
-      current.map((file) =>
-        file.id === activeFile.id
-          ? {
-              ...file,
-              visiblePanels: ['preview', 'realtime'],
-              ...(file.kind === 'heatCapacity'
-                ? {
-                    openHeatCapacityTabs: [] as WorkbenchHeatCapacityTabId[],
-                    activeHeatCapacityTabId: null,
-                    heatCapacityMaterialsExpanded: true,
-                    heatCapacityTabContainerHeight: 0.5,
-                    liveWorkspaceSplitRatio: workbenchLayoutDefaults.heatCapacity.liveWorkspaceSplitRatio,
-                  }
-                : file.kind === 'ideal'
-                ? {
-                    idealWindowLayout: createDefaultIdealWindowLayout({ heightRatio: workbenchLayoutDefaults.ideal.resultsHeightRatio }),
-                    liveWorkspaceSplitRatio: workbenchLayoutDefaults.ideal.liveWorkspaceSplitRatio,
-                  }
-                : file.kind === 'heatCapacityPistonOscillation'
-                ? {
-                    pistonOscillationMaterialsExpanded: true,
-                    liveWorkspaceSplitRatio:
-                      workbenchLayoutDefaults.heatCapacityPistonOscillation.liveWorkspaceSplitRatio,
-                  }
-                : {
-                    standardResultsLayout: createDefaultStandardResultsLayout({ heightRatio: workbenchLayoutDefaults.standard.resultsHeightRatio }),
-                    liveWorkspaceSplitRatio: workbenchLayoutDefaults.standard.liveWorkspaceSplitRatio,
-                  }),
-            }
-          : file,
-      ),
-    );
-    setOpenTopMenu(null);
-    pushLog((language) => workbenchCopies[language].logs.layoutReset(activeFile.name), 'warning');
-  };
-
-  const selectFile = (file: WorkbenchFileState) => {
-    setSelectedFileId(file.id);
-    if (file.id === activeFileIdRef.current) return;
-    let selectedFile = file;
-    const currentActiveFile = filesRef.current.find((candidate) => (
-      candidate.id === activeFileIdRef.current
-    )) ?? activeFile;
-    const switchingFile = file.id !== activeFileIdRef.current;
-    let switchingFromPendingHeatCapacityRefresh = false;
-    if (switchingFile && currentActiveFile.kind === 'heatCapacity') {
-      switchingFromPendingHeatCapacityRefresh = suspendActiveHeatCapacityModeForNavigation();
-    } else if (switchingFile && currentActiveFile.runState === 'running') {
-      cancelRuntimeFrame(currentActiveFile.id);
-      const pausedFiles = filesRef.current.map((candidate) => candidate.id === currentActiveFile.id
-        ? {
-            ...candidate,
-            runState: 'paused' as const,
-            updatedAt: Date.now(),
-          }
-        : candidate);
-      filesRef.current = pausedFiles;
-      setFiles(pausedFiles);
-      pushLog(
-        (language) => workbenchCopies[language].logs.autoPausedSwitchFile(currentActiveFile.name),
-        'warning',
-      );
-    }
-
-    if (switchingFile) {
-      const selectionPlan = createWorkbenchFileSelectionPlan(
-        filesRef.current,
-        activeFileIdRef.current,
-        file.id,
-        Date.now(),
-      );
-      if (selectionPlan.kind !== 'ready') return;
-      selectedFile = selectionPlan.nextActiveFile;
-      if (!switchingFromPendingHeatCapacityRefresh) {
-        heatCapacityRefreshPersistRef.current();
-        void flushWorkspacePersistenceRef.current();
-      }
-      commitWorkbenchFileCollections(
-        selectionPlan.nextFiles,
-        closedFilesRef.current,
-        selectionPlan.nextActiveFileId,
-      );
-    }
-    let activeModeCheckpointOverride: WorkbenchActiveModeCheckpointOverride | undefined;
-    if (switchingFile && selectedFile.kind === 'heatCapacity') {
-      activeModeCheckpointOverride = activateHeatCapacityFileModeSession(selectedFile.id);
-    }
-    selectedPanelRef.current = 'preview';
-    if (switchingFile) {
-      void flushWorkspacePersistenceRef.current(activeModeCheckpointOverride);
-    }
-    setSelectedPanel('preview');
-    setLeftCollapsed(false);
-    setParametersCollapsed(true);
-    setParameterErrors([]);
-    setIdealAdvancedSettingsOpen(false);
-    setIdealAdvancedSettingsBodyVisible(false);
-    setOpenFileMenuId(null);
-    setPendingDeleteFileId(null);
-    setPendingRemovePointId(null);
-    setPendingClearRelationKey(null);
-    renamingFileIdRef.current = null;
-    setRenamingFileId(null);
-    setSamplingPresetMenuOpen(false);
-    pushLog((language) => workbenchCopies[language].logs.fileSelected(selectedFile.name));
-  };
 
   const renderWorkbenchParameterSymbol = (parts: WorkbenchParameterSymbolPart[]) => (
-    <span className="studio-param-symbol">
-      {parts.map((part, index) => (
-        typeof part === 'string'
-          ? <span key={index}>{part}</span>
-          : <sub key={index}>{part.sub}</sub>
-      ))}
-    </span>
+    <WorkbenchParameterSymbol
+      parts={parts}
+    />
   );
 
-  const renderWorkbenchParameterHelpButton = (
-    parameterId: string,
-    modelEffect: string,
-  ) => {
-    const workbenchHelpId = `workbench-${parameterId}`;
-    const helpVisible = visibleHeatCapacityParamHelpId === workbenchHelpId;
-    const helpPopover = helpVisible
-      ? renderHeatCapacityTooltipPopover(workbenchHelpId, modelEffect, {
-        onMouseEnter: () => setHoveredHeatCapacityParamHelpId(workbenchHelpId),
-        onMouseLeave: hideHeatCapacityHoverTooltip,
-      })
-      : null;
-    return (
-      <span
-        className="studio-param-help-anchor"
-        onMouseLeave={() => {
-          if (pinnedHeatCapacityParamHelpId === null) {
-            setHoveredHeatCapacityParamHelpId(null);
-            setHeatCapacityParamHelpPopoverStyle(undefined);
-          }
-        }}
-      >
-        <button
-          type="button"
-          className={`studio-param-help-button ${pinnedHeatCapacityParamHelpId === workbenchHelpId ? 'studio-param-help-button-pinned' : ''}`}
-          data-heat-capacity-param-help-button="true"
-          data-workbench-param-help-button="true"
-          data-workbench-param-help-id={parameterId}
-          aria-label={modelEffect}
-          onMouseEnter={(event) => {
-            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
-            setHoveredHeatCapacityParamHelpId(workbenchHelpId);
-          }}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
-            setPinnedHeatCapacityParamHelpId(workbenchHelpId);
-            setHoveredHeatCapacityParamHelpId(workbenchHelpId);
-          }}
-        >
-          ?
-        </button>
-        {helpPopover}
-      </span>
-    );
-  };
+  const renderWorkbenchParameterHelpButton = (parameterId: string, modelEffect: string) => (
+    <WorkbenchSimulationParameterHelp
+      parameterId={parameterId}
+      modelEffect={modelEffect}
+      visibleHeatCapacityParamHelpId={visibleHeatCapacityParamHelpId}
+      renderHeatCapacityTooltipPopover={renderHeatCapacityTooltipPopover}
+      setHoveredHeatCapacityParamHelpId={setHoveredHeatCapacityParamHelpId}
+      hideHeatCapacityHoverTooltip={hideHeatCapacityHoverTooltip}
+      pinnedHeatCapacityParamHelpId={pinnedHeatCapacityParamHelpId}
+      setHeatCapacityParamHelpPopoverStyle={setHeatCapacityParamHelpPopoverStyle}
+      updateHeatCapacityParamHelpPopoverStyle={updateHeatCapacityParamHelpPopoverStyle}
+      setPinnedHeatCapacityParamHelpId={setPinnedHeatCapacityParamHelpId}
+    />
+  );
 
-  const renderWorkbenchParameterInputRow = (param: WorkbenchParameterRow) => {
-    const detail = getWorkbenchParameterDetail(param);
-    const displayLabel = getWorkbenchParameterDisplayLabel(param, workbenchCopy);
-    const isParamLocked = parameterControlsLocked || isIdealControlledVariableLocked(param.key);
-    const paramLockHint = isIdealControlledVariableLocked(param.key) ? controlledVariableLockHint : undefined;
-    const parameterValue = parameterInputDrafts[param.key] ?? param.value;
-    const displayUnit = getWorkbenchParameterDisplayUnit(param, settingsLanguagePreference);
+  const renderWorkbenchParameterInputRow = (param: WorkbenchParameterRow) => (
+    <WorkbenchSimulationParameterRow
+      key={param.label}
+      param={param}
+      workbenchCopy={workbenchCopy}
+      parameterControlsLocked={parameterControlsLocked}
+      isIdealControlledVariableLocked={isIdealControlledVariableLocked}
+      controlledVariableLockHint={controlledVariableLockHint}
+      parameterInputDrafts={parameterInputDrafts}
+      settingsLanguagePreference={settingsLanguagePreference}
+      renderWorkbenchParameterSymbol={renderWorkbenchParameterSymbol}
+      renderWorkbenchParameterHelpButton={renderWorkbenchParameterHelpButton}
+      setParameterInputDrafts={setParameterInputDrafts}
+      setParameterErrors={setParameterErrors}
+      commitWorkbenchParameterInput={commitWorkbenchParameterInput}
+      revertWorkbenchParameterInput={revertWorkbenchParameterInput}
+    />
+  );
 
-    return (
-      <div
-        className={`studio-param-input-row ${isParamLocked ? 'studio-param-input-row-locked' : ''}`}
-        key={param.label}
-        data-prompt-tooltip={paramLockHint}
-        aria-disabled={isParamLocked}
-      >
-        <span className="studio-param-input-label">
-          <span className="studio-param-input-title">
-            <span>{displayLabel}</span>
-            {detail ? renderWorkbenchParameterSymbol(detail.symbol) : null}
-          </span>
-          {detail ? renderWorkbenchParameterHelpButton(param.key, detail.help[settingsLanguagePreference]) : null}
-        </span>
-        <span className="studio-param-input-cell">
-          <input
-            type="text"
-            inputMode="decimal"
-            aria-label={`${workbenchCopy.parameters.edit} ${displayLabel}`}
-            value={parameterValue}
-            disabled={isParamLocked || !param.editable}
-            onChange={(event) => {
-              const nextValue = event.target.value;
-              setParameterInputDrafts((current) => ({ ...current, [param.key]: nextValue }));
-              setParameterErrors([]);
-            }}
-            onBlur={() => commitWorkbenchParameterInput(param, parameterValue)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                event.preventDefault();
-                commitWorkbenchParameterInput(param, parameterValue);
-              } else if (event.key === 'Escape') {
-                event.preventDefault();
-                revertWorkbenchParameterInput(param.key);
-              }
-            }}
-          />
-          {displayUnit ? <span className="studio-param-input-unit">{displayUnit}</span> : null}
-        </span>
-      </div>
-    );
-  };
+  const renderHeatCapacityParameterHelpButton = (parameterId: string, modelEffect: string) => (
+    <WorkbenchHeatCapacityParameterHelp
+      parameterId={parameterId}
+      modelEffect={modelEffect}
+      visibleHeatCapacityParamHelpId={visibleHeatCapacityParamHelpId}
+      renderHeatCapacityTooltipPopover={renderHeatCapacityTooltipPopover}
+      setHoveredHeatCapacityParamHelpId={setHoveredHeatCapacityParamHelpId}
+      hideHeatCapacityHoverTooltip={hideHeatCapacityHoverTooltip}
+      pinnedHeatCapacityParamHelpId={pinnedHeatCapacityParamHelpId}
+      setHeatCapacityParamHelpPopoverStyle={setHeatCapacityParamHelpPopoverStyle}
+      updateHeatCapacityParamHelpPopoverStyle={updateHeatCapacityParamHelpPopoverStyle}
+      setPinnedHeatCapacityParamHelpId={setPinnedHeatCapacityParamHelpId}
+    />
+  );
 
-  const renderHeatCapacityParameterHelpButton = (
-    parameterId: string,
-    modelEffect: string,
-  ) => {
-    const helpVisible = visibleHeatCapacityParamHelpId === parameterId;
-    const helpPopover = helpVisible
-      ? renderHeatCapacityTooltipPopover(parameterId, modelEffect, {
-        onMouseEnter: () => setHoveredHeatCapacityParamHelpId(parameterId),
-        onMouseLeave: hideHeatCapacityHoverTooltip,
-      })
-      : null;
-    return (
-      <span
-        className="studio-param-help-anchor"
-        onMouseLeave={() => {
-          if (pinnedHeatCapacityParamHelpId === null) {
-            setHoveredHeatCapacityParamHelpId(null);
-            setHeatCapacityParamHelpPopoverStyle(undefined);
-          }
-        }}
-      >
-        <button
-          type="button"
-          className={`studio-param-help-button ${pinnedHeatCapacityParamHelpId === parameterId ? 'studio-param-help-button-pinned' : ''}`}
-          data-heat-capacity-param-help-button="true"
-          data-heat-capacity-param-help-id={parameterId}
-          aria-label={`${modelEffect}`}
-          onMouseEnter={(event) => {
-            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
-            setHoveredHeatCapacityParamHelpId(parameterId);
-          }}
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
-            setPinnedHeatCapacityParamHelpId(parameterId);
-            setHoveredHeatCapacityParamHelpId(parameterId);
-          }}
-        >
-          ?
-        </button>
-        {helpPopover}
-      </span>
-    );
-  };
+  const renderHeatCapacityParameterLabel = (parameterId: string, label: string, parts: HeatCapacityFreeParameterSymbolPart[], modelEffect: string) => (
+    <WorkbenchHeatCapacityParameterLabel
+      parameterId={parameterId}
+      label={label}
+      parts={parts}
+      modelEffect={modelEffect}
+      renderHeatCapacityParameterHelpButton={renderHeatCapacityParameterHelpButton}
+    />
+  );
 
-  const renderHeatCapacityParameterLabel = (
-    parameterId: string,
-    label: string,
-    parts: HeatCapacityFreeParameterSymbolPart[],
-    modelEffect: string,
-  ) => {
-    const symbolLayoutClass = parts.length > 0
-      ? 'studio-heat-free-param-label-with-symbol'
-      : 'studio-heat-free-param-label-no-symbol';
-    return (
-      <span className={`studio-heat-free-param-label ${symbolLayoutClass}`}>
-        <span className="studio-heat-free-param-name">{label}</span>
-        {renderHeatCapacityParameterSymbol(parts)}
-        {renderHeatCapacityParameterHelpButton(parameterId, modelEffect)}
-      </span>
-    );
-  };
+  const renderHeatCapacityFreeNumberInputRow = (definition: HeatCapacityFreeNumberParameterDefinition, draft: HeatCapacityFreeParameterDraft, scope: 'basic' | 'advanced', disabled: boolean) => (
+    <WorkbenchHeatCapacityNumberParameterRow
+      key={`${scope}-${definition.id}`}
+      definition={definition}
+      draft={draft}
+      scope={scope}
+      disabled={disabled}
+      heatCapacityBasicInputDrafts={heatCapacityBasicInputDrafts}
+      heatCapacityAdvancedInputDrafts={heatCapacityAdvancedInputDrafts}
+      heatCapacityBasicInputErrors={heatCapacityBasicInputErrors}
+      heatCapacityAdvancedInputErrors={heatCapacityAdvancedInputErrors}
+      setHeatCapacityBasicInputDrafts={setHeatCapacityBasicInputDrafts}
+      setHeatCapacityAdvancedInputDrafts={setHeatCapacityAdvancedInputDrafts}
+      settingsLanguagePreference={settingsLanguagePreference}
+      renderHeatCapacityParameterLabel={renderHeatCapacityParameterLabel}
+      setHeatCapacityBasicInputErrors={setHeatCapacityBasicInputErrors}
+      setHeatCapacityAdvancedInputErrors={setHeatCapacityAdvancedInputErrors}
+      commitHeatCapacityBasicParameterInput={commitHeatCapacityBasicParameterInput}
+    />
+  );
 
-  const renderHeatCapacityFreeNumberInputRow = (
-    definition: HeatCapacityFreeNumberParameterDefinition,
-    draft: HeatCapacityFreeParameterDraft,
-    scope: 'basic' | 'advanced',
-    disabled: boolean,
-  ) => {
-    const inputDrafts = scope === 'basic' ? heatCapacityBasicInputDrafts : heatCapacityAdvancedInputDrafts;
-    const inputErrors = scope === 'basic' ? heatCapacityBasicInputErrors : heatCapacityAdvancedInputErrors;
-    const setInputDrafts = scope === 'basic' ? setHeatCapacityBasicInputDrafts : setHeatCapacityAdvancedInputDrafts;
-    const error = inputErrors[definition.id] ?? null;
-    const displayValue = getHeatCapacityFreeParameterInputValue(
-      definition,
-      draft[definition.id],
-    );
-    const value = inputDrafts[definition.id] ?? formatHeatCapacityFreeParameterValue(
-      displayValue,
-      definition.precision,
-    );
-    const parameterId = definition.id;
-    const label = definition.label[settingsLanguagePreference];
-    const modelEffect = definition.effect[settingsLanguagePreference];
+  const renderHeatCapacityFreeCheckboxRow = (definition: HeatCapacityFreeCheckboxDefinition, checked: boolean, disabled: boolean) => (
+    <WorkbenchHeatCapacityCheckboxParameterRow
+      key={definition.id}
+      definition={definition}
+      checked={checked}
+      disabled={disabled}
+      settingsLanguagePreference={settingsLanguagePreference}
+      renderHeatCapacityParameterLabel={renderHeatCapacityParameterLabel}
+      setHeatCapacityBasicCheckbox={setHeatCapacityBasicCheckbox}
+    />
+  );
 
-    return (
-      <div
-        key={`${scope}-${definition.id}`}
-        className={`studio-heat-free-param-row ${disabled ? 'studio-heat-free-param-row-locked' : ''} ${error ? 'studio-heat-free-param-row-error' : ''}`}
-        data-heat-capacity-free-param-id={definition.id}
-      >
-        {renderHeatCapacityParameterLabel(parameterId, label, definition.parts, modelEffect)}
-        <span className="studio-heat-free-input-cell">
-          <span className="studio-heat-free-input-shell">
-            <input
-              type="text"
-              inputMode="decimal"
-              disabled={disabled}
-              aria-label={`${label} ${definition.unit}`.trim()}
-              aria-invalid={error ? true : undefined}
-              value={value}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setInputDrafts((current) => ({
-                  ...current,
-                  [definition.id]: nextValue,
-                }));
-                if (scope === 'basic') {
-                  setHeatCapacityBasicInputErrors((current) => {
-                    const { [definition.id]: _removed, ...rest } = current;
-                    return rest;
-                  });
-                } else {
-                  setHeatCapacityAdvancedInputErrors((current) => {
-                    const { [definition.id]: _removed, ...rest } = current;
-                    return rest;
-                  });
-                }
-              }}
-              onBlur={() => {
-                if (scope === 'basic') {
-                  commitHeatCapacityBasicParameterInput(definition.id, value);
-                }
-              }}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && scope === 'basic') {
-                  commitHeatCapacityBasicParameterInput(definition.id, value);
-                }
-              }}
-            />
-            {definition.unit ? <span className="studio-heat-free-unit">{definition.unit}</span> : null}
-          </span>
-          {error ? <small className="studio-heat-free-inline-error">{error}</small> : null}
-        </span>
-      </div>
-    );
-  };
-
-  const renderHeatCapacityFreeCheckboxRow = (
-    definition: HeatCapacityFreeCheckboxDefinition,
-    checked: boolean,
-    disabled: boolean,
-  ) => {
-    const label = definition.label[settingsLanguagePreference];
-    const modelEffect = definition.effect[settingsLanguagePreference];
-    return (
-      <div
-        key={definition.id}
-        className={`studio-heat-free-param-row studio-heat-free-check-row ${disabled ? 'studio-heat-free-param-row-locked' : ''}`}
-        data-heat-capacity-free-param-id={definition.id}
-      >
-        {renderHeatCapacityParameterLabel(definition.id, label, definition.parts, modelEffect)}
-        <label className="studio-heat-free-check-control">
-          <input
-            type="checkbox"
-            checked={checked}
-            disabled={disabled}
-            data-heat-capacity-basic-checkbox={definition.id}
-            onChange={(event) => setHeatCapacityBasicCheckbox(definition.id, event.target.checked)}
-          />
-          <span>{checked ? definition.onText[settingsLanguagePreference] : definition.offText[settingsLanguagePreference]}</span>
-        </label>
-      </div>
-    );
-  };
-
-  const renderHeatCapacityFreeGasTypeRow = () => {
-    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
-    const selectedGasType = selectHeatCapacityFreeGasType(activeFile);
-    const gasTypeLocked = !isHeatCapacityFreeGasTypeEditingAvailable(activeFile);
-    const disabled = gasTypeLocked;
-    const nativeDisabled = false;
-    const renderOption = (option: HeatCapacityFreeGasTypeOptionDefinition) => {
-      const selected = selectedGasType === option.id;
-      const gasTypeHelp = (
-        <span
-          className="studio-heat-free-gas-type-help"
-          aria-label={option.help[settingsLanguagePreference]}
-        >
-          ?
-        </span>
-      );
-      return (
-        <button
-          key={option.id}
-          type="button"
-          className="studio-heat-free-gas-type-option"
-          data-heat-capacity-gas-type-option={option.id}
-          aria-pressed={selected}
-          aria-disabled={disabled}
-          disabled={nativeDisabled}
-          onClick={() => {
-            if (disabled) {
+  const showHeatCapacityGasTypeLockHint = () => {
               const message = heatCapacityFreeSharedText.gasTypeLocked[settingsLanguagePreference];
               setScanInputToast(message);
               pushLog(
@@ -16242,511 +10541,105 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 'warning',
               );
               return;
-            }
-            setHeatCapacityFreeGasType(option.id);
-          }}
-        >
-          <span>{option.label[settingsLanguagePreference]}</span>
-          {renderHeatCapacityTooltipAnchor(
-            `gasType-${option.id}`,
-            option.help[settingsLanguagePreference],
-            gasTypeHelp,
-            {
-              className: 'studio-heat-free-gas-type-help-anchor',
-              target: `gasType-${option.id}`,
-            },
-          )}
-        </button>
-      );
-    };
-    return (
-      <div
-        className={`studio-heat-free-param-row studio-heat-free-gas-type-row ${disabled ? 'studio-heat-free-param-row-locked' : ''}`}
-        data-heat-capacity-free-param-id="gasType"
-      >
-        <span className="studio-heat-free-param-label studio-heat-free-param-label-no-symbol">
-          <span className="studio-heat-free-param-name">
-            {heatCapacityFreeSharedText.gasTypeLabel[settingsLanguagePreference]}
-          </span>
-        </span>
-        <span
-          className={`studio-heat-free-gas-type-control studio-heat-free-gas-type-control-${selectedGasType}`}
-          role="group"
-          aria-label={heatCapacityFreeSharedText.gasTypeLabel[settingsLanguagePreference]}
-        >
-          <span className="studio-heat-free-gas-type-thumb" aria-hidden="true" />
-          {heatCapacityFreeGasTypeOptions.map(renderOption)}
-        </span>
-      </div>
-    );
-  };
+            };
 
-  const renderHeatCapacityBasicParameterRows = () => {
-    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
-    const draft = selectHeatCapacityFreeAppliedParameterDraft(activeFile);
-    const checkboxValue = (id: HeatCapacityFreeBasicCheckboxKey) => (
-      id === 'hardSphereViewEnabled'
-        ? activeFile.hardSphereViewEnabled
-        : Boolean(draft[id])
-    );
-    const schemeIsIdeal = activeHeatCapacityNextScheme === 'ideal';
-    const schemeButtonText = schemeIsIdeal
-      ? heatCapacityFreeSharedText.idealProfile[settingsLanguagePreference]
-      : heatCapacityFreeSharedText.realSimulation[settingsLanguagePreference];
-    const schemeButtonTooltip = activeHeatCapacityFreeSchemeLocked
-      ? heatCapacityFreeSharedText.idealProfileLockedHint[settingsLanguagePreference]
-      : heatCapacityFreeSharedText.idealProfileIntroBody[settingsLanguagePreference];
-    const restoreDefaultTooltip = activeHeatCapacityFreeIdealReadonly
-      ? heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]
-      : activeHeatCapacityFreeParameterLockMessage ?? heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference];
-    return (
-      <>
-        <div className={`studio-heat-free-default-row ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-default-row-locked' : ''}`}>
-          {renderHeatCapacityTooltipAnchor(
-            'heatCapacityFreeParameterScheme',
-            schemeButtonTooltip,
-            <button
-              type="button"
-              className={`studio-heat-free-scheme-button ${schemeIsIdeal ? 'studio-heat-free-scheme-button-active' : ''} ${activeHeatCapacityFreeSchemeLocked ? 'studio-heat-free-scheme-button-locked' : ''}`}
-              disabled={activeHeatCapacityFreeSchemeLocked}
-              aria-disabled={activeHeatCapacityFreeSchemeLocked}
-              aria-pressed={schemeIsIdeal}
-              onClick={requestToggleHeatCapacityFreeParameterScheme}
-            >
-              <span>{schemeButtonText}</span>
-            </button>,
-            {
-              className: 'studio-heat-free-scheme-tooltip-anchor',
-              target: 'scheme',
-              focusable: activeHeatCapacityFreeSchemeLocked,
-            },
-          )}
-          {renderHeatCapacityTooltipAnchor(
-            'heatCapacityRestoreDefault',
-            restoreDefaultTooltip,
-            <button
-              type="button"
-              className="studio-heat-free-default-button"
-              disabled={activeHeatCapacityFreeParameterInputDisabled}
-              onClick={openHeatCapacityRestoreDefaultConfirm}
-            >
-              <RotateCcw size={13} />
-              <span>{heatCapacityFreeSharedText.restoreDefault[settingsLanguagePreference]}</span>
-            </button>,
-            {
-              className: 'studio-heat-free-default-tooltip-anchor',
-              target: 'restore-default',
-              focusable: activeHeatCapacityFreeParameterInputDisabled,
-            },
-          )}
-        </div>
-        {renderHeatCapacityFreeGasTypeRow()}
-        {heatCapacityFreeBasicNumberParameters.map((definition) => (
-          renderHeatCapacityFreeNumberInputRow(
-            definition,
-            draft,
-            'basic',
-            activeHeatCapacityFreeParameterInputDisabled,
-          )
-        ))}
-        {heatCapacityFreeBasicCheckboxes.map((definition) => (
-          renderHeatCapacityFreeCheckboxRow(
-            definition,
-            checkboxValue(definition.id),
-            definition.id === 'hardSphereViewEnabled'
-              ? false
-              : activeHeatCapacityFreeParameterLocked
-                ? true
-                : activeHeatCapacityFreeIdealReadonly,
-          )
-        ))}
-      </>
-    );
-  };
+  const renderHeatCapacityFreeGasTypeRow = () => (
+    <WorkbenchHeatCapacityGasParameterRow
+      activeFile={activeFile}
+      settingsLanguagePreference={settingsLanguagePreference}
+      showHeatCapacityGasTypeLockHint={showHeatCapacityGasTypeLockHint}
+      setHeatCapacityFreeGasType={setHeatCapacityFreeGasType}
+      renderHeatCapacityTooltipAnchor={renderHeatCapacityTooltipAnchor}
+    />
+  );
 
-  const renderHeatCapacityFreeParameterPanel = () => {
-    if (activeFile.kind !== 'heatCapacity' || activeFile.heatCapacityMode !== 'free') return null;
-    return (
-      <section
-        className={`studio-heat-free-params ${activeHeatCapacityFreeParameterLocked ? 'is-locked' : ''} ${activeHeatCapacityFreeIdealReadonly ? 'is-ideal-readonly' : ''}`}
-        data-heat-capacity-free-parameter-panel="true"
-        aria-disabled={activeHeatCapacityFreeParameterLocked ? true : undefined}
-        onPointerDownCapture={(event) => {
-          if (!activeHeatCapacityFreeParameterLocked) return;
-          const target = event.target instanceof Element ? event.target : null;
-          if (target?.closest('[data-heat-capacity-param-help-button="true"]')) return;
-          if (target?.closest('.studio-param-help-popover')) return;
-          if (target?.closest('[data-heat-capacity-free-param-id="hardSphereViewEnabled"]')) return;
-          event.preventDefault();
-          showHeatCapacityFreeParameterLockHint();
-        }}
-      >
-        {renderHeatCapacityBasicParameterRows()}
-        <div className={`studio-heat-free-advanced-entry ${activeHeatCapacityFreeParameterLocked ? 'studio-heat-free-advanced-entry-locked' : ''}`}>
-          {renderHeatCapacityTooltipAnchor(
-            'heatCapacityAdvancedSettings',
-            activeHeatCapacityFreeParameterLockMessage ?? heatCapacityFreeSharedText.advancedOpen[settingsLanguagePreference],
-            <button
-              type="button"
-              className="studio-heat-free-advanced-button"
-              disabled={activeHeatCapacityFreeParameterLocked}
-              onClick={openHeatCapacityAdvancedSettings}
-              onPointerDownCapture={() => {
-                if (activeHeatCapacityFreeParameterLocked) showHeatCapacityFreeParameterLockHint();
-              }}
-            >
-              <Wrench size={14} />
-              <span>{heatCapacityFreeSharedText.advancedOpen[settingsLanguagePreference]}</span>
-            </button>,
-            {
-              className: 'studio-heat-free-advanced-tooltip-anchor',
-              target: 'advanced-settings',
-              focusable: activeHeatCapacityFreeParameterLocked,
-            },
-          )}
-        </div>
-      </section>
-    );
-  };
+  const renderHeatCapacityBasicParameterRows = () => (
+    <WorkbenchHeatCapacityBasicParameters
+      activeFile={activeFile}
+      activeHeatCapacityNextScheme={activeHeatCapacityNextScheme}
+      settingsLanguagePreference={settingsLanguagePreference}
+      activeHeatCapacityFreeSchemeLocked={activeHeatCapacityFreeSchemeLocked}
+      activeHeatCapacityFreeIdealReadonly={activeHeatCapacityFreeIdealReadonly}
+      activeHeatCapacityFreeParameterLockMessage={activeHeatCapacityFreeParameterLockMessage}
+      activeHeatCapacityFreeParameterLocked={activeHeatCapacityFreeParameterLocked}
+      renderHeatCapacityTooltipAnchor={renderHeatCapacityTooltipAnchor}
+      requestToggleHeatCapacityFreeParameterScheme={requestToggleHeatCapacityFreeParameterScheme}
+      activeHeatCapacityFreeParameterInputDisabled={activeHeatCapacityFreeParameterInputDisabled}
+      openHeatCapacityRestoreDefaultConfirm={openHeatCapacityRestoreDefaultConfirm}
+      renderHeatCapacityFreeGasTypeRow={renderHeatCapacityFreeGasTypeRow}
+      renderHeatCapacityFreeNumberInputRow={renderHeatCapacityFreeNumberInputRow}
+      renderHeatCapacityFreeCheckboxRow={renderHeatCapacityFreeCheckboxRow}
+    />
+  );
 
-  const renderHeatCapacityAdvancedParameterDialog = () => {
-    if (
-      !heatCapacityAdvancedOpen ||
-      activeFile.kind !== 'heatCapacity' ||
-      activeFile.heatCapacityMode !== 'free' ||
-      heatCapacityAdvancedDraft === null
-    ) {
-      return null;
-    }
-    const riskPending = !activeFile.heatCapacityFreeFileAcknowledgements.advancedParametersRisk;
-    return (
-      <>
-        <PromptDialogShell
-          title={heatCapacityFreeSharedText.advancedTitle[settingsLanguagePreference]}
-          titleId="studio-heat-advanced-title"
-          subtitle={activeHeatCapacityFreeIdealReadonly ? (
-            <span className="studio-heat-advanced-readonly-note">
-              {heatCapacityFreeSharedText.idealProfileReadonlyNote[settingsLanguagePreference]}
-            </span>
-          ) : undefined}
-          variant="task"
-          closeLabel={workbenchCopy.actions.close}
-          dismiss={{ closeButton: true, escape: true, backdrop: true }}
-          onRequestClose={cancelHeatCapacityAdvancedParameterDraft}
-          overlayClassName="studio-heat-advanced-overlay"
-          dialogClassName={`studio-heat-advanced-window ${riskPending ? 'studio-heat-advanced-window-blocked' : ''}`}
-          headerClassName="studio-heat-advanced-header"
-          closeButtonClassName="studio-heat-advanced-close"
-          windowOverflow="auto"
-        >
-          <div className="studio-heat-advanced-groups" aria-disabled={riskPending || activeHeatCapacityFreeIdealReadonly}>
-            {heatCapacityFreeAdvancedParameterGroups.map((group) => (
-              <section className="studio-heat-advanced-group" key={group.id} data-heat-capacity-advanced-group-section={group.id}>
-                <h3 className="studio-heat-advanced-group-title">{group.title[settingsLanguagePreference]}</h3>
-                <div className="studio-heat-advanced-grid">
-                  {heatCapacityFreeAdvancedNumberParameters.filter((definition) => definition.group === group.id)
-                    .map((definition) => {
-                      return (
-                        <div className="studio-heat-advanced-grid-item" key={definition.id} data-heat-capacity-advanced-group={group.id}>
-                          {renderHeatCapacityFreeNumberInputRow(
-                            definition,
-                            heatCapacityAdvancedDraft,
-                            'advanced',
-                            riskPending || activeHeatCapacityFreeIdealReadonly,
-                          )}
-                        </div>
-                      );
-                    })}
-                </div>
-              </section>
-            ))}
-          </div>
-          <footer className="studio-heat-advanced-actions">
-            <button type="button" onClick={cancelHeatCapacityAdvancedParameterDraft}>
-              {heatCapacityFreeSharedText.cancel[settingsLanguagePreference]}
-            </button>
-            <button
-              type="button"
-              className="studio-heat-advanced-primary"
-              disabled={riskPending || activeHeatCapacityFreeIdealReadonly}
-              onClick={() => saveHeatCapacityAdvancedParameterDraft(heatCapacityAdvancedDraft)}
-            >
-              {heatCapacityFreeSharedText.save[settingsLanguagePreference]}
-            </button>
-          </footer>
-        </PromptDialogShell>
-        <WorkbenchHeatCapacityAdvancedRiskDialog
-          open={riskPending}
-          copy={{
-            title: heatCapacityFreeSharedText.riskTitle[settingsLanguagePreference],
-            body: heatCapacityFreeSharedText.riskBody[settingsLanguagePreference],
-            cancel: heatCapacityFreeSharedText.cancel[settingsLanguagePreference],
-            confirm: heatCapacityFreeSharedText.confirm[settingsLanguagePreference],
-          }}
-          onCancel={cancelHeatCapacityAdvancedParameterDraft}
-          onConfirm={acknowledgeHeatCapacityFreeAdvancedRisk}
-        />
-      </>
-    );
-  };
+  const renderHeatCapacityFreeParameterPanel = () => (
+    <WorkbenchHeatCapacityParameters
+      activeFile={activeFile}
+      activeHeatCapacityFreeParameterLocked={activeHeatCapacityFreeParameterLocked}
+      activeHeatCapacityFreeIdealReadonly={activeHeatCapacityFreeIdealReadonly}
+      showHeatCapacityFreeParameterLockHint={showHeatCapacityFreeParameterLockHint}
+      renderHeatCapacityBasicParameterRows={renderHeatCapacityBasicParameterRows}
+      renderHeatCapacityTooltipAnchor={renderHeatCapacityTooltipAnchor}
+      activeHeatCapacityFreeParameterLockMessage={activeHeatCapacityFreeParameterLockMessage}
+      settingsLanguagePreference={settingsLanguagePreference}
+      openHeatCapacityAdvancedSettings={openHeatCapacityAdvancedSettings}
+    />
+  );
 
-  const renderIdealControls = () => {
-    if (activeFile.kind !== 'ideal') return null;
+  const renderHeatCapacityAdvancedParameterDialog = () => (
+    <WorkbenchHeatCapacityAdvancedParameters
+      heatCapacityAdvancedOpen={heatCapacityAdvancedOpen}
+      activeFile={activeFile}
+      heatCapacityAdvancedDraft={heatCapacityAdvancedDraft}
+      settingsLanguagePreference={settingsLanguagePreference}
+      activeHeatCapacityFreeIdealReadonly={activeHeatCapacityFreeIdealReadonly}
+      workbenchCopy={workbenchCopy}
+      cancelHeatCapacityAdvancedParameterDraft={cancelHeatCapacityAdvancedParameterDraft}
+      renderHeatCapacityFreeNumberInputRow={renderHeatCapacityFreeNumberInputRow}
+      saveHeatCapacityAdvancedParameterDraft={saveHeatCapacityAdvancedParameterDraft}
+      acknowledgeHeatCapacityFreeAdvancedRisk={acknowledgeHeatCapacityFreeAdvancedRisk}
+    />
+  );
 
-    const relationVariableKey = getRelationVariableKey(activeFile.relation);
-    const relationVariableValue = getRelationVariableNumericValue(activeFile.relation, activeFile.params);
-    const presetSequence = getPresetSequence(activeFile.relation);
-    const volume = Math.pow(activeFile.params.L, 3);
-    const scanMin = Math.min(...presetSequence, relationVariableValue);
-    const scanMax = Math.max(...presetSequence, relationVariableValue);
-    const scanStep = getIdealScanStep(activeFile.relation);
-    const scanDecimals = getIdealScanDecimals(activeFile.relation);
-    const scanRange = scanMax - scanMin;
-    const scanProgressPercent = getIdealScanPositionPercent(relationVariableValue, scanMin, scanRange);
-    const scanDisplayValue = scanInputFocused
-      ? scanInputDraft
-      : formatMetric(relationVariableValue, scanDecimals);
-    const scanTitle =
-      relationVariableKey === 'targetTemperature'
-        ? workbenchCopy.parameters.targetTemperature
-        : relationVariableKey === 'L'
-          ? workbenchCopy.parameters.boxLength
-          : workbenchCopy.parameters.particleCount;
-    const scanKeyLabel = relationVariableKey === 'targetTemperature' ? 'T' : relationVariableKey;
-    const scanSliderClass = [
-      'studio-ideal-scan-slider',
-      scanSliderThumbHover ? 'studio-ideal-scan-slider-thumb-hover' : '',
-      scanSliderDragging ? 'studio-ideal-scan-slider-dragging' : '',
-    ].filter(Boolean).join(' ');
-    const scanInputClass = [
-      'studio-ideal-scan-input',
-      scanInputError ? 'studio-ideal-scan-input-error' : '',
-    ].filter(Boolean).join(' ');
-    const activeSamplingPreset = idealSamplingPresets.find(
-      (preset) =>
-        preset.equilibriumTime === activeFile.params.equilibriumTime &&
-        preset.statsDuration === activeFile.params.statsDuration,
-    );
-    const samplingPresetLabel = activeSamplingPreset
-      ? workbenchCopy.parameters.samplingPresets[activeSamplingPreset.key]
-      : workbenchCopy.parameters.customPreset;
-    const samplingPresetDescription = activeSamplingPreset
-      ? workbenchCopy.parameters.samplingDuration(activeSamplingPreset.equilibriumTime, activeSamplingPreset.statsDuration)
-      : workbenchCopy.parameters.samplingDuration(
-          Number(formatMetric(activeFile.params.equilibriumTime, 1)),
-          Number(formatMetric(activeFile.params.statsDuration, 1)),
-        );
-
-    return (
-      <div className="studio-ideal-controls" aria-disabled={parameterControlsLocked}>
-        <section>
-          <h4>{workbenchCopy.parameters.relation}</h4>
-          <div className="studio-ideal-relation-buttons" role="tablist" aria-label={workbenchCopy.parameters.relation}>
-            {idealRelationOptions.map((option) => (
-              <button
-                type="button"
-                key={option.key}
-                className={activeFile.relation === option.key ? 'studio-ideal-control-active' : ''}
-                disabled={parameterControlsLocked}
-                onClick={() => changeIdealRelation(option.key)}
-                data-prompt-tooltip={workbenchCopy.parameters.relationHints[option.key]}
-              >
-                <strong>{option.label}</strong>
-                <span>{workbenchCopy.results.pointsShort(activeFile.pointsByRelation[option.key].length)}</span>
-              </button>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <h4>{workbenchCopy.parameters.scanVariable}</h4>
-          <div className="studio-ideal-variable-card studio-ideal-scan-control">
-            <div className="studio-ideal-scan-value-row">
-              <div>
-                <span>{scanTitle}</span>
-                <input
-                  className={scanInputClass}
-                  type="text"
-                  inputMode={activeFile.relation === 'pn' ? 'numeric' : 'decimal'}
-                  value={scanDisplayValue}
-                  disabled={parameterControlsLocked}
-                  aria-label={workbenchCopy.parameters.setScanValue(scanTitle)}
-                  aria-invalid={scanInputError ? true : undefined}
-                  ref={scanInputRef}
-                  onFocus={() => {
-                    setScanInputFocused(true);
-                    if (!scanInputFocused) {
-                      setScanInputDraft(formatMetric(relationVariableValue, scanDecimals));
-                    }
-                  }}
-                  onChange={(event) => {
-                    setScanInputDraft(event.target.value);
-                    validateIdealScanDraft(event.target.value);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      commitIdealScanInput();
-                    }
-                    if (event.key === 'Escape') {
-                      event.preventDefault();
-                      setScanInputDraft(formatMetric(relationVariableValue, scanDecimals));
-                      setScanInputFocused(false);
-                      clearScanInputError();
-                    }
-                  }}
-                  onBlur={() => commitIdealScanInput()}
-                />
-              </div>
-              <span className="studio-ideal-scan-key">{scanKeyLabel}</span>
-            </div>
-            <input
-              className={scanSliderClass}
-              type="range"
-              min={scanMin}
-              max={scanMax}
-              step={scanStep}
-              value={relationVariableValue}
-              disabled={parameterControlsLocked}
-              aria-label={workbenchCopy.parameters.adjustScanValue(scanTitle)}
-              style={{ '--studio-ideal-scan-progress': `${scanProgressPercent}%` } as React.CSSProperties}
-              onPointerMove={(event) => {
-                if (parameterControlsLocked) return;
-                setScanSliderThumbHover(scanSliderDragging || isPointerOnIdealScanThumb(event, scanProgressPercent));
-              }}
-              onPointerLeave={() => {
-                if (!scanSliderDragging) setScanSliderThumbHover(false);
-              }}
-              onPointerDown={(event) => {
-                if (parameterControlsLocked) return;
-                const pointerOnThumb = isPointerOnIdealScanThumb(event, scanProgressPercent);
-                setScanSliderThumbHover(pointerOnThumb);
-                setScanSliderDragging(pointerOnThumb);
-                if (pointerOnThumb) {
-                  event.currentTarget.setPointerCapture(event.pointerId);
-                }
-              }}
-              onPointerUp={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-                }
-                setScanSliderDragging(false);
-                setScanSliderThumbHover(isPointerOnIdealScanThumb(event, scanProgressPercent));
-              }}
-              onPointerCancel={(event) => {
-                if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-                  event.currentTarget.releasePointerCapture(event.pointerId);
-                }
-                setScanSliderDragging(false);
-                setScanSliderThumbHover(false);
-              }}
-              onBlur={() => {
-                setScanSliderDragging(false);
-                setScanSliderThumbHover(false);
-              }}
-              onChange={(event) => updateIdealScanVariable(Number(event.target.value))}
-            />
-            <div className="studio-ideal-scan-ticks" aria-label={workbenchCopy.parameters.recommendedValues(scanTitle)}>
-              {presetSequence.map((value) => (
-                <button
-                  type="button"
-                  key={`${activeFile.relation}-${value}`}
-                  className={`studio-ideal-scan-tick-button ${Math.abs(value - relationVariableValue) <= 1e-6 ? 'studio-ideal-scan-tick-active' : ''}`}
-                  disabled={parameterControlsLocked}
-                  onClick={() => updateIdealScanVariable(value)}
-                  style={{
-                    '--studio-ideal-scan-tick-position': `${getIdealScanPositionPercent(value, scanMin, scanRange)}%`,
-                  } as React.CSSProperties}
-                >
-                  {formatMetric(value, scanDecimals)}
-                </button>
-              ))}
-            </div>
-            {activeFile.relation === 'pv' ? (
-              <div className="studio-ideal-scan-derived">
-                <small>V = {formatMetric(volume, 1)}</small>
-                <small>1/V = {formatMetric(volume > 0 ? 1 / volume : 0, 6)}</small>
-              </div>
-            ) : null}
-          </div>
-        </section>
-
-        <section>
-          <h4>{workbenchCopy.parameters.samplingPreset}</h4>
-          <div
-            ref={samplingPresetSelectRef}
-            className={`studio-ideal-preset-select ${samplingPresetMenuOpen ? 'studio-ideal-preset-select-open' : ''}`}
-          >
-            <button
-              type="button"
-              className="studio-ideal-preset-trigger"
-              aria-haspopup="listbox"
-              aria-expanded={samplingPresetMenuOpen}
-              disabled={parameterControlsLocked}
-              onClick={() => setSamplingPresetMenuOpen((current) => !current)}
-            >
-              <span>
-                <strong>{samplingPresetLabel}</strong>
-                <small>{samplingPresetDescription}</small>
-              </span>
-              <ChevronDown
-                size={15}
-                className={`studio-ideal-preset-chevron ${samplingPresetMenuOpen ? 'studio-ideal-preset-chevron-open' : ''}`}
-              />
-            </button>
-            <span className="studio-ideal-preset-tooltip" role="tooltip">{workbenchCopy.parameters.setSamplingPrecision}</span>
-            <div
-              className="studio-ideal-preset-menu studio-ideal-preset-menu-overlay"
-              role="listbox"
-              aria-label={workbenchCopy.parameters.samplingPreset}
-              aria-hidden={!samplingPresetMenuOpen}
-            >
-              {idealSamplingPresets.map((preset) => (
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={activeSamplingPreset?.key === preset.key}
-                  tabIndex={parameterControlsLocked || !samplingPresetMenuOpen ? -1 : 0}
-                  key={preset.key}
-                  className={activeSamplingPreset?.key === preset.key ? 'studio-ideal-control-active' : ''}
-                  disabled={parameterControlsLocked}
-                  onClick={() => {
-                    setSamplingPresetMenuOpen(false);
-                    applyIdealSamplingPreset(preset);
-                  }}
-                >
-                  <strong>{workbenchCopy.parameters.samplingPresets[preset.key]}</strong>
-                  <span>{workbenchCopy.parameters.samplingDuration(preset.equilibriumTime, preset.statsDuration)}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </section>
-      </div>
-    );
-  };
+  const renderIdealControls = () => (
+    <WorkbenchIdealControls
+      activeFile={activeFile}
+      scanInputFocused={scanInputFocused}
+      scanInputDraft={scanInputDraft}
+      workbenchCopy={workbenchCopy}
+      scanSliderThumbHover={scanSliderThumbHover}
+      scanSliderDragging={scanSliderDragging}
+      scanInputError={scanInputError}
+      parameterControlsLocked={parameterControlsLocked}
+      changeIdealRelation={changeIdealRelation}
+      scanInputRef={scanInputRef}
+      setScanInputFocused={setScanInputFocused}
+      setScanInputDraft={setScanInputDraft}
+      validateIdealScanDraft={validateIdealScanDraft}
+      commitIdealScanInput={commitIdealScanInput}
+      clearScanInputError={clearScanInputError}
+      setScanSliderThumbHover={setScanSliderThumbHover}
+      isPointerOnIdealScanThumb={isPointerOnIdealScanThumb}
+      setScanSliderDragging={setScanSliderDragging}
+      updateIdealScanVariable={updateIdealScanVariable}
+      samplingPresetSelectRef={samplingPresetSelectRef}
+      samplingPresetMenuOpen={samplingPresetMenuOpen}
+      setSamplingPresetMenuOpen={setSamplingPresetMenuOpen}
+      applyIdealSamplingPreset={applyIdealSamplingPreset}
+    />
+  );
 
   const toggleTopCommandMenu = (menu: Exclude<WorkbenchTopMenuId, null>, left: number) => {
     setTopMenuLeft(left);
     setOpenTopMenu((current) => (current === menu ? null : menu));
   };
 
-  const renderHeatCapacityModeControl = () => {
-    if (activeFile.kind !== 'heatCapacity') return null;
-    const heatCapacityActiveMode: HeatCapacityMode | null = activeFile.heatCapacityMode;
+  const handleHeatCapacityModeSegmentClick = (mode: HeatCapacityMode) => {
+    if (activeFile.kind !== 'heatCapacity') return;
+    const heatCapacityActiveMode = activeFile.heatCapacityMode;
     const tutorialMilestone = experienceProfile.learning.heatCapacity;
     const heatCapacityTutorialActive = tutorialActive && activeTutorialExperiment === 'heatCapacity';
     const heatCapacityTeachingCompleted = activeFile.heatCapacityTeachingStatus === 'completed';
-    const heatCapacityModeControlState = selectHeatCapacityModeControlState({
-      activeMode: heatCapacityActiveMode,
-      autoDemoPhase,
-      teachingCompleted: heatCapacityTeachingCompleted,
-    });
-    const heatCapacityDemoActionsVisible = heatCapacityModeControlState.demo.actionsVisible;
-    const heatCapacityGuideActionsVisible = heatCapacityModeControlState.guide.actionsVisible;
-    const heatCapacityFreeActionsVisible = heatCapacityModeControlState.free.actionsVisible;
-    const heatCapacityModeSegmentClassName = (mode: HeatCapacityMode) => `studio-heat-mode-segment studio-heat-mode-segment-${mode} ${heatCapacityActiveMode === mode ? 'studio-heat-mode-segment-active' : ''}`;
-    const handleHeatCapacityModeSegmentClick = (mode: HeatCapacityMode) => {
       if (
         heatCapacityTutorialActive &&
         !isExperimentTutorialModeUnlocked(tutorialMilestone, mode)
@@ -16797,644 +10690,46 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         switchHeatCapacityMode(mode, 'mode-control');
       }
     };
-    const heatCapacityModeActionClassName = (action: HeatCapacityModeControlAction) => {
-      const resetFeedbackClass = action.id === heatCapacityResetFeedbackActionId
-        ? ' studio-heat-mode-action-feedback'
-        : '';
-      const toneClass = action.tone === 'danger' ? ' studio-heat-mode-action-danger' : '';
-      const disabledClass = action.disabled || heatCapacityModeTransitionLocked
-        ? ' studio-heat-mode-action-disabled'
-        : '';
-      return `studio-heat-mode-action studio-heat-mode-action-icon${toneClass}${resetFeedbackClass}${disabledClass}`;
-    };
-    const renderHeatCapacityModeAction = (action: HeatCapacityModeControlAction) => {
-      if (action.id === 'exit-teaching') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="exit-teaching"
-            data-prompt-tooltip={heatCapacityRealtimeCopy.exitTeachingMode}
-            aria-label={heatCapacityRealtimeCopy.exitTeachingMode}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={heatCapacityActiveMode === 'guide' ? exitHeatCapacityGuideMode : exitCompletedHeatCapacityTeachingMode}
-          >
-            <LogOut size={13} strokeWidth={2.7} />
-          </button>
-        );
-      }
-      if (action.id === 'resume-demo') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="resume-demo"
-            data-prompt-tooltip={heatCapacityRealtimeCopy.autoDemoResume}
-            aria-label={heatCapacityRealtimeCopy.autoDemoResume}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={runHeatCapacityAutoDemo}
-          >
-            <Play size={13} strokeWidth={2.7} />
-          </button>
-        );
-      }
-      if (action.id === 'pause-demo') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="pause-demo"
-            data-prompt-tooltip={heatCapacityRealtimeCopy.autoDemoPause}
-            aria-label={heatCapacityRealtimeCopy.autoDemoPause}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={() => pauseHeatCapacityAutoDemo()}
-          >
-            <Pause size={13} strokeWidth={2.7} />
-          </button>
-        );
-      }
-      if (action.id === 'stop-demo') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="stop-demo"
-            data-prompt-tooltip={heatCapacityRealtimeCopy.autoDemoStop}
-            aria-label={heatCapacityRealtimeCopy.autoDemoStop}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={terminateHeatCapacityAutoDemo}
-          >
-            <Square size={12} strokeWidth={2.8} />
-          </button>
-        );
-      }
-      if (action.id === 'exit-guide') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="exit-guide"
-            data-prompt-tooltip={heatCapacityRealtimeCopy.exitGuideMode}
-            aria-label={heatCapacityRealtimeCopy.exitGuideMode}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={exitHeatCapacityGuideMode}
-          >
-            <Square size={12} strokeWidth={2.8} />
-          </button>
-        );
-      }
-      if (action.id === 'reset-guide') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="reset-guide"
-            data-prompt-tooltip={heatCapacityRealtimeCopy.resetGuideMode}
-            aria-label={heatCapacityRealtimeCopy.resetGuideMode}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={resetHeatCapacityGuideExperiment}
-          >
-            <RotateCcw size={13} strokeWidth={2.7} />
-          </button>
-        );
-      }
-      if (action.id === 'exit-free') {
-        return (
-          <button
-            key={action.id}
-            type="button"
-            className={heatCapacityModeActionClassName(action)}
-            data-heat-capacity-mode-action="exit-free"
-            data-prompt-tooltip={settingsLanguagePreference === 'en' ? 'Exit Free mode' : settingsLanguagePreference === 'zh-TW' ? '退出自由模式' : '退出自由模式'}
-            aria-label={settingsLanguagePreference === 'en' ? 'Exit Free mode' : settingsLanguagePreference === 'zh-TW' ? '退出自由模式' : '退出自由模式'}
-            disabled={heatCapacityModeTransitionLocked}
-            onClick={() => exitHeatCapacityFormalModeToExplore('free')}
-          >
-            <LogOut size={13} strokeWidth={2.7} />
-          </button>
-        );
-      }
-      return null;
-    };
 
-    return (
-      <div className="studio-heat-mode-control-row">
-        <div
-           className={`studio-heat-mode-control studio-heat-mode-control-${heatCapacityActiveMode ?? 'explore'} ${heatCapacityModeControlState.expanded ? 'studio-heat-mode-control-expanded' : ''} ${heatCapacityTutorialActive ? `studio-heat-mode-control-tutorial-${tutorialMilestone}` : ''}`}
-           data-heat-capacity-mode-control="true"
-           data-heat-capacity-tutorial-milestone={heatCapacityTutorialActive ? tutorialMilestone : undefined}
-           data-heat-capacity-mode-transition-phase={heatCapacityModeTransitionState.phase}
-           data-heat-capacity-visible-mode={heatCapacityModeTransitionState.visibleMode ?? ''}
-           data-heat-capacity-source-mode={heatCapacityModeTransitionState.sourceMode ?? ''}
-           data-heat-capacity-target-mode={heatCapacityModeTransitionState.targetMode ?? ''}
-           data-heat-capacity-queued-mode={heatCapacityModeTransitionState.queuedMode ?? ''}
-           data-heat-capacity-transition-request-id={heatCapacityModeTransitionState.requestId}
-           data-heat-capacity-transition-blockers={heatCapacityModeTransitionState.sourceBlockers.join(',')}
-           aria-busy={heatCapacityModeTransitionLocked}
-        >
-          <div
-            className={heatCapacityModeSegmentClassName('demo')}
-            data-heat-capacity-mode-segment="demo"
-          >
-          <button
-            type="button"
-            className={`studio-heat-mode-button ${heatCapacityActiveMode === 'demo' ? 'studio-heat-mode-button-active' : ''}`}
-            data-heat-capacity-mode="demo"
-            aria-pressed={heatCapacityActiveMode === 'demo'}
-            onClick={() => handleHeatCapacityModeSegmentClick('demo')}
-          >
-            {heatCapacityRealtimeCopy.modeDemo}
-          </button>
-          <div className="studio-heat-mode-actions studio-heat-mode-actions-demo" aria-hidden={!heatCapacityDemoActionsVisible}>
-            {heatCapacityModeControlState.demo.actions.map(renderHeatCapacityModeAction)}
-          </div>
-        </div>
-        {(!heatCapacityTutorialActive || isExperimentTutorialModeUnlocked(tutorialMilestone, 'guide')) ? <div
-          className={heatCapacityModeSegmentClassName('guide')}
-          data-heat-capacity-mode-segment="guide"
-        >
-          <button
-            type="button"
-            className={`studio-heat-mode-button ${heatCapacityActiveMode === 'guide' ? 'studio-heat-mode-button-active' : ''}`}
-            data-heat-capacity-mode="guide"
-            aria-pressed={heatCapacityActiveMode === 'guide'}
-            onClick={() => handleHeatCapacityModeSegmentClick('guide')}
-          >
-            {heatCapacityRealtimeCopy.modeGuide}
-          </button>
-          <div className="studio-heat-mode-actions studio-heat-mode-actions-guide" aria-hidden={!heatCapacityGuideActionsVisible}>
-            {heatCapacityModeControlState.guide.actions.map(renderHeatCapacityModeAction)}
-          </div>
-        </div> : null}
-        {(!heatCapacityTutorialActive || isExperimentTutorialModeUnlocked(tutorialMilestone, 'free')) ? <div
-          className={heatCapacityModeSegmentClassName('free')}
-          data-heat-capacity-mode-segment="free"
-        >
-          <button
-            type="button"
-            className={`studio-heat-mode-button ${heatCapacityActiveMode === 'free' ? 'studio-heat-mode-button-active' : ''}`}
-            data-heat-capacity-mode="free"
-            aria-pressed={heatCapacityActiveMode === 'free'}
-            onClick={() => handleHeatCapacityModeSegmentClick('free')}
-          >
-            {heatCapacityRealtimeCopy.modeFree}
-          </button>
-          <div className="studio-heat-mode-actions studio-heat-mode-actions-free" aria-hidden={!heatCapacityFreeActionsVisible}>
-            {heatCapacityModeControlState.free.actions.map(renderHeatCapacityModeAction)}
-          </div>
-        </div> : null}
-        </div>
-        <button
-          type="button"
-          className="studio-heat-guide-lesson-button"
-          data-heat-capacity-guide-lesson-button="true"
-          data-prompt-tooltip={heatCapacityRealtimeCopy.guideLessonButtonLabel}
-          aria-label={heatCapacityRealtimeCopy.guideLessonButtonLabel}
-          onClick={() => openHeatCapacityLessonIntro(activeFile.id)}
-        >
-          <Wrench size={18} strokeWidth={2.1} />
-        </button>
-      </div>
-    );
-  };
+  const renderHeatCapacityModeControl = () => (
+    <WorkbenchHeatCapacityModeControl
+      autoDemoPhase={autoDemoPhase}
+      activeFile={activeFile}
+      experienceProfile={experienceProfile}
+      tutorialActive={tutorialActive}
+      activeTutorialExperiment={activeTutorialExperiment}
+      heatCapacityResetFeedbackActionId={heatCapacityResetFeedbackActionId}
+      heatCapacityModeTransitionLocked={heatCapacityModeTransitionLocked}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      exitHeatCapacityGuideMode={exitHeatCapacityGuideMode}
+      exitCompletedHeatCapacityTeachingMode={exitCompletedHeatCapacityTeachingMode}
+      runHeatCapacityAutoDemo={runHeatCapacityAutoDemo}
+      pauseHeatCapacityAutoDemo={pauseHeatCapacityAutoDemo}
+      terminateHeatCapacityAutoDemo={terminateHeatCapacityAutoDemo}
+      resetHeatCapacityGuideExperiment={resetHeatCapacityGuideExperiment}
+      settingsLanguagePreference={settingsLanguagePreference}
+      exitHeatCapacityFormalModeToExplore={exitHeatCapacityFormalModeToExplore}
+      heatCapacityModeTransitionState={heatCapacityModeTransitionState}
+      handleHeatCapacityModeSegmentClick={handleHeatCapacityModeSegmentClick}
+      openHeatCapacityLessonIntro={openHeatCapacityLessonIntro}
+    />
+  );
 
-  const renderPistonOscillationModeControl = () => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') return null;
-    const pistonTutorialActive = tutorialActive && activeTutorialExperiment === 'pistonOscillation';
-    const tutorialMilestone = experienceProfile.learning.pistonOscillation;
-    const demoSelected = pistonOscillationDemoPlayback.fileId === activeFile.id
-      && pistonOscillationDemoPlayback.phase !== 'idle';
-    const demoRunning = demoSelected && pistonOscillationDemoPlayback.phase === 'running';
-    const demoPaused = demoSelected && pistonOscillationDemoPlayback.phase === 'paused';
-    const demoCompleted = demoSelected && pistonOscillationDemoPlayback.phase === 'completed';
-    const labels = pistonOscillationCopy.modes;
-    const guideSessionSelected = activeFile.pistonOscillationGuideSession.status === 'active'
-      || (
-        activeFile.pistonOscillationGuideSession.status === 'completed'
-        && !activeFile.pistonOscillationGuideSession.completionExited
-      );
-    const guideCompleted = activeFile.pistonOscillationGuideSession.status === 'completed';
-    const guideSelected = !demoSelected && guideSessionSelected;
-    const freeSelected = !demoSelected
-      && !guideSelected
-      && activeFile.pistonOscillationFreeSession.status === 'active';
-    const interactionLocked = pistonOscillationCalculationWindowOpen;
-    const commitPistonTeachingModeFile = (
-      updater: (file: WorkbenchFileState) => WorkbenchFileState,
-    ) => {
-      if (desktopExitQuiescedRef.current) return;
-      const fileId = activeFile.id;
-      const nextFiles = filesRef.current.map((file) => (
-        file.id === fileId ? updater(file) : file
-      ));
-      filesRef.current = nextFiles;
-      setFiles(nextFiles);
-      scheduleWorkspacePersistenceRef.current('semantic');
-      void flushWorkspacePersistenceRef.current();
-    };
-    const publishDemoSession = (
-      session: ReturnType<typeof createDefaultPistonOscillationDemoSession>,
-    ) => {
-      const snapshot = {
-        fileId: session.status === 'idle' ? null : activeFile.id,
-        phase: session.status,
-        elapsedMs: session.elapsedMs,
-      } as const;
-      pistonOscillationDemoPlaybackChannel.publish(snapshot);
-      setPistonOscillationDemoPlayback(snapshot);
-    };
-    const requestPistonTeachingModeSwitch = (onConfirm: () => void) => {
-      requestPromptConfirmation({
-        id: `switch-piston-teaching-mode:${activeFile.id}`,
-        tone: 'warning',
-        ...workbenchPromptCopy.switchPistonTeachingMode,
-        closeLabel: workbenchPromptCopy.closeLabel,
-        onConfirm,
-      });
-    };
-    const activateDemo = () => {
-      const nowMs = Date.now();
-      const demoSession = startPistonOscillationDemoSession(nowMs);
-      clearPistonOscillationGuideCompletionToast();
-      commitPistonTeachingModeFile((file) => {
-        if (file.kind !== 'heatCapacityPistonOscillation') return file;
-        let nextFile = guideSessionSelected
-          ? transitionPistonOscillationGuideWorkbenchState(file, {
-              type: 'exitSession',
-              nowMs,
-            })
-          : file;
-        if (nextFile.pistonOscillationFreeSession.status === 'active') {
-          nextFile = transitionPistonOscillationFreeWorkbenchState(nextFile, {
-            type: 'pause',
-            nowMs,
-          });
-        }
-        return {
-          ...nextFile,
-          pistonOscillationDemoSession: demoSession,
-          updatedAt: nowMs,
-        };
-      });
-      publishDemoSession(demoSession);
-      setPistonOscillationPowerOnByFileId((current) => ({
-        ...current,
-        [activeFile.id]: false,
-      }));
-      setLeftCollapsed(true);
-      setParametersCollapsed(true);
-    };
-    const startDemo = () => {
-      if (demoSelected) return;
-      const unfinishedGuide = guideSessionSelected && !guideCompleted;
-      if (unfinishedGuide || freeSelected) {
-        requestPistonTeachingModeSwitch(activateDemo);
-        return;
-      }
-      activateDemo();
-    };
-    const pauseDemo = () => {
-      if (!demoRunning) return;
-      const nowMs = Date.now();
-      const liveFile = filesRef.current.find((file) => file.id === activeFile.id);
-      if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
-      const demoSession = pausePistonOscillationDemoSession(
-        liveFile.pistonOscillationDemoSession,
-        PISTON_OSCILLATION_DEMO_DURATION_MS,
-        nowMs,
-      );
-      commitPistonTeachingModeFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? { ...file, pistonOscillationDemoSession: demoSession, updatedAt: nowMs }
-        : file);
-      publishDemoSession(demoSession);
-    };
-    const resumeDemo = () => {
-      if (!demoPaused) return;
-      const nowMs = Date.now();
-      const liveFile = filesRef.current.find((file) => file.id === activeFile.id);
-      if (!liveFile || liveFile.kind !== 'heatCapacityPistonOscillation') return;
-      const demoSession = resumePistonOscillationDemoSession(
-        liveFile.pistonOscillationDemoSession,
-        nowMs,
-      );
-      commitPistonTeachingModeFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? { ...file, pistonOscillationDemoSession: demoSession, updatedAt: nowMs }
-        : file);
-      publishDemoSession(demoSession);
-    };
-    const stopDemo = () => {
-      if (!demoRunning && !demoPaused) return;
-      const nowMs = Date.now();
-      const demoSession = createDefaultPistonOscillationDemoSession(nowMs);
-      commitPistonTeachingModeFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? { ...file, pistonOscillationDemoSession: demoSession, updatedAt: nowMs }
-        : file);
-      publishDemoSession(demoSession);
-      setPistonOscillationPowerOnByFileId((current) => ({
-        ...current,
-        [activeFile.id]: false,
-      }));
-      setLeftCollapsed(false);
-    };
-    const exitDemo = () => {
-      if (!demoCompleted) return;
-      const nowMs = Date.now();
-      const demoSession = createDefaultPistonOscillationDemoSession(nowMs);
-      commitPistonTeachingModeFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? { ...file, pistonOscillationDemoSession: demoSession, updatedAt: nowMs }
-        : file);
-      publishDemoSession(demoSession);
-      setPistonOscillationPowerOnByFileId((current) => ({
-        ...current,
-        [activeFile.id]: false,
-      }));
-      setLeftCollapsed(false);
-    };
-    const activateGuide = () => {
-      const nowMs = Date.now();
-      clearPistonOscillationGuideCompletionToast();
-      const demoSession = createDefaultPistonOscillationDemoSession(nowMs);
-      commitPistonTeachingModeFile((file) => {
-        if (file.kind !== 'heatCapacityPistonOscillation') return file;
-        const freePausedFile = file.pistonOscillationFreeSession.status === 'active'
-          ? transitionPistonOscillationFreeWorkbenchState(file, {
-              type: 'pause',
-              nowMs,
-            })
-          : file;
-        const nextFile = freePausedFile.pistonOscillationGuideSession.status === 'completed'
-          && freePausedFile.pistonOscillationGuideSession.completionExited
-          ? transitionPistonOscillationGuideWorkbenchState(freePausedFile, {
-              type: 'reopenCompletedSession',
-              nowMs,
-            })
-          : startPistonOscillationGuideWorkbenchState(freePausedFile);
-        return {
-          ...nextFile,
-          pistonOscillationDemoSession: demoSession,
-          updatedAt: nowMs,
-        };
-      });
-      publishDemoSession(demoSession);
-      setPistonOscillationPowerOnByFileId((current) => ({
-        ...current,
-        [activeFile.id]: false,
-      }));
-      setLeftCollapsed(true);
-      setParametersCollapsed(true);
-    };
-    const startGuide = () => {
-      if (guideSelected) return;
-      if (demoRunning || demoPaused || freeSelected) {
-        requestPistonTeachingModeSwitch(activateGuide);
-        return;
-      }
-      activateGuide();
-    };
-    const exitGuide = () => {
-      clearPistonOscillationGuideCompletionToast();
-      commitPistonTeachingModeFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? transitionPistonOscillationGuideWorkbenchState(file, {
-          type: 'exitSession',
-          nowMs: Date.now(),
-        })
-        : file);
-      setPistonOscillationPowerOnByFileId((current) => ({
-        ...current,
-        [activeFile.id]: false,
-      }));
-      setLeftCollapsed(false);
-    };
-    const resetGuide = () => {
-      clearPistonOscillationGuideCompletionToast();
-      if (pistonOscillationGuideResetFeedbackTimerRef.current !== null) {
-        window.clearTimeout(pistonOscillationGuideResetFeedbackTimerRef.current);
-      }
-      setPistonOscillationGuideResetFeedback(true);
-      pistonOscillationGuideResetFeedbackTimerRef.current = window.setTimeout(() => {
-        setPistonOscillationGuideResetFeedback(false);
-        pistonOscillationGuideResetFeedbackTimerRef.current = null;
-      }, 650);
-      commitPistonTeachingModeFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? transitionPistonOscillationGuideWorkbenchState(file, {
-          type: 'resetSession',
-          nowMs: Date.now(),
-        })
-        : file);
-      setPistonOscillationPowerOnByFileId((current) => ({
-        ...current,
-        [activeFile.id]: false,
-      }));
-    };
-    const requestFreeSetup = () => {
-      setPistonOscillationFreeSetupRequestedFileId(activeFile.id);
-    };
-    const startFree = () => {
-      if (freeSelected) return;
-      const resumeOrConfigure = activeFile.pistonOscillationFreeSession.status === 'paused'
-        ? () => activatePistonOscillationFreeMode(null)
-        : requestFreeSetup;
-      const unfinishedGuide = guideSessionSelected && !guideCompleted;
-      if (demoRunning || demoPaused || unfinishedGuide) {
-        requestPistonTeachingModeSwitch(resumeOrConfigure);
-        return;
-      }
-      resumeOrConfigure();
-    };
-    const exitFree = () => {
-      if (!freeSelected) return;
-      pausePistonOscillationFreeMode();
-    };
-    const pistonModeExpanded = demoSelected || guideSelected || freeSelected;
-    const pistonModeName = demoSelected
-      ? 'demo'
-      : guideSelected
-        ? 'guide'
-        : freeSelected
-          ? 'free'
-          : 'explore';
 
-    return (
-      <div className="studio-heat-mode-control-row">
-        <div
-          className={`studio-heat-mode-control studio-heat-mode-control-${pistonModeName} ${pistonModeExpanded ? 'studio-heat-mode-control-expanded' : ''} ${pistonTutorialActive ? `studio-heat-mode-control-tutorial-${tutorialMilestone}` : ''}`}
-          data-piston-oscillation-mode-control="true"
-          data-piston-oscillation-tutorial-milestone={pistonTutorialActive ? tutorialMilestone : undefined}
-          data-piston-oscillation-demo-phase={
-            demoSelected ? pistonOscillationDemoPlayback.phase : 'idle'
-          }
-          data-interaction-locked={interactionLocked || undefined}
-        >
-          <div
-            className={`studio-heat-mode-segment studio-heat-mode-segment-demo ${demoSelected ? 'studio-heat-mode-segment-active' : ''}`}
-            data-piston-oscillation-mode-segment="demo"
-          >
-            <button
-              type="button"
-              className={`studio-heat-mode-button ${demoSelected ? 'studio-heat-mode-button-active' : ''}`}
-              data-piston-oscillation-mode="demo"
-              aria-pressed={demoSelected}
-              disabled={interactionLocked}
-              onClick={startDemo}
-            >
-              {labels.demo}
-            </button>
-            <div
-              className="studio-heat-mode-actions studio-heat-mode-actions-demo"
-              aria-hidden={!demoSelected}
-            >
-              {demoRunning || demoPaused ? (
-                <>
-                  <button
-                    type="button"
-                    className="studio-heat-mode-action studio-heat-mode-action-icon"
-                    data-piston-oscillation-mode-action={demoPaused ? 'resume-demo' : 'pause-demo'}
-                    data-prompt-tooltip={demoPaused ? labels.resumeDemo : labels.pauseDemo}
-                    aria-label={demoPaused ? labels.resumeDemo : labels.pauseDemo}
-                    disabled={interactionLocked}
-                    onClick={demoPaused ? resumeDemo : pauseDemo}
-                  >
-                    {demoPaused ? (
-                      <Play size={13} strokeWidth={2.7} />
-                    ) : (
-                      <Pause size={13} strokeWidth={2.7} />
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                    data-piston-oscillation-mode-action="stop-demo"
-                    data-prompt-tooltip={labels.stopDemo}
-                    aria-label={labels.stopDemo}
-                    disabled={interactionLocked}
-                    onClick={stopDemo}
-                  >
-                    <Square size={12} strokeWidth={2.8} />
-                  </button>
-                </>
-              ) : demoCompleted ? (
-                <button
-                  type="button"
-                  className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                  data-piston-oscillation-mode-action="exit-demo"
-                  data-prompt-tooltip={labels.exitDemo}
-                  aria-label={labels.exitDemo}
-                  disabled={interactionLocked}
-                  onClick={exitDemo}
-                >
-                  <LogOut size={13} strokeWidth={2.7} />
-                </button>
-              ) : null}
-            </div>
-          </div>
-          {(!pistonTutorialActive || isExperimentTutorialModeUnlocked(tutorialMilestone, 'guide')) ? <div
-            className={`studio-heat-mode-segment studio-heat-mode-segment-guide ${guideSelected ? 'studio-heat-mode-segment-active' : ''}`}
-            data-piston-oscillation-mode-segment="guide"
-          >
-            <button
-              type="button"
-              className={`studio-heat-mode-button ${guideSelected ? 'studio-heat-mode-button-active' : ''}`}
-              data-piston-oscillation-mode="guide"
-              aria-pressed={guideSelected}
-              disabled={interactionLocked}
-              onClick={startGuide}
-            >
-              {labels.guide}
-            </button>
-            <div
-              className="studio-heat-mode-actions studio-heat-mode-actions-guide"
-              aria-hidden={!guideSelected}
-            >
-              {guideSelected ? (
-                <>
-                  <button
-                    type="button"
-                    className={`studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger${
-                      pistonOscillationGuideResetFeedback
-                        ? ' studio-heat-mode-action-feedback'
-                        : ''
-                    }`}
-                    data-piston-oscillation-mode-action="reset-guide"
-                    data-prompt-tooltip={labels.resetGuide}
-                    aria-label={labels.resetGuide}
-                    disabled={interactionLocked}
-                    onClick={resetGuide}
-                  >
-                    <RotateCcw size={13} strokeWidth={2.7} />
-                  </button>
-                  <button
-                    type="button"
-                    className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                    data-piston-oscillation-mode-action="exit-guide"
-                    data-prompt-tooltip={labels.exitGuide}
-                    aria-label={labels.exitGuide}
-                    disabled={interactionLocked}
-                    onClick={exitGuide}
-                  >
-                    {guideCompleted ? (
-                      <LogOut size={13} strokeWidth={2.7} />
-                    ) : (
-                      <Square size={12} strokeWidth={2.8} />
-                    )}
-                  </button>
-                </>
-              ) : null}
-            </div>
-          </div> : null}
-          {(!pistonTutorialActive || isExperimentTutorialModeUnlocked(tutorialMilestone, 'free')) ? <div
-            className={`studio-heat-mode-segment studio-heat-mode-segment-free ${freeSelected ? 'studio-heat-mode-segment-active' : ''}`}
-            data-piston-oscillation-mode-segment="free"
-          >
-            <button
-              type="button"
-              className={`studio-heat-mode-button ${freeSelected ? 'studio-heat-mode-button-active' : ''}`}
-              data-piston-oscillation-mode="free"
-              aria-pressed={freeSelected}
-              disabled={interactionLocked}
-              onClick={startFree}
-            >
-              {labels.free}
-            </button>
-            <div
-              className="studio-heat-mode-actions studio-heat-mode-actions-free"
-              aria-hidden={!freeSelected}
-            >
-              {freeSelected ? (
-                <button
-                  type="button"
-                  className="studio-heat-mode-action studio-heat-mode-action-icon studio-heat-mode-action-danger"
-                  data-piston-oscillation-mode-action="exit-free"
-                  data-prompt-tooltip={labels.exitFree}
-                  aria-label={labels.exitFree}
-                  disabled={interactionLocked}
-                  onClick={exitFree}
-                >
-                  <LogOut size={13} strokeWidth={2.7} />
-                </button>
-              ) : null}
-            </div>
-          </div> : null}
-        </div>
-        <button
-          type="button"
-          className="studio-heat-guide-lesson-button"
-          data-piston-oscillation-guide-lesson-button="true"
-          data-prompt-tooltip={pistonOscillationCopy.lesson.buttonLabel}
-          aria-label={pistonOscillationCopy.lesson.buttonLabel}
-          disabled={interactionLocked}
-          onClick={openPistonOscillationGuideLessonIntro}
-        >
-          <Wrench size={18} strokeWidth={2.1} />
-        </button>
-      </div>
-    );
-  };
+
+  const renderPistonOscillationModeControl = () => (
+    <WorkbenchPistonOscillationModeControl
+      activeFile={activeFile}
+      tutorialActive={tutorialActive}
+      activeTutorialExperiment={activeTutorialExperiment}
+      experienceProfile={experienceProfile}
+      pistonModeControl={pistonModeControl}
+      pistonOscillationDemoPlayback={pistonOscillationDemoPlayback}
+      pistonOscillationGuideResetFeedback={pistonOscillationGuideResetFeedback}
+      pistonOscillationCopy={pistonOscillationCopy}
+      openPistonOscillationGuideLessonIntro={openPistonOscillationGuideLessonIntro}
+    />
+  );
 
   const renderPistonOscillationGuideStepPanel = () => {
     if (
@@ -17452,197 +10747,19 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       || guideSession.step === 'calculationReady'
       || guideSession.step === 'completionReview'
     ) return null;
-    type GuidePanelStep = {
-      id: string;
-      steps: readonly PistonOscillationGuideStep[];
-      title: string;
-      detail: string;
-    };
-    const createAcquisitionSteps = (
-      measurementNumber: number,
-    ): readonly GuidePanelStep[] => [
-      { id: `screwLock-${measurementNumber}`, steps: ['screwLock'], title: pistonOscillationCopy.guide.lockScrewTitle, detail: pistonOscillationCopy.guide.lockScrewDetail },
-      { id: `hoseReconnect-${measurementNumber}`, steps: ['hoseReconnect'], title: pistonOscillationCopy.guide.reconnectHoseTitle, detail: pistonOscillationCopy.guide.reconnectHoseDetail },
-      { id: `screwLoosen-${measurementNumber}`, steps: ['screwLoosen'], title: pistonOscillationCopy.guide.loosenScrewTitle, detail: pistonOscillationCopy.guide.loosenScrewDetail },
-      { id: `acquisitionReady-${measurementNumber}`, steps: ['acquisitionReady'], title: pistonOscillationCopy.guide.startAcquisitionTitle, detail: pistonOscillationCopy.guide.startAcquisitionDetail },
-      { id: `waitingTrigger-${measurementNumber}`, steps: ['waitingTrigger'], title: pistonOscillationCopy.guide.releasePistonTitle, detail: pistonOscillationCopy.guide.releasePistonDetail },
-      { id: `recording-${measurementNumber}`, steps: ['recording'], title: pistonOscillationCopy.guide.recordingTitle, detail: pistonOscillationCopy.guide.recordingDetail },
-      { id: `pauseRecording-${measurementNumber}`, steps: ['pauseAvailable', 'curveFrozen'], title: pistonOscillationCopy.guide.pauseRecordingTitle, detail: pistonOscillationCopy.guide.pauseRecordingDetail },
-      { id: `saveCurve-${measurementNumber}`, steps: ['awaitingSaveOrRedo'], title: pistonOscillationCopy.guide.saveCurveTitle(measurementNumber), detail: pistonOscillationCopy.guide.saveCurveDetail(measurementNumber) },
-    ];
-    const createFollowingMeasurementPage = (
-      measurementIndex: 1 | 2,
-    ): readonly GuidePanelStep[] => {
-      const measurementNumber = measurementIndex + 1;
-      const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
-      return [
-        { id: `crossRunDisconnect-${measurementNumber}`, steps: ['crossRunDisconnect'], title: pistonOscillationCopy.guide.crossRunDisconnectTitle, detail: pistonOscillationCopy.guide.crossRunDisconnectDetail },
-        { id: `nextHeightAdjustment-${measurementNumber}`, steps: ['nextHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(targetHeightMm), detail: pistonOscillationCopy.guide.adjustHeightDetail(targetHeightMm) },
-        ...createAcquisitionSteps(measurementNumber),
-      ];
-    };
-    const guidePages: readonly (readonly GuidePanelStep[])[] = [
-      [
-        { id: 'powerOn-1', steps: ['powerOn'], title: pistonOscillationCopy.guide.powerOnTitle, detail: pistonOscillationCopy.guide.powerOnDetail },
-        { id: 'parameterSetup-1', steps: ['parameterSetup'], title: pistonOscillationCopy.guide.parameterSetupTitle, detail: pistonOscillationCopy.guide.parameterSetupDetail },
-        { id: 'firstHeightAdjustment-1', steps: ['firstHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]), detail: pistonOscillationCopy.guide.adjustHeightDetail(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]) },
-        ...createAcquisitionSteps(1),
-      ],
-      createFollowingMeasurementPage(1),
-      [
-        ...createFollowingMeasurementPage(2),
-        { id: 'powerOff-3', steps: ['powerOff'], title: pistonOscillationCopy.guide.powerOffTitle, detail: pistonOscillationCopy.guide.powerOffDetail },
-      ],
-    ];
-    const currentPageIndex = guideSession.status === 'completed'
-      ? 2
-      : guideSession.measurementIndex;
-    const currentPage = guidePages[currentPageIndex];
-    const guideCompleted = guideSession.status === 'completed';
-    const currentLocalStepIndex = guideCompleted
-      ? currentPage.length - 1
-      : Math.max(
-          0,
-          currentPage.findIndex((step) => step.steps.includes(guideSession.step)),
-        );
-    const currentPageViewedIndex = Math.max(
-      0,
-      Math.min(currentPage.length - 1, pistonOscillationGuideChecklistViewedIndex),
-    );
-    const currentStepNumber = currentPageViewedIndex + 1;
-    const totalStepCount = currentPage.length;
     return (
-      <section
-        className="studio-heat-guide-step-panel studio-piston-guide-step-panel"
-        data-piston-oscillation-guide-step-panel="true"
-        aria-label={pistonOscillationCopy.guide.checklist}
-      >
-        <div className="studio-heat-guide-step-header">
-          <span>{pistonOscillationCopy.guide.checklist}</span>
-          <em>{pistonOscillationCopy.guide.stepLabel} {currentStepNumber} / {totalStepCount}</em>
-          <strong>
-            {pistonOscillationCopy.acquisition.measurement(
-              guideSession.measurementIndex + 1,
-              PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
-            )}
-          </strong>
-        </div>
-        <div className="studio-piston-guide-pages" aria-live="polite">
-          <div
-            className="studio-piston-guide-page-track"
-            style={{ transform: `translate3d(-${currentPageIndex * 100}%, 0, 0)` }}
-          >
-            {guidePages.map((page, pageIndex) => {
-              const pageCurrentIndex = pageIndex === currentPageIndex
-                ? currentLocalStepIndex
-                : pageIndex < currentPageIndex ? page.length - 1 : 0;
-              const pageViewedIndex = pageIndex === currentPageIndex
-                ? currentPageViewedIndex
-                : pageCurrentIndex;
-              const pageBaseOffset = PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX
-                - pageViewedIndex * PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
-              return (
-                <div
-                  key={`measurement-page-${pageIndex + 1}`}
-                  className="studio-piston-guide-page"
-                  data-piston-oscillation-guide-page={pageIndex + 1}
-                  aria-hidden={pageIndex !== currentPageIndex}
-                >
-                  <div
-                    className="studio-heat-guide-step-list"
-                    data-piston-oscillation-guide-step-list="true"
-                    role="listbox"
-                    tabIndex={pageIndex === currentPageIndex ? 0 : -1}
-                    aria-label={
-                      pageIndex === currentPageIndex
-                        ? `${pistonOscillationCopy.guide.checklist}: ${pistonOscillationCopy.guide.stepLabel} ${currentStepNumber} / ${totalStepCount}`
-                        : undefined
-                    }
-                    aria-activedescendant={
-                      pageIndex === currentPageIndex
-                        ? `piston-guide-step-${pageIndex}-${page[pageViewedIndex]?.id}`
-                        : undefined
-                    }
-                    onWheel={
-                      pageIndex === currentPageIndex
-                        ? handlePistonOscillationGuideChecklistWheel
-                        : undefined
-                    }
-                    onKeyDown={
-                      pageIndex === currentPageIndex
-                        ? handlePistonOscillationGuideChecklistKeyDown
-                        : undefined
-                    }
-                  >
-                    <div className="studio-heat-guide-step-fade studio-heat-guide-step-fade-top" />
-                    <div className="studio-heat-guide-step-center-rail" />
-                    <div
-                      ref={
-                        pageIndex === currentPageIndex
-                          ? pistonOscillationGuideChecklistTrackRef
-                          : undefined
-                      }
-                      className="studio-heat-guide-step-track studio-heat-guide-step-track-snapping"
-                      data-piston-guide-current-index={pageCurrentIndex}
-                      data-piston-guide-page-length={page.length}
-                      style={{
-                        '--studio-heat-guide-step-base-offset': `${pageBaseOffset}px`,
-                        '--studio-heat-guide-step-visual-offset': `${pistonOscillationGuideChecklistVisualOffsetRef.current}px`,
-                      } as React.CSSProperties}
-                    >
-                      {page.map((step, index) => {
-                        const status = pageIndex < currentPageIndex || (
-                          pageIndex === currentPageIndex
-                          && (guideCompleted || index < currentLocalStepIndex)
-                        )
-                          ? 'done'
-                          : pageIndex === currentPageIndex && index === currentLocalStepIndex
-                            ? 'current'
-                            : 'upcoming';
-                        const centered = index === pageViewedIndex;
-                        return (
-                          <div
-                            key={step.id}
-                            id={`piston-guide-step-${pageIndex}-${step.id}`}
-                            role="option"
-                            aria-selected={centered}
-                            aria-current={centered ? 'step' : undefined}
-                            className={`studio-heat-guide-step-row studio-heat-guide-step-row-${status} ${centered ? 'studio-heat-guide-step-row-centered' : ''}`}
-                            data-piston-oscillation-guide-step={
-                              pageIndex === currentPageIndex
-                              && step.steps.includes(guideSession.step)
-                                ? guideSession.step
-                                : step.id
-                            }
-                            data-piston-oscillation-guide-step-status={status}
-                            style={{
-                              '--studio-heat-guide-step-distance': Math.abs(index - pageViewedIndex),
-                              '--studio-heat-guide-step-signed-distance': index - pageViewedIndex,
-                            } as React.CSSProperties}
-                          >
-                            <span className="studio-heat-guide-step-marker" aria-hidden="true"><i /></span>
-                            <span className="studio-heat-guide-step-text">
-                              <strong>{step.title}</strong>
-                              <em>{step.detail}</em>
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <div className="studio-heat-guide-step-fade studio-heat-guide-step-fade-bottom" />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-        <div className="studio-piston-guide-page-dots" aria-label={`${currentPageIndex + 1} / 3`}>
-          {[0, 1, 2].map((pageIndex) => (
-            <i key={pageIndex} className={pageIndex === currentPageIndex ? 'is-active' : ''} aria-hidden="true" />
-          ))}
-        </div>
-      </section>
-    );
+    <WorkbenchPistonOscillationGuideSteps
+      activeFile={activeFile}
+      activePistonOscillationGuideSelected={activePistonOscillationGuideSelected}
+      activePistonOscillationDemoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
+      pistonOscillationCopy={pistonOscillationCopy}
+      pistonOscillationGuideChecklistViewedIndex={pistonOscillationGuideChecklistViewedIndex}
+      handlePistonOscillationGuideChecklistWheel={handlePistonOscillationGuideChecklistWheel}
+      handlePistonOscillationGuideChecklistKeyDown={handlePistonOscillationGuideChecklistKeyDown}
+      pistonOscillationGuideChecklistTrackRef={pistonOscillationGuideChecklistTrackRef}
+      pistonOscillationGuideChecklistVisualOffsetRef={pistonOscillationGuideChecklistVisualOffsetRef}
+    />
+  );
   };
 
   const renderPistonOscillationGuideLessonOverlay = () => {
@@ -17655,84 +10772,18 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     );
     if (!lessonView) return null;
     return (
-      <div
-        className={`studio-heat-guide-lesson-layer studio-piston-guide-lesson-layer studio-heat-guide-lesson-layer-${
-          pistonOscillationGuideLessonDialog.closing ? 'closing' : 'open'
-        }`}
-        data-piston-oscillation-guide-lesson-layer="true"
-        role="presentation"
-        onMouseDown={advancePistonOscillationGuideLessonDialog}
-      >
-        <section
-          ref={pistonOscillationGuideLessonDialogRef}
-          className={`studio-heat-guide-lesson-card studio-piston-guide-lesson-card-long studio-heat-guide-lesson-card-${
-            pistonOscillationGuideLessonDialog.kind === 'intro' ? 'intro' : 'step'
-          } ${
-            pistonOscillationGuideLessonDialog.kind === 'completion'
-              ? 'studio-piston-guide-lesson-card-completion'
-              : ''
-          }`}
-          data-piston-oscillation-guide-lesson-dialog="true"
-          data-piston-oscillation-guide-lesson-kind={pistonOscillationGuideLessonDialog.kind}
-          role="dialog"
-          aria-label={
-            pistonOscillationGuideLessonDialog.kind === 'completion'
-              ? pistonOscillationCopy.guide.completedTitle
-              : pistonOscillationGuideLessonDialog.kind === 'intro'
-                ? pistonOscillationCopy.lesson.label
-                : lessonView.title
-          }
-          aria-modal="true"
-          tabIndex={-1}
-          onMouseDown={(event) => event.stopPropagation()}
-          onKeyDown={handlePistonOscillationGuideLessonDialogKeyDown}
-        >
-          <button
-            type="button"
-            className="studio-heat-guide-lesson-close"
-            aria-label={pistonOscillationCopy.lesson.close}
-            onMouseDown={(event) => event.stopPropagation()}
-            onClick={(event) => {
-              event.stopPropagation();
-              closePistonOscillationGuideLessonDialog();
-            }}
-          >
-            <X size={13} strokeWidth={2.7} />
-          </button>
-          <div className="studio-heat-guide-lesson-kicker">
-            <span>{pistonOscillationCopy.lesson.label}</span>
-          </div>
-          <div
-            className={`studio-heat-guide-lesson-content-stack ${
-              pistonOscillationGuideLessonOutgoingView
-                ? 'studio-piston-guide-lesson-content-stack-transitioning'
-                : ''
-            }`}
-          >
-            {pistonOscillationGuideLessonOutgoingView ? (
-              <div
-                key={`outgoing-${pistonOscillationGuideLessonOutgoingView.key}`}
-                className="studio-heat-guide-lesson-content studio-heat-guide-lesson-content-outgoing"
-                aria-hidden="true"
-              >
-                <strong>{renderScientificText(pistonOscillationGuideLessonOutgoingView.title)}</strong>
-                <p>{renderScientificText(pistonOscillationGuideLessonOutgoingView.body)}</p>
-              </div>
-            ) : null}
-            <div
-              key={`current-${lessonView.key}`}
-              className="studio-heat-guide-lesson-content studio-heat-guide-lesson-content-current"
-            >
-              <strong>{renderScientificText(lessonView.title)}</strong>
-              <p>{renderScientificText(lessonView.body)}</p>
-            </div>
-          </div>
-          <div className="studio-heat-guide-lesson-hint">
-            {pistonOscillationCopy.recovery.continueHint}
-          </div>
-        </section>
-      </div>
-    );
+    <WorkbenchPistonOscillationGuideLesson
+      pistonOscillationGuideLessonDialog={pistonOscillationGuideLessonDialog}
+      activeFile={activeFile}
+      getPistonOscillationGuideLessonView={getPistonOscillationGuideLessonView}
+      advancePistonOscillationGuideLessonDialog={advancePistonOscillationGuideLessonDialog}
+      pistonOscillationGuideLessonDialogRef={pistonOscillationGuideLessonDialogRef}
+      pistonOscillationCopy={pistonOscillationCopy}
+      handlePistonOscillationGuideLessonDialogKeyDown={handlePistonOscillationGuideLessonDialogKeyDown}
+      closePistonOscillationGuideLessonDialog={closePistonOscillationGuideLessonDialog}
+      pistonOscillationGuideLessonOutgoingView={pistonOscillationGuideLessonOutgoingView}
+    />
+  );
   };
 
   const pistonOscillationGuideStepPanel = renderPistonOscillationGuideStepPanel();
@@ -17809,20 +10860,19 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                     : heatCapacityRealtimeCopy.recordU2
               );
               const heatCapacityDemoStepPanel = !activeHeatCapacityModalLocked && autoDemoStepPanelMode !== 'hidden' && (autoDemoRunning || autoDemoPaused || autoDemoStepTitle) ? (
-                <div
-                  className={`studio-heat-demo-step-panel studio-heat-demo-step-panel-${autoDemoStepPanelMode}`}
-                  data-heat-capacity-demo-step-panel="true"
-                >
-                  <div className="studio-heat-demo-step-kicker">
-                    <span>{autoDemoRunning || autoDemoPaused ? `Step ${autoDemoStepIndex} / ${autoDemoStepCount}` : heatCapacityRealtimeCopy.autoDemoFinishedLabel}</span>
-                    <i>{autoDemoPaused ? heatCapacityRealtimeCopy.demoPausedLabel : autoDemoRunning ? heatCapacityRealtimeCopy.demoRunning : heatCapacityRealtimeCopy.demoDoneLabel}</i>
-                  </div>
-                  <strong>{renderScientificText(autoDemoStepTitle || heatCapacityRealtimeCopy.autoDemoFinishedTitle)}</strong>
-                  <p>{renderScientificText(autoDemoStepDescription || heatCapacityRealtimeCopy.autoDemoFinishedDescription)}</p>
-                  <div><span>{heatCapacityRealtimeCopy.demoTargetLabel}</span><em>{renderScientificText(autoDemoStepTarget || '--')}</em></div>
-                  <div><span>{heatCapacityRealtimeCopy.demoProgressLabel}</span><em>{renderScientificText(autoDemoStepProgressCriterion || '--')}</em></div>
-                  <div><span>{heatCapacityRealtimeCopy.demoObservationLabel}</span><em>{renderScientificText(autoDemoStepNote || heatCapacityRealtimeCopy.demoFallbackNote)}</em></div>
-                </div>
+                <WorkbenchHeatCapacityDemoSteps
+      autoDemoStepPanelMode={autoDemoStepPanelMode}
+      autoDemoRunning={autoDemoRunning}
+      autoDemoPaused={autoDemoPaused}
+      autoDemoStepIndex={autoDemoStepIndex}
+      autoDemoStepCount={autoDemoStepCount}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      autoDemoStepTitle={autoDemoStepTitle}
+      autoDemoStepDescription={autoDemoStepDescription}
+      autoDemoStepTarget={autoDemoStepTarget}
+      autoDemoStepProgressCriterion={autoDemoStepProgressCriterion}
+      autoDemoStepNote={autoDemoStepNote}
+    />
               ) : null;
               const heatCapacityGuideProcessPromptBlocked = activeHeatCapacityPressureAlarmVisible ||
                 autoDemoCompletionMessage ||
@@ -17836,120 +10886,24 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                   activeHeatCapacityGuideStep !== 'idle' &&
                   activeHeatCapacityGuideStep !== 'completed'
                 )
-                  ? (() => {
-                    const heatCapacityGuideCurrentStepIndex = getHeatCapacityGuideChecklistIndex(activeHeatCapacityGuideStep);
-                    const heatCapacityGuideViewedStepIndex = Math.max(
-                      0,
-                      Math.min(HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.length - 1, heatCapacityGuideChecklistViewedIndex),
-                    );
-                    const heatCapacityGuideSteps = HEAT_CAPACITY_GUIDE_CHECKLIST_STEPS.map((step, index) => {
-                      const detail = getGuideStepGuidance(step.guideStep, activeFile).message;
-                      const status = index < heatCapacityGuideCurrentStepIndex
-                        ? 'done'
-                        : index === heatCapacityGuideCurrentStepIndex
-                          ? 'current'
-                          : 'pending';
-                      return {
-                        ...step,
-                        detail,
-                        index,
-                        status,
-                        centerDistance: Math.abs(index - heatCapacityGuideViewedStepIndex),
-                        signedDistance: index - heatCapacityGuideViewedStepIndex,
-                      };
-                    });
-                    const viewedStep = heatCapacityGuideSteps[heatCapacityGuideViewedStepIndex] ?? heatCapacityGuideSteps[0];
-                    const baseOffset = HEAT_CAPACITY_GUIDE_CHECKLIST_CENTER_OFFSET_PX -
-                      heatCapacityGuideViewedStepIndex * HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX;
-                    const trackStyle = {
-                      '--studio-heat-guide-step-base-offset': `${baseOffset}px`,
-                      '--studio-heat-guide-step-visual-offset': `${heatCapacityGuideChecklistVisualOffsetRef.current}px`,
-                    } as React.CSSProperties;
-                    return (
-                      <section
-                        className="studio-heat-guide-step-panel"
-                        data-heat-capacity-guide-step-panel="true"
-                        aria-label={heatCapacityRealtimeCopy.guideChecklistLabel}
-                      >
-                        <div className="studio-heat-guide-step-header">
-                          <span>{heatCapacityRealtimeCopy.guideChecklistLabel}</span>
-                          <em>
-                            {heatCapacityRealtimeCopy.guideStepLabel}
-                            {' '}
-                            {heatCapacityGuideViewedStepIndex + 1}
-                            {' / '}
-                            {heatCapacityGuideSteps.length}
-                          </em>
-                          <strong>{renderScientificText(viewedStep.title[settingsLanguagePreference])}</strong>
-                        </div>
-                        <div
-                          className="studio-heat-guide-step-list"
-                          data-heat-capacity-guide-step-list="true"
-                          onWheel={handleHeatCapacityGuideChecklistWheel}
-                        >
-                          <div className="studio-heat-guide-step-fade studio-heat-guide-step-fade-top" aria-hidden="true" />
-                          <div className="studio-heat-guide-step-center-rail" aria-hidden="true" />
-                          <div
-                            ref={heatCapacityGuideChecklistTrackRef}
-                            className="studio-heat-guide-step-track studio-heat-guide-step-track-snapping"
-                            style={trackStyle}
-                          >
-                            {heatCapacityGuideSteps.map((step) => {
-                              const isCentered = step.index === heatCapacityGuideViewedStepIndex;
-                              const requiredRecordKind: HeatCapacityGuideRecordKind | null =
-                                step.guideStep === 'recordU0Required'
-                                  ? 'u0'
-                                  : step.guideStep === 'recordU1Required'
-                                    ? 'u1'
-                                    : step.guideStep === 'recordU2Required'
-                                      ? 'u2'
-                                      : null;
-                              const stepRecordKind = step.status === 'current' && isCentered && requiredRecordKind === activeGuideRecordKind
-                                ? requiredRecordKind
-                                : null;
-                              return (
-                                <div
-                                  key={step.id}
-                                  className={`studio-heat-guide-step-row studio-heat-guide-step-row-${step.status} ${isCentered ? 'studio-heat-guide-step-row-centered' : ''} ${stepRecordKind ? 'studio-heat-guide-step-row-with-record' : ''}`}
-                                  data-heat-capacity-guide-step-row={step.id}
-                                  data-heat-capacity-guide-step-status={step.status}
-                                  data-heat-capacity-guide-step-centered={isCentered ? 'true' : 'false'}
-                                  style={{
-                                    '--studio-heat-guide-step-distance': step.centerDistance,
-                                    '--studio-heat-guide-step-signed-distance': step.signedDistance,
-                                  } as React.CSSProperties}
-                                >
-                                  <span className="studio-heat-guide-step-marker" aria-hidden="true">
-                                    <i />
-                                  </span>
-                                  <span className="studio-heat-guide-step-text">
-                                    <strong>{renderScientificText(step.title[settingsLanguagePreference])}</strong>
-                                    <em>{renderScientificText(step.detail)}</em>
-                                  </span>
-                                  {stepRecordKind ? (
-                                    <span
-                                      className={`studio-heat-guide-step-record-action studio-heat-record-controls ${guideHeatCapacityPulseActive && guideHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''}`}
-                                      data-heat-capacity-guide-step-record-action="true"
-                                      data-heat-capacity-record-controls="true"
-                                    >
-                                      <button
-                                        type="button"
-                                        data-heat-capacity-guided-record={stepRecordKind}
-                                        onClick={() => recordHeatCapacityGuideSample(stepRecordKind)}
-                                      >
-                                        {renderScientificText(getGuideRecordLabel(stepRecordKind))}
-                                      </button>
-                                    </span>
-                                  ) : null}
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <div className="studio-heat-guide-step-fade studio-heat-guide-step-fade-bottom" aria-hidden="true" />
-                        </div>
-                      </section>
-                    );
-                  })()
+                  ? <WorkbenchHeatCapacityGuideSteps
+      activeHeatCapacityGuideStep={activeHeatCapacityGuideStep}
+      heatCapacityGuideChecklistViewedIndex={heatCapacityGuideChecklistViewedIndex}
+      getGuideStepGuidance={getGuideStepGuidance}
+      activeFile={activeFile}
+      HEAT_CAPACITY_GUIDE_CHECKLIST_CENTER_OFFSET_PX={HEAT_CAPACITY_GUIDE_CHECKLIST_CENTER_OFFSET_PX}
+      HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX={HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX}
+      heatCapacityGuideChecklistVisualOffsetRef={heatCapacityGuideChecklistVisualOffsetRef}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      settingsLanguagePreference={settingsLanguagePreference}
+      handleHeatCapacityGuideChecklistWheel={handleHeatCapacityGuideChecklistWheel}
+      heatCapacityGuideChecklistTrackRef={heatCapacityGuideChecklistTrackRef}
+      activeGuideRecordKind={activeGuideRecordKind}
+      guideHeatCapacityPulseActive={guideHeatCapacityPulseActive}
+      guideHeatCapacityFocusControlId={guideHeatCapacityFocusControlId}
+      recordHeatCapacityGuideSample={recordHeatCapacityGuideSample}
+      getGuideRecordLabel={getGuideRecordLabel}
+    />
                   : null;
               const heatCapacityTopRightOverlay = heatCapacityDemoStepPanel || heatCapacityGuideStepPanel ? (
                 <div className="studio-heat-top-right-stack" data-heat-capacity-top-right-stack="true">
@@ -18043,28 +10997,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 heatCapacityWaitTimerDisplay &&
                 heatCapacityWaitTimer
                 ? (
-                    <div
-                      className={`studio-heat-wait-overlay${
-                        heatCapacityAutoDemoWaitTimer?.phase === 'exiting'
-                          ? ' studio-heat-wait-overlay-exiting'
-                          : ''
-                      }`}
-                      data-heat-capacity-wait-overlay="true"
-                      data-heat-capacity-wait-mode={activeFile.heatCapacityMode}
-                    >
-                      <HeatCapacityWaitController
-                        elapsedS={heatCapacityWaitTimer.elapsedS}
-                        targetS={heatCapacityWaitTimer.targetS}
-                        phaseLabel={heatCapacityWaitTimerDisplay.label}
-                        statusText={heatCapacityWaitTimerDisplay.statusText}
-                        speedMultiplier={heatCapacityActiveSpeedMultiplier}
-                        speedLabelCode={heatCapacityRealtimeCopy.freeSpeedLabelCode}
-                        speedLabel={heatCapacityRealtimeCopy.freeSpeedLabel}
-                        speedAriaLabel={heatCapacityRealtimeCopy.freeSpeedAria}
-                        speedOptionsDisabled={heatCapacitySpeedOptionsDisabled}
-                        onSpeedMultiplierChange={updateHeatCapacityFreeEquilibriumSpeedMultiplier}
-                      />
-                    </div>
+                    <WorkbenchHeatCapacityWaitOverlay
+      heatCapacityAutoDemoWaitTimer={heatCapacityAutoDemoWaitTimer}
+      activeFile={activeFile}
+      heatCapacityWaitTimer={heatCapacityWaitTimer}
+      heatCapacityWaitTimerDisplay={heatCapacityWaitTimerDisplay}
+      heatCapacityActiveSpeedMultiplier={heatCapacityActiveSpeedMultiplier}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      heatCapacitySpeedOptionsDisabled={heatCapacitySpeedOptionsDisabled}
+      updateHeatCapacityFreeEquilibriumSpeedMultiplier={updateHeatCapacityFreeEquilibriumSpeedMultiplier}
+    />
                   )
                 : null;
               const freeRecordU0ButtonState = activeFile.heatCapacityMode === 'free'
@@ -18099,131 +11041,42 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 );
               };
               const heatCapacityBottomRightOverlay = activeHeatCapacityModalLocked ? null : (
-                <div className="studio-heat-preview-control-stack" data-heat-capacity-preview-control-stack="true">
-                  {activeFile.heatCapacityMode === 'free' && freeRecordControlsVisible ? (
-                    <div
-                      className="studio-heat-record-controls studio-heat-free-record-controls"
-                      data-heat-capacity-free-record-controls="true"
-                    >
-                      {freeRecordU0ButtonState ? renderFreeRecordButton('u0', freeRecordU0ButtonState) : null}
-                      {freeRecordU1ButtonState ? renderFreeRecordButton('u1', freeRecordU1ButtonState) : null}
-                      {freeRecordU2ButtonState ? renderFreeRecordButton('u2', freeRecordU2ButtonState) : null}
-                    </div>
-                  ) : null}
-                  {(() => {
-                    const guideStep = getHeatCapacityGuideStep(activeFile);
-                    const activeRecordKind = guideHeatCapacityActiveFileId === activeFile.id && !autoDemoInteractionLocked
-                      ? activeFile.heatCapacityMode !== 'guide'
-                        ? guideStep === 'recordU0Required'
-                          ? 'u0'
-                          : guideStep === 'recordU1Required'
-                            ? 'u1'
-                            : guideStep === 'recordU2Required'
-                              ? 'u2'
-                              : null
-                        : null
-                      : null;
-                    const visibleRecordKind = activeFile.heatCapacityMode === 'guide'
-                      ? null
-                      : activeRecordKind ?? heatCapacityRecordControlsClosing;
-                    if (!visibleRecordKind) return null;
-                    const label = visibleRecordKind === 'u0'
-                      ? heatCapacityRealtimeCopy.recordU0
-                      : visibleRecordKind === 'u1'
-                        ? heatCapacityRealtimeCopy.recordU1
-                        : heatCapacityRealtimeCopy.recordU2;
-                    return (
-                      <div
-                        className={`studio-heat-record-controls ${guideHeatCapacityPulseActive && guideHeatCapacityFocusControlId?.startsWith('record') ? 'studio-heat-record-controls-pulse' : ''} ${!activeRecordKind ? 'studio-heat-record-controls-exiting' : ''}`}
-                        data-heat-capacity-record-controls="true"
-                      >
-                        <button
-                          type="button"
-                          data-heat-capacity-guided-record={visibleRecordKind}
-                          disabled={!activeRecordKind}
-                          onClick={() => recordHeatCapacityGuideSample(visibleRecordKind)}
-                        >
-                          {renderScientificText(label)}
-                        </button>
-                      </div>
-                    );
-                  })()}
-                </div>
+                <WorkbenchHeatCapacityRecordControls
+      activeFile={activeFile}
+      freeRecordControlsVisible={freeRecordControlsVisible}
+      freeRecordU0ButtonState={freeRecordU0ButtonState}
+      renderFreeRecordButton={renderFreeRecordButton}
+      freeRecordU1ButtonState={freeRecordU1ButtonState}
+      freeRecordU2ButtonState={freeRecordU2ButtonState}
+      getHeatCapacityGuideStep={getHeatCapacityGuideStep}
+      guideHeatCapacityActiveFileId={guideHeatCapacityActiveFileId}
+      autoDemoInteractionLocked={autoDemoInteractionLocked}
+      heatCapacityRecordControlsClosing={heatCapacityRecordControlsClosing}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      guideHeatCapacityPulseActive={guideHeatCapacityPulseActive}
+      guideHeatCapacityFocusControlId={guideHeatCapacityFocusControlId}
+      recordHeatCapacityGuideSample={recordHeatCapacityGuideSample}
+    />
               );
               const heatCapacityCenterOverlay = (
-                <>
-                  {activeHeatCapacityPreheatLocked ? (
-                    <HeatCapacityPreheatOverlay
-                      key={`${activeFile.id}:${activeHeatCapacityPreheatMode}`}
-                      language={settingsLanguagePreference}
-                      paused={heatCapacityRefreshRestoring || heatCapacityModeTransitionLocked || (
-                        activeHeatCapacityPreheatMode === 'demo' && autoDemoPaused
-                      )}
-                      onComplete={completeActiveHeatCapacityPreheat}
-                    />
-                  ) : null}
-                  {activeHeatCapacityInvalidAttemptPrompt ? (
-                    <HeatCapacityInvalidAttemptDialog
-                      language={settingsLanguagePreference}
-                      onReset={restartHeatCapacityFreeExperiment}
-                      onContinue={continueHeatCapacityInvalidAttempt}
-                    />
-                  ) : null}
-                  {!activeHeatCapacityModalLocked && activeHeatCapacityPressureAlarmVisible ? (
-                    <div
-                      className="studio-heat-pressure-warning"
-                      data-heat-capacity-pressure-warning="true"
-                      data-prompt-feedback-kind="danger"
-                      data-prompt-feedback-persistent="true"
-                      role="alert"
-                      aria-live="assertive"
-                      aria-atomic="true"
-                    >
-                      <ShieldAlert className="studio-heat-pressure-warning-icon" size={24} strokeWidth={2} aria-hidden="true" />
-                      <div className="studio-heat-pressure-warning-kicker">
-                        <span>{heatCapacityRealtimeCopy.safetyLimit}</span>
-                        <em>{heatCapacityRealtimeCopy.safetyActive}</em>
-                      </div>
-                      <strong>{heatCapacityRealtimeCopy.pressureAlarmTitle}</strong>
-                      <span>{heatCapacityRealtimeCopy.pressureWarningFallback}</span>
-                      <em>{heatCapacityRealtimeCopy.pressureWarningObserve}</em>
-                    </div>
-                  ) : null}
-                  {!activeHeatCapacityModalLocked && autoDemoCompletionMessage ? (
-                    <div
-                      className="studio-heat-demo-complete-toast"
-                      data-heat-capacity-demo-complete-toast="true"
-                      data-prompt-feedback-kind="success"
-                      role="status"
-                      aria-live="polite"
-                      aria-atomic="true"
-                    >
-                      <span className="studio-heat-toast-kicker">{heatCapacityRealtimeCopy.toastSystemKicker}</span>
-                      <strong>{autoDemoCompletionMessage}</strong>
-                    </div>
-                  ) : null}
-                  {!activeHeatCapacityModalLocked && heatCapacityToastCurrent ? (
-                    <PromptViewportFeedback
-                      key={heatCapacityToastCurrent.id}
-                      id={heatCapacityToastCurrent.id}
-                      kind={heatCapacityToastCurrent.level}
-                      label={PROMPT_FEEDBACK_COPY[settingsLanguagePreference].kindLabels[
-                        heatCapacityToastCurrent.level
-                      ]}
-                      durationMs={heatCapacityToastCurrent.durationMs}
-                      dataAttributes={{
-                        'data-heat-capacity-guide-step-hint': 'true',
-                        'data-heat-capacity-toast': 'true',
-                        'data-heat-capacity-toast-level': heatCapacityToastCurrent.level,
-                        'data-prompt-feedback-source': heatCapacityToastCurrent.source,
-                        'data-prompt-feedback-placement': 'viewport-center',
-                        'data-prompt-feedback-owner': 'heat-capacity',
-                      }}
-                    >
-                      {renderScientificText(heatCapacityToastCurrent.text)}
-                    </PromptViewportFeedback>
-                  ) : null}
-                </>
+                <WorkbenchHeatCapacityCenterFeedback
+      activeHeatCapacityPreheatLocked={activeHeatCapacityPreheatLocked}
+      activeFile={activeFile}
+      activeHeatCapacityPreheatMode={activeHeatCapacityPreheatMode}
+      settingsLanguagePreference={settingsLanguagePreference}
+      heatCapacityRefreshRestoring={heatCapacityRefreshRestoring}
+      heatCapacityModeTransitionLocked={heatCapacityModeTransitionLocked}
+      autoDemoPaused={autoDemoPaused}
+      completeActiveHeatCapacityPreheat={completeActiveHeatCapacityPreheat}
+      activeHeatCapacityInvalidAttemptPrompt={activeHeatCapacityInvalidAttemptPrompt}
+      restartHeatCapacityFreeExperiment={restartHeatCapacityFreeExperiment}
+      continueHeatCapacityInvalidAttempt={continueHeatCapacityInvalidAttempt}
+      activeHeatCapacityModalLocked={activeHeatCapacityModalLocked}
+      activeHeatCapacityPressureAlarmVisible={activeHeatCapacityPressureAlarmVisible}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      autoDemoCompletionMessage={autoDemoCompletionMessage}
+      heatCapacityToastCurrent={heatCapacityToastCurrent}
+    />
               );
               const heatCapacityBottomCenterOverlay = null;
               const heatCapacityGuideStrongTargetSpec = guideHeatCapacityStrongReminderActive
@@ -18246,46 +11099,27 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 ? heatCapacityRealtimeCopy[heatCapacityGuideStrongTargetSpec.reminderCopyKey ?? 'guideStrongReminder']
                 : heatCapacityRealtimeCopy.guideStrongReminder;
               const heatCapacityGuideStrongMaskOverlay = heatCapacityGuideStrongTargetSpec ? (
-                <div
-                  ref={heatCapacityGuideMaskRef}
-                  className={`studio-heat-guide-strong-mask studio-heat-guide-strong-mask-${heatCapacityGuideStrongTargetSpec.id}`}
-                  data-heat-capacity-guide-strong-mask="true"
-                  data-heat-capacity-guide-mask-target={heatCapacityGuideStrongTargetSpec.id}
-                >
-                  <svg
-                    className="studio-heat-guide-strong-cutout-svg"
-                    viewBox={`0 0 ${heatCapacityGuideMaskBounds.width} ${heatCapacityGuideMaskBounds.height}`}
-                    aria-hidden="true"
-                  >
-                    <path
-                      className="studio-heat-guide-strong-dim"
-                      d={heatCapacityGuideDimPath}
-                      fillRule="evenodd"
-                      clipRule="evenodd"
-                    />
-                    <g>
-                      {heatCapacityGuideCutouts.map(renderHeatCapacityGuideStrongCutoutOutline)}
-                    </g>
-                  </svg>
-                  <div className="studio-heat-guide-strong-card">
-                    <strong>{renderScientificText(heatCapacityGuideStrongReminderText)}</strong>
-                  </div>
-                </div>
+                <WorkbenchHeatCapacityStrongMask
+      heatCapacityGuideMaskRef={heatCapacityGuideMaskRef}
+      heatCapacityGuideStrongTargetSpec={heatCapacityGuideStrongTargetSpec}
+      heatCapacityGuideMaskBounds={heatCapacityGuideMaskBounds}
+      heatCapacityGuideDimPath={heatCapacityGuideDimPath}
+      heatCapacityGuideCutouts={heatCapacityGuideCutouts}
+      heatCapacityGuideStrongReminderText={heatCapacityGuideStrongReminderText}
+    />
               ) : null;
               const heatCapacityGuideLessonOverlay = renderHeatCapacityGuideLessonOverlay();
               const heatCapacityPreheatLockOverlay = activeHeatCapacityModalLocked ? (
-                <div
-                  className="studio-heat-preheat-lock-layer"
-                  data-heat-capacity-modal-lock="true"
-                  data-heat-capacity-preheat-lock={activeHeatCapacityPreheatLocked ? 'true' : undefined}
-                />
+                <WorkbenchHeatCapacityPreheatLock
+      activeHeatCapacityPreheatLocked={activeHeatCapacityPreheatLocked}
+    />
               ) : null;
               const heatCapacityGuideMaskOverlay = heatCapacityPreheatLockOverlay || heatCapacityGuideStrongMaskOverlay || heatCapacityGuideLessonOverlay ? (
-                <>
-                  {heatCapacityPreheatLockOverlay}
-                  {heatCapacityGuideStrongMaskOverlay}
-                  {heatCapacityGuideLessonOverlay}
-                </>
+                <WorkbenchHeatCapacityGuideMask
+      heatCapacityPreheatLockOverlay={heatCapacityPreheatLockOverlay}
+      heatCapacityGuideStrongMaskOverlay={heatCapacityGuideStrongMaskOverlay}
+      heatCapacityGuideLessonOverlay={heatCapacityGuideLessonOverlay}
+    />
               ) : null;
               const heatCapacityHardSphereGasTemperatureK = activeFile.heatCapacityMode === 'guide'
                 ? activeFile.heatCapacityGuidePhysicsState.gasTemperatureK
@@ -18759,269 +11593,50 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             })()}
           </div>
         ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
-          <div className="studio-piston-oscillation-preview-mount">
-            <PistonOscillationInstrumentScene
-              key={`${activeFile.id}:${activePistonOscillationParameterSignature}`}
-              language={settingsLanguagePreference}
-              powerOn={activePistonOscillationPowerOn}
-              onPowerToggle={handlePistonOscillationPowerToggle}
-              sensorSampleRateHz={activePistonOscillationFreeSelected
-                ? activeFile.pistonOscillationFreeSession.sampleRateHz ?? undefined
-                : undefined}
-              physicsConfig={activePistonOscillationPhysicsConfig}
-              thermalConfig={activePistonOscillationThermalConfig}
-              adiabaticProcess={
-                activePistonOscillationEffectiveConfig?.adiabaticProcess
-              }
-              releaseAsymmetryConfig={
-                activePistonOscillationReleaseAsymmetryConfig
-              }
-              sceneTheme={resolvedWorkbenchTheme}
-              cameraPreset={activeFile.previewCameraPreset}
-              operationVisualizationEnabled={
-                activeFile.pistonOscillationOperationVisualizationEnabled
-              }
-              onOperationVisualizationToggle={
-                togglePistonOscillationOperationVisualization
-              }
-              guideSessionRevision={
-                activePistonOscillationGuideSelected
-                  ? activeFile.pistonOscillationGuideSession.startedAtMs ?? 0
-                  : activePistonOscillationFreeSelected
-                    ? activeFile.pistonOscillationFreeSession.startedAtMs ?? 0
-                    : 0
-              }
-              measurementCycleRevision={
-                pistonOscillationMeasurementCyclesByFileId[activeFile.id] ?? 0
-              }
-              demoPlaybackChannel={
-                activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? undefined
-                  : pistonOscillationDemoPlaybackChannel
-              }
-              demoPlaybackFileId={activeFile.id}
-              demoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
-              guideTimeFrozen={
-                activePistonOscillationGuideTimeFrozen
-                || pistonOscillationGuideLessonDialog !== null
-                || pistonOscillationFreeSetupOpen
-              }
-              guideVisualCue={pistonGuideVisualCue}
-              guideScrewInteractionMode={pistonGuideScrewInteractionMode}
-              guideRequestedFocusMode={pistonGuideRequestedFocusMode}
-              guideSnapTargetHeightMm={activePistonOscillationGuideSnapTargetHeightMm}
-              guideInitialInstrumentState={
-                activePistonOscillationGuideSelected
-                  ? activePistonOscillationGuideInstrumentRestoreState
-                  : activePistonOscillationFreeSelected
-                    ? {
-                        ...activeFile.pistonOscillationFreeSession.instrumentState,
-                        powerOn: activeFile.pistonOscillationFreeSession.powerOn,
-                      }
-                    : null
-              }
-              guideHeightReset={activePistonOscillationGuideSession?.heightReset
-                ? {
-                    revision: activePistonOscillationGuideSession.updatedAtMs ?? 0,
-                    phase: activePistonOscillationGuideSession.heightReset.phase,
-                    startedHeightMm:
-                      activePistonOscillationGuideSession.heightReset.startedHeightMm,
-                  }
-                : null}
-              viewportWarningFeedbackId={
-                pistonOscillationGuideFeedback?.kind === 'warning'
-                || pistonOscillationGuideFeedback?.kind === 'danger'
-                  ? pistonOscillationGuideFeedback.id
-                  : null
-              }
-              overlayTopRight={pistonOscillationGuideStepPanel}
-              overlayBelowDefaultView={activePistonOscillationFreeSelected ? (() => {
-                const session = activeFile.pistonOscillationFreeSession;
-                const plan = session.experimentPlan;
-                const copy = SHARED_EXPERIMENT_PROGRESS_COPY[settingsLanguagePreference];
-                if (!plan) {
-                  return (
-                    <FreeExperimentProgress
-                      dataOwner="piston-oscillation"
-                      primaryAction={{
-                        id: 'setup-new-experiment-plan',
-                        label: copy.pistonSetup,
-                        icon: 'plus',
-                        tone: 'primary',
-                        onSelect: () => setPistonOscillationFreeSetupRequestedFileId(
-                          activeFile.id,
-                        ),
-                        dataAttribute: {
-                          name: 'data-piston-free-setup-plan',
-                          value: 'true',
-                        },
-                      }}
-                    />
-                  );
-                }
-                const total = plan.targets.length;
-                const currentTarget = plan.targets[session.measurementIndex] ?? null;
-                const ordinal = Math.min(total, session.measurementIndex + 1);
-                return (
-                  <FreeExperimentProgress
-                    dataOwner="piston-oscillation"
-                    label={currentTarget
-                      ? copy.pistonProgress(ordinal, total, currentTarget.heightMm)
-                      : copy.pistonCompleted(total)}
-                    openMenuLabel={copy.pistonOpenMenu}
-                    menuLabel={copy.pistonMenu}
-                    menuTitle={copy.pistonPlan}
-                    details={plan.targets.map((target, measurementIndex) => {
-                      const replacing = session.reacquisition?.measurementIndex
-                        === measurementIndex;
-                      const saved = !replacing && session.savedMeasurements.some((measurement) => (
-                        measurement.measurementIndex === measurementIndex
-                      ));
-                      const current = session.measurementIndex === measurementIndex;
-                      return {
-                        id: target.targetId,
-                        label: `${target.heightMm} mm`,
-                        statusLabel: saved
-                          ? copy.pistonSaved
-                          : current
-                            ? copy.pistonCurrent
-                            : copy.pistonPending,
-                        status: saved ? 'saved' as const : current ? 'current' as const : 'pending' as const,
-                        deleteLabel: copy.pistonDelete(target.heightMm),
-                        confirmDeleteLabel: copy.pistonConfirmDelete,
-                        cancelDeleteLabel: copy.cancel,
-                        onDelete: saved
-                          ? () => deletePistonOscillationFreeMeasurement(measurementIndex)
-                          : undefined,
-                        deleteDataAttribute: saved
-                          ? {
-                              name: 'data-piston-free-confirm-delete-index',
-                              value: measurementIndex,
-                            }
-                          : undefined,
-                      };
-                    })}
-                    actions={[{
-                      id: 'reset-free-mode',
-                      label: copy.pistonReset,
-                      icon: 'restart',
-                      separatorBefore: true,
-                      onSelect: requestPistonOscillationFreeReset,
-                    }]}
-                  />
-                );
-              })() : null}
-              overlayCenter={pistonOscillationGuideCompletionToast?.fileId === activeFile.id ? (
-                <div
-                  key={pistonOscillationGuideCompletionToast.id}
-                  className="studio-heat-demo-complete-toast"
-                  data-piston-oscillation-guide-complete-toast="true"
-                  data-prompt-feedback-kind="success"
-                  role="status"
-                  aria-live="polite"
-                  aria-atomic="true"
-                >
-                  <span className="studio-heat-toast-kicker">
-                    {pistonOscillationGuideCompletionToast.kicker}
-                  </span>
-                  <strong>{pistonOscillationGuideCompletionToast.message}</strong>
-                </div>
-              ) : pistonOscillationGuideFeedback ? (
-                <PromptViewportFeedback
-                  key={pistonOscillationGuideFeedback.id}
-                  id={pistonOscillationGuideFeedback.id}
-                  kind={pistonOscillationGuideFeedback.kind}
-                  label={PROMPT_FEEDBACK_COPY[settingsLanguagePreference].kindLabels[
-                    pistonOscillationGuideFeedback.kind
-                  ]}
-                  durationMs={pistonOscillationGuideFeedback.durationMs}
-                  dataAttributes={{
-                    'data-piston-guide-feedback': 'true',
-                    'data-prompt-feedback-source': pistonOscillationGuideFeedback.source,
-                    'data-prompt-feedback-placement': 'viewport-center',
-                    'data-prompt-feedback-owner': 'piston-oscillation',
-                  }}
-                >
-                  {renderScientificText(pistonOscillationGuideFeedback.text)}
-                </PromptViewportFeedback>
-              ) : null}
-              overlayCenterAboveGuideMask={
-                pistonOscillationGuideCompletionToast?.fileId === activeFile.id
-                || pistonOscillationGuideFeedback !== null
-              }
-              onGuideActionAttempt={
-                activePistonOscillationGuideSelected
-                && activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? handlePistonOscillationGuideActionAttempt
-                  : undefined
-              }
-              onGuideScrewDirectionFeedback={
-                activePistonOscillationGuideSelected
-                && activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? handlePistonOscillationGuideScrewDirectionFeedback
-                  : undefined
-              }
-              onGuideHeightConfirmed={
-                activePistonOscillationGuideSelected
-                && activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? handlePistonOscillationGuideHeightConfirmed
-                  : undefined
-              }
-              onGuideSupportLoss={
-                activePistonOscillationGuideSession?.status === 'active'
-                && activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? handlePistonOscillationGuideSupportLoss
-                  : undefined
-              }
-              onGuideHeightResetComplete={
-                activePistonOscillationGuideSession?.heightReset?.phase === 'resetting'
-                  ? handlePistonOscillationGuideHeightResetComplete
-                  : undefined
-              }
-              onGuideInstrumentSnapshotChange={
-                activePistonOscillationGuideSelected
-                && activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? handlePistonOscillationGuideInstrumentSnapshot
-                  : activePistonOscillationFreeSelected
-                    && activePistonOscillationDemoPlaybackPhase === 'idle'
-                    ? handlePistonOscillationFreeInstrumentSnapshot
-                    : undefined
-              }
-              onReleaseEvent={(event) => {
-                setPistonOscillationReleaseEventsByFileId((current) => ({
-                  ...current,
-                  [activeFile.id]: event,
-                }));
-              }}
-              onPressStartEvent={(event) => {
-                setPistonOscillationPressStartEventsByFileId((current) => ({
-                  ...current,
-                  [activeFile.id]: event,
-                }));
-              }}
-              onFreeOperationObserved={
-                activePistonOscillationFreeSelected
-                && activePistonOscillationDemoPlaybackPhase === 'idle'
-                  ? ({ operation, payload }) => {
-                      updateActiveFile((file) => (
-                        file.kind === 'heatCapacityPistonOscillation'
-                        && file.pistonOscillationFreeSession.status === 'active'
-                          ? transitionPistonOscillationFreeWorkbenchState(file, {
-                              type: 'observeOperation',
-                              operation,
-                              payload,
-                              nowMs: Date.now(),
-                            })
-                          : file
-                      ));
-                    }
-                  : undefined
-              }
-              onLivePhysicalStateChange={
-                pistonOscillationLivePressureChannel.publishPhysicalState
-              }
-            />
-          </div>
+          <WorkbenchPistonOscillationPreview
+      activeFile={activeFile}
+      activePistonOscillationParameterSignature={activePistonOscillationParameterSignature}
+      settingsLanguagePreference={settingsLanguagePreference}
+      activePistonOscillationPowerOn={activePistonOscillationPowerOn}
+      handlePistonOscillationPowerToggle={handlePistonOscillationPowerToggle}
+      activePistonOscillationFreeSelected={activePistonOscillationFreeSelected}
+      activePistonOscillationPhysicsConfig={activePistonOscillationPhysicsConfig}
+      activePistonOscillationThermalConfig={activePistonOscillationThermalConfig}
+      activePistonOscillationEffectiveConfig={activePistonOscillationEffectiveConfig}
+      activePistonOscillationReleaseAsymmetryConfig={activePistonOscillationReleaseAsymmetryConfig}
+      resolvedWorkbenchTheme={resolvedWorkbenchTheme}
+      togglePistonOscillationOperationVisualization={togglePistonOscillationOperationVisualization}
+      activePistonOscillationGuideSelected={activePistonOscillationGuideSelected}
+      pistonOscillationMeasurementCyclesByFileId={pistonOscillationMeasurementCyclesByFileId}
+      activePistonOscillationDemoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
+      pistonOscillationDemoPlaybackChannel={pistonOscillationDemoPlaybackChannel}
+      activePistonOscillationGuideTimeFrozen={activePistonOscillationGuideTimeFrozen}
+      pistonOscillationGuideLessonDialog={pistonOscillationGuideLessonDialog}
+      pistonOscillationFreeSetupOpen={pistonOscillationFreeSetupOpen}
+      pistonGuideVisualCue={pistonGuideVisualCue}
+      pistonGuideScrewInteractionMode={pistonGuideScrewInteractionMode}
+      pistonGuideRequestedFocusMode={pistonGuideRequestedFocusMode}
+      activePistonOscillationGuideSnapTargetHeightMm={activePistonOscillationGuideSnapTargetHeightMm}
+      activePistonOscillationGuideInstrumentRestoreState={activePistonOscillationGuideInstrumentRestoreState}
+      activePistonOscillationGuideSession={activePistonOscillationGuideSession}
+      pistonOscillationGuideFeedback={pistonOscillationGuideFeedback}
+      pistonOscillationGuideStepPanel={pistonOscillationGuideStepPanel}
+      requestPistonOscillationFreeSetup={requestPistonOscillationFreeSetup}
+      deletePistonOscillationFreeMeasurement={deletePistonOscillationFreeMeasurement}
+      requestPistonOscillationFreeReset={requestPistonOscillationFreeReset}
+      pistonOscillationGuideCompletionToast={pistonOscillationGuideCompletionToast}
+      handlePistonOscillationGuideActionAttempt={handlePistonOscillationGuideActionAttempt}
+      handlePistonOscillationGuideScrewDirectionFeedback={handlePistonOscillationGuideScrewDirectionFeedback}
+      handlePistonOscillationGuideHeightConfirmed={handlePistonOscillationGuideHeightConfirmed}
+      handlePistonOscillationGuideSupportLoss={handlePistonOscillationGuideSupportLoss}
+      handlePistonOscillationGuideHeightResetComplete={handlePistonOscillationGuideHeightResetComplete}
+      handlePistonOscillationGuideInstrumentSnapshot={handlePistonOscillationGuideInstrumentSnapshot}
+      handlePistonOscillationFreeInstrumentSnapshot={handlePistonOscillationFreeInstrumentSnapshot}
+      handlePistonOscillationReleaseEvent={handlePistonOscillationReleaseEvent}
+      handlePistonOscillationPressStartEvent={handlePistonOscillationPressStartEvent}
+      handlePistonOscillationFreeOperationObserved={handlePistonOscillationFreeOperationObserved}
+      pistonOscillationLivePressureChannel={pistonOscillationLivePressureChannel}
+    />
         ) : (
         <div className="studio-canvas-host">
           <SimulationCanvas
@@ -19059,402 +11674,70 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     </div>
   );
 
-  const renderHeatCapacityRealtimePanel = () => {
-    if (activeFile.kind !== 'heatCapacity') return null;
-
-    const getHeatCapacityPhaseLabel = (phase: typeof activeFile.heatCapacityPhase) => {
-      if (phase === 'powerOff') return heatCapacityRealtimeCopy.phaseLabels.powerOff;
-      if (phase === 'readyToZero') return heatCapacityRealtimeCopy.phaseLabels.readyToZero;
-      if (phase === 'zeroed') return heatCapacityRealtimeCopy.phaseLabels.zeroed;
-      if (phase === 'readyToPump') return heatCapacityRealtimeCopy.phaseLabels.readyToPump;
-      if (phase === 'pumping') return heatCapacityRealtimeCopy.phaseLabels.pumping;
-      if (phase === 'sealedStabilizing') return heatCapacityRealtimeCopy.phaseLabels.sealedStabilizing;
-      if (phase === 'releasing') return heatCapacityRealtimeCopy.phaseLabels.releasing;
-      if (phase === 'recovering') return heatCapacityRealtimeCopy.phaseLabels.recovering;
-      return heatCapacityRealtimeCopy.phaseLabels.fallback;
-    };
-    const heatCapacityDisplayPhase = isHeatCapacityPhysicalKernelMode(activeFile.heatCapacityMode)
-      ? getHeatCapacityFreeDisplayPhase(activeFile)
-      : activeFile.heatCapacityPhase;
-    const phaseLabel = getHeatCapacityPhaseLabel(heatCapacityDisplayPhase);
-    const stopcockState = getHeatCapacityStopcockState(activeFile.stopcockAngleDeg);
-    const stopcockStateLabel = stopcockState === 'open' ? heatCapacityRealtimeCopy.stopcock.open : heatCapacityRealtimeCopy.stopcock.closed;
-    const heatCapacityRunBadge = activeFile.heatCapacityMode === 'free'
-      ? heatCapacityRealtimeCopy.trialBadge(
-          activeHeatCapacityFreeBatchProgress?.currentGroupNumber ??
-          Math.max(1, getActiveHeatCapacityFreeTrialIndex(activeFile) + 1),
-        )
-      : heatCapacityRealtimeCopy.singleTrialBadge;
-    const heatCapacityHeaderBadges = [
-      {
-        key: 'stage',
-        label: `${heatCapacityRealtimeCopy.stagePrefix}${phaseLabel}`,
-        className: 'studio-heat-status-badge-stage',
-      },
-      {
-        key: 'trial',
-        label: heatCapacityRunBadge,
-        className: 'studio-heat-status-badge-trial',
-        dataAttr: true,
-      },
-      ...(autoDemoInteractionLocked
-        ? [{
-            key: 'demo',
-            label: autoDemoPaused ? heatCapacityRealtimeCopy.demoPaused : autoDemoRunning ? heatCapacityRealtimeCopy.demoRunning : heatCapacityRealtimeCopy.demoReady,
-            className: 'studio-heat-status-badge-mode',
-          }]
-        : []),
-      ...(autoDemoInteractionLocked
-        ? [{
-            key: 'lock',
-            label: heatCapacityRealtimeCopy.operationLocked,
-            className: 'studio-heat-status-badge-warning',
-          }]
-        : []),
-    ];
-    const temperatureSignalValue = activeFile.powerOn && typeof activeFile.temperatureSignalMv === 'number'
-      ? formatHeatCapacitySignalMv(activeFile.temperatureSignalMv)
-      : '--.-';
-    const pressureSignalValue = activeFile.powerOn && typeof activeFile.pressureSignalMv === 'number'
-      ? formatHeatCapacitySignalMv(activeFile.pressureSignalMv)
-      : '--.-';
-    const currentDeltaPKPa = activeFile.powerOn &&
-      typeof activeFile.pressureSignalMv === 'number' &&
-      Number.isFinite(activeFile.pressureSensitivityMvPerKPa) &&
-      activeFile.pressureSensitivityMvPerKPa > 0
-      ? Math.max(0, activeFile.pressureSignalMv / activeFile.pressureSensitivityMvPerKPa)
-      : null;
-    const currentDeltaPValue = currentDeltaPKPa === null ? '--' : formatMetric(currentDeltaPKPa, 2);
-    const effectivePressureSafetyStatus = activeHeatCapacityPressureAlarmVisible ? 'danger' : activeFile.pressureSafetyStatus;
-    const pressureSafetyStatusLabel = effectivePressureSafetyStatus === 'danger'
-      ? heatCapacityRealtimeCopy.safety.danger
-      : effectivePressureSafetyStatus === 'warning'
-        ? heatCapacityRealtimeCopy.safety.warning
-        : heatCapacityRealtimeCopy.safety.normal;
-    const pressureSafetyNote = effectivePressureSafetyStatus === 'danger'
-      ? heatCapacityRealtimeCopy.safety.dangerNote
-      : effectivePressureSafetyStatus === 'warning'
-        ? heatCapacityRealtimeCopy.safety.warningNote
-        : heatCapacityRealtimeCopy.safety.normalNote;
-    const zeroStatusLabel = activeFile.pressureZeroAdjusted
-      ? heatCapacityRealtimeCopy.zeroStatus.completed
-      : canZeroHeatCapacityPressure(activeFile)
-        ? heatCapacityRealtimeCopy.zeroStatus.adjustable
-        : heatCapacityRealtimeCopy.zeroStatus.notReady;
-    const localizedHeatCapacityPumpHint = getLocalizedHeatCapacityPumpHint(
-      activeFile.pumpHint,
-      settingsLanguagePreference,
-    );
-    const currentHint = (() => {
-      if (guideHeatCapacityActiveFileId === activeFile.id && !autoDemoInteractionLocked) {
-        const guideStep = getHeatCapacityGuideStep(activeFile);
-        if (guideStep !== 'idle' && guideStep !== 'completed') {
-          return getGuideStepGuidance(guideStep, activeFile).message;
-        }
-      }
-      if (!activeFile.powerOn || heatCapacityDisplayPhase === 'powerOff') return heatCapacityRealtimeCopy.hints.powerOff;
-      if (heatCapacityDisplayPhase === 'readyToZero') return heatCapacityRealtimeCopy.hints.readyToZero;
-      if (heatCapacityDisplayPhase === 'zeroed' || heatCapacityDisplayPhase === 'readyToPump') return heatCapacityRealtimeCopy.hints.readyToPump;
-      if (heatCapacityDisplayPhase === 'pumping') return heatCapacityRealtimeCopy.hints.pumping;
-      if (heatCapacityDisplayPhase === 'sealedStabilizing') return heatCapacityRealtimeCopy.hints.sealedStabilizing;
-      if (heatCapacityDisplayPhase === 'releasing') return heatCapacityRealtimeCopy.hints.releasing;
-      if (heatCapacityDisplayPhase === 'recovering') return heatCapacityRealtimeCopy.hints.recovering;
-      return localizedHeatCapacityPumpHint || heatCapacityRealtimeCopy.hints.fallback;
-    })();
-    return (
-      <div className="studio-realtime-panel studio-realtime-panel-heat">
-        <div className="studio-heat-monitor-header" data-heat-capacity-realtime-header="true">
-          <div className="studio-heat-monitor-title">
-            <span>{heatCapacityRealtimeCopy.realtimeKicker}</span>
-            <strong>{activeHeatCapacityExperimentTitle}</strong>
-            <small>{renderScientificText(heatCapacityRealtimeCopy.realtimeSubtitle)}</small>
-          </div>
-          <div className="studio-heat-status-badges">
-            {heatCapacityHeaderBadges.map((badge) => (
-              <span
-                key={badge.key}
-                className={`studio-heat-status-badge ${badge.className}`}
-                data-heat-capacity-trial-badge={badge.key === 'trial' ? 'true' : undefined}
-              >
-                {badge.label}
-              </span>
-            ))}
-          </div>
-        </div>
-        <div className="studio-heat-live-readings" data-heat-capacity-live-readings="true">
-          <div className="studio-heat-reading-card studio-heat-reading-card-primary">
-            <span>{renderScientificText('Uₜ / mV')}</span>
-            <strong>{temperatureSignalValue}</strong>
-            <em>{heatCapacityRealtimeCopy.readings.temperature}</em>
-          </div>
-          <div className="studio-heat-reading-card studio-heat-reading-card-primary">
-            <span>{renderScientificText('Uₚ / mV')}</span>
-            <strong>{pressureSignalValue}</strong>
-            <em>{heatCapacityRealtimeCopy.readings.pressure}</em>
-          </div>
-          <div className="studio-heat-reading-card">
-            <span>{renderScientificText('ΔP / kPa')}</span>
-            <strong>{currentDeltaPValue}</strong>
-            <em>{renderScientificText(heatCapacityRealtimeCopy.readings.delta)}</em>
-          </div>
-          <div className={`studio-heat-reading-card studio-heat-safety-card studio-heat-safety-${effectivePressureSafetyStatus}`}>
-            <span>{heatCapacityRealtimeCopy.readings.safety}</span>
-            <strong>{pressureSafetyStatusLabel}</strong>
-            <em>{pressureSafetyNote}</em>
-          </div>
-        </div>
-        <div className="studio-heat-operation-status" data-heat-capacity-operation-status="true">
-          <div><span>{heatCapacityRealtimeCopy.readings.pumpValve}</span><strong>{activeFile.pumpValveOpen ? heatCapacityRealtimeCopy.readings.opened : heatCapacityRealtimeCopy.readings.closed}</strong></div>
-          <div><span>{heatCapacityRealtimeCopy.readings.stopcock}</span><strong>{stopcockStateLabel}</strong></div>
-          <div><span>{heatCapacityRealtimeCopy.readings.zero}</span><strong>{zeroStatusLabel}</strong></div>
-        </div>
-        <div className="studio-heat-current-hint" data-heat-capacity-current-hint="true">
-          <span>{heatCapacityRealtimeCopy.readings.currentHint}</span>
-          <strong>{renderScientificText(currentHint)}</strong>
-        </div>
-      </div>
-    );
-  };
+  const renderHeatCapacityRealtimePanel = () => (
+    <WorkbenchHeatCapacityRealtimeReadings
+      activeFile={activeFile}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      activeHeatCapacityFreeBatchProgress={activeHeatCapacityFreeBatchProgress}
+      autoDemoInteractionLocked={autoDemoInteractionLocked}
+      autoDemoPaused={autoDemoPaused}
+      autoDemoRunning={autoDemoRunning}
+      activeHeatCapacityPressureAlarmVisible={activeHeatCapacityPressureAlarmVisible}
+      settingsLanguagePreference={settingsLanguagePreference}
+      guideHeatCapacityActiveFileId={guideHeatCapacityActiveFileId}
+      getHeatCapacityGuideStep={getHeatCapacityGuideStep}
+      getGuideStepGuidance={getGuideStepGuidance}
+      activeHeatCapacityExperimentTitle={activeHeatCapacityExperimentTitle}
+    />
+  );
 
   const renderRealtimePanelContent = () => (
     activeFile.kind === 'heatCapacityPistonOscillation' ? (
-      <div
-        ref={pistonOscillationContentRenderRecoveryHostRef}
-        className="studio-realtime-panel studio-realtime-panel-piston-oscillation"
-        data-piston-oscillation-realtime={
-          activePistonOscillationProcessReview
-            ? 'process-review'
-            : activePistonOscillationDataProcessing
-              ? 'data-processing'
-              : 'acquisition'
-        }
-      >
-        {activePistonOscillationProcessReview ? (
-          <RecoverableRenderErrorBoundary
-            resetKeys={[activeFile.id]}
-            fallback={({ error, retry }) => (
-              <WorkbenchContentRenderErrorFallback
-                area="data-processing"
-                language={settingsLanguagePreference}
-                error={error}
-                onRetry={retry}
-                onReturnToInstrument={returnToPistonOscillationInstrumentAfterDisplayError}
-              />
-            )}
-          >
-            <div className="studio-piston-process-review-scroll">
-              <section
-                className="studio-heat-export-card studio-piston-report-export-card"
-                data-piston-oscillation-export-actions="true"
-              >
-                <div>
-                  <strong>
-                    {settingsLanguagePreference === 'en'
-                      ? 'Export report'
-                      : settingsLanguagePreference === 'zh-TW'
-                        ? '匯出報告'
-                        : '导出报告'}
-                  </strong>
-                  <span>
-                    {activeFile.pistonOscillationFreeSession.experimentGroup.scheme === 'ideal'
-                      ? settingsLanguagePreference === 'en'
-                        ? 'Export the saved curves, calculation results, and unscored process evidence as PDF.'
-                        : settingsLanguagePreference === 'zh-TW'
-                          ? '將已儲存曲線、計算結果與不評分的過程證據匯出為 PDF。'
-                          : '将已保存曲线、计算结果和不评分的过程证据导出为 PDF。'
-                      : settingsLanguagePreference === 'en'
-                        ? 'Export the saved curves, calculation results, process evidence, and score summary as PDF.'
-                        : settingsLanguagePreference === 'zh-TW'
-                          ? '將已儲存曲線、計算結果、過程證據與評分摘要匯出為 PDF。'
-                          : '将已保存曲线、计算结果、过程证据与评分摘要导出为 PDF。'}
-                  </span>
-                </div>
-                <div className="studio-heat-export-buttons">
-                  <button
-                    type="button"
-                    disabled={!isExportModeDataReady('report') || exportInProgress}
-                    onClick={() => { void handleExportAction('report'); }}
-                  >
-                    <Download size={13} />
-                    {exportInProgress
-                      ? settingsLanguagePreference === 'en'
-                        ? 'Exporting...'
-                        : settingsLanguagePreference === 'zh-TW'
-                          ? '匯出中...'
-                          : '导出中...'
-                      : settingsLanguagePreference === 'en'
-                        ? 'Export PDF report'
-                        : settingsLanguagePreference === 'zh-TW'
-                          ? '匯出 PDF 報告'
-                          : '导出 PDF 报告'}
-                  </button>
-                </div>
-              </section>
-              <PistonOscillationProcessReviewPanel
-                session={activeFile.pistonOscillationFreeSession}
-                language={settingsLanguagePreference}
-              />
-            </div>
-          </RecoverableRenderErrorBoundary>
-        ) : activePistonOscillationDataProcessing ? (
-          <RecoverableRenderErrorBoundary
-            resetKeys={[activeFile.id]}
-            fallback={({ error, retry }) => (
-              <WorkbenchContentRenderErrorFallback
-                area="data-processing"
-                language={settingsLanguagePreference}
-                error={error}
-                onRetry={retry}
-                onReturnToInstrument={returnToPistonOscillationInstrumentAfterDisplayError}
-              />
-            )}
-          >
-            <PistonOscillationDataProcessingPanel
-              language={settingsLanguagePreference}
-              guideSession={activeFile.pistonOscillationGuideSession}
-              freeSession={activePistonOscillationFreeSelected
-                ? activeFile.pistonOscillationFreeSession
-                : undefined}
-              pulseActive={pistonGuidePulseActive}
-              pulseTarget={pistonGuideExpectedStrongTargetId}
-              onProcessingEvent={handlePistonOscillationProcessingEvent}
-              onInteractionStart={handlePistonOscillationGuideProcessingInteractionStart}
-              onSelectionModeChange={setPistonOscillationPeriodSelectionToolActive}
-              onInvalidSelection={handlePistonOscillationGuideInvalidPeriodSelection}
-              onUnusableMeasurement={handlePistonOscillationFreeUnusableMeasurement}
-              reviewMode={pistonOscillationCompletedDataProcessingReview}
-              onOpenCalculationReview={openPistonOscillationCalculationReview}
-              onCloseReview={closePistonOscillationDataProcessingReview}
-            />
-          </RecoverableRenderErrorBoundary>
-        ) : (
-          <PistonOscillationAcquisitionPanel
-          ref={pistonOscillationAcquisitionPanelRef}
-          key={`${activeFile.id}:${
-            activePistonOscillationGuideSession?.startedAtMs ?? 'standalone'
-          }:${activePistonOscillationGuideSession?.measurementIndex ?? 'free'}:${
-            activePistonOscillationFreeSession?.reacquisition?.requestedAtMs ?? 'normal'
-          }`}
-          language={settingsLanguagePreference}
-          powerOn={activePistonOscillationPowerOn}
-          releaseEvent={pistonOscillationReleaseEventsByFileId[activeFile.id] ?? null}
-          pressStartEvent={pistonOscillationPressStartEventsByFileId[activeFile.id] ?? null}
-          livePressureChannel={pistonOscillationLivePressureChannel}
-          demoPlaybackChannel={
-            activePistonOscillationDemoPlaybackPhase === 'idle'
-              ? undefined
-              : pistonOscillationDemoPlaybackChannel
-          }
-          demoPlaybackFileId={activeFile.id}
-          guideSession={
-            activePistonOscillationGuideSelected
-            && activePistonOscillationDemoPlaybackPhase === 'idle'
-              ? activeFile.pistonOscillationGuideSession
-              : undefined
-          }
-          freeSession={
-            activePistonOscillationFreeSelected
-            && activePistonOscillationDemoPlaybackPhase === 'idle'
-              ? activeFile.pistonOscillationFreeSession
-              : undefined
-          }
-          guidePauseReady={pistonOscillationGuidePistonStable}
-          guidePaused={
-            activePistonOscillationGuideTimeFrozen
-            || pistonOscillationGuideLessonDialog !== null
-          }
-          guideCue={pistonGuideAcquisitionCue}
-          onGuideAcquisitionEvent={
-            activePistonOscillationDemoPlaybackPhase === 'idle'
-              ? handlePistonOscillationGuideAcquisitionEvent
-              : undefined
-          }
-          onGuideActionAttempt={
-            activePistonOscillationGuideSelected
-            && activePistonOscillationDemoPlaybackPhase === 'idle'
-              ? handlePistonOscillationGuideActionAttempt
-              : undefined
-          }
-          onGuideParameterEdit={(field, value) => {
-            const nowMs = Date.now();
-            updateActiveFile((file) => {
-              if (file.kind !== 'heatCapacityPistonOscillation') return file;
-              const editedFile = editPistonOscillationGuideParameterWorkbenchState(
-                file,
-                field,
-                value,
-                nowMs,
-              );
-              const expectedValue = field === 'sampleRateHz'
-                ? PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
-                : PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA;
-              return value.trim().length > 0 && Number(value) === expectedValue
-                ? commitPistonOscillationGuideParameterWorkbenchState(
-                    editedFile,
-                    field,
-                    nowMs,
-                  )
-                : editedFile;
-            });
-          }}
-          onGuideParameterCommit={(field) => {
-            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-              ? commitPistonOscillationGuideParameterWorkbenchState(file, field)
-              : file);
-          }}
-          onFreeAcquisitionSettingCommit={(field, value) => {
-            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-              ? transitionPistonOscillationFreeWorkbenchState(file, {
-                  type: 'setAcquisitionSetting',
-                  field,
-                  value,
-                  nowMs: Date.now(),
-                })
-              : file);
-          }}
-          onFreeCandidateChange={(candidate) => {
-            updateActiveFile((file) => {
-              if (file.kind !== 'heatCapacityPistonOscillation') return file;
-              const nowMs = Date.now();
-              return transitionPistonOscillationFreeWorkbenchState(file, candidate
-                ? {
-                    type: 'freezeAcquisition',
-                    measurement: candidate,
-                    nowMs,
-                  }
-                : {
-                    type: 'clearAcquisition',
-                    nowMs,
-                  });
-            });
-          }}
-          onFreeAcquisitionStarted={() => {
-            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-              ? transitionPistonOscillationFreeWorkbenchState(file, {
-                  type: 'observeOperation',
-                  operation: 'startAcquisition',
-                  nowMs: Date.now(),
-                })
-              : file);
-          }}
-          onFreeMeasurementSave={(measurement) => {
-            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-              ? transitionPistonOscillationFreeWorkbenchState(file, {
-                  type: 'saveMeasurement',
-                  measurement,
-                  nowMs: Date.now(),
-                })
-              : file);
-          }}
-          onRunRetained={() => {
-            setPistonOscillationMeasurementCyclesByFileId((current) => ({
-              ...current,
-              [activeFile.id]: (current[activeFile.id] ?? 0) + 1,
-            }));
-          }}
-          />
-        )}
-      </div>
+      <WorkbenchPistonOscillationRealtime
+      pistonOscillationContentRenderRecoveryHostRef={pistonOscillationContentRenderRecoveryHostRef}
+      activePistonOscillationProcessReview={activePistonOscillationProcessReview}
+      activePistonOscillationDataProcessing={activePistonOscillationDataProcessing}
+      activeFile={activeFile}
+      settingsLanguagePreference={settingsLanguagePreference}
+      returnToPistonOscillationInstrumentAfterDisplayError={returnToPistonOscillationInstrumentAfterDisplayError}
+      isExportModeDataReady={isExportModeDataReady}
+      exportInProgress={exportInProgress}
+      handleExportAction={handleExportAction}
+      activePistonOscillationFreeSelected={activePistonOscillationFreeSelected}
+      pistonGuidePulseActive={pistonGuidePulseActive}
+      pistonGuideExpectedStrongTargetId={pistonGuideExpectedStrongTargetId}
+      handlePistonOscillationProcessingEvent={handlePistonOscillationProcessingEvent}
+      handlePistonOscillationGuideProcessingInteractionStart={handlePistonOscillationGuideProcessingInteractionStart}
+      changePistonOscillationPeriodSelectionMode={changePistonOscillationPeriodSelectionMode}
+      handlePistonOscillationGuideInvalidPeriodSelection={handlePistonOscillationGuideInvalidPeriodSelection}
+      handlePistonOscillationFreeUnusableMeasurement={handlePistonOscillationFreeUnusableMeasurement}
+      pistonOscillationCompletedDataProcessingReview={pistonOscillationCompletedDataProcessingReview}
+      openPistonOscillationCalculationReview={openPistonOscillationCalculationReview}
+      closePistonOscillationDataProcessingReview={closePistonOscillationDataProcessingReview}
+      pistonOscillationAcquisitionPanelRef={pistonOscillationAcquisitionPanelRef}
+      activePistonOscillationGuideSession={activePistonOscillationGuideSession}
+      activePistonOscillationFreeSession={activePistonOscillationFreeSession}
+      activePistonOscillationPowerOn={activePistonOscillationPowerOn}
+      pistonOscillationReleaseEventsByFileId={pistonOscillationReleaseEventsByFileId}
+      pistonOscillationPressStartEventsByFileId={pistonOscillationPressStartEventsByFileId}
+      pistonOscillationLivePressureChannel={pistonOscillationLivePressureChannel}
+      activePistonOscillationDemoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
+      pistonOscillationDemoPlaybackChannel={pistonOscillationDemoPlaybackChannel}
+      activePistonOscillationGuideSelected={activePistonOscillationGuideSelected}
+      pistonOscillationGuidePistonStable={pistonOscillationGuidePistonStable}
+      activePistonOscillationGuideTimeFrozen={activePistonOscillationGuideTimeFrozen}
+      pistonOscillationGuideLessonDialog={pistonOscillationGuideLessonDialog}
+      pistonGuideAcquisitionCue={pistonGuideAcquisitionCue}
+      handlePistonOscillationGuideAcquisitionEvent={handlePistonOscillationGuideAcquisitionEvent}
+      handlePistonOscillationGuideActionAttempt={handlePistonOscillationGuideActionAttempt}
+      editPistonOscillationGuideParameter={editPistonOscillationGuideParameter}
+      commitPistonOscillationGuideParameter={commitPistonOscillationGuideParameter}
+      commitPistonOscillationFreeAcquisitionSetting={commitPistonOscillationFreeAcquisitionSetting}
+      changePistonOscillationFreeCandidate={changePistonOscillationFreeCandidate}
+      startPistonOscillationFreeAcquisition={startPistonOscillationFreeAcquisition}
+      savePistonOscillationFreeMeasurement={savePistonOscillationFreeMeasurement}
+      retainPistonOscillationRun={retainPistonOscillationRun}
+    />
     ) : activeFile.kind === 'heatCapacity' ? renderHeatCapacityRealtimePanel() : (
       <WorkbenchSimulationRealtimePanel
         file={activeFile}
@@ -19470,765 +11753,155 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   );
 
   const renderRealtimePanel = () => (
-    isDevelopmentRenderFaultRequested('data-processing') ? (
-      <RecoverableRenderErrorBoundary
-        resetKeys={[activeFile.id]}
-        fallback={({ error, retry }) => (
-          <WorkbenchContentRenderErrorFallback
-            area="data-processing"
-            language={settingsLanguagePreference}
-            error={error}
-            onRetry={() => {
-              recoverDevelopmentRenderFault('data-processing');
-              retry();
-            }}
-            onReturnToInstrument={() => {
-              recoverDevelopmentRenderFault('data-processing');
-              returnToPistonOscillationInstrumentAfterDisplayError();
-              retry();
-            }}
-          />
-        )}
-      >
-        <DevelopmentRenderFault target="data-processing" />
-        {renderRealtimePanelContent()}
-      </RecoverableRenderErrorBoundary>
-    ) : renderRealtimePanelContent()
+    <WorkbenchRealtimeBoundary
+      activeFile={activeFile}
+      settingsLanguagePreference={settingsLanguagePreference}
+      returnToPistonOscillationInstrumentAfterDisplayError={returnToPistonOscillationInstrumentAfterDisplayError}
+      renderRealtimePanelContent={renderRealtimePanelContent}
+    />
   );
 
 
-  const exportAvailable = isExportEnvironmentAvailableStatus(exportEnvironmentStatus);
   const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
-  const idealPointCount = idealAnalysis?.sortedPoints.length ?? 0;
-  const isExportModeDataReady = (mode: WorkbenchExportMode) => (
-    activeFile.kind === 'heatCapacity'
-      ? isHeatCapacityExportModeReady(activeFile, mode)
-      : activeFile.kind === 'heatCapacityPistonOscillation'
-        ? mode === 'report' && isPistonOscillationReportReady(activeFile)
-      : activeFile.kind === 'ideal'
-      ? mode === 'pointsCsv' || mode === 'completeBundle'
-        ? idealPointCount > 0
-        : idealPointCount >= 2
-      : resultSummary.ready
+
+
+
+
+
+
+
+
+
+
+
+
+
+  const renderResultsPanel = () => (
+    <WorkbenchStandardResultsWindow
+      activeFile={activeFile}
+      workbenchCopy={workbenchCopy}
+      resultSummary={resultSummary}
+      isExportModeDataReady={isExportModeDataReady}
+      exportInProgress={exportInProgress}
+      handleExportAction={handleExportAction}
+      closePanel={closePanel}
+      resultsSections={resultsSections}
+      standardResultsLayout={standardResultsLayout}
+      setActiveStandardResultsTab={setActiveStandardResultsTab}
+      closeStandardResultsTab={closeStandardResultsTab}
+      figureSpecs={figureSpecs}
+      settingsLanguagePreference={settingsLanguagePreference}
+    />
   );
-  const getExportActionLabel = (
-    language: WorkbenchLanguagePreference,
-    mode: WorkbenchExportMode,
-  ) => {
-    if (activeFile.kind !== 'heatCapacity') {
-      return workbenchCopies[language].logs.exportLabels[mode];
-    }
-    const labels = language === 'en'
-      ? { completeBundle: 'Export Experiment Package', report: 'Export Report', figuresZip: 'Export Figures' }
-      : language === 'zh-TW'
-        ? { completeBundle: '匯出實驗包', report: '匯出報告', figuresZip: '匯出圖表' }
-        : { completeBundle: '导出实验包', report: '导出报告', figuresZip: '导出图表' };
-    return mode in labels
-      ? labels[mode as keyof typeof labels]
-      : workbenchCopies[language].logs.exportLabels[mode];
-  };
-  const getExportFolderLabel = (mode: WorkbenchExportMode) => {
-    if (activeFile.kind === 'heatCapacity') {
-      if (mode === 'completeBundle') {
-        return settingsLanguagePreference === 'en'
-          ? 'Experiment Package'
-          : settingsLanguagePreference === 'zh-TW' ? '實驗包' : '实验包';
-      }
-      if (mode === 'figuresZip' || mode === 'verificationFigure') {
-        return settingsLanguagePreference === 'en'
-          ? 'Figures'
-          : settingsLanguagePreference === 'zh-TW' ? '圖表' : '图表';
-      }
-      return settingsLanguagePreference === 'en'
-        ? 'Report'
-        : settingsLanguagePreference === 'zh-TW' ? '報告' : '报告';
-    }
-    if (mode === 'completeBundle') return workbenchCopy.results.exportAll;
-    if (mode === 'figuresZip' || mode === 'verificationFigure') return workbenchCopy.results.exportFigures;
-    return 'Export';
-  };
 
-  const handleExportAction = async (
-    mode: WorkbenchExportMode,
-    heatCapacityGroupIds?: readonly string[],
-  ) => {
-    if (!guardWorkbenchTutorialAction('export-file')) return;
-    if (!isExportModeDataReady(mode)) {
-      pushLog(
-        (language) => activeFile.kind === 'ideal' && mode !== 'pointsCsv' && idealPointCount > 0
-          ? workbenchCopies[language].logs.exportNeedsTwoPoints(activeFile.name)
-          : workbenchCopies[language].logs.exportNotReady(activeFile.name),
-        'warning',
-      );
-      return;
-    }
-
-    const payload = createWorkbenchExportPayload(
-      activeFile,
-      mode,
-      settingsLanguagePreference,
-      { includedGroupIds: heatCapacityGroupIds },
-    );
-    const bridge = window.hardSphereLabExporter;
-
-    if (!exportAvailable) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.exportPayloadPrepared(
-          activeFile.name,
-          getExportActionLabel(language, mode),
-          payload.filename,
-          workbenchCopies[language].exportEnvironment[exportEnvironmentStatus].detail,
-        ),
-        'warning',
-      );
-      return;
-    }
-
-    if (!bridge) {
-      pushLog(
-        (language) => workbenchCopies[language].logs.exportPayloadPrepared(
-          activeFile.name,
-          getExportActionLabel(language, mode),
-          payload.filename,
-          workbenchCopies[language].exportEnvironment.unavailable.detail,
-        ),
-        'warning',
-      );
-      return;
-    }
-
-    setExportInProgress(true);
-    pushLog(
-      (language) => workbenchCopies[language].logs.exportPreparing(
-        activeFile.name,
-        getExportActionLabel(language, mode),
-      ),
-      'info',
-    );
-
-    try {
-      const result = await bridge.exportWorkbenchPayload(payload, {
-        mode,
-        fileName: activeFile.name,
-        defaultDirName: `${activeFile.name} ${getExportFolderLabel(mode)}`,
-      });
-
-      if (result.status === 'cancelled') {
-        pushLog(
-          (language) => workbenchCopies[language].logs.exportCancelled(
-            activeFile.name,
-            getExportActionLabel(language, mode),
-          ),
-          'warning',
-        );
-        return;
-      }
-
-      if (result.status !== 'ok') {
-        pushLog(
-          (language) => workbenchCopies[language].logs.exportFailed(
-            activeFile.name,
-            getExportActionLabel(language, mode),
-            result.message ?? workbenchCopies[language].logs.unknownExporterError,
-          ),
-          'error',
-        );
-        return;
-      }
-
-      const fileCount = result.files?.length ?? 0;
-      if (mode === 'pointsCsv') {
-        pushLog(
-          (language) => workbenchCopies[language].logs.exportCsvSaved(
-            activeFile.name,
-            result.files?.[0] ?? result.outDir ?? workbenchCopies[language].logs.selectedLocation,
-          ),
-          'success',
-        );
-        return;
-      }
-
-      pushLog(
-        (language) => workbenchCopies[language].logs.exportCompleted(
-          activeFile.name,
-          getExportActionLabel(language, mode),
-          result.outDir ?? workbenchCopies[language].logs.selectedFolder,
-          fileCount,
-          mode === 'verificationFigure' || mode === 'figuresZip'
-            ? ` ${workbenchCopies[language].logs.exportFigureHint}`
-            : '',
-        ),
-        'success',
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : null;
-      pushLog(
-        (language) => workbenchCopies[language].logs.exportFailed(
-          activeFile.name,
-          getExportActionLabel(language, mode),
-          message ?? workbenchCopies[language].logs.unknownExporterError,
-        ),
-        'error',
-      );
-    } finally {
-      setExportInProgress(false);
-    }
-  };
-
-  const openHeatCapacityReportExport = () => {
-    if (activeFile.kind !== 'heatCapacity') return;
-    setHeatCapacityReportSelectedGroupIds(getDefaultHeatCapacityReportGroupIds(activeFile));
-    setHeatCapacityReportExportOpen(true);
-  };
-
-  const confirmHeatCapacityReportExport = () => {
-    const selectedIds = [...heatCapacityReportSelectedGroupIds];
-    setHeatCapacityReportExportOpen(false);
-    void handleExportAction('report', selectedIds);
-  };
-
-
-  const renderResultsPanel = () => {
-    if (activeFile.kind === 'ideal') {
-      return (
-        <div className="studio-empty">
-          <div>
-            <strong>{workbenchCopy.results.title}</strong>
-            <p>{workbenchCopy.panels.pointsTitle} / {workbenchCopy.panels.verificationTitle}</p>
-          </div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="studio-results-panel">
-        <div className="studio-results-toolbar">
-          <div className="studio-results-title">
-            <strong>{workbenchCopy.results.title}</strong>
-            <span>
-              {resultSummary.ready ? workbenchCopy.results.ready : workbenchCopy.results.notReady}
-            </span>
-          </div>
-          <div className="studio-results-actions">
-            <button
-              type="button"
-              disabled={!isExportModeDataReady('completeBundle') || exportInProgress}
-              onClick={() => handleExportAction('completeBundle')}
-            >
-              <FileArchive size={13} />
-              {workbenchCopy.results.exportAll}
-            </button>
-            <button
-              type="button"
-              disabled={!isExportModeDataReady('report') || exportInProgress}
-              onClick={() => handleExportAction('report')}
-            >
-              <Download size={13} />
-              {workbenchCopy.results.reportPdf}
-            </button>
-            <button
-              type="button"
-              aria-label={`${workbenchCopy.actions.close} ${workbenchCopy.results.title}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                closePanel('results');
-              }}
-            >
-              <X size={14} />
-            </button>
-          </div>
-        </div>
-
-        <div className="studio-results-tabs" role="tablist" aria-label={workbenchCopy.results.title}>
-          {(() => {
-            const openStandardResultTabs = resultsSections.filter((section) => standardResultsLayout.openTabs.includes(section.key));
-            return openStandardResultTabs.map((section) => (
-              <button
-              type="button"
-              key={section.key}
-              className={standardResultsLayout.activeTab === section.key ? 'studio-results-tab-active' : ''}
-              onClick={() => setActiveStandardResultsTab(section.key)}
-              role="tab"
-              aria-selected={standardResultsLayout.activeTab === section.key}
-            >
-              {section.icon}
-              <span>{section.title}</span>
-              <span
-                role="button"
-                tabIndex={0}
-                className="studio-results-tab-close"
-                aria-label={`${workbenchCopy.actions.close} ${section.title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  closeStandardResultsTab(section.key);
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    closeStandardResultsTab(section.key);
-                  }
-                }}
-              >
-                <X size={12} />
-              </span>
-            </button>
-            ));
-          })()}
-        </div>
-
-        <div className="studio-results-body">
-          {standardResultsLayout.activeTab === 'summary' ? (
-            <WorkbenchStandardResultsSummary
-              resultSummary={resultSummary}
-              workbenchCopy={workbenchCopy}
-            />
-          ) : null}
-          {standardResultsLayout.activeTab === 'dataTable' ? (
-            <WorkbenchStandardResultsDataTable
-              resultSummary={resultSummary}
-              workbenchCopy={workbenchCopy}
-            />
-          ) : null}
-          {standardResultsLayout.activeTab === 'figures' ? (
-            <WorkbenchStandardFiguresPanel
-              file={activeFile}
-              figureSpecs={figureSpecs}
-              resultSummary={resultSummary}
-              language={settingsLanguagePreference}
-              workbenchCopy={workbenchCopy}
-              exportInProgress={exportInProgress}
-              figuresExportReady={isExportModeDataReady('figuresZip')}
-              onExportFigures={() => {
-                void handleExportAction('figuresZip');
-              }}
-            />
-          ) : null}
-        </div>
-      </div>
-    );
-  };
-
-  const renderPanelContent = (panel: PanelDefinition) => {
-    if (panel.key === 'preview') return renderPreviewPanel();
-    if (panel.key === 'realtime') return renderRealtimePanel();
-    if (panel.key === 'verification') {
-      return (
-        <WorkbenchIdealVerificationWindow
-          file={activeFile.kind === 'ideal' ? activeFile : null}
-          analysis={activeFile.kind === 'ideal' ? idealAnalysis : null}
-          figureSpecs={figureSpecs}
-          language={settingsLanguagePreference}
-          workbenchCopy={workbenchCopy}
-          exportEnvironmentLabel={exportCopy.label}
-          exportInProgress={exportInProgress}
-          isExportReady={isExportModeDataReady}
-          onExport={(mode) => {
-            void handleExportAction(mode);
-          }}
-        />
-      );
-    }
-    if (panel.key === 'results') return renderResultsPanel();
-    if (panel.key === 'experimentPoints') {
-      return (
-        <WorkbenchIdealPointsWindow
-          file={activeFile.kind === 'ideal' ? activeFile : null}
-          analysis={activeFile.kind === 'ideal' ? idealAnalysis : null}
-          workbenchCopy={workbenchCopy}
-          pendingClearRelationKey={pendingClearRelationKey}
-          pendingRemovePointId={pendingRemovePointId}
-          onClearRelation={requestClearIdealRelation}
-          onCancelClearRelation={cancelClearIdealRelation}
-          onRequestRemovePoint={requestRemoveIdealPoint}
-          onCancelRemovePoint={cancelRemoveIdealPoint}
-        />
-      );
-    }
-    if (activeFile.kind === 'heatCapacity' && panel.key === 'heatCapacityReview') {
-      const groupCollection = activeFile.heatCapacityFreeExperimentGroups;
-      const viewedGroup = selectViewedHeatCapacityFreeExperimentGroup(groupCollection) ??
-        selectCurrentHeatCapacityFreeExperimentGroup(groupCollection);
-      if (!viewedGroup) {
-        return (
-          <div className="studio-empty">
-            <div>
-              <strong>{settingsLanguagePreference === 'en' ? 'No experiment group yet' : settingsLanguagePreference === 'zh-TW' ? '尚無實驗組' : '尚无实验组'}</strong>
-              <p>{settingsLanguagePreference === 'en' ? 'Create an experiment group to review its process and results.' : settingsLanguagePreference === 'zh-TW' ? '建立實驗組後，可在此查看過程與結果。' : '创建实验组后，可在这里查看过程与结果。'}</p>
-            </div>
-          </div>
-        );
-      }
-      const storedTrialId = groupCollection.lastViewedTrialIdByGroupId[viewedGroup.id] ?? null;
-      const requestedReviewTrialId = viewedGroup.runSeries.trials.some((trial) => trial.id === storedTrialId)
-        ? storedTrialId
-        : viewedGroup.runSeries.trials[0]?.id ?? null;
-      const theoreticalGamma = viewedGroup.parameterSnapshot?.physics.gamma ?? activeFile.theoreticalGamma;
-      const calculationSession = viewedGroup.calculation?.kind === 'real-interactive' ||
-          viewedGroup.calculation?.kind === 'ideal-interactive'
-        ? viewedGroup.calculation.session
-        : null;
-      const review = selectHeatCapacityFreeProcessReview({
-        trials: viewedGroup.runSeries.trials,
-        traceStore: viewedGroup.runSeries.traceStore,
-        theoreticalGamma,
-        selectedTrialId: requestedReviewTrialId,
-        calculationSession,
-        scoringVersion: viewedGroup.scoringVersion,
-      });
-      return (
-        <div className="studio-heat-review-with-scheme">
-          <HeatCapacityExperimentGroupContextBar
-            collection={groupCollection}
-            language={settingsLanguagePreference}
-            onViewedGroupChange={(groupId) => {
-              setPendingRemoveHeatCapacityTrialRecord(null);
-              updateActiveFile((file) => (
-                file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
-                  ? selectHeatCapacityFreeViewedExperimentGroupWorkbenchState(file, groupId, Date.now())
-                  : file
-              ));
-            }}
-            onViewedTrialChange={(groupId, trialId) => {
-              updateActiveFile((file) => (
-                file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
-                  ? selectHeatCapacityFreeViewedTrialWorkbenchState(file, groupId, trialId, Date.now())
-                  : file
-              ));
-            }}
-          />
-          <HeatCapacityProcessReviewPanel
-            mode={activeFile.heatCapacityMode}
-            review={review}
-            selectedTrialId={review.selectedTrialId}
-            language={settingsLanguagePreference}
-            isIdealExperimentReview={viewedGroup.scheme === 'ideal'}
-            onSelectedTrialChange={(trialId) => {
-              updateActiveFile((file) => (
-                file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
-                  ? selectHeatCapacityFreeViewedTrialWorkbenchState(file, viewedGroup.id, trialId, Date.now())
-                  : file
-              ));
-            }}
-          />
-          <HeatCapacityGroupResultsPanel
-            group={viewedGroup}
-            collection={groupCollection}
-            language={settingsLanguagePreference}
-          />
-        </div>
-      );
-    }
-    if (activeFile.kind === 'heatCapacity' && isHeatCapacityPanelKey(panel.key)) {
-      return (
-        <HeatCapacityLeftPanel
-          file={activeFile}
-          language={settingsLanguagePreference}
-          panelKey={panel.key}
-          pendingRemoveTrialRecord={pendingRemoveHeatCapacityTrialRecord}
-          onRemoveTrialRecord={requestRemoveHeatCapacityTrialRecord}
-          onCancelRemoveTrialRecord={() => setPendingRemoveHeatCapacityTrialRecord(null)}
-          groupCollection={activeFile.heatCapacityFreeExperimentGroups}
-          onViewedGroupChange={(groupId) => {
+  const selectHeatCapacityViewedGroup = (groupId: string) => {
             setPendingRemoveHeatCapacityTrialRecord(null);
             updateActiveFile((file) => (
               file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
                 ? selectHeatCapacityFreeViewedExperimentGroupWorkbenchState(file, groupId, Date.now())
                 : file
             ));
-          }}
-          onViewedTrialChange={(groupId, trialId) => {
+          };
+
+  const selectHeatCapacityViewedTrial = (groupId: string, trialId: string) => {
             updateActiveFile((file) => (
               file.kind === 'heatCapacity' && file.heatCapacityMode === 'free'
                 ? selectHeatCapacityFreeViewedTrialWorkbenchState(file, groupId, trialId, Date.now())
                 : file
             ));
-          }}
-          exportInProgress={exportInProgress}
-          canExportReport={isExportModeDataReady('report')}
-          canExportFigures={isExportModeDataReady('figuresZip')}
-          onExportExperimentPackage={() => { void handleExportAction('completeBundle'); }}
-          onExportReport={openHeatCapacityReportExport}
-          onExportFigures={() => { void handleExportAction('figuresZip'); }}
-        />
-      );
-    }
-    return (
-      <div className="studio-empty">
-        <div>
-          <strong>{workbenchCopy.results.panelNotConnectedTitle}</strong>
-          <p>{workbenchCopy.results.panelNotConnectedBody}</p>
-        </div>
-      </div>
-    );
-  };
+          };
 
-  const renderDockHeader = (panel: PanelDefinition) => {
-    const isProcessingRealtime = activePistonOscillationDataProcessing
-      && panel.key === 'realtime';
-    const isProcessReviewRealtime = activePistonOscillationProcessReview
-      && panel.key === 'realtime';
-    const headerTitle = isProcessReviewRealtime
-      ? pistonOscillationCopy.review.title
-      : isProcessingRealtime
-        ? pistonOscillationCopy.processing.title
-        : panel.title;
-    const renderedHeaderHint = isProcessReviewRealtime
-      ? renderScientificText(pistonOscillationCopy.review.hint)
-      : isProcessingRealtime
-        ? renderScientificText(pistonOscillationCopy.processing.hint)
-        : renderScientificText(panel.hint);
-    const showPanelActions = isProcessingRealtime
-      || isProcessReviewRealtime
-      || (panel.key === 'preview' && !activePistonOscillationExpandedRealtime);
-    return (
-    <div className="studio-dock-header">
-      <div>
-        <span>{headerTitle}</span>
-        <small>{renderedHeaderHint}</small>
-      </div>
-      {showPanelActions ? (
-        <div className="studio-panel-actions">
-          {activeFile.kind === 'heatCapacity'
-            ? renderHeatCapacityModeControl()
-            : activeFile.kind === 'heatCapacityPistonOscillation'
-              ? renderPistonOscillationModeControl()
-              : (
-            <button
-              type="button"
-              className={`studio-run-control studio-run-control-${activeFile.runState === 'running' ? 'pause' : 'start'}`}
-              onClick={toggleActiveFileRunState}
-              data-prompt-tooltip={activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
-              aria-label={activeFile.runState === 'running' ? workbenchCopy.actions.pause : workbenchCopy.actions.start}
-            >
-              {activeFile.runState === 'running' ? (
-                <Pause size={14} strokeWidth={2.5} />
-              ) : (
-                <Play size={15} strokeWidth={2.5} />
-              )}
-            </button>
-          )}
-          {(activeFile.kind === 'standard' || activeFile.kind === 'ideal') &&
-          (activeFile.runState === 'running' || activeFile.runState === 'paused') ? (
-            <button
-              type="button"
-              className="studio-run-control studio-run-control-stop"
-              onClick={stopActiveFile}
-              data-prompt-tooltip={workbenchCopy.actions.stop}
-              aria-label={workbenchCopy.actions.stop}
-            >
-              <Square size={13} strokeWidth={2.5} />
-            </button>
-          ) : null}
-          {isProcessReviewRealtime ? (
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                closePistonOscillationProcessReview();
-              }}
-              data-prompt-tooltip={pistonOscillationCopy.review.closeAria}
-              aria-label={pistonOscillationCopy.review.closeAria}
-            >
-              <X size={14} />
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-    </div>
-    );
-  };
-
-  const renderDockPanel = (panel: PanelDefinition, optional = false) => (
-    <section
-      className={`studio-dock-panel studio-dock-panel-${panel.key} ${optional ? 'studio-optional-panel' : 'studio-fixed-panel'} ${panel.key === 'results' ? 'studio-results-window' : ''}`}
-      key={panel.key}
-      onClick={() => setSelectedPanel(panel.key)}
-    >
-      {panel.key === 'results' ? null : renderDockHeader(panel)}
-      {renderPanelContent(panel)}
-    </section>
+  const renderPanelContent = (panel: PanelDefinition) => (
+    <WorkbenchPanelContent
+      panel={panel}
+      renderPreviewPanel={renderPreviewPanel}
+      renderRealtimePanel={renderRealtimePanel}
+      activeFile={activeFile}
+      idealAnalysis={idealAnalysis}
+      figureSpecs={figureSpecs}
+      settingsLanguagePreference={settingsLanguagePreference}
+      workbenchCopy={workbenchCopy}
+      exportCopy={exportCopy}
+      exportInProgress={exportInProgress}
+      isExportModeDataReady={isExportModeDataReady}
+      handleExportAction={handleExportAction}
+      renderResultsPanel={renderResultsPanel}
+      pendingClearRelationKey={pendingClearRelationKey}
+      pendingRemovePointId={pendingRemovePointId}
+      requestClearIdealRelation={requestClearIdealRelation}
+      cancelClearIdealRelation={cancelClearIdealRelation}
+      requestRemoveIdealPoint={requestRemoveIdealPoint}
+      cancelRemoveIdealPoint={cancelRemoveIdealPoint}
+      selectHeatCapacityViewedGroup={selectHeatCapacityViewedGroup}
+      selectHeatCapacityViewedTrial={selectHeatCapacityViewedTrial}
+      pendingRemoveHeatCapacityTrialRecord={pendingRemoveHeatCapacityTrialRecord}
+      requestRemoveHeatCapacityTrialRecord={requestRemoveHeatCapacityTrialRecord}
+      setPendingRemoveHeatCapacityTrialRecord={setPendingRemoveHeatCapacityTrialRecord}
+      openHeatCapacityReportExport={openHeatCapacityReportExport}
+    />
   );
 
-  const renderIdealResultWindows = () => {
-    if (activeFile.kind !== 'ideal') return null;
+  const renderDockHeader = (panel: PanelDefinition) => (
+    <WorkbenchDockHeader
+      panel={panel}
+      activePistonOscillationDataProcessing={activePistonOscillationDataProcessing}
+      activePistonOscillationProcessReview={activePistonOscillationProcessReview}
+      pistonOscillationCopy={pistonOscillationCopy}
+      activePistonOscillationExpandedRealtime={activePistonOscillationExpandedRealtime}
+      activeFile={activeFile}
+      renderHeatCapacityModeControl={renderHeatCapacityModeControl}
+      renderPistonOscillationModeControl={renderPistonOscillationModeControl}
+      toggleActiveFileRunState={toggleActiveFileRunState}
+      workbenchCopy={workbenchCopy}
+      stopActiveFile={stopActiveFile}
+      closePistonOscillationProcessReview={closePistonOscillationProcessReview}
+    />
+  );
 
-    if (!activeFile.visiblePanels.includes('results')) return null;
+  const renderDockPanel = (panel: PanelDefinition, optional = false) => (
+    <WorkbenchDockPanel
+      key={panel.key}
+      panel={panel}
+      optional={optional}
+      setSelectedPanel={setSelectedPanel}
+      renderDockHeader={renderDockHeader}
+      renderPanelContent={renderPanelContent}
+    />
+  );
 
-    const layout = normalizeIdealWindowLayoutState(activeFile.idealWindowLayout, workbenchLayoutDefaults.ideal);
-    const activePanel = idealResultWindowPanels.find((panel) => panel.key === layout.activeIdealResultTab)
-      ?? idealResultWindowPanels[0];
-    const openIdealResultTabs = idealResultWindowPanels.filter((panel) => layout.openTabs.includes(panel.key));
+  const renderIdealResultWindows = () => (
+    <WorkbenchIdealResultsRegion
+      activeFile={activeFile}
+      workbenchLayoutDefaults={workbenchLayoutDefaults}
+      idealResultWindowPanels={idealResultWindowPanels}
+      idealResultWindowRegionRef={idealResultWindowRegionRef}
+      workbenchCopy={workbenchCopy}
+      selectedPanel={selectedPanel}
+      startIdealResultWindowResize={startIdealResultWindowResize}
+      closeIdealResultsWindow={closeIdealResultsWindow}
+      setActiveIdealResultTab={setActiveIdealResultTab}
+      closeIdealResultTab={closeIdealResultTab}
+      renderPanelContent={renderPanelContent}
+    />
+  );
 
-    return (
-      <div
-        className="studio-ideal-results-region"
-        ref={idealResultWindowRegionRef}
-        aria-label={workbenchCopy.results.title}
-      >
-        <section
-          className={`studio-ideal-result-window-layer ${selectedPanel === activePanel.key ? 'studio-ideal-result-window-selected' : ''}`}
-          style={{ height: `${clampIdealResultHeightRatio(layout.heightRatio) * 100}%` }}
-          aria-label={workbenchCopy.results.title}
-        >
-          <div
-            className="studio-ideal-result-window-resizer"
-            role="separator"
-            aria-orientation="horizontal"
-            onMouseDown={startIdealResultWindowResize}
-          />
-          <div className="studio-results-toolbar studio-ideal-result-window-toolbar">
-            <div className="studio-results-title">
-              <strong>{workbenchCopy.results.title}</strong>
-              <span>{activePanel.hint}</span>
-            </div>
-            <div className="studio-results-actions">
-              <button
-                type="button"
-                aria-label={`${workbenchCopy.actions.close} ${workbenchCopy.results.title}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  closeIdealResultsWindow();
-                }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-          <div className="studio-results-tabs studio-ideal-results-tabs" role="tablist" aria-label={workbenchCopy.results.idealResultsSectionsAria}>
-            {openIdealResultTabs.map((panel) => (
-              <button
-                type="button"
-                key={panel.key}
-                role="tab"
-                aria-selected={layout.activeIdealResultTab === panel.key}
-                className={layout.activeIdealResultTab === panel.key ? 'studio-results-tab-active' : ''}
-                onClick={() => setActiveIdealResultTab(panel.key)}
-              >
-                {panel.icon}
-                <span>{panel.title}</span>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="studio-results-tab-close"
-                  aria-label={`${workbenchCopy.actions.close} ${panel.title}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    closeIdealResultTab(panel.key);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      closeIdealResultTab(panel.key);
-                    }
-                  }}
-                >
-                  <X size={12} />
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="studio-results-body">
-            {renderPanelContent(activePanel)}
-          </div>
-        </section>
-      </div>
-    );
-  };
-
-  const renderHeatCapacityMaterialsWindow = () => {
-    if (activeFile.kind !== 'heatCapacity') return null;
-    const windowState = getHeatCapacityMaterialsWindowState(activeFile);
-    if (!windowState) return null;
-    const openTabs = windowState.openTabs
-      .map((tabId) => {
-        const panel = getHeatCapacityTabDefinition(tabId);
-        return panel ? { tabId, panel } : null;
-      })
-      .filter((item): item is { tabId: WorkbenchHeatCapacityTabId; panel: PanelDefinition } => item !== null);
-    if (openTabs.length === 0) return null;
-    const activeTabId = windowState.activeTabId;
-    const activePanel = openTabs.find((item) => item.tabId === activeTabId)?.panel ?? openTabs[0].panel;
-    const materialsMaxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio();
-    const materialsHeightRatio = clamp(
-      activeFile.heatCapacityTabContainerHeight || 0.5,
-      HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO,
-      materialsMaxHeightRatio,
-    );
-
-    return (
-      <div
-        className="studio-results-region studio-heat-materials-region"
-        style={{ height: `${materialsHeightRatio * 100}%` }}
-        data-heat-capacity-materials-window="true"
-      >
-        <div
-          className="studio-results-window-resizer"
-          role="separator"
-          aria-orientation="horizontal"
-          onMouseDown={startHeatCapacityMaterialsResize}
-        />
-        <section className="studio-dock-panel studio-optional-panel studio-results-window studio-heat-materials-window">
-        <div className="studio-results-toolbar studio-heat-materials-toolbar">
-          <div className="studio-results-title">
-              <strong>{heatCapacityRealtimeCopy.materialsTitle}</strong>
-              <span>{activeHeatCapacityCalculationHint}</span>
-            </div>
-            <div className="studio-results-actions">
-              <button
-                type="button"
-                aria-label={heatCapacityRealtimeCopy.closeMaterialsAria}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  closeHeatCapacityMaterialsWindow();
-                }}
-              >
-                <X size={14} />
-              </button>
-            </div>
-          </div>
-          <div className="studio-results-tabs studio-heat-materials-tabs" role="tablist" aria-label={activeHeatCapacityMaterialsTabsAria}>
-            {openTabs.map(({ tabId, panel }) => (
-              <button
-                type="button"
-                key={tabId}
-                role="tab"
-                aria-selected={tabId === activeTabId}
-                className={tabId === activeTabId ? 'studio-results-tab-active' : ''}
-                onClick={() => activateHeatCapacityTab(tabId)}
-              >
-                {panel.icon}
-                <span>{panel.title}</span>
-                <span
-                  role="button"
-                  tabIndex={0}
-                  className="studio-results-tab-close"
-                  aria-label={`${workbenchCopy.actions.close} ${panel.title}`}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    closeHeatCapacityTab(tabId);
-                  }}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter' || event.key === ' ') {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      closeHeatCapacityTab(tabId);
-                    }
-                  }}
-                >
-                  <X size={12} />
-                </span>
-              </button>
-            ))}
-          </div>
-          <div className="studio-results-body studio-heat-materials-body">
-            {renderPanelContent(activePanel)}
-          </div>
-        </section>
-      </div>
-    );
-  };
+  const renderHeatCapacityMaterialsWindow = () => (
+    <WorkbenchHeatCapacityMaterialsWindow
+      activeFile={activeFile}
+      getHeatCapacityTabDefinition={getHeatCapacityTabDefinition}
+      getHeatCapacityMaterialsMaxHeightRatio={getHeatCapacityMaterialsMaxHeightRatio}
+      clamp={clamp}
+      startHeatCapacityMaterialsResize={startHeatCapacityMaterialsResize}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      activeHeatCapacityCalculationHint={activeHeatCapacityCalculationHint}
+      closeHeatCapacityMaterialsWindow={closeHeatCapacityMaterialsWindow}
+      activeHeatCapacityMaterialsTabsAria={activeHeatCapacityMaterialsTabsAria}
+      activateHeatCapacityTab={activateHeatCapacityTab}
+      workbenchCopy={workbenchCopy}
+      closeHeatCapacityTab={closeHeatCapacityTab}
+      renderPanelContent={renderPanelContent}
+    />
+  );
 
   const handleSectionKeyDown = (event: React.KeyboardEvent, action: () => void) => {
     if (event.key === 'Enter' || event.key === ' ') {
@@ -20237,318 +11910,56 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     }
   };
 
-  const renderSectionTitle = (
-    label: string,
-    collapsed: boolean,
-    onToggle: () => void,
-    kind: 'files' | 'panels' = 'files',
-  ) => (
-    <button
-      type="button"
-      className={`studio-tree-title-button studio-tree-title-button-${kind} ${collapsed ? 'studio-tree-title-collapsed' : ''}`}
-      onClick={onToggle}
-      aria-expanded={!collapsed}
-    >
-      {kind === 'panels' ? <PanelLeft size={14} /> : (
-        <span className="studio-tree-folder-icon">
-          <Folder size={14} className="studio-folder-closed" />
-          <FolderOpen size={14} className="studio-folder-open" />
-        </span>
-      )}
-      <span>{label}</span>
-    </button>
+  const renderSectionTitle = (label: string, collapsed: boolean, onToggle: () => void, kind: 'files' | 'panels' = 'files') => (
+    <WorkbenchSectionTitle
+      label={label}
+      collapsed={collapsed}
+      onToggle={onToggle}
+      kind={kind}
+    />
   );
 
-  const renderHeatCapacityPanelTree = () => {
-    const previewPanel = availablePanels.find((panel) => panel.key === 'preview');
-    const realtimePanel = availablePanels.find((panel) => panel.key === 'realtime');
-    const materialPanels = getHeatCapacityMaterialsTabOrder(activeFile)
-      .map((tabId) => {
-        const panel = availablePanels.find((item) => item.key === heatCapacityTabIdToPanelKey(tabId));
-        return panel ? { tabId, panel: getHeatCapacityPanelDisplayDefinition(tabId, panel) } : null;
-      })
-      .filter((item): item is { tabId: WorkbenchHeatCapacityTabId; panel: PanelDefinition } => Boolean(item.panel));
-    const materialsSelected = selectedPanel === 'results';
-    const allowedMaterialTabIds = materialPanels.map(({ tabId }) => tabId);
-    const materialsOpen = activeFile.kind === 'heatCapacity'
-      && activeFile.openHeatCapacityTabs.some((tabId) => allowedMaterialTabIds.includes(tabId));
-    const topPanels = [previewPanel, realtimePanel].filter((panel): panel is PanelDefinition => Boolean(panel));
+  const renderHeatCapacityPanelTree = () => (
+    <WorkbenchHeatCapacityPanelTree
+      toggleHeatCapacityMaterialsExpanded={toggleHeatCapacityMaterialsExpanded}
+      availablePanels={availablePanels}
+      activeFile={activeFile}
+      getHeatCapacityPanelDisplayDefinition={getHeatCapacityPanelDisplayDefinition}
+      selectedPanel={selectedPanel}
+      panelsSectionCollapsed={panelsSectionCollapsed}
+      setSelectedPanel={setSelectedPanel}
+      handleLockedPanel={handleLockedPanel}
+      handleSectionKeyDown={handleSectionKeyDown}
+      workbenchCopy={workbenchCopy}
+      openAllHeatCapacityMaterialsTabs={openAllHeatCapacityMaterialsTabs}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      getHeatCapacityTabState={getHeatCapacityTabState}
+      openHeatCapacityTab={openHeatCapacityTab}
+      getLocalizedTreeState={getLocalizedTreeState}
+    />
+  );
 
-    return (
-      <>
-        {topPanels.map((panel) => {
-          const locked = LOCKED_PANEL_KEYS.includes(panel.key);
-          return (
-            <div
-              role="button"
-              tabIndex={panelsSectionCollapsed ? -1 : 0}
-              key={panel.key}
-              className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
-              onClick={() => {
-                if (panelsSectionCollapsed) return;
-                setSelectedPanel(panel.key);
-                handleLockedPanel(panel.title);
-              }}
-              onDoubleClick={() => {
-                if (panelsSectionCollapsed) return;
-                handleLockedPanel(panel.title);
-              }}
-              onKeyDown={(event) => handleSectionKeyDown(event, () => {
-                setSelectedPanel(panel.key);
-                handleLockedPanel(panel.title);
-              })}
-              data-prompt-tooltip={panel.hint}
-            >
-              {panel.icon}
-              <span>{panel.title}</span>
-              {locked ? (
-                <button
-                  type="button"
-                  className="studio-panel-lock-button"
-                  aria-label={`${panel.title} ${workbenchCopy.files.locked}`}
-                  tabIndex={panelsSectionCollapsed ? -1 : 0}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    handleLockedPanel(panel.title);
-                  }}
-                >
-                  <LockKeyhole size={12} />
-                  {workbenchCopy.files.locked}
-                </button>
-              ) : null}
-            </div>
-          );
-        })}
-        {materialPanels.length > 0 ? (
-          <>
-          <div
-          role="button"
-          tabIndex={panelsSectionCollapsed ? -1 : 0}
-          className={`studio-tree-row studio-tree-row-child studio-heat-materials-group ${materialsSelected ? 'studio-panel-row-active' : ''}`}
-          onClick={() => {
-            if (panelsSectionCollapsed) return;
-            setSelectedPanel('results');
-          }}
-          onDoubleClick={(event) => {
-            event.stopPropagation();
-            openAllHeatCapacityMaterialsTabs();
-          }}
-          onKeyDown={(event) => handleSectionKeyDown(event, () => {
-            setSelectedPanel('results');
-          })}
-          data-prompt-tooltip={heatCapacityRealtimeCopy.materialsFolderTitle}
-        >
-          <button
-            type="button"
-            className={`studio-results-folder-button ${activeFile.kind === 'heatCapacity' && !activeFile.heatCapacityMaterialsExpanded ? 'studio-tree-title-collapsed' : ''}`}
-            aria-expanded={activeFile.kind === 'heatCapacity' ? activeFile.heatCapacityMaterialsExpanded : true}
-            aria-label={heatCapacityRealtimeCopy.materialsGroupAria}
-            onClick={(event) => {
-              event.stopPropagation();
-              if (activeFile.kind !== 'heatCapacity') return;
-              updateActiveFile((file) => (
-                file.kind === 'heatCapacity'
-                  ? { ...file, heatCapacityMaterialsExpanded: !file.heatCapacityMaterialsExpanded, updatedAt: Date.now() }
-                  : file
-              ));
-            }}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              openAllHeatCapacityMaterialsTabs();
-            }}
-          >
-            <span className="studio-results-expander-icon">
-              <ChevronRight size={13} />
-            </span>
-          </button>
-          <span
-            className="studio-results-folder-label"
-            onClick={(event) => {
-              event.stopPropagation();
-              setSelectedPanel('results');
-            }}
-            onDoubleClick={(event) => {
-              event.stopPropagation();
-              openAllHeatCapacityMaterialsTabs();
-            }}
-          >
-            {heatCapacityRealtimeCopy.materialsTitle}
-          </span>
-          <span className="studio-tree-meta">{materialsOpen ? workbenchCopy.files.active : workbenchCopy.files.off}</span>
-        </div>
-          {activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMaterialsExpanded ? (
-          <div className="studio-results-nav studio-heat-materials-nav">
-            {materialPanels.map(({ tabId, panel }) => {
-              const state = getHeatCapacityTabState(tabId);
-              return (
-                <button
-                  type="button"
-                  key={tabId}
-                  className={selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
-                  tabIndex={panelsSectionCollapsed ? -1 : 0}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedPanel(panel.key);
-                  }}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation();
-                    openHeatCapacityTab(tabId);
-                  }}
-                  data-prompt-tooltip={heatCapacityRealtimeCopy.materialsTabTitle}
-                >
-                  {panel.icon}
-                  <span>{panel.title}</span>
-                  <span className="studio-tree-meta">{getLocalizedTreeState(state)}</span>
-                </button>
-              );
-            })}
-          </div>
-          ) : null}
-          </>
-        ) : null}
-      </>
-    );
-  };
-
-  const renderPistonOscillationPanelTree = () => {
-    if (activeFile.kind !== 'heatCapacityPistonOscillation') return null;
-    const previewPanel = availablePanels.find((panel) => panel.key === 'preview');
-    const realtimePanel = availablePanels.find((panel) => panel.key === 'realtime');
-    const materialsPanels = getPistonOscillationMaterialsPanelOrder(activeFile)
-      .map((panelKey) => availablePanels.find((panel) => panel.key === panelKey))
-      .filter((panel): panel is PanelDefinition => Boolean(panel));
-    const materialsSelected = materialsPanels.some((panel) => panel.key === selectedPanel);
-    const materialsOpen = pistonOscillationDataProcessingReviewOpen
-      || pistonOscillationCalculationReviewOpen
-      || pistonOscillationProcessReviewOpen;
-    const toggleMaterialsExpanded = () => {
-      if (panelsSectionCollapsed) return;
-      updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-        ? {
-            ...file,
-            pistonOscillationMaterialsExpanded: !file.pistonOscillationMaterialsExpanded,
-            updatedAt: Date.now(),
-          }
-        : file);
-    };
-
-    return (
-      <>
-        {[previewPanel, realtimePanel]
-          .filter((panel): panel is PanelDefinition => Boolean(panel))
-          .map((panel) => (
-            <div
-              role="button"
-              tabIndex={panelsSectionCollapsed ? -1 : 0}
-              key={panel.key}
-              className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
-              onClick={() => {
-                if (panelsSectionCollapsed) return;
-                setSelectedPanel(panel.key);
-                handleLockedPanel(panel.title);
-              }}
-              onDoubleClick={() => {
-                if (!panelsSectionCollapsed) handleLockedPanel(panel.title);
-              }}
-              onKeyDown={(event) => handleSectionKeyDown(event, () => {
-                setSelectedPanel(panel.key);
-                handleLockedPanel(panel.title);
-              })}
-              data-prompt-tooltip={panel.hint}
-            >
-              {panel.icon}
-              <span>{panel.title}</span>
-              <button
-                type="button"
-                className="studio-panel-lock-button"
-                aria-label={`${panel.title} ${workbenchCopy.files.locked}`}
-                tabIndex={panelsSectionCollapsed ? -1 : 0}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  handleLockedPanel(panel.title);
-                }}
-              >
-                <LockKeyhole size={12} />
-                {workbenchCopy.files.locked}
-              </button>
-            </div>
-          ))}
-        {materialsPanels.length > 0 ? (
-          <>
-          <div
-          role="button"
-          tabIndex={panelsSectionCollapsed ? -1 : 0}
-          className={`studio-tree-row studio-tree-row-child studio-heat-materials-group ${materialsSelected ? 'studio-panel-row-active' : ''}`}
-          aria-expanded={activeFile.pistonOscillationMaterialsExpanded}
-          onClick={toggleMaterialsExpanded}
-          onKeyDown={(event) => handleSectionKeyDown(event, toggleMaterialsExpanded)}
-          data-prompt-tooltip={heatCapacityRealtimeCopy.materialsFolderTitle}
-        >
-          <span
-            className={`studio-results-folder-button ${!activeFile.pistonOscillationMaterialsExpanded ? 'studio-tree-title-collapsed' : ''}`}
-            aria-hidden="true"
-          >
-            <span className="studio-results-expander-icon">
-              <ChevronRight size={13} />
-            </span>
-          </span>
-          <span className="studio-results-folder-label">
-            {heatCapacityRealtimeCopy.materialsTitle}
-          </span>
-          <span className="studio-tree-meta">
-            {materialsOpen ? workbenchCopy.files.active : workbenchCopy.files.off}
-          </span>
-        </div>
-          {activeFile.pistonOscillationMaterialsExpanded ? (
-          <div className="studio-results-nav studio-heat-materials-nav">
-            {materialsPanels.map((panel) => {
-              const visible = panel.key === 'heatCapacityGuide'
-                ? pistonOscillationDataProcessingReviewOpen
-                  || pistonOscillationCalculationReviewOpen
-                : panel.key === 'heatCapacityReview'
-                  ? pistonOscillationProcessReviewOpen
-                : isWindowPanelVisible(panel.key);
-              const openMaterialPanel = () => {
-                if (panel.key === 'heatCapacityGuide') {
-                  openPistonOscillationDataProcessingReview();
-                } else if (panel.key === 'heatCapacityReview') {
-                  openPistonOscillationProcessReview();
-                } else {
-                  openPanel(panel.key);
-                }
-              };
-              return (
-                <button
-                  type="button"
-                  key={panel.key}
-                  className={selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
-                  tabIndex={panelsSectionCollapsed ? -1 : 0}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    setSelectedPanel(panel.key);
-                  }}
-                  onDoubleClick={(event) => {
-                    event.stopPropagation();
-                    openMaterialPanel();
-                  }}
-                  onKeyDown={(event) => handleSectionKeyDown(event, openMaterialPanel)}
-                  data-prompt-tooltip={panel.hint}
-                >
-                  {panel.icon}
-                  <span>{panel.title}</span>
-                  <span className="studio-tree-meta">
-                    {visible ? workbenchCopy.files.shown : workbenchCopy.files.off}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          ) : null}
-          </>
-        ) : null}
-      </>
-    );
-  };
+  const renderPistonOscillationPanelTree = () => (
+    <WorkbenchPistonOscillationPanelTree
+      togglePistonOscillationMaterialsExpanded={togglePistonOscillationMaterialsExpanded}
+      activeFile={activeFile}
+      availablePanels={availablePanels}
+      selectedPanel={selectedPanel}
+      pistonOscillationDataProcessingReviewOpen={pistonOscillationDataProcessingReviewOpen}
+      pistonOscillationCalculationReviewOpen={pistonOscillationCalculationReviewOpen}
+      pistonOscillationProcessReviewOpen={pistonOscillationProcessReviewOpen}
+      panelsSectionCollapsed={panelsSectionCollapsed}
+      setSelectedPanel={setSelectedPanel}
+      handleLockedPanel={handleLockedPanel}
+      handleSectionKeyDown={handleSectionKeyDown}
+      workbenchCopy={workbenchCopy}
+      heatCapacityRealtimeCopy={heatCapacityRealtimeCopy}
+      isWindowPanelVisible={isWindowPanelVisible}
+      openPistonOscillationDataProcessingReview={openPistonOscillationDataProcessingReview}
+      openPistonOscillationProcessReview={openPistonOscillationProcessReview}
+      openPanel={openPanel}
+    />
+  );
 
   const topMenuResultChildren: WorkbenchTopMenuResultChild[] = activeFile.kind === 'ideal'
     ? idealResultWindowPanels.map((panel) => {
@@ -20626,7 +12037,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       title: aboutResultNotice.title,
       body: aboutResultNotice.body,
       closeLabel: promptFeedbackCopy.closeLabel,
-      onDismiss: () => setAboutResultNotice(null),
+      onDismiss: dismissAboutResultNotice,
     });
   }
   if (workspacePersistenceStatus.state === 'retrying' || workspacePersistenceStatus.state === 'failed') {
@@ -20846,7 +12257,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 ?.customHeightCandidatesMm
             : undefined
         }
-        onCancel={() => setPistonOscillationFreeSetupRequestedFileId(null)}
+        onCancel={() => cancelPistonOscillationFreeSetup()}
         onConfirm={(targetHeightsMm, customHeightCandidatesMm) => {
           activatePistonOscillationFreeMode(
             targetHeightsMm,
@@ -20861,8 +12272,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           : []}
         selectedGroupIds={heatCapacityReportSelectedGroupIds}
         language={settingsLanguagePreference}
-        onSelectionChange={setHeatCapacityReportSelectedGroupIds}
-        onCancel={() => setHeatCapacityReportExportOpen(false)}
+        onSelectionChange={selectHeatCapacityReportGroups}
+        onCancel={closeHeatCapacityReportExport}
         onConfirm={confirmHeatCapacityReportExport}
       />
       <HeatCapacityCalculationWindow
@@ -20919,61 +12330,41 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           className="studio-resize-ghost-divider studio-console-resize-ghost"
           aria-hidden="true"
         />
-        <header className="studio-menu">
-          <div className="studio-titlebar-brand" aria-label={workbenchCopy.about.subtitle}>
-            <span className="studio-brand-mark" aria-hidden="true">
-              <img src="favicon.png" alt="" />
-            </span>
-            <span>{workbenchCopy.about.subtitle}</span>
-          </div>
-          <WorkbenchTopCommands
-            openMenu={openTopMenu}
-            menuLeft={topMenuLeft}
-            copy={workbenchCopy}
-            commandsRef={topCommandsRef}
-            menuRef={topMenuRef}
-            closedFiles={openableClosedFiles.map((file) => ({
-              id: file.id,
-              name: file.name,
-              kind: file.kind,
-              kindLabel: getWorkbenchFileKindLabel(file.kind, workbenchCopy.files),
-            }))}
-            undoLabel={undoStack[undoStack.length - 1]?.label ?? null}
-            redoLabel={redoStack[redoStack.length - 1]?.label ?? null}
-            undoCount={tutorialActive ? 0 : undoStack.length}
-            redoCount={tutorialActive ? 0 : redoStack.length}
-            activeFileName={activeFile.name}
-            windowPanels={topMenuWindowPanels}
-            settingsSummary={`${workbenchCopy.settings.themeOptions[settingsThemePreference].label} / ${workbenchCopy.settings.languageOptions[settingsLanguagePreference].label} / ${workbenchCopy.settings.performanceModeSummary[settingsPerformanceMode]}`}
-            layoutSummary={topMenuLayoutSummary}
-            onToggleMenu={toggleTopCommandMenu}
-            onOpenNewWindow={openNewWorkbenchWindow}
-            onCreateFile={createFile}
-            onOpenClosedFile={openClosedWorkbenchFile}
-            onUndo={undoLastEdit}
-            onRedo={redoLastEdit}
-            onClearHistory={clearEditHistory}
-            onToggleWindowPanel={(panelKey) => runWindowMenuSwitch(() => toggleWindowPanel(panelKey))}
-            onToggleWindowResultChild={(child) => runWindowMenuSwitch(() => {
-              if (!guardWorkbenchTutorialAction('open-results-window')) return;
-              if (child.kind === 'ideal') {
-                toggleWindowIdealResultTab(child.key);
-              } else {
-                toggleWindowStandardResultsTab(child.key);
-              }
-            })}
-            onResetLayout={resetLayout}
-            onOpenGeneralSettings={openGeneralSettings}
-            onSaveLayoutDefault={saveCurrentWorkbenchLayoutAsDefault}
-            onOpenUserGuide={openUserGuide}
-            onOpenAbout={openAboutWindow}
-          />
-          <div className="studio-titlebar-drag-fill" aria-hidden="true" />
-          <WorkbenchWindowControls
-            language={settingsLanguagePreference}
-            onClose={closeDesktopWindow}
-          />
-        </header>
+        <WorkbenchMenuBar
+      workbenchCopy={workbenchCopy}
+      openTopMenu={openTopMenu}
+      topMenuLeft={topMenuLeft}
+      topCommandsRef={topCommandsRef}
+      topMenuRef={topMenuRef}
+      openableClosedFiles={openableClosedFiles}
+      undoStack={undoStack}
+      redoStack={redoStack}
+      tutorialActive={tutorialActive}
+      activeFile={activeFile}
+      topMenuWindowPanels={topMenuWindowPanels}
+      settingsThemePreference={settingsThemePreference}
+      settingsLanguagePreference={settingsLanguagePreference}
+      settingsPerformanceMode={settingsPerformanceMode}
+      topMenuLayoutSummary={topMenuLayoutSummary}
+      toggleTopCommandMenu={toggleTopCommandMenu}
+      openNewWorkbenchWindow={openNewWorkbenchWindow}
+      createFile={createFile}
+      openClosedWorkbenchFile={openClosedWorkbenchFile}
+      undoLastEdit={undoLastEdit}
+      redoLastEdit={redoLastEdit}
+      clearEditHistory={clearEditHistory}
+      runWindowMenuSwitch={runWindowMenuSwitch}
+      toggleWindowPanel={toggleWindowPanel}
+      guardWorkbenchTutorialAction={guardWorkbenchTutorialAction}
+      toggleWindowIdealResultTab={toggleWindowIdealResultTab}
+      toggleWindowStandardResultsTab={toggleWindowStandardResultsTab}
+      resetLayout={resetLayout}
+      openGeneralSettings={openGeneralSettings}
+      saveCurrentWorkbenchLayoutAsDefault={saveCurrentWorkbenchLayoutAsDefault}
+      openUserGuide={openUserGuide}
+      openAboutWindow={openAboutWindow}
+      closeDesktopWindow={closeDesktopWindow}
+    />
         <WorkbenchAboutWindow
           open={aboutWindowOpen}
           copy={workbenchCopy.about}
@@ -21001,7 +12392,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           desktopLegalBridgeAvailable={hasDesktopLegalBridge()}
           desktopLegalReadAvailable={hasDesktopLegalReadBridge()}
           onClose={closeBuildNoticeWindow}
-          onNavOpenChange={setBuildNoticeNavOpen}
+          onNavOpenChange={setBuildNoticeNavigationOpen}
           onJumpToSection={jumpToBuildNoticeSection}
           onOpenMaterial={openBuildNoticeMaterial}
           onCloseMaterial={closeBuildNoticeMaterial}
@@ -21012,7 +12403,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           appVersion={WORKBENCH_APP_VERSION}
           language={settingsLanguagePreference}
           copy={workbenchCopy.about}
-          onClose={() => setUpdateDialogOpen(false)}
+          onClose={closeUpdateDialog}
           onIgnoreVersion={ignoreUpdateDialogVersion}
           onDownload={startUpdateDownload}
           onRestartAndInstall={restartAndInstallUpdate}
@@ -21119,354 +12510,74 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             className="studio-resize-ghost-divider studio-sidebar-resize-ghost"
             aria-hidden="true"
           />
-          <aside className="studio-sidebar" aria-label={`${workbenchCopy.files.openFiles} ${workbenchCopy.files.panels}`}>
-            <div className="studio-panel-header">
-              <span>{workbenchCopy.files.openFiles}</span>
-              <button
-                type="button"
-                className="studio-panel-collapse"
-                aria-label={`${workbenchCopy.actions.hide} ${workbenchCopy.files.openFiles}`}
-                onClick={() => setLeftCollapsed(true)}
-              >
-                {workbenchCopy.actions.hide}
-              </button>
-            </div>
-            <div className="studio-sidebar-body">
-              <section className={`studio-tree-section ${openFileMenuId ? 'studio-tree-section-menu-open' : ''}`}>
-                {renderSectionTitle(workbenchCopy.files.files, filesSectionCollapsed, () => setFilesSectionCollapsed((current) => !current))}
-                <div className={`studio-tree-section-content ${filesSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={filesSectionCollapsed}>
-                  {isWorkbenchEmpty ? (
-                    <div className="studio-empty-files">
-                      <strong>{workbenchCopy.files.noOpenFileState}</strong>
-                      <span>{workbenchCopy.files.emptyHint}</span>
-                    </div>
-                  ) : files.map((file) => {
-                    const isRenaming = renamingFileId === file.id;
-                    const tutorialFile = isExperimentTutorialFileId(file.id);
-                    const menuOpen = openFileMenuId === file.id;
-                    const pendingDelete = pendingDeleteFileId === file.id;
-                    const fileKindLabel = getWorkbenchFileKindLabel(file.kind, workbenchCopy.files);
+          <WorkbenchFileSidebar
+            workbenchCopy={workbenchCopy}
+            setLeftCollapsed={setLeftCollapsed}
+            startSidebarResize={startSidebarResize}
+          >
+              <WorkbenchFileTree
+      openFileMenuId={openFileMenuId}
+      renderSectionTitle={renderSectionTitle}
+      workbenchCopy={workbenchCopy}
+      filesSectionCollapsed={filesSectionCollapsed}
+      setFilesSectionCollapsed={setFilesSectionCollapsed}
+      isWorkbenchEmpty={isWorkbenchEmpty}
+      files={files}
+      renamingFileId={renamingFileId}
+      pendingDeleteFileId={pendingDeleteFileId}
+      selectedFileId={selectedFileId}
+      activeFile={activeFile}
+      setSelectedFileId={setSelectedFileId}
+      selectFile={selectFile}
+      setTutorialBlockedNoticeOpen={setTutorialBlockedNoticeOpen}
+      setOpenFileMenuId={setOpenFileMenuId}
+      setPendingDeleteFileId={setPendingDeleteFileId}
+      handleSectionKeyDown={handleSectionKeyDown}
+      renameInputRef={renameInputRef}
+      renameDraft={renameDraft}
+      renameSelectionModeRef={renameSelectionModeRef}
+      setRenameDraft={setRenameDraft}
+      commitRenameFileFromOutside={commitRenameFileFromOutside}
+      selectRenameNumericSuffix={selectRenameNumericSuffix}
+      commitRenameFile={commitRenameFile}
+      cancelRenameFile={cancelRenameFile}
+      fileMenuButtonRef={fileMenuButtonRef}
+      fileMenuRef={fileMenuRef}
+      beginRenameFile={beginRenameFile}
+      requestCloseWorkbenchFile={requestCloseWorkbenchFile}
+      requestDeleteWorkbenchFile={requestDeleteWorkbenchFile}
+      cancelDeleteWorkbenchFile={cancelDeleteWorkbenchFile}
+    />
 
-                    return (
-                      <div
-                        role="button"
-                        tabIndex={filesSectionCollapsed ? -1 : 0}
-                        key={file.id}
-                        className={`studio-tree-row studio-file-row ${file.id === selectedFileId ? 'studio-file-row-selected' : ''} ${file.id === activeFile.id ? 'studio-file-row-active' : ''} ${menuOpen ? 'studio-file-row-menu-open' : ''} ${isRenaming ? 'studio-file-row-renaming' : ''}`}
-                        onClick={() => {
-                          if (!isRenaming && !filesSectionCollapsed) setSelectedFileId(file.id);
-                        }}
-                        onDoubleClick={() => {
-                          if (!isRenaming && !filesSectionCollapsed) selectFile(file);
-                        }}
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          if (tutorialFile) {
-                            setTutorialBlockedNoticeOpen(true);
-                            return;
-                          }
-                          if (isRenaming || filesSectionCollapsed) return;
-                          setOpenFileMenuId(file.id);
-                          setPendingDeleteFileId(null);
-                        }}
-                        onKeyDown={(event) => handleSectionKeyDown(event, () => selectFile(file))}
-                      >
-                        {file.kind === 'standard' ? <Activity size={13} /> : file.kind === 'ideal' ? <FlaskConical size={13} /> : <Gauge size={13} />}
-                        {isRenaming ? (
-                          <input
-                            className="studio-file-rename-input"
-                            ref={renameInputRef}
-                            value={renameDraft}
-                            onClick={(event) => event.stopPropagation()}
-                            onMouseDown={() => {
-                              renameSelectionModeRef.current = 'normal';
-                            }}
-                            onChange={(event) => {
-                              renameSelectionModeRef.current = 'normal';
-                              setRenameDraft(event.target.value);
-                            }}
-                            onBlur={() => commitRenameFileFromOutside()}
-                            onKeyDown={(event) => {
-                              event.stopPropagation();
-                              if (event.key === 'ArrowRight' && renameSelectionModeRef.current === 'initial') {
-                                event.preventDefault();
-                                selectRenameNumericSuffix(event.currentTarget);
-                                renameSelectionModeRef.current = 'normal';
-                                return;
-                              }
-                              if (event.key === 'Enter') {
-                                renameSelectionModeRef.current = 'normal';
-                                commitRenameFile(file.id);
-                                return;
-                              }
-                              if (event.key === 'Escape') {
-                                renameSelectionModeRef.current = 'normal';
-                                cancelRenameFile();
-                                return;
-                              }
-                              if (
-                                event.key === 'ArrowLeft'
-                                || event.key === 'Home'
-                                || event.key === 'End'
-                                || event.key === 'Delete'
-                                || event.key === 'Backspace'
-                                || event.key.length === 1
-                              ) {
-                                renameSelectionModeRef.current = 'normal';
-                              }
-                            }}
-                          />
-                        ) : (
-                          <span>{file.name}</span>
-                        )}
-                        {tutorialFile ? (
-                          <LockKeyhole
-                            size={12}
-                            className="studio-tutorial-file-lock"
-                            aria-label={workbenchCopy.files.locked}
-                          />
-                        ) : null}
-                        <span className="studio-tree-meta">{fileKindLabel}</span>
-                        {!tutorialFile ? <button
-                          type="button"
-                          className="studio-file-menu-button"
-                          aria-label={workbenchCopy.files.openActions(file.name)}
-                          tabIndex={filesSectionCollapsed ? -1 : 0}
-                          ref={menuOpen ? fileMenuButtonRef : undefined}
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            setOpenFileMenuId((current) => (current === file.id ? null : file.id));
-                            setPendingDeleteFileId(null);
-                          }}
-                        >
-                          <MoreHorizontal size={14} />
-                        </button> : null}
-                        {menuOpen ? (
-                          <div
-                            className={pendingDelete ? 'studio-file-menu studio-file-menu-pending' : 'studio-file-menu'}
-                            ref={fileMenuRef}
-                            onClick={(event) => event.stopPropagation()}
-                          >
-                            <button type="button" onClick={() => beginRenameFile(file)}>
-                              <Pencil size={13} />
-                              {workbenchCopy.files.rename}
-                            </button>
-                            <button type="button" onClick={() => requestCloseWorkbenchFile(file)}>
-                              <X size={13} />
-                              {workbenchCopy.files.closeExperiment}
-                            </button>
-                            <div className={`studio-file-menu-confirm-row ${pendingDelete ? 'studio-file-menu-confirm-row-pending' : ''}`}>
-                              <button
-                                type="button"
-                                className={pendingDelete ? 'studio-file-menu-danger studio-file-menu-confirm' : 'studio-file-menu-danger'}
-                                onClick={() => requestDeleteWorkbenchFile(file)}
-                              >
-                                <Trash2 size={13} />
-                                {pendingDelete ? workbenchCopy.files.confirmDelete : workbenchCopy.files.delete}
-                              </button>
-                              {pendingDelete ? (
-                                <button
-                                  type="button"
-                                  className="studio-file-menu-cancel"
-                                  aria-label={`${workbenchCopy.files.cancel} ${file.name}`}
-                                  onClick={cancelDeleteWorkbenchFile}
-                                >
-                                  {workbenchCopy.files.cancel}
-                                </button>
-                              ) : null}
-                            </div>
-                          </div>
-                        ) : null}
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-
-              <section className="studio-tree-section">
-                {renderSectionTitle(
-                  isWorkbenchEmpty
-                    ? workbenchCopy.files.panels
-                    : activeFile.kind === 'heatCapacity' || activeFile.kind === 'heatCapacityPistonOscillation'
-                      ? `${activeFile.name.toUpperCase()} / PANELS`
-                      : `${activeFile.name} / ${workbenchCopy.files.panels}`,
-                  panelsSectionCollapsed,
-                  () => setPanelsSectionCollapsed((current) => !current),
-                  'panels',
-                )}
-                <div className={`studio-tree-section-content ${panelsSectionCollapsed ? 'studio-tree-section-content-collapsed' : ''}`} aria-hidden={panelsSectionCollapsed}>
-                {isWorkbenchEmpty ? (
-                  <div className="studio-empty-panel-tree">
-                    <span>{workbenchCopy.files.noOpenPanelState}</span>
-                  </div>
-                ) : activeFile.kind === 'heatCapacity' ? (
-                  renderHeatCapacityPanelTree()
-                ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
-                  renderPistonOscillationPanelTree()
-                ) : availablePanels.filter((panel) => !(activeFile.kind === 'ideal' && isIdealResultWindowKey(panel.key))).map((panel) => {
-                  const visible = isWindowPanelVisible(panel.key);
-                  const locked = LOCKED_PANEL_KEYS.includes(panel.key);
-                  return (
-                    <React.Fragment key={panel.key}>
-                      <div
-                        role="button"
-                        tabIndex={panelsSectionCollapsed ? -1 : 0}
-                        className={`studio-tree-row studio-tree-row-child ${selectedPanel === panel.key ? 'studio-panel-row-active' : ''}`}
-                        onClick={() => {
-                          if (panelsSectionCollapsed) return;
-                          setSelectedPanel(panel.key);
-                          if (locked) handleLockedPanel(panel.title);
-                        }}
-                        onDoubleClick={() => {
-                          if (panelsSectionCollapsed) return;
-                          if (locked) {
-                            handleLockedPanel(panel.title);
-                          } else if (panel.key === 'results' && activeFile.kind === 'ideal') {
-                            openIdealResultsWindow('experimentPoints', true);
-                          } else {
-                            openPanel(panel.key);
-                          }
-                        }}
-                        onKeyDown={(event) => handleSectionKeyDown(event, () => {
-                          if (locked) {
-                            setSelectedPanel(panel.key);
-                            handleLockedPanel(panel.title);
-                          } else if (panel.key === 'results') {
-                            if (activeFile.kind === 'ideal') {
-                              openIdealResultsWindow('experimentPoints', true);
-                            } else {
-                              openStandardResultsWindow('summary', true);
-                            }
-                          } else {
-                            openPanel(panel.key);
-                          }
-                        })}
-                        data-prompt-tooltip={
-                          locked
-                            ? panel.hint
-                            : panel.key === 'results'
-                              ? `${panel.hint}. ${workbenchCopy.results.resultsOpenHint}`
-                              : `${panel.hint}. ${workbenchCopy.results.resultsJumpHint}`
-                        }
-                      >
-                        {panel.key === 'results' ? (
-                          <button
-                            type="button"
-                            className={`studio-results-folder-button ${resultsChildrenCollapsed ? 'studio-tree-title-collapsed' : ''}`}
-                            aria-label={resultsChildrenCollapsed ? workbenchCopy.results.resultsTreeExpandAria : workbenchCopy.results.resultsTreeCollapseAria}
-                            aria-expanded={!resultsChildrenCollapsed}
-                            tabIndex={panelsSectionCollapsed ? -1 : 0}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setResultsChildrenCollapsed((current) => !current);
-                            }}
-                            onDoubleClick={(event) => {
-                              event.stopPropagation();
-                              if (activeFile.kind === 'ideal') {
-                                openIdealResultsWindow('experimentPoints', true);
-                              } else {
-                                openStandardResultsWindow('summary', true);
-                              }
-                            }}
-                          >
-                            <span className="studio-results-expander-icon">
-                              <ChevronRight size={13} />
-                            </span>
-                            <span className="studio-results-folder-label">{panel.title}</span>
-                          </button>
-                        ) : (
-                          <>
-                            {panel.icon}
-                            <span>{panel.title}</span>
-                          </>
-                        )}
-                        {locked ? (
-                          <button
-                            type="button"
-                            className="studio-panel-lock-button"
-                            aria-label={`${panel.title} ${workbenchCopy.files.locked}`}
-                            tabIndex={panelsSectionCollapsed ? -1 : 0}
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              handleLockedPanel(panel.title);
-                            }}
-                          >
-                            <LockKeyhole size={12} />
-                            {workbenchCopy.files.locked}
-                          </button>
-                        ) : (
-                          <span className="studio-tree-meta">{visible ? workbenchCopy.files.shown : workbenchCopy.files.off}</span>
-                        )}
-                      </div>
-                      {panel.key === 'results' && activeFile.kind === 'ideal' && !resultsChildrenCollapsed ? (
-                        <div className="studio-results-nav studio-results-child-nav studio-ideal-results-nav">
-                          {idealResultWindowPanels.map((childPanel) => (
-                            <button
-                              type="button"
-                              key={childPanel.key}
-                              className={selectedPanel === childPanel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
-                              tabIndex={panelsSectionCollapsed ? -1 : 0}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedPanel(childPanel.key);
-                              }}
-                              onDoubleClick={(event) => {
-                                event.stopPropagation();
-                                openIdealResultWindow(childPanel.key);
-                              }}
-                              data-prompt-tooltip={workbenchCopy.results.openIdealResultsTabTitle}
-                            >
-                              {childPanel.icon}
-                              <span>{childPanel.title}</span>
-                              <span className="studio-tree-meta">
-                                {getLocalizedTreeState(getIdealResultTabState(childPanel.key))}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                      {panel.key === 'results' && activeFile.kind === 'standard' && !resultsChildrenCollapsed ? (
-                        <div className="studio-results-nav studio-results-child-nav">
-                          {resultsSections.map((section) => (
-                            <button
-                              type="button"
-                              key={section.key}
-                              className={getStandardResultsTabState(section.key) === 'active' && selectedPanel === 'results' ? 'studio-results-nav-active studio-panel-row-active' : ''}
-                              tabIndex={panelsSectionCollapsed ? -1 : 0}
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                setSelectedPanel('results');
-                              }}
-                              onDoubleClick={(event) => {
-                                event.stopPropagation();
-                                selectResultsSection(section.key, true);
-                              }}
-                              data-prompt-tooltip={workbenchCopy.results.resultsJumpHint}
-                            >
-                              {section.icon}
-                              <span>{section.title}</span>
-                              <span className="studio-tree-meta">{getLocalizedTreeState(getStandardResultsTabState(section.key))}</span>
-                            </button>
-                          ))}
-                        </div>
-                      ) : null}
-                    </React.Fragment>
-                  );
-                })}
-                </div>
-              </section>
-            </div>
-            <div className="studio-sidebar-usage-hint" aria-label={workbenchCopy.files.usageHintAria}>
-              <span>{workbenchCopy.files.clickSelectHint}</span>
-              <span>{workbenchCopy.files.doubleClickOpenHint}</span>
-            </div>
-            <div
-              className="studio-sidebar-resizer"
-              role="separator"
-              aria-orientation="vertical"
-              onMouseDown={(event) => startSidebarResize('left', event)}
-            />
-          </aside>
+              <WorkbenchPanelNavigation
+      renderSectionTitle={renderSectionTitle}
+      isWorkbenchEmpty={isWorkbenchEmpty}
+      workbenchCopy={workbenchCopy}
+      activeFile={activeFile}
+      panelsSectionCollapsed={panelsSectionCollapsed}
+      setPanelsSectionCollapsed={setPanelsSectionCollapsed}
+      renderHeatCapacityPanelTree={renderHeatCapacityPanelTree}
+      renderPistonOscillationPanelTree={renderPistonOscillationPanelTree}
+      availablePanels={availablePanels}
+      isWindowPanelVisible={isWindowPanelVisible}
+      selectedPanel={selectedPanel}
+      setSelectedPanel={setSelectedPanel}
+      handleLockedPanel={handleLockedPanel}
+      openIdealResultsWindow={openIdealResultsWindow}
+      openPanel={openPanel}
+      handleSectionKeyDown={handleSectionKeyDown}
+      openStandardResultsWindow={openStandardResultsWindow}
+      resultsChildrenCollapsed={resultsChildrenCollapsed}
+      setResultsChildrenCollapsed={setResultsChildrenCollapsed}
+      idealResultWindowPanels={idealResultWindowPanels}
+      openIdealResultWindow={openIdealResultWindow}
+      getLocalizedTreeState={getLocalizedTreeState}
+      getIdealResultTabState={getIdealResultTabState}
+      resultsSections={resultsSections}
+      getStandardResultsTabState={getStandardResultsTabState}
+      selectResultsSection={selectResultsSection}
+    />
+            </WorkbenchFileSidebar>
 
           {leftCollapsed ? (
             <button type="button" className="studio-rail-button studio-left-rail" onClick={() => setLeftCollapsed(false)}>
@@ -21475,42 +12586,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           ) : null}
 
           <section className="studio-layout" aria-label={workbenchCopy.files.workspaceAria}>
-            <div className="studio-file-tabs" ref={fileTabsRef}>
-              {isWorkbenchEmpty ? (
-                <div className="studio-file-tabs-empty">{workbenchCopy.files.noOpenFiles}</div>
-              ) : files.map((file) => {
-                const tutorialFile = isExperimentTutorialFileId(file.id);
-                return (
-                <div
-                  key={file.id}
-                  className={`studio-file-tab ${file.id === selectedFileId ? 'studio-file-tab-selected' : ''} ${file.id === activeFile.id ? 'studio-file-tab-active' : ''}`}
-                >
-                  <button
-                    type="button"
-                    className="studio-file-tab-select"
-                    onClick={() => selectFile(file)}
-                    data-prompt-tooltip={file.name}
-                  >
-                    {file.kind === 'standard' ? <Activity size={13} /> : file.kind === 'ideal' ? <FlaskConical size={13} /> : <Gauge size={13} />}
-                    <span className="studio-file-tab-name">{file.name}</span>
-                    {tutorialFile ? <LockKeyhole size={11} className="studio-tutorial-file-lock" aria-hidden="true" /> : null}
-                    <span className="studio-file-kind">{getWorkbenchFileKindLabel(file.kind, workbenchCopy.files)}</span>
-                  </button>
-                  {!tutorialFile ? <button
-                    type="button"
-                    className="studio-file-tab-close"
-                    aria-label={`${workbenchCopy.files.closeExperiment} ${file.name}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      requestCloseWorkbenchFile(file);
-                    }}
-                  >
-                    <X size={12} />
-                  </button> : null}
-                </div>
-                );
-              })}
-            </div>
+            <WorkbenchFileTabs
+      fileTabsRef={fileTabsRef}
+      isWorkbenchEmpty={isWorkbenchEmpty}
+      workbenchCopy={workbenchCopy}
+      files={files}
+      selectedFileId={selectedFileId}
+      activeFile={activeFile}
+      selectFile={selectFile}
+      requestCloseWorkbenchFile={requestCloseWorkbenchFile}
+    />
 
             <div className={`studio-workspace-shell ${isWorkbenchEmpty ? 'studio-workspace-shell-empty' : 'studio-workspace-shell-active'} ${!isWorkbenchEmpty && effectiveParametersCollapsed ? 'studio-params-collapsed' : ''}`} ref={workspaceShellRef}>
               <div
@@ -21518,265 +12603,73 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
                 className="studio-resize-ghost-divider studio-params-sidebar-resize-ghost"
                 aria-hidden="true"
               />
-              <div
-                className={`studio-center-workspace ${!isWorkbenchEmpty ? 'studio-center-workspace-active' : ''} ${activePistonOscillationExpandedRealtime ? 'studio-center-workspace-piston-processing' : ''} ${!isWorkbenchEmpty && (resultsPanel || idealResultPanels.length > 0 || activeHeatCapacityMaterialsWindowOpen) ? 'studio-results-open' : ''} ${isWorkbenchEmpty ? 'studio-center-workspace-empty' : ''}`}
-                ref={centerWorkspaceRef}
-              >
-                {isWorkbenchEmpty ? (
-                  <WorkbenchEmptyWorkspace
-                    openableClosedFiles={openableClosedFiles}
-                    language={settingsLanguagePreference}
-                    copy={workbenchCopy}
-                    onCreateFile={createFile}
-                    onOpenFile={openClosedWorkbenchFile}
-                  />
-                ) : (
-                  <>
-                    <div
-                      className={`studio-live-workspace ${
-                        liveWorkspaceResizing ? 'studio-live-workspace-resizing' : ''
-                      } ${
-                        activePistonOscillationExpandedRealtime
-                          ? 'studio-live-workspace-piston-processing'
-                          : ''
-                      }`}
-                      style={liveWorkspaceStyle}
-                      ref={liveWorkspaceRef}
-                      data-piston-guide-strong-active={
-                        pistonOscillationGuideStrongReminderActive ? 'true' : 'false'
-                      }
-                      data-piston-guide-strong-expected-target={
-                        pistonGuideExpectedStrongTargetId ?? 'none'
-                      }
-                      data-piston-guide-strong-context={pistonGuideStrongTargetContext ?? 'none'}
-                      data-piston-guide-pulse-elapsed-ms={
-                        Math.round(pistonOscillationGuidePulseElapsedMs)
-                      }
-                    >
-                      {primaryPanels[0] ? renderDockPanel(primaryPanels[0]) : null}
-                      <button
-                        type="button"
-                        className="studio-live-workspace-resizer"
-                        aria-label={workbenchCopy.panels.liveWorkspaceResizeAria}
-                        disabled={activePistonOscillationExpandedRealtime}
-                        onPointerDown={startLiveWorkspaceResize}
-                      />
-                      <div
-                        ref={liveWorkspaceResizeGhostRef}
-                        className="studio-resize-ghost-divider studio-live-workspace-resize-ghost"
-                        aria-hidden="true"
-                      />
-                      {primaryPanels[1] ? renderDockPanel(primaryPanels[1]) : null}
-                      {auxiliaryPanels.length > 0 ? (
-                        <div className="studio-optional-panels">
-                          {auxiliaryPanels.map((panel) => renderDockPanel(panel, true))}
-                        </div>
-                      ) : null}
-                      {activeFile.kind === 'heatCapacityPistonOscillation'
-                      && pistonGuideStrongTargetId
-                      && pistonOscillationGuideStrongMaskLayout ? (
-                        <div
-                          className="studio-heat-guide-strong-mask studio-piston-guide-strong-mask"
-                          data-piston-guide-strong-mask="true"
-                          data-piston-guide-strong-mask-target={pistonGuideStrongTargetId}
-                          data-piston-guide-strong-mask-blocking="true"
-                          role="status"
-                          aria-live="polite"
-                          style={{
-                            top: `${pistonOscillationGuideStrongMaskLayout.top}px`,
-                            right: 0,
-                            bottom: 0,
-                            left: 0,
-                          }}
-                        >
-                          <svg
-                            className="studio-heat-guide-strong-cutout-svg"
-                            viewBox={`0 0 ${pistonOscillationGuideStrongMaskLayout.width} ${pistonOscillationGuideStrongMaskLayout.height}`}
-                            aria-hidden="true"
-                          >
-                            <path
-                              className="studio-heat-guide-strong-dim"
-                              d={getPistonOscillationGuideStrongDimPath(
-                                pistonOscillationGuideStrongMaskLayout,
-                              )}
-                              fillRule="evenodd"
-                              clipRule="evenodd"
-                            />
-                            <rect
-                              className="studio-heat-guide-strong-cutout-outline"
-                              {...pistonOscillationGuideStrongMaskLayout.cutout}
-                              fill="var(--studio-piston-guide-cutout-fill)"
-                              stroke="var(--studio-piston-guide-cutout-stroke)"
-                              strokeWidth="1.5"
-                              vectorEffect="non-scaling-stroke"
-                            />
-                          </svg>
-                          <div
-                            className={`studio-heat-guide-strong-card ${
-                              pistonOscillationGuideStrongMaskLayout.card.compact
-                                ? 'studio-piston-guide-strong-card-compact'
-                                : ''
-                            }`}
-                            style={{
-                              left: `${pistonOscillationGuideStrongMaskLayout.card.x}px`,
-                              top: `${pistonOscillationGuideStrongMaskLayout.card.y}px`,
-                              width: `${pistonOscillationGuideStrongMaskLayout.card.width}px`,
-                            }}
-                          >
-                            <strong>{renderScientificText(pistonGuideStrongReminderText)}</strong>
-                          </div>
-                        </div>
-                      ) : null}
-                      {activeFile.kind === 'heatCapacityPistonOscillation'
-                        ? pistonOscillationGuideLessonOverlay
-                        : null}
-                    </div>
-                    {resultsPanel && activeFile.kind === 'standard' ? (
-                      <div
-                        className="studio-results-region"
-                        style={{ height: `${clampIdealResultHeightRatio(standardResultsLayout.heightRatio) * 100}%` }}
-                      >
-                        <div
-                          className="studio-results-window-resizer"
-                          role="separator"
-                          aria-orientation="horizontal"
-                          onMouseDown={startStandardResultsResize}
-                        />
-                        {renderDockPanel(resultsPanel, true)}
-                      </div>
-                    ) : null}
-                    {renderIdealResultWindows()}
-                    {renderHeatCapacityMaterialsWindow()}
-                  </>
-                )}
-              </div>
+              <WorkbenchCenterWorkspace
+      isWorkbenchEmpty={isWorkbenchEmpty}
+      activePistonOscillationExpandedRealtime={activePistonOscillationExpandedRealtime}
+      resultsPanel={resultsPanel}
+      idealResultPanels={idealResultPanels}
+      activeHeatCapacityMaterialsWindowOpen={activeHeatCapacityMaterialsWindowOpen}
+      centerWorkspaceRef={centerWorkspaceRef}
+      openableClosedFiles={openableClosedFiles}
+      settingsLanguagePreference={settingsLanguagePreference}
+      workbenchCopy={workbenchCopy}
+      createFile={createFile}
+      openClosedWorkbenchFile={openClosedWorkbenchFile}
+      liveWorkspaceResizing={liveWorkspaceResizing}
+      liveWorkspaceStyle={liveWorkspaceStyle}
+      liveWorkspaceRef={liveWorkspaceRef}
+      pistonOscillationGuideStrongReminderActive={pistonOscillationGuideStrongReminderActive}
+      pistonGuideExpectedStrongTargetId={pistonGuideExpectedStrongTargetId}
+      pistonGuideStrongTargetContext={pistonGuideStrongTargetContext}
+      pistonOscillationGuidePulseElapsedMs={pistonOscillationGuidePulseElapsedMs}
+      primaryPanels={primaryPanels}
+      renderDockPanel={renderDockPanel}
+      startLiveWorkspaceResize={startLiveWorkspaceResize}
+      liveWorkspaceResizeGhostRef={liveWorkspaceResizeGhostRef}
+      auxiliaryPanels={auxiliaryPanels}
+      activeFile={activeFile}
+      pistonGuideStrongTargetId={pistonGuideStrongTargetId}
+      pistonOscillationGuideStrongMaskLayout={pistonOscillationGuideStrongMaskLayout}
+      pistonGuideStrongReminderText={pistonGuideStrongReminderText}
+      pistonOscillationGuideLessonOverlay={pistonOscillationGuideLessonOverlay}
+      standardResultsLayout={standardResultsLayout}
+      startStandardResultsResize={startStandardResultsResize}
+      renderIdealResultWindows={renderIdealResultWindows}
+      renderHeatCapacityMaterialsWindow={renderHeatCapacityMaterialsWindow}
+    />
 
               {!isWorkbenchEmpty ? (
-              <aside
-                className={`studio-current-params ${currentParameterControlsLocked ? 'studio-current-params-locked' : ''}`}
-                aria-label={workbenchCopy.parameters.title}
-                aria-disabled={currentParameterControlsLocked}
-              >
-                <div
-                  className="studio-params-resizer"
-                  role="separator"
-                  aria-orientation="vertical"
-                  onMouseDown={(event) => startSidebarResize('params', event)}
-                />
-                <div className="studio-current-params-header">
-                  <div>
-                    <span>{workbenchCopy.parameters.title}</span>
-                    <small>{currentParameterControlsLocked ? workbenchCopy.parameters.lockedUntilStopped : workbenchCopy.parameters.currentFileValues}</small>
-                  </div>
-                  <button
-                    type="button"
-                    className="studio-panel-collapse"
-                    aria-label={`${workbenchCopy.actions.hide} ${workbenchCopy.parameters.title}`}
-                    onClick={() => setParametersCollapsed(true)}
-                  >
-                    {workbenchCopy.actions.hide}
-                  </button>
-                </div>
-                <div className="studio-current-params-body" ref={currentParametersBodyRef}>
-                  <div className="studio-param-file">
-                    <strong>{activeFile.kind === 'standard'
-                      ? workbenchCopy.parameters.standardSimulation
-                      : activeFile.kind === 'ideal'
-                        ? workbenchCopy.parameters.idealSimulation
-                        : activeFile.kind === 'heatCapacityPistonOscillation'
-                          ? pistonOscillationCopy.methodName
-                          : activeHeatCapacityExperimentTitle}</strong>
-                    <span>{activeFile.name}</span>
-                    <span className={`studio-param-state ${parametersDirty || (activeFile.kind === 'ideal' && activeFile.needsReset) ? 'studio-param-state-pending' : ''}`}>
-                      {parametersDirty
-                        ? workbenchCopy.parameters.savedChangesOnStart
-                        : activeFile.kind === 'ideal' && activeFile.needsReset
-                          ? workbenchCopy.parameters.idealRuntimeOnStart
-                          : workbenchCopy.parameters.applied}
-                    </span>
-                  </div>
-                  {renderIdealControls()}
-                  {activeFile.kind === 'heatCapacity' && activeFile.heatCapacityMode === 'free' ? (
-                    renderHeatCapacityFreeParameterPanel()
-                  ) : activeFile.kind === 'heatCapacityPistonOscillation' ? (
-                    <PistonOscillationParameterPanel
-                      language={settingsLanguagePreference}
-                      mode={activePistonOscillationParameterMode}
-                      session={activeFile.pistonOscillationFreeSession}
-                      operationVisualizationEnabled={
-                        activeFile.pistonOscillationOperationVisualizationEnabled
-                      }
-                      renderParameterHelpButton={(parameterId, modelEffect) => (
-                        renderHeatCapacityParameterHelpButton(
-                          `pistonOscillation-${parameterId}`,
-                          modelEffect,
-                        )
-                      )}
-                      onParameterDraftChange={updatePistonOscillationFreeParameterDraft}
-                      onOperationVisualizationChange={
-                        setPistonOscillationOperationVisualization
-                      }
-                      onAcknowledgeAdvancedParametersRisk={
-                        acknowledgePistonOscillationAdvancedParametersRisk
-                      }
-                      onRestoreDefaults={restorePistonOscillationFreeParameters}
-                      onExperimentSchemeChange={
-                        setPistonOscillationFreeExperimentScheme
-                      }
-                      onGasTypeChange={setPistonOscillationFreeGasType}
-                      onLockedInteraction={showPistonOscillationParameterLockHint}
-                    />
-                  ) : activeFile.kind === 'heatCapacity' ? (
-                    <>
-                      <div className="studio-panel-note">{workbenchCopy.parameters.heatCapacityReadonlyNote}</div>
-                    </>
-                  ) : null}
-                  {activeFile.kind === 'ideal' ? (
-                    <section className={`studio-param-advanced ${idealAdvancedSettingsOpen ? 'studio-param-advanced-open' : ''}`}>
-                      <button
-                        type="button"
-                        className="studio-param-advanced-toggle"
-                        aria-expanded={idealAdvancedSettingsOpen}
-                        onClick={toggleIdealAdvancedSettings}
-                      >
-                        <span>
-                          <strong>{workbenchCopy.parameters.advancedSettings}</strong>
-                          <small>{idealAdvancedSettingsOpen ? workbenchCopy.parameters.advancedHide : workbenchCopy.parameters.advancedShow}</small>
-                        </span>
-                        <ChevronDown
-                          size={15}
-                          className={`studio-param-advanced-chevron ${idealAdvancedSettingsOpen ? 'studio-param-advanced-chevron-open' : ''}`}
-                        />
-                      </button>
-                      {idealAdvancedSettingsBodyVisible ? (
-                        <div className="studio-param-advanced-body" ref={idealAdvancedSettingsBodyRef} aria-hidden={!idealAdvancedSettingsOpen}>
-                          {editableCurrentParameters.map((param) => renderWorkbenchParameterInputRow(param))}
-                        </div>
-                      ) : null}
-                    </section>
-                  ) : activeFile.kind === 'heatCapacity' || activeFile.kind === 'heatCapacityPistonOscillation' ? null : (
-                    <>
-                      {editableCurrentParameters.map((param) => renderWorkbenchParameterInputRow(param))}
-                    </>
-                  )}
-                  {parameterErrors.length > 0 ? (
-                    <div className="studio-param-errors">
-                      {parameterErrors.map((error) => (
-                        <span key={error}>{error}</span>
-                      ))}
-                    </div>
-                  ) : null}
-                  {activeFile.kind !== 'heatCapacityPistonOscillation' ? (
-                  <div className="studio-readonly-note">
-                    {activeFile.kind === 'standard'
-                        ? workbenchCopy.parameters.standardReadonlyNote
-                        : activeFile.kind === 'heatCapacity'
-                          ? activeHeatCapacityCalculationHint
-                          : workbenchCopy.parameters.idealReadonlyNote}
-                  </div>
-                  ) : null}
-                </div>
-              </aside>
+              <WorkbenchCurrentParameters
+      currentParameterControlsLocked={currentParameterControlsLocked}
+      workbenchCopy={workbenchCopy}
+      startSidebarResize={startSidebarResize}
+      setParametersCollapsed={setParametersCollapsed}
+      currentParametersBodyRef={currentParametersBodyRef}
+      activeFile={activeFile}
+      pistonOscillationCopy={pistonOscillationCopy}
+      activeHeatCapacityExperimentTitle={activeHeatCapacityExperimentTitle}
+      parametersDirty={parametersDirty}
+      renderIdealControls={renderIdealControls}
+      renderHeatCapacityFreeParameterPanel={renderHeatCapacityFreeParameterPanel}
+      settingsLanguagePreference={settingsLanguagePreference}
+      activePistonOscillationParameterMode={activePistonOscillationParameterMode}
+      renderHeatCapacityParameterHelpButton={renderHeatCapacityParameterHelpButton}
+      updatePistonOscillationFreeParameterDraft={updatePistonOscillationFreeParameterDraft}
+      setPistonOscillationOperationVisualization={setPistonOscillationOperationVisualization}
+      acknowledgePistonOscillationAdvancedParametersRisk={acknowledgePistonOscillationAdvancedParametersRisk}
+      restorePistonOscillationFreeParameters={restorePistonOscillationFreeParameters}
+      setPistonOscillationFreeExperimentScheme={setPistonOscillationFreeExperimentScheme}
+      setPistonOscillationFreeGasType={setPistonOscillationFreeGasType}
+      showPistonOscillationParameterLockHint={showPistonOscillationParameterLockHint}
+      idealAdvancedSettingsOpen={idealAdvancedSettingsOpen}
+      toggleIdealAdvancedSettings={toggleIdealAdvancedSettings}
+      idealAdvancedSettingsBodyVisible={idealAdvancedSettingsBodyVisible}
+      idealAdvancedSettingsBodyRef={idealAdvancedSettingsBodyRef}
+      editableCurrentParameters={editableCurrentParameters}
+      renderWorkbenchParameterInputRow={renderWorkbenchParameterInputRow}
+      parameterErrors={parameterErrors}
+      activeHeatCapacityCalculationHint={activeHeatCapacityCalculationHint}
+    />
               ) : null}
 
               {!isWorkbenchEmpty && effectiveParametersCollapsed ? (
@@ -21788,90 +12681,27 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           </section>
         </main>
 
-        <section className={`studio-console ${consoleCollapsed ? 'studio-console-collapsed' : ''}`} aria-label={workbenchCopy.console.title}>
-          <div
-            className="studio-console-resizer"
-            role="separator"
-            aria-orientation="horizontal"
-            aria-label={workbenchCopy.console.title}
-            onPointerDown={startConsoleResize}
-          />
-          <div className="studio-console-header">
-            <button
-              type="button"
-              className="studio-console-toggle"
-              aria-expanded={!consoleCollapsed}
-              aria-label={workbenchCopy.console.title}
-              onClick={() => setConsoleCollapsed((current) => !current)}
-            >
-              <ChevronDown size={13} />
-            </button>
-            <span>{workbenchCopy.console.title}</span>
-            <div className="studio-console-tabs">
-              {(['logs', 'warnings', 'summary'] as const).map((tab) => (
-                <button
-                  type="button"
-                  key={tab}
-                  className={consoleTab === tab ? 'studio-console-tab-active' : undefined}
-                  onClick={() => setConsoleTab(tab)}
-                >
-                  {workbenchCopy.console.tabs[tab]}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="studio-console-body" ref={consoleBodyRef}>
-            {consoleTab === 'summary' ? (
-              <div className="studio-console-summary">
-                <div><span>{workbenchCopy.console.total}</span><strong>{logs.length}</strong></div>
-                <div><span>{workbenchCopy.console.info}</span><strong>{consoleSummary.counts.info}</strong></div>
-                <div><span>{workbenchCopy.console.success}</span><strong>{consoleSummary.counts.success}</strong></div>
-                <div><span>{workbenchCopy.console.warnings}</span><strong>{consoleSummary.counts.warning}</strong></div>
-                <div><span>{workbenchCopy.console.errors}</span><strong>{consoleSummary.counts.error}</strong></div>
-                <div className="studio-console-summary-wide">
-                  <span>{workbenchCopy.console.latest}</span>
-                  <strong>{consoleSummary.latest ? `${consoleSummary.latest.time} ${resolveWorkbenchConsoleMessage(consoleSummary.latest, settingsLanguagePreference)}` : workbenchCopy.console.noLogs}</strong>
-                </div>
-                <div className="studio-console-summary-wide">
-                  <span>{workbenchCopy.console.runtime}</span>
-                  <strong>{consoleSummary.runtime}</strong>
-                </div>
-              </div>
-            ) : displayedLogs.length > 0 ? (
-              displayedLogs.map((log) => (
-                <div className="studio-log" key={log.id}>
-                  <span className="studio-log-time">{log.time}</span>
-                  <span className={`studio-log-kind-${log.kind}`}>
-                    {log.kind === 'info'
-                      ? workbenchCopy.console.info
-                      : log.kind === 'success'
-                        ? workbenchCopy.console.success
-                        : log.kind === 'warning'
-                          ? workbenchCopy.console.warnings
-                          : workbenchCopy.console.errors}
-                  </span>
-                  <span>{resolveWorkbenchConsoleMessage(log, settingsLanguagePreference)}</span>
-                </div>
-              ))
-            ) : (
-              <div className="studio-console-empty">
-                {consoleTab === 'warnings' ? workbenchCopy.console.noWarnings : workbenchCopy.console.noLogs}
-              </div>
-            )}
-          </div>
-        </section>
+        <WorkbenchConsole
+      consoleCollapsed={consoleCollapsed}
+      workbenchCopy={workbenchCopy}
+      startConsoleResize={startConsoleResize}
+      setConsoleCollapsed={setConsoleCollapsed}
+      consoleTab={consoleTab}
+      setConsoleTab={setConsoleTab}
+      consoleBodyRef={consoleBodyRef}
+      logs={logs}
+      consoleSummary={consoleSummary}
+      settingsLanguagePreference={settingsLanguagePreference}
+      displayedLogs={displayedLogs}
+    />
 
-        <footer className="studio-status">
-          <div className="studio-status-group">
-            <span>{workbenchCopy.status.activeFile(isWorkbenchEmpty ? workbenchCopy.status.none : activeFile.name)}</span>
-            <span>{workbenchCopy.status.selectedBlock(isWorkbenchEmpty ? workbenchCopy.status.none : activePanelTitle)}</span>
-          </div>
-          <div className="studio-status-group">
-            <span>
-              {consoleSummary.runtime}
-            </span>
-          </div>
-        </footer>
+        <WorkbenchStatusBar
+      workbenchCopy={workbenchCopy}
+      isWorkbenchEmpty={isWorkbenchEmpty}
+      activeFile={activeFile}
+      activePanelTitle={activePanelTitle}
+      consoleSummary={consoleSummary}
+    />
       </div>
     </div>
   );

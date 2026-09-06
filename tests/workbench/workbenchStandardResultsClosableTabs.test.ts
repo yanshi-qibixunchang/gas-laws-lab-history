@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchStandardResultsWindowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStandardResultsWindow.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -51,13 +54,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchStandardResultsWindowSource,
   /const openStandardResultTabs = resultsSections\.filter\(\(section\) => standardResultsLayout\.openTabs\.includes\(section\.key\)\)/,
   'standard Results should render only currently open child tabs',
 );
 
 assert.match(
-  source,
+  workbenchStandardResultsWindowSource,
   /aria-label=\{`\$\{workbenchCopy\.actions\.close\} \$\{section\.title\}`\}[\s\S]*?closeStandardResultsTab\(section\.key\)/,
   'standard Results tabs should expose a close button inside each open tab',
 );
@@ -99,3 +102,5 @@ assert.match(
 
 assert.match(source, /createWorkbenchWindowActions\(\{/);
 console.log('workbenchStandardResultsClosableTabs tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchStandardResultsWindow \} from '\.\/WorkbenchStandardResultsWindow\.tsx';/);

@@ -1,3 +1,8 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCurrentParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
+const scrollActionSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchParameterScroll.ts', import.meta.url), 'utf8');
+const layoutConstantSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutConstants.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -31,7 +36,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  layoutConstantSource,
   /const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;/,
   'advanced settings expand and collapse should share one fixed scroll animation duration',
 );
@@ -49,37 +54,37 @@ assert.match(
 );
 
 assert.match(
-  source,
+  scrollActionSource,
   /const toggleIdealAdvancedSettings = \(\) => \{[\s\S]*?setIdealAdvancedSettingsOpen\(\(current\) => \{[\s\S]*?if \(!current\) \{[\s\S]*?idealAdvancedSettingsPreviousScrollTopRef\.current = currentParametersBodyRef\.current\?\.scrollTop \?\? 0;[\s\S]*?return !current;[\s\S]*?\}\);[\s\S]*?\};/,
   'toggling open should record the sidebar scrollTop before expansion so collapse can return there',
 );
 
 assert.match(
-  source,
+  scrollActionSource,
   /const animateCurrentParametersScroll = \([\s\S]*?duration = IDEAL_ADVANCED_SCROLL_DURATION_MS[\s\S]*?requestAnimationFrame[\s\S]*?onComplete\?\.\(\)/,
   'advanced settings should use the same custom timed scroll animation for expand and collapse',
 );
 
 assert.match(
-  source,
-  /useEffect\(\(\) => \{[\s\S]*?activeFile\.kind !== 'ideal'[\s\S]*?if \(idealAdvancedSettingsOpen\) \{[\s\S]*?animateCurrentParametersScroll\(targetTop\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?animateCurrentParametersScroll\([\s\S]*?idealAdvancedSettingsPreviousScrollTopRef\.current[\s\S]*?\(\) => setIdealAdvancedSettingsBodyVisible\(false\)[\s\S]*?\)/,
+  scrollActionSource,
+  /useEffect\(\(\) => \{[\s\S]*?activeFileKind !== 'ideal'[\s\S]*?if \(idealAdvancedSettingsOpen\) \{[\s\S]*?animateCurrentParametersScroll\(targetTop\);[\s\S]*?return;[\s\S]*?\}[\s\S]*?animateCurrentParametersScroll\([\s\S]*?idealAdvancedSettingsPreviousScrollTopRef\.current[\s\S]*?\(\) => setIdealAdvancedSettingsBodyVisible\(false\)[\s\S]*?\)/,
   'advanced settings should animate down on expand, then animate back before hiding the body on collapse',
 );
 
 assert.match(
-  source,
+  scrollActionSource,
   /const maxScrollTop = Math\.max\(0, container\.scrollHeight - container\.clientHeight\);[\s\S]*?const targetTop = clamp\(container\.scrollTop \+ bodyRect\.top - containerRect\.top, 0, maxScrollTop\);/,
   'advanced settings expand target should be clamped to the sidebar scroll range so the animation duration is not shortened',
 );
 
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced-toggle[\s\S]*?aria-expanded=\{idealAdvancedSettingsOpen\}[\s\S]*?onClick=\{toggleIdealAdvancedSettings\}[\s\S]*?workbenchCopy\.parameters\.advancedSettings/,
   'ideal files should render a collapsible Advanced settings toggle in the Current Parameters sidebar',
 );
 
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /idealAdvancedSettingsBodyVisible \? \([\s\S]*?editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
   'ideal parameter rows should remain mounted during collapse and only hide after the return animation',
 );
@@ -97,13 +102,13 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
-  /activeFile\.kind === 'ideal' \? \([\s\S]*?<div className="studio-param-advanced-body" ref=\{idealAdvancedSettingsBodyRef\} aria-hidden=\{!idealAdvancedSettingsOpen\}>[\s\S]*?renderWorkbenchParameterInputRow\(param\)[\s\S]*?\) : \(/,
-  'ideal advanced settings should render the shared direct parameter input row',
+  workbenchCurrentParametersSource,
+  /activeFile\.kind === 'ideal' \? \([\s\S]*?<div className="studio-param-advanced-body" ref=\{idealAdvancedSettingsBodyRef\} aria-hidden=\{!idealAdvancedSettingsOpen\}>[\s\S]*?renderWorkbenchParameterInputRow\(param\)/,
+  "ideal advanced settings should render the shared direct parameter input row",
 );
 
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /activeFile\.kind === 'ideal' \? \([\s\S]*?studio-param-advanced[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \|\| activeFile\.kind === 'heatCapacityPistonOscillation' \? null : \([\s\S]*?renderWorkbenchParameterInputRow\(param\)/,
   'standard files should render the same shared direct parameter input row',
 );
@@ -120,7 +125,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /activeFile\.kind === 'ideal' \? \([\s\S]*?workbenchCopy\.parameters\.advancedSettings[\s\S]*?\) : activeFile\.kind === 'heatCapacity' \|\| activeFile\.kind === 'heatCapacityPistonOscillation' \? null : \([\s\S]*?editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
   'standard files should keep rendering parameter rows directly instead of using the ideal advanced drawer',
 );
@@ -150,3 +155,5 @@ assert.match(
 );
 
 console.log('workbenchIdealAdvancedSettings tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);

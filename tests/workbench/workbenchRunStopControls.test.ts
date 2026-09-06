@@ -1,3 +1,12 @@
+const registrySource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereRuntimeRegistry.ts', import.meta.url), 'utf8');
+const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
+const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchDockHeaderSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchDockHeader.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityModeControl.tsx', import.meta.url), 'utf8');
+const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
+const simulationRuntimeTypeSource = readFileSync(new URL('../../src/features/workbench/workbenchSimulationRuntimeTypes.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
@@ -9,41 +18,41 @@ const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSt
 const electronSource = readFileSync(new URL('../../electron/main.cjs', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  workbenchDockHeaderSource,
   /^import\s*\{[^}]*\bSquare\b[^}]*\}\s*from 'lucide-react'/m,
-  'workbench preview controls should import the square stop icon used by IDE run toolbars',
+  "workbench preview controls should import the square stop icon used by IDE run toolbars",
 );
 
 assert.match(
-  source,
+  runActionSource,
   /const toggleActiveFileRunState = \(\) => \{[\s\S]*?activeFile\.runState === 'running'[\s\S]*?pauseActiveFile\(\);[\s\S]*?runActiveFile\(\);[\s\S]*?\};/,
   'preview should use one toggle control for run and pause',
 );
 
 assert.match(
-  source,
+  runActionSource,
   /const stopActiveFile = \(\) => \{[\s\S]*?cancelRuntimeFrame\(activeFile\.id\);[\s\S]*?runState: 'idle'/,
   'preview should expose a stop action that terminates the active runtime',
 );
 
 assert.match(
-  source,
+  frameLoopSource,
   /const SIMULATION_TICK_INTERVAL_MS = 16;/,
   'simulation runtime should use a fixed foreground-equivalent tick interval',
 );
 
 assert.match(
-  source,
+  simulationRuntimeTypeSource,
   /interface StandardEngineRuntime \{[\s\S]*?simulationTimerId: number \| null;[\s\S]*?\}/,
   'simulation runtimes should track a timer handle instead of a render frame handle',
 );
 
 for (const schedulerName of ['scheduleStandardFrame', 'scheduleIdealFrame']) {
-  const schedulerStart = source.indexOf(`const ${schedulerName} = (fileId: string) => {`);
+  const schedulerStart = frameLoopSource.indexOf(`const ${schedulerName} = (fileId: string) => {`);
   assert.notEqual(schedulerStart, -1, `${schedulerName} should exist`);
-  const schedulerEnd = source.indexOf('\n  const run', schedulerStart);
+  const schedulerEnd = frameLoopSource.indexOf(schedulerName === 'scheduleStandardFrame' ? 'const runStandardFrame =' : 'const runIdealFrame =', schedulerStart);
   assert.notEqual(schedulerEnd, -1, `${schedulerName} body should be followed by a run function`);
-  const schedulerBody = source.slice(schedulerStart, schedulerEnd);
+  const schedulerBody = frameLoopSource.slice(schedulerStart, schedulerEnd);
 
   assert.ok(
     schedulerBody.includes('window.setTimeout') && schedulerBody.includes('SIMULATION_TICK_INTERVAL_MS'),
@@ -56,7 +65,7 @@ for (const schedulerName of ['scheduleStandardFrame', 'scheduleIdealFrame']) {
 }
 
 assert.match(
-  source,
+  registrySource,
   /const cancelRuntimeFrame = \(fileId: string\) => \{[\s\S]*?window\.clearTimeout\(runtime\.simulationTimerId\);[\s\S]*?runtime\.simulationTimerId = null;/,
   'runtime cancellation should clear the fixed simulation timer',
 );
@@ -68,13 +77,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchDockHeaderSource,
   /activeFile\.kind === 'heatCapacity'[\s\S]*?\? renderHeatCapacityModeControl\(\)[\s\S]*?activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*?\? renderPistonOscillationModeControl\(\)[\s\S]*?: \([\s\S]*className=\{`studio-run-control studio-run-control-\$\{activeFile\.runState === 'running' \? 'pause' : 'start'\}`\}/,
   'heat capacity and piston experiments should use their mode bars while standard or ideal previews keep the compact run/pause button',
 );
 
 assert.match(
-  source,
+  workbenchHeatCapacityModeControlSource,
   /const heatCapacityActiveMode: HeatCapacityMode \| null = activeFile\.heatCapacityMode;/,
   'the heat-capacity mode bar should use the nullable active mode directly so Explore leaves all three formal segments inactive',
 );
@@ -123,11 +132,11 @@ assert.match(
   'a Demo mode without a paused checkpoint should use the shared fresh-start helper',
 );
 
-const selectFileStart = source.indexOf('const selectFile = (file: WorkbenchFileState) => {');
+const selectFileStart = fileActionSource.indexOf('const selectFile = (file: WorkbenchFileState) => {');
 assert.notEqual(selectFileStart, -1, 'file selection handler should exist');
-const selectFileEnd = source.indexOf('\n  const renderIdealControls', selectFileStart);
+const selectFileEnd = fileActionSource.indexOf('\n  return { createFile,', selectFileStart);
 assert.notEqual(selectFileEnd, -1, 'file selection handler should end before ideal controls');
-const selectFileBody = source.slice(selectFileStart, selectFileEnd);
+const selectFileBody = fileActionSource.slice(selectFileStart, selectFileEnd);
 assert.match(
   selectFileBody,
   /currentActiveFile\.kind === 'heatCapacity'[\s\S]*suspendActiveHeatCapacityModeForNavigation\(\)/,
@@ -145,22 +154,25 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchHeatCapacityModeControlSource,
   /data-heat-capacity-mode="demo"[\s\S]*handleHeatCapacityModeSegmentClick\('demo'\)/,
   'Demo mode button should route mode entry through the session switcher',
 );
 
-assert.match(
-  source,
-  /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*setHeatCapacityBatchSetupRequestedFileId[\s\S]*activateHeatCapacityModeFromExplore\('free'\)[\s\S]*data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/,
-  'the Free mode button should request group setup when needed or restore its independent session from Explore',
-);
+assert.match(source, /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*setHeatCapacityBatchSetupRequestedFileId[\s\S]*activateHeatCapacityModeFromExplore\('free'\)/, "the Free mode button should request group setup when needed or restore its independent session from Explore");
 
-const terminateAutoDemoStart = source.indexOf('const terminateHeatCapacityAutoDemo = () => {');
-assert.notEqual(terminateAutoDemoStart, -1, 'heat capacity auto-demo termination handler should exist');
-const terminateAutoDemoEnd = source.indexOf('\n  const pauseActiveFile', terminateAutoDemoStart);
-assert.notEqual(terminateAutoDemoEnd, -1, 'heat capacity auto-demo termination handler should end before pause handling');
-const terminateAutoDemoBody = source.slice(terminateAutoDemoStart, terminateAutoDemoEnd);
+let terminateAutoDemoBody = '';
+const findAutoDemoTermination = (node: ts.Node) => {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
+    && node.name.text === 'terminateHeatCapacityAutoDemo' && node.initializer
+    && ts.isArrowFunction(node.initializer)) {
+    assert.equal(terminateAutoDemoBody, '', 'the Demo termination action should have one owner');
+    terminateAutoDemoBody = node.initializer.body.getText(workbenchAst);
+  }
+  ts.forEachChild(node, findAutoDemoTermination);
+};
+findAutoDemoTermination(workbenchAst);
+assert.ok(terminateAutoDemoBody, 'the actual Demo termination action body should exist');
 assert.match(
   terminateAutoDemoBody,
   /exitHeatCapacityTeachingModeToExplore\('demo'\)/,
@@ -211,7 +223,7 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  workbenchDockHeaderSource,
   /\(activeFile\.kind === 'standard' \|\| activeFile\.kind === 'ideal'\) &&[\s\S]*?\(activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused'\) \? \([\s\S]*?className="studio-run-control studio-run-control-stop"/,
   'the header stop button should remain only for standard and ideal previews',
 );
@@ -271,3 +283,8 @@ assert.doesNotMatch(
 );
 
 console.log('workbenchRunStopControls tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchDockHeader \} from '\.\/WorkbenchDockHeader\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityModeControl \} from '\.\/WorkbenchHeatCapacityModeControl\.tsx';/);
+
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/);

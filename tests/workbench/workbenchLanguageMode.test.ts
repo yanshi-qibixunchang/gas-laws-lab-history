@@ -1,3 +1,14 @@
+const exportActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchExportActions.ts', import.meta.url), 'utf8');
+const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
+const workbenchConsoleSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchConsole.tsx', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchSimulationParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterRow.tsx', import.meta.url), 'utf8');
+const workbenchIdealControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealControls.tsx', import.meta.url), 'utf8');
+const workbenchStatusBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStatusBar.tsx', import.meta.url), 'utf8');
+const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
+const renameActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileRenameActions.ts', import.meta.url), 'utf8');
+const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchParameterPresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchParameterPresentation.ts', import.meta.url), 'utf8');
 const presentationWorkbenchConsolePresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchConsolePresentation.ts', import.meta.url), 'utf8');
@@ -91,6 +102,16 @@ assert.doesNotMatch(
   'Workbench should not pin relation UI copy to Simplified Chinese',
 );
 
+const localizedViewSources: Record<string, string> = {
+  "workbenchCopy.parameters.samplingPreset": workbenchIdealControlsSource,
+  "workbenchCopy.parameters.relationHints[option.key]": workbenchIdealControlsSource,
+  "workbenchCopy.parameters.samplingPresets": workbenchIdealControlsSource,
+  "workbenchCopy.parameters.samplingDuration": workbenchIdealControlsSource,
+  "workbenchCopy.results.pointsShort": workbenchIdealControlsSource,
+  "workbenchCopy.console.tabs[tab]": workbenchConsoleSource,
+  "workbenchCopy.status.activeFile": workbenchStatusBarSource,
+};
+
 for (const expression of [
   'copy.menus.experimentFiles',
   'copy.settings.title',
@@ -148,7 +169,7 @@ for (const expression of [
   'copy.shortcuts.title',
   'copy.shortcuts.undo',
 ]) {
-  assert.ok(uiSource.includes(expression), `core UI should render ${expression}`);
+  assert.ok((localizedViewSources[expression] ?? uiSource).includes(expression), `core UI should render ${expression}`);
 }
 
 for (const copyMember of [
@@ -199,7 +220,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  fileActionSource,
   /workbenchCopies\[language\]\.logs\.fileSelected\(selectedFile\.name\)/,
   'Common dynamic logs should read from the language selected at render time',
 );
@@ -217,7 +238,12 @@ for (const dynamicLogCall of [
   'workbenchCopies[language].logs.fileNameCannotBeEmpty',
   'workbenchCopies[language].logs.confirmDeleteFile',
 ]) {
-  const owningSource = dynamicLogCall === 'workbenchCopies[language].logs.standardResultsOpened' ? windowActionSource : source;
+  const owningSource = ['exportPayloadPrepared', 'exportNeedsTwoPoints', 'exportCsvSaved'].some(key => dynamicLogCall.endsWith('.' + key)) ? exportActionsSource
+    : dynamicLogCall.endsWith('.autoPausedSingleRuntime') ? frameLoopSource
+    : ['autoPausedCreateFile', 'autoPausedSwitchFile', 'fileCreated', 'confirmDeleteFile'].some(key => dynamicLogCall.endsWith('.' + key)) ? fileActionSource
+    : dynamicLogCall.endsWith('.fileNameCannotBeEmpty') ? renameActionSource
+    : dynamicLogCall.endsWith('.layoutReset') ? layoutActionSource
+    : dynamicLogCall === 'workbenchCopies[language].logs.standardResultsOpened' ? windowActionSource : source;
   assert.ok(owningSource.includes(dynamicLogCall), `${dynamicLogCall} should localize common dynamic logs`);
 }
 
@@ -313,19 +339,19 @@ for (const forbiddenJsxText of [
 }
 
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /getWorkbenchParameterDisplayLabel\(param, workbenchCopy\)/,
   'Rendered parameter rows should use localized parameter labels',
 );
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /workbenchCopy\.parameters\.samplingPresets\[activeSamplingPreset\.key\]/,
   'Sampling preset trigger should use localized preset labels',
 );
 
 assert.match(
-  source,
+  workbenchStatusBarSource,
   /workbenchCopy\.status\.selectedBlock/,
   'Bottom selected-block text should be localized',
 );
@@ -370,3 +396,7 @@ console.log('workbenchLanguageMode tests passed');
 
 assert.ok(source.includes("from './workbenchParameterPresentation.ts'"), 'workbenchParameterPresentation must remain connected to the shell');
 assert.ok(source.includes("from './workbenchConsolePresentation.ts'"), 'workbenchConsolePresentation must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchStatusBar \} from '\.\/WorkbenchStatusBar\.tsx';/);

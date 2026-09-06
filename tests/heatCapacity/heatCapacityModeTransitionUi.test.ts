@@ -1,3 +1,4 @@
+const modeControlViewSource = fs.readFileSync(new URL('../../src/features/workbench/WorkbenchHeatCapacityModeControl.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -139,10 +140,11 @@ assert.match(
   /resume: \(fileId\) => resumeQuiescedHeatCapacityAutoDemo\(fileId\)[\s\S]*const resumeQuiescedHeatCapacityAutoDemo[\s\S]*scheduleHeatCapacityAutoDemoTimeline/,
   'mode actions must resume the existing Demo timeline through its preserved clock owner',
 );
-assert.match(
-  workbenchSource,
-  /const handleHeatCapacityModeSegmentClick[\s\S]*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) \{\s*switchHeatCapacityMode\(mode\);[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('demo'\)\}[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('guide'\)\}[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('free'\)\}/,
-  'all three mode segments should forward locked-period clicks so the final request can win or cancel',
-);
+assert.match(workbenchSource,
+  /const handleHeatCapacityModeSegmentClick[\s\S]*if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) \{\s*switchHeatCapacityMode\(mode\);/,
+  'mode commands must forward locked-period clicks');
+assert.match(modeControlViewSource,
+  /onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('demo'\)\}[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('guide'\)\}[\s\S]*onClick=\{\(\) => handleHeatCapacityModeSegmentClick\('free'\)\}/,
+  'all mode segments must connect to the same queued command');
 
 console.log('heatCapacityModeTransitionUi tests passed');

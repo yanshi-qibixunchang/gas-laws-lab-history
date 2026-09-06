@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPanelNavigationSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelNavigation.tsx', import.meta.url), 'utf8');
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -19,19 +23,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /panel\.key === 'results'[\s\S]*?activeFile\.kind === 'ideal'[\s\S]*?openIdealResultsWindow\('experimentPoints',\s*true\)/,
   'double-clicking ideal Results should open the tabbed Results window with all child tabs',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /className=\{`studio-results-folder-button[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?activeFile\.kind === 'ideal'[\s\S]*?openIdealResultsWindow\('experimentPoints',\s*true\)/,
   'double-clicking the ideal Results folder button should also open the tabbed Results window with all child tabs',
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?setSelectedPanel\(childPanel\.key\);[\s\S]*?\}\}[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?openIdealResultWindow\(childPanel\.key\)/,
   'clicking ideal Results child rows should only select them; double-click should open the single child tab',
 );
@@ -49,7 +53,7 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?setSelectedPanel\('results'\);[\s\S]*?\}\}[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?selectResultsSection\(section\.key,\s*true\)/,
   'clicking standard Results child rows should only select them; double-click should open the single child tab',
 );
@@ -97,7 +101,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchMenuBarSource,
   /onToggleWindowPanel=\{\(panelKey\) => runWindowMenuSwitch\(\(\) => toggleWindowPanel\(panelKey\)\)\}/,
   'top-level Window menu switches should close the menu after toggling a panel',
 );
@@ -139,7 +143,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchMenuBarSource,
   /onToggleWindowResultChild=\{\(child\) => runWindowMenuSwitch\(\(\) => \{[\s\S]*?child\.kind === 'ideal'[\s\S]*?toggleWindowIdealResultTab\(child\.key\)/,
   'ideal Results child switches in the Window menu should close the menu after changing tabs',
 );
@@ -163,7 +167,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchMenuBarSource,
   /onToggleWindowResultChild=\{\(child\) => runWindowMenuSwitch\(\(\) => \{[\s\S]*?toggleWindowStandardResultsTab\(child\.key\)/,
   'standard Results child switches in the Window menu should close the menu after changing tabs',
 );
@@ -223,3 +227,6 @@ assert.match(
 );
 
 console.log('workbenchResultsAndWindowSwitch tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelNavigation \} from '\.\/WorkbenchPanelNavigation\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);

@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchHeatCapacityMaterialsWindowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityMaterialsWindow.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -164,8 +167,10 @@ const workbenchSource = readFileSync(
 );
 assert.match(coordinatorSource, /export const createHeatCapacityMaterialsTabOpenPlan/);
 assert.match(coordinatorSource, /export const createHeatCapacityMaterialsTabClosePlan/);
-assert.match(workbenchSource, /from '\.\/workbenchHeatCapacityMaterialsWindowCoordinator\.ts'/);
+assert.match(workbenchHeatCapacityMaterialsWindowSource, /from '\.\/workbenchHeatCapacityMaterialsWindowCoordinator\.ts'/);
 assert.doesNotMatch(workbenchSource, /const nextOpenTabs = activeFile\.openHeatCapacityTabs\.filter/);
 assert.doesNotMatch(workbenchSource, /activeHeatCapacityTabId: tabId,/);
 
 console.log('workbenchHeatCapacityMaterialsWindowCoordinator tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityMaterialsWindow \} from '\.\/WorkbenchHeatCapacityMaterialsWindow\.tsx';/);

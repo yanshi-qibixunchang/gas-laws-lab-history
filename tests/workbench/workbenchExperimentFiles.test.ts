@@ -1,3 +1,10 @@
+const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
+const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
+const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
+const schedulerSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchWorkspacePersistenceScheduler.ts', import.meta.url), 'utf8');
+const initialWorkspaceSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchInitialWorkspace.ts', import.meta.url), 'utf8');
+const projectionSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchPersistenceProjection.ts', import.meta.url), 'utf8');
+const collectionActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchFileCollectionActions.ts', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchEditLabelLocalizationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchEditLabelLocalization.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
@@ -25,33 +32,36 @@ assert.ok(workbenchStudioCopySource.includes('noCachedExperiments: string;'), 'm
 assert.ok(workbenchStudioCopySource.includes('closeExperiment: string;'), 'file menu copy should expose Close Experiment');
 assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) => WorkbenchConfirmationCopy;'), 'prompt copy should provide a running-close confirmation');
 
+assert.match(initialWorkspaceSource,
+  /const \[initialOrdinaryClosedFiles\] = useState\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen/,
+  'startup loads cached closed files and normalizes heat-capacity files to Explore');
+assert.match(source, /useWorkbenchInitialWorkspace\(\);[\s\S]*const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>/,
+  'the current closed collection is initialized from the dedicated startup owner');
+assert.match(source, /createWorkbenchFileCollectionActions\(\{/,
+  'the workspace uses the dedicated collection commit lanes');
+
 assert.match(
-  source,
-  /const \[initialOrdinaryClosedFiles\] = useState\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen[\s\S]*const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>/,
-  'workbench should load closed cached experiment files and normalize heat-capacity files to Explore',
-);
-assert.match(
-  source,
+  projectionSource,
   /closedFilesRef\.current = closedFiles;[\s\S]*scheduleWorkspacePersistenceRef\.current\('semantic'\);[\s\S]*\}, \[activeFileId, closedFiles, selectedPanel\]\);/,
   'closed cached experiment changes should schedule the semantic IndexedDB workspace commit',
 );
 assert.match(
-  source,
+  projectionSource,
   /scheduleWorkspacePersistenceRef\.current\('runtime-checkpoint'\)[\s\S]*\}, \[activeFileId, files\]\);/,
   'high-frequency file ticks should use the throttled runtime-checkpoint lane',
 );
 assert.match(
-  source,
+  collectionActionsSource,
   /const updateRuntimeFileById = \([\s\S]*setFiles\(\(current\) => \{[\s\S]*filesRef\.current = next;[\s\S]*return next;/,
   'simulation-frame updates should bypass the semantic operation wrapper and feed only the runtime checkpoint effect',
 );
 assert.match(
-  source,
+  frameLoopSource,
   /const updateStandardFrameFile = finished[\s\S]*\? updateFileById[\s\S]*: updateRuntimeFileById;[\s\S]*updateStandardFrameFile\(file\.id/,
   'standard simulation frames should stay runtime-only until the finished result receives a semantic save',
 );
 assert.match(
-  source,
+  frameLoopSource,
   /if \(!finished\) \{[\s\S]*updateRuntimeFileById\(file\.id,[\s\S]*scheduleIdealFrame\(file\.id\)/,
   'ideal-gas collection frames should stay runtime-only while the final recorded point remains semantic',
 );
@@ -78,23 +88,20 @@ assert.ok(
   'New Experiment submenu should order entries as ideal / adiabatic / piston oscillation / standard',
 );
 
-assert.ok(source.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');
+assert.ok(fileActionSource.includes('const requestCloseWorkbenchFile = (file: WorkbenchFileState) => {'), 'workbench should expose a close-file request handler');
 assert.match(
-  source,
+  fileActionSource,
   /const requestCloseWorkbenchFile = \(file: WorkbenchFileState\) => \{[\s\S]*requestPromptConfirmation\(\{[\s\S]*id: `close-running-workbench-file:\$\{file\.id\}`[\s\S]*onConfirm: \(\) => closeWorkbenchFile\(file\.id\)/,
   'closing a running experiment should use the internal confirmation and close only after confirmation',
 );
 assert.ok(source.includes('commitWorkbenchFileCollections'), 'file collection changes should use one synchronous ownership boundary');
 assert.match(
-  source.slice(
-    indexOfOrFail(source, 'const commitWorkbenchFileCollections = (', 'file collection commit boundary should exist'),
-    indexOfOrFail(source, 'const updateFileById = (', 'file update helper should follow the collection commit boundary'),
-  ),
+  collectionActionsSource,
   /assertUniqueWorkbenchFileCollections\(nextFiles, nextClosedFiles, nextActiveFileId\);[\s\S]*filesRef\.current = nextFiles;/,
   'global file identity ownership must be asserted before refs or React state are mutated',
 );
 assert.match(
-  source,
+  fileActionSource,
   /const index = getNextWorkbenchFileDisplayIndex\(kind, currentFiles\);[\s\S]*const fileId = createUniqueWorkbenchFileId\(kind, issuedWorkbenchFileIdsRef\.current\);[\s\S]*id: fileId/,
   'new experiment display numbering must be separate from its opaque persistent identity',
 );
@@ -128,22 +135,22 @@ assert.match(presentationWorkbenchEditLabelLocalizationSource, /'reopened file':
 assert.match(presentationWorkbenchEditLabelLocalizationSource, /'closed file': '關閉檔案'/);
 assert.match(presentationWorkbenchEditLabelLocalizationSource, /'reopened file': '重新開啟檔案'/);
 assert.match(
-  source,
+  fileActionSource,
   /const closeWorkbenchFile[\s\S]*captureUndoSnapshot\('closed file', 'workspace'\)[\s\S]*commitWorkbenchFileCollections/,
   'closing a file must participate in ordered workspace ownership history',
 );
 assert.match(
-  source,
+  fileActionSource,
   /const openClosedWorkbenchFile[\s\S]*captureUndoSnapshot\('reopened file', 'workspace'\)[\s\S]*commitWorkbenchFileCollections/,
   'reopening a cached file must participate in ordered workspace ownership history',
 );
 assert.ok(source.includes('openClosedWorkbenchFile'), 'closed cache should be reopenable');
-assert.ok(source.includes('const isClosingActiveFile = fileId === activeFileIdRef.current;'), 'closing inactive experiments should use the authoritative active-file ref');
-assert.ok(source.includes('if (isClosingActiveFile) {'), 'active-workspace cleanup should only run when the active experiment is closed');
+assert.ok(fileActionSource.includes('const isClosingActiveFile = fileId === activeFileIdRef.current;'), 'closing inactive experiments should use the authoritative active-file ref');
+assert.ok(fileActionSource.includes('if (isClosingActiveFile) {'), 'active-workspace cleanup should only run when the active experiment is closed');
 
-const collectionCommitSource = source.slice(
-  indexOfOrFail(source, 'const commitWorkbenchFileCollections = (', 'file collection commit boundary should exist'),
-  indexOfOrFail(source, 'const updateFileById = (', 'file update helper should follow the collection commit boundary'),
+const collectionCommitSource = collectionActionsSource.slice(
+  indexOfOrFail(collectionActionsSource, 'const commitWorkbenchFileCollections = (', 'file collection commit boundary should exist'),
+  indexOfOrFail(collectionActionsSource, 'const updateFileById = (', 'file update helper should follow the collection commit boundary'),
 );
 assert.match(
   collectionCommitSource,
@@ -152,9 +159,9 @@ assert.match(
 );
 
 const assertCollectionCommitPrecedesFlush = (start: string, end: string, label: string) => {
-  const section = source.slice(
-    indexOfOrFail(source, start, `${label} handler should exist`),
-    indexOfOrFail(source, end, `${label} handler should have a stable end boundary`),
+  const section = fileActionSource.slice(
+    indexOfOrFail(fileActionSource, start, `${label} handler should exist`),
+    indexOfOrFail(fileActionSource, end, `${label} handler should have a stable end boundary`),
   );
   assert.ok(
     indexOfOrFail(section, 'commitWorkbenchFileCollections(', `${label} should commit collection ownership`) <
@@ -169,7 +176,7 @@ const assertCollectionCommitPrecedesFlush = (start: string, end: string, label: 
 };
 assertCollectionCommitPrecedesFlush(
   'const createFile = (kind: WorkbenchFileKind) => {',
-  'const openNewWorkbenchWindow = () => {',
+  'const closeWorkbenchFile = (fileId: string) => {',
   'create-file',
 );
 assertCollectionCommitPrecedesFlush(
@@ -205,40 +212,25 @@ assert.match(
   'pause and stop transitions should request an immediate lifecycle flush after React commits their run-state change',
 );
 assert.match(
-  source,
+  runActionSource,
   /const pauseActiveFile = \(\) => \{[\s\S]*updateActiveFile\([\s\S]*flushWorkspaceAfterRunStateCommit\(\)/,
   'pausing a standard or ideal experiment must not wait for the ordinary semantic debounce',
 );
 assert.match(
-  source,
+  runActionSource,
   /const stopActiveFile = \(\) => \{[\s\S]*terminateHeatCapacityAutoDemo\(\);[\s\S]*flushWorkspaceAfterRunStateCommit\(\);[\s\S]*runState: 'idle'[\s\S]*flushWorkspaceAfterRunStateCommit\(\)/,
   'stopping heat-capacity, standard, and ideal experiments should enter the immediate lifecycle persistence lane',
 );
 
-const schedulerLifecycleIndex = indexOfOrFail(
-  source,
-  'workspacePersistenceSchedulerRef.current = scheduler;',
-  'the persistence scheduler must be installed from an effect lifecycle',
-);
-const persistenceSchedulingEffectIndex = indexOfOrFail(
-  source,
-  'closedFilesRef.current = closedFiles;',
-  'the workspace persistence scheduling effect should exist',
-);
-assert.ok(
-  schedulerLifecycleIndex < persistenceSchedulingEffectIndex,
-  'the scheduler lifecycle effect must run before the scheduling effect under React StrictMode',
-);
-assert.match(
-  source.slice(schedulerLifecycleIndex, persistenceSchedulingEffectIndex),
-  /return \(\) => \{[\s\S]*workspacePersistenceSchedulerRef\.current === scheduler[\s\S]*workspacePersistenceSchedulerRef\.current = null;[\s\S]*scheduler\.dispose\(\);/,
-  'StrictMode cleanup must dispose only its own scheduler so the second effect setup can install a fresh instance',
-);
+const schedulerLifecycleIndex = indexOfOrFail(source, 'useWorkbenchWorkspacePersistenceScheduler();', 'scheduler hook is installed');
+const persistenceSchedulingEffectIndex = indexOfOrFail(source, 'useWorkbenchPersistenceProjection({', 'projection hook is installed');
+assert.ok(schedulerLifecycleIndex < persistenceSchedulingEffectIndex,
+  'scheduler setup must register before projection scheduling under StrictMode');
+assert.match(schedulerSource,
+  /workspacePersistenceSchedulerRef\.current = scheduler;[\s\S]*return \(\) => \{[\s\S]*workspacePersistenceSchedulerRef\.current === scheduler[\s\S]*workspacePersistenceSchedulerRef\.current = null;[\s\S]*scheduler\.dispose\(\);/,
+  'cleanup disposes only its own scheduler so repeated setup can install a fresh instance');
 
-const fileMenuSource = source.slice(
-  indexOfOrFail(source, 'className={`studio-tree-row studio-file-row', 'file tree row should exist'),
-  indexOfOrFail(source, '<section className="studio-tree-section">', 'panel tree section should follow file tree section'),
-);
+const fileMenuSource = readFileSync(new URL('../../src/features/workbench/WorkbenchFileTree.tsx', import.meta.url), 'utf8');
 assert.ok(fileMenuSource.includes('onContextMenu={(event) =>'), 'file tree rows should open the action menu on right click');
 assert.ok(fileMenuSource.includes('requestCloseWorkbenchFile(file)'), 'file tree menu should include Close Experiment');
 assert.ok(fileMenuSource.includes('requestDeleteWorkbenchFile(file)'), 'file tree menu should keep Delete');
@@ -267,10 +259,7 @@ assert.doesNotMatch(
   'single-clicking an experiment row should not switch the active experiment',
 );
 
-const fileTabsSource = source.slice(
-  indexOfOrFail(source, '<div className="studio-file-tabs"', 'file tabs should exist'),
-  indexOfOrFail(source, '<div className={`studio-workspace-shell', 'workspace shell should follow file tabs'),
-);
+const fileTabsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchFileTabs.tsx', import.meta.url), 'utf8');
 assert.ok(fileTabsSource.includes('className="studio-file-tab-close"'), 'each experiment tab should include a close button');
 assert.ok(fileTabsSource.includes('requestCloseWorkbenchFile(file)'), 'tab close buttons should close the experiment');
 assert.match(

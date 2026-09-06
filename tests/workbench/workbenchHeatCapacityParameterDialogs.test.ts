@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchHeatCapacityAdvancedParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityAdvancedParameters.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -23,7 +26,7 @@ assert.match(componentSource, /<PromptDialogShell[\s\S]*role="alertdialog"/, 'co
 assert.match(shellSource, /aria-modal="true"/, 'the shared shell should preserve modal semantics');
 assert.match(componentSource, /dismiss=\{\{ closeButton: false, escape: true, backdrop: true \}\}/, 'parameter confirmations should keep cancel-by-Escape and cancel-by-mask without adding a title-bar close button');
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityAdvancedParametersSource,
   /onRequestClose=\{cancelHeatCapacityAdvancedParameterDraft\}[\s\S]*overlayClassName="studio-heat-advanced-overlay"/,
   'the advanced parameter task window should route its mask through the shared close contract',
 );
@@ -35,3 +38,5 @@ assert.match(
 assert.doesNotMatch(workbenchSource, /const renderHeatCapacityRestoreDefaultDialog|const renderHeatCapacityIdealProfileIntroDialog|const renderHeatCapacityAdvancedRiskDialog/, 'workbench should not retain legacy parameter-confirmation render helpers');
 
 console.log('workbenchHeatCapacityParameterDialogs tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityAdvancedParameters \} from '\.\/WorkbenchHeatCapacityAdvancedParameters\.tsx';/);

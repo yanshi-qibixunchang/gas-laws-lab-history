@@ -1,3 +1,7 @@
+const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
+const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
+const idealActionSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealExperimentActions.ts', import.meta.url), 'utf8');
+const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -87,7 +91,11 @@ for (const requiredCall of [
   'workbenchCopy.logs.relationHasNoPoints',
   'getLocalizedWorkbenchValidationErrors(validation.errors, settingsLanguagePreference)',
 ]) {
-  const owningSource = ['workbenchCopy.logs.panelOpened', 'workbenchCopy.logs.panelClosed'].includes(requiredCall) ? windowActionSource : renderSource;
+  const owningSource = ['standardFinished', 'standardResultsReady', 'idealPointRecorded', 'idealPointMissingSummary'].some(key => requiredCall.endsWith('.' + key)) ? frameLoopSource
+    : ['runtimeCreateFailed', 'standardStarted', 'idealStarted', 'simulationPaused', 'standardTerminated', 'idealTerminated'].some(key => requiredCall.endsWith('.' + key)) ? runActionSource
+    : ['controlledVariablesLocked', 'pauseBeforeEditingParameters', 'invalidParameter', 'pauseBeforeApplyingParameters', 'idealRuntimeAlreadyApplied', 'noSavedParameterChanges', 'idealRuntimeApplied', 'standardParametersApplied'].some(key => requiredCall.endsWith('.' + key)) ? parameterActionSource
+    : ['pauseBeforeSwitchingRelation', 'relationAlreadyActive', 'relationSwitched', 'pauseBeforeChangingSamplingPreset', 'pauseBeforeChangingScanVariable', 'confirmRemoveIdealPoint', 'idealPointRemoved', 'relationHasNoPoints'].some(key => requiredCall.endsWith('.' + key)) ? idealActionSource
+    : ['workbenchCopy.logs.panelOpened', 'workbenchCopy.logs.panelClosed'].includes(requiredCall) ? windowActionSource : renderSource;
   const languageReactiveCall = requiredCall.replace('workbenchCopy.logs', 'workbenchCopies[language].logs');
   assert.ok(
     owningSource.includes(requiredCall) || owningSource.includes(languageReactiveCall),

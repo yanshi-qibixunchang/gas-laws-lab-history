@@ -1,3 +1,8 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchFileTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTree.tsx', import.meta.url), 'utf8');
+const renameActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileRenameActions.ts', import.meta.url), 'utf8');
+const renameHookSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchFileMenuInteractions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -11,31 +16,31 @@ assert.match(
 );
 
 assert.match(
-  source,
+  renameHookSource,
   /renameInputRef\.current\?\.focus\(\);[\s\S]*?renameInputRef\.current\?\.select\(\);/,
   'entering rename should focus the input and select the full file name after render',
 );
 
 assert.match(
-  source,
+  renameActionSource,
   /const selectRenameNumericSuffix = \(input: HTMLInputElement\) => \{[\s\S]*?\.match\(\/\\d\+\$\/\)[\s\S]*?input\.setSelectionRange\(/,
   'rename should provide a helper that selects the trailing numeric suffix such as 001 or 002',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /if \(event\.key === 'ArrowRight' && renameSelectionModeRef\.current === 'initial'\) \{[\s\S]*?event\.preventDefault\(\);[\s\S]*?selectRenameNumericSuffix\(event\.currentTarget\);[\s\S]*?renameSelectionModeRef\.current = 'normal';[\s\S]*?\}/,
   'rename input should turn the first ArrowRight keypress into trailing-number selection',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /onMouseDown=\{\(\) => \{\s*renameSelectionModeRef\.current = 'normal';\s*\}\}/,
   'clicking into the rename input should leave the initial full-selection mode',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /className=\{`studio-tree-row studio-file-row [\s\S]*?\$\{file\.id === activeFile\.id \? 'studio-file-row-active' : ''\} [\s\S]*?\$\{menuOpen \? 'studio-file-row-menu-open' : ''\} \$\{isRenaming \? 'studio-file-row-renaming' : ''\}`\}/,
   'renaming file rows should receive a dedicated class for stable layout styling',
 );
@@ -67,3 +72,5 @@ assert.match(
 console.log('workbenchRenameSelection tests passed');
 
 
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);

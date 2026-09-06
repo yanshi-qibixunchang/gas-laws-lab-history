@@ -1,3 +1,8 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchSimulationParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterRow.tsx', import.meta.url), 'utf8');
+const workbenchCurrentParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
+const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -22,19 +27,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const rejectLockedIdealControlledVariables = \(nextParams: SimulationParams\) => \{[\s\S]*?getLockedIdealControlledVariableKeys\(nextParams\)[\s\S]*?workbenchCopy\.logs\.controlledVariablesLocked\(activeFile\.name, getRelationLabel\(activeFile\.relation\), lockedKeys\.join\(', '\)\)[\s\S]*?return true;/,
   'saving/applying ideal parameters should reject non-variable changes instead of clearing existing data',
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const commitWorkbenchParameterInput = \([\s\S]*?param: WorkbenchParameterRow[\s\S]*?rawValue: string[\s\S]*?\) => \{[\s\S]*?assignWorkbenchParameterValue\(nextParams, param\.key, parsedValue\);[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return;[\s\S]*?applyActiveFileParams\(nextParams\)/,
   'direct parameter commits should be blocked before they can store changed controlled variables',
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const nextParams = paramsOverride \? cloneParams\(paramsOverride\) : cloneParams\(activeFile\.params\);[\s\S]*?if \(rejectLockedIdealControlledVariables\(nextParams\)\) return null;/,
   'parameter application should also block changed controlled variables before rebuilding ideal runtimes',
 );
@@ -52,19 +57,19 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const renderWorkbenchParameterInputRow = \(param: WorkbenchParameterRow\) => \{[\s\S]*?const isParamLocked = parameterControlsLocked \|\| isIdealControlledVariableLocked\(param\.key\);[\s\S]*?const paramLockHint = isIdealControlledVariableLocked\(param\.key\) \? controlledVariableLockHint : undefined;/,
-  'the shared current-parameter input row should calculate per-row lock state and hover text',
+  workbenchSimulationParameterRowSource,
+  /const isParamLocked = parameterControlsLocked \|\| isIdealControlledVariableLocked\(param\.key\);[\s\S]*?const paramLockHint = isIdealControlledVariableLocked\(param\.key\) \? controlledVariableLockHint : undefined;/,
+  "the shared current-parameter input row should calculate per-row lock state and hover text",
 );
 
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /<div[\s\S]*?data-prompt-tooltip=\{paramLockHint\}[\s\S]*?aria-disabled=\{isParamLocked\}[\s\S]*?<input[\s\S]*?disabled=\{isParamLocked \|\| !param\.editable\}/,
   'locked parameter rows should carry internal tooltip text and an accessible disabled state',
 );
 
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /editableCurrentParameters\.map\(\(param\) => renderWorkbenchParameterInputRow\(param\)\)/,
   'editable parameter lists should render through the shared direct-input row',
 );
@@ -76,9 +81,12 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const changedKeys = getChangedIdealParamKeys\(activeFile\.activeParams, nextParams\);[\s\S]*?const nextPointsByRelation = activeFile\.pointsByRelation;/,
   'ideal parameter application should preserve recorded relation data instead of clearing it after blocked changes are rejected',
 );
 
 console.log('workbenchIdealControlledVariablesLock tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);

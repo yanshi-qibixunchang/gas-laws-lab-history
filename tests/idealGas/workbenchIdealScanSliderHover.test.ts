@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchIdealControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealControls.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -6,7 +9,7 @@ const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 const idealControlsSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealControls.ts', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /'--studio-ideal-scan-progress':\s*`\$\{scanProgressPercent\}%`/,
   'ideal scan slider should pass its value as a CSS progress percentage',
 );
@@ -31,7 +34,7 @@ assert.match(
   'ideal scan slider and tick labels should share the same value-to-position calculation',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /'--studio-ideal-scan-tick-position': `\$\{getIdealScanPositionPercent\(value,\s*scanMin,\s*scanRange\)\}%`/,
   'recommended scan value buttons should be positioned by numeric value instead of equal spacing',
 );
@@ -119,3 +122,5 @@ assert.match(
 
 console.log('workbenchIdealScanSliderHover tests passed');
 
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);

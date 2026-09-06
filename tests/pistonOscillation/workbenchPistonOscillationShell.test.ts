@@ -1,3 +1,39 @@
+const contractWorkbenchFileActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
+const contractWorkbenchCurrentParametersSource = readContractModule(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
+const contractWorkbenchPistonOscillationPreviewSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
+const contractUseWorkbenchPistonChannelsSource = readContractModule(new URL('../../src/features/workbench/useWorkbenchPistonChannels.ts', import.meta.url), 'utf8');
+const contractWorkbenchPistonOscillationRealtimeSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationRealtime.tsx', import.meta.url), 'utf8');
+const contractWorkbenchPistonViewActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchPistonViewActions.ts', import.meta.url), 'utf8');
+const contractWorkbenchPistonModeActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchPistonModeActions.ts', import.meta.url), 'utf8');
+const contractWorkbenchPistonOscillationModeControlSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationModeControl.tsx', import.meta.url), 'utf8');
+const contractUseWorkbenchPistonGuideRuntimeSource = readContractModule(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+const contractWorkbenchPistonAcquisitionProcessingActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchPistonAcquisitionProcessingActions.ts', import.meta.url), 'utf8');
+const contractWorkbenchTeachingUiTimingSource = readContractModule(new URL('../../src/features/workbench/workbenchTeachingUiTiming.ts', import.meta.url), 'utf8');
+const contractWorkbenchCenterWorkspaceSource = readContractModule(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const contractUseWorkbenchPistonDemoRuntimeSource = readContractModule(new URL('../../src/features/workbench/useWorkbenchPistonDemoRuntime.ts', import.meta.url), 'utf8');
+const contractUseWorkbenchPistonProcessingViewSource = readContractModule(new URL('../../src/features/workbench/useWorkbenchPistonProcessingView.ts', import.meta.url), 'utf8');
+const contractWorkbenchPistonOscillationPanelTreeSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationPanelTree.tsx', import.meta.url), 'utf8');
+const contractUseWorkbenchPistonFeedbackSource = readContractModule(new URL('../../src/features/workbench/useWorkbenchPistonFeedback.ts', import.meta.url), 'utf8');
+import { readFileSync as readContractModule } from 'node:fs';
+const runtimeWorkbenchPistonFreeActionsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchPistonFreeActions.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonProcessingViewSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonProcessingView.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonChecklistSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonChecklist.ts', import.meta.url), 'utf8');
+const runtimeWorkbenchTeachingUiTimingSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchTeachingUiTiming.ts', import.meta.url), 'utf8');
+const runtimeWorkbenchPistonAcquisitionProcessingActionsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchPistonAcquisitionProcessingActions.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonLessonsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonLessons.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonGuideRuntimeSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCurrentParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationPanelTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPanelTree.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationRealtimeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationRealtime.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationModeControl.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationGuideStepsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationGuideSteps.tsx', import.meta.url), 'utf8');
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationPreviewSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationGuideLessonSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationGuideLesson.tsx', import.meta.url), 'utf8');
+const initialPresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchInitialFilePresentation.ts', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchPanelAvailabilitySource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPanelAvailability.ts', import.meta.url), 'utf8');
 const presentationWorkbenchScientificTextSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/WorkbenchScientificText.tsx', import.meta.url), 'utf8');
@@ -96,7 +132,7 @@ assert.match(
 assert.match(workbenchStudioCopySource, /heatCapacityStudy:\s*'空气热容比（绝热膨胀法）'/);
 assert.match(workbenchStudioCopySource, /heatCapacityPistonOscillationStudy:\s*'空气热容比（活塞振动法）'/);
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonFreeActionsSource,
   /const handlePistonOscillationFreeInstrumentSnapshot = \([\s\S]*if \(snapshot\.pistonPhase !== 'idle'\) return;[\s\S]*updateRuntimeFileById/,
   'transient piston animation frames must not rerender and persist the entire free-mode workbench',
 );
@@ -148,7 +184,7 @@ assert.match(
   'the Piston right rail must reject Demo and Guide while remaining reopenable in Free Mode',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonProcessingViewSource,
   /parameterSidebarAvailable: activePistonOscillationParameterSidebarAvailable[\s\S]*selectWorkbenchPistonOscillationViewState\(/,
   'the sidebar must use the independently tested mode selection',
 );
@@ -163,21 +199,14 @@ assert.doesNotMatch(
   /shouldCollapseWorkbenchFileSidebar/,
   'file activation must not keep a Piston-specific left-sidebar collapse rule',
 );
+assert.match(contractWorkbenchFileActionsSource, /const selectFile = \(file: WorkbenchFileState\) => \{[\s\S]*setSelectedFileId\(file\.id\);[\s\S]*if \(file\.id === activeFileIdRef\.current\) return;[\s\S]*setLeftCollapsed\(false\);[\s\S]*setParametersCollapsed\(true\);/, 'activating any file should present the left file tree and collapse the right sidebar');
 assert.match(
-  workbenchSource,
-  /const selectFile = \(file: WorkbenchFileState\) => \{[\s\S]*setSelectedFileId\(file\.id\);[\s\S]*if \(file\.id === activeFileIdRef\.current\) return;[\s\S]*setLeftCollapsed\(false\);[\s\S]*setParametersCollapsed\(true\);/,
-  'activating any file should present the left file tree and collapse the right sidebar',
-);
-assert.match(
-  workbenchSource,
+  initialPresentationSource,
   /storedSplitRatio === WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO[\s\S]*defaults\.heatCapacityPistonOscillation\.liveWorkspaceSplitRatio[\s\S]*: storedSplitRatio/,
   'the former heat-capacity split should migrate to the piston-specific default',
 );
-assert.match(
-  workbenchSource,
-  /!isWorkbenchEmpty \? \([\s\S]*<aside[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*<PistonOscillationParameterPanel/,
-  'Piston should use the same reopenable right sidebar shell with its dedicated parameter panel',
-);
+assert.match(workbenchViewShellSource, /!isWorkbenchEmpty \? \(/, 'Piston should use the same reopenable right sidebar shell with its dedicated parameter panel');
+assert.match(contractWorkbenchCurrentParametersSource, /<aside[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*<PistonOscillationParameterPanel/, 'Piston should use the same reopenable right sidebar shell with its dedicated parameter panel');
 assert.doesNotMatch(
   workbenchSource,
   /activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]{0,240}pistonOscillationCopy\.unavailable\.rightSidebar/,
@@ -204,7 +233,7 @@ assert.match(
   'an unavailable scheme or gas profile must be stopped before formal acquisition starts',
 );
 assert.match(
-  workbenchSource,
+  workbenchCurrentParametersSource,
   /renderParameterHelpButton=\{\(parameterId, modelEffect\) => \([\s\S]*renderHeatCapacityParameterHelpButton/,
   'Piston parameters should reuse the established Heat Capacity help-button and popover implementation',
 );
@@ -238,43 +267,30 @@ assert.match(
   /!isHeatCapacityPanelKey\(panel\.key\)[\s\S]*activeExperimentMaterialsPanelKeys\.includes\(panel\.key\)/,
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationPanelTreeSource,
   /getPistonOscillationMaterialsPanelOrder\(activeFile\)[\s\S]*materialsPanels\.length > 0[\s\S]*studio-heat-materials-group/,
   'the Piston materials group should only render when the current mode has a real, usable child panel',
 );
 assert.doesNotMatch(
-  sourceSlice('const renderPistonOscillationPanelTree = () => {', 'const topMenuResultChildren'),
+  workbenchPistonOscillationPanelTreeSource,
   /developmentBadge|data-development-unavailable|studio-panel-row-development/,
   'the Piston sidebar should not keep misleading development placeholders',
 );
 
-assert.match(
-  workbenchSource,
-  /<PistonOscillationInstrumentScene[\s\S]*?activePistonOscillationParameterSignature[\s\S]*?language=\{settingsLanguagePreference\}[\s\S]*?physicsConfig=\{activePistonOscillationPhysicsConfig\}[\s\S]*?thermalConfig=\{activePistonOscillationThermalConfig\}[\s\S]*?guideSessionRevision=\{[\s\S]*?activeFile\.pistonOscillationGuideSession\.startedAtMs \?\? 0[\s\S]*?\}[\s\S]*?overlayTopRight=\{pistonOscillationGuideStepPanel\}[\s\S]*?onReleaseEvent=\{\(event\) =>/,
-  'the piston preview must apply the active parameter profile, reset Guide sessions explicitly, inject Guide into its top-right slot, and publish two-hand releases',
-);
-assert.match(
-  workbenchSource,
-  /const pistonOscillationLivePressureChannel = useMemo\([\s\S]*createPistonOscillationLivePressureChannel\([\s\S]*activePistonOscillationSensorConfig,[\s\S]*exactObservation:[\s\S]*activePistonOscillationEffectiveConfig\?\.exactSensorObservation[\s\S]*activeFile\.id,[\s\S]*activePistonOscillationEffectiveConfig\?\.exactSensorObservation,[\s\S]*activePistonOscillationSensorConfig,[\s\S]*onLivePhysicalStateChange=\{[\s\S]*pistonOscillationLivePressureChannel\.publishPhysicalState[\s\S]*<PistonOscillationAcquisitionPanel[\s\S]*livePressureChannel=\{pistonOscillationLivePressureChannel\}/,
-  'one scheme-aware file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples',
-);
-assert.match(
-  workbenchSource,
-  /onPressStartEvent=\{\(event\) => \{[\s\S]*setPistonOscillationPressStartEventsByFileId[\s\S]*\[activeFile\.id\]: event[\s\S]*pressStartEvent=\{pistonOscillationPressStartEventsByFileId\[activeFile\.id\] \?\? null\}/,
-  'the scene and acquisition panel must share later two-hand press-start events for one continuous Free record',
-);
-assert.match(
-  workbenchSource,
-  /onFreeAcquisitionStarted=\{\(\) => \{[\s\S]*type: 'observeOperation'[\s\S]*operation: 'startAcquisition'/,
-  'Free acquisition start must reach the persisted irreversible-operation boundary',
-);
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /<PistonOscillationInstrumentScene[\s\S]*activePistonOscillationParameterSignature[\s\S]*language=\{settingsLanguagePreference\}[\s\S]*physicsConfig=\{activePistonOscillationPhysicsConfig\}[\s\S]*thermalConfig=\{activePistonOscillationThermalConfig\}[\s\S]*guideSessionRevision=\{[\s\S]*activeFile\.pistonOscillationGuideSession\.startedAtMs \?\? 0[\s\S]*\}[\s\S]*overlayTopRight=\{pistonOscillationGuideStepPanel\}[\s\S]*onReleaseEvent=\{handlePistonOscillationReleaseEvent\}/, 'the piston preview must apply the active parameter profile, reset Guide sessions explicitly, inject Guide into its top-right slot, and publish two-hand releases');
+assert.match(contractUseWorkbenchPistonChannelsSource, /const pistonOscillationLivePressureChannel = useMemo\([\s\S]*createPistonOscillationLivePressureChannel\([\s\S]*activePistonOscillationSensorConfig,[\s\S]*exactObservation:[\s\S]*activePistonOscillationEffectiveConfig\?\.exactSensorObservation[\s\S]*activeFile\.id,[\s\S]*activePistonOscillationEffectiveConfig\?\.exactSensorObservation,[\s\S]*activePistonOscillationSensorConfig,/, 'one scheme-aware file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /onLivePhysicalStateChange=\{[\s\S]*pistonOscillationLivePressureChannel\.publishPhysicalState/, 'one scheme-aware file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples');
+assert.match(contractWorkbenchPistonOscillationRealtimeSource, /<PistonOscillationAcquisitionPanel[\s\S]*livePressureChannel=\{pistonOscillationLivePressureChannel\}/, 'one scheme-aware file-scoped observation channel must connect the physical scene to the acquisition graph without persisting pre-trigger samples');
+assert.match(contractWorkbenchPistonViewActionsSource, /handlePistonOscillationPressStartEvent[\s\S]*\(event\) => \{[\s\S]*setPistonOscillationPressStartEventsByFileId[\s\S]*\[activeFile\.id\]: event/, 'the scene and acquisition panel must share later two-hand press-start events for one continuous Free record');
+assert.match(contractWorkbenchPistonOscillationRealtimeSource, /pressStartEvent=\{pistonOscillationPressStartEventsByFileId\[activeFile\.id\] \?\? null\}/, 'the scene and acquisition panel must share later two-hand press-start events for one continuous Free record');
+assert.match(contractWorkbenchPistonViewActionsSource, /startPistonOscillationFreeAcquisition[\s\S]*\(\) => \{[\s\S]*type: 'observeOperation'[\s\S]*operation: 'startAcquisition'/, 'Free acquisition start must reach the persisted irreversible-operation boundary');
 assert.doesNotMatch(
   workbenchSource,
   /releaseControlExternallyHeld|onReleaseControlHoldChange|pistonOscillationReleaseControlHoldsByFileId/,
   'the acquisition lifecycle must not extend the scene motion lock',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /<PistonOscillationAcquisitionPanel[\s\S]*key=\{`\$\{activeFile\.id\}:\$\{[\s\S]*activePistonOscillationGuideSession\?\.startedAtMs \?\? 'standalone'[\s\S]*activePistonOscillationGuideSession\?\.measurementIndex \?\? 'free'[\s\S]*`\}/,
   'each guided measurement must mount an isolated acquisition state so a saved curve cannot block or appear in the next run',
 );
@@ -284,23 +300,12 @@ assert.doesNotMatch(
   'Workbench must not mount a second Guide overlay outside the instrument scene',
 );
 assert.match(workbenchSource, /renderPistonOscillationModeControl/);
-assert.match(workbenchSource, /data-piston-oscillation-mode-control="true"/);
-assert.match(workbenchSource, /data-piston-oscillation-mode="guide"[\s\S]*onClick=\{startGuide\}/);
-assert.match(workbenchSource, /data-piston-oscillation-guide-step-panel="true"/);
-const pistonModeControlSource = sourceSlice(
-  'const renderPistonOscillationModeControl = () => {',
-  'const renderPistonOscillationGuideStepPanel = () => {',
-);
-assert.match(
-  pistonModeControlSource,
-  /const guideSessionSelected = activeFile\.pistonOscillationGuideSession\.status === 'active'[\s\S]*status === 'completed'[\s\S]*!activeFile\.pistonOscillationGuideSession\.completionExited[\s\S]*const guideCompleted = activeFile\.pistonOscillationGuideSession\.status === 'completed'/,
-  'a completed Guide remains selected until the user explicitly exits it',
-);
-assert.match(
-  pistonModeControlSource,
-  /status === 'completed'[\s\S]*completionExited[\s\S]*type: 'reopenCompletedSession'[\s\S]*return;/,
-  'selecting Guide again after a normal completed exit should reopen the saved result instead of starting a new run',
-);
+assert.match(workbenchPistonOscillationModeControlSource, /data-piston-oscillation-mode-control="true"/);
+assert.match(workbenchPistonOscillationModeControlSource, /data-piston-oscillation-mode="guide"[\s\S]*onClick=\{startGuide\}/);
+assert.match(workbenchPistonOscillationGuideStepsSource, /data-piston-oscillation-guide-step-panel="true"/);
+const pistonModeControlSource = workbenchPistonOscillationModeControlSource;
+assert.match(contractWorkbenchPistonModeActionsSource, /const guideSessionSelected = activeFile\.pistonOscillationGuideSession\.status === 'active'[\s\S]*status === 'completed'[\s\S]*!activeFile\.pistonOscillationGuideSession\.completionExited[\s\S]*const guideCompleted = activeFile\.pistonOscillationGuideSession\.status === 'completed'/, 'a completed Guide remains selected until the user explicitly exits it');
+assert.match(contractWorkbenchPistonModeActionsSource, /status === 'completed'[\s\S]*completionExited[\s\S]*type: 'reopenCompletedSession'[\s\S]*return;/, 'selecting Guide again after a normal completed exit should reopen the saved result instead of starting a new run');
 assert.doesNotMatch(
   pistonModeControlSource,
   /pause-guide|resume-guide|pauseSession|resumeSession|labels\.(?:pauseGuide|resumeGuide)/,
@@ -311,45 +316,19 @@ assert.match(
   /data-piston-oscillation-mode-action="reset-guide"[\s\S]*<RotateCcw size=\{13\} strokeWidth=\{2\.7\} \/>[\s\S]*data-piston-oscillation-mode-action="exit-guide"[\s\S]*guideCompleted \? \([\s\S]*<LogOut size=\{13\} strokeWidth=\{2\.7\} \/>[\s\S]*<Square size=\{12\} strokeWidth=\{2\.8\} \/>/,
   'Guide completion should retain Reset and change Exit from the active stop glyph to LogOut',
 );
-assert.match(
-  pistonModeControlSource,
-  /const resetGuide = \(\) => \{[\s\S]*type: 'resetSession'/,
-  'the Guide reset control should dispatch a fresh-session event',
-);
-assert.match(
-  pistonModeControlSource,
-  /const exitGuide = \(\) => \{[\s\S]*type: 'exitSession'[\s\S]*onClick=\{exitGuide\}/,
-  'the Guide exit control should dispatch its workflow event',
-);
-assert.match(
-  pistonModeControlSource,
-  /const activateDemo = \(\) => \{[\s\S]*guideSessionSelected[\s\S]*type: 'exitSession'[\s\S]*pistonOscillationDemoSession: demoSession[\s\S]*setLeftCollapsed\(true\);[\s\S]*setParametersCollapsed\(true\);/,
-  'confirmed Demo activation should clear an unfinished Guide and collapse both sidebars once',
-);
-assert.match(
-  pistonModeControlSource,
-  /const startDemo = \(\) => \{[\s\S]*if \(demoSelected\) return;[\s\S]*unfinishedGuide[\s\S]*requestPistonTeachingModeSwitch\(activateDemo\)/,
-  'reselecting Demo must be inert while switching away from an unfinished Guide requires confirmation',
-);
-assert.match(
-  pistonModeControlSource,
-  /const pauseDemo = \(\) => \{[\s\S]*pausePistonOscillationDemoSession[\s\S]*const resumeDemo = \(\) => \{[\s\S]*resumePistonOscillationDemoSession[\s\S]*const stopDemo = \(\) => \{[\s\S]*createDefaultPistonOscillationDemoSession[\s\S]*setLeftCollapsed\(false\);[\s\S]*const exitDemo = \(\) => \{[\s\S]*setLeftCollapsed\(false\);/,
-  'Demo must persist Pause/Resume and expose Stop while active plus Exit after natural completion',
-);
+assert.match(contractWorkbenchPistonModeActionsSource, /const resetGuide = \(\) => \{[\s\S]*type: 'resetSession'/, 'the Guide reset control should dispatch a fresh-session event');
+assert.match(contractWorkbenchPistonModeActionsSource, /const exitGuide = \(\) => \{[\s\S]*type: 'exitSession'/, 'the Guide exit control should dispatch its workflow event');
+assert.match(contractWorkbenchPistonOscillationModeControlSource, /onClick=\{exitGuide\}/, 'the Guide exit control should dispatch its workflow event');
+assert.match(contractWorkbenchPistonModeActionsSource, /const activateDemo = \(\) => \{[\s\S]*guideSessionSelected[\s\S]*type: 'exitSession'[\s\S]*pistonOscillationDemoSession: demoSession[\s\S]*setLeftCollapsed\(true\);[\s\S]*setParametersCollapsed\(true\);/, 'confirmed Demo activation should clear an unfinished Guide and collapse both sidebars once');
+assert.match(contractWorkbenchPistonModeActionsSource, /const startDemo = \(\) => \{[\s\S]*if \(demoSelected\) return;[\s\S]*unfinishedGuide[\s\S]*requestPistonTeachingModeSwitch\(activateDemo\)/, 'reselecting Demo must be inert while switching away from an unfinished Guide requires confirmation');
+assert.match(contractWorkbenchPistonModeActionsSource, /const pauseDemo = \(\) => \{[\s\S]*pausePistonOscillationDemoSession[\s\S]*const resumeDemo = \(\) => \{[\s\S]*resumePistonOscillationDemoSession[\s\S]*const stopDemo = \(\) => \{[\s\S]*createDefaultPistonOscillationDemoSession[\s\S]*setLeftCollapsed\(false\);[\s\S]*const exitDemo = \(\) => \{[\s\S]*setLeftCollapsed\(false\);/, 'Demo must persist Pause/Resume and expose Stop while active plus Exit after natural completion');
 assert.match(
   pistonModeControlSource,
   /data-piston-oscillation-mode-action=\{demoPaused \? 'resume-demo' : 'pause-demo'\}[\s\S]*data-piston-oscillation-mode-action="stop-demo"[\s\S]*demoCompleted \? \([\s\S]*data-piston-oscillation-mode-action="exit-demo"/,
 );
-assert.match(
-  pistonModeControlSource,
-  /const startGuide = \(\) => \{[\s\S]*if \(guideSelected\) return;[\s\S]*demoRunning \|\| demoPaused[\s\S]*requestPistonTeachingModeSwitch\(activateGuide\)/,
-  'reselecting Guide must be inert while switching away from an unfinished Demo requires confirmation',
-);
+assert.match(contractWorkbenchPistonModeActionsSource, /const startGuide = \(\) => \{[\s\S]*if \(guideSelected\) return;[\s\S]*demoRunning \|\| demoPaused[\s\S]*requestPistonTeachingModeSwitch\(activateGuide\)/, 'reselecting Guide must be inert while switching away from an unfinished Demo requires confirmation');
 
-const pistonGuidePanelSource = sourceSlice(
-  'const renderPistonOscillationGuideStepPanel = () => {',
-  'const pistonOscillationGuideStepPanel = renderPistonOscillationGuideStepPanel();',
-);
+const pistonGuidePanelSource = workbenchPistonOscillationGuideStepsSource;
 assert.match(
   pistonGuidePanelSource,
   /\{ id: 'firstHeightAdjustment-1', steps: \['firstHeightAdjustment'\],[\s\S]*adjustHeightTitle\(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM\[0\]\)[\s\S]*adjustHeightDetail\(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM\[0\]\)/,
@@ -406,16 +385,10 @@ assert.match(
   /const normalizedStep = value\.step === 'baselineStabilizing'[\s\S]*\? 'acquisitionReady' as const[\s\S]*value\.step === 'crossRunStabilizing'[\s\S]*\? 'crossRunDisconnect' as const/,
   'persisted legacy baseline steps should migrate directly onto their current visible operation steps',
 );
-assert.match(
-  workbenchSource,
-  /setPistonOscillationGuidePistonStable\(snapshot\.pistonPhase === 'idle'\)[\s\S]*<PistonOscillationAcquisitionPanel[\s\S]*guidePauseReady=\{pistonOscillationGuidePistonStable\}/,
-  'Pause must remain locked until the physical piston has settled',
-);
-assert.match(
-  `${acquisitionBridgeSource}\n${workbenchSource}`,
-  /case 'restoreInterruptedAcquisition':[\s\S]*type: 'discardAcquisitionAttempt'[\s\S]*event\.type === 'restoreInterruptedAcquisition'[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*pistonOscillationGuideStrongReminderTimerRef\.current = null/,
-  'refresh recovery must realign the workflow and clear a stale blocking reminder',
-);
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /setPistonOscillationGuidePistonStable\(snapshot\.pistonPhase === 'idle'\)/, 'Pause must remain locked until the physical piston has settled');
+assert.match(contractWorkbenchPistonOscillationRealtimeSource, /<PistonOscillationAcquisitionPanel[\s\S]*guidePauseReady=\{pistonOscillationGuidePistonStable\}/, 'Pause must remain locked until the physical piston has settled');
+assert.match(acquisitionBridgeSource, /case 'restoreInterruptedAcquisition':[\s\S]*type: 'discardAcquisitionAttempt'/, 'refresh recovery must realign the workflow and clear a stale blocking reminder');
+assert.match(contractWorkbenchPistonAcquisitionProcessingActionsSource, /event\.type === 'restoreInterruptedAcquisition'[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*pistonOscillationGuideStrongReminderTimerRef\.current = null/, 'refresh recovery must realign the workflow and clear a stale blocking reminder');
 const crossRunPhysicalOrder = [
   'crossRunDisconnect',
   'nextHeightAdjustment',
@@ -464,18 +437,15 @@ assert.match(
   /guidePages\.map\(\(page, pageIndex\)[\s\S]*className="studio-heat-guide-step-list"[\s\S]*pageIndex === currentPageIndex[\s\S]*handlePistonOscillationGuideChecklistWheel[\s\S]*studio-heat-guide-step-fade-top[\s\S]*studio-heat-guide-step-center-rail[\s\S]*studio-heat-guide-step-track studio-heat-guide-step-track-snapping[\s\S]*page\.map\(\(step, index\)[\s\S]*studio-heat-guide-step-row-centered[\s\S]*studio-heat-guide-step-fade-bottom/,
   'every horizontal measurement page should reuse the Heat wheel-picker DOM and activate wheel input only on the visible page',
 );
+assert.match(workbenchViewShellSource, /const HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX = 48;/, 'the piston picker should keep Heat wheel timing while reserving a fixed 64 px row for three-line experiment guidance');
+assert.match(contractWorkbenchTeachingUiTimingSource, /const HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS = 120;[\s\S]*const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;[\s\S]*const HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE = 0\.72;[\s\S]*const PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX = 64;/, 'the piston picker should keep Heat wheel timing while reserving a fixed 64 px row for three-line experiment guidance');
 assert.match(
-  workbenchSource,
-  /const HEAT_CAPACITY_GUIDE_CHECKLIST_ROW_HEIGHT_PX = 48;[\s\S]*const HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS = 120;[\s\S]*const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;[\s\S]*const HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE = 0\.72;[\s\S]*const PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX = 64;/,
-  'the piston picker should keep Heat wheel timing while reserving a fixed 64 px row for three-line experiment guidance',
-);
-assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonChecklistSource,
   /const processPistonOscillationGuideChecklistWheelFrame = \(\) => \{[\s\S]*pendingDelta \* HEAT_CAPACITY_GUIDE_CHECKLIST_WHEEL_SCALE[\s\S]*const rowHeight = PISTON_OSCILLATION_GUIDE_CHECKLIST_ROW_HEIGHT_PX;[\s\S]*HEAT_CAPACITY_GUIDE_CHECKLIST_MAX_FRAME_STEPS[\s\S]*HEAT_CAPACITY_GUIDE_CHECKLIST_SNAP_MS[\s\S]*returnPistonOscillationGuideChecklistToCurrentStep\(\);[\s\S]*HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS/,
   'the piston picker should reuse Heat wheel scaling, bounded row commits, snap timing, and automatic return',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonChecklistSource,
   /useLayoutEffect\(\(\) => \{[\s\S]*pistonOscillationGuideChecklistTrackRef\.current[\s\S]*track\.dataset\.pistonGuideCurrentIndex[\s\S]*track\.dataset\.pistonGuidePageLength[\s\S]*applyPistonOscillationGuideChecklistView\(currentIndex, 0, true\);[\s\S]*activePistonOscillationGuideSession\?\.measurementIndex[\s\S]*activePistonOscillationGuideSession\?\.step/,
   'page and workflow changes should reset the wheel picker to the real current step',
 );
@@ -490,7 +460,7 @@ assert.match(
   'the checklist should reserve only a compact dot rail and leave room for the view-reset control above the focus panel',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchTeachingUiTimingSource,
   /const PISTON_OSCILLATION_GUIDE_CHECKLIST_CENTER_OFFSET_PX = 52;/,
   'the shorter piston picker should keep its current row vertically centered',
 );
@@ -525,43 +495,28 @@ assert.match(
   'the page track must honor the shared reduced-motion timing',
 );
 
-assert.match(
-  workbenchSource,
-  /PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS = 3000[\s\S]*pistonGuideHeightConfirmationReady[\s\S]*\? PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS[\s\S]*: GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS[\s\S]*pistonGuidePulseWithinCycleMs < 2_200/,
-  'the ready height-confirmation button should begin breathing after three seconds while other Guide targets retain the shared cadence',
-);
-assert.match(
-  workbenchSource,
-  /PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS = 250[\s\S]*activePistonOscillationGuideSession\?\.status !== 'active'[\s\S]*setPistonOscillationGuidePulseElapsedMs\(\(elapsedMs\) => elapsedMs \+ deltaMs\)[\s\S]*PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS/,
-  'Guide pause should freeze its reduced-frequency scheduling clock instead of repainting the full Workbench at animation frame cadence',
-);
-assert.match(
-  workbenchSource,
-  /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS[\s\S]*pistonOscillationGuidePulseElapsedMs[\s\S]*data-piston-guide-strong-mask-blocking="true"/,
-  'the Guide should add its ten-second strong reminder and block interactions outside the cutout',
-);
-assert.match(
-  workbenchSource,
-  /createPistonOscillationDemoPlaybackChannel\(\)[\s\S]*pistonOscillationDemoPlaybackChannel\.publish\([\s\S]*setPistonOscillationDemoPlayback\([\s\S]*demoPlaybackChannel=\{[\s\S]*activePistonOscillationDemoPlaybackPhase === 'idle'[\s\S]*pistonOscillationDemoPlaybackChannel[\s\S]*demoPlaybackFileId=\{activeFile\.id\}/,
-  'Demo playback should publish high-frequency frames through its focused channel while Workbench owns only lifecycle state',
-);
+assert.match(contractWorkbenchTeachingUiTimingSource, /PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS = 3000/, 'the ready height-confirmation button should begin breathing after three seconds while other Guide targets retain the shared cadence');
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /pistonGuideHeightConfirmationReady[\s\S]*\? PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS[\s\S]*: GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS[\s\S]*pistonGuidePulseWithinCycleMs < 2_200/, 'the ready height-confirmation button should begin breathing after three seconds while other Guide targets retain the shared cadence');
+assert.match(contractWorkbenchTeachingUiTimingSource, /PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS = 250/, 'Guide pause should freeze its reduced-frequency scheduling clock instead of repainting the full Workbench at animation frame cadence');
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /activePistonOscillationGuideSession\?\.status !== 'active'[\s\S]*setPistonOscillationGuidePulseElapsedMs\(\(elapsedMs\) => elapsedMs \+ deltaMs\)[\s\S]*PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS/, 'Guide pause should freeze its reduced-frequency scheduling clock instead of repainting the full Workbench at animation frame cadence');
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS[\s\S]*pistonOscillationGuidePulseElapsedMs/, 'the Guide should add its ten-second strong reminder and block interactions outside the cutout');
+assert.match(contractWorkbenchCenterWorkspaceSource, /data-piston-guide-strong-mask-blocking="true"/, 'the Guide should add its ten-second strong reminder and block interactions outside the cutout');
+assert.match(contractUseWorkbenchPistonDemoRuntimeSource, /createPistonOscillationDemoPlaybackChannel\(\)[\s\S]*pistonOscillationDemoPlaybackChannel\.publish\([\s\S]*setPistonOscillationDemoPlayback\(/, 'Demo playback should publish high-frequency frames through its focused channel while Workbench owns only lifecycle state');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /demoPlaybackChannel=\{[\s\S]*activePistonOscillationDemoPlaybackPhase === 'idle'[\s\S]*pistonOscillationDemoPlaybackChannel[\s\S]*demoPlaybackFileId=\{activeFile\.id\}/, 'Demo playback should publish high-frequency frames through its focused channel while Workbench owns only lifecycle state');
 assert.doesNotMatch(
   workbenchSource,
   /activePistonOscillationDemoFrame|getPistonOscillationDemoFrame\(/,
   'the full Workbench must not derive every 50 ms demonstration frame',
 );
+assert.match(contractUseWorkbenchPistonProcessingViewSource, /demoPlaybackPhase: activePistonOscillationDemoPlaybackPhase[\s\S]*selectWorkbenchPistonOscillationViewState\(\{\s*file: activeFile,\s*demoPlayback: pistonOscillationDemoPlayback,/, 'demo feedback must use the file-scoped playback selection');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /demoPlaybackPhase=\{activePistonOscillationDemoPlaybackPhase\}/, 'demo feedback must use the file-scoped playback selection');
+assert.match(contractUseWorkbenchPistonDemoRuntimeSource, /PISTON_OSCILLATION_DEMO_DURATION_MS/);
 assert.match(
-  workbenchSource,
-  /demoPlaybackPhase: activePistonOscillationDemoPlaybackPhase[\s\S]*selectWorkbenchPistonOscillationViewState\(\{\s*file: activeFile,\s*demoPlayback: pistonOscillationDemoPlayback,[\s\S]*demoPlaybackPhase=\{activePistonOscillationDemoPlaybackPhase\}/,
-  'demo feedback must use the file-scoped playback selection',
-);
-assert.match(workbenchSource, /PISTON_OSCILLATION_DEMO_DURATION_MS/);
-assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /data-piston-oscillation-realtime=\{[\s\S]*activePistonOscillationProcessReview[\s\S]*\? 'process-review'[\s\S]*activePistonOscillationDataProcessing[\s\S]*\? 'data-processing'[\s\S]*: 'acquisition'/,
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /activePistonOscillationProcessReview \? \([\s\S]*<PistonOscillationProcessReviewPanel[\s\S]*activePistonOscillationDataProcessing \? \([\s\S]*<PistonOscillationDataProcessingPanel[\s\S]*onProcessingEvent=\{handlePistonOscillationProcessingEvent\}[\s\S]*\) : \([\s\S]*<PistonOscillationAcquisitionPanel/,
   'the realtime panel should host process review, data processing, or acquisition without opening a second workspace implementation',
 );
@@ -571,17 +526,14 @@ assert.match(
   'the shared review entry must not promise a score for Ideal experiment files',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /experimentGroup\.scheme === 'ideal'[\s\S]*不评分的过程证据[\s\S]*score summary as PDF/,
   'report export copy must distinguish unscored Ideal evidence from Real score summaries',
 );
+assert.match(contractUseWorkbenchPistonProcessingViewSource, /completedDataProcessingReview: pistonOscillationCompletedDataProcessingReview,[\s\S]*dataProcessingOpen: activePistonOscillationDataProcessing,[\s\S]*dataProcessingReviewRequested: pistonOscillationDataProcessingReviewOpen,/, 'completed processing review must use the shared view selection and explicit UI request');
+assert.match(contractWorkbenchPistonOscillationRealtimeSource, /reviewMode=\{pistonOscillationCompletedDataProcessingReview\}/, 'completed processing review must use the shared view selection and explicit UI request');
 assert.match(
-  workbenchSource,
-  /completedDataProcessingReview: pistonOscillationCompletedDataProcessingReview,[\s\S]*dataProcessingOpen: activePistonOscillationDataProcessing,[\s\S]*dataProcessingReviewRequested: pistonOscillationDataProcessingReviewOpen,[\s\S]*reviewMode=\{pistonOscillationCompletedDataProcessingReview\}/,
-  'completed processing review must use the shared view selection and explicit UI request',
-);
-assert.match(
-  workbenchSource,
+  workbenchCenterWorkspaceSource,
   /studio-live-workspace-piston-processing[\s\S]*disabled=\{activePistonOscillationExpandedRealtime\}/,
   'processing and process review should collapse the instrument pane and lock the live split resizer',
 );
@@ -602,14 +554,11 @@ const maskDomSource = readFileSync(new URL('../../src/features/workbench/workben
 const guidePresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchPistonGuidePresentation.ts', import.meta.url), 'utf8');
 assert.match(maskDomSource, /periodTool: '\[data-piston-guide-target="period-tool"\]'/, 'the strong reminder must cut out the mode switch');
 assert.match(guidePresentationSource, /targetId === 'periodTool'[\s\S]*selectionToolReminder/, 'the reminder must explain its localized interaction');
-assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskDom.ts'"));
-assert.ok(workbenchSource.includes("from './workbenchPistonGuidePresentation.ts'"));assert.match(
-  workbenchSource,
-  /openPistonOscillationDataProcessingReview[\s\S]*setPistonOscillationDataProcessingReviewOpen\(true\)[\s\S]*panel\.key === 'heatCapacityGuide'[\s\S]*openPistonOscillationDataProcessingReview\(\)/,
-  'double-clicking Data processing after completion must reopen the B-stage review before C/D calculations',
-);
+assert.ok(runtimeUseWorkbenchPistonGuideRuntimeSource.includes("from './workbenchPistonGuideMaskDom.ts'"));
+assert.ok(runtimeUseWorkbenchPistonGuideRuntimeSource.includes("from './workbenchPistonGuidePresentation.ts'"));assert.match(contractWorkbenchPistonAcquisitionProcessingActionsSource, /openPistonOscillationDataProcessingReview[\s\S]*setPistonOscillationDataProcessingReviewOpen\(true\)/, 'double-clicking Data processing after completion must reopen the B-stage review before C/D calculations');
+assert.match(contractWorkbenchPistonOscillationPanelTreeSource, /panel\.key === 'heatCapacityGuide'[\s\S]*openPistonOscillationDataProcessingReview\(\)/, 'double-clicking Data processing after completion must reopen the B-stage review before C/D calculations');
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /const dataProcessing = activeFile\.pistonOscillationFreeSession\.status === 'active'[\s\S]*if \(!dataProcessing\) return;[\s\S]*setPistonOscillationProcessingSuppressedFileId\(null\)/,
   'the Data processing double-click entry should reopen saved Free or Guide processing after recovery',
 );
@@ -624,12 +573,12 @@ assert.match(
   'the review action bar must appear above the saved validation summary and expose C/D review without scrolling to the bottom',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /closingKind === 'completion'[\s\S]*type: 'acknowledgeCompletion'[\s\S]*setLeftCollapsed\(false\)[\s\S]*showPistonOscillationGuideCompletionToast/,
   'dismissing the final explanation must expand the file sidebar as the completion toast begins',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /<PistonOscillationAcquisitionPanel[\s\S]*releaseEvent=\{pistonOscillationReleaseEventsByFileId\[activeFile\.id\] \?\? null\}[\s\S]*pressStartEvent=\{pistonOscillationPressStartEventsByFileId\[activeFile\.id\] \?\? null\}/,
   'the realtime area should consume release and later press events from the formal 3D interaction scene',
 );
@@ -644,7 +593,7 @@ assert.match(
   'the acquisition row should map directly to the canonical Start action without exposing an internal baseline state',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationPreviewSource,
   /<PistonOscillationInstrumentScene[\s\S]*guideTimeFrozen=\{[\s\S]*activePistonOscillationGuideTimeFrozen[\s\S]*pistonOscillationGuideLessonDialog !== null[\s\S]*guideVisualCue=\{pistonGuideVisualCue\}[\s\S]*onGuideInstrumentSnapshotChange=\{[\s\S]*handlePistonOscillationGuideInstrumentSnapshot/,
   'the formal scene should freeze only for instructional recovery and continue to receive semantic Guide cues and snapshots',
 );
@@ -653,21 +602,15 @@ assert.doesNotMatch(
   /guidePulseElapsedSeconds=\{pistonGuidePulseWithinCycleMs \/ 1_000\}/,
   'Guide shell animation should advance inside the demand-rendered scene rather than forcing full Workbench rerenders',
 );
-assert.match(
-  workbenchSource,
-  /activePistonOscillationGuideSnapTargetHeightMm =[\s\S]*status === 'active'[\s\S]*firstHeightAdjustment[\s\S]*nextHeightAdjustment[\s\S]*PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[\s\S]*guideSnapTargetHeightMm=\{activePistonOscillationGuideSnapTargetHeightMm\}/,
-  'only active Guide height steps should pass an 80, 70, or 60 mm magnetic target into the instrument',
-);
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /activePistonOscillationGuideSnapTargetHeightMm =[\s\S]*status === 'active'[\s\S]*firstHeightAdjustment[\s\S]*nextHeightAdjustment[\s\S]*PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM/, 'only active Guide height steps should pass an 80, 70, or 60 mm magnetic target into the instrument');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /guideSnapTargetHeightMm=\{activePistonOscillationGuideSnapTargetHeightMm\}/, 'only active Guide height steps should pass an 80, 70, or 60 mm magnetic target into the instrument');
 assert.match(
   instrumentSceneSource,
   /guidePaused\?: boolean;[\s\S]*guideTimeFrozen\?: boolean;[\s\S]*guideScrewInteractionMode\?: PistonOscillationGuideScrewInteractionMode \| null;[\s\S]*guideSnapTargetHeightMm\?: number \| null;[\s\S]*guideInitialInstrumentState\?: PistonOscillationGuideInstrumentRestoreState \| null;[\s\S]*guideHeightReset\?: PistonOscillationGuideHeightResetRequest \| null;[\s\S]*onGuideScrewDirectionFeedback\?:[\s\S]*onGuideSupportLoss\?:[\s\S]*<PistonOscillationInteractionWorkspace[\s\S]*guidePaused=\{guidePaused\}[\s\S]*guideTimeFrozen=\{guideTimeFrozen\}[\s\S]*guideScrewInteractionMode=\{guideScrewInteractionMode\}[\s\S]*guideSnapTargetHeightMm=\{guideSnapTargetHeightMm\}[\s\S]*guideInitialInstrumentState=\{guideInitialInstrumentState\}[\s\S]*guideHeightReset=\{guideHeightReset\}[\s\S]*onGuideScrewDirectionFeedback=\{onGuideScrewDirectionFeedback\}[\s\S]*onGuideSupportLoss=\{onGuideSupportLoss\}[\s\S]*onGuideHeightResetComplete=\{onGuideHeightResetComplete\}/,
   'the scene boundary should forward time freeze, screw guidance, and the exclusive height-reset lifecycle into the shared 3D workspace',
 );
-assert.match(
-  workbenchSource,
-  /activePistonOscillationGuideInstrumentRestoreState =[\s\S]*getPistonOscillationGuideInstrumentRestoreState\([\s\S]*activePistonOscillationGuideSession[\s\S]*guideInitialInstrumentState=\{[\s\S]*activePistonOscillationGuideInstrumentRestoreState/,
-  'Workbench should restore the physical Guide checkpoint together with the persisted checklist after remount or refresh',
-);
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /activePistonOscillationGuideInstrumentRestoreState =[\s\S]*getPistonOscillationGuideInstrumentRestoreState\([\s\S]*activePistonOscillationGuideSession/, 'Workbench should restore the physical Guide checkpoint together with the persisted checklist after remount or refresh');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /guideInitialInstrumentState=\{[\s\S]*activePistonOscillationGuideInstrumentRestoreState/, 'Workbench should restore the physical Guide checkpoint together with the persisted checklist after remount or refresh');
 assert.match(
   focusInteractionSource,
   /onGuideInstrumentSnapshotChangeRef\.current\?\.\(\{[\s\S]*focusMode: mode,[\s\S]*hoseState,[\s\S]*equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*lockingScrewProgress,[\s\S]*lockingScrewState: lockingScrewClampState,[\s\S]*heightAdjustmentStage,[\s\S]*spaceHeld,[\s\S]*mouseHeld,[\s\S]*pistonPhase/,
@@ -679,12 +622,12 @@ assert.match(
   'Guide geometry cues and their elapsed pulse time should share the reviewed exact-model shells',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /const previousSnapshot = pistonOscillationGuideInstrumentSnapshotRef\.current;[\s\S]*previousHeightAdjustmentStage = previousSnapshot\?\.heightAdjustmentStage[\s\S]*previousHeightAdjustmentStage !== snapshot\.heightAdjustmentStage[\s\S]*setPistonOscillationGuideHeightAdjustmentStage\(snapshot\.heightAdjustmentStage\)/,
   'Workbench should retain the live height-adjustment stage published by the instrument snapshot',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonGuideStep === 'firstHeightAdjustment'[\s\S]*pistonGuideStep === 'nextHeightAdjustment'[\s\S]*pistonGuideHeightConfirmationReady \? 'heightStageAction' : 'platform'[\s\S]*pistonGuideStep === 'screwLock'[\s\S]*\? 'screw'[\s\S]*pistonGuideStep === 'screwLoosen'[\s\S]*\? 'screw'/,
   'height steps should switch from platform to confirmation, while both screw operations keep the screw cue continuously active',
 );
@@ -693,11 +636,8 @@ assert.match(
   /case 'acquisitionReady':[\s\S]*case 'awaitingSaveOrRedo':[\s\S]*return 'protectLoose';[\s\S]*case 'screwLock':[\s\S]*return 'tighten';[\s\S]*case 'hoseReconnect':[\s\S]*return 'protectLocked';[\s\S]*case 'screwLoosen':[\s\S]*return 'loosen'/,
   'each canonical Guide phase should select the correct active or protected screw mode',
 );
-assert.match(
-  workbenchSource,
-  /const pistonGuideScrewInteractionMode =[\s\S]*getPistonOscillationGuideScrewInteractionMode\([\s\S]*activePistonOscillationGuideSession\.step[\s\S]*guideScrewInteractionMode=\{pistonGuideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{[\s\S]*handlePistonOscillationGuideScrewDirectionFeedback/,
-  'Workbench should derive screw mode from the live canonical step and wire both mode and direction feedback into the scene',
-);
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /const pistonGuideScrewInteractionMode =[\s\S]*getPistonOscillationGuideScrewInteractionMode\([\s\S]*activePistonOscillationGuideSession\.step/, 'Workbench should derive screw mode from the live canonical step and wire both mode and direction feedback into the scene');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /guideScrewInteractionMode=\{pistonGuideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{[\s\S]*handlePistonOscillationGuideScrewDirectionFeedback/, 'Workbench should derive screw mode from the live canonical step and wire both mode and direction feedback into the scene');
 assert.match(
   focusInteractionSource,
   /guideScrewInteractionMode === 'tighten'[\s\S]*\? 'clockwise'[\s\S]*guideScrewInteractionMode === 'loosen'[\s\S]*\? 'counterclockwise'[\s\S]*guideVisualCue === 'screw' \? guideScrewCueDirection : null[\s\S]*data-piston-screw-direction=\{displayedScrewCueDirection\}[\s\S]*role="img"[\s\S]*screwTightenDirectionAria[\s\S]*screwLoosenDirectionAria/,
@@ -710,12 +650,12 @@ assert.match(
   'Demo mode should render the clockwise or counterclockwise screw arrow during its screw stages',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /handlePistonOscillationGuideHeightConfirmed[\s\S]*type: 'confirmHeight'[\s\S]*heightMm: snapshot\.equilibriumHeightMm[\s\S]*leftHandSupporting: snapshot\.spaceHeld[\s\S]*rightHandReleased: !snapshot\.mouseHeld/,
   'height confirmation should commit the same physical reading that the action guard accepted',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /currentStep === 'screwLock'[\s\S]*snapshot\.lockingScrewState === 'locked'[\s\S]*currentStep === 'crossRunDisconnect'[\s\S]*snapshot\.spaceHeld[\s\S]*snapshot\.hoseState === 'disconnected'/,
   'snapshot auto-advance should retain only functionally observable locks, hose states, and the left-supported cross-Run disconnect',
 );
@@ -730,13 +670,13 @@ assert.doesNotMatch(
   'Run 1 must not retain an auto-skipped height event or transient platformSupport checklist step',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /<PistonOscillationAcquisitionPanel[\s\S]*guideSession=\{[\s\S]*activePistonOscillationGuideSelected[\s\S]*activePistonOscillationDemoPlaybackPhase === 'idle'[\s\S]*\? activeFile\.pistonOscillationGuideSession[\s\S]*: undefined[\s\S]*\}[\s\S]*guidePaused=\{[\s\S]*activePistonOscillationGuideTimeFrozen[\s\S]*pistonOscillationGuideLessonDialog !== null[\s\S]*\}[\s\S]*guideCue=\{pistonGuideAcquisitionCue\}/,
   'the realtime panel should receive the persisted Guide session only outside Demo playback and freeze during recovery explanations',
 );
 assert.doesNotMatch(workbenchSource, /activePistonOscillationGuidePaused/);
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /onGuideAcquisitionEvent=\{[\s\S]*activePistonOscillationDemoPlaybackPhase === 'idle'[\s\S]*\? handlePistonOscillationGuideAcquisitionEvent[\s\S]*: undefined[\s\S]*\}/,
   'Demo playback should not retain the Guide acquisition callback bridge',
 );
@@ -746,15 +686,11 @@ assert.match(
   'Guide Pause must calculate update, pause, and freeze as one accepted acquisition transition',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /commitPistonOscillationGuideAcquisitionSession = \([\s\S]*currentFiles\[fileIndex\] !== liveFile[\s\S]*filesRef\.current = nextFiles;[\s\S]*setFiles\(nextFiles\)[\s\S]*handlePistonOscillationGuideAcquisitionEvent = \([\s\S]*transitionPistonOscillationGuideAcquisitionSession\([\s\S]*nextSession === null[\s\S]*!commitPistonOscillationGuideAcquisitionSession\(liveFile, nextSession, nowMs\)[\s\S]*return false/,
   'every Guide acquisition event must compare-and-swap one accepted canonical session before the panel advances',
 );
-assert.match(
-  workbenchSource,
-  /onGuideParameterEdit=\{\(field, value\) => \{[\s\S]*editPistonOscillationGuideParameterWorkbenchState[\s\S]*PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ[\s\S]*PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA[\s\S]*Number\(value\) === expectedValue[\s\S]*commitPistonOscillationGuideParameterWorkbenchState/,
-  'correct Guide parameter values must commit in the same update instead of waiting for a later blur',
-);
+assert.match(contractWorkbenchPistonViewActionsSource, /editPistonOscillationGuideParameter[\s\S]*\(field, value\) => \{[\s\S]*editPistonOscillationGuideParameterWorkbenchState[\s\S]*PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ[\s\S]*PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA[\s\S]*Number\(value\) === expectedValue[\s\S]*commitPistonOscillationGuideParameterWorkbenchState/, 'correct Guide parameter values must commit in the same update instead of waiting for a later blur');
 assert.doesNotMatch(
   workbenchSource,
   /baselineStabilizing|crossRunStabilizing|baselineStabilized|expectedTrueBaselineHeightMm/,
@@ -786,12 +722,12 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /!activeFile\.pistonOscillationLessonIntroAutoShown[\s\S]*kind: 'intro'[\s\S]*pageIndex: 0[\s\S]*pistonOscillationLessonIntroAutoShown: true/,
   'experiment notes should auto-open once for a newly created piston file rather than when Guide starts',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationGuideLessonSource,
   /onMouseDown=\{advancePistonOscillationGuideLessonDialog\}[\s\S]*onMouseDown=\{\(event\) => event\.stopPropagation\(\)\}[\s\S]*studio-piston-guide-lesson-content-stack-transitioning[\s\S]*studio-heat-guide-lesson-content-outgoing[\s\S]*studio-heat-guide-lesson-content-current/,
   'piston notes should reuse the Heat blank-area advance boundary and expose a dedicated non-overlapping transition state',
 );
@@ -816,42 +752,42 @@ assert.match(
   'the shared lesson card should retain its thin teaching border without a browser-supplied dark focus outline',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /const heightSubmitRequiresReset = action === 'confirmHeight'[\s\S]*wrongTargetHeight[\s\S]*leftHandRequired[\s\S]*rightHandMustBeReleased[\s\S]*type: 'beginHeightReset'[\s\S]*reason: 'wrongHeightConfirmation'/,
   'an invalid explicit height confirmation should bypass generic miss accumulation and start the exclusive reset immediately',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /handlePistonOscillationGuideSupportLoss[\s\S]*pistonOscillationGuideResumeStrongReminderAfterLessonRef\.current =[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*type: 'beginHeightReset'[\s\S]*reason: 'supportLost'/,
   'losing both supports should suspend any active generic reminder and start the same exclusive reset',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonGuideStrongTargetContext[\s\S]*pistonGuideExpectedStrongTargetId[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*setPistonOscillationGuidePulseElapsedMs\(0\)[\s\S]*pistonOscillationGuideMissCountRef\.current = 0/,
   'each successful operation target change should end the old strong reminder and start a fresh timer and miss count',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /setPistonOscillationGuideStrongReminderActive = \([\s\S]*expectedContext\?: string \| null[\s\S]*expectedContext !== pistonOscillationGuideStrongTargetContextRef\.current[\s\S]*pistonOscillationGuideStrongReminderActiveContextRef\.current = expectedContext/,
   'a delayed reminder may activate only the exact operation target that scheduled it, never the following target',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /const releaseOnly = action === 'platformRelease' \|\| action === 'leftHandRelease';[\s\S]*if \(guard\.allowed\) \{[\s\S]*!releaseOnly[\s\S]*!isPistonOscillationGuideStrongReminderActive\(\)[\s\S]*setPistonOscillationGuidePulseElapsedMs\(0\)[\s\S]*if \(!releaseOnly\) \{[\s\S]*clearPistonOscillationGuideFeedback\(\)/,
   'allowed release-only gestures should preserve the guidance clock and feedback while other accepted operations advance it',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /showPistonOscillationGuideFeedback\(message, 'warning', 'guide'\);[\s\S]*if \(!isPistonOscillationGuideStrongReminderActive\(\)\) \{[\s\S]*setPistonOscillationGuidePulseElapsedMs\(0\)/,
   'a rejected generic Guide action should restart only the ordinary reminder clock when no strong reminder is active',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /feedback\.kind === 'boundaryBlocked'[\s\S]*screwBoundaryBlockedTighten[\s\S]*screwBoundaryBlockedLoosen[\s\S]*screwWrongDirectionTighten[\s\S]*screwWrongDirectionLoosen[\s\S]*feedback\.kind === 'boundaryBlocked' \? 'warning' : 'info'/,
   'screw direction feedback should remain informational until the protected functional boundary is blocked',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonGuideStrongHoseInteractionHidden[\s\S]*pistonOscillationGuideHoseDragging[\s\S]*hoseDisconnect[\s\S]*pistonOscillationGuideHoseState === 'disconnected'[\s\S]*hoseReconnect[\s\S]*pistonOscillationGuideHoseState === 'connected'/,
   'hose reminders should hide only during the drag or after the endpoint has physically changed, allowing a failed rebound to restore the same reminder',
 );
@@ -862,42 +798,39 @@ assert.doesNotMatch(
 );
 assert.match(maskDomSource, /stage\.dataset\.pistonFocusPlatformX[\s\S]*stage\.dataset\.pistonFocusPlatformY/, 'the platform cutout should consume live projected platform coordinates');
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonGuideStrongTargetId === 'platform' \? 32 : 120/,
   'the platform cutout should follow the live projected platform position throughout the drag',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /closingKind === 'heightReset'[\s\S]*dismissHeightReset[\s\S]*pistonOscillationGuideResumeStrongReminderAfterLessonRef\.current[\s\S]*setPistonOscillationGuideStrongReminderActive\([\s\S]*true,[\s\S]*pistonOscillationGuideStrongTargetContextRef\.current/,
   'a strong reminder suspended by the exclusive lesson card should resume only after that failed recovery is dismissed',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /currentSession\?\.status === 'active'[\s\S]*currentSession\.step === 'completionReview'[\s\S]*previousSession\.step !== 'completionReview'[\s\S]*setPistonOscillationGuideLessonDialog\(\{[\s\S]*kind: 'completion'[\s\S]*fileId: currentSession\.fileId[\s\S]*closing: false/,
   'finishing the calculation should enter the persisted completion-review stage and open its lesson layer',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /dialog\.kind === 'completion'[\s\S]*pistonOscillationCopy\.guide\.completedTitle[\s\S]*pistonOscillationCopy\.guide\.completedDetail/,
   'the completion lesson should render the approved localized title and full explanation',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /current\?\.kind === 'completion'[\s\S]*currentSession\?\.fileId !== current\.fileId[\s\S]*currentSession\.status !== 'active'[\s\S]*currentSession\.step !== 'completionReview'/,
   'resetting, exiting, or switching files should clear a stale completion lesson',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /closingKind === 'completion'[\s\S]*step === 'completionReview'[\s\S]*type: 'acknowledgeCompletion'[\s\S]*showPistonOscillationGuideCompletionToast/,
   'only dismissing the completion explanation should acknowledge and truly finish Guide mode',
 );
+assert.match(contractUseWorkbenchPistonFeedbackSource, /showPistonOscillationGuideCompletionToast[\s\S]*HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS/, 'the final piston Guide notice should reuse the heat-capacity completion toast timing, styling, and accessibility semantics');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /className="studio-heat-demo-complete-toast"[\s\S]*data-piston-oscillation-guide-complete-toast="true"[\s\S]*role="status"/, 'the final piston Guide notice should reuse the heat-capacity completion toast timing, styling, and accessibility semantics');
 assert.match(
-  workbenchSource,
-  /showPistonOscillationGuideCompletionToast[\s\S]*HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS[\s\S]*className="studio-heat-demo-complete-toast"[\s\S]*data-piston-oscillation-guide-complete-toast="true"[\s\S]*role="status"/,
-  'the final piston Guide notice should reuse the heat-capacity completion toast timing, styling, and accessibility semantics',
-);
-assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /step === 'calculationReady'[\s\S]*setPistonOscillationCalculationSuppressedFileId\(null\)/,
   'entering offline calculation should release any stale calculation-window suppression',
 );
@@ -907,7 +840,7 @@ assert.doesNotMatch(
   'power state alone must not turn a completed shutdown into another power-button target',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /completesGuideShutdown[\s\S]*setPistonOscillationCalculationSuppressedFileId\(null\)[\s\S]*type: 'setPower'/,
   'the accepted final shutdown should clear stale suppression before entering calculation',
 );
@@ -922,38 +855,38 @@ assert.doesNotMatch(
   'Guide presentation must not restore raw local-extrema counting',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /showPistonOscillationGuideFeedback\(message, 'warning', 'guide'\)/,
   'ordinary piston guide rejections should use the shared warning feedback channel',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS[\s\S]*event\.type === 'pressureAttemptRejected'[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*showPistonOscillationGuideFeedback\([\s\S]*pressureTooLowFeedback[\s\S]*pressureTooHighFeedback[\s\S]*nextMissCount >= 2[\s\S]*PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS/,
   'pressure mistakes must show one complete ordinary reminder before a second miss may escalate',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonGuideStrongTargetContext === null[\s\S]*pistonOscillationGuidePressureIssue !== null[\s\S]*pistonOscillationGuideStrongReminderClockContext !== null/,
   'a single pressure mistake should pause the generic inactivity-based strong reminder so pressure escalation still requires a repeated miss',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /clearPistonOscillationGuideFeedbackRef\.current\(\)[\s\S]*pistonOscillationGuideStrongReminderActiveContextRef\.current = expectedContext/,
   'activating a strong reminder must remove the ordinary feedback so the two layers never compete',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /pistonOscillationGuideStrongReminderActiveContext !== null[\s\S]*pistonOscillationGuidePressureIssue === 'overpressure'[\s\S]*\? 'redo'[\s\S]*pressureTooLowStrongReminder[\s\S]*pressureTooHighStrongReminder/,
   'a strong pressure reminder must pulse and cut out the exact platform or Redo target with concise copy',
 );
 assert.match(guidePresentationSource, /kind: 'pressureRange'[\s\S]*kind: 'lockingScrew'[\s\S]*kind: 'multiPeriod'/, 'all exclusive lesson kinds must remain in the shared presentation model');
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonLessonsSource,
   /pressureRangeLessonTitle[\s\S]*pressureRangeLessonBody[\s\S]*lockingScrewLessonTitle[\s\S]*lockingScrewLessonBody[\s\S]*multiPeriodLessonTitle[\s\S]*multiPeriodLessonBody/,
   'pressure-range, locking-screw, and multi-period explanations must use the shared exclusive lesson dialog',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /event\.reason === 'underpressure'[\s\S]*pistonOscillationGuidePressureRangeLessonTimerRef\.current = window\.setTimeout[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'redoOverpressureAttempt'[\s\S]*openPistonOscillationGuideOneTimeLesson\('pressureRange'\)[\s\S]*event\.type === 'selectPeriodRange'[\s\S]*selection\?\.issue === null[\s\S]*selection\.periodCount >= minimumPeriodCount[\s\S]*openPistonOscillationGuideOneTimeLesson\('multiPeriod'\)/,
   'each new lesson must open once at its approved completed-action checkpoint',
 );
@@ -963,7 +896,7 @@ assert.match(
   'the accepted overpressure Redo checkpoint must discard the invalid attempt before its lesson opens',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /currentStep === 'screwLoosen'[\s\S]*previousSnapshot\?\.lockingScrewState !== 'loose'[\s\S]*snapshot\.lockingScrewState === 'loose'[\s\S]*openPistonOscillationGuideOneTimeLesson\('lockingScrew'\)/,
   'the locking-screw explanation should open once after the first completed loosening action',
 );
@@ -1009,7 +942,7 @@ assert.match(
   'the acquisition chart must display the formal sensor precision on both axes',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /overlapsMovingCutout[\s\S]*card: currentLayout\.card[\s\S]*pistonGuideStrongTargetId === 'platform' \? 32 : 120/,
   'the platform cutout should follow at interactive cadence while keeping the reminder card stable unless the moving target would overlap it',
 );
@@ -1018,3 +951,12 @@ console.log('workbenchPistonOscillationShell tests passed');
 
 assert.ok(workbenchSource.includes("from './workbenchPanelAvailability.ts'"), 'workbenchPanelAvailability must remain connected to the shell');
 assert.ok(workbenchSource.includes("from './WorkbenchScientificText.tsx'"), 'WorkbenchScientificText must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPanelTree \} from '\.\/WorkbenchPistonOscillationPanelTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationRealtime \} from '\.\/WorkbenchPistonOscillationRealtime\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationModeControl \} from '\.\/WorkbenchPistonOscillationModeControl\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationGuideSteps \} from '\.\/WorkbenchPistonOscillationGuideSteps\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationGuideLesson \} from '\.\/WorkbenchPistonOscillationGuideLesson\.tsx';/);

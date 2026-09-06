@@ -1,3 +1,11 @@
+const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchHeatCapacityBasicParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityBasicParameters.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityParameters.tsx', import.meta.url), 'utf8');
+const workbenchSimulationParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterRow.tsx', import.meta.url), 'utf8');
+const workbenchCurrentParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
+const workbenchIdealControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealControls.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -25,7 +33,7 @@ assert.match(
   'Piston Oscillation should lock its profile from the first irreversible experiment event',
 );
 assert.match(
-  source,
+  workbenchHeatCapacityBasicParametersSource,
   /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? false[\s\S]*: activeHeatCapacityFreeParameterLocked/,
   'Free Mode should keep the visualization checkbox independent from experiment-data locks and performance tiers',
 );
@@ -35,7 +43,7 @@ assert.doesNotMatch(
   'Ultra GLB mode should not disable the Free Mode molecule visualization checkbox after the cylinder visualization is connected',
 );
 assert.match(
-  source,
+  workbenchHeatCapacityParametersSource,
   /target\?\.closest\('\[data-heat-capacity-free-param-id="hardSphereViewEnabled"\]'\)\) return;/,
   'Free Mode locked-panel interception should allow the visualization row to receive clicks',
 );
@@ -45,17 +53,17 @@ assert.match(
   'the 3D hard-sphere visualization toggle should stay editable during normal runs and lock only while a mode transition restores the scene',
 );
 assert.match(
-  source,
+  parameterActionSource,
   /const commitWorkbenchParameterInput = \([\s\S]*?if \(parameterControlsLocked\)/,
   'direct parameter input commits should be blocked after the active simulation has started',
 );
 assert.match(
-  source,
+  workbenchSimulationParameterRowSource,
   /disabled=\{isParamLocked \|\| !param\.editable\}/,
   'direct parameter inputs should be disabled by the current lock policy',
 );
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /className=\{`studio-current-params \$\{currentParameterControlsLocked \? 'studio-current-params-locked' : ''\}[\s\S]*?`\}/,
   'right parameter sidebar should receive a locked class from the current file lock policy',
 );
@@ -65,17 +73,17 @@ assert.match(
   'right parameter sidebar should explain that pause does not unlock parameters',
 );
 assert.match(
-  source,
+  workbenchCurrentParametersSource,
   /aria-disabled=\{currentParameterControlsLocked\}/,
   'right parameter sidebar should expose the current file lock policy to assistive technology',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /disabled=\{parameterControlsLocked\}/,
   'right parameter sidebar controls should use the shared lock flag for disabled state',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /tabIndex=\{parameterControlsLocked \|\| !samplingPresetMenuOpen \? -1 : 0\}/,
   'sampling preset options should leave tab order while running or when closed',
 );
@@ -91,3 +99,9 @@ assert.match(
 );
 
 console.log('workbenchRunningParamsLock tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityBasicParameters \} from '\.\/WorkbenchHeatCapacityBasicParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityParameters \} from '\.\/WorkbenchHeatCapacityParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);

@@ -1,0 +1,10 @@
+import { IDEAL_RESULT_MIN_HEIGHT_RATIO } from './workbenchLayoutCompatibility.ts';
+
+export const LEFT_SIDEBAR_MIN = 220;
+export const LEFT_SIDEBAR_MAX = 420;
+export const PARAM_SIDEBAR_MIN = 240;
+export const PARAM_SIDEBAR_MAX = 420;
+export const IDEAL_ADVANCED_SCROLL_DURATION_MS = 420;
+export const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;
+export const STANDARD_RESULTS_BOTTOM_INSET = 10;
+export const RESIZER_GRAB_SAFE_SPACE = 14;

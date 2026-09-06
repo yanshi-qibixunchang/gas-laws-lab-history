@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchStandardResultsWindowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStandardResultsWindow.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -19,10 +22,12 @@ assert.match(panelSource, /studio-data-table-section/);
 assert.match(panelSource, /getLocalizedStatusValue\(resultSummary\.runState/);
 assert.doesNotMatch(panelSource, /useEffect|useState|updateActiveFile|handleExportAction/);
 
-assert.match(workbenchSource, /from '\.\/WorkbenchStandardResultsContent\.tsx'/);
-assert.match(workbenchSource, /<WorkbenchStandardResultsSummary/);
-assert.match(workbenchSource, /<WorkbenchStandardResultsDataTable/);
+assert.match(workbenchStandardResultsWindowSource, /from '\.\/WorkbenchStandardResultsContent\.tsx'/);
+assert.match(workbenchStandardResultsWindowSource, /<WorkbenchStandardResultsSummary/);
+assert.match(workbenchStandardResultsWindowSource, /<WorkbenchStandardResultsDataTable/);
 assert.doesNotMatch(workbenchSource, /const renderResultsSummary =/);
 assert.doesNotMatch(workbenchSource, /const renderResultsDataTable =/);
 
 console.log('workbenchStandardResultsContent tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchStandardResultsWindow \} from '\.\/WorkbenchStandardResultsWindow\.tsx';/);

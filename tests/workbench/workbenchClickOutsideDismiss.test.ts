@@ -1,3 +1,9 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
+const workbenchFileTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTree.tsx', import.meta.url), 'utf8');
+const renameHookSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchFileMenuInteractions.ts', import.meta.url), 'utf8');
+const renameActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileRenameActions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -22,43 +28,43 @@ assert.match(
 );
 
 assert.match(
-  source,
+  renameActionSource,
   /const commitRenameFileFromOutside = \(\) => \{[\s\S]*?pushLog\(\(language\) => workbenchCopies\[language\]\.logs\.fileNameCannotBeEmpty, 'error'\);[\s\S]*?setRenamingFileId\(null\);[\s\S]*?setRenameDraft\(''\);[\s\S]*?\};/,
   'outside rename commit should log the existing empty-name error and exit rename mode when the draft is blank',
 );
 
 assert.match(
-  source,
-  /useEffect\(\(\) => \{[\s\S]*?const handlePointerDown = \(event: PointerEvent\) => \{[\s\S]*?topMenuRef\.current\?\.contains\(target\)[\s\S]*?setOpenTopMenu\(null\);[\s\S]*?document\.addEventListener\('pointerdown', handlePointerDown\);[\s\S]*?document\.removeEventListener\('pointerdown', handlePointerDown\);[\s\S]*?\}, \[openTopMenu\]\);/,
+  renameHookSource,
+  /if \(!openTopMenu\) return undefined;[\s\S]*contains: target => Boolean\(topMenuRef\.current\?\.contains\(target\) \|\| topCommandsRef\.current\?\.contains\(target\)\),[\s\S]*onOutside: \(\) => setOpenTopMenu\(null\)[\s\S]*\}, \[openTopMenu\]\)/,
   'top command menu should install document pointerdown outside-dismiss only while a top menu is open',
 );
 
 assert.match(
-  source,
-  /useEffect\(\(\) => \{[\s\S]*?const handlePointerDown = \(event: PointerEvent\) => \{[\s\S]*?fileMenuRef\.current\?\.contains\(target\)[\s\S]*?setOpenFileMenuId\(null\);[\s\S]*?setPendingDeleteFileId\(null\);[\s\S]*?document\.addEventListener\('pointerdown', handlePointerDown\);[\s\S]*?document\.removeEventListener\('pointerdown', handlePointerDown\);[\s\S]*?\}, \[openFileMenuId\]\);/,
+  renameHookSource,
+  /if \(!openFileMenuId\) return undefined;[\s\S]*contains: target => Boolean\(fileMenuRef\.current\?\.contains\(target\) \|\| fileMenuButtonRef\.current\?\.contains\(target\)\),[\s\S]*onOutside: \(\) => \{ setOpenFileMenuId\(null\); setPendingDeleteFileId\(null\); \}[\s\S]*\}, \[openFileMenuId\]\)/,
   'file action menu should install document pointerdown outside-dismiss and clear pending delete while a file menu is open',
 );
 
 assert.match(
-  source,
-  /useEffect\(\(\) => \{[\s\S]*?const handlePointerDown = \(event: PointerEvent\) => \{[\s\S]*?renameInputRef\.current\?\.contains\(target\)[\s\S]*?commitRenameFileFromOutside\(\);[\s\S]*?document\.addEventListener\('pointerdown', handlePointerDown\);[\s\S]*?document\.removeEventListener\('pointerdown', handlePointerDown\);[\s\S]*?\}, \[renamingFileId, renameDraft\]\);/,
+  renameHookSource,
+  /if \(!renamingFileId\) return undefined;[\s\S]*contains: target => Boolean\(renameInputRef\.current\?\.contains\(target\)\),[\s\S]*onOutside: commitRenameFileFromOutside[\s\S]*\}, \[renamingFileId, renameDraft\]\)/,
   'rename input should commit from a document pointerdown outside the input while rename mode is active',
 );
 
 assert.match(
-  source,
+  workbenchMenuBarSource,
   /menuRef=\{topMenuRef\}/,
   'workbench should pass the outside-dismiss ref into the top command component',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /ref=\{fileMenuRef\}/,
   'rendered file action menu should attach the outside-dismiss ref',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /ref=\{renameInputRef\}[\s\S]*?onBlur=\{\(\) => commitRenameFileFromOutside\(\)\}/,
   'rename input should also commit through the shared outside behavior on blur',
 );
@@ -88,3 +94,9 @@ assert.match(
 );
 
 console.log('workbenchClickOutsideDismiss tests passed');
+
+assert.match(renameHookSource, /document\.addEventListener\('pointerdown', listener\);[\s\S]*document\.removeEventListener\('pointerdown', listener\)/);
+assert.match(source, /useWorkbenchFileMenuInteractions\(\{/);
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);

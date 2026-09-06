@@ -1,3 +1,11 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPanelContentSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelContent.tsx', import.meta.url), 'utf8');
+const workbenchPanelNavigationSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelNavigation.tsx', import.meta.url), 'utf8');
+const workbenchIdealControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealControls.tsx', import.meta.url), 'utf8');
+const workbenchDockHeaderSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchDockHeader.tsx', import.meta.url), 'utf8');
+const workbenchIdealResultsRegionSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealResultsRegion.tsx', import.meta.url), 'utf8');
+const workbenchConsoleSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchConsole.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchConsolePresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchConsolePresentation.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
@@ -70,15 +78,15 @@ assert.match(
   /export const WorkbenchIdealVerificationWindow/,
   'ideal Verification child window should have a dedicated presentation component',
 );
-assert.match(source, /from '\.\/WorkbenchIdealResultsWindows\.tsx'/);
-assert.match(source, /<WorkbenchIdealPointsWindow/);
-assert.match(source, /<WorkbenchIdealVerificationWindow/);
+assert.match(workbenchPanelContentSource, /from '\.\/WorkbenchIdealResultsWindows\.tsx'/);
+assert.match(workbenchPanelContentSource, /<WorkbenchIdealPointsWindow/);
+assert.match(workbenchPanelContentSource, /<WorkbenchIdealVerificationWindow/);
 assert.doesNotMatch(idealWindowsSource, /useEffect|useState|updateActiveFile|captureUndoSnapshot/);
 assert.doesNotMatch(source, /const renderExperimentPointsPanel =/);
 assert.doesNotMatch(source, /const renderIdealPointsWindow =/);
 assert.doesNotMatch(source, /const renderIdealVerificationWindow =/);
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /panel\.key === 'results' && activeFile\.kind === 'ideal' && !resultsChildrenCollapsed/,
   'Ideal Results tree should render Points and Verification child rows',
 );
@@ -91,27 +99,27 @@ assert.ok(
   'ideal scan variable controls should replace the unclear next preset point button',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /studio-ideal-scan-slider/,
   'ideal scan variable should expose a value-synchronized slider control',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /studio-ideal-scan-input/,
   'ideal scan variable should also expose a direct numeric input',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /studio-ideal-preset-select/,
   'ideal sampling preset should render as a select-style dropdown',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /studio-ideal-preset-menu-overlay/,
   'ideal sampling preset options should render as an overlay instead of pushing lower parameters down',
 );
 assert.match(
-  source,
+  workbenchDockHeaderSource,
   /const showPanelActions = isProcessingRealtime[\s\S]*panel\.key === 'preview' && !activePistonOscillationExpandedRealtime/,
   'Preview Reset should be available for both standard and ideal files',
 );
@@ -126,7 +134,7 @@ assert.match(
   'ideal result window should render as an absolute full-width layer',
 );
 assert.match(
-  source,
+  workbenchIdealResultsRegionSource,
   /activeIdealResultTab/,
   'ideal result state should store a single active tab instead of deriving foreground order from stacked windows',
 );
@@ -141,12 +149,12 @@ assert.match(
   'new and legacy ideal Results windows should default to both child tabs open',
 );
 assert.match(
-  source,
+  workbenchIdealResultsRegionSource,
   /const openIdealResultTabs = idealResultWindowPanels\.filter\(\(panel\) => layout\.openTabs\.includes\(panel\.key\)\)/,
   'ideal Results should render tab buttons only for child tabs that are currently open',
 );
 assert.match(
-  source,
+  workbenchIdealResultsRegionSource,
   /aria-label=\{`\$\{workbenchCopy\.actions\.close\} \$\{panel\.title\}`\}[\s\S]*?closeIdealResultTab\(panel\.key\)/,
   'ideal Results tabs should expose a close button inside each open tab',
 );
@@ -181,17 +189,17 @@ assert.doesNotMatch(
   'ideal Results should not use a separate centered capsule tab component',
 );
 assert.match(
-  source,
+  workbenchIdealResultsRegionSource,
   /className="studio-results-tabs studio-ideal-results-tabs"/,
   'ideal Results should reuse the standard Results tab strip styling',
 );
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /className="studio-results-nav studio-results-child-nav studio-ideal-results-nav"/,
   'ideal Results tree children should use the shared indented child navigation styling',
 );
 assert.match(
-  source,
+  workbenchPanelNavigationSource,
   /className="studio-results-nav studio-results-child-nav"/,
   'standard Results tree children should use the shared indented child navigation styling',
 );
@@ -306,7 +314,7 @@ assert.match(
   'Console Output should auto-scroll to the newest log entry',
 );
 assert.match(
-  source,
+  workbenchConsoleSource,
   /<button[\s\S]*?setConsoleTab\(tab\)/,
   'Console Output tabs should render as clickable buttons',
 );
@@ -354,3 +362,10 @@ assert.match(
 console.log('workbenchIdealResultsWindow tests passed');
 
 assert.ok(source.includes("from './workbenchConsolePresentation.ts'"), 'workbenchConsolePresentation must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelContent \} from '\.\/WorkbenchPanelContent\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelNavigation \} from '\.\/WorkbenchPanelNavigation\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchDockHeader \} from '\.\/WorkbenchDockHeader\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealResultsRegion \} from '\.\/WorkbenchIdealResultsRegion\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchConsole \} from '\.\/WorkbenchConsole\.tsx';/);

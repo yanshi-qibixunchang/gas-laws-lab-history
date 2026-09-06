@@ -1,3 +1,10 @@
+const idealActionSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealExperimentActions.ts', import.meta.url), 'utf8');
+const scanParserSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealScanInput.ts', import.meta.url), 'utf8');
+const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
+const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchIdealControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealControls.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -6,13 +13,13 @@ const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSt
 const promptFeedbackSource = readFileSync(new URL('../../src/components/prompts/PromptFeedback.tsx', import.meta.url), 'utf8');
 const promptFeedbackStyles = readFileSync(new URL('../../src/components/prompts/PromptFeedback.css', import.meta.url), 'utf8');
 const idealControlsSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealControls.ts', import.meta.url), 'utf8');
-const commitWorkbenchParameterInputBody = source.slice(
-  source.indexOf('  const commitWorkbenchParameterInput = ('),
-  source.indexOf('  const applyActiveFileParams = ('),
+const commitWorkbenchParameterInputBody = parameterActionSource.slice(
+  parameterActionSource.indexOf('  const commitWorkbenchParameterInput = ('),
+  parameterActionSource.indexOf('  const applyActiveFileParams = ('),
 );
-const prepareActiveFileForRunBody = source.slice(
-  source.indexOf('  const prepareActiveFileForRun = (): boolean => {'),
-  source.indexOf('  const runActiveFile = () => {'),
+const prepareActiveFileForRunBody = parameterActionSource.slice(
+  parameterActionSource.indexOf('  const prepareActiveFileForRun = (): boolean => {'),
+  parameterActionSource.indexOf('  return { rejectLockedIdealControlledVariables,'),
 );
 
 assert.ok(commitWorkbenchParameterInputBody.length > 0, 'commitWorkbenchParameterInput function body should be located for scoped assertions');
@@ -25,13 +32,13 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  source,
+  parameterActionSource,
   /pending Reset|needs reset|Reset rebuilds|Reset, then Run|pending Reset/,
   'parameter guidance should not tell users to press Reset before running',
 );
 
 assert.match(
-  source,
+  parameterActionSource,
   /const prepareActiveFileForRun = \(\): boolean => \{[\s\S]*?parametersDirty[\s\S]*?applyActiveFileParams\(undefined,\s*\{ silent: true/,
   'starting should auto-apply saved dirty parameters or reset-needed runtimes before scheduling frames',
 );
@@ -49,7 +56,7 @@ assert.doesNotMatch(
 );
 
 assert.doesNotMatch(
-  source,
+  parameterActionSource,
   /const (?:startParameterEdit|parseParameterDraft|saveParameterDraft) = /,
   'the removed Edit/Save parameter workflow should not leave callable functions behind',
 );
@@ -61,13 +68,13 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  runActionSource,
   /const runActiveFile = \(\) => \{[\s\S]*?prepareActiveFileForRun\(\)[\s\S]*?return;[\s\S]*?pauseRunningFilesExcept/,
   'runActiveFile should prepare pending edits and reset-needed runtimes before scheduling frames',
 );
 
 assert.doesNotMatch(
-  source,
+  parameterActionSource,
   /saved parameter changes are pending Reset|reset the ideal-gas runtime before running/,
   'runActiveFile should not block on pending Reset or ideal needsReset states',
 );
@@ -79,17 +86,17 @@ assert.match(
 );
 
 assert.match(
-  source,
+  scanParserSource,
   /const getSnappedIdealScanValue = \([\s\S]*?presetSequence\.reduce[\s\S]*?distance <= threshold[\s\S]*?closest\.value : rawValue/,
   'ideal scan updates should snap only to nearby preset values',
 );
 
 assert.ok(
-  source.includes('const parseIdealScanInput = (') &&
-    source.includes('const decimalPattern = /^(?:\\d+(?:\\.\\d*)?|\\.\\d+)$/;') &&
-    source.includes('const integerPattern = /^\\d+$/;') &&
-    source.includes('const invalid = (getMessage: WorkbenchConsoleMessageFactory) => ({') &&
-    source.includes('return invalid('),
+  scanParserSource.includes('const parseIdealScanInput = (') &&
+    scanParserSource.includes('const decimalPattern = /^(?:\\d+(?:\\.\\d*)?|\\.\\d+)$/;') &&
+    scanParserSource.includes('const integerPattern = /^\\d+$/;') &&
+    scanParserSource.includes('const invalid = (getMessage: WorkbenchConsoleMessageFactory) => ({') &&
+    scanParserSource.includes('return invalid('),
   'ideal scan keyboard input should reject unsupported decimal/integer formats before updating params',
 );
 
@@ -100,19 +107,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  idealActionSource,
   /const showScanInputError = \(\s*message: string,\s*getMessage: WorkbenchConsoleMessageFactory,\s*options: \{ refocus\?: boolean; rawValue\?: string \} = \{\},?\s*\) => \{[\s\S]*?setScanInputToast\(message\)[\s\S]*?pushLog\(\(language\) => `\$\{activeFile\.name\}: \$\{getMessage\(language\)\}`, 'error'\)[\s\S]*?scanInputRef\.current\?\.focus\(\)[\s\S]*?scanInputRef\.current\?\.select\(\)/,
   'invalid scan input should set inline error, show a transient app toast, write to the console log, and refocus for direct correction',
 );
 
 assert.match(
-  source,
+  idealActionSource,
   /const validateIdealScanDraft = \(rawValue: string\) => \{[\s\S]*?parseIdealScanInput\(rawValue[\s\S]*?showScanInputError\(parsed\.message, parsed\.getMessage, \{ rawValue \}\)[\s\S]*?return false;/,
   'typing an unsupported scan value should validate immediately and send the error to the console/log flow',
 );
 
 assert.doesNotMatch(
-  source,
+  scanParserSource,
   /if \(!trimmedValue\) \{[\s\S]*?setScanInputError\(null\)[\s\S]*?return true;[\s\S]*?\}/,
   'empty scan input should report an error immediately instead of silently clearing the error state',
 );
@@ -142,55 +149,55 @@ assert.match(
 );
 
 assert.match(
-  source,
+  scanParserSource,
   /return invalid\(\(language\) => workbenchCopies\[language\]\.logs\.scanInputStep\(\s*getIdealScanInputLabel\(relation\),\s*getIdealScanStepLabel\(relation\),?\s*\)\)/,
   'valid-looking scan input with unsupported precision should mention the minimum step',
 );
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /onKeyDown=\{\(event\) => \{[\s\S]*?event\.key === 'Enter'[\s\S]*?commitIdealScanInput\(\)[\s\S]*?event\.key === 'Escape'/,
   'ideal scan input should commit on Enter and support Escape cancellation',
 );
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /onBlur=\{\(\) => commitIdealScanInput\(\)\}/,
   'ideal scan input should validate and commit on blur',
 );
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /ref=\{scanInputRef\}[\s\S]*?onChange=\{\(event\) => \{[\s\S]*?setScanInputDraft\(event\.target\.value\)[\s\S]*?validateIdealScanDraft\(event\.target\.value\)/,
   'scan input should validate unsupported edits as the user types instead of waiting for a separate edit cycle',
 );
 
 assert.match(
-  source,
+  idealActionSource,
   /showScanInputError\(parsed\.message, parsed\.getMessage, \{ refocus: true,\s*rawValue: scanInputDraft \}\);[\s\S]*?return;/,
   'invalid scan input submission should keep the same editor focused and preserve the current draft',
 );
 
 assert.match(
-  source,
+  idealActionSource,
   /updateIdealScanVariable\(parsed\.value,\s*\{ snap: false \}\);[\s\S]*?scanInputRef\.current\?\.blur\(\);[\s\S]*?setScanInputFocused\(false\)/,
   'valid keyboard scan input should preserve nearby manual values like 1.01, then exit the input editor after Enter',
 );
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /const scanStep = getIdealScanStep\(activeFile\.relation\);[\s\S]*?const scanDecimals = getIdealScanDecimals\(activeFile\.relation\);/,
   'slider step and displayed scan precision should come from the same relation-aware helpers',
 );
 
 assert.match(
-  source,
+  idealActionSource,
   /setScanInputDraft\(formatMetric\(nextValue,\s*getIdealScanDecimals\(activeFile\.relation\)\)\)/,
   'accepted scan input should display with the supported precision after submit or snapping',
 );
 
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /<button[\s\S]*?className=\{`studio-ideal-scan-tick-button \$\{Math\.abs\(value - relationVariableValue\) <= 1e-6 \? 'studio-ideal-scan-tick-active' : ''\}`\}[\s\S]*?onClick=\{\(\) => updateIdealScanVariable\(value\)\}/,
   'recommended preset values under the slider should be clickable buttons',
 );
@@ -233,3 +240,5 @@ assert.match(
 );
 
 console.log('workbenchStartAutoApplyScanControls tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);

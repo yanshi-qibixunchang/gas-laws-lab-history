@@ -1,3 +1,6 @@
+const runtimeUseWorkbenchPistonProcessingViewSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonProcessingView.ts', import.meta.url), 'utf8');
+const runtimeWorkbenchPistonAcquisitionProcessingActionsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchPistonAcquisitionProcessingActions.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -178,17 +181,17 @@ assert.match(copySource, /以下全部数据均已参与本次拟合；拟合函
 assert.match(copySource, /后续步骤仅使用前一步已显示、已舍入的数值继续计算/);
 assert.doesNotMatch(copySource, /数值落在允许容差内即可判定正确/);
 
-assert.match(workbenchSource, /calculationWindowOpen: pistonOscillationCalculationWindowOpen[\s\S]*selectWorkbenchPistonOscillationViewState\(/);
+assert.match(runtimeUseWorkbenchPistonProcessingViewSource, /calculationWindowOpen: pistonOscillationCalculationWindowOpen[\s\S]*selectWorkbenchPistonOscillationViewState\(/);
 assert.match(workbenchSource, /pistonOscillationCalculationReviewOpen/);
 assert.match(workbenchSource, /openPistonOscillationCalculationReview/);
 assert.match(workbenchSource, /<PistonOscillationCalculationWindow[\s\S]*onCompleteAndExit=\{completeAndExitPistonOscillationCalculation\}/);
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /const completeAndExitPistonOscillationCalculation[\s\S]*completingFreeSession[\s\S]*setPistonOscillationDataProcessingReviewOpen\(false\)[\s\S]*setSelectedPanel\('preview'\)[\s\S]*setLeftCollapsed\(false\)/,
   'finishing the Free calculation should close processing review, restore the instrument workspace, and expand the left sidebar',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /const closePistonOscillationDataProcessingReview[\s\S]*setSelectedPanel\('preview'\)[\s\S]*setLeftCollapsed\(false\)/,
   'closing a completed processing review should return to the instrument workspace',
 );

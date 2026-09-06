@@ -1,3 +1,36 @@
+
+const scientificTextSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchScientificText.tsx', import.meta.url), 'utf8');
+const teachingUiTimingSource = readFileSync(new URL('../../src/features/workbench/workbenchTeachingUiTiming.ts', import.meta.url), 'utf8');
+const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
+const layoutConstantSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutConstants.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationPanelTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPanelTree.tsx', import.meta.url), 'utf8');
+const workbenchPistonOscillationPreviewSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const workbenchSimulationParameterHelpSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterHelp.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityParameterHelpSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityParameterHelp.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPanelContentSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelContent.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityDemoStepsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityDemoSteps.tsx', import.meta.url), 'utf8');
+const workbenchSectionTitleSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSectionTitle.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityWaitOverlaySource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityWaitOverlay.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityRealtimeReadingsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityRealtimeReadings.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityGuideStepsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityGuideSteps.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityPanelTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityPanelTree.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityMaterialsWindowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityMaterialsWindow.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityRecordControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityRecordControls.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityModeControl.tsx', import.meta.url), 'utf8');
+const workbenchDockHeaderSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchDockHeader.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityCenterFeedbackSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityCenterFeedback.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityGuideLessonSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityGuideLesson.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityStrongMaskSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityStrongMask.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityParameters.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityCheckboxParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityCheckboxParameterRow.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityBasicParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityBasicParameters.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityGasParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityGasParameterRow.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityAdvancedParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityAdvancedParameters.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityNumberParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityNumberParameterRow.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityParameterLabelSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityParameterLabel.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchHeatCapacityGuidePresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchHeatCapacityGuidePresentation.ts', import.meta.url), 'utf8');
 const presentationWorkbenchHeatCapacityGuideMaskDomSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchHeatCapacityGuideMaskDom.ts', import.meta.url), 'utf8');
@@ -411,12 +444,12 @@ assert.match(
   'process review English copy should cover the new timeline, record, and diagnostics shell',
 );
 assert.match(
-  workbenchSource,
+  workbenchPanelContentSource,
   /<HeatCapacityProcessReviewPanel[\s\S]*language=\{settingsLanguagePreference\}/,
   'Workbench should pass the persisted language preference into Heat Capacity process review',
 );
 assert.match(
-  workbenchSource,
+  workbenchPanelContentSource,
   /calculationSession,\s*scoringVersion:\s*viewedGroup\.scoringVersion/,
   'process review should receive the viewed experiment group calculation session and scoring version',
 );
@@ -436,7 +469,7 @@ assert.match(
   'auto demo runner should copy each step progress criterion into the visible panel state',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityDemoStepsSource,
   /heatCapacityRealtimeCopy\.demoProgressLabel[\s\S]*autoDemoStepProgressCriterion/,
   'auto demo step panel should render the progress criterion row',
 );
@@ -496,7 +529,7 @@ assert.doesNotMatch(
   'Heat-capacity focus reporting should not loop when the parent callback identity changes after a state update',
 );
 assert.match(
-  workbenchSource,
+  workbenchSectionTitleSource,
   /studio-tree-title-button studio-tree-title-button-\$\{kind\}/,
   'sidebar tree title buttons should expose a scoped kind modifier for visual annotation changes',
 );
@@ -603,12 +636,16 @@ assert.match(sceneSource, /overlayBottomRight/, '3D scene should keep a lower-ri
 assert.match(sceneSource, /overlayTopCenter/, '3D scene should expose a top-center overlay slot for Free wait speed controls');
 assert.match(sceneSource, /studio-preview-overlay-slot-top-center/, 'top-center overlay should use the shared preview overlay slot system');
 assert.match(workbenchSource, /deriveHeatCapacityFreeWorkbenchAttemptWaitTimer\(activeFile\)/, 'Free timer should derive from the explicit active-attempt state instead of U0/trial inference');
-assert.match(workbenchSource, /heatCapacityWaitTimerDisplay &&[\s\S]*<HeatCapacityWaitController/, 'the shared wait controller must not render without a real Guide, Free, or Demo wait stage');
-assert.match(workbenchSource, /data-heat-capacity-wait-overlay="true"/, 'wait overlay should use the new independent selector');
+assert.match(
+  workbenchSource,
+  /heatCapacityWaitTimerDisplay &&[\s\S]*<WorkbenchHeatCapacityWaitOverlay/,
+  "the shared wait controller must not render without a real Guide, Free, or Demo wait stage",
+);
+assert.match(workbenchHeatCapacityWaitOverlaySource, /data-heat-capacity-wait-overlay="true"/, 'wait overlay should use the new independent selector');
 assert.match(workbenchSource, /deriveHeatCapacityAutoDemoWaitTimer\([\s\S]*heatCapacityAutoDemoTimelineRef\.current,[\s\S]*heatCapacityAutoDemoElapsedMs/, 'Demo waits should derive from the independent scripted timeline clock');
 assert.match(workbenchSource, /activeFile\.heatCapacityMode === 'demo'[\s\S]*HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER/, 'Demo wait display should always select the fixed x16 speed');
 assert.match(workbenchSource, /heatCapacitySpeedOptionsDisabled = activeFile\.heatCapacityMode === 'demo'/, 'Demo wait speed controls should remain disabled throughout automatic playback');
-assert.match(workbenchSource, /data-heat-capacity-wait-mode=\{activeFile\.heatCapacityMode\}/, 'wait overlay should expose the active mode for browser verification');
+assert.match(workbenchHeatCapacityWaitOverlaySource, /data-heat-capacity-wait-mode=\{activeFile\.heatCapacityMode\}/, 'wait overlay should expose the active mode for browser verification');
 assert.match(waitControllerSource, /data-heat-capacity-wait-controller="true"/, 'independent wait controller should expose stable markup');
 assert.match(waitControllerSource, /data-heat-capacity-wait-timer="true"/, 'independent wait controller should expose its timer region');
 assert.match(waitControllerSource, /HEAT_CAPACITY_WAIT_SPEED_OPTIONS = HEAT_CAPACITY_FREE_WAIT_SPEED_OPTIONS/, 'wait controller should consume the shared approved speed options');
@@ -618,7 +655,7 @@ assert.match(waitControllerSource, /--heat-capacity-wait-progress/, 'wait contro
 assert.match(waitControllerStyleSource, /conic-gradient\([\s\S]*var\(--heat-capacity-wait-progress-color\)/, 'independent timer ring should render live progress');
 assert.match(waitControllerStyleSource, /\.heat-capacity-wait-controller__option:disabled\s*\{[\s\S]*cursor:\s*not-allowed;[\s\S]*opacity:\s*1;/, 'disabled Demo and Guide speed options should retain instrument styling and show a prohibited cursor');
 assert.match(workbenchSource, /heatCapacityWaitTimer\?\.stage === 'u1-ready'[\s\S]*heatCapacityWaitTimer\?\.stage === 'u2-ready'/, 'Guide wait timer should stay visible after five minutes while the U1 or U2 record strong reminder is active');
-assert.match(workbenchSource, /speedOptionsDisabled=\{heatCapacitySpeedOptionsDisabled\}/, 'shared wait timer should disable speed controls for Demo and ready-state Guide waits');
+assert.match(workbenchHeatCapacityWaitOverlaySource, /speedOptionsDisabled=\{heatCapacitySpeedOptionsDisabled\}/, 'shared wait timer should disable speed controls for Demo and ready-state Guide waits');
 assert.match(waitControllerSource, /d="M 74 50 L 92 76 H 179 C 191 76 200 74 210 68 C 218 62 224 55 225 49 L 74 50 Z"/, 'independent timer should preserve the approved cabin geometry');
 assert.match(workbenchSource, /freeWaitTimerLabel/, 'Free wait timer should use localized stage labels');
 assert.match(heatCapacityRealtimeCopySource, /freeSpeedLabelCode:\s*'WAIT RATE'/, 'Free wait speed control should localize its engineering code label through Heat Capacity copy');
@@ -629,8 +666,8 @@ assert.doesNotMatch(workbenchSource, /getLocalizedHeatCapacityFreeProcessingMess
 assert.match(workbenchSource, /freeModeActiveLog/, 'Free Mode activation logs should use Heat Capacity localized copy');
 assert.doesNotMatch(`${workbenchSource}\n${heatCapacityRealtimeCopySource}`, /freeRunResetLog|resetFreeMode/, 'the removed ambiguous Free Mode reset copy should not remain');
 assert.doesNotMatch(workbenchSource, /heat-capacity free mode active|heat-capacity free run reset|Free Mode 已记录 U[₀₁₂] 显示值/, 'Free Mode console logs should not contain hard-coded mixed-language strings');
-assert.match(workbenchSource, /speedAriaLabel=\{heatCapacityRealtimeCopy\.freeSpeedAria\}/, 'Free wait speed radiogroup should localize its accessibility label');
-assert.match(workbenchSource, /heatCapacityRealtimeCopy\.freeSpeedLabelCode[\s\S]*heatCapacityRealtimeCopy\.freeSpeedLabel/, 'Free wait speed label should render localized copy instead of hard-coded text');
+assert.match(workbenchHeatCapacityWaitOverlaySource, /speedAriaLabel=\{heatCapacityRealtimeCopy\.freeSpeedAria\}/, 'Free wait speed radiogroup should localize its accessibility label');
+assert.match(workbenchHeatCapacityWaitOverlaySource, /heatCapacityRealtimeCopy\.freeSpeedLabelCode[\s\S]*heatCapacityRealtimeCopy\.freeSpeedLabel/, 'Free wait speed label should render localized copy instead of hard-coded text');
 assert.match(waitControllerSource, /heat-capacity-wait-controller__screw/, 'independent wait controller should keep compact hardware details');
 assert.match(waitControllerSource, /×\{speed\}/, 'wait speed option text should use engineering multiplier notation');
 assert.match(waitControllerSource, /HEAT_CAPACITY_WAIT_SPEED_OPTIONS\.map/, 'independent wait controller should render the canonical x2/x4/x8/x16 options');
@@ -651,8 +688,8 @@ assert.match(workbenchSource, /data-heat-capacity-free-record=\{kind\}/, 'Free M
 assert.match(workbenchSource, /getHeatCapacityFreeRecordButtonState\(activeFile,\s*'u0'\)[\s\S]*getHeatCapacityFreeRecordButtonState\(activeFile,\s*'u1'\)[\s\S]*getHeatCapacityFreeRecordButtonState\(activeFile,\s*'u2'\)/, 'Free Mode record buttons should use the shared stage-aware button states for all record kinds');
 assert.match(workbenchSource, /getHeatCapacityFreeDisplayPhase\(activeFile\)/, 'Free Mode should derive a workflow-aware display phase for instrument panels');
 assert.match(workbenchSource, /phase=\{heatCapacityDisplayPhase\}/, '3D instrument focus panel should receive the workflow-aware heat-capacity display phase');
-assert.match(workbenchSource, /getHeatCapacityPhaseLabel\(heatCapacityDisplayPhase\)/, 'realtime phase badges should use the same workflow-aware heat-capacity display phase');
-assert.match(workbenchSource, /data-heat-capacity-guided-record=\{stepRecordKind\}/, 'Guided record button should expose the active U0/U1/U2 kind from the current checklist row for browser automation');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /getHeatCapacityPhaseLabel\(heatCapacityDisplayPhase\)/, 'realtime phase badges should use the same workflow-aware heat-capacity display phase');
+assert.match(workbenchHeatCapacityGuideStepsSource, /data-heat-capacity-guided-record=\{stepRecordKind\}/, 'Guided record button should expose the active U0/U1/U2 kind from the current checklist row for browser automation');
 assert.match(workbenchSource, /applyHeatCapacityFreeRecordWorkbenchState/, 'Free Mode record buttons should use one synchronous record-attempt helper');
 assert.match(heatCapacityRealtimeCopySource, /'zero-not-ready': '请先打开电源并打开玻璃旋塞，再记录 U₀。'/, 'Free Mode U0 reject copy should state only the minimum physical record prerequisites');
 assert.doesNotMatch(workbenchSource, /完成调零，待 Uₚ 稳定接近 0 后再记录 U₀|finish zeroing, and wait until Uₚ is stable near 0 before recording U₀/, 'Free Mode U0 reject copy should not imply strict zeroing and stability gates');
@@ -860,14 +897,16 @@ assert.doesNotMatch(processReviewPanelSource, /demo[^\n]+upperBoundGamma|guide[^
 assert.match(workbenchSource, /heatCapacityReviewSelectionByFileId/, 'workbench should keep process-review group selection as runtime UI state');
 assert.doesNotMatch(sessionSource, /heatCapacityReviewSelectionByFileId|selectedProcessReviewTrialId/, 'process-review group selection must not be saved in session payloads');
 assert.doesNotMatch(processReviewPanelSource, /data-hpr-scroll-up="true"|data-hpr-scroll-down="true"/, 'process review should rely on the standard result-tab vertical scrollbar instead of custom up/down buttons');
-assert.match(workbenchSource, /const materialsSelected = selectedPanel === 'results'/, 'Heat Capacity materials parent row should have its own selected state instead of inheriting child tab state');
-assert.match(workbenchSource, /studio-heat-materials-group \$\{materialsSelected \? 'studio-panel-row-active' : ''\}/, 'Heat Capacity materials parent row should only highlight when the parent itself is selected');
-assert.match(workbenchSource, /setSelectedPanel\('results'\);[\s\S]*data-prompt-tooltip=\{heatCapacityRealtimeCopy\.materialsFolderTitle\}/, 'clicking the Heat Capacity materials parent should select the parent row without selecting the first child and should use the internal tooltip');
-assert.match(workbenchSource, /className=\{selectedPanel === panel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}[\s\S]*?onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?setSelectedPanel\(panel\.key\);[\s\S]*?\}\}[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?openHeatCapacityTab\(tabId\);/, 'clicking a Heat Capacity material child should only move the left selection; double-clicking should open or activate the tab');
+assert.match(workbenchHeatCapacityPanelTreeSource, /const materialsSelected = selectedPanel === 'results'/, 'Heat Capacity materials parent row should have its own selected state instead of inheriting child tab state');
+assert.match(workbenchHeatCapacityPanelTreeSource, /studio-heat-materials-group \$\{materialsSelected \? 'studio-panel-row-active' : ''\}/, 'Heat Capacity materials parent row should only highlight when the parent itself is selected');
+assert.match(workbenchPistonOscillationPanelTreeSource, /studio-heat-materials-group \$\{materialsSelected \? 'studio-panel-row-active' : ''\}/, 'Heat Capacity materials parent row should only highlight when the parent itself is selected');
+assert.match(workbenchHeatCapacityPanelTreeSource, /setSelectedPanel\('results'\);[\s\S]*data-prompt-tooltip=\{heatCapacityRealtimeCopy\.materialsFolderTitle\}/, 'clicking the Heat Capacity materials parent should select the parent row without selecting the first child and should use the internal tooltip');
+assert.match(workbenchHeatCapacityPanelTreeSource, /className=\{selectedPanel === panel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}[\s\S]*?onClick=\{\(event\) => \{[\s\S]*?event\.stopPropagation\(\);[\s\S]*?setSelectedPanel\(panel\.key\);[\s\S]*?\}\}[\s\S]*?onDoubleClick=\{\(event\) => \{[\s\S]*?openHeatCapacityTab\(tabId\);/, 'clicking a Heat Capacity material child should only move the left selection; double-clicking should open or activate the tab');
 assert.doesNotMatch(workbenchSource, /className=\{selectedPanel === panel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}[\s\S]*?onClick=\{\(event\) => \{[\s\S]*?activateHeatCapacityTab\(tabId\)/, 'single-clicking an already-open Heat Capacity material child should not switch the active material tab');
 assert.doesNotMatch(workbenchSource, /materialPanels\.some\(\(\{ tabId \}\) => activeFile\.activeHeatCapacityTabId === tabId\)/, 'Heat Capacity left tree selection should not follow the active materials tab when another top panel is selected');
 assert.doesNotMatch(workbenchSource, /state === 'active' \|\| selectedPanel === panel\.key/, 'Heat Capacity material child rows should not stay highlighted just because their tab is active');
-assert.match(workbenchSource, /className=\{selectedPanel === panel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}/, 'Heat Capacity material child rows should highlight only the selected child panel');
+assert.match(workbenchHeatCapacityPanelTreeSource, /className=\{selectedPanel === panel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}/, 'Heat Capacity material child rows should highlight only the selected child panel');
+assert.match(workbenchPistonOscillationPanelTreeSource, /className=\{selectedPanel === panel\.key \? 'studio-results-nav-active studio-panel-row-active' : ''\}/, 'Heat Capacity material child rows should highlight only the selected child panel');
 assert.match(workbenchSource, /activeFile\.kind === 'heatCapacity' && selectedPanel === 'results'[\s\S]*heatCapacityRealtimeCopy\.materialsTitle/, 'status text should name the Heat Capacity materials parent when that parent row is selected');
 assert.match(processReviewStyleSource, /--hpr-panel-bg/, 'process review should use theme variables instead of hard-coded light-only colors');
 assert.match(processReviewStyleSource, /\.studio-theme-light \.hpr-panel/, 'process review should explicitly adapt variables for light mode while keeping dark mode as the default');
@@ -877,15 +916,15 @@ assert.match(processReviewStyleSource, /--hpr-review-canvas-min:\s*1320px/, 'pro
 assert.match(processReviewStyleSource, /--hpr-review-canvas-max:\s*1600px/, 'process review horizontal scroll extent should stay close to the chart content');
 assert.match(processReviewStyleSource, /width:\s*clamp\(var\(--hpr-review-canvas-min\),\s*108vw,\s*var\(--hpr-review-canvas-max\)\)/, 'process review should avoid excessive right-side horizontal overscroll');
 assert.match(processReviewStyleSource, /padding:\s*14px 18px 18px/, 'process review horizontal canvas should keep symmetric left and right padding');
-assert.match(workbenchSource, /className="studio-results-body studio-heat-materials-body"[\s\S]*\{renderPanelContent\(activePanel\)\}/, 'Heat Capacity material tabs should put panel content in the standard results scroll body');
+assert.match(workbenchHeatCapacityMaterialsWindowSource, /className="studio-results-body studio-heat-materials-body"[\s\S]*\{renderPanelContent\(activePanel\)\}/, 'Heat Capacity material tabs should put panel content in the standard results scroll body');
 assert.match(styleSource, /\.studio-heat-materials-body\s*\{[\s\S]*overflow:\s*auto;/, 'Heat Capacity material tabs should use the same native vertical scroll behavior as other result tabs');
-assert.match(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;/, 'Heat Capacity materials window should use the same minimum resize ratio as other result windows');
-assert.match(workbenchSource, /const getHeatCapacityMaterialsMaxHeightRatio = \(\) => \{[\s\S]*?fileTabsRect[\s\S]*?RESIZER_GRAB_SAFE_SPACE[\s\S]*?IDEAL_RESULT_MAX_HEIGHT_RATIO/, 'Heat Capacity materials window should use the file-tab-aware maximum height calculation');
-assert.match(workbenchSource, /const getHeatCapacityMaterialsMaxHeightRatio = \(\) => \{[\s\S]*?liveWorkspaceRef\.current\?\.getBoundingClientRect\(\)[\s\S]*?const liveWorkspaceCoverageHeight = liveWorkspaceRect\.height;[\s\S]*?liveWorkspaceCoverageHeight \/ workspaceRect\.height/, 'Heat Capacity materials maximum height should match the live 3D workspace height when fully expanded');
-assert.match(workbenchSource, /const maxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio\(\)[\s\S]*?HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO[\s\S]*?maxHeightRatio/, 'Heat Capacity materials resize should clamp to the workspace-aware maximum height ratio');
-assert.match(workbenchSource, /const materialsMaxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio\(\)[\s\S]*?HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO[\s\S]*?materialsMaxHeightRatio/, 'Heat Capacity materials render height should clamp to the same workspace-aware maximum height ratio');
-assert.doesNotMatch(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = 0\.82;/, 'Heat Capacity materials window should not use a fixed low maximum height ratio');
-assert.doesNotMatch(workbenchSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = IDEAL_RESULT_MAX_HEIGHT_RATIO;/, 'Heat Capacity materials window should not blindly inherit the full-height ideal result maximum');
+assert.match(layoutConstantSource, /const HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO = IDEAL_RESULT_MIN_HEIGHT_RATIO;/, 'Heat Capacity materials window should use the same minimum resize ratio as other result windows');
+assert.match(layoutActionSource, /const getHeatCapacityMaterialsMaxHeightRatio = \(\) => \{[\s\S]*?fileTabsRect[\s\S]*?RESIZER_GRAB_SAFE_SPACE[\s\S]*?IDEAL_RESULT_MAX_HEIGHT_RATIO/, 'Heat Capacity materials window should use the file-tab-aware maximum height calculation');
+assert.match(layoutActionSource, /const getHeatCapacityMaterialsMaxHeightRatio = \(\) => \{[\s\S]*?liveWorkspaceRef\.current\?\.getBoundingClientRect\(\)[\s\S]*?const liveWorkspaceCoverageHeight = liveWorkspaceRect\.height;[\s\S]*?liveWorkspaceCoverageHeight \/ workspaceRect\.height/, 'Heat Capacity materials maximum height should match the live 3D workspace height when fully expanded');
+assert.match(layoutActionSource, /const maxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio\(\)[\s\S]*?HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO[\s\S]*?maxHeightRatio/, 'Heat Capacity materials resize should clamp to the workspace-aware maximum height ratio');
+assert.match(workbenchHeatCapacityMaterialsWindowSource, /const materialsMaxHeightRatio = getHeatCapacityMaterialsMaxHeightRatio\(\)[\s\S]*?HEAT_CAPACITY_MATERIALS_MIN_HEIGHT_RATIO[\s\S]*?materialsMaxHeightRatio/, 'Heat Capacity materials render height should clamp to the same workspace-aware maximum height ratio');
+assert.doesNotMatch(layoutConstantSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = 0\.82;/, 'Heat Capacity materials window should not use a fixed low maximum height ratio');
+assert.doesNotMatch(layoutConstantSource, /const HEAT_CAPACITY_MATERIALS_MAX_HEIGHT_RATIO = IDEAL_RESULT_MAX_HEIGHT_RATIO;/, 'Heat Capacity materials window should not blindly inherit the full-height ideal result maximum');
 assert.match(processReviewPanelSource, /normalizeDiagnosisText/, 'process review should normalize diagnosis copy before rendering');
 assert.match(processReviewPanelSource, /normalizeDiagnosisText\(localizedRow\.evidence,\s*copy\.noIssue\)/, 'process review should remove heavy punctuation from visible diagnosis evidence');
 assert.match(processReviewPanelSource, /normalizeDiagnosisText\(detail\.localizedRecommendation,\s*copy\.noIssue\)/, 'process review should remove heavy punctuation from detail recommendations');
@@ -895,13 +934,13 @@ assert.doesNotMatch(processReviewTimelineOpeningTag, /onMouseLeave/, 'stage hove
 assert.doesNotMatch(processReviewPanelSource, /hpr-stage-expanded|isRelease && onStageHover/, 'stage hover should no longer keep release-only expansion logic');
 assert.doesNotMatch(processReviewPanelSource, /hpr-stage-hit-area/, 'stage hover should not use a broad transparent hover area that covers control dots');
 assert.match(processReviewPanelSource, /className="hpr-stage-bar"[\s\S]*?onMouseEnter=\{\(\) => onStageHover\(stage\.id\)\}[\s\S]*?onMouseLeave=\{\(\) => onStageHover\(null\)\}/, 'stage hover highlight should be limited to the visible stage bar itself');
-assert.match(workbenchSource, /data-heat-capacity-free-record-controls="true"/, 'Free Mode record actions should have a stable UI marker');
+assert.match(workbenchHeatCapacityRecordControlsSource, /data-heat-capacity-free-record-controls="true"/, 'Free Mode record actions should have a stable UI marker');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-mode-action="reset-free"/, 'Free Mode should not expose an ambiguous icon-only reset action in the mode control');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="reset-guide"/, 'Guide Mode should expose its own reset action in the mode control');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-free"[\s\S]*exitHeatCapacityFormalModeToExplore\('free'\)/, 'Free Mode should expose an explicit exit action that returns to Explore');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="reset-guide"/, 'Guide Mode should expose its own reset action in the mode control');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="exit-free"[\s\S]*exitHeatCapacityFormalModeToExplore\('free'\)/, 'Free Mode should expose an explicit exit action that returns to Explore');
 assert.match(workbenchSource, /<FreeExperimentProgress[\s\S]*onSelect: requestRestartHeatCapacityFreeExperiment[\s\S]*onSelect: requestRestartHeatCapacityFreeGroup[\s\S]*onSelect: openNextHeatCapacityFreeExperimentGroupSetup/, 'the shared progress control should own both scoped restart actions and the approved next-group action');
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityRealtimeReadingsSource,
   /heatCapacityRealtimeCopy\.trialBadge\([\s\S]*activeHeatCapacityFreeBatchProgress\?\.currentGroupNumber[\s\S]*Math\.max\(1, getActiveHeatCapacityFreeTrialIndex\(activeFile\) \+ 1\)/,
   'the live-data badge should show experiment 1 while the current group is still a draft instead of experiment 0',
 );
@@ -924,7 +963,7 @@ assert.doesNotMatch(stateSource, /heatCapacityProcessingCalculated|heatCapacityP
 assert.match(workbenchSource, /heatCapacityResetFeedbackActionId/, 'Guide reset should retain its short visual feedback state');
 assert.match(workbenchSource, /showHeatCapacityResetFeedback\('reset-guide'\)/, 'Guide reset should retain its feedback controller');
 assert.doesNotMatch(workbenchSource, /showHeatCapacityResetFeedback\('reset-free'\)/, 'the removed Free Mode reset must not retain mode-bar feedback wiring');
-assert.match(workbenchSource, /action\.id === heatCapacityResetFeedbackActionId[\s\S]*studio-heat-mode-action-feedback/, 'the matching Guide reset button should receive the feedback class');
+assert.match(workbenchHeatCapacityModeControlSource, /action\.id === heatCapacityResetFeedbackActionId[\s\S]*studio-heat-mode-action-feedback/, 'the matching Guide reset button should receive the feedback class');
 assert.match(styleSource, /\.studio-heat-mode-action-feedback \{[\s\S]*animation:\s*studio-heat-reset-feedback/, 'Guide Mode reset feedback should keep its explicit animation style');
 assert.match(styleSource, /\.studio-heat-mode-action-feedback svg \{[\s\S]*animation:\s*studio-heat-reset-icon-spin/, 'the Guide reset icon should rotate during feedback');
 assert.match(styleSource, /@keyframes studio-heat-reset-feedback/, 'Guide Mode reset feedback should define the confirmation keyframes');
@@ -940,7 +979,7 @@ assert.match(heatCapacityRealtimeCopySource, /dataResultsTitle:\s*'数据与结�
 assert.match(heatCapacityTabRegistrySource, /HEAT_CAPACITY_TAB_IDS = \[[\s\S]*?'guide'[\s\S]*?'records'[\s\S]*?'review'/, 'Heat Capacity materials should expose the fixed guide / records / review tab order');
 assert.match(heatCapacityTabRegistrySource, /getHeatCapacityMaterialsTabOrder[\s\S]*?heatCapacityMode === 'guide'[\s\S]*?\['guide', 'records'\][\s\S]*?heatCapacityMode === 'free'[\s\S]*?\[\.\.\.HEAT_CAPACITY_TAB_IDS\]/, 'Heat Capacity materials should follow the Guide / Free mode matrix');
 assert.match(workbenchSource, /getHeatCapacityMaterialsTabOrder\(activeFile\)/, 'Heat Capacity material tree/window should use the shared mode-aware tab order');
-assert.match(workbenchSource, /getHeatCapacityPanelDisplayDefinition\(tabId,\s*panel\)/, 'Heat Capacity material labels should be overridable per mode');
+assert.match(workbenchHeatCapacityPanelTreeSource, /getHeatCapacityPanelDisplayDefinition\(tabId,\s*panel\)/, 'Heat Capacity material labels should be overridable per mode');
 assert.doesNotMatch(workbenchSource, /heatCapacityProcessing|activeHeatCapacityTabId:\s*'processing'/, 'Heat Capacity should delete the legacy processing tab instead of redirecting it');
 assert.match(leftPanelSource, /freeRecording:\s*\{/, 'Free record table copy should be localized through copyByLanguage');
 assert.match(leftPanelSource, /dataAndResultsTitle:\s*'数据与结果'/, 'Free merged data panel should expose a localized Data & Results title');
@@ -1608,14 +1647,14 @@ assert.match(styleSource, /\.studio-heat-demo-step-panel div:not\(\.studio-heat-
 assert.match(styleSource, /\.studio-heat-preview-mount \{[\s\S]*overflow: hidden;/, 'heat preview mount should clip the step panel as it slides out to the right');
 assert.match(styleSource, /\.studio-heat-demo-step-panel-visible \{[\s\S]*animation: studioOverlayEnterRight/, 'auto demo step panel should enter from the right when the demo starts');
 assert.match(styleSource, /\.studio-heat-demo-step-panel-exiting \{[\s\S]*animation: studioOverlayExitRight/, 'auto demo step panel should exit to the right when the demo ends or is terminated');
-assert.match(workbenchSource, /overlayCenter=\{heatCapacityCenterOverlay\}[\s\S]*data-heat-capacity-pressure-warning="true"|data-heat-capacity-pressure-warning="true"[\s\S]*overlayCenter=\{heatCapacityCenterOverlay\}/, 'pressure warning should use the centered overlay slot inside the heat model window');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /data-heat-capacity-pressure-warning="true"/, "pressure warning should use the centered overlay slot inside the heat model window");
 assert.match(styleSource, /\.studio-heat-pressure-warning-kicker \{[\s\S]*font-family: "JetBrains Mono"/, 'pressure warning should expose a compact engineering status kicker');
 assert.match(styleSource, /\.studio-heat-pressure-warning \{[\s\S]*animation: studioOverlayFadeIn/, 'centered pressure warning should fade in without scale or displacement');
-assert.match(workbenchSource, /const heatCapacityCenterOverlay = \([\s\S]*<PromptViewportFeedback[\s\S]*data-heat-capacity-guide-step-hint[\s\S]*overlayCenter=\{heatCapacityCenterOverlay\}/, 'heat-capacity guide feedback should use the shared centered viewport surface');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /<PromptViewportFeedback[\s\S]*data-heat-capacity-guide-step-hint/, "heat-capacity guide feedback should use the shared centered viewport surface");
 assert.match(viewportFeedbackStyleSource, /\.prompt-viewport-feedback\s*\{[\s\S]*promptViewportFeedbackIn[\s\S]*promptViewportFeedbackOut/, 'shared viewport feedback should animate both entry and exit');
 assert.match(viewportFeedbackStyleSource, /\.prompt-viewport-feedback-warning\s*\{[\s\S]*--prompt-viewport-feedback-tone:\s*var\(--prompt-warning/, 'heat-capacity toast queue should share the formal warning color token');
 assert.match(viewportFeedbackStyleSource, /\.prompt-viewport-feedback-danger\s*\{[\s\S]*--prompt-viewport-feedback-tone:\s*var\(--prompt-danger/, 'heat-capacity toast queue should share the formal danger color token');
-assert.match(workbenchSource, /overlayCenter=\{heatCapacityCenterOverlay\}[\s\S]*data-heat-capacity-demo-complete-toast="true"|data-heat-capacity-demo-complete-toast="true"[\s\S]*overlayCenter=\{heatCapacityCenterOverlay\}/, 'normal auto demo completion should use the centered overlay slot');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /data-heat-capacity-demo-complete-toast="true"/, "normal auto demo completion should use the centered overlay slot");
 assert.match(styleSource, /\.studio-heat-demo-complete-toast \{[\s\S]*studioOverlayFadeIn[\s\S]*studioOverlayFadeOut/, 'centered demo completion toast should use fade-only in and out');
 assert.match(styleSource, /\.studio-heat-toast-kicker \{[\s\S]*font-family: "JetBrains Mono"/, 'toast overlays should use compact engineering kicker labels');
 assert.doesNotMatch(styleSource, /@keyframes heatDemoFocusPulse/, 'unused CSS keyframes should not remain after Three.js-driven focus halos');
@@ -1624,28 +1663,28 @@ assert.match(workbenchSource, /HeatCapacityInstrumentScene/);
 assert.match(modeTypesSource, /export type HeatCapacityMode = 'demo' \| 'guide' \| 'free'/, 'heat-capacity modes should have one shared domain type');
 assert.match(workbenchSource, /HeatCapacityMode,[\s\S]{0,100}from '\.\/workbenchHeatCapacityStateTypes\.ts'/, 'heat-capacity preview should use the shared mode type from the extracted state boundary instead of a local duplicate');
 assert.match(modeControlModelSource, /selectHeatCapacityModeControlState/, 'heat-capacity mode action visibility should be selected by a dedicated model');
-assert.match(workbenchSource, /data-heat-capacity-mode-control="true"/, 'heat-capacity preview should render one unified top-right mode control');
-assert.match(workbenchSource, /<div className="studio-panel-actions">[\s\S]*renderHeatCapacityModeControl\(\)/, 'heat-capacity mode control should sit in the preview header where the old auto-demo button was');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-control="true"/, 'heat-capacity preview should render one unified top-right mode control');
+assert.match(workbenchDockHeaderSource, /<div className="studio-panel-actions">[\s\S]*renderHeatCapacityModeControl\(\)/, 'heat-capacity mode control should sit in the preview header where the old auto-demo button was');
 assert.doesNotMatch(workbenchSource, /overlayTopRight=\{heatCapacityTopRightOverlay\}[\s\S]{0,900}data-heat-capacity-mode-control="true"/, 'heat-capacity mode control should not occupy the 3D model overlay space');
-assert.match(workbenchSource, /data-heat-capacity-mode="demo"[\s\S]*data-heat-capacity-mode="guide"[\s\S]*data-heat-capacity-mode="free"/, 'top mode control should keep the order: demo, guide, free');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="pause-demo"/, 'demo mode expansion should expose pause');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="resume-demo"/, 'paused demo mode expansion should expose resume');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="stop-demo"/, 'demo mode expansion should expose stop');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="pause-demo"[\s\S]{0,260}>\s*<Pause/, 'demo pause action should use the same icon-only pause control as other experiment run buttons');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="resume-demo"[\s\S]{0,260}>\s*<Play/, 'demo resume action should use the same icon-only play control as other experiment run buttons');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="stop-demo"[\s\S]{0,260}>\s*<Square/, 'demo stop action should use the same icon-only stop control as other experiment run buttons');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode="demo"[\s\S]*data-heat-capacity-mode="guide"[\s\S]*data-heat-capacity-mode="free"/, 'top mode control should keep the order: demo, guide, free');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="pause-demo"/, 'demo mode expansion should expose pause');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="resume-demo"/, 'paused demo mode expansion should expose resume');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="stop-demo"/, 'demo mode expansion should expose stop');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="pause-demo"[\s\S]{0,260}>\s*<Pause/, 'demo pause action should use the same icon-only pause control as other experiment run buttons');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="resume-demo"[\s\S]{0,260}>\s*<Play/, 'demo resume action should use the same icon-only play control as other experiment run buttons');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="stop-demo"[\s\S]{0,260}>\s*<Square/, 'demo stop action should use the same icon-only stop control as other experiment run buttons');
 assert.match(modeControlModelSource, /teachingCompleted[\s\S]*\[\{ id: 'exit-teaching', tone: 'danger' \}\][\s\S]*id: 'stop-demo'/, 'completed demo mode should select one explicit teaching-exit action instead of stop controls');
 assert.match(modeControlModelSource, /id: teachingCompleted \? 'exit-teaching' : 'exit-guide'[\s\S]*tone: 'danger'/, 'guide mode expansion should switch from stop to explicit exit when completed');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-teaching"[\s\S]*<LogOut/, 'completed teaching exit should use a distinct exit icon');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-guide"[\s\S]*<Square/, 'running guide exit should keep the stop icon');
-assert.match(workbenchSource, /const heatCapacityModeActionClassName = \(action: HeatCapacityModeControlAction\) => \{[\s\S]*action\.tone === 'danger'[\s\S]*studio-heat-mode-action-danger/, 'completed guide exit should keep the same red stop-style color through the shared action renderer');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="exit-teaching"[\s\S]*<LogOut/, 'completed teaching exit should use a distinct exit icon');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="exit-guide"[\s\S]*<Square/, 'running guide exit should keep the stop icon');
+assert.match(workbenchHeatCapacityModeControlSource, /const heatCapacityModeActionClassName = \(action: HeatCapacityModeControlAction\) => \{[\s\S]*action\.tone === 'danger'[\s\S]*studio-heat-mode-action-danger/, 'completed guide exit should keep the same red stop-style color through the shared action renderer');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-mode-action="next-trial"/, 'guide mode should not reveal an old next-trial action');
-assert.match(workbenchSource, /className="studio-heat-mode-actions studio-heat-mode-actions-demo"[\s\S]*heatCapacityModeControlState\.demo\.actions\.map\(renderHeatCapacityModeAction\)/, 'demo actions should be rendered from the dedicated mode-control model inside the demo segment');
-assert.match(workbenchSource, /className="studio-heat-mode-actions studio-heat-mode-actions-guide"[\s\S]*heatCapacityModeControlState\.guide\.actions\.map\(renderHeatCapacityModeAction\)/, 'guide actions should be rendered from the dedicated mode-control model inside the guide segment');
+assert.match(workbenchHeatCapacityModeControlSource, /className="studio-heat-mode-actions studio-heat-mode-actions-demo"[\s\S]*heatCapacityModeControlState\.demo\.actions\.map\(renderHeatCapacityModeAction\)/, 'demo actions should be rendered from the dedicated mode-control model inside the demo segment');
+assert.match(workbenchHeatCapacityModeControlSource, /className="studio-heat-mode-actions studio-heat-mode-actions-guide"[\s\S]*heatCapacityModeControlState\.guide\.actions\.map\(renderHeatCapacityModeAction\)/, 'guide actions should be rendered from the dedicated mode-control model inside the guide segment');
 assert.doesNotMatch(workbenchSource, /HEAT_CAPACITY_GUIDE_NEXT_TRIAL_DELAY_MS/, 'next-trial reveal delay should be removed with guide multi-trial flow');
 assert.match(heatCapacityRealtimeCopySource, /真实实验中需要等待系统稳定；程序已省略该等待过程。/, 'guide mode should show the confirmed omitted-stability-wait notice');
 assert.doesNotMatch(workbenchSource, /setHeatCapacityGuideNextTrialReadyKey|nextTrialKey/, 'next-trial reveal key should be removed');
-assert.match(workbenchSource, /data-heat-capacity-trial-badge=\{badge\.key === 'trial' \? 'true' : undefined\}/, 'current guide trial should move to a right-sidebar badge');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /data-heat-capacity-trial-badge=\{badge\.key === 'trial' \? 'true' : undefined\}/, 'current guide trial should move to a right-sidebar badge');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-manual-reset="true"/, 'old bottom-right guide start button should be removed');
 assert.doesNotMatch(workbenchSource, /startGuideExperiment:\s*'开始手动实验'|startGuideExperiment:\s*'開始手動實驗'|startGuideExperiment:\s*'Start Manual Trial'/, 'user-facing guide start copy should be renamed to guide mode');
 assert.match(styleSource, /\.studio-heat-mode-control/, 'unified mode control should have dedicated styling');
@@ -1669,12 +1708,13 @@ assert.doesNotMatch(workbenchSource, /nextTrialRequired|calculateRequired|startN
 assert.match(workbenchSource, /guardGuideHeatCapacityAction/, 'guide heat-capacity controls should pass through one shared guard');
 assert.match(workbenchSource, /guideHeatCapacityActiveFileId/, 'guide heat-capacity tutorial should have an explicit active file binding');
 assert.match(workbenchSource, /guideHeatCapacityActiveFileId !== activeFile\.id\) return true/, 'guide guards should not constrain users before the guide tutorial is started');
-assert.match(workbenchSource, /'data-heat-capacity-guide-step-hint': 'true'/, 'guide heat-capacity guard should surface a centered shared viewport hint in the 3D preview');
-assert.match(workbenchSource, /studio-heat-record-controls-pulse/, 'guide heat-capacity guard should pulse the record entry when recording is the next required action');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /'data-heat-capacity-guide-step-hint': 'true'/, 'guide heat-capacity guard should surface a centered shared viewport hint in the 3D preview');
+assert.match(workbenchHeatCapacityGuideStepsSource, /studio-heat-record-controls-pulse/, 'guide heat-capacity guard should pulse the record entry when recording is the next required action');
+assert.match(workbenchHeatCapacityRecordControlsSource, /studio-heat-record-controls-pulse/, 'guide heat-capacity guard should pulse the record entry when recording is the next required action');
 assert.match(workbenchSource, /const recordHeatCapacityGuideSample = \(kind: HeatCapacityGuideRecordKind\)[\s\S]*const currentFile = filesRef\.current\.find\(\(file\) => file\.id === activeFile\.id\);[\s\S]*applyHeatCapacityGuideRecordWorkbenchState\(currentFile,\s*kind,\s*now\)/, 'direct record buttons should route through the guide domain guard using the latest active file');
 assert.match(guideControlStateSource, /const activeDisplay = selectActiveHeatCapacityWorkbenchDisplay\(currentFile\);[\s\S]*displayPressureMv:\s*activeDisplay\.pressureMv[\s\S]*displayTemperatureMv:\s*activeDisplay\.temperatureMv/, 'guided U0/U1/U2 recording should write the current instrument readings into the single guide trial');
 assert.match(workbenchSource, /if \(attempt\.accepted\) \{[\s\S]*showHeatCapacityRecordButtonExit\(kind\);[\s\S]*setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null;[\s\S]*showHeatCapacityRecordSuccessSequence/, 'successful guided U0/U1/U2 recording should automatically leave the focus view before the next guided target pulse');
-assert.match(workbenchSource, /guideHeatCapacityActiveFileId === activeFile\.id[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'guide mode should only show the record button required by the current workflow step');
+assert.match(workbenchHeatCapacityRecordControlsSource, /guideHeatCapacityActiveFileId === activeFile\.id[\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'guide mode should only show the record button required by the current workflow step');
 assert.doesNotMatch(workbenchSource, /guideHeatCapacityActiveFileId === activeFile\.id && activeFile\.powerOn[\s\S]*recordU0Required/, 'record buttons should not depend on a second powerOn gate once the guide workflow has reached a record step');
 assert.match(guideDecisionsSource, /const isGuideU1RecordReady =/, 'guide U1 record readiness should be centralized in a stable-window helper');
 assert.match(guideDecisionsSource, /const isGuideU2RecordReady =/, 'guide U2 record readiness should be centralized in a stable-window helper');
@@ -1754,8 +1794,8 @@ assert.match(workbenchSource, /gaugePressureMinKPa=\{activeFile\.gaugePressureMi
 assert.match(workbenchSource, /gaugePressureMaxKPa=\{activeFile\.gaugePressureMaxKPa\}/, 'workbench should pass gauge pressure max into the 3D pressure gauge');
 assert.match(workbenchSource, /pressureSafetyThresholdKPa=\{activeFile\.pressureSafetyThresholdKPa\}/, 'workbench should pass safety threshold into the 3D pressure gauge');
 assert.match(workbenchSource, /pressureOverLimit=\{activeFile\.pressureOverLimit\}/, 'workbench should pass pressure over-limit state into the 3D pressure gauge');
-assert.match(workbenchSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
-assert.match(workbenchSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /data-heat-capacity-pressure-warning="true"/, 'workbench should render a centered red pressure warning from pressureOverLimit');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /studio-heat-pressure-warning-kicker/, 'pressure warning markup should include an engineering status kicker');
 assert.match(heatCapacityRealtimeCopySource, /pressureAlarmTitle:\s*'报警'/, 'center alarm title should be alarm, not generic danger warning');
 assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_INSUFFICIENT_THRESHOLD_MV = 90/, 'interactive pumping should consider 90 mV sufficient instead of the old 100 mV gate');
 assert.match(instrumentStateSource, /HEAT_CAPACITY_PRESSURE_WARNING_THRESHOLD_MV = 120/, 'suggested stop hint should begin at the confirmed 120 mV target');
@@ -1773,8 +1813,8 @@ assert.match(workbenchSource, /HEAT_CAPACITY_CLOSE_PUMP_VALVE_REMINDER_AFTER_ALA
 assert.match(heatCapacityRealtimeCopySource, /closePumpValveReminder:\s*'请关闭打气阀门。'/, 'alarm follow-up should ask the user to close the pump valve through localized copy');
 assert.match(heatCapacityRealtimeCopySource, /closePumpValveReminder:\s*'Close the pump valve\.'/, 'alarm follow-up should have English localized copy');
 assert.match(workbenchSource, /heatCapacityPressureAlarmVisible/, 'center pressure alarm should be controlled by a transient visible state instead of staying mounted while over limit');
-assert.match(workbenchSource, /const effectivePressureSafetyStatus = activeHeatCapacityPressureAlarmVisible \? 'danger' : activeFile\.pressureSafetyStatus/, 'right-side safety card should show danger only while the active file owns the center alarm');
-assert.match(workbenchSource, /studio-heat-safety-\$\{effectivePressureSafetyStatus\}/, 'right-side safety card color should follow the effective visible alarm status');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /const effectivePressureSafetyStatus = activeHeatCapacityPressureAlarmVisible \? 'danger' : activeFile\.pressureSafetyStatus/, 'right-side safety card should show danger only while the active file owns the center alarm');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /studio-heat-safety-\$\{effectivePressureSafetyStatus\}/, 'right-side safety card color should follow the effective visible alarm status');
 assert.match(workbenchSource, /showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'pressureWarning'\)/, 'suggested-stop hint should use ordinary info styling while keeping localized copy visible');
 assert.match(toastPolicySource, /pressureWarning:\s*\{[\s\S]*level:\s*'info'[\s\S]*priority:\s*HEAT_CAPACITY_PRESSURE_WARNING_TOAST_PRIORITY[\s\S]*source:\s*'pressure-warning'/, 'prewarning should have an explicit safety toast policy above ordinary guidance');
 assert.match(toastPolicySource, /pressureAlarm:\s*\{[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY[\s\S]*source:\s*'pressure-alarm'[\s\S]*pressureCloseValve:\s*\{[\s\S]*priority:\s*HEAT_CAPACITY_CRITICAL_TOAST_PRIORITY[\s\S]*source:\s*'pressure-close-valve'/, 'alarm and close-valve reminders should have an explicit policy above prewarning');
@@ -1794,7 +1834,7 @@ assert.match(toastPolicySource, /pressureCloseValve:\s*\{[\s\S]*interrupt:\s*tru
 assert.match(workbenchSource, /else if \(pressureStatusAfterPump === 'warning'\) \{[\s\S]*showHeatCapacityPolicyToast\(heatCapacityRealtimeCopy\.pressureWarningMessage,\s*'pressureWarning'\)/, 'suggested-stop hint should remain visible when the user continues pumping inside the warning band');
 assert.doesNotMatch(workbenchSource, /pressureStatusAfterPump === 'warning' && pressureStatusBeforePump === 'normal'/, 'prewarning should not depend only on a perfect normal-to-warning transition');
 assert.match(workbenchSource, /clearHeatCapacityToastQueue\(\)[\s\S]*setHeatCapacityPressureAlarmVisible\(true\)/, 'showing the center alarm should immediately remove the bottom warning hint');
-assert.match(workbenchSource, /<span>\{heatCapacityRealtimeCopy\.pressureWarningFallback\}<\/span>/, 'center pressure alarm should always show the confirmed alarm message instead of a stale realtime safety message');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /<span>\{heatCapacityRealtimeCopy\.pressureWarningFallback\}<\/span>/, 'center pressure alarm should always show the confirmed alarm message instead of a stale realtime safety message');
 assert.doesNotMatch(workbenchSource, /activeFile\.pressureSafetyMessage \?\? heatCapacityRealtimeCopy\.pressureWarningFallback/, 'center pressure alarm must not reuse warning-region safety copy');
 assert.match(workbenchSource, /const showHeatCapacityPressureAlarm = [\s\S]*exitHeatCapacityFocusMode\(\);/, 'pressure alarm should exit any active focus mode');
 assert.doesNotMatch(workbenchSource, /shouldBlockHeatCapacityPumpForPressureDanger/, 'pressure danger must not keep the user out of pump focus or suppress physical press feedback');
@@ -1853,7 +1893,7 @@ assert.match(getLastRootCssBlock('.studio-heat-pressure-warning'), /backdrop-fil
 assert.match(styleSource, /\.studio-heat-pressure-warning \{[\s\S]*animation:\s*studioOverlayFadeIn/, 'center alarm should fade in without movement or scale');
 assert.match(workbenchSource, /temperatureSignalMv=\{activeFile\.powerOn && !activeHeatCapacityPreheatLocked \? activeHeatCapacityDisplay\.temperatureMv : null\}/, 'instrument screens should read the active temperature display channel by mode and hide it during preheat');
 assert.match(workbenchSource, /pressureSignalMv=\{activeFile\.powerOn && !activeHeatCapacityPreheatLocked \? activeHeatCapacityDisplay\.pressureMv : null\}/, 'instrument screens should read the active pressure display channel by mode and hide it during preheat');
-assert.match(workbenchSource, /<HeatCapacityPreheatOverlay[\s\S]*paused=\{heatCapacityRefreshRestoring \|\| heatCapacityModeTransitionLocked \|\| \([\s\S]*activeHeatCapacityPreheatMode === 'demo' && autoDemoPaused[\s\S]*\)\}/, 'all heat-capacity modes should freeze the shared preheat overlay during refresh restoration or a mode transition, while Demo also follows the explicit pause state');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /<HeatCapacityPreheatOverlay[\s\S]*paused=\{heatCapacityRefreshRestoring \|\| heatCapacityModeTransitionLocked \|\| \([\s\S]*activeHeatCapacityPreheatMode === 'demo' && autoDemoPaused[\s\S]*\)\}/, 'all heat-capacity modes should freeze the shared preheat overlay during refresh restoration or a mode transition, while Demo also follows the explicit pause state');
 assert.equal((workbenchSource.match(/normalizeHeatCapacityAutoDemoResumeCursor\(timeline,/g) ?? []).length, 2, 'mode-session return and page-refresh return must share the same interrupted-preheat normalization model');
 assert.match(workbenchSource, /overlayCenter=\{heatCapacityCenterOverlay\}[\s\S]*overlayCenterAboveGuideMask/, 'modal content and information toasts should be raised above scene locks, guide panels, and strong reminders');
 assert.match(sceneSource, /studio-preview-overlay-center-above-guide-mask/, 'scene overlay should expose an explicit modal-above-mask layer');
@@ -1872,8 +1912,8 @@ assert.match(sceneSource, /name="PressureDisplayChannelLabelText"\s+position=\{\
 assert.match(sceneSource, /name="TemperatureInputPortLabelText"\s+position=\{\[-0\.64, -0\.23, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'temperature input label should keep its safe lower-panel position');
 assert.match(sceneSource, /name="PressureInputPortLabelText"\s+position=\{\[-0\.08, -0\.24, 0\.505\]\}\s+size=\{INSTRUMENT_PANEL_INPUT_LABEL_TEXT_SIZE\}/, 'pressure input label should keep its safe lower-panel position');
 assert.match(sceneSource, /formatSignal = \(value: number \| null, fallback = '--\.- mV'\)[\s\S]*formatHeatCapacitySignalMv\(value\)/, '3D instrument model panel should show sensor mV readings to 0.1 mV');
-assert.match(workbenchSource, /const temperatureSignalValue =[\s\S]*formatHeatCapacitySignalMv\(activeFile\.temperatureSignalMv\)/, 'right realtime model panel should show temperature mV readings to 0.1 mV without rounding up');
-assert.match(workbenchSource, /const pressureSignalValue =[\s\S]*formatHeatCapacitySignalMv\(activeFile\.pressureSignalMv\)/, 'right realtime model panel should show pressure mV readings to 0.1 mV without rounding up');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /const temperatureSignalValue =[\s\S]*formatHeatCapacitySignalMv\(activeFile\.temperatureSignalMv\)/, 'right realtime model panel should show temperature mV readings to 0.1 mV without rounding up');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /const pressureSignalValue =[\s\S]*formatHeatCapacitySignalMv\(activeFile\.pressureSignalMv\)/, 'right realtime model panel should show pressure mV readings to 0.1 mV without rounding up');
 assert.match(workbenchSource, /updateHeatCapacityPower/);
 assert.match(workbenchSource, /updateHeatCapacityStopcockOpen/);
 assert.doesNotMatch(workbenchSource, /const updateHeatCapacityStopcockAngle/, 'Workbench should not keep the continuous stopcock angle updater');
@@ -1902,7 +1942,8 @@ assert.match(workbenchSource, /const terminateHeatCapacityAutoDemo = \(\) => \{[
 assert.doesNotMatch(workbenchSource, /future batch|后续批次|後續批次/, 'heat capacity pause and stop controls should now have real behavior');
 assert.match(workbenchSource, /showHeatCapacityAutoDemoLockedToast/, 'workbench should show a single locked-interaction toast');
 assert.match(heatCapacityRealtimeCopySource, /Cannot operate during (?:the )?demo|演示中无法操作|演示中無法操作/, 'locked heat capacity preview clicks should show the required toast text');
-assert.match(workbenchSource, /studio-heat-toast-kicker/, 'toast markup should include engineering status kicker labels');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /studio-heat-toast-kicker/, 'toast markup should include engineering status kicker labels');
+assert.match(workbenchPistonOscillationPreviewSource, /studio-heat-toast-kicker/, 'toast markup should include engineering status kicker labels');
 assert.match(heatCapacityRealtimeCopySource, /Demo complete|演示完成|演示完成/, 'normal heat capacity demo completion should show a centered completion message');
 assert.match(workbenchSource, /onFocusModeChange=\{updateHeatCapacityFocusMode\}/, 'workbench should route heat-capacity focus changes through the focus-session policy');
 assert.match(workbenchSource, /setHeatCapacityFocusResetKey\(\(key\) => key \+ 1\);[\s\S]*heatCapacityFocusSessionRef\.current = null/, 'auto demo should reset the heat scene to the default view before starting');
@@ -1911,16 +1952,24 @@ assert.match(workbenchSource, /autoDemoStepPanelMode/, 'workbench should keep th
 assert.match(workbenchSource, /hideHeatCapacityAutoDemoStepPanel\(\)/, 'normal completion and termination should slide the auto demo step panel out instead of leaving it pinned');
 assert.match(workbenchSource, /timelineItem\.focusControlId/, 'auto demo timeline should support per-highlight focus targets inside one semantic step');
 assert.match(
-  workbenchSource,
-  /createDefaultHeatCapacityFile\(index, workbenchLayoutDefaults\.heatCapacity\);[\s\S]*enterHeatCapacityExploreModeWorkbenchState\([\s\S]*if \(file\.kind === 'heatCapacity'\) \{[\s\S]*clearHeatCapacityAutoDemoUiState\(\);/,
-  'creating a fresh heat-capacity file should enter Explore and clear stale auto-demo UI',
+  readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'),
+  /createDefaultHeatCapacityFile\(index, workbenchLayoutDefaults\.heatCapacity\);[\s\S]*enterHeatCapacityExploreModeWorkbenchState\([\s\S]*activateHeatCapacityFileModeSession\(file\.id\)/,
+  'a fresh heat-capacity file should enter Explore and activate through the shared mode owner',
+);
+assert.match(workbenchSource, /applyMode: \(file, checkpoint\) => applyHeatCapacityModeUiProjection\(file, checkpoint\)/);
+assert.match(workbenchSource, /const applyHeatCapacityModeUiProjection = \([\s\S]*?clearHeatCapacityModeTransientUiRuntime\(\);/);
+assert.match(workbenchSource, /const clearHeatCapacityModeTransientUiRuntime = \(\) => \{[\s\S]*?clearHeatCapacityAutoDemoUiState\(\);/);
+assert.match(
+  readFileSync(new URL('../../src/features/workbench/workbenchHeatCapacityModeActions.ts', import.meta.url), 'utf8'),
+  /const activateFile = \(fileId: string\) => \{[\s\S]*?ports\.ui\.applyMode\(target\.file, target\.checkpoint\)/,
+  'file activation must route through the UI cleanup projection before exposing the fresh mode',
 );
 assert.match(workbenchSource, /renderScientificText/, 'visible heat-capacity labels should render U variables with real subscripts');
 assert.doesNotMatch(workbenchSource, /renderHeatCapacityStopcockMiniReadout|studio-heat-stopcock-mini-readout|data-heat-capacity-stopcock-mini-readout|GAUGE kPa|heatCapacityFocusMode === 'stopcock'/, 'stopcock mini readout should be removed with the shared valve focus mode');
 assert.doesNotMatch(styleSource, /studio-heat-stopcock-mini-/, 'stopcock mini readout styles should be removed');
 assert.match(workbenchSource, /autoDemoStepTitle/, 'workbench should drive the right-top auto demo step panel');
-assert.match(workbenchSource, /studio-heat-demo-step-panel/, 'preview should render the auto demo step panel inside the model window');
-assert.match(workbenchSource, /'data-heat-capacity-toast': 'true'/, 'preview should render locked interaction feedback through the unified heat-capacity toast queue');
+assert.match(workbenchHeatCapacityDemoStepsSource, /studio-heat-demo-step-panel/, 'preview should render the auto demo step panel inside the model window');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /'data-heat-capacity-toast': 'true'/, 'preview should render locked interaction feedback through the unified heat-capacity toast queue');
 assert.match(workbenchSource, /heatCapacityToastCurrentRef/, 'guide heat-capacity toasts should track the currently displayed message');
 assert.match(workbenchSource, /heatCapacityToastPendingRef/, 'guide heat-capacity toasts should retain only one pending message');
 assert.match(toastControllerSource, /HEAT_CAPACITY_TOAST_DISPLAY_DURATION_MS:\s*number = PROMPT_TOAST_DURATION_MS\.short/, 'guide heat-capacity feedback should share the formal short-duration policy');
@@ -1938,7 +1987,7 @@ assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset/, 'auto de
 assert.match(workbenchSource, /commitHeatCapacityAutoDemoDefaultReset[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'auto demo reset should replace source-mode runtime with a canonical powered-off Demo state');
 assert.match(modeActivationSource, /targetMode === 'demo'[\s\S]{0,500}prepareHeatCapacityAutoDemoReset/, 'fresh Demo mode preparation should be canonical before its first scripted action');
 assert.doesNotMatch(workbenchSource, /animateHeatCapacityPressureZero|animateHeatCapacityDefaultReset/, 'auto demo should not keep the old Workbench-owned reset or pressure-zero animation functions');
-assert.match(workbenchSource, /data-heat-capacity-mode="demo"/, 'preview header should expose heat-capacity demo mode through the unified mode bar');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode="demo"/, 'preview header should expose heat-capacity demo mode through the unified mode bar');
 assert.match(workbenchSource, /stepHeatCapacityWorkbenchFile/, 'workbench should step the heat capacity process model from the shared file state');
 assert.match(workbenchSource, /captureHeatCapacityWorkbenchSample/, 'workbench should capture process sample placeholders without formal p0/p1/p2 records');
 assert.match(workbenchSource, /heatCapacityPumpAnimationRef/, 'pump bulb animation should be retriggerable instead of locked by old timers');
@@ -1946,17 +1995,17 @@ assert.match(workbenchSource, /clearHeatCapacityPumpAnimationTimers/, 'new pump 
 assert.doesNotMatch(workbenchSource, /pumpBulbState === 'compressing'[\s\S]{0,80}return/, 'rapid pump clicks should not be ignored while the bulb is compressing');
 assert.doesNotMatch(workbenchSource, /pumpBulbState === 'releasing'[\s\S]{0,80}return/, 'rapid pump clicks should not be ignored while the bulb is releasing');
 assert.match(workbenchSource, /setInterval[\s\S]*refreshHeatCapacityPumpFrequency/, 'pump frequency should refresh on a sliding window even after clicking stops');
-assert.match(workbenchSource, /data-heat-capacity-realtime-header="true"/, 'fixed realtime window should have a dedicated monitor header');
-assert.match(workbenchSource, /data-heat-capacity-live-readings="true"/, 'fixed realtime window should group live readings');
-assert.match(workbenchSource, /data-heat-capacity-operation-status="true"/, 'fixed realtime window should group safety and operation status');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /data-heat-capacity-realtime-header="true"/, 'fixed realtime window should have a dedicated monitor header');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /data-heat-capacity-live-readings="true"/, 'fixed realtime window should group live readings');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /data-heat-capacity-operation-status="true"/, 'fixed realtime window should group safety and operation status');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-live-charts="true"/, 'fixed realtime window should not mount Heat Capacity realtime charts');
-assert.match(workbenchSource, /data-heat-capacity-current-hint="true"/, 'fixed realtime window should expose a concise current hint');
-assert.match(workbenchSource, /getHeatCapacityPhaseLabel/, 'fixed realtime window should map internal heat-capacity phase ids to readable labels');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /data-heat-capacity-current-hint="true"/, 'fixed realtime window should expose a concise current hint');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /getHeatCapacityPhaseLabel/, 'fixed realtime window should map internal heat-capacity phase ids to readable labels');
 assert.match(workbenchSource, /getHeatCapacityRealtimeCopy/, 'fixed realtime Heat Capacity copy should be localized outside the render body');
 assert.match(workbenchSource, /settingsLanguagePreference/, 'fixed realtime Heat Capacity panel should read the current language preference');
-assert.match(workbenchSource, /const heatCapacityHeaderBadges = \[/, 'fixed realtime header should render a compact dynamic badge list');
-assert.match(workbenchSource, /label: `\$\{heatCapacityRealtimeCopy\.stagePrefix\}\$\{phaseLabel\}`/, 'fixed realtime header should keep stage as the only always-visible localized badge');
-assert.match(workbenchSource, /className="studio-heat-monitor-title"/, 'fixed realtime header title should have its own shrink-safe layout target');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /const heatCapacityHeaderBadges = \[/, 'fixed realtime header should render a compact dynamic badge list');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /label: `\$\{heatCapacityRealtimeCopy\.stagePrefix\}\$\{phaseLabel\}`/, 'fixed realtime header should keep stage as the only always-visible localized badge');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /className="studio-heat-monitor-title"/, 'fixed realtime header title should have its own shrink-safe layout target');
 assert.match(styleSource, /\.studio-realtime-panel-heat \{[\s\S]*container-type: inline-size;/, 'heat realtime panel should expose an inline container for narrow header layout rules');
 assert.match(styleSource, /\.studio-heat-monitor-header \{[\s\S]*display: grid;[\s\S]*grid-template-columns: minmax\(0, 1fr\) fit-content\(62%\);/, 'heat realtime header should use a two-column grid that prevents badge/title overlap');
 assert.match(styleSource, /\.studio-heat-monitor-title \{[\s\S]*min-width: 0;/, 'heat realtime title column should be allowed to shrink without being covered by badges');
@@ -1966,14 +2015,14 @@ assert.match(styleSource, /@container \(max-width: 430px\) \{[\s\S]*\.studio-hea
 assert.doesNotMatch(workbenchSource, /phase === 'demoComplete'/, 'fixed realtime header should not keep the removed auto-demo terminal phase');
 assert.doesNotMatch(workbenchSource, /heatCapacityDisplayPhase === 'demoComplete'/, 'fixed realtime hint should not branch on the removed auto-demo terminal phase');
 assert.doesNotMatch(workbenchSource, /demoComplete:\s*'[^']*'/, 'fixed realtime phase labels and hints should not keep demoComplete entries');
-assert.match(workbenchSource, /autoDemoPaused\s*\?\s*heatCapacityRealtimeCopy\.demoPaused[\s\S]*autoDemoRunning\s*\?\s*heatCapacityRealtimeCopy\.demoRunning[\s\S]*heatCapacityRealtimeCopy\.demoReady/, 'fixed realtime header should show localized automation badges only for active demo states');
-assert.match(workbenchSource, /label: heatCapacityRealtimeCopy\.operationLocked/, 'fixed realtime header should show localized lock status only when interaction is locked');
-assert.match(workbenchSource, /heatCapacityHeaderBadges\.map\(\(badge\)/, 'fixed realtime header should render badges from the compact display model');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /autoDemoPaused\s*\?\s*heatCapacityRealtimeCopy\.demoPaused[\s\S]*autoDemoRunning\s*\?\s*heatCapacityRealtimeCopy\.demoRunning[\s\S]*heatCapacityRealtimeCopy\.demoReady/, 'fixed realtime header should show localized automation badges only for active demo states');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /label: heatCapacityRealtimeCopy\.operationLocked/, 'fixed realtime header should show localized lock status only when interaction is locked');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /heatCapacityHeaderBadges\.map\(\(badge\)/, 'fixed realtime header should render badges from the compact display model');
 assert.doesNotMatch(workbenchSource, /const powerLabel = activeFile\.powerOn \? '宸插紑鏈? : '鏈紑鏈?/, 'fixed realtime header should not keep a separate always-visible power badge');
 assert.doesNotMatch(workbenchSource, /const modeLabel = [^\n]*'手动'/, 'fixed realtime header should not keep an old default mode badge');
 assert.doesNotMatch(workbenchSource, /const lockLabel = [^\n]*'鍙搷浣?/, 'fixed realtime header should not keep a default actionable badge');
 assert.doesNotMatch(workbenchSource, /\{powerLabel\}|\{modeLabel\}|\{lockLabel\}/, 'fixed realtime header should not render the removed static power/mode/lock labels');
-assert.match(workbenchSource, /currentDeltaPKPa[\s\S]*activeFile\.pressureSignalMv[\s\S]*activeFile\.pressureSensitivityMvPerKPa/, 'fixed realtime window should derive current delta pressure from displayed Uₚ and the shared sensitivity');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /currentDeltaPKPa[\s\S]*activeFile\.pressureSignalMv[\s\S]*activeFile\.pressureSensitivityMvPerKPa/, 'fixed realtime window should derive current delta pressure from displayed Uₚ and the shared sensitivity');
 assert.match(styleSource, /\.studio-heat-operation-status \{[\s\S]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\)/, 'operation status should stay as one row of three control states');
 assert.match(styleSource, /\.studio-realtime-panel-heat \{[\s\S]*grid-template-rows: auto auto auto auto;/, 'heat realtime panel should only reserve rows for header, readings, operation status, and hint');
 assert.doesNotMatch(getCssBlock('.studio-heat-reading-card-primary'), /inset\s+\d+px\s+0\s+0|56,\s*189,\s*248/, 'heat realtime primary reading cards should not use a decorative blue left rail');
@@ -1984,16 +2033,16 @@ assert.match(workbenchSource, /pressureStatus|Pressure status|压力状态|壓�
 assert.match(workbenchSource, /pumpValve|Pump valve|打气阀门|打氣閥門/);
 assert.match(presentationWorkbenchHeatCapacityGuidePresentationSource, /glassStopcock|Glass stopcock|玻璃旋塞/);
 assert.match(workbenchSource, /zeroStatusLabel|pressureZero|Pressure zero|压强调零|壓強調零/);
-assert.match(workbenchSource, /currentHint|Current hint|当前提示|目前提示/);
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /currentHint|Current hint|当前提示|目前提示/);
 assert.doesNotMatch(workbenchSource, /<div><span>閲囨牱璁板綍<\/span>/, 'fixed realtime window should not show the full process-sample table entry');
 assert.doesNotMatch(workbenchSource, /<div><span>鐩爣 \{renderScientificText\('Uₜ'\)/, 'fixed realtime window should not show target temperature debug fields');
 assert.doesNotMatch(workbenchSource, /<div><span>鐩爣 \{renderScientificText\('Uₚ'\)/, 'fixed realtime window should not show target pressure debug fields');
 assert.doesNotMatch(workbenchSource, /<div><span>闆剁偣鍋忕Щ<\/span>/, 'fixed realtime window should not show pressure-zero offset as a constant debug field');
 assert.doesNotMatch(workbenchSource, /<div><span>压强余量<\/span>/, 'fixed realtime window should not show pressure headroom as a constant debug field');
 assert.doesNotMatch(workbenchSource, /<div><span>压力安全<\/span>/, 'operation status should not repeat pressure safety under the safety card');
-assert.match(workbenchSource, /Uₜ \/ mV/);
-assert.match(workbenchSource, /Uₚ \/ mV/);
-assert.match(workbenchSource, /ΔP \/ kPa/, 'fixed realtime window should use the delta symbol for pressure difference');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /Uₜ \/ mV/);
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /Uₚ \/ mV/);
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /ΔP \/ kPa/, 'fixed realtime window should use the delta symbol for pressure difference');
 assert.doesNotMatch(workbenchSource, /heatCapacityTrace/, 'Heat Capacity should not keep realtime chart trace in the workbench component');
 assert.doesNotMatch(workbenchSource, /<polyline points=\{points\} \/>/, 'Heat Capacity realtime polyline renderer should be removed');
 assert.doesNotMatch(styleSource, /studio-heat-trace|studio-heat-live-chart/, 'Heat Capacity realtime chart CSS should be removed');
@@ -2002,7 +2051,7 @@ assert.equal(existsSync(join(process.cwd(), 'src', 'features', 'heatCapacity', '
 assert.match(workbenchSource, /renderHeatCapacityMaterialsWindow/, 'Heat Capacity should have a browser-style materials/results window');
 assert.match(workbenchSource, /openAllHeatCapacityMaterialsTabs/, 'double-clicking the Heat Capacity materials group should open all child tabs');
 assert.match(heatCapacityMaterialsWindowCoordinatorSource, /const activeHeatCapacityTabId = openHeatCapacityTabs\[0\];[\s\S]*if \(!activeHeatCapacityTabId\) return \{ kind: 'ignored' \};/, 'an unavailable mode-specific materials group must not open a fallback tab');
-assert.match(workbenchSource, /materialPanels\.length > 0[\s\S]*studio-heat-materials-group/, 'the Heat Capacity materials group should only render when the active mode has available children');
+assert.match(workbenchHeatCapacityPanelTreeSource, /materialPanels\.length > 0[\s\S]*studio-heat-materials-group/, 'the Heat Capacity materials group should only render when the active mode has available children');
 assert.doesNotMatch(workbenchSource, /filter\(\(tabId\) => tabId !== 'records'/, 'the data/results tab should stay reachable independently from the mandatory calculation window');
 assert.doesNotMatch(workbenchSource, /tabId === 'review'[\s\S]{0,180}activeHeatCapacityCalculationSession\?\.status !== 'completed'/, 'process review should open for a new group and render its empty current-group state');
 assert.doesNotMatch(workbenchSource, /recordHeatCapacityU1|recordHeatCapacityU2|calculateHeatCapacityMeanResult|createHeatCapacityTrialFromAutoDemoSamples/, 'Heat Capacity should not keep the legacy multi-trial processing helpers');
@@ -2011,13 +2060,13 @@ assert.doesNotMatch(teachingResultStateSource, /createHeatCapacityDemoTrialFromP
 assert.doesNotMatch(teachingResultStateSource, /const demoTrial = createHeatCapacityDemoTrialFromProcessSamples/, 'auto demo completion should not calculate its final result from transient process samples');
 assert.match(teachingResultStateSource, /createHeatCapacityAutoDemoResultTrial/, 'auto demo completion should build a clean single-trial result from the fixed teaching profile');
 assert.match(workbenchSource, /if \(action === 'completeTeachingMode'\)[\s\S]*completeHeatCapacityTeachingModeWorkbenchState\(file, now\)[\s\S]*heatCapacityMaterialsExpanded:\s*true/, 'auto demo completion should leave the completed teaching result visible until the user explicitly exits');
-assert.match(workbenchSource, /data-heat-capacity-mode-action="exit-teaching"/, 'completed Demo and Guide modes should replace stop controls with one explicit exit action');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode-action="exit-teaching"/, 'completed Demo and Guide modes should replace stop controls with one explicit exit action');
 assert.match(leftPanelSource, /formalExperimentMultiTrialNotice:\s*'正式实验需要进行多次测量，并对各次实验的 γᵢ 取平均值。'/, 'demo Data & Results page should teach that formal experiments require multiple averaged trials');
 assert.match(leftPanelSource, /thinkingMeanTitle:\s*'为什么多次实验应先分别计算 γᵢ，再对结果取平均？'/, 'demo Data & Results page should keep the multi-trial averaging thinking prompt as teaching content');
 assert.match(heatCapacityRealtimeCopySource, /startGuideExperiment:\s*'引导模式'/, 'auto-demo completion should expose a Simplified Chinese guide-mode action');
 assert.match(heatCapacityRealtimeCopySource, /startGuideExperiment:\s*'引導模式'/, 'auto-demo completion should expose a Traditional Chinese guide-mode action');
 assert.match(heatCapacityRealtimeCopySource, /startGuideExperiment:\s*'Guide mode'/, 'auto-demo completion should expose an English guide-mode action');
-assert.match(workbenchSource, /data-heat-capacity-mode="guide"/, 'preview header should render guide mode in the unified mode bar');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode="guide"/, 'preview header should render guide mode in the unified mode bar');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-manual-reset="true"/, 'preview should not keep the old guide-experiment reset button');
 assert.doesNotMatch(workbenchSource, /resetHeatCapacityForGuideExperiment/, 'Workbench should not route normal Heat Capacity UI resets through the old Guide reset helper');
 assert.match(guideStepModelSource, /export const isHeatCapacityGuideRecordStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*recordU0Required[\s\S]*recordU1Required[\s\S]*recordU2Required/, 'record-ready guide steps should be classified separately from waiting-for-good-data steps');
@@ -2029,7 +2078,7 @@ assert.match(heatCapacityRealtimeCopySource, /finalTrialCompleteToast:\s*'本次
 assert.match(workbenchSource, /showHeatCapacityRecordSuccessSequence\(\{[\s\S]*recordMessage:\s*message[\s\S]*trialCompleteMessage:\s*null[\s\S]*\}\);/, 'successful records should only display the record-success toast; final guide completion belongs to the power-off step');
 assert.doesNotMatch(workbenchSource, /recordHeatCapacityGuideSample[\s\S]*trialCompleteMessage:\s*kind === 'u2'/, 'U2 recording must not announce final completion before the user turns off the power');
 assert.match(workbenchSource, /const shouldShowGuidePowerOffCompletionToast = [\s\S]*heatCapacityGuideWorkflow\.step === 'closePowerRequired'[\s\S]*guardedPowerOn === false[\s\S]*showHeatCapacityGuidePowerOffCompletionToast\(\)/, 'guide completion toast should be triggered by the final guided power-off action');
-assert.match(workbenchSource, /<PromptViewportFeedback[\s\S]*key=\{heatCapacityToastCurrent\.id\}[\s\S]*'data-heat-capacity-toast': 'true'/, 'center heat-capacity feedback should remount by id so sequential success, completion, and wait notices restart their CSS animation');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /<PromptViewportFeedback[\s\S]*key=\{heatCapacityToastCurrent\.id\}[\s\S]*'data-heat-capacity-toast': 'true'/, 'center heat-capacity feedback should remount by id so sequential success, completion, and wait notices restart their CSS animation');
 assert.doesNotMatch(workbenchSource, /finalWaitMessage/, 'the final completed trial must not show the real-experiment stability-wait notice');
 assert.doesNotMatch(workbenchSource, /shouldShowSkippedRecoveryWait|heatCapacityRealtimeCopy\.trialCompleteToast|trialCompleteLogMessage/, 'single guide mode should not keep old next-trial wait or group-complete logging');
 assert.doesNotMatch(workbenchSource, /const recordHeatCapacityGuideSample = \(kind: HeatCapacityGuideRecordKind\) => \{[\s\S]*let ok = false;[\s\S]*updateActiveFile\(\(file\) => \{[\s\S]*ok = (?:true|result\.ok)[\s\S]*\}\);[\s\S]*if \(ok\)/, 'guide U1/U2 success feedback must not depend on values assigned inside a React state updater');
@@ -2048,13 +2097,13 @@ assert.match(workbenchSource, /isHeatCapacityGuideRecordStep\(latestStep\)[\s\S]
 assert.match(workbenchSource, /HEAT_CAPACITY_GUIDE_START_NOTICE_MS = 1000/, 'guide mode should reserve a short centered start notice before process guidance begins');
 assert.match(workbenchSource, /showHeatCapacityAutoDemoCompletionToast\(\s*heatCapacityRealtimeCopy\.guideModeStartingToast,\s*HEAT_CAPACITY_GUIDE_START_NOTICE_MS/, 'guide mode should show a centered localized start notice as the process starts');
 assert.match(workbenchSource, /showHeatCapacityAutoDemoCompletionToast\(guideCompleted[\s\S]*heatCapacityRealtimeCopy\.teachingModeExitedToast[\s\S]*heatCapacityRealtimeCopy\.guideModeExitedToast\)/, 'exiting guide mode should show a centered status toast and distinguish completed exit from running termination');
-assert.match(workbenchSource, /GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000/, 'guide mode strong reminder should appear after ten seconds without the target action');
+assert.match(teachingUiTimingSource, /GUIDE_HEAT_CAPACITY_STRONG_REMINDER_DELAY_MS = 10_000/, 'guide mode strong reminder should appear after ten seconds without the target action');
 assert.match(guideDecisionsSource, /HEAT_CAPACITY_GUIDE_WAIT_DURATION_MS = 5 \* 60 \* 1000/, 'guide mode U1 and U2 waits should use the real five-minute teaching wait');
 assert.doesNotMatch(workbenchSource, /HEAT_CAPACITY_GUIDE_RELEASE_DURATION_MS|350\s*\/\s*1000/, 'guide mode should not auto-close or block closing around the removed 0.35-second target');
 assert.match(workbenchSource, /HEAT_CAPACITY_RELEASE_TIMING/, 'guide and demo UI should reference the shared release timing configuration');
 assert.doesNotMatch(`${workbenchSource}\n${heatCapacityRealtimeCopySource}`, /放气时间到了|放氣時間到了|Release time has elapsed/, 'guide copy should not imply that a fixed release deadline controls closing');
 assert.match(guideGuidanceSource, /等待“咻”声结束，气体释放完毕，请立即关闭玻璃旋塞。/, 'guide checklist should state the concise sound-based closing criterion');
-assert.match(workbenchSource, /GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000/, 'guide mode should pulse the current target every four seconds before strong reminder escalation');
+assert.match(teachingUiTimingSource, /GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS = 4000/, 'guide mode should pulse the current target every four seconds before strong reminder escalation');
 const guidePauseStepSection = guideStepModelSource.match(/export const isGuideHeatCapacityPauseStep = \(step: GuideHeatCapacityStep\) => \([\s\S]*?\);/)?.[0] ?? '';
 assert.match(guidePauseStepSection, /recordU1Required[\s\S]*recordU2Required[\s\S]*closePowerRequired/, 'guide mode should pause physics at guided record and final-close checkpoints');
 assert.match(guidePauseStepSection, /closeStopcockAfterReleaseRequired/, 'guide mode should freeze all physics while waiting for the user to close the stopcock');
@@ -2076,13 +2125,14 @@ assert.match(workbenchSource, /const delayMs =[\s\S]*GUIDE_HEAT_CAPACITY_STRONG_
 assert.match(workbenchSource, /const workflow = activeFile\.heatCapacityGuideWorkflow;[\s\S]*workflow\.strongReminderActive[\s\S]*heatCapacityRecordToastSequenceActive[\s\S]*return;[\s\S]*activateGuideHeatCapacityStrongReminder\(workflow\.strongReminderTargetControlId\)/, 'workflow-driven strong reminders should wait for record-success toasts and then reopen instead of being permanently cleared');
 assert.match(workbenchSource, /activeHeatCapacityGuideStep === 'stabilizeBeforeReleaseRequired' \|\|[\s\S]*activeHeatCapacityGuideStep === 'recoverRequired'[\s\S]*return undefined;/, 'guided five-minute waiting steps should not start the inactivity strong-reminder timer');
 assert.match(workbenchSource, /guideHeatCapacityGuidancePulseTimerRef\.current = window\.setInterval\([\s\S]*pulseGuideHeatCapacityControl\(guidance\.controlId\)[\s\S]*GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS/, 'ordinary guided target hints should keep pulsing the current target before the strong mask appears');
-assert.match(workbenchSource, /const heatCapacityGuideSteps = [\s\S]*getGuideStepGuidance\(step\.guideStep,\s*activeFile\)\.message/, 'ordinary guided process guidance should derive the checklist rows from guide step guidance');
+assert.match(workbenchHeatCapacityGuideStepsSource, /const heatCapacityGuideSteps = [\s\S]*getGuideStepGuidance\(step\.guideStep,\s*activeFile\)\.message/, 'ordinary guided process guidance should derive the checklist rows from guide step guidance');
 assert.match(presentationWorkbenchHeatCapacityGuidePresentationSource, /id:\s*'pump'[\s\S]*title:\s*\{\s*'zh-CN':\s*'打气至 120 mV'/, 'guided checklist pump row should expose the displayed 120 mV criterion');
 assert.match(presentationWorkbenchHeatCapacityGuidePresentationSource, /id:\s*'wait-u1'[\s\S]*title:\s*\{\s*'zh-CN':\s*'封闭等待 5 min'/, 'guided checklist U1 wait row should name the sealed 5 min standard');
 assert.match(presentationWorkbenchHeatCapacityGuidePresentationSource, /id:\s*'wait-u2'[\s\S]*title:\s*\{\s*'zh-CN':\s*'回温等待 5 min'/, 'guided checklist U2 wait row should name the recovery 5 min standard');
-assert.match(workbenchSource, /data-heat-capacity-guide-step-panel="true"[\s\S]*data-heat-capacity-guide-step-list="true"[\s\S]*data-heat-capacity-guide-step-row=\{step\.id\}/, 'ordinary guided process guidance should render as a right-top checklist panel');
-assert.match(workbenchSource, /const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;[\s\S]*returnHeatCapacityGuideChecklistToCurrentStep\(\);[\s\S]*HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS/, 'guided checklist should wait five seconds after the last wheel input before returning to the current step');
-assert.match(workbenchSource, /const stepRecordKind = step\.status === 'current' && isCentered[\s\S]*data-heat-capacity-guide-step-record-action="true"[\s\S]*recordHeatCapacityGuideSample\(stepRecordKind\)/, 'current guided checklist rows should own the U0/U1/U2 record button instead of a separate floating action');
+assert.match(workbenchHeatCapacityGuideStepsSource, /data-heat-capacity-guide-step-panel="true"[\s\S]*data-heat-capacity-guide-step-list="true"[\s\S]*data-heat-capacity-guide-step-row=\{step\.id\}/, 'ordinary guided process guidance should render as a right-top checklist panel');
+assert.match(teachingUiTimingSource, /const HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS = 5000;/, 'guided checklist should wait five seconds after the last wheel input before returning to the current step');
+assert.match(workbenchSource, /returnHeatCapacityGuideChecklistToCurrentStep\(\);[\s\S]*HEAT_CAPACITY_GUIDE_CHECKLIST_RETURN_MS/, 'guided checklist should wait five seconds after the last wheel input before returning to the current step');
+assert.match(workbenchHeatCapacityGuideStepsSource, /const stepRecordKind = step\.status === 'current' && isCentered[\s\S]*data-heat-capacity-guide-step-record-action="true"[\s\S]*recordHeatCapacityGuideSample\(stepRecordKind\)/, 'current guided checklist rows should own the U0/U1/U2 record button instead of a separate floating action');
 assert.doesNotMatch(heatCapacityRealtimeCopySource, /waitU1Ready:\s*'[^']*请点击按键|waitU2Ready:\s*'[^']*请点击按键|waitU1Ready:\s*'[^']*請點擊按鍵|waitU2Ready:\s*'[^']*請點擊按鍵|Click the button to record U[₁₂]/, 'U1 and U2 ready checklist copy should remove the click-the-button phrase so the in-row record button has room');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-guide-process-prompt="true"/, 'ordinary guided process guidance should no longer render in the bottom-center prompt slot');
 assert.match(heatCapacityRealtimeCopySource, /guideLessonButtonLabel:\s*'实验说明'[\s\S]*guideLessonContinueHint:\s*'点击空白区域来继续'[\s\S]*guideLessonIntroPages:\s*\[[\s\S]*本实验通过一次“加压、快速放气、回温”的过程[\s\S]*默认换算系数为 20 mV\/kPa[\s\S]*重新查看刚刚的实验说明[\s\S]*guideLessonButtonLabel:\s*'實驗說明'[\s\S]*guideLessonContinueHint:\s*'點擊空白區域繼續'[\s\S]*guideLessonButtonLabel:\s*'Experiment notes'[\s\S]*guideLessonContinueHint:\s*'Click blank area to continue'/, 'heat-capacity lesson intro copy should localize the button, continue hint, and reusable intro pages for all supported languages');
@@ -2094,21 +2144,21 @@ assert.equal((heatCapacityRealtimeCopySource.match(/guideStepLabel:/g) ?? []).le
 assert.doesNotMatch(workbenchSource, /settingsLanguagePreference === 'en' \? 'Guide checklist'/, 'Guide checklist UI should not hard-code language ternaries in render');
 assert.match(presentationWorkbenchHeatCapacityGuidePresentationSource, /const HEAT_CAPACITY_GUIDE_LESSON_TRIGGER_BY_COMPLETED_STEP:[\s\S]*openStopcockForZeroRequired:\s*'pressureZeroBaseline'[\s\S]*closeStopcockRequired:\s*'sealedInitialState'[\s\S]*pumpRequired:\s*'pressureTarget'[\s\S]*stabilizeBeforeReleaseRequired:\s*'preReleaseStability'[\s\S]*closeStopcockAfterReleaseRequired:\s*'quickReleaseState'[\s\S]*recoverRequired:\s*'thermalRecovery'/, 'guided lesson step modals should map explanations to the guide step that has just been completed');
 assert.match(workbenchSource, /const \[heatCapacityGuideLessonDialog,\s*setHeatCapacityGuideLessonDialog\]/, 'guided lesson dialog should keep explicit React state instead of piggybacking on transient toasts');
-assert.match(workbenchSource, /className="studio-heat-mode-control-row"[\s\S]*data-heat-capacity-mode-control="true"[\s\S]*<\/div>\s*<button[\s\S]*className="studio-heat-guide-lesson-button"[\s\S]*data-heat-capacity-guide-lesson-button="true"/, 'heat-capacity lesson entry should render as one independent button frame outside the mode segmented frame');
+assert.match(workbenchHeatCapacityModeControlSource, /className="studio-heat-mode-control-row"[\s\S]*data-heat-capacity-mode-control="true"[\s\S]*<\/div>\s*<button[\s\S]*className="studio-heat-guide-lesson-button"[\s\S]*data-heat-capacity-guide-lesson-button="true"/, 'heat-capacity lesson entry should render as one independent button frame outside the mode segmented frame');
 assert.doesNotMatch(workbenchSource, /studio-heat-guide-lesson-shell/, 'guided lesson entry should not keep an extra outer frame around the wrench button');
-assert.match(workbenchSource, /data-heat-capacity-guide-lesson-button="true"[\s\S]*<Wrench size=\{18\} strokeWidth=\{2\.1\}/, 'heat-capacity lesson entry should render a clear but lighter wrench icon beside the mode selector');
-assert.match(workbenchSource, /onClick=\{\(\) => openHeatCapacityLessonIntro\(activeFile\.id\)\}/, 'heat-capacity lesson entry button should open the intro lesson for the active file');
+assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-guide-lesson-button="true"[\s\S]*<Wrench size=\{18\} strokeWidth=\{2\.1\}/, 'heat-capacity lesson entry should render a clear but lighter wrench icon beside the mode selector');
+assert.match(workbenchHeatCapacityModeControlSource, /onClick=\{\(\) => openHeatCapacityLessonIntro\(activeFile\.id\)\}/, 'heat-capacity lesson entry button should open the intro lesson for the active file');
 assert.match(workbenchSource, /handleHeatCapacityGuideLessonDialogAdvance[\s\S]*kind === 'intro'[\s\S]*pageIndex < pageCount - 1[\s\S]*setHeatCapacityGuideLessonOutgoingView\(getHeatCapacityGuideLessonView\(heatCapacityGuideLessonDialog\)\)[\s\S]*pageIndex: pageIndex \+ 1[\s\S]*closeHeatCapacityGuideLessonDialog\(\)/, 'clicking blank lesson space should advance intro pages, then close after the final page instead of looping');
 assert.match(workbenchSource, /handleHeatCapacityGuideLessonDialogAdvance[\s\S]*kind === 'step'[\s\S]*closeHeatCapacityGuideLessonDialog\(\)/, 'clicking blank lesson space should dismiss completed-step explanations through the shared fade-out close path');
 assert.doesNotMatch(workbenchSource, /data-heat-capacity-guide-lesson-(?:next|prev)="true"/, 'heat-capacity lesson dialog should not render dedicated previous or next page buttons');
-assert.match(workbenchSource, /data-heat-capacity-guide-lesson-dialog="true"[\s\S]*onMouseDown=\{\(event\) => event\.stopPropagation\(\)\}/, 'clicking inside the guided lesson card should not count as a blank-area advance or close action');
+assert.match(workbenchHeatCapacityGuideLessonSource, /data-heat-capacity-guide-lesson-dialog="true"[\s\S]*onMouseDown=\{\(event\) => event\.stopPropagation\(\)\}/, 'clicking inside the guided lesson card should not count as a blank-area advance or close action');
 assert.doesNotMatch(workbenchSource, /guideLesson(?:Click|Dismiss)Hint|studio-heat-guide-lesson-card > small|<small>\{lessonHint\}<\/small>/, 'guided lesson dialogs should not render bottom click hints or keep obsolete hint copy');
-assert.match(workbenchSource, /data-heat-capacity-guide-lesson-hint="true"[\s\S]*heatCapacityRealtimeCopy\.guideLessonContinueHint/, 'heat-capacity lesson dialogs should show a bottom hint telling users to click blank area to continue');
+assert.match(workbenchHeatCapacityGuideLessonSource, /data-heat-capacity-guide-lesson-hint="true"[\s\S]*heatCapacityRealtimeCopy\.guideLessonContinueHint/, 'heat-capacity lesson dialogs should show a bottom hint telling users to click blank area to continue');
 assert.doesNotMatch(workbenchSource, /pageIndex \+ 1\s*\}\s*\/\s*\{introPageCount\}|lessonMeta|<em>\{lessonMeta\}<\/em>/, 'guided lesson intro should not display page numbers or a secondary meta label');
-assert.match(workbenchSource, /studio-heat-guide-lesson-layer-\$\{heatCapacityGuideLessonClosing \? 'closing' : 'open'\}/, 'guided lesson layer should keep mounted closing state so intro and step notes can fade out');
-assert.match(workbenchSource, /heatCapacityGuideLessonOutgoingView[\s\S]*studio-heat-guide-lesson-content-outgoing[\s\S]*studio-heat-guide-lesson-content-current/, 'guided lesson intro page changes should cross-fade outgoing and incoming content');
+assert.match(workbenchHeatCapacityGuideLessonSource, /studio-heat-guide-lesson-layer-\$\{heatCapacityGuideLessonClosing \? 'closing' : 'open'\}/, 'guided lesson layer should keep mounted closing state so intro and step notes can fade out');
+assert.match(workbenchHeatCapacityGuideLessonSource, /heatCapacityGuideLessonOutgoingView[\s\S]*studio-heat-guide-lesson-content-outgoing[\s\S]*studio-heat-guide-lesson-content-current/, 'guided lesson intro page changes should cross-fade outgoing and incoming content');
 assert.match(workbenchSource, /previousGuideStep !== activeHeatCapacityGuideStep[\s\S]*HEAT_CAPACITY_GUIDE_LESSON_TRIGGER_BY_COMPLETED_STEP\[previousGuideStep\][\s\S]*setHeatCapacityGuideLessonDialog\(\{ kind: 'step'/, 'completed-step lesson explanations should trigger only after the guide step changes away from the completed operation');
-assert.match(workbenchSource, /data-heat-capacity-guide-lesson-close="true"[\s\S]*onMouseDown=\{handleHeatCapacityGuideLessonCloseButtonMouseDown\}[\s\S]*onClick=\{handleHeatCapacityGuideLessonCloseButtonClick\}/, 'guided lesson dialogs should provide a right-top close button that fades out without advancing the lesson');
+assert.match(workbenchHeatCapacityGuideLessonSource, /data-heat-capacity-guide-lesson-close="true"[\s\S]*onMouseDown=\{handleHeatCapacityGuideLessonCloseButtonMouseDown\}[\s\S]*onClick=\{handleHeatCapacityGuideLessonCloseButtonClick\}/, 'guided lesson dialogs should provide a right-top close button that fades out without advancing the lesson');
 assert.match(styleSource, /\.studio-heat-guide-lesson-card\s*\{[\s\S]*width:\s*min\(420px,[\s\S]*height:\s*180px;[\s\S]*grid-template-rows:\s*auto minmax\(0, 1fr\) auto;/, 'guided lesson cards should keep the same fixed height while reserving a bottom continue hint row');
 assert.match(styleSource, /\.studio-heat-guide-lesson-hint\s*\{[\s\S]*font-size:\s*11px;[\s\S]*text-align:\s*left;/, 'guided lesson continue hint should be a compact bottom-left instruction line');
 assert.match(styleSource, /\.studio-heat-mode-control-row\s*\{[\s\S]*display:\s*inline-flex;[\s\S]*gap:\s*6px;/, 'heat-capacity mode controls should use a row wrapper so the lesson entry can sit outside the segmented frame');
@@ -2160,7 +2210,7 @@ assert.match(guideDecisionsSource, /hasGuideHeatCapacityWaitElapsed\(file,\s*'u1
 assert.match(guideDecisionsSource, /hasGuideHeatCapacityWaitElapsed\(file,\s*'u2'\)/, 'guided U2 readiness should require the five-minute wait gate');
 assert.match(guideDecisionsSource, /hasGuideHeatCapacityFormedRelease\(file\)/, 'guided recovery checks should require an actual release without imposing a fixed close time');
 assert.doesNotMatch(guideDecisionsSource, /isGuideHeatCapacityReleaseDurationReady/, 'guided mode should not retain the removed fixed-duration readiness gate');
-assert.match(workbenchSource, /heatCapacityToastCurrent \? \([\s\S]*<PromptViewportFeedback[\s\S]*'data-heat-capacity-guide-step-hint': 'true'[\s\S]*\) : null/, 'triggered guide toasts should keep rendering through the shared center feedback surface');
+assert.match(workbenchHeatCapacityCenterFeedbackSource, /heatCapacityToastCurrent \? \([\s\S]*<PromptViewportFeedback[\s\S]*'data-heat-capacity-guide-step-hint': 'true'[\s\S]*\) : null/, 'triggered guide toasts should keep rendering through the shared center feedback surface');
 assert.doesNotMatch(workbenchSource, /const heatCapacityGuideProcessPromptBlocked = [^;]*heatCapacityToastCurrent/, 'ordinary bottom guide prompts should stay visible while a yellow click-error toast is displayed');
 assert.doesNotMatch(workbenchSource, /const heatCapacityGuideProcessPromptBlocked = guideHeatCapacityStrongReminderActive/, 'guided checklist should stay visible when the strong-reminder mask is active');
 assert.match(workbenchSource, /const heatCapacityGuideProcessPromptBlocked = activeHeatCapacityPressureAlarmVisible \|\|[\s\S]*null[\s\S]*getGuideStepGuidance/, 'ordinary guided checklist should still yield to the active file’s alarm surfaces, demo overlays, and mode notices');
@@ -2199,7 +2249,7 @@ assert.match(presentationWorkbenchHeatCapacityGuidePresentationSource, /recordU1
 assert.match(workbenchSource, /guideHeatCapacityStrongReminderControlId[\s\S]*getHeatCapacityGuideStrongTargetSpec\(guideHeatCapacityStrongReminderControlId\)/, 'strong reminder rendering should use the active target control instead of a generic center ring');
 assert.match(workbenchSource, /heatCapacityGuideProjectedHoles/, 'Workbench should store runtime projected 3D guide holes from the scene');
 assert.match(presentationWorkbenchHeatCapacityGuideMaskDomSource, /getHeatCapacityGuideDomCutout[\s\S]*getBoundingClientRect\(\)/, 'Workbench should measure DOM guide cutouts from actual button and timer rectangles');
-assert.match(workbenchSource, /viewBox=\{`0 0 \$\{heatCapacityGuideMaskBounds\.width\} \$\{heatCapacityGuideMaskBounds\.height\}`\}/, 'strong reminder mask SVG should use actual pixel bounds');
+assert.match(workbenchHeatCapacityStrongMaskSource, /viewBox=\{`0 0 \$\{heatCapacityGuideMaskBounds\.width\} \$\{heatCapacityGuideMaskBounds\.height\}`\}/, 'strong reminder mask SVG should use actual pixel bounds');
 assert.doesNotMatch(workbenchSource, /viewBox="0 0 100 100"|preserveAspectRatio="none"/, 'strong reminder mask should not use a stretched static percentage viewport');
 assert.match(workbenchSource, /guideFocusMode=\{heatCapacityGuideFocusMode\}/, 'Workbench should pass guide focus mode into the Heat Capacity scene');
 assert.match(workbenchSource, /guideFocusKey=\{guideHeatCapacityStrongReminderFocusKey\}/, 'Workbench should pass a guide focus key so repeated strong reminders can reset the view');
@@ -2226,7 +2276,8 @@ assert.match(workbenchSource, /restoreHeatCapacityGuideUiCheckpoint[\s\S]*guideC
 assert.match(workbenchSource, /pendingHeatCapacityGuideUiRestoreRef[\s\S]*restoreHeatCapacityGuideUiCheckpoint/, 'Guide UI restoration should remain deferred until the coordinated mode transition completes');
 assert.match(workbenchSource, /guideHeatCapacityStrongReminderActive &&[\s\S]*guideHeatCapacityStrongReminderControlId === guidance\.controlId[\s\S]*return undefined;/, 'the ordinary ten-second Guide timer should not clear an already restored strong reminder for the same step');
 assert.match(styleSource, /\.studio-heat-guide-strong-mask\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset:\s*0;[\s\S]*pointer-events:\s*none;/, 'strong reminder shell should preserve click-through target cutouts instead of blocking the highlighted target');
-assert.match(workbenchSource, /<path[\s\S]*className="studio-heat-guide-strong-dim"[\s\S]*fillRule="evenodd"[\s\S]*clipRule="evenodd"/, 'strong reminder dimmed mask should use a real even-odd path so target cutouts remain clickable');
+assert.match(workbenchHeatCapacityStrongMaskSource, /<path[\s\S]*className="studio-heat-guide-strong-dim"[\s\S]*fillRule="evenodd"[\s\S]*clipRule="evenodd"/, 'strong reminder dimmed mask should use a real even-odd path so target cutouts remain clickable');
+assert.match(workbenchCenterWorkspaceSource, /<path[\s\S]*className="studio-heat-guide-strong-dim"[\s\S]*fillRule="evenodd"[\s\S]*clipRule="evenodd"/, 'strong reminder dimmed mask should use a real even-odd path so target cutouts remain clickable');
 assert.doesNotMatch(workbenchSource, /<mask|maskUnits|className="studio-heat-guide-strong-dim"[\s\S]{0,220}\smask=/, 'strong reminder dimmed layer must not use the obsolete SVG mask hit-test path');
 assert.match(styleSource, /\.studio-heat-guide-strong-dim\s*\{[^}]*pointer-events:\s*auto;/, 'strong reminder dimmed mask should intercept covered-area controls while leaving target holes usable');
 assert.match(styleSource, /\.studio-preview-overlay-slot-top-center\s*\{[\s\S]*z-index:\s*14;/, 'guide wait timer and speed controls should render above the strong-reminder mask layer');
@@ -2247,7 +2298,7 @@ assert.match(guideDecisionsSource, /pressureSignalTargetMv/, 'guide decisions sh
 assert.match(guideDecisionsSource, /temperatureSignalTargetMv/, 'guide decisions should retain target temperature signal separately from displayed temperature');
 assert.doesNotMatch(workbenchSource, /打气过快|tooFast|频率偏高/, 'workbench should not show or calculate a too-fast pump state');
 assert.doesNotMatch(sceneSource, /pressureOverLimit\s*\?\s*12\s*:\s*9/, 'pressure gauge needle movement should not branch on alarm state');
-assert.match(workbenchSource, /zeroStatusLabel/, 'fixed realtime window should still expose pressure-zero status in the operation group');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /zeroStatusLabel/, 'fixed realtime window should still expose pressure-zero status in the operation group');
 assert.doesNotMatch(styleSource, /\.studio-heat-interaction-hints \{[^}]*min-height:/, 'interaction hints should not reserve language-driven outer height');
 assert.doesNotMatch(styleSource, /\.studio-heat-hover-tooltip \{[^}]*min-height:/, 'hover tooltips should size to their current-language copy');
 assert.doesNotMatch(styleSource, /\.studio-heat-valve-focus-bubble \{[^}]*min-height:/, 'valve focus bubbles should not create blank space for other languages');
@@ -2257,14 +2308,14 @@ assert.doesNotMatch(waitControllerStyleSource, /\.heat-capacity-wait-controller 
 assert.doesNotMatch(styleSource, /\.studio-heat-demo-complete-toast \{[^}]*min-height:/, 'demo-complete toasts should avoid blank reserved height');
 assert.doesNotMatch(viewportFeedbackStyleSource, /\.prompt-viewport-feedback\s*\{[^}]*min-height:/, 'guide-step hints should not use outer height to solve language switching');
 assert.doesNotMatch(styleSource, /\.studio-heat-valve-focus-button/, 'removed valve focus buttons should not keep stable-height styles');
-assert.match(workbenchSource, /temperatureSignalValue/, 'fixed realtime window should still expose the live temperature signal');
-assert.match(workbenchSource, /pressureSignalValue/, 'fixed realtime window should still expose the live pressure signal');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /temperatureSignalValue/, 'fixed realtime window should still expose the live temperature signal');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /pressureSignalValue/, 'fixed realtime window should still expose the live pressure signal');
 assert.match(heatCapacityRealtimeCopySource, /realtimePanelTitle: '实时数据'/, 'Heat Capacity fixed panel title should not mention charts in Simplified Chinese');
 assert.match(heatCapacityRealtimeCopySource, /realtimePanelTitle: '即時資料'/, 'Heat Capacity fixed panel title should not mention charts in Traditional Chinese');
 assert.match(heatCapacityRealtimeCopySource, /realtimePanelTitle: 'Realtime Data'/, 'Heat Capacity fixed panel title should not mention charts in English');
 assert.match(presentationWorkbenchPanelDefinitionsSource, /heatRealtimeTitle/, 'Heat Capacity left panel should have a dedicated realtime title without chart wording');
-assert.match(workbenchSource, /renderScientificText\(panel\.hint\)/, 'dock headers should render Uₜ and Uₚ with real subscripts');
-assert.match(workbenchSource, /renderScientificText\(heatCapacityRealtimeCopy\.realtimeSubtitle\)/, 'right Heat Capacity panel subtitle should render Uₜ and Uₚ with real subscripts');
+assert.match(workbenchDockHeaderSource, /renderScientificText\(panel\.hint\)/, 'dock headers should render Uₜ and Uₚ with real subscripts');
+assert.match(workbenchHeatCapacityRealtimeReadingsSource, /renderScientificText\(heatCapacityRealtimeCopy\.realtimeSubtitle\)/, 'right Heat Capacity panel subtitle should render Uₜ and Uₚ with real subscripts');
 assert.doesNotMatch(workbenchSource, /<div><span>鐞嗚 gamma<\/span>/, 'this batch must not render a gamma result field');
 assert.doesNotMatch(workbenchSource, /鏃嬪瑙掑害/, 'realtime panel should not expose stopcock angle to users');
 assert.doesNotMatch(workbenchSource, /stopcockAngleDeg, 1\)} deg/, 'realtime panel should not render internal stopcock degrees');
@@ -2372,19 +2423,19 @@ assert.doesNotMatch(workbenchSource, /aria-label="文件树操作提示"|<span>�
 assert.match(styleSource, /\.studio-workspace-shell\.studio-params-collapsed\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*0;/, 'collapsed parameter sidebars should keep winning over responsive workspace grid rules');
 assert.match(styleSource, /\.studio-params-collapsed \.studio-current-params\s*\{[\s\S]*visibility:\s*hidden;/, 'collapsed parameter sidebars should hide the right panel content instead of leaving it visible in demo and guide modes');
 assert.match(workbenchSource, /renderHeatCapacityFreeParameterPanel/, 'Free Mode should render a dedicated parameter panel instead of generic parameter rows');
-assert.match(workbenchSource, /data-heat-capacity-free-parameter-panel="true"/, 'Free Mode parameter panel should expose stable markup');
+assert.match(workbenchHeatCapacityParametersSource, /data-heat-capacity-free-parameter-panel="true"/, 'Free Mode parameter panel should expose stable markup');
 assert.match(freeParameterPanelModelSource, /id:\s*'leakageEnabled'/, 'Free Mode parameter model should define the leakage checkbox');
 assert.match(freeParameterPanelModelSource, /id:\s*'instrumentNoiseEnabled'/, 'Free Mode parameter model should define the instrument-noise checkbox');
 assert.match(freeParameterPanelModelSource, /id:\s*'hardSphereViewEnabled'/, 'Free Mode parameter model should define the hard-sphere visualization checkbox');
-assert.match(workbenchSource, /data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should render model-defined checkboxes with stable markup');
-assert.match(workbenchSource, /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? false[\s\S]*: activeHeatCapacityFreeParameterLocked/, 'Free Mode molecule visualization checkbox should remain available after Ultra cylinder visualization is connected');
+assert.match(workbenchHeatCapacityCheckboxParameterRowSource, /data-heat-capacity-basic-checkbox=\{definition\.id\}/, 'Free Mode parameter panel should render model-defined checkboxes with stable markup');
+assert.match(workbenchHeatCapacityBasicParametersSource, /definition\.id === 'hardSphereViewEnabled'[\s\S]*\? false[\s\S]*: activeHeatCapacityFreeParameterLocked/, 'Free Mode molecule visualization checkbox should remain available after Ultra cylinder visualization is connected');
 assert.doesNotMatch(workbenchSource, /definition\.id === 'hardSphereViewEnabled'[\s\S]*settingsPerformanceMode === 'ultra'/, 'Ultra GLB mode should no longer disable the Free Mode molecule visualization checkbox');
-assert.match(workbenchSource, /renderHeatCapacityParameterSymbol[\s\S]*<sub key=\{index\}>\{part\.sub\}<\/sub>/, 'Free Mode parameter symbols should render true subscript nodes');
+assert.match(scientificTextSource, /renderHeatCapacityParameterSymbol[\s\S]*<sub key=\{index\}>\{part\.sub\}<\/sub>/, 'Free Mode parameter symbols should render true subscript nodes');
 const freeBasicNumberParametersSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeBasicNumberParameters:[\s\S]*?\n\];/)?.[0] ?? '';
 const freeAdvancedNumberParametersSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeAdvancedNumberParameters:[\s\S]*?\n\];/)?.[0] ?? '';
 const freeGasTypeOptionsSection = freeParameterPanelModelSource.match(/export const heatCapacityFreeGasTypeOptions:[\s\S]*?\n\];/)?.[0] ?? '';
-const freeGasTypeRowRendererSection = workbenchSource.match(/const renderHeatCapacityFreeGasTypeRow = \(\) => \{[\s\S]*?const renderHeatCapacityBasicParameterRows/)?.[0] ?? '';
-const freeBasicParameterRowsRendererSection = workbenchSource.match(/const renderHeatCapacityBasicParameterRows = \(\) => \{[\s\S]*?const renderHeatCapacityFreeParameterPanel/)?.[0] ?? '';
+const freeGasTypeRowRendererSection = workbenchHeatCapacityGasParameterRowSource;
+const freeBasicParameterRowsRendererSection = workbenchHeatCapacityBasicParametersSource;
 assert.match(freeGasTypeOptionsSection, /id:\s*'air'[\s\S]*id:\s*'helium'/, 'Free Mode gas type options should expose air and helium in order');
 assert.match(freeParameterPanelModelSource, /getHeatCapacityFreeGasTypeGamma/, 'Free Mode gas type UI should read theory values from the shared gas configuration');
 assert.match(freeGasTypeOptionsSection, /theoreticalGamma:\s*getHeatCapacityFreeGasTypeGamma\('air'\)[\s\S]*theoreticalGamma:\s*getHeatCapacityFreeGasTypeGamma\('helium'\)/, 'Free Mode gas type options should derive theory values from gas type');
@@ -2395,15 +2446,15 @@ assert.match(idealParameterProfileSource, /getHeatCapacityFreeIdealTheoreticalGa
 assert.doesNotMatch(idealParameterProfileSource, /gamma:\s*1\.4/, 'ideal parameter profile should not duplicate the fixed air gamma literal');
 assert.match(freeTraceStateSource, /getHeatCapacityFreeIdealTheoreticalGamma/, 'Free trial evidence should consume the shared ideal-gas theory helper');
 assert.doesNotMatch(stateSource, /export const HEAT_CAPACITY_FREE_IDEAL_GAS_TYPE|export const getHeatCapacityFreeIdealTheoreticalGamma/, 'Workbench state should not own ideal-gas theory constants');
-assert.match(workbenchSource, /renderHeatCapacityFreeGasTypeRow[\s\S]*heatCapacityFreeGasTypeOptions\.map/, 'Free Mode basic parameters should render the gas type selector from model options');
+assert.match(workbenchHeatCapacityGasParameterRowSource, /heatCapacityFreeGasTypeOptions\.map/, 'Free Mode basic parameters should render the gas type selector from model options');
 assert.match(workbenchSource, /activeHeatCapacityExperimentTitle[\s\S]*heatCapacityRealtimeCopy\.gasExperimentTitle\(activeHeatCapacityGasLabel\)/, 'Free Mode experiment titles should follow the selected gas type');
 assert.match(workbenchSource, /activeHeatCapacityCalculationHint[\s\S]*heatCapacityRealtimeCopy\.gasCalculationHint\(activeHeatCapacityGasLabel\)/, 'Free Mode calculation copy should follow the selected gas type');
 assert.match(heatCapacityRealtimeCopySource, /gasExperimentTitle:\s*\(gasLabel: string\)/, 'heat-capacity realtime copy should expose localized gas-aware titles');
-assert.match(workbenchSource, /renderHeatCapacityFreeGasTypeRow\(\)[\s\S]*heatCapacityFreeBasicNumberParameters\.map/, 'Free Mode gas type selector should sit before atmospheric pressure in the basic parameter area');
-assert.match(workbenchSource, /data-heat-capacity-gas-type-option=\{option\.id\}/, 'Free Mode gas type choices should expose stable markup');
+assert.match(workbenchHeatCapacityBasicParametersSource, /renderHeatCapacityFreeGasTypeRow\(\)[\s\S]*heatCapacityFreeBasicNumberParameters\.map/, 'Free Mode gas type selector should sit before atmospheric pressure in the basic parameter area');
+assert.match(workbenchHeatCapacityGasParameterRowSource, /data-heat-capacity-gas-type-option=\{option\.id\}/, 'Free Mode gas type choices should expose stable markup');
 assert.match(freeGasTypeRowRendererSection, /const disabled = gasTypeLocked;/, 'ideal and real Free Mode should share the same gas-type lock boundary');
 assert.doesNotMatch(workbenchSource, /if \(currentFile\.heatCapacityFreeParameterScheme === 'ideal'\)/, 'ideal Free Mode should allow gas selection before the experiment starts');
-assert.match(workbenchSource, /studio-heat-free-gas-type-control-\$\{selectedGasType\}[\s\S]*studio-heat-free-gas-type-thumb/, 'Free Mode gas type selector should render a moving selected-state thumb bound to the current gas type');
+assert.match(workbenchHeatCapacityGasParameterRowSource, /studio-heat-free-gas-type-control-\$\{selectedGasType\}[\s\S]*studio-heat-free-gas-type-thumb/, 'Free Mode gas type selector should render a moving selected-state thumb bound to the current gas type');
 assert.doesNotMatch(workbenchSource, /studio-heat-free-gas-type-option-active/, 'Free Mode gas type selector should not keep the old per-button active rectangle class after introducing the moving thumb');
 assert.match(styleSource, /\.studio-heat-free-gas-type-control\s*\{[\s\S]*position:\s*relative;[\s\S]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\);/, 'Free Mode gas type selector should use a two-segment grid so the selected thumb can slide between gases');
 assert.match(styleSource, /\.studio-heat-free-gas-type-thumb\s*\{[\s\S]*width:\s*calc\(\(100% - 4px\) \/ 2\);[\s\S]*transition:\s*transform 220ms cubic-bezier\(0\.34,\s*0,\s*0\.2,\s*1\)/, 'Free Mode gas type selected thumb should move smoothly with an accelerate-then-decelerate timing curve');
@@ -2454,7 +2505,8 @@ assert.match(freeParameterPanelModelSource, /parts:\s*\['U',\s*\{\s*sub:\s*'1,mi
 assert.doesNotMatch(freeParameterPanelModelSource, /P_0|G_gw|lambda_leak|U_1,min/, 'Free Mode parameter model should not render underscore-style scientific codes');
 assert.match(workbenchSource, /hoveredHeatCapacityParamHelpId/, 'Free Mode parameter help should track hover state');
 assert.match(workbenchSource, /pinnedHeatCapacityParamHelpId/, 'Free Mode parameter help should track pinned state');
-assert.match(workbenchSource, /studio-param-help-button/, 'Free Mode parameter rows should include circular help buttons');
+assert.match(workbenchSimulationParameterHelpSource, /studio-param-help-button/, 'Free Mode parameter rows should include circular help buttons');
+assert.match(workbenchHeatCapacityParameterHelpSource, /studio-param-help-button/, 'Free Mode parameter rows should include circular help buttons');
 assert.match(workbenchSource, /studio-param-help-popover/, 'Free Mode parameter help should render a popover');
 assert.match(workbenchSource, /heatCapacityParamHelpPopoverStyle[\s\S]*getBoundingClientRect\(\)[\s\S]*setHeatCapacityParamHelpPopoverStyle/, 'Free Mode parameter help popovers should compute a viewport position instead of staying inside the clipped right sidebar');
 assert.match(workbenchSource, /createPortal\([\s\S]*studio-param-help-popover[\s\S]*document\.body/, 'Free Mode parameter help popovers should portal to document.body to escape transformed and overflow-hidden workbench containers');
@@ -2466,14 +2518,14 @@ assert.doesNotMatch(getCssBlock('.studio-param-help-popover'), /inset\s+\d+px\s+
 assert.match(workbenchSource, /handleHeatCapacityParamHelpPointerDown[\s\S]*event\.preventDefault\(\);[\s\S]*event\.stopPropagation\(\);[\s\S]*setPinnedHeatCapacityParamHelpId\(null\)/, 'pinned Free Mode parameter help should consume the first outside pointerdown');
 assert.match(workbenchSource, /getHeatCapacityFreeParameterLockReason\(activeFile\)/, 'Free Mode parameter panel should use the shared lock-reason helper');
 assert.match(workbenchSource, /showHeatCapacityFreeParameterLockHint/, 'locked Free Mode parameter controls should surface the lock reason on click');
-assert.match(workbenchSource, /studio-heat-free-scheme-button/, 'Free Mode parameter rail should render a real-or-ideal scheme toggle button');
+assert.match(workbenchHeatCapacityBasicParametersSource, /studio-heat-free-scheme-button/, 'Free Mode parameter rail should render a real-or-ideal scheme toggle button');
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityBasicParametersSource,
   /\sdisabled=\{activeHeatCapacityFreeSchemeLocked\}/,
   'real/ideal scheme toggle should become a true disabled button once the current experiment has started',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityBasicParametersSource,
   /aria-disabled=\{activeHeatCapacityFreeSchemeLocked\}/,
   'real/ideal scheme toggle should expose locked state accessibly',
 );
@@ -2491,22 +2543,22 @@ assert.match(`${leftPanelSource}\n${processReviewPanelSource}`, /理想实验条
 assert.match(processReviewPanelSource, /operationScore[\s\S]*--/, 'ideal process review should render scoring as placeholders');
 assert.match(workbenchSource, /acknowledgeHeatCapacityFreeFileNoticeWorkbenchState[\s\S]*advancedParametersRisk/, 'advanced risk confirmation should persist through the shared file acknowledgement object');
 assert.match(workbenchSource, /applyHeatCapacityFreeParameterDraftWorkbenchState/, 'advanced parameter save should apply the draft through the shared Workbench helper');
-assert.match(workbenchSource, /studio-heat-advanced-overlay/, 'advanced parameters should use a centered overlay');
-assert.match(workbenchSource, /studio-heat-advanced-window/, 'advanced parameters should render a centered main window');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /studio-heat-advanced-overlay/, 'advanced parameters should use a centered overlay');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /studio-heat-advanced-window/, 'advanced parameters should render a centered main window');
 assert.match(parameterDialogsSource, /studio-heat-advanced-risk-window/, 'first advanced open should render a higher risk confirmation window');
-assert.match(workbenchSource, /const riskPending = !activeFile\.heatCapacityFreeFileAcknowledgements\.advancedParametersRisk;/, 'advanced parameter risk prompt should be pending only until the current file has acknowledged it');
-assert.match(workbenchSource, /<WorkbenchHeatCapacityAdvancedRiskDialog[\s\S]*open=\{riskPending\}/, 'advanced parameter dialog should render the risk confirmation before the current file is acknowledged');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /const riskPending = !activeFile\.heatCapacityFreeFileAcknowledgements\.advancedParametersRisk;/, 'advanced parameter risk prompt should be pending only until the current file has acknowledged it');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /<WorkbenchHeatCapacityAdvancedRiskDialog[\s\S]*open=\{riskPending\}/, 'advanced parameter dialog should render the risk confirmation before the current file is acknowledged');
 assert.match(freeParameterPanelModelSource, /riskTitle:\s*\{[\s\S]*'zh-CN':\s*'确认调整高级参数'/, 'advanced risk title should describe a confirmation step, not a later experiment-group side effect');
 assert.match(freeParameterPanelModelSource, /riskBody:\s*\{[\s\S]*'zh-CN':\s*'高级参数会影响当前实验文件的模型判定、传感器读数和记录阈值。确认后，本实验文件后续打开高级参数不再重复提示。'/, 'advanced risk body should state current-file-first acknowledgement semantics');
 assert.doesNotMatch(freeParameterPanelModelSource, /调整高级参数会改变后续实验组|後續實驗組|future groups/, 'advanced risk copy should not keep the old future-group wording');
-assert.match(workbenchSource, /studio-heat-advanced-grid/, 'advanced parameter form should use a responsive grid');
-assert.match(workbenchSource, /heatCapacityFreeAdvancedParameterGroups/, 'advanced parameter form should use an explicit ordered group definition');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /studio-heat-advanced-grid/, 'advanced parameter form should use a responsive grid');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /heatCapacityFreeAdvancedParameterGroups/, 'advanced parameter form should use an explicit ordered group definition');
 assert.doesNotMatch(freeParameterPanelModelSource, /title:\s*\{\s*'zh-CN':\s*'压力信号标定'/, 'advanced parameter groups should not keep an empty pressure calibration group after pressure sensitivity moves to the basic panel');
 assert.match(freeParameterPanelModelSource, /id:\s*'thermalExchange'[\s\S]*title:\s*\{\s*'zh-CN':\s*'热交换模型'/, 'advanced parameters should expose a semantic thermal-exchange group');
 assert.match(freeParameterPanelModelSource, /id:\s*'nonIdealCorrection'[\s\S]*title:\s*\{\s*'zh-CN':\s*'非理想过程修正'/, 'advanced parameters should expose a semantic non-ideal correction group');
 assert.match(freeParameterPanelModelSource, /id:\s*'recordCriteria'[\s\S]*title:\s*\{\s*'zh-CN':\s*'记录判定与安全阈值'/, 'advanced parameters should expose a semantic record-criteria group');
 assert.doesNotMatch(freeParameterPanelModelSource, /title:\s*\{\s*'zh-CN':\s*'气体状态模型'|title:\s*\{\s*'zh-CN':\s*'热交换与泄漏修正'|title:\s*\{\s*'zh-CN':\s*'读数采集与记录判定'/, 'advanced parameter groups should remove old merged group titles after regrouping');
-assert.match(workbenchSource, /studio-heat-advanced-groups[\s\S]*heatCapacityFreeAdvancedParameterGroups\.map[\s\S]*studio-heat-advanced-group[\s\S]*studio-heat-advanced-group-title[\s\S]*heatCapacityFreeAdvancedNumberParameters\.filter\(\(definition\) => definition\.group === group\.id\)/, 'advanced parameters should render one titled three-column grid per group');
+assert.match(workbenchHeatCapacityAdvancedParametersSource, /studio-heat-advanced-groups[\s\S]*heatCapacityFreeAdvancedParameterGroups\.map[\s\S]*studio-heat-advanced-group[\s\S]*studio-heat-advanced-group-title[\s\S]*heatCapacityFreeAdvancedNumberParameters\.filter\(\(definition\) => definition\.group === group\.id\)/, 'advanced parameters should render one titled three-column grid per group');
 assert.doesNotMatch(freeParameterPanelModelSource, /A类|B类|C类|D类|A 類|B 類|C 類|D 類|Class A|Class B|Class C|Class D/, 'advanced parameter group titles should not expose letter-class wording');
 assert.doesNotMatch(`${workbenchSource}\n${freeParameterPanelModelSource}`, /advancedSubtitle|这些参数只影响之后开始的新实验组|這些參數只影響之後開始的新實驗組|These values affect only future experiment groups/, 'advanced parameter main window should not keep the redundant future-groups subtitle');
 assert.match(workbenchSource, /heatCapacityFreeSharedText\.valueTooLarge/, 'Free Mode parameter validation should have a localized over-limit message');
@@ -2516,7 +2568,7 @@ assert.match(freeAdvancedNumberParametersSection, /id:\s*'wallHeatCapacityJPerK'
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'leakageRatePerS'[\s\S]*?max:\s*0\.02/, 'leakage rate should expose the model upper limit in the UI');
 assert.match(freeAdvancedNumberParametersSection, /id:\s*'sensorLagTimeS'[\s\S]*?min:\s*1\s*\/\s*60[\s\S]*?max:\s*100/, 'pressure-channel lag time should expose both effective runtime bounds');
 assert.match(workbenchSource, /definition\.max \?\? null/, 'Free Mode validation should consume parameter-model upper bounds');
-assert.match(workbenchSource, /aria-invalid=\{error \? true : undefined\}/, 'invalid Free Mode parameter inputs should expose their error state');
+assert.match(workbenchHeatCapacityNumberParameterRowSource, /aria-invalid=\{error \? true : undefined\}/, 'invalid Free Mode parameter inputs should expose their error state');
 assert.match(styleSource, /\.studio-heat-free-param-row-error \.studio-heat-free-input-cell input\s*\{[\s\S]*?border-color:/, 'invalid Free Mode parameter inputs should render a red error border');
 assert.match(styleSource, /\.studio-heat-advanced-grid \.studio-heat-free-input-cell\s*\{[\s\S]*?position:\s*relative;/, 'advanced parameter input cells should anchor their validation message without changing row alignment');
 assert.match(styleSource, /\.studio-heat-advanced-grid \.studio-heat-free-inline-error\s*\{[\s\S]*?position:\s*absolute;[\s\S]*?inline-size:\s*max-content;[\s\S]*?white-space:\s*nowrap;/, 'advanced parameter validation should stay on one floating line instead of expanding and clipping its row');
@@ -2528,7 +2580,7 @@ assert.doesNotMatch(workbenchSource, /definition\.id === 'gamma'[\s\S]*isHeatCap
 assert.match(workbenchSource, /resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default button should reuse the shared state reset instead of duplicating default constants in the UI');
 assert.match(workbenchSource, /openHeatCapacityRestoreDefaultConfirm[\s\S]*setHeatCapacityRestoreDefaultConfirmOpen\(true\)/, 'Free Mode restore-default button should open a confirmation dialog before resetting parameters');
 assert.match(workbenchSource, /confirmHeatCapacityRestoreDefault[\s\S]*resetHeatCapacityFreeParametersToDefaultWorkbenchState/, 'Free Mode restore-default confirmation should be the only path that applies the reset');
-assert.match(workbenchSource, /studio-heat-free-default-row[\s\S]*studio-heat-free-default-button[\s\S]*onClick=\{openHeatCapacityRestoreDefaultConfirm\}/, 'Free Mode parameter panel should render a restore-default button above the first basic parameter row');
+assert.match(workbenchHeatCapacityBasicParametersSource, /studio-heat-free-default-row[\s\S]*studio-heat-free-default-button[\s\S]*onClick=\{openHeatCapacityRestoreDefaultConfirm\}/, 'Free Mode parameter panel should render a restore-default button above the first basic parameter row');
 assert.match(parameterDialogsSource, /role="alertdialog"[\s\S]*studio-heat-restore-default-confirm/, 'Free Mode restore-default confirmation should use the shared alert-dialog shell');
 assert.match(workbenchSource, /<WorkbenchHeatCapacityRestoreDefaultDialog[\s\S]*onConfirm=\{confirmHeatCapacityRestoreDefault\}/, 'Free Mode restore-default confirmation should retain an explicit confirm action');
 assert.match(freeParameterPanelModelSource, /restoreDefault:\s*\{[\s\S]*'zh-CN':\s*'恢复默认'/, 'restore-default parameter action should use the shared heat-capacity parameter copy');
@@ -2540,11 +2592,11 @@ assert.match(promptShellStyleSource, /\.prompt-dialog-overlay\.prompt-dialog-ove
 assert.match(styleSource, /\.studio-heat-free-params\.is-locked[\s\S]*cursor:\s*not-allowed/, 'locked Free Mode parameter panel should visibly use not-allowed interaction');
 assert.match(styleSource, /\.studio-heat-free-param-row\s*\{[\s\S]*grid-template-columns:\s*minmax\(104px,\s*1fr\)\s*112px;[\s\S]*border-radius:\s*4px;/, 'Free Mode parameter rows should keep one left label tab stop and one fixed right input tab stop on the same line');
 assert.match(styleSource, /\.studio-heat-free-param-label\s*\{[\s\S]*display:\s*grid;[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*48px\s*20px;[\s\S]*gap:\s*5px;/, 'Free Mode parameter labels should reserve enough symbol space before the help button on one line');
-assert.match(workbenchSource, /parts\.length > 0\s*\?\s*'studio-heat-free-param-label-with-symbol'\s*:\s*'studio-heat-free-param-label-no-symbol'/, 'Free Mode parameter labels should explicitly separate symbol and no-symbol layouts');
+assert.match(workbenchHeatCapacityParameterLabelSource, /parts\.length > 0\s*\?\s*'studio-heat-free-param-label-with-symbol'\s*:\s*'studio-heat-free-param-label-no-symbol'/, 'Free Mode parameter labels should explicitly separate symbol and no-symbol layouts');
 assert.match(styleSource, /\.studio-heat-free-param-label-no-symbol\s*\{[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s*20px;/, 'Free Mode no-symbol parameter labels should restore the name width instead of reserving the wide symbol slot');
 assert.match(styleSource, /\.studio-heat-free-param-label-no-symbol \.studio-param-symbol-empty\s*\{[\s\S]*display:\s*none;/, 'Free Mode no-symbol parameter labels should not let empty symbol nodes consume layout space');
 assert.match(styleSource, /\.studio-heat-free-param-label \.studio-param-symbol\s*\{[\s\S]*inline-size:\s*48px;[\s\S]*justify-content:\s*flex-start;/, 'Free Mode parameter symbols should shift left inside a wider tab stop instead of overlapping the help button');
-assert.match(workbenchSource, /className="studio-heat-free-input-shell"[\s\S]*<input[\s\S]*\{definition\.unit \? <span className="studio-heat-free-unit">\{definition\.unit\}<\/span> : null\}/, 'Free Mode numeric rows should render the unit inside the input shell');
+assert.match(workbenchHeatCapacityNumberParameterRowSource, /className="studio-heat-free-input-shell"[\s\S]*<input[\s\S]*\{definition\.unit \? <span className="studio-heat-free-unit">\{definition\.unit\}<\/span> : null\}/, 'Free Mode numeric rows should render the unit inside the input shell');
 assert.match(styleSource, /\.studio-heat-free-input-cell input\s*\{[\s\S]*text-align:\s*center;/, 'Free Mode basic and advanced numeric inputs should center their values');
 assert.match(styleSource, /\.studio-heat-free-input-shell\s*\{[\s\S]*position:\s*relative;/, 'Free Mode input shell should provide the positioning context for the in-field unit');
 assert.match(styleSource, /\.studio-heat-free-unit\s*\{[\s\S]*position:\s*absolute;[\s\S]*inset-inline-end:\s*10px;[\s\S]*text-align:\s*right;/, 'Free Mode numeric units should sit inside the input field and align to the right edge');
@@ -2668,11 +2720,7 @@ assert.match(
   /heatCapacityLessonIntroAutoShown:\s*typeof common\.lessonIntroAutoShown === 'boolean'\s*\?\s*common\.lessonIntroAutoShown\s*:\s*true/,
   'Restoring old Heat Capacity files without the intro flag should treat the lesson as already shown',
 );
-assert.match(
-  workbenchSource,
-  /const HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS = 180 as const;/,
-  'Heat Capacity lesson animation duration should be a named constant for future timing adjustments',
-);
+assert.match(teachingUiTimingSource, /const HEAT_CAPACITY_LESSON_DIALOG_ANIMATION_MS = 180 as const;/, 'Heat Capacity lesson animation duration should be a named constant for future timing adjustments');
 assert.match(
   workbenchSource,
   /const heatCapacityLessonDialogActive = heatCapacityGuideLessonDialog !== null \|\| heatCapacityGuideLessonClosing;/,
@@ -2759,12 +2807,12 @@ assert.match(
   'Unmount cleanup should cancel Guide timers without erasing restored semantic deadlines during Strict Mode replay',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityGuideLessonSource,
   /role="dialog"[\s\S]*aria-modal="true"[\s\S]*onKeyDown=\{handleHeatCapacityGuideLessonDialogKeyDown\}/,
   'The lesson dialog should expose modal semantics and keyboard handling',
 );
 assert.match(
-  workbenchSource,
+  workbenchHeatCapacityGuideLessonSource,
   /data-heat-capacity-guide-lesson-close="true"[\s\S]*onMouseDown=\{handleHeatCapacityGuideLessonCloseButtonMouseDown\}[\s\S]*onClick=\{handleHeatCapacityGuideLessonCloseButtonClick\}/,
   'The lesson close button should work for both pointer and keyboard activation',
 );
@@ -2860,3 +2908,40 @@ assert.match(workbenchSource, /selectGuideStepGuidance\(step, file, settingsLang
 assert.ok(workbenchSource.includes("from './workbenchHeatCapacityGuidePresentation.ts'"), 'workbenchHeatCapacityGuidePresentation must remain connected to the shell');
 assert.ok(workbenchSource.includes("from './workbenchHeatCapacityGuideMaskDom.ts'"), 'workbenchHeatCapacityGuideMaskDom must remain connected to the shell');
 assert.ok(workbenchSource.includes("from './workbenchPanelDefinitions.tsx'"), 'workbenchPanelDefinitions must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelContent \} from '\.\/WorkbenchPanelContent\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityDemoSteps \} from '\.\/WorkbenchHeatCapacityDemoSteps\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSectionTitle \} from '\.\/WorkbenchSectionTitle\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityWaitOverlay \} from '\.\/WorkbenchHeatCapacityWaitOverlay\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityRealtimeReadings \} from '\.\/WorkbenchHeatCapacityRealtimeReadings\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityGuideSteps \} from '\.\/WorkbenchHeatCapacityGuideSteps\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityPanelTree \} from '\.\/WorkbenchHeatCapacityPanelTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityMaterialsWindow \} from '\.\/WorkbenchHeatCapacityMaterialsWindow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityRecordControls \} from '\.\/WorkbenchHeatCapacityRecordControls\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityModeControl \} from '\.\/WorkbenchHeatCapacityModeControl\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchDockHeader \} from '\.\/WorkbenchDockHeader\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityCenterFeedback \} from '\.\/WorkbenchHeatCapacityCenterFeedback\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityGuideLesson \} from '\.\/WorkbenchHeatCapacityGuideLesson\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityStrongMask \} from '\.\/WorkbenchHeatCapacityStrongMask\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityParameters \} from '\.\/WorkbenchHeatCapacityParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityCheckboxParameterRow \} from '\.\/WorkbenchHeatCapacityCheckboxParameterRow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityBasicParameters \} from '\.\/WorkbenchHeatCapacityBasicParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityGasParameterRow \} from '\.\/WorkbenchHeatCapacityGasParameterRow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityAdvancedParameters \} from '\.\/WorkbenchHeatCapacityAdvancedParameters\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityNumberParameterRow \} from '\.\/WorkbenchHeatCapacityNumberParameterRow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityParameterLabel \} from '\.\/WorkbenchHeatCapacityParameterLabel\.tsx';/);
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityPanelTree \} from '\.\/WorkbenchHeatCapacityPanelTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPanelTree \} from '\.\/WorkbenchPistonOscillationPanelTree\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityGuideSteps \} from '\.\/WorkbenchHeatCapacityGuideSteps\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityRecordControls \} from '\.\/WorkbenchHeatCapacityRecordControls\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityCenterFeedback \} from '\.\/WorkbenchHeatCapacityCenterFeedback\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityStrongMask \} from '\.\/WorkbenchHeatCapacityStrongMask\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterHelp \} from '\.\/WorkbenchSimulationParameterHelp\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityParameterHelp \} from '\.\/WorkbenchHeatCapacityParameterHelp\.tsx';/);
+
+assert.match(workbenchSource, /const heatCapacityCenterOverlay = \([\s\S]*<WorkbenchHeatCapacityCenterFeedback[\s\S]*overlayCenter=\{heatCapacityCenterOverlay\}/, 'center feedback component must remain bound to the heat scene center slot');
+
+assert.match(workbenchSource, /import \{ WorkbenchHeatCapacityAdvancedParameters \} from '\.\/WorkbenchHeatCapacityAdvancedParameters\.tsx';/);

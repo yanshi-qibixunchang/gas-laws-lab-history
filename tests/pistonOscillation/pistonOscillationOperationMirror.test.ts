@@ -1,3 +1,9 @@
+const contractWorkbenchPistonOscillationPreviewSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
+const contractWorkbenchPistonViewActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchPistonViewActions.ts', import.meta.url), 'utf8');
+import { readFileSync as readContractModule } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPistonOscillationPreviewSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -233,15 +239,16 @@ assert.match(
   'alternating warning animation names must replay the same viewport shake for consecutive warnings',
 );
 assert.match(acquisitionSource, /onRunRetained\?: \(\) => void[\s\S]*onRunRetained\?\.\(\)/);
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /pistonOscillationMeasurementCyclesByFileId[\s\S]*measurementCycleRevision=\{[\s\S]*pistonOscillationMeasurementCyclesByFileId\[activeFile\.id\]/, 'retaining a run must advance the formal measurement-cycle revision that clears Shift override');
+assert.match(contractWorkbenchPistonViewActionsSource, /retainPistonOscillationRun[\s\S]*\(\) => \{[\s\S]*\(current\[activeFile\.id\] \?\? 0\) \+ 1/, 'retaining a run must advance the formal measurement-cycle revision that clears Shift override');
 assert.match(
-  workbenchSource,
-  /pistonOscillationMeasurementCyclesByFileId[\s\S]*measurementCycleRevision=\{[\s\S]*pistonOscillationMeasurementCyclesByFileId\[activeFile\.id\][\s\S]*onRunRetained=\{\(\) => \{[\s\S]*\(current\[activeFile\.id\] \?\? 0\) \+ 1/,
-  'retaining a run must advance the formal measurement-cycle revision that clears Shift override',
-);
-assert.match(
-  workbenchSource,
+  workbenchPistonOscillationPreviewSource,
   /viewportWarningFeedbackId=\{[\s\S]*pistonOscillationGuideFeedback\?\.kind === 'warning'[\s\S]*pistonOscillationGuideFeedback\.id/,
   'warning prompts from both 3D and acquisition controls must share the same viewport-shake channel',
 );
 
 console.log('pistonOscillationOperationMirror tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);
+
+assert.match(workbenchSource, /useWorkbenchPistonController\(/, 'the root must keep the singleton piston controller connected');

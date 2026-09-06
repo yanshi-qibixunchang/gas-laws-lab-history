@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchStandardResultsWindowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStandardResultsWindow.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPistonOscillationRealtimeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationRealtime.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import {
@@ -35,13 +39,7 @@ import {
 
 const root = resolve(import.meta.dirname, '..', '..');
 const exporter = join(root, 'tools', 'exporter', 'hsl_exporter.py');
-const workbenchSource = readFileSync(join(
-  root,
-  'src',
-  'features',
-  'workbench',
-  'WorkbenchStudioPrototype.tsx',
-), 'utf8');
+
 const defaultPistonFile = createDefaultHeatCapacityPistonOscillationFile(1);
 const exportExperimentGroup = {
   ...defaultPistonFile.pistonOscillationFreeSession.experimentGroup,
@@ -336,8 +334,9 @@ assert.equal(
   PISTON_OSCILLATION_REPORT_EXPORT_KIND,
   'the common workbench export path must dispatch piston reports to the dedicated payload',
 );
-assert.match(workbenchSource, /data-piston-oscillation-export-actions="true"/);
-assert.match(workbenchSource, /handleExportAction\('report'\)/);
+assert.match(workbenchPistonOscillationRealtimeSource, /data-piston-oscillation-export-actions="true"/);
+assert.match(workbenchStandardResultsWindowSource, /handleExportAction\('report'\)/);
+assert.match(workbenchPistonOscillationRealtimeSource, /handleExportAction\('report'\)/);
 
 const idealExportGroup = createPistonOscillationFreeExperimentGroup({
   groupId: 'piston-free-group:ideal-export',
@@ -549,3 +548,8 @@ if (pythonCheck.status !== 0) {
 }
 
 console.log('pistonOscillationExporter tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationRealtime \} from '\.\/WorkbenchPistonOscillationRealtime\.tsx';/);
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchStandardResultsWindow \} from '\.\/WorkbenchStandardResultsWindow\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationRealtime \} from '\.\/WorkbenchPistonOscillationRealtime\.tsx';/);

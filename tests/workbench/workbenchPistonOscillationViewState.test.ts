@@ -1,3 +1,5 @@
+const runtimeUseWorkbenchPistonProcessingViewSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonProcessingView.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -273,8 +275,8 @@ assert.strictEqual(freeWithResults.freeSession?.parameterDraft, baseFile.pistonO
 const workbenchSource = readFileSync(new URL(
   '../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url,
 ), 'utf8');
-assert.match(workbenchSource, /from '\.\/workbenchPistonOscillationViewState\.ts'/);
-assert.match(workbenchSource, /calculationWindowOpen: pistonOscillationCalculationWindowOpen[\s\S]*selectWorkbenchPistonOscillationViewState\(\{\s*file: activeFile,/);
+assert.match(runtimeUseWorkbenchPistonProcessingViewSource, /from '\.\/workbenchPistonOscillationViewState\.ts'/);
+assert.match(runtimeUseWorkbenchPistonProcessingViewSource, /calculationWindowOpen: pistonOscillationCalculationWindowOpen[\s\S]*selectWorkbenchPistonOscillationViewState\(\{\s*file: activeFile,/);
 assert.doesNotMatch(workbenchSource, /const (pistonOscillationMandatoryDataProcessing|pistonOscillationCalculationAutoOpen) =/);
 
 console.log(`workbenchPistonOscillationViewState tests passed (${checkedViews} frozen input scenarios)`);

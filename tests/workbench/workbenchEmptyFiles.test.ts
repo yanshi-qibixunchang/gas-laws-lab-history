@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchStatusBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStatusBar.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -50,8 +53,8 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /!isWorkbenchEmpty \? \([\s\S]*?<aside[\s\S]*?className=\{`studio-current-params/,
-  'Current Parameters panel should only render after a study file exists',
+  /!isWorkbenchEmpty \? \([\s\S]*?<WorkbenchCurrentParameters/,
+  "Current Parameters panel should only render after a study file exists",
 );
 
 assert.match(
@@ -61,7 +64,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchStatusBarSource,
   /workbenchCopy\.status\.activeFile\(isWorkbenchEmpty \? workbenchCopy\.status\.none : activeFile\.name\)/,
   'empty workbench status bar should show that no file is active',
 );
@@ -133,3 +136,5 @@ assert.match(
 );
 
 console.log('workbenchEmptyFiles tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchStatusBar \} from '\.\/WorkbenchStatusBar\.tsx';/);

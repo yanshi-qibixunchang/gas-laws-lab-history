@@ -117,7 +117,11 @@ assert.equal(resolveWorkbenchConsoleMessage(logs[0], 'zh-CN'), workbenchCopies['
 
 const workbench = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 for (const moduleName of ['workbenchParameterPresentation', 'workbenchPanelDefinitions',
-  'workbenchHeatCapacityGuideMaskGeometry', 'workbenchPistonGuideMaskDom', 'workbenchConsolePresentation']) {
+  'workbenchHeatCapacityGuideMaskGeometry', 'workbenchConsolePresentation']) {
   assert.match(workbench, new RegExp(`from '\\./${moduleName}\\.tsx?'`), `${moduleName} must remain wired to the live shell`);
 }
 console.log('workbenchPresentationModules tests passed');
+
+const pistonGuideOwner = readFileSync(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+assert.match(pistonGuideOwner, /from '\.\/workbenchPistonGuideMaskDom\.ts'/, 'Piston guide runtime owns the live mask geometry binding');
+assert.match(workbench, /useWorkbenchPistonController\(\{/);

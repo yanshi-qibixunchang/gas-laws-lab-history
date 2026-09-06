@@ -1,3 +1,8 @@
+const exportActionsSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchExportActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const workbenchHeatCapacityModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityModeControl.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPistonOscillationModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationModeControl.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchExperimentTutorialPresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchExperimentTutorialPresentation.ts', import.meta.url), 'utf8');
 const presentationWorkbenchExperimentTutorialWorkspaceSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchExperimentTutorialWorkspace.ts', import.meta.url), 'utf8');
@@ -29,8 +34,10 @@ assert.match(settingsSource, /disabled=\{tutorialActive\}/);
 assert.match(presentationWorkbenchExperimentTutorialPresentationSource, /重置绝热膨胀学习进度/);
 assert.match(workbenchSource, /重置活塞振动学习进度/);
 assert.match(presentationWorkbenchExperimentTutorialWorkspaceSource, /getExperimentTutorialFileName/);
-assert.match(workbenchSource, /isExperimentTutorialModeUnlocked\(tutorialMilestone, 'guide'\)/);
-assert.match(workbenchSource, /isExperimentTutorialModeUnlocked\(tutorialMilestone, 'free'\)/);
+assert.match(workbenchPistonOscillationModeControlSource, /isExperimentTutorialModeUnlocked\(tutorialMilestone, 'guide'\)/);
+assert.match(workbenchHeatCapacityModeControlSource, /isExperimentTutorialModeUnlocked\(tutorialMilestone, 'guide'\)/);
+assert.match(workbenchPistonOscillationModeControlSource, /isExperimentTutorialModeUnlocked\(tutorialMilestone, 'free'\)/);
+assert.match(workbenchHeatCapacityModeControlSource, /isExperimentTutorialModeUnlocked\(tutorialMilestone, 'free'\)/);
 assert.match(workbenchSource, /PromptNoticeDialog/);
 assert.match(workbenchSource, /PromptForcedNoticeDialog/);
 assert.match(workbenchSource, /takeOverExperimentTutorialOwnership/);
@@ -41,18 +48,18 @@ assert.match(workbenchSource, /skipExperimentTutorialProfile/);
 assert.match(workbenchSource, /exit-experiment-learning-tutorial/);
 assert.match(workbenchSource, /PromptConfirmDialog/);
 assert.doesNotMatch(workbenchSource, /window\.(?:confirm|alert|prompt)\(/);
-assert.match(workbenchSource, /guardWorkbenchTutorialAction\('create-file'\)/);
-assert.match(workbenchSource, /guardWorkbenchTutorialAction\('open-file'\)/);
-assert.match(workbenchSource, /guardWorkbenchTutorialAction\('close-file'\)/);
-assert.match(workbenchSource, /guardWorkbenchTutorialAction\('rename-file'\)/);
-assert.match(workbenchSource, /guardWorkbenchTutorialAction\('delete-file'\)/);
-assert.match(workbenchSource, /guardWorkbenchTutorialAction\('export-file'\)/);
+assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('create-file'\)/);
+assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('open-file'\)/);
+assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('close-file'\)/);
+assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchFileRenameActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('rename-file'\)/);
+assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('delete-file'\)/);
+assert.match(exportActionsSource, /guardWorkbenchTutorialAction\('export-file'\)/);
 assert.match(workbenchSource, /guardWorkbenchTutorialAction\('new-window'\)/);
 assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchEditHistoryActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('undo'\)/);
 assert.match(readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchEditHistoryActions.ts', import.meta.url), 'utf8'), /guardWorkbenchTutorialAction\('redo'\)/);
 assert.match(workbenchSource, /persistExperimentTutorialHandoff\(completedExperiment, freshFileId\)/);
 assert.match(workbenchSource, /clearExperimentTutorialHandoff\(\)/);
-assert.match(workbenchSource, /activeTutorialExperiment === 'pistonOscillation'/);
+assert.match(workbenchPistonOscillationModeControlSource, /activeTutorialExperiment === 'pistonOscillation'/);
 assert.match(workbenchSource, /pistonOscillationGuideSession\.status !== 'completed'/);
 assert.match(workbenchSource, /mergeArchivedNamespacesIntoTutorialWorkspace/);
 
@@ -71,3 +78,8 @@ console.log('workbench learning integration tests passed');
 
 assert.ok(workbenchSource.includes("from './workbenchExperimentTutorialPresentation.ts'"), 'workbenchExperimentTutorialPresentation must remain connected to the shell');
 assert.ok(workbenchSource.includes("from './workbenchExperimentTutorialWorkspace.ts'"), 'workbenchExperimentTutorialWorkspace must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationModeControl \} from '\.\/WorkbenchPistonOscillationModeControl\.tsx';/);
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationModeControl \} from '\.\/WorkbenchPistonOscillationModeControl\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityModeControl \} from '\.\/WorkbenchHeatCapacityModeControl\.tsx';/);

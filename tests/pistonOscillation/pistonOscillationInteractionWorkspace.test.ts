@@ -1,3 +1,8 @@
+const runtimeUseWorkbenchPistonGuideRuntimeSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPistonOscillationPreviewSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -457,7 +462,7 @@ assert.match(
   'the Guide-requested camera change must wait until the current screw drag ends',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /currentStep === 'screwLoosen'[\s\S]*snapshot\.lockingScrewState === 'loose'[\s\S]*!snapshot\.lockingScrewDragging[\s\S]*currentStep === 'acquisitionReady'[\s\S]*previousSnapshot\?\.lockingScrewDragging === true[\s\S]*!snapshot\.lockingScrewDragging[\s\S]*openPistonOscillationGuideOneTimeLesson\('lockingScrew'\)/,
   'the one-time locking-screw lesson must also wait for pointer release after the loosen threshold advances the Guide step',
 );
@@ -468,12 +473,17 @@ assert.match(
   'the instrument scene must forward the Guide screw policy and dedicated feedback channel to the workspace',
 );
 assert.match(
-  workbenchSource,
-  /const pistonGuideScrewInteractionMode =[\s\S]*getPistonOscillationGuideScrewInteractionMode\([\s\S]*activePistonOscillationGuideSession\.step[\s\S]*guideScrewInteractionMode=\{pistonGuideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{[\s\S]*handlePistonOscillationGuideScrewDirectionFeedback/,
-  'the Workbench must derive the policy from the live Guide step and wire the dedicated feedback callback',
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
+  /const pistonGuideScrewInteractionMode =[\s\S]*getPistonOscillationGuideScrewInteractionMode\([\s\S]*activePistonOscillationGuideSession\.step/,
+  'the guide runtime must derive screw policy from the live step',
+);
+assert.match(
+  workbenchPistonOscillationPreviewSource,
+  /guideScrewInteractionMode=\{pistonGuideScrewInteractionMode\}[\s\S]*onGuideScrewDirectionFeedback=\{[\s\S]*handlePistonOscillationGuideScrewDirectionFeedback/,
+  'the preview must connect screw policy and its dedicated feedback channel',
 );
 const screwFeedbackHandlerSource = getSourceSection(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   'const handlePistonOscillationGuideScrewDirectionFeedback =',
   'const handlePistonOscillationGuideHeightConfirmed =',
 );
@@ -488,7 +498,7 @@ assert.doesNotMatch(
   'dedicated screw feedback must not enter the ordinary miss counter, strong-reminder scheduler, or reset the next Guide pulse',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationPreviewSource,
   /viewportWarningFeedbackId=\{[\s\S]*pistonOscillationGuideFeedback\?\.kind === 'warning'[\s\S]*pistonOscillationGuideFeedback\?\.kind === 'danger'[\s\S]*\? pistonOscillationGuideFeedback\.id[\s\S]*: null/,
   'info-level direction hints must not produce the viewport shake ID, while boundary warnings must retain it',
 );
@@ -1156,3 +1166,7 @@ assert.match(
 );
 
 console.log('pistonOscillationInteractionWorkspace tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);
+
+assert.match(workbenchSource, /useWorkbenchPistonController\(/, 'the root must keep the singleton piston controller connected');

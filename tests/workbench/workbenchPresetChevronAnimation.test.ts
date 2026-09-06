@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchIdealControlsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchIdealControls.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -10,7 +13,7 @@ assert.doesNotMatch(
   'sampling preset trigger should not swap separate up/down chevron icons',
 );
 assert.match(
-  source,
+  workbenchIdealControlsSource,
   /<ChevronDown\s+size=\{15\}\s+className=\{`studio-ideal-preset-chevron \$\{samplingPresetMenuOpen \? 'studio-ideal-preset-chevron-open' : ''\}`\}/,
   'sampling preset trigger should rotate a single chevron based on open state',
 );
@@ -28,3 +31,5 @@ assert.match(
 console.log('workbenchPresetChevronAnimation tests passed');
 
 
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);

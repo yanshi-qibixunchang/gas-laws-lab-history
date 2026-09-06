@@ -1,3 +1,9 @@
+const preferencesSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchSettingsPreferences.ts', import.meta.url), 'utf8');
+const auxiliaryActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchAuxiliaryWindowActions.ts', import.meta.url), 'utf8');
+const auxiliarySource = readFileSync(new URL('../../src/features/workbench/useWorkbenchAuxiliaryWindows.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 
@@ -220,7 +226,7 @@ assert.ok(indexHtml.includes('<title>气律实验室</title>'), 'web startup tit
 assert.ok(webManifest.includes('"name": "Gas Laws Lab"'), 'the installable web shell should use the stable cross-language name');
 assert.match(brandSource, /'zh-CN': '气律实验室'[\s\S]*'zh-TW': '氣律實驗室'[\s\S]*en: 'Gas Laws Lab'/);
 assert.match(
-  workbenchSource,
+  preferencesSource,
   /document\.documentElement\.lang = settingsLanguagePreference;[\s\S]*document\.title = getWorkbenchAppBrandName\(settingsLanguagePreference\)/,
   'changing the interface language should update both the document language and visible desktop title',
 );
@@ -261,30 +267,30 @@ assert.ok(!settingsMenuSource.includes('menus.exportEnvironment'), 'settings men
 assert.ok(!settingsMenuSource.includes('exportEnvironmentStatus'), 'settings menu should not expose raw export environment status');
 
 assert.match(
-  source,
+  auxiliarySource,
   /const \[aboutWindowOpen, setAboutWindowOpen\] = useState\(\(\) => \([\s\S]*?getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshWindows, 'aboutWindowOpen'\)/,
   'about window should have independent state restored from the active heat-capacity refresh session',
 );
 assert.match(workbenchSource, /<WorkbenchAboutWindow/, 'about window component should be mounted by the workbench');
 assert.doesNotMatch(workbenchSource, /const renderAboutWindow = \(\) => \{/, 'legacy inline about renderer should be removed');
 assert.match(topCommandsSource, /onClick=\{onOpenAbout\}[\s\S]*?\{copy\.menus\.about\}/, 'Help > About should use the component callback instead of logging a mock action');
-assert.match(workbenchSource, /onOpenAbout=\{openAboutWindow\}/, 'workbench should connect Help > About to the about-window controller');
+assert.match(workbenchMenuBarSource, /onOpenAbout=\{openAboutWindow\}/, 'workbench should connect Help > About to the about-window controller');
 assert.match(workbenchSource, /<WorkbenchAboutWindow[\s\S]*?onOpenBuildNotice=\{openBuildNoticeWindow\}/, 'about window should receive controller callbacks through explicit props');
 const buildNoticeNavSource = buildNoticeSource.slice(
   indexOfOrFail(buildNoticeSource, '<nav className="studio-build-notice-nav-panel"', 'build notice nav panel should exist'),
   indexOfOrFail(buildNoticeSource, '<div className={`studio-build-notice-body', 'build notice body should follow nav panel'),
 );
-const openBuildNoticeMaterialSource = source.slice(
-  indexOfOrFail(source, 'const openBuildNoticeMaterial = (materialId: WorkbenchLegalMaterialId) => {', 'build notice material opener should exist'),
-  indexOfOrFail(source, 'const closeBuildNoticeMaterial = () => {', 'build notice material closer should follow opener'),
+const openBuildNoticeMaterialSource = auxiliaryActionsSource.slice(
+  indexOfOrFail(auxiliaryActionsSource, 'const openBuildNoticeMaterial = (materialId: WorkbenchLegalMaterialId) => {', 'build notice material opener should exist'),
+  indexOfOrFail(auxiliaryActionsSource, 'const closeBuildNoticeMaterial = () => {', 'build notice material closer should follow opener'),
 );
-const closeBuildNoticeMaterialSource = source.slice(
-  indexOfOrFail(source, 'const closeBuildNoticeMaterial = () => {', 'build notice material closer should exist'),
-  indexOfOrFail(source, 'const openBuildNoticeLegalFile = async', 'legal file opener should follow material closer'),
+const closeBuildNoticeMaterialSource = auxiliaryActionsSource.slice(
+  indexOfOrFail(auxiliaryActionsSource, 'const closeBuildNoticeMaterial = () => {', 'build notice material closer should exist'),
+  indexOfOrFail(auxiliaryActionsSource, 'const openBuildNoticeLegalFile = async', 'legal file opener should follow material closer'),
 );
-const resetBuildNoticeTransientStateSource = source.slice(
-  indexOfOrFail(source, 'const resetBuildNoticeTransientState = () => {', 'build notice transient-state reset helper should exist'),
-  indexOfOrFail(source, 'const openBuildNoticeWindow = () => {', 'build notice opener should follow the transient-state reset helper'),
+const resetBuildNoticeTransientStateSource = auxiliaryActionsSource.slice(
+  indexOfOrFail(auxiliaryActionsSource, 'const resetBuildNoticeTransientState = () => {', 'build notice transient-state reset helper should exist'),
+  indexOfOrFail(auxiliaryActionsSource, 'const openBuildNoticeWindow = () => {', 'build notice opener should follow the transient-state reset helper'),
 );
 assert.ok(
   aboutSource.indexOf('copy.currentVersion') < aboutSource.indexOf('copy.checkUpdates')
@@ -307,7 +313,7 @@ assert.match(
   'about build notes row should be a clickable action row with only a right-arrow affordance',
 );
 assert.match(
-  source,
+  auxiliarySource,
   /const \[buildNoticeWindowOpen, setBuildNoticeWindowOpen\] = useState\(\(\) => \([\s\S]*?getHeatCapacityRefreshBoolean\(initialHeatCapacityRefreshWindows, 'buildNoticeWindowOpen'\)/,
   'build notice should have independent secondary-window state restored from the active heat-capacity refresh session',
 );
@@ -323,8 +329,8 @@ for (const resetExpression of [
   assert.ok(resetBuildNoticeTransientStateSource.includes(resetExpression), `build notice reset helper should include ${resetExpression}`);
 }
 for (const controllerName of ['closeAboutWindow', 'openAboutWindow', 'openBuildNoticeWindow', 'closeBuildNoticeWindow']) {
-  const controllerStart = indexOfOrFail(source, `const ${controllerName} = () => {`, `${controllerName} should exist`);
-  const controllerBody = source.slice(controllerStart, source.indexOf('\n  };', controllerStart));
+  const controllerStart = indexOfOrFail(auxiliaryActionsSource, `const ${controllerName} = () => {`, `${controllerName} should exist`);
+  const controllerBody = auxiliaryActionsSource.slice(controllerStart, auxiliaryActionsSource.indexOf('\n  };', controllerStart));
   assert.ok(controllerBody.includes('resetBuildNoticeTransientState();'), `${controllerName} should use the shared transient-state reset helper`);
 }
 assert.match(workbenchSource, /<WorkbenchBuildNoticeWindow/, 'build notice secondary-window component should be mounted');
@@ -332,7 +338,7 @@ assert.doesNotMatch(workbenchSource, /const renderBuildNoticeWindow = \(\) => \{
 assert.match(workbenchSource, /sections=\{buildNoticeSections\[settingsLanguagePreference\]\}/, 'build notice should receive the active localized section set');
 assert.doesNotMatch(source, /scrollIntoView/, 'build notice table-of-contents clicks should not ask the browser to scroll outer ancestors');
 assert.match(
-  source,
+  auxiliaryActionsSource,
   /document\.querySelector<HTMLDivElement>\('\.studio-build-notice-body'\)[\s\S]*?container\.scrollTo\(\{\s*top: nextScrollTop,\s*behavior: 'smooth'/,
   'build notice table-of-contents clicks should smooth-scroll only the document body container',
 );
@@ -350,11 +356,11 @@ assert.match(source, /studio-build-notice-document/, 'build notice body should u
 assert.match(source, /studio-build-notice-table-wrap/, 'build notice should render approved table-style notice sections');
 assert.match(source, /studio-build-notice-material-row/, 'build notice should render clickable legal material rows');
 assert.match(source, /activeBuildNoticeMaterialId/, 'build notice should support an in-window legal material detail view');
-assert.match(source, /const \[buildNoticeFilePreview, setBuildNoticeFilePreview\] = useState<WorkbenchBuildNoticeFilePreview/, 'build notice detail should keep a unified local/web preview content state');
+assert.match(auxiliarySource, /const \[buildNoticeFilePreview, setBuildNoticeFilePreview\] = useState<WorkbenchBuildNoticeFilePreview/, 'build notice detail should keep a unified local/web preview content state');
 assert.doesNotMatch(source, /buildNoticeTextPreview/, 'build notice detail should not retain the old text-only preview state');
-assert.match(source, /const buildNoticeReturnScrollTopRef = useRef\(0\);/, 'build notice should remember the document scroll position before opening a legal detail view');
-assert.match(source, /const buildNoticeRestoreScrollOnReturnRef = useRef\(false\);/, 'build notice should track whether a return scroll restore is pending');
-assert.match(source, /useLayoutEffect\(\(\) => \{[\s\S]*?buildNoticeRestoreScrollOnReturnRef\.current[\s\S]*?container\.scrollTo\(\{ top: restoredScrollTop, behavior: 'auto' \}\);[\s\S]*?\}, \[activeBuildNoticeMaterialId\]\);/, 'build notice should restore the saved scroll position in the layout phase before the browser paints');
+assert.match(auxiliarySource, /const buildNoticeReturnScrollTopRef = useRef\(0\);/, 'build notice should remember the document scroll position before opening a legal detail view');
+assert.match(auxiliarySource, /const buildNoticeRestoreScrollOnReturnRef = useRef\(false\);/, 'build notice should track whether a return scroll restore is pending');
+assert.match(auxiliarySource, /useLayoutEffect\(\(\) => \{[\s\S]*?buildNoticeRestoreScrollOnReturnRef\.current[\s\S]*?container\.scrollTo\(\{ top: restoredScrollTop, behavior: 'auto' \}\);[\s\S]*?\}, \[activeBuildNoticeMaterialId\]\);/, 'build notice should restore the saved scroll position in the layout phase before the browser paints');
 assert.match(openBuildNoticeMaterialSource, /buildNoticeReturnScrollTopRef\.current = container\?\.scrollTop \?\? 0;/, 'opening a legal detail view should save the current document scroll position');
 assert.match(
   closeBuildNoticeMaterialSource,
@@ -362,11 +368,11 @@ assert.match(
   'returning from a legal detail view should request a pre-paint scroll restore before the document view remounts',
 );
 assert.doesNotMatch(closeBuildNoticeMaterialSource, /setTimeout/, 'returning from a legal detail view should not use a delayed scroll restore that can visibly flicker');
-assert.match(source, /hardSphereLabLegal!\.openLegalFile/, 'build notice detail view should open allowlisted local legal files in desktop builds');
-assert.doesNotMatch(source, /setBuildNoticeOpenError\(result\.message/, 'desktop legal bridge errors should not bypass the active UI language');
-assert.match(source, /setBuildNoticeOpenError\(workbenchCopy\.about\.buildNoticeOpenUnavailable\)/, 'desktop legal bridge errors should use the localized build-notice message');
-assert.match(source, /hardSphereLabLegal!\.readLegalFile/, 'build notice detail view should read allowlisted local legal files for desktop embedded previews');
-assert.match(source, /return \(\) => \{\s*cancelled = true;\s*\};/, 'closing or switching a build notice detail should cancel an in-flight preview update');
+assert.match(auxiliaryActionsSource, /hardSphereLabLegal!\.openLegalFile/, 'build notice detail view should open allowlisted local legal files in desktop builds');
+assert.doesNotMatch(auxiliaryActionsSource, /setBuildNoticeOpenError\(result\.message/, 'desktop legal bridge errors should not bypass the active UI language');
+assert.match(auxiliaryActionsSource, /setBuildNoticeOpenError\(aboutCopy\.buildNoticeOpenUnavailable\)/, 'desktop legal bridge errors should use the localized build-notice message');
+assert.match(auxiliarySource, /hardSphereLabLegal!\.readLegalFile/, 'build notice detail view should read allowlisted local legal files for desktop embedded previews');
+assert.match(auxiliarySource, /return \(\) => \{\s*cancelled = true;\s*\};/, 'closing or switching a build notice detail should cancel an in-flight preview update');
 assert.match(source, /studio-build-notice-detail-frame/, 'build notice detail view should preview generated HTML legal files');
 assert.match(source, /srcDoc=\{desktopLegalReadAvailable \? activeMaterialPreview\?\.content : undefined\}/, 'desktop build notice HTML previews should use srcDoc from the allowlisted local file bridge');
 assert.match(source, /buildNoticeLargeFileBody/, 'build notice detail view should explain large local legal files instead of embedding them');
@@ -469,3 +475,7 @@ assert.match(
 );
 
 console.log('workbenchAboutWindow tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);
+
+assert.match(workbenchSource, /useWorkbenchAuxiliaryWindows\(\{/, 'the shell should wire the single auxiliary window owner');

@@ -1,3 +1,7 @@
+const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -265,7 +269,7 @@ assert.match(workspaceSnapshotSource,
   'scheduled, pagehide and lifecycle snapshots preserve the original mode session until scene hydration completes');
 
 assert.match(
-  workbenchSource,
+  fileActionSource,
   /let switchingFromPendingHeatCapacityRefresh = false;[\s\S]*switchingFromPendingHeatCapacityRefresh = suspendActiveHeatCapacityModeForNavigation\(\);[\s\S]*if \(!switchingFromPendingHeatCapacityRefresh\) \{[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*flushWorkspacePersistenceRef\.current\(\);[\s\S]*commitWorkbenchFileCollections/,
   'switching away during scene hydration must preserve the outgoing T0 mode store and skip the pre-switch recapture flush',
 );
@@ -286,13 +290,13 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  workbenchMenuBarSource,
   /className="studio-titlebar-brand"/,
   'workbench header should render the app icon and name inside the app chrome',
 );
 
 assert.match(
-  workbenchSource,
+  workbenchMenuBarSource,
   /<img src="favicon\.png" alt="" \/>/,
   'titlebar icon should use a relative public asset path that works from packaged file:// pages',
 );
@@ -376,7 +380,7 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  workbenchMenuBarSource,
   /<WorkbenchWindowControls[\s\S]*language=\{settingsLanguagePreference\}[\s\S]*onClose=\{closeDesktopWindow\}/,
   'the normal workbench should use the shared real window-control component',
 );
@@ -436,3 +440,5 @@ assert.match(
   /width:\s*9px;[\s\S]*height:\s*9px;[\s\S]*border:\s*1\.7px solid currentColor;/,
   'restore glyph should include a front Windows-style square outline',
 );
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);

@@ -1,3 +1,6 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPanelContentSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelContent.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -28,7 +31,7 @@ assert.doesNotMatch(
   'mode progress must not repeatedly override a user-selected right-sidebar state',
 );
 assert.match(
-  workbench,
+  workbenchPanelContentSource,
   /const storedTrialId = groupCollection\.lastViewedTrialIdByGroupId[\s\S]*runSeries\.trials\[0\]\?\.id \?\? null/,
   'process review should default to experiment 1 when a group has no saved local selection',
 );
@@ -39,8 +42,8 @@ assert.match(
 );
 assert.match(
   workbench,
-  /panel\.key === 'heatCapacityReview'[\s\S]*onViewedGroupChange=\{\(groupId\) => \{[\s\S]*setPendingRemoveHeatCapacityTrialRecord\(null\)/,
-  'switching experiment groups from process review should clear any pending inline deletion confirmation',
+  /const selectHeatCapacityViewedGroup = \(groupId: string\) => \{[\s\S]*?setPendingRemoveHeatCapacityTrialRecord\(null\)/,
+  "switching experiment groups from process review should clear any pending inline deletion confirmation",
 );
 assert.match(
   contextBar,
@@ -99,3 +102,5 @@ assert.doesNotMatch(
 );
 
 console.log('heatCapacityExperimentGroupUi tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelContent \} from '\.\/WorkbenchPanelContent\.tsx';/);

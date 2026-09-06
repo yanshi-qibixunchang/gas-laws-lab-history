@@ -1,3 +1,8 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchFileTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTree.tsx', import.meta.url), 'utf8');
+const idealActionSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealExperimentActions.ts', import.meta.url), 'utf8');
+const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -6,31 +11,31 @@ const idealResultsSource = readFileSync(new URL('../../src/features/workbench/Wo
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  fileActionSource,
   /const cancelDeleteWorkbenchFile = \(\) => \{[\s\S]*?setPendingDeleteFileId\(null\);[\s\S]*?\};/,
   'workbench file delete confirmation should expose a cancel handler that clears the pending delete state',
 );
 
 assert.match(
-  source,
+  fileActionSource,
   /const cancelDeleteWorkbenchFile = \(\) => \{\s*setPendingDeleteFileId\(null\);\s*setOpenFileMenuId\(null\);\s*\};/,
   'workbench file delete cancel should close the open file menu after clearing the pending delete state',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /pendingDelete \? \([\s\S]*?cancelDeleteWorkbenchFile[\s\S]*?workbenchCopy\.files\.cancel[\s\S]*?\) : null/,
   'the open file menu should show a Cancel button next to Confirm Delete while deletion is pending',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /aria-label=\{`\$\{workbenchCopy\.files\.cancel\} \$\{file\.name\}`\}/,
   'the delete cancel button should have an explicit accessible label for the target file',
 );
 
 assert.match(
-  source,
+  idealActionSource,
   /const cancelRemoveIdealPoint = \(\) => \{[\s\S]*?setPendingRemovePointId\(null\);[\s\S]*?\};/,
   'ideal gas point removal should expose a cancel handler that clears the pending remove state',
 );
@@ -48,13 +53,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /studio-file-menu-confirm-row-pending/,
   'the file delete confirmation row should mark the two-button pending state for segmented styling',
 );
 
 assert.match(
-  source,
+  workbenchFileTreeSource,
   /pendingDelete \? 'studio-file-menu studio-file-menu-pending' : 'studio-file-menu'/,
   'the file menu shell should mark pending delete state so it can animate wider for Confirm Delete',
 );
@@ -175,3 +180,7 @@ assert.doesNotMatch(
 
 console.log('workbenchDeleteCancel tests passed');
 
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);
+
+assert.match(source, /createWorkbenchFileActions\(\{/);

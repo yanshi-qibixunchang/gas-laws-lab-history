@@ -1,3 +1,11 @@
+const workbenchPistonOscillationGuideStepsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationGuideSteps.tsx', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonChecklistSource = readWorkbenchViewSource(new URL('../../src/features/workbench/useWorkbenchPistonChecklist.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonGuideRuntimeSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
+const runtimeUseWorkbenchPistonLessonsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/useWorkbenchPistonLessons.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchPistonGuideMaskDomSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPistonGuideMaskDom.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
@@ -128,7 +136,7 @@ assert.match(
   'the unavailable Current Parameters rail must stay hidden for piston files',
 );
 assert.match(
-  workbenchSource,
+  workbenchCenterWorkspaceSource,
   /activePistonOscillationExpandedRealtime \? 'studio-center-workspace-piston-processing' : ''/,
   'data processing and process review must mark the center workspace so they can become one continuous canvas',
 );
@@ -273,7 +281,7 @@ assert.match(
   'a calculation reminder must bring its target fully into view before the strong mask appears',
 );
 assert.match(
-  workbenchSource,
+  runtimeUseWorkbenchPistonGuideRuntimeSource,
   /root\.addEventListener\('scroll', updateLayout, true\);[\s\S]*root\.removeEventListener\('scroll', updateLayout, true\);/,
   'the strong reminder cutout must track its target while the processing workspace scrolls',
 );
@@ -283,17 +291,23 @@ assert.match(
   'a processing reminder must dim the title, run list, selection instructions, and chart as one continuous workspace',
 );
 assert.match(
-  workbenchSource,
-  /handlePistonOscillationGuideChecklistKeyDown[\s\S]*'ArrowDown'[\s\S]*'ArrowUp'[\s\S]*'Home'[\s\S]*'End'[\s\S]*role="listbox"[\s\S]*aria-activedescendant/,
-  'the piston guide checklist must support keyboard review in addition to wheel review',
+  runtimeUseWorkbenchPistonChecklistSource,
+  /handlePistonOscillationGuideChecklistKeyDown[\s\S]*'ArrowDown'[\s\S]*'ArrowUp'[\s\S]*'Home'[\s\S]*'End'/,
+  'the checklist controller must coordinate keyboard review',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationGuideStepsSource,
+  /aria-activedescendant[\s\S]*onKeyDown=\{[\s\S]*pageIndex === currentPageIndex[\s\S]*\? handlePistonOscillationGuideChecklistKeyDown/,
+  'the rendered checklist must connect keyboard review to its accessible active descendant',
+);
+assert.match(workbenchPistonOscillationGuideStepsSource, /role="listbox"/);
+assert.match(
+  runtimeUseWorkbenchPistonLessonsSource,
   /event\.key === 'Tab'[\s\S]*querySelectorAll<HTMLElement>[\s\S]*pistonOscillationGuideLessonReturnFocusRef[\s\S]*returnTarget\?\.isConnected/,
   'the modal guide lesson must trap Tab focus and restore the previously focused control',
 );
 assert.match(
-  workbenchSource,
+  workbenchCenterWorkspaceSource,
   /fill="var\(--studio-piston-guide-cutout-fill\)"[\s\S]*stroke="var\(--studio-piston-guide-cutout-stroke\)"/,
   'the strong reminder outline must use theme-aware colors',
 );
@@ -305,4 +319,6 @@ assert.match(
 
 console.log('pistonOscillationDataProcessingInteraction tests passed');
 
-assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskDom.ts'"), 'workbenchPistonGuideMaskDom must remain connected to the shell');
+assert.ok(runtimeUseWorkbenchPistonGuideRuntimeSource.includes("from './workbenchPistonGuideMaskDom.ts'"), 'workbenchPistonGuideMaskDom must remain connected to the shell');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);

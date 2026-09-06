@@ -1,3 +1,4 @@
+const pistonPreviewSource = readFileSync(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchExperimentProgressCopySource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchExperimentProgressCopy.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
@@ -86,21 +87,21 @@ assert.match(
   'the new floating menu should be scrollable and viewport bounded',
 );
 
-assert.equal(
-  (workbenchSource.match(/<FreeExperimentProgress/g) ?? []).length >= 4,
-  true,
-  'both experiments and their empty-plan actions should use the same shared progress component',
-);
+assert.ok((workbenchSource.match(/<FreeExperimentProgress/g) ?? []).length >= 2,
+  'heat groups and empty-group actions must use the shared progress component');
+assert.ok((pistonPreviewSource.match(/<FreeExperimentProgress/g) ?? []).length >= 2,
+  'piston runs and empty-plan actions must use the shared progress component');
 assert.match(
   presentationWorkbenchExperimentProgressCopySource,
   /heatProgress:[\s\S]*第 \$\{current\} \/ \$\{total\} 次实验[\s\S]*pistonProgress:[\s\S]*第 \$\{ordinal\} \/ \$\{total\} 次 · 目标 \$\{heightMm\} mm/,
   'both progress labels should use the approved compact single-line language',
 );
-assert.match(
-  workbenchSource,
-  /dataOwner="heat-capacity"[\s\S]*heatFirst[\s\S]*data-heat-capacity-empty-group-start[\s\S]*dataOwner="piston-oscillation"[\s\S]*pistonSetup[\s\S]*data-piston-free-setup-plan/,
-  'reset states should expose each experiment’s approved explicit setup action through the shared component',
-);
+assert.match(workbenchSource,
+  /dataOwner="heat-capacity"[\s\S]*heatFirst[\s\S]*data-heat-capacity-empty-group-start/,
+  'heat reset state must expose explicit first-group setup');
+assert.match(pistonPreviewSource,
+  /dataOwner="piston-oscillation"[\s\S]*pistonSetup[\s\S]*data-piston-free-setup-plan/,
+  'piston reset state must expose explicit plan setup');
 assert.doesNotMatch(
   workbenchSource,
   /id: 'abandon-group-draft'[\s\S]{0,320}tone: 'danger'/,

@@ -1,3 +1,4 @@
+const exportActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchExportActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -66,9 +67,11 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  exportActionsSource,
   /const getExportFolderLabel = \(mode: WorkbenchExportMode\) => \{[\s\S]*activeFile\.kind === 'heatCapacity'[\s\S]*'Experiment Package'[\s\S]*'Figures'[\s\S]*'Report'[\s\S]*defaultDirName: `\$\{activeFile\.name\} \$\{getExportFolderLabel\(mode\)\}`/,
   'renderer should give folder exports mode-specific default folder names',
 );
 
 console.log('workbenchExporterModes tests passed');
+
+assert.match(workbenchSource, /useWorkbenchExportController\(\{/, 'shell must use the export controller');

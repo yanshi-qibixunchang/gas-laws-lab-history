@@ -1,3 +1,10 @@
+
+const runtimeWorkbenchPistonAcquisitionProcessingActionsSource = readPistonRuntimeSource(new URL('../../src/features/workbench/workbenchPistonAcquisitionProcessingActions.ts', import.meta.url), 'utf8');
+import { readFileSync as readPistonRuntimeSource } from 'node:fs';
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchPistonOscillationRealtimeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationRealtime.tsx', import.meta.url), 'utf8');
+const workbenchRealtimeBoundarySource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchRealtimeBoundary.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -39,7 +46,7 @@ assert.match(
   'the outer fallback must still answer the desktop close persistence handshake',
 );
 assert.match(
-  workbenchSource,
+  workbenchPistonOscillationRealtimeSource,
   /<RecoverableRenderErrorBoundary[\s\S]*area="data-processing"[\s\S]*<PistonOscillationDataProcessingPanel/,
   'data processing must be protected independently of the workbench shell',
 );
@@ -50,8 +57,8 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /ref=\{pistonOscillationContentRenderRecoveryHostRef\}[\s\S]*createPortal\([\s\S]*area="calculation"[\s\S]*pistonOscillationContentRenderRecoveryHostRef\.current/,
-  'a calculation render failure must be portaled into the piston content region so the surrounding workbench stays visible',
+  /createPortal\([\s\S]*area="calculation"[\s\S]*pistonOscillationContentRenderRecoveryHostRef\.current/,
+  "a calculation render failure must be portaled into the piston content region so the surrounding workbench stays visible",
 );
 assert.match(
   workbenchSource,
@@ -69,7 +76,7 @@ assert.match(
   'a local display failure must expose both recovery actions',
 );
 assert.match(
-  workbenchSource,
+  runtimeWorkbenchPistonAcquisitionProcessingActionsSource,
   /returnToPistonOscillationInstrumentAfterDisplayError[\s\S]*setPistonOscillationProcessingSuppressedFileId\(activeFile\.id\)[\s\S]*setPistonOscillationCalculationSuppressedFileId\(activeFile\.id\)[\s\S]*setSelectedPanel\('preview'\)[\s\S]*setLeftCollapsed\(false\)/,
   'returning to the instrument must preserve data while restoring the normal layout',
 );
@@ -89,9 +96,12 @@ assert.match(
   'the injected fault must remain active until the user deliberately retries recovery',
 );
 assert.match(
-  workbenchSource,
+  workbenchRealtimeBoundarySource,
   /isDevelopmentRenderFaultRequested\('data-processing'\)[\s\S]*<DevelopmentRenderFault target="data-processing" \/>/,
   'desktop acceptance can deliberately trigger the protected data-processing region',
 );
 
 console.log('pistonOscillationRenderRecovery tests passed');
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationRealtime \} from '\.\/WorkbenchPistonOscillationRealtime\.tsx';/);
+assert.match(workbenchViewShellSource, /import \{ WorkbenchRealtimeBoundary \} from '\.\/WorkbenchRealtimeBoundary\.tsx';/);

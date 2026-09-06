@@ -1,3 +1,7 @@
+const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+import { readFileSync as readWorkbenchViewSource } from 'node:fs';
+const workbenchCenterWorkspaceSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCenterWorkspace.tsx', import.meta.url), 'utf8');
+const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -16,19 +20,19 @@ const getRuleBody = (selector: string) => {
 };
 
 assert.match(
-  source,
+  layoutActionSource,
   /standardResultsLayout:\s*\{[\s\S]*?heightRatio:\s*clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*maxHeightRatio\)/,
   'standard Results should store its resizable height ratio in the active file layout',
 );
 
 assert.match(
-  source,
+  layoutActionSource,
   /const startStandardResultsResize = \(event: React\.MouseEvent\) =>/,
   'standard Results should expose an explicit top-edge resize handler',
 );
 
 assert.match(
-  source,
+  layoutActionSource,
   /createEditSnapshot\('resized standard Results window',\s*'presentation'\)[\s\S]*?pushUndoSnapshot\(snapshot\)/,
   'standard Results resize should enter undo history once with the pre-drag snapshot',
 );
@@ -52,33 +56,33 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  layoutActionSource,
   /const maxHeightRatio = getStandardResultsMaxHeightRatio\(\)/,
   'standard Results resize should compute a workspace-aware maximum height ratio',
 );
 
 assert.match(
-  source,
+  layoutActionSource,
   /heightRatio:\s*clamp\(nextRatio,\s*IDEAL_RESULT_MIN_HEIGHT_RATIO,\s*maxHeightRatio\)/,
   'standard Results resize should clamp to the workspace-aware maximum height ratio',
 );
 
 assert.match(
-  source,
+  layoutActionSource,
   /const getStandardResultsMaxHeightRatio = \(\) => \{[\s\S]*?fileTabsRect[\s\S]*?RESIZER_GRAB_SAFE_SPACE[\s\S]*?IDEAL_RESULT_MAX_HEIGHT_RATIO/,
   'standard Results maximum height should reserve file-tab and resizer-safe space',
 );
 
 assert.match(
-  source,
+  workbenchCenterWorkspaceSource,
   /className="studio-results-window-resizer"[\s\S]*?onMouseDown=\{startStandardResultsResize\}/,
   'standard Results should render a visible top-edge resizer',
 );
 
 assert.match(
-  source,
-  /style=\{\{ height: `\$\{clampIdealResultHeightRatio\(standardResultsLayout\.heightRatio\) \* 100\}%` \}\}/,
-  'standard Results region height should be driven by the per-file resizable ratio state',
+  workbenchCenterWorkspaceSource,
+  /style=\{\{ height: \`\$\{clampIdealResultHeightRatio\(standardResultsLayout\.heightRatio\) \* 100\}%\` \}\}/,
+  "standard Results region height should be driven by the per-file resizable ratio state",
 );
 
 assert.match(
@@ -95,3 +99,7 @@ assert.doesNotMatch(
 
 console.log('workbenchStandardResultsResize tests passed');
 
+
+assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
+
+assert.match(source, /createWorkbenchLayoutActions\(\{/);
