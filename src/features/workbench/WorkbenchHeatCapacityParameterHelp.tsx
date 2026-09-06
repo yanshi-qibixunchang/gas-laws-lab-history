@@ -3,14 +3,12 @@ import type React from 'react';
 export interface WorkbenchHeatCapacityParameterHelpProps {
   parameterId: string;
   modelEffect: string;
-  visibleHeatCapacityParamHelpId: string;
-  renderHeatCapacityTooltipPopover: (tooltipId: string, message: string, handlers?: { onMouseEnter?: () => void; onMouseLeave?: () => void; }) => React.ReactPortal;
-  setHoveredHeatCapacityParamHelpId: React.Dispatch<React.SetStateAction<string>>;
+  visibleHeatCapacityParamHelpId: string | null;
+  renderHeatCapacityTooltipPopover: (tooltipId: string, message: string, handlers?: { onMouseEnter?: () => void; onMouseLeave?: () => void; }) => React.ReactNode;
+  hoverHeatCapacityParameterHelp: (id: string, target?: HTMLElement) => void;
+  pinHeatCapacityParameterHelp: (id: string, target: HTMLElement) => void;
   hideHeatCapacityHoverTooltip: () => void;
-  pinnedHeatCapacityParamHelpId: string;
-  setHeatCapacityParamHelpPopoverStyle: React.Dispatch<React.SetStateAction<React.CSSProperties>>;
-  updateHeatCapacityParamHelpPopoverStyle: (target: HTMLElement) => void;
-  setPinnedHeatCapacityParamHelpId: React.Dispatch<React.SetStateAction<string>>;
+  pinnedHeatCapacityParamHelpId: string | null;
 }
 
 export const WorkbenchHeatCapacityParameterHelp = ({
@@ -18,29 +16,22 @@ export const WorkbenchHeatCapacityParameterHelp = ({
   modelEffect,
   visibleHeatCapacityParamHelpId,
   renderHeatCapacityTooltipPopover,
-  setHoveredHeatCapacityParamHelpId,
+  hoverHeatCapacityParameterHelp,
+  pinHeatCapacityParameterHelp,
   hideHeatCapacityHoverTooltip,
   pinnedHeatCapacityParamHelpId,
-  setHeatCapacityParamHelpPopoverStyle,
-  updateHeatCapacityParamHelpPopoverStyle,
-  setPinnedHeatCapacityParamHelpId,
 }: WorkbenchHeatCapacityParameterHelpProps) => {
     const helpVisible = visibleHeatCapacityParamHelpId === parameterId;
     const helpPopover = helpVisible
       ? renderHeatCapacityTooltipPopover(parameterId, modelEffect, {
-        onMouseEnter: () => setHoveredHeatCapacityParamHelpId(parameterId),
+        onMouseEnter: () => hoverHeatCapacityParameterHelp(parameterId),
         onMouseLeave: hideHeatCapacityHoverTooltip,
       })
       : null;
     return (
       <span
         className="studio-param-help-anchor"
-        onMouseLeave={() => {
-          if (pinnedHeatCapacityParamHelpId === null) {
-            setHoveredHeatCapacityParamHelpId(null);
-            setHeatCapacityParamHelpPopoverStyle(undefined);
-          }
-        }}
+        onMouseLeave={hideHeatCapacityHoverTooltip}
       >
         <button
           type="button"
@@ -49,15 +40,12 @@ export const WorkbenchHeatCapacityParameterHelp = ({
           data-heat-capacity-param-help-id={parameterId}
           aria-label={`${modelEffect}`}
           onMouseEnter={(event) => {
-            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
-            setHoveredHeatCapacityParamHelpId(parameterId);
+            hoverHeatCapacityParameterHelp(parameterId, event.currentTarget);
           }}
           onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
-            updateHeatCapacityParamHelpPopoverStyle(event.currentTarget);
-            setPinnedHeatCapacityParamHelpId(parameterId);
-            setHoveredHeatCapacityParamHelpId(parameterId);
+            pinHeatCapacityParameterHelp(parameterId, event.currentTarget);
           }}
         >
           ?

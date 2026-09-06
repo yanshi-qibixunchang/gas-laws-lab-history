@@ -1,3 +1,8 @@
+import type { WorkbenchHeatCapacityNumberParameterRowProps } from '../../src/features/workbench/WorkbenchHeatCapacityNumberParameterRow.tsx';
+import type { WorkbenchHeatCapacityParameterHelpProps } from '../../src/features/workbench/WorkbenchHeatCapacityParameterHelp.tsx';
+import type { WorkbenchHeatCapacityPreviewProps } from '../../src/features/workbench/WorkbenchHeatCapacityPreview.tsx';
+import { heatCapacityFreeBasicNumberParameters } from '../../src/features/heatCapacity/heatCapacityFreeParameterPanelModel.ts';
+import { selectHeatCapacityFreeAppliedParameterDraft } from '../../src/features/workbench/workbenchHeatCapacityFreeAuthorityTransaction.ts';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import React from 'react';
@@ -166,3 +171,54 @@ for (const name of ['renderHeatCapacityGuideLessonOverlay', 'renderPistonOscilla
     name + ' must preserve null before handing an optional overlay to the scene');
 }
 console.log('workbenchViewComponents tests passed');
+
+const { WorkbenchHeatCapacityNumberParameterRow } = load<{
+  WorkbenchHeatCapacityNumberParameterRow: (props: WorkbenchHeatCapacityNumberParameterRowProps) => React.ReactNode;
+}>('WorkbenchHeatCapacityNumberParameterRow');
+const heatNumberEvents: unknown[] = [];
+const heatTemperatureDefinition = heatCapacityFreeBasicNumberParameters.find(definition => definition.id === 'ambientTemperatureK')!;
+const heatNumberProps: WorkbenchHeatCapacityNumberParameterRowProps = {
+  definition: heatTemperatureDefinition, draft: selectHeatCapacityFreeAppliedParameterDraft(heatFile),
+  scope: 'basic', disabled: false, heatCapacityBasicInputDrafts: { ambientTemperatureK: '20.125' },
+  heatCapacityAdvancedInputDrafts: {}, heatCapacityBasicInputErrors: {}, heatCapacityAdvancedInputErrors: {},
+  settingsLanguagePreference: 'zh-CN', renderHeatCapacityParameterLabel: noElement,
+  changeHeatCapacityParameterInputDraft: (...args) => { heatNumberEvents.push(['change', ...args]); },
+  commitHeatCapacityBasicParameterInput: (...args) => { heatNumberEvents.push(['commit', ...args]); },
+};
+const heatNumberInput = find(WorkbenchHeatCapacityNumberParameterRow(heatNumberProps), element => element.type === 'input');
+assert.equal(heatNumberInput.props.value, '20.125');
+event(heatNumberInput, 'onChange', { target: { value: '20.25' } });
+event(heatNumberInput, 'onBlur');
+event(heatNumberInput, 'onKeyDown', { key: 'Enter' });
+assert.deepEqual(heatNumberEvents, [['change', 'basic', 'ambientTemperatureK', '20.25'], ['commit', 'ambientTemperatureK', '20.125'], ['commit', 'ambientTemperatureK', '20.125']]);
+heatNumberEvents.length = 0;
+const advancedNumberInput = find(WorkbenchHeatCapacityNumberParameterRow({ ...heatNumberProps, scope: 'advanced' }), element => element.type === 'input');
+event(advancedNumberInput, 'onBlur');
+event(advancedNumberInput, 'onKeyDown', { key: 'Enter' });
+assert.deepEqual(heatNumberEvents, [], 'Advanced rows wait for the complete draft save');
+
+const { WorkbenchHeatCapacityParameterHelp } = load<{
+  WorkbenchHeatCapacityParameterHelp: (props: WorkbenchHeatCapacityParameterHelpProps) => React.ReactNode;
+}>('WorkbenchHeatCapacityParameterHelp');
+const heatHelpEvents: string[] = [];
+const helpProps: WorkbenchHeatCapacityParameterHelpProps = {
+  parameterId: 'ambientTemperatureK', modelEffect: 'temperature', visibleHeatCapacityParamHelpId: null,
+  renderHeatCapacityTooltipPopover: () => null, pinnedHeatCapacityParamHelpId: null,
+  hoverHeatCapacityParameterHelp: id => { heatHelpEvents.push('hover:' + id); },
+  pinHeatCapacityParameterHelp: id => { heatHelpEvents.push('pin:' + id); },
+  hideHeatCapacityHoverTooltip: () => { heatHelpEvents.push('hide'); },
+};
+const helpButton = find(WorkbenchHeatCapacityParameterHelp(helpProps), element => element.type === 'button');
+event(helpButton, 'onMouseEnter', { currentTarget: {} });
+event(helpButton, 'onClick', { currentTarget: {}, preventDefault: () => heatHelpEvents.push('prevent'), stopPropagation: () => heatHelpEvents.push('stop') });
+assert.deepEqual(heatHelpEvents, ['hover:ambientTemperatureK', 'prevent', 'stop', 'pin:ambientTemperatureK']);
+
+const { WorkbenchHeatCapacityPreview } = load<{
+  WorkbenchHeatCapacityPreview: (props: WorkbenchHeatCapacityPreviewProps) => React.ReactNode;
+}>('WorkbenchHeatCapacityPreview');
+const previewChild = React.createElement('span', { id: 'preserved-scene' });
+const previewFrame = WorkbenchHeatCapacityPreview({ mountAria: 'instrument', interactionLocked: false, onLockedPointer: () => undefined, children: previewChild });
+assert.ok(React.isValidElement(previewFrame));
+assert.equal((previewFrame as Element).props.children, previewChild);
+assert.equal((previewFrame as Element).props['data-heat-capacity-preview-mount'], 'true');
+console.log('Workbench Heat view event and slot tests passed.');

@@ -1,3 +1,4 @@
+const archWorkbenchParameterInteractionPresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterInteractionPresentation.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchSimulationParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterRow.tsx', import.meta.url), 'utf8');
@@ -9,19 +10,19 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  archWorkbenchParameterInteractionPresentationSource,
   /const currentIdealRelationHasPoints = activeFile\.kind === 'ideal' && activeFile\.pointsByRelation\[activeFile\.relation\]\.length > 0;/,
   'ideal mode should detect when the current relation already has experiment data',
 );
 
 assert.match(
-  source,
+  archWorkbenchParameterInteractionPresentationSource,
   /const isIdealControlledVariableLocked = \(\s*key: keyof SimulationParams \| 'relation',\s*\) => \([\s\S]*?currentIdealRelationHasPoints[\s\S]*?!isVariableKeyForRelation\(activeFile\.relation, key as ExperimentParamKey\)[\s\S]*?\);/,
   'ideal mode should lock non-variable parameters after the current relation has data',
 );
 
 assert.match(
-  source,
+  archWorkbenchParameterInteractionPresentationSource,
   /const getLockedIdealControlledVariableKeys = \(nextParams: SimulationParams\): ExperimentParamKey\[\] => \([\s\S]*?currentIdealRelationHasPoints[\s\S]*?getChangedIdealParamKeys\(activeFile\.params, nextParams\)\.filter\(\(key\) => !isVariableKeyForRelation\(activeFile\.relation, key\)\)/,
   'saving/applying ideal parameters should find non-variable changes while the current relation has data',
 );
@@ -51,7 +52,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  archWorkbenchParameterInteractionPresentationSource,
   /const controlledVariableLockHint = workbenchCopy\.parameters\.controlledLockHint;/,
   'locked controlled-variable rows should expose a hover hint that explains the control-variable rule',
 );
@@ -90,3 +91,5 @@ console.log('workbenchIdealControlledVariablesLock tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);
+
+assert.match(source, /from '\.\/workbenchParameterInteractionPresentation\.ts'/);

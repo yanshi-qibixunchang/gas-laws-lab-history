@@ -1,3 +1,5 @@
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatCapacityExperimentProgressSource = readHeatArchitectureSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityExperimentProgress.tsx', import.meta.url), 'utf8');
 const pistonPreviewSource = readFileSync(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
 const presentationWorkbenchExperimentProgressCopySource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchExperimentProgressCopy.ts', import.meta.url), 'utf8');
@@ -87,7 +89,7 @@ assert.match(
   'the new floating menu should be scrollable and viewport bounded',
 );
 
-assert.ok((workbenchSource.match(/<FreeExperimentProgress/g) ?? []).length >= 2,
+assert.ok((heatArchitectureWorkbenchHeatCapacityExperimentProgressSource.match(/<FreeExperimentProgress/g) ?? []).length >= 2,
   'heat groups and empty-group actions must use the shared progress component');
 assert.ok((pistonPreviewSource.match(/<FreeExperimentProgress/g) ?? []).length >= 2,
   'piston runs and empty-plan actions must use the shared progress component');
@@ -96,7 +98,7 @@ assert.match(
   /heatProgress:[\s\S]*第 \$\{current\} \/ \$\{total\} 次实验[\s\S]*pistonProgress:[\s\S]*第 \$\{ordinal\} \/ \$\{total\} 次 · 目标 \$\{heightMm\} mm/,
   'both progress labels should use the approved compact single-line language',
 );
-assert.match(workbenchSource,
+assert.match(heatArchitectureWorkbenchHeatCapacityExperimentProgressSource,
   /dataOwner="heat-capacity"[\s\S]*heatFirst[\s\S]*data-heat-capacity-empty-group-start/,
   'heat reset state must expose explicit first-group setup');
 assert.match(pistonPreviewSource,
@@ -115,4 +117,4 @@ assert.doesNotMatch(
 
 console.log('sharedExperimentControls tests passed');
 
-assert.ok(workbenchSource.includes("from './workbenchExperimentProgressCopy.ts'"), 'workbenchExperimentProgressCopy must remain connected to the shell');
+assert.match(heatArchitectureWorkbenchHeatCapacityExperimentProgressSource, /from '\.\/workbenchExperimentProgressCopy\.ts'/); assert.match(pistonPreviewSource, /from '\.\/workbenchExperimentProgressCopy\.ts'/); assert.match(workbenchSource, /useWorkbenchHeatCapacityController\(\{/); assert.match(workbenchSource, /useWorkbenchPistonController\(\{/);

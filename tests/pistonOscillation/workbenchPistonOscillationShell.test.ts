@@ -1,3 +1,6 @@
+const pistonScientificPreviewSource = readFileSync(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
+const parameterSidebarActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterSidebarActions.ts', import.meta.url), 'utf8');
+const archUseWorkbenchParameterSidebarAvailabilitySource = readFileSync(new URL('../../src/features/workbench/useWorkbenchParameterSidebarAvailability.ts', import.meta.url), 'utf8');
 const contractWorkbenchFileActionsSource = readContractModule(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
 const contractWorkbenchCurrentParametersSource = readContractModule(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
 const contractWorkbenchPistonOscillationPreviewSource = readContractModule(new URL('../../src/features/workbench/WorkbenchPistonOscillationPreview.tsx', import.meta.url), 'utf8');
@@ -175,7 +178,8 @@ assert.match(
 
 const sidebarRailSource = sourceSlice(
   'const openParameterSidebarFromRail = () => {',
-  'const collapseHeatCapacityFreeParameterSidebarForExperimentAction',
+  'return { showParameterSidebarBlockReason, openParameterSidebarFromRail };',
+  parameterSidebarActionSource,
 );
 assert.match(sidebarRailSource, /setParametersCollapsed\(false\)/);
 assert.match(
@@ -189,7 +193,7 @@ assert.match(
   'the sidebar must use the independently tested mode selection',
 );
 assert.match(
-  workbenchSource,
+  archUseWorkbenchParameterSidebarAvailabilitySource,
   /if \(!activePistonOscillationParameterSidebarAvailable\) \{\s*setParametersCollapsed\(true\);\s*\}/,
   'leaving Piston Free Mode should collapse the parameter sidebar immediately',
 );
@@ -950,7 +954,7 @@ assert.match(
 console.log('workbenchPistonOscillationShell tests passed');
 
 assert.ok(workbenchSource.includes("from './workbenchPanelAvailability.ts'"), 'workbenchPanelAvailability must remain connected to the shell');
-assert.ok(workbenchSource.includes("from './WorkbenchScientificText.tsx'"), 'WorkbenchScientificText must remain connected to the shell');
+assert.ok(pistonScientificPreviewSource.includes("from './WorkbenchScientificText.tsx'"), 'WorkbenchScientificText must remain connected to the shell');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPanelTree \} from '\.\/WorkbenchPistonOscillationPanelTree\.tsx';/);
@@ -960,3 +964,9 @@ assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationGuid
 assert.match(workbenchViewShellSource, /import \{ WorkbenchCenterWorkspace \} from '\.\/WorkbenchCenterWorkspace\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPreview \} from '\.\/WorkbenchPistonOscillationPreview\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationGuideLesson \} from '\.\/WorkbenchPistonOscillationGuideLesson\.tsx';/);
+
+assert.match(workbenchSource, /from '\.\/useWorkbenchParameterSidebarAvailability\.ts'/);
+
+assert.match(workbenchSource, /createWorkbenchParameterSidebarActions\(\{ activeFile, activePistonOscillationParameterSidebarAvailable/);
+
+assert.match(workbenchSource, /<WorkbenchPistonOscillationPreview/);

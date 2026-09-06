@@ -500,7 +500,7 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
     },
   };
   const heatCapacityFreeRollbackSnapshots = activeFreeDomain.rollbackSnapshots;
-  const normalizedHeatCapacityMode = file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide' || file.heatCapacityMode === 'free'
+  const normalizedHeatCapacityMode = file.heatCapacityMode === null || file.heatCapacityMode === 'demo' || file.heatCapacityMode === 'guide' || file.heatCapacityMode === 'free'
     ? file.heatCapacityMode
     : fallback.heatCapacityMode;
   const guideCalculationReference = file.heatCapacityGuideTrial === null

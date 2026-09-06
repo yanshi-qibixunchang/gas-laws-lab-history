@@ -1,3 +1,6 @@
+const archUseWorkbenchConsoleStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchConsoleState.ts', import.meta.url), 'utf8');
+const archUseWorkbenchConsoleScrollSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchConsoleScroll.ts', import.meta.url), 'utf8');
+const archWorkbenchConsoleStateSource = readFileSync(new URL('../../src/features/workbench/workbenchConsoleState.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchPanelContentSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelContent.tsx', import.meta.url), 'utf8');
@@ -304,12 +307,12 @@ assert.match(
   'Console Output should define clickable log filter tabs',
 );
 assert.match(
-  source,
+  archUseWorkbenchConsoleStateSource,
   /const \[consoleTab,\s*setConsoleTab\]/,
   'Console Output should store the active log tab',
 );
 assert.match(
-  source,
+  archUseWorkbenchConsoleScrollSource,
   /consoleBodyRef[\s\S]*?scrollTop\s*=\s*body\.scrollHeight/,
   'Console Output should auto-scroll to the newest log entry',
 );
@@ -319,7 +322,7 @@ assert.match(
   'Console Output tabs should render as clickable buttons',
 );
 assert.match(
-  source,
+  archWorkbenchConsoleStateSource,
   /createInitialLogs/,
   'initial Console Output rows should be generated at component startup',
 );
@@ -361,7 +364,7 @@ assert.match(
 
 console.log('workbenchIdealResultsWindow tests passed');
 
-assert.ok(source.includes("from './workbenchConsolePresentation.ts'"), 'workbenchConsolePresentation must remain connected to the shell');
+assert.match(archWorkbenchConsoleStateSource, /from '\.\/workbenchConsolePresentation\.ts'/);
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelContent \} from '\.\/WorkbenchPanelContent\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelNavigation \} from '\.\/WorkbenchPanelNavigation\.tsx';/);
@@ -369,3 +372,7 @@ assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from
 assert.match(workbenchViewShellSource, /import \{ WorkbenchDockHeader \} from '\.\/WorkbenchDockHeader\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealResultsRegion \} from '\.\/WorkbenchIdealResultsRegion\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchConsole \} from '\.\/WorkbenchConsole\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchConsoleState\.ts'/);
+assert.match(source, /from '\.\/useWorkbenchConsoleScroll\.ts'/);
+assert.match(source, /from '\.\/workbenchConsoleState\.ts'/);

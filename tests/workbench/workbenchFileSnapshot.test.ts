@@ -1,3 +1,4 @@
+const snapshotHistoryOwnerSource = readFileSync(new URL('../../src/features/workbench/workbenchEditHistoryActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -65,7 +66,9 @@ const workbenchSource = readFileSync(
   join(process.cwd(), 'src', 'features', 'workbench', 'WorkbenchStudioPrototype.tsx'),
   'utf8',
 );
-assert.match(workbenchSource, /from '\.\/workbenchFileSnapshot\.ts'/);
+assert.match(snapshotHistoryOwnerSource, /from '\.\/workbenchFileSnapshot\.ts'/);
 assert.doesNotMatch(workbenchSource, /const cloneWorkbenchFiles\s*=/);
 
 console.log('workbenchFileSnapshot tests passed');
+
+assert.match(workbenchSource, /createWorkbenchEditHistoryActions\(\{/);

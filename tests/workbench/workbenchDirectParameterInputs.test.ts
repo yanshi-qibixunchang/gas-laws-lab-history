@@ -1,3 +1,4 @@
+const archUseWorkbenchParameterInteractionStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchParameterInteractionState.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchSimulationParameterRowSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchSimulationParameterRow.tsx', import.meta.url), 'utf8');
@@ -13,7 +14,7 @@ const hardSphereToggleSource = readFileSync(new URL('../../src/features/heatCapa
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  archUseWorkbenchParameterInteractionStateSource,
   /const \[parameterInputDrafts,\s*setParameterInputDrafts\] = useState<Record<string, string>>\(\{\}\);/,
   'standard and ideal parameter inputs should keep transient per-field drafts',
 );
@@ -111,3 +112,5 @@ console.log('workbenchDirectParameterInputs tests passed');
 assert.ok(source.includes("from './workbenchParameterPresentation.ts'"), 'workbenchParameterPresentation must remain connected to the shell');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchParameterInteractionState\.ts'/);

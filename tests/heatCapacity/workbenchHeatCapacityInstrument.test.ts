@@ -1,3 +1,5 @@
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatSceneVisualsSource = readHeatArchitectureSource(new URL('../../src/features/workbench/workbenchHeatSceneVisuals.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import {
   adjustHeatCapacityPressureZeroCoarse,
@@ -2810,8 +2812,8 @@ assert.doesNotMatch(
   'auto-demo pressure-zero and reset actions should commit logical state once instead of driving Workbench state through RAF',
 );
 assert.match(
-  workbenchSource,
-  /guideRollbackAnimation=\{guideHeatCapacityRollback\?\.animation \?\? null\}/,
+  heatArchitectureWorkbenchHeatSceneVisualsSource,
+  /guideRollbackAnimation:\s*guideHeatCapacityRollback\?\.animation \?\? null/,
   'guide-mode rollback animation should remain a scene-local visual path rather than a high-frequency Workbench state update',
 );
 

@@ -1,3 +1,8 @@
+const archUseWorkbenchWorkspacePersistenceSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchWorkspacePersistence.ts', import.meta.url), 'utf8');
+const refreshCaptureSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatRefreshSessionCapture.ts', import.meta.url), 'utf8');
+const refreshPresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchRefreshPresentationCapture.ts', import.meta.url), 'utf8');
+const archUseWorkbenchEditHistoryStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchEditHistoryState.ts', import.meta.url), 'utf8');
+const archUseWorkbenchFileTreeStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchFileTreeState.ts', import.meta.url), 'utf8');
 const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
 const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
 const fileActionSource = readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8');
@@ -35,7 +40,7 @@ assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) 
 assert.match(initialWorkspaceSource,
   /const \[initialOrdinaryClosedFiles\] = useState\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen/,
   'startup loads cached closed files and normalizes heat-capacity files to Explore');
-assert.match(source, /useWorkbenchInitialWorkspace\(\);[\s\S]*const \[closedFiles, setClosedFiles\] = useState<WorkbenchFileState\[]>/,
+assert.match(source, /useWorkbenchInitialWorkspace\(\);[\s\S]*useWorkbenchWorkspaceCollectionState\(\{ initialSession, initialHeatCapacityRefreshSession, getInitialClosedFiles:/,
   'the current closed collection is initialized from the dedicated startup owner');
 assert.match(source, /createWorkbenchFileCollectionActions\(\{/,
   'the workspace uses the dedicated collection commit lanes');
@@ -116,16 +121,9 @@ assert.match(
   'workspace restore must atomically restore open and closed collections without duplicating an identity',
 );
 assert.match(source, /createWorkbenchEditHistoryActions\(\{/);
-assert.match(source, /useState<WorkbenchEditSnapshot\[]>\(\[\]\)/);
-assert.doesNotMatch(
-  source.slice(
-    indexOfOrFail(source, 'const buildCurrentHeatCapacityRefreshSession = (', 'refresh capture should exist'),
-    indexOfOrFail(source, 'const persistCurrentHeatCapacityRefreshSession = (', 'refresh persistence should follow capture'),
-  ),
-  /undoStack|redoStack/,
-  'process-local edit history must not restore unvalidated legacy snapshots after restart',
-);
-assert.match(
+assert.match(archUseWorkbenchEditHistoryStateSource, /useState<WorkbenchEditSnapshot\[]>\(\[\]\)/);
+assert.doesNotMatch(refreshCaptureSource, /undoStack|redoStack/, 'domain refresh capture must not serialize process-local history');
+assert.doesNotMatch(refreshPresentationSource, /undoStack|redoStack/, 'ordinary refresh presentation must not serialize process-local history');assert.match(
   historySource,
   /const pushUndoSnapshot[\s\S]*undoStackRef\.current = nextUndoStack;[\s\S]*redoStackRef\.current = \[\];[\s\S]*setUndoStack/,
   'history refs must update synchronously before an immediate collection persistence flush',
@@ -196,9 +194,9 @@ assertCollectionCommitPrecedesFlush(
 );
 
 const workspaceSnapshotSource = readFileSync(new URL('../../src/features/workbench/workbenchWorkspacePersistenceActions.ts', import.meta.url), 'utf8');
-assert.match(source, /createWorkbenchWorkspaceSnapshotCapture\(\{[\s\S]*readCapturedAtMs: \(\) => desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\)/,
+assert.match(source, /useWorkbenchWorkspacePersistence\(\{[\s\S]*readCapturedAtMs: \(\) => desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\)/,
   'the capture adapter must retain the desktop exit clock anchor');
-assert.match(source, /scheduleWorkspacePersistenceRef\.current = workspacePersistenceRequests\.schedule;[\s\S]*flushWorkspacePersistenceRef\.current = workspacePersistenceRequests\.flush;/,
+assert.match(archUseWorkbenchWorkspacePersistenceSource, /scheduleWorkspacePersistenceRef\.current = workspacePersistenceRequests\.schedule;[\s\S]*flushWorkspacePersistenceRef\.current = workspacePersistenceRequests\.flush;/,
   'the main workspace must use the dedicated persistence requests');
 assert.match(workspaceSnapshotSource,
   /resolveWorkbenchActiveModeCheckpointOverride\([\s\S]*const refreshSession =[\s\S]*checkpointOverride\.provided \? null : ports\.buildRefreshSession\(snapshotCapturedAtMs\)[\s\S]*checkpointOverride\.provided[\s\S]*\? checkpointOverride\.checkpoint[\s\S]*: ports\.buildModeCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)/,
@@ -207,7 +205,7 @@ assert.match(workspaceSnapshotSource,
   /const snapshot = ports\.capture\(activeModeCheckpointOverride\);\s*const scheduler = ports\.readScheduler\(\);\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot, 'lifecycle'\);/,
   'flush must materialize the target-file snapshot before awaiting an earlier save or React commit');
 assert.match(
-  source,
+  archUseWorkbenchWorkspacePersistenceSource,
   /const flushWorkspaceAfterRunStateCommit = \(\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*persistWorkspaceLifecycleCheckpointRef\.current\(\)/,
   'pause and stop transitions should request an immediate lifecycle flush after React commits their run-state change',
 );
@@ -235,7 +233,7 @@ assert.ok(fileMenuSource.includes('onContextMenu={(event) =>'), 'file tree rows 
 assert.ok(fileMenuSource.includes('requestCloseWorkbenchFile(file)'), 'file tree menu should include Close Experiment');
 assert.ok(fileMenuSource.includes('requestDeleteWorkbenchFile(file)'), 'file tree menu should keep Delete');
 assert.match(
-  source,
+  archUseWorkbenchFileTreeStateSource,
   /const \[selectedFileId, setSelectedFileId\] = useState\(\(\) => \{[\s\S]*?restoredSelectedFileId[\s\S]*?: initialSession\.activeFileId;/,
   'workbench should track selected experiment separately from the active experiment and restore that selection on heat-capacity refresh',
 );
@@ -290,3 +288,8 @@ assert.match(
 console.log('workbenchExperimentFiles tests passed');
 
 assert.ok(source.includes("from './workbenchEditLabelLocalization.ts'"), 'workbenchEditLabelLocalization must remain connected to the shell');
+
+assert.match(source, /from '\.\/useWorkbenchEditHistoryState\.ts'/);
+assert.match(source, /from '\.\/useWorkbenchFileTreeState\.ts'/);
+
+assert.match(source, /from '\.\/useWorkbenchWorkspacePersistence\.ts'/);

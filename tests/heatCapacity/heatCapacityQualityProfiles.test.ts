@@ -1,3 +1,8 @@
+const heatControllerSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatCapacityController.ts', import.meta.url), 'utf8');
+const realtimeClockSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatRealtimeClock.ts', import.meta.url), 'utf8');
+const sceneStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatSceneState.ts', import.meta.url), 'utf8');
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatSceneVisualsSource = readHeatArchitectureSource(new URL('../../src/features/workbench/workbenchHeatSceneVisuals.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -57,7 +62,7 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  sceneStateSource,
   /import \{[\s\S]*HEAT_CAPACITY_QUALITY_PROFILES[\s\S]*\} from '\.\.\/heatCapacity\/heatCapacityQualityProfiles';/,
   'Workbench should consume the active quality profile values it uses for rendering',
 );
@@ -92,17 +97,17 @@ assert.match(
   'settings segmented control should render directly from quality mode order',
 );
 assert.match(
-  workbenchSource,
+  sceneStateSource,
   /const heatCapacityQualityProfile = HEAT_CAPACITY_QUALITY_PROFILES\[settingsPerformanceMode\];/,
   'Workbench should derive one active profile for particle multipliers and tick cadence',
 );
 assert.match(
-  workbenchSource,
-  /particleMultiplier=\{heatCapacityQualityProfile\.particleMultiplier\}[\s\S]*speedMultiplier=\{heatCapacityQualityProfile\.speedMultiplier\}/,
+  heatArchitectureWorkbenchHeatSceneVisualsSource,
+  /particleMultiplier:\s*heatCapacityQualityProfile\.particleMultiplier[\s\S]*speedMultiplier:\s*heatCapacityQualityProfile\.speedMultiplier/,
   'Heat Capacity scene should receive molecule multipliers from the active quality profile',
 );
 assert.match(
-  workbenchSource,
+  realtimeClockSource,
   /window\.setInterval\([\s\S]*heatCapacityQualityProfile\.tickIntervalMs\)/,
   'Heat Capacity stepping interval should come from the active quality profile',
 );
@@ -168,3 +173,5 @@ assert.match(styleSource, /studio-settings-performance-segmented-highPerformance
 assert.doesNotMatch(styleSource, /studio-settings-performance-segmented-standard|studio-settings-performance-segmented-performance|studio-settings-performance-switch|studio-settings-performance-toggle/, 'old performance segmented and switch CSS should be removed');
 
 console.log('heatCapacityQualityProfiles tests passed');
+
+assert.match(workbenchSource, /useWorkbenchHeatCapacityController\(\{/); assert.match(heatControllerSource, /useWorkbenchHeatSceneState\(\{/); assert.match(heatControllerSource, /useWorkbenchHeatRealtimeClock\(\{/); assert.match(workbenchSource, /deriveWorkbenchHeatSceneVisuals\(\{[\s\S]*heatCapacityQualityProfile/);

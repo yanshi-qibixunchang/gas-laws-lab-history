@@ -1,3 +1,4 @@
+const archUseWorkbenchConsoleProjectionSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchConsoleProjection.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchStatusBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStatusBar.tsx', import.meta.url), 'utf8');
@@ -70,7 +71,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  archUseWorkbenchConsoleProjectionSource,
   /isWorkbenchEmpty[\s\S]*?\? workbenchCopy\.status\.noRuntime/,
   'empty workbench status bar should show that no runtime is connected',
 );
@@ -138,3 +139,5 @@ assert.match(
 console.log('workbenchEmptyFiles tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchStatusBar \} from '\.\/WorkbenchStatusBar\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchConsoleProjection\.ts'/);

@@ -1,3 +1,6 @@
+const consoleStateHook = readFileSync(new URL('../../src/features/workbench/useWorkbenchConsoleState.ts', import.meta.url), 'utf8');
+const consoleStatePresentation = readFileSync(new URL('../../src/features/workbench/workbenchConsoleState.ts', import.meta.url), 'utf8');
+const guideMaskPresentation = readFileSync(new URL('../../src/features/workbench/workbenchHeatPreviewGuideMask.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -116,8 +119,7 @@ assert.deepEqual(logs.map(log => log.kind), ['info', 'success', 'success', 'warn
 assert.equal(resolveWorkbenchConsoleMessage(logs[0], 'zh-CN'), workbenchCopies['zh-CN'].logs.initialized);
 
 const workbench = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
-for (const moduleName of ['workbenchParameterPresentation', 'workbenchPanelDefinitions',
-  'workbenchHeatCapacityGuideMaskGeometry', 'workbenchConsolePresentation']) {
+for (const moduleName of ['workbenchParameterPresentation', 'workbenchPanelDefinitions']) {
   assert.match(workbench, new RegExp(`from '\\./${moduleName}\\.tsx?'`), `${moduleName} must remain wired to the live shell`);
 }
 console.log('workbenchPresentationModules tests passed');
@@ -125,3 +127,7 @@ console.log('workbenchPresentationModules tests passed');
 const pistonGuideOwner = readFileSync(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8');
 assert.match(pistonGuideOwner, /from '\.\/workbenchPistonGuideMaskDom\.ts'/, 'Piston guide runtime owns the live mask geometry binding');
 assert.match(workbench, /useWorkbenchPistonController\(\{/);
+
+assert.match(guideMaskPresentation, /from '\.\/workbenchHeatCapacityGuideMaskGeometry\.ts'/); assert.match(workbench, /deriveWorkbenchHeatPreviewGuideMask\(\{/);
+
+assert.match(consoleStatePresentation, /from '\.\/workbenchConsolePresentation\.ts'/); assert.match(consoleStateHook, /from '\.\/workbenchConsoleState\.ts'/); assert.match(workbench, /useWorkbenchConsoleState\(\{/);

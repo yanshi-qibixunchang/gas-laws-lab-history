@@ -183,4 +183,4 @@ console.log('workbenchDeleteCancel tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);
 
-assert.match(source, /createWorkbenchFileActions\(\{/);
+assert.match(source, /useWorkbenchFileActions\(\{/);

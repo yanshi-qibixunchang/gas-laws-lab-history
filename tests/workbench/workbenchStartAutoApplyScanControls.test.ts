@@ -1,3 +1,4 @@
+const archUseWorkbenchParameterInteractionStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchParameterInteractionState.ts', import.meta.url), 'utf8');
 const idealActionSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealExperimentActions.ts', import.meta.url), 'utf8');
 const scanParserSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealScanInput.ts', import.meta.url), 'utf8');
 const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
@@ -101,7 +102,7 @@ assert.ok(
 );
 
 assert.match(
-  source,
+  archUseWorkbenchParameterInteractionStateSource,
   /const scanInputRef = useRef<HTMLInputElement \| null>\(null\);/,
   'ideal scan input should keep a ref so invalid submissions can keep the user in the same editor',
 );
@@ -242,3 +243,5 @@ assert.match(
 console.log('workbenchStartAutoApplyScanControls tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchParameterInteractionState\.ts'/);

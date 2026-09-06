@@ -1,3 +1,9 @@
+const heatEffectPhaseSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatEffectPhases.ts', import.meta.url), 'utf8');
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureUseWorkbenchHeatParameterHelpSource = readHeatArchitectureSource(new URL('../../src/features/workbench/useWorkbenchHeatParameterHelp.ts', import.meta.url), 'utf8');
+const heatArchitectureUseWorkbenchHeatParameterStateSource = readHeatArchitectureSource(new URL('../../src/features/workbench/useWorkbenchHeatParameterState.ts', import.meta.url), 'utf8');
+const archUseWorkbenchLayoutStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchLayoutState.ts', import.meta.url), 'utf8');
+const archUseWorkbenchFileTreeStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchFileTreeState.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchMenuBarSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchMenuBar.tsx', import.meta.url), 'utf8');
@@ -10,19 +16,19 @@ import { readFileSync } from 'node:fs';
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  archUseWorkbenchLayoutStateSource,
   /const topMenuRef = useRef<HTMLDivElement \| null>\(null\);/,
   'top command menu should keep a ref so outside pointer events can ignore clicks inside the active top menu',
 );
 
 assert.match(
-  source,
+  archUseWorkbenchFileTreeStateSource,
   /const fileMenuRef = useRef<HTMLDivElement \| null>\(null\);/,
   'file action menu should keep a ref so outside pointer events can ignore clicks inside the active file menu',
 );
 
 assert.match(
-  source,
+  archUseWorkbenchFileTreeStateSource,
   /const renameInputRef = useRef<HTMLInputElement \| null>\(null\);/,
   'rename input should keep a ref so outside pointer events can distinguish internal rename edits from external clicks',
 );
@@ -70,25 +76,25 @@ assert.match(
 );
 
 assert.match(
-  source,
+  heatArchitectureUseWorkbenchHeatParameterHelpSource,
   /document\.addEventListener\('pointerdown', handleHeatCapacityParamHelpPointerDown, true\);[\s\S]*document\.removeEventListener\('pointerdown', handleHeatCapacityParamHelpPointerDown, true\);/,
   'pinned Heat Capacity parameter help should use capture-phase outside-click interception without replacing the existing outside-dismiss handlers',
 );
 
 assert.match(
-  source,
+  heatArchitectureUseWorkbenchHeatParameterStateSource,
   /const heatCapacityParamHelpSuppressClickRef = useRef\(false\);/,
   'pinned Heat Capacity parameter help should track the click that follows an intercepted outside pointerdown',
 );
 
 assert.match(
-  source,
-  /useEffect\(\(\) => \{[\s\S]*?const handleHeatCapacityParamHelpClick = \(event: MouseEvent\) => \{[\s\S]*?heatCapacityParamHelpSuppressClickRef\.current = false;[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);[\s\S]*?\};[\s\S]*document\.addEventListener\('click', handleHeatCapacityParamHelpClick, true\);[\s\S]*document\.removeEventListener\('click', handleHeatCapacityParamHelpClick, true\);[\s\S]*?\}, \[\]\);/,
+  heatArchitectureUseWorkbenchHeatParameterHelpSource,
+  /const parameterHelpClickEffect = \{ run: \(\) => \{[\s\S]*?const handleHeatCapacityParamHelpClick = \(event: MouseEvent\) => \{[\s\S]*?heatCapacityParamHelpSuppressClickRef\.current = false;[\s\S]*?event\.preventDefault\(\);[\s\S]*?event\.stopPropagation\(\);[\s\S]*document\.addEventListener\('click', handleHeatCapacityParamHelpClick, true\);[\s\S]*document\.removeEventListener\('click', handleHeatCapacityParamHelpClick, true\);[\s\S]*dependencies: \[\]/,
   'pinned Heat Capacity parameter help should keep a stable capture listener that swallows the click paired with an intercepted outside pointerdown',
 );
 
 assert.match(
-  source,
+  heatArchitectureUseWorkbenchHeatParameterHelpSource,
   /const closePinnedHeatCapacityParameterHelp = \(\) => \{[\s\S]*?setPinnedHeatCapacityParamHelpId\(null\);[\s\S]*?setHoveredHeatCapacityParamHelpId\(null\);[\s\S]*?\};/,
   'closing pinned Heat Capacity parameter help should also clear transient hover state',
 );
@@ -100,3 +106,8 @@ assert.match(source, /useWorkbenchFileMenuInteractions\(\{/);
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/WorkbenchMenuBar\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchLayoutState\.ts'/);
+assert.match(source, /from '\.\/useWorkbenchFileTreeState\.ts'/);
+
+assert.match(heatEffectPhaseSource, /useEffect\(effects\.parameterHelpClick\.run, effects\.parameterHelpClick\.dependencies\)/); assert.match(workbenchViewShellSource, /useWorkbenchHeatParameterHelpEffects\(heatCapacityController\.effects\.parameterHelp\)/);

@@ -1,3 +1,6 @@
+const modeRuntimeSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatModeRuntime.ts', import.meta.url), 'utf8');
+const heatControllerSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatCapacityController.ts', import.meta.url), 'utf8');
+const freeWorkspaceSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatFreeWorkspace.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchPanelContentSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPanelContent.tsx', import.meta.url), 'utf8');
@@ -16,12 +19,12 @@ const reportDialog = read('src/features/heatCapacity/HeatCapacityReportExportDia
 const parameterPanelModel = read('src/features/heatCapacity/heatCapacityFreeParameterPanelModel.ts');
 
 assert.match(
-  workbench,
-  /const activeHeatCapacityCurrentGroupTerminal =[\s\S]*status === 'completed'[\s\S]*status === 'legacy-incomplete-readonly'[\s\S]*const activeHeatCapacityFreeSchemeLocked =[\s\S]*!activeHeatCapacityCurrentGroupTerminal[\s\S]*isHeatCapacityFreeExperimentStarted/,
+  heatControllerSource,
+  /const activeHeatCapacityFreeSchemeLocked =[\s\S]*!free\.activeHeatCapacityCurrentGroupTerminal[\s\S]*isHeatCapacityFreeExperimentStarted/,
   'real/ideal scheme selection should unlock after a terminal experiment group',
 );
 assert.match(
-  workbench,
+  modeRuntimeSource,
   /activateFromExplore: activateHeatCapacityModeFromExplore[\s\S]*collapsePanels: \(\) => \{ setLeftCollapsed\(true\); setParametersCollapsed\(true\); \}/,
   'starting a Heat teaching mode should collapse both sidebars once for the experiment workspace',
 );
@@ -36,12 +39,12 @@ assert.match(
   'process review should default to experiment 1 when a group has no saved local selection',
 );
 assert.match(
-  workbench,
+  freeWorkspaceSource,
   /const requestRemoveHeatCapacityTrialRecord =[\s\S]*currentGroup\?\.status !== 'collecting'[\s\S]*viewedGroupId !== currentGroup\.id/,
   'record deletion should defensively reject historical and completed group contexts',
 );
 assert.match(
-  workbench,
+  freeWorkspaceSource,
   /const selectHeatCapacityViewedGroup = \(groupId: string\) => \{[\s\S]*?setPendingRemoveHeatCapacityTrialRecord\(null\)/,
   "switching experiment groups from process review should clear any pending inline deletion confirmation",
 );
@@ -104,3 +107,7 @@ assert.doesNotMatch(
 console.log('heatCapacityExperimentGroupUi tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelContent \} from '\.\/WorkbenchPanelContent\.tsx';/);
+
+assert.match(freeWorkspaceSource, /const activeHeatCapacityCurrentGroupTerminal =[\s\S]*status === 'completed'[\s\S]*status === 'legacy-incomplete-readonly'/);
+
+assert.match(workbench, /useWorkbenchHeatCapacityController\(\{/); assert.match(heatControllerSource, /useWorkbenchHeatFreeWorkspace\(\{/); assert.match(heatControllerSource, /useWorkbenchHeatModeRuntime\(\{/);

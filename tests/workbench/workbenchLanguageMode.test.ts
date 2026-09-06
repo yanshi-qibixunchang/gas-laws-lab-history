@@ -1,3 +1,5 @@
+const consoleActionSource = readFileSync(new URL('../../src/features/workbench/workbenchConsoleState.ts', import.meta.url), 'utf8');
+const consoleProjectionSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchConsoleProjection.ts', import.meta.url), 'utf8');
 const exportActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchExportActions.ts', import.meta.url), 'utf8');
 const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
 const workbenchConsoleSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchConsole.tsx', import.meta.url), 'utf8');
@@ -103,6 +105,7 @@ assert.doesNotMatch(
 );
 
 const localizedViewSources: Record<string, string> = {
+  'workbenchCopy.status.idealRuntime': consoleProjectionSource,
   "workbenchCopy.parameters.samplingPreset": workbenchIdealControlsSource,
   "workbenchCopy.parameters.relationHints[option.key]": workbenchIdealControlsSource,
   "workbenchCopy.parameters.samplingPresets": workbenchIdealControlsSource,
@@ -395,8 +398,11 @@ assert.match(
 console.log('workbenchLanguageMode tests passed');
 
 assert.ok(source.includes("from './workbenchParameterPresentation.ts'"), 'workbenchParameterPresentation must remain connected to the shell');
-assert.ok(source.includes("from './workbenchConsolePresentation.ts'"), 'workbenchConsolePresentation must remain connected to the shell');
+assert.match(consoleActionSource, /from '\.\/workbenchConsolePresentation\.ts'/);
+assert.match(source, /createWorkbenchConsoleActions\(\{ tutorialActiveRef, setLogs, settingsLanguagePreference \}\)/);
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchStatusBar \} from '\.\/WorkbenchStatusBar\.tsx';/);
+
+assert.match(source, /useWorkbenchConsoleProjection\(\{ logs, consoleTab, activeFile, idealAnalysis, isWorkbenchEmpty, workbenchCopy \}\)/);

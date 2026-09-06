@@ -488,32 +488,70 @@ assert.match(
   /from '\.\/workbenchHeatCapacityCalculationCoordinator\.ts'/,
   'the compatibility facade should explicitly forward the extracted calculation API',
 );
-assert.match(
-  workbenchUiSource,
-  /from '\.\/workbenchHeatCapacityCalculationCoordinator\.ts'/,
-  'the workbench UI should depend directly on the extracted calculation coordinator',
-);
-for (const directUiDependency of [
-  'workbenchHeatCapacityFreeAttemptState',
-  'workbenchHeatCapacityFreeRecordState',
-  'workbenchHeatCapacityFreeRollbackState',
-  'workbenchHeatCapacityFreeRuntimeCoordinator',
-  'workbenchHeatCapacityDisplayState',
-  'workbenchHeatCapacityGuideControlState',
-  'workbenchHeatCapacityTeachingLifecycleState',
-  'workbenchHeatCapacityTeachingResultState',
-  'workbenchHeatCapacityRuntimeCoordinator',
-  'workbenchHeatCapacityCalibrationCoordinator',
-  'workbenchHeatCapacityFileFactory',
-  'workbenchHeatCapacityFreeGroupLifecycle',
-  'workbenchParameterState',
-  'workbenchFileUnion',
+for (const [dependency, owner] of [
+  [
+    "workbenchHeatCapacityCalculationCoordinator",
+    "useWorkbenchHeatFreeWorkspace.ts"
+  ],
+  [
+    "workbenchHeatCapacityFreeAttemptState",
+    "useWorkbenchHeatFreeWorkspace.ts"
+  ],
+  [
+    "workbenchHeatCapacityFreeRecordState",
+    "useWorkbenchHeatInstrument.ts"
+  ],
+  [
+    "workbenchHeatCapacityFreeRollbackState",
+    "useWorkbenchHeatFreeWorkspace.ts"
+  ],
+  [
+    "workbenchHeatCapacityFreeRuntimeCoordinator",
+    "useWorkbenchHeatInstrument.ts"
+  ],
+  [
+    "workbenchHeatCapacityDisplayState",
+    "workbenchHeatPreviewRecords.ts"
+  ],
+  [
+    "workbenchHeatCapacityGuideControlState",
+    "useWorkbenchHeatInstrument.ts"
+  ],
+  [
+    "workbenchHeatCapacityTeachingLifecycleState",
+    "useWorkbenchHeatInstrument.ts"
+  ],
+  [
+    "workbenchHeatCapacityTeachingResultState",
+    "workbenchHeatDemoRuntimeActions.ts"
+  ],
+  [
+    "workbenchHeatCapacityRuntimeCoordinator",
+    "useWorkbenchHeatInstrument.ts"
+  ],
+  [
+    "workbenchHeatCapacityCalibrationCoordinator",
+    "useWorkbenchHeatInstrument.ts"
+  ],
+  [
+    "workbenchHeatCapacityFileFactory",
+    "useWorkbenchHeatModeRuntime.ts"
+  ],
+  [
+    "workbenchHeatCapacityFreeGroupLifecycle",
+    "useWorkbenchHeatFreeWorkspace.ts"
+  ],
+  [
+    "workbenchParameterState",
+    "WorkbenchStudioPrototype.tsx"
+  ],
+  [
+    "workbenchFileUnion",
+    "useWorkbenchWorkspaceCollectionState.ts"
+  ]
 ]) {
-  assert.match(
-    workbenchUiSource,
-    new RegExp(`from '\\.\\/${directUiDependency}\\.ts'`),
-    `the workbench UI should depend directly on ${directUiDependency}`,
-  );
+  const source = readFileSync(new URL('../../src/features/workbench/' + owner, import.meta.url), 'utf8');
+  assert.ok(source.includes("from './" + dependency + ".ts'"), owner + ' should depend on the scoped domain directly: ' + dependency);
 }
 assert.doesNotMatch(
   workbenchUiSource,

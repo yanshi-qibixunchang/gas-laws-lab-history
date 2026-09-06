@@ -1,3 +1,4 @@
+const archWorkbenchDesktopNavigationActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchDesktopNavigationActions.ts', import.meta.url), 'utf8');
 const registrySource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereRuntimeRegistry.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const workbenchFileTabsSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTabs.tsx', import.meta.url), 'utf8');
@@ -179,19 +180,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  archWorkbenchDesktopNavigationActionsSource,
   /const openNewWorkbenchWindow = \(\) =>/,
   'top Experiment Files menu should route New Window through a dedicated command handler',
 );
 
 assert.match(
-  source,
+  archWorkbenchDesktopNavigationActionsSource,
   /window\.hardSphereLabWindow\?\.newWindow\?\.\(\)/,
   'New Window should use the desktop bridge when running inside the local Electron app',
 );
 
 assert.match(
-  source,
+  archWorkbenchDesktopNavigationActionsSource,
   /window\.open\(getFreshWorkbenchWindowUrl\(\), '_blank', 'noopener,noreferrer'\)/,
   'New Window should fall back to opening an isolated fresh workbench tab in browser preview',
 );
@@ -485,3 +486,5 @@ assert.match(workbenchViewShellSource, /import \{ WorkbenchMenuBar \} from '\.\/
 assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityPanelTree \} from '\.\/WorkbenchHeatCapacityPanelTree\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPistonOscillationPanelTree \} from '\.\/WorkbenchPistonOscillationPanelTree\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchPanelNavigation \} from '\.\/WorkbenchPanelNavigation\.tsx';/);
+
+assert.match(source, /from '\.\/workbenchDesktopNavigationActions\.ts'/);

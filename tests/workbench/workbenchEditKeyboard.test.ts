@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import { createWorkbenchEditKeyboardHandler } from '../../src/features/workbench/useWorkbenchEditKeyboard.ts';
+const target = new EventTarget(); const focused = new EventTarget(); const tutorialActiveRef = { current: false };
+let undo = 0; let redo = 0; let prevented = 0; let editable: EventTarget | null = null;
+const ports = { activeHeatCapacityModalLocked: false, tutorialActiveRef, undoStack: [{}], redoStack: [{}], undoLastEdit: () => { undo += 1; }, redoLastEdit: () => { redo += 1; }, isEditableTarget: (value: EventTarget | null) => value === editable, getActiveElement: () => focused };
+const event = (overrides: Partial<KeyboardEvent> = {}) => ({ key: 'z', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, target, preventDefault: () => { prevented += 1; }, ...overrides } as KeyboardEvent);
+const handle = createWorkbenchEditKeyboardHandler(ports);
+handle(event()); assert.deepEqual([undo, redo, prevented], [1, 0, 1]);
+handle(event({ key: 'Z', ctrlKey: false, metaKey: true, shiftKey: true })); handle(event({ key: 'y' })); assert.deepEqual([undo, redo, prevented], [1, 2, 3]);
+for (const next of [event({ altKey: true }), event({ ctrlKey: false }), event({ key: 'a' })]) handle(next);
+editable = target; handle(event()); editable = focused; handle(event()); editable = null;
+tutorialActiveRef.current = true; handle(event()); tutorialActiveRef.current = false;
+createWorkbenchEditKeyboardHandler({ ...ports, activeHeatCapacityModalLocked: true })(event());
+createWorkbenchEditKeyboardHandler({ ...ports, undoStack: [], redoStack: [] })(event());
+createWorkbenchEditKeyboardHandler({ ...ports, undoStack: [], redoStack: [] })(event({ key: 'y' }));
+assert.deepEqual([undo, redo, prevented], [1, 2, 3], 'blocked shortcuts neither edit nor consume native keyboard behavior');
+handle(event()); assert.deepEqual([undo, redo, prevented], [2, 2, 4], 'the tutorial authority ref is read at event time');
+console.log('Workbench edit keyboard behavior tests passed.');

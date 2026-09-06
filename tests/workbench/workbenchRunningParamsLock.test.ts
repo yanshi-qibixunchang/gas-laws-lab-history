@@ -1,3 +1,6 @@
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatSceneVisualsSource = readHeatArchitectureSource(new URL('../../src/features/workbench/workbenchHeatSceneVisuals.ts', import.meta.url), 'utf8');
+const archWorkbenchParameterInteractionPresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterInteractionPresentation.ts', import.meta.url), 'utf8');
 const parameterActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterActions.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
@@ -18,12 +21,12 @@ const pistonParameterPanelSource = readFileSync(
 );
 
 assert.match(
-  source,
+  archWorkbenchParameterInteractionPresentationSource,
   /const parameterControlsLocked = activeFile\.runState === 'running' \|\| activeFile\.runState === 'paused';/,
   'started-but-unfinished simulations should lock the right parameter sidebar while running or paused',
 );
 assert.match(
-  source,
+  archWorkbenchParameterInteractionPresentationSource,
   /const currentParameterControlsLocked = activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*\? false[\s\S]*: activeFile\.kind === 'heatCapacity' && activeFile\.heatCapacityMode === 'free'[\s\S]*\? false[\s\S]*: parameterControlsLocked;/,
   'experiment-specific Free parameter panels should own their profile lock instead of inheriting the generic run lock',
 );
@@ -48,8 +51,8 @@ assert.match(
   'Free Mode locked-panel interception should allow the visualization row to receive clicks',
 );
 assert.match(
-  source,
-  /hardSphereViewLocked=\{heatCapacityModeTransitionLocked\}/,
+  heatArchitectureWorkbenchHeatSceneVisualsSource,
+  /hardSphereViewLocked:\s*heatCapacityModeTransitionLocked/,
   'the 3D hard-sphere visualization toggle should stay editable during normal runs and lock only while a mode transition restores the scene',
 );
 assert.match(
@@ -105,3 +108,5 @@ assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityParameter
 assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRow \} from '\.\/WorkbenchSimulationParameterRow\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);
+
+assert.match(source, /from '\.\/workbenchParameterInteractionPresentation\.ts'/);

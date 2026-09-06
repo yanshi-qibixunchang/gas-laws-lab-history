@@ -1,6 +1,6 @@
 # 绝热膨胀工作台状态权威表
 
-最后核验：2026-09-03
+最后核验：2026-09-07
 
 当前实现：Free 实验分组、Real/Ideal 域和当前仪器投影统一通过
 `workbenchHeatCapacityFreeAuthorityTransaction.ts` 提交或重建。旧的
@@ -74,7 +74,7 @@
 13. 将绝热膨胀默认文件工厂、跨模式调零、Free 实验组重置/下一组生命周期、通用参数校验和工作台文件联合类型迁入专用模块；兼容入口收尾为纯重导出，仓库内部调用方全部改为直接依赖职责模块。（已完成）
 14. 后续删除任何镜像字段前，仍必须同时检查 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径。
 
-## 4. 下一大改动断点
+## 4. 已完成的状态拆分与历史证据
 
 高频状态收口前的五轮 4000 步基线为平均 `0.0213–0.03729 ms/step`、P95 `0.0315–0.0994 ms/step`；Free 模式会话快照为 `14,035 bytes`，其中物理、传感器和校准三段共 `1,163 bytes`。本次只增加一层固定工作区引用，没有改变逐步物理算法，也没有把兼容快照改成新格式；完成后仍须用同一测量方法复测。
 收口后的同方法复测为平均 `0.01499–0.03093 ms/step`、P95 `0.0214–0.0780 ms/step`；初始 Free 模式会话快照为 `14,024 bytes`。三个旧兼容分段合计 `1,159 bytes`，当前嵌套对象为 `1,196 bytes`，新增的 `37 bytes` 仅来自三个成员名和对象括号；兼容快照仍只写出三个旧字段。测量存在运行时预热波动，但没有观察到超出原基线的逐步开销或快照膨胀。
@@ -141,7 +141,24 @@ Demo/Guide/Free 步进、脚本控件、采样和实时提交判断；预热、D
 通过回调读取现有文件与模式状态机，不新增持久化字段、模式权威、时钟或物理写入路径。统一离开策略仍由
 `workbenchHeatCapacityModeSession.ts` 决定：Demo 与未完成 Guide 丢弃，完成 Guide 与 Free 保留。
 确认和下一帧保存必须使用执行时的文件、退出门禁及运行故障状态；普通模式事件不 flush，切换请求维持
-refresh 后 flush 的时序。场景过渡、导航释放、UI 检查点采集和 V3 调度/写入仍留在原边界。
-主组件由本批开始的 25,216 行降至 24,981 行；直接测试、全量回归及同口径浏览器对照见当前交接第 4.11 节。
-后续可继续按文件/窗口动作、UI 检查点与场景生命周期识别独立边界；每批保留严格类型检查、全量测试、
-构建与固定端口预览门禁，避免把状态权威重新搬回 React 主组件。
+refresh 后 flush 的时序。该内部阶段尚未迁出的场景过渡、导航释放、UI 检查点与保存协调，现已由下节所列所有者承接。
+该历史阶段主组件从 25,216 行降至 24,981 行，证据见当前交接第 4.11 节；这些行数不代表当前入口或剩余待办。
+
+
+## 5. ARCH-003 完成后的运行与界面所有者
+
+本次拆分改变代码职责位置，不改变第 2 节的领域字段权威。业务、状态资源和生命周期已迁出，主入口清理迁出空行后为 2,670 行，保留显式装配和轻量显示投影；不能据此把文件状态、模式会话或实验组权威改称为某个 React 控制器私有数据。完整七层地图见 [Workbench 界面组合合同](workbench-ui-composition.md)，全局与浏览器证据见[当前交接第 4.15 节](../current-development-handoff.md)。
+
+| 职责 | 当前所有者 | 与既有权威的关系 |
+| --- | --- | --- |
+| 工作区集合与文件提交 | `useWorkbenchWorkspaceCollectionState`、`workbenchFileCollectionActions`、`workbenchFileActions` | files/closedFiles/活动文件/选中面板及 refs 只有一套；Heat 控制器通过命名提交端口更新文件，导航保留旧模式暂停、原子集合提交和目标模式激活顺序。 |
+| Heat 运行与场景 | `useWorkbenchHeatCapacityController` 组合 Scene/Feedback/Teaching/Demo/ModeRuntime/SceneRestore/RuntimeRecovery/RuntimeLifecycle 等有界模块 | 复用原模式协调器、场景检查点、教学状态及计时 refs；Free 仍通过原 AuthorityTransaction 回写实验组，控制器不另建领域或模式权威。 |
+| 参数与界面临时状态 | `useWorkbenchHeatParameterState`、`workbenchHeatParameterActions`、参数投影/帮助模块和普通 ParameterInteraction/Layout/FileTree/Console Hook | 已应用配置由文件与参数域读取；未提交草稿、菜单、焦点和动画属于界面所有者，可恢复字段仍仅沿原 UI 检查点保存。 |
+| 窗口与历史 | `workbenchWindowActions`、`workbenchEditSnapshot`、`workbenchEditHistoryActions`、`useWorkbenchEditHistoryState` | 资料与结果窗口开关记录 presentation 历史，只恢复标签、活动页和布局，不覆盖模式会话、试次、计算结果或运行引擎。 |
+| 检查点与刷新采集 | `workbenchHeatRuntimeCheckpoint`、`workbenchHeatRefreshSessionCapture`、`workbenchRefreshPresentationCapture` | Heat 运行检查点与普通 UI 采集分离；读取原状态对象，保存时才读取 DOM 位置，不增加事实镜像。 |
+| 保存与退出 | WorkspacePersistenceResources、WorkspacePersistenceActions、Semantic/LifecycleCheckpointActions、`workbenchDesktopExitQuiescence` | 沿用原 scheduler、V3 与时钟锚点；退出先冻结，等待旧 flush 后强制重新采集；pending restore 和运行故障继续由各自门禁恢复一次。 |
+| 教程与页面组合 | Tutorial State/Profile/Ownership/Activation/Handoff/Lifecycle/Progress、受控 Workbench 组件、主入口 | 教程 profile 和所有权协议保持独立；组件接收只读数据及命名命令，主入口不重新承载仪器流程、计时或保存执行。 |
+
+对照 `44b98de` 的整体审计确认：`session.ui` 保留 67 个字段，展开普通 UI 采集的 40 个字段后，其名称、顺序和值表达式全部相同。Heat 的 33 项 effect 以描述符保存原 callback/dependencies，在原阶段安装；递归展开后的 99 项 effect 在 93 项 passive 与 6 项 layout 两类执行队列中各自保持原顺序。这里的“迁出”不意味着可以改变资源安装、暂停或释放次序。
+
+本批 106 个新增生产模块全部由实际主入口导入图连接，集合、持久化、退出、标准/理想运行时与历史资源各只有一个初始化所有者。排除 type-only 导入后的静态运行时依赖图没有环，领域层没有反向依赖 React 工作台或其他外层模块。今后删除镜像、修改会话或调整写出范围，仍必须同时核对 V1/V2 迁移、V3 capture/restore、IndexedDB 恢复、模式会话和导出路径；本次 ARCH-003 完成不改变这些门禁。

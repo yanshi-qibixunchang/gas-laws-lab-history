@@ -64,9 +64,9 @@ assert.match(
   'the main workbench should consume extracted common file-state APIs directly',
 );
 assert.match(
-  studioSource,
-  /from '\.\/workbenchPistonOscillationState\.ts'/,
-  'the main workbench should consume extracted piston-oscillation state APIs directly',
+  readFileSync(new URL('../../src/features/workbench/useWorkbenchPistonGuideRuntime.ts', import.meta.url), 'utf8'),
+  /from '\.\/workbenchPistonOscillationState(?:\.ts)?'/,
+  'the piston controller should consume the extracted piston domain directly',
 );
 
 console.log('workbenchStateDomainSlices tests passed');

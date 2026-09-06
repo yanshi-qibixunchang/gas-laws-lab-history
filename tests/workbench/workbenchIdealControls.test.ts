@@ -1,3 +1,4 @@
+const archUseWorkbenchIdealInputEffectsSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchIdealInputEffects.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
@@ -40,7 +41,9 @@ const workbenchSource = readFileSync(
   new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url),
   'utf8',
 );
-assert.match(workbenchSource, /from '\.\/workbenchIdealControls\.ts'/);
+assert.match(archUseWorkbenchIdealInputEffectsSource, /from '\.\/workbenchIdealControls\.ts'/);
 assert.doesNotMatch(workbenchSource, /const IDEAL_SCAN_SNAP_THRESHOLD|const getIdealScanStep\s*=/);
 
 console.log('workbenchIdealControls tests passed');
+
+assert.match(workbenchSource, /from '\.\/useWorkbenchIdealInputEffects\.ts'/);

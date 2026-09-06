@@ -1,3 +1,4 @@
+const archWorkbenchDesktopNavigationActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchDesktopNavigationActions.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -154,7 +155,7 @@ assert.doesNotMatch(
   'Help > User Guide should no longer use the placeholder action logger',
 );
 assert.match(
-  workbenchSource,
+  archWorkbenchDesktopNavigationActionsSource,
   /window\.hardSphereLabUserGuide\?\.openUserGuide\?\.\(settingsLanguagePreference\)/,
   'Help > User Guide should open the language-specific public README through the desktop bridge',
 );
@@ -190,3 +191,5 @@ assert.match(
 );
 
 console.log('workbenchMenuAndCanvasControls tests passed');
+
+assert.match(workbenchSource, /from '\.\/workbenchDesktopNavigationActions\.ts'/);

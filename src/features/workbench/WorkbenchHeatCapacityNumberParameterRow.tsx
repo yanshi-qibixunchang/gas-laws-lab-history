@@ -13,12 +13,9 @@ export interface WorkbenchHeatCapacityNumberParameterRowProps {
   heatCapacityAdvancedInputDrafts: Record<string, string>;
   heatCapacityBasicInputErrors: Record<string, string>;
   heatCapacityAdvancedInputErrors: Record<string, string>;
-  setHeatCapacityBasicInputDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setHeatCapacityAdvancedInputDrafts: React.Dispatch<React.SetStateAction<Record<string, string>>>;
   settingsLanguagePreference: "zh-CN" | "zh-TW" | "en";
   renderHeatCapacityParameterLabel: (parameterId: string, label: string, parts: import('../heatCapacity/heatCapacityFreeParameterPanelModel.ts').HeatCapacityFreeParameterSymbolPart[], modelEffect: string) => React.ReactElement;
-  setHeatCapacityBasicInputErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  setHeatCapacityAdvancedInputErrors: React.Dispatch<React.SetStateAction<Record<string, string>>>;
+  changeHeatCapacityParameterInputDraft: (scope: 'basic' | 'advanced', parameterId: string, value: string) => void;
   commitHeatCapacityBasicParameterInput: (parameterId: import('../heatCapacity/heatCapacityFreeParameterPanelModel.ts').HeatCapacityFreeDraftNumberKey, valueText: string) => void;
 }
 
@@ -31,17 +28,13 @@ export const WorkbenchHeatCapacityNumberParameterRow = ({
   heatCapacityAdvancedInputDrafts,
   heatCapacityBasicInputErrors,
   heatCapacityAdvancedInputErrors,
-  setHeatCapacityBasicInputDrafts,
-  setHeatCapacityAdvancedInputDrafts,
   settingsLanguagePreference,
   renderHeatCapacityParameterLabel,
-  setHeatCapacityBasicInputErrors,
-  setHeatCapacityAdvancedInputErrors,
+  changeHeatCapacityParameterInputDraft,
   commitHeatCapacityBasicParameterInput,
 }: WorkbenchHeatCapacityNumberParameterRowProps) => {
     const inputDrafts = scope === 'basic' ? heatCapacityBasicInputDrafts : heatCapacityAdvancedInputDrafts;
     const inputErrors = scope === 'basic' ? heatCapacityBasicInputErrors : heatCapacityAdvancedInputErrors;
-    const setInputDrafts = scope === 'basic' ? setHeatCapacityBasicInputDrafts : setHeatCapacityAdvancedInputDrafts;
     const error = inputErrors[definition.id] ?? null;
     const displayValue = getHeatCapacityFreeParameterInputValue(
       definition,
@@ -71,24 +64,7 @@ export const WorkbenchHeatCapacityNumberParameterRow = ({
               aria-label={`${label} ${definition.unit}`.trim()}
               aria-invalid={error ? true : undefined}
               value={value}
-              onChange={(event) => {
-                const nextValue = event.target.value;
-                setInputDrafts((current) => ({
-                  ...current,
-                  [definition.id]: nextValue,
-                }));
-                if (scope === 'basic') {
-                  setHeatCapacityBasicInputErrors((current) => {
-                    const { [definition.id]: _removed, ...rest } = current;
-                    return rest;
-                  });
-                } else {
-                  setHeatCapacityAdvancedInputErrors((current) => {
-                    const { [definition.id]: _removed, ...rest } = current;
-                    return rest;
-                  });
-                }
-              }}
+              onChange={(event) => changeHeatCapacityParameterInputDraft(scope, definition.id, event.target.value)}
               onBlur={() => {
                 if (scope === 'basic') {
                   commitHeatCapacityBasicParameterInput(definition.id, value);

@@ -1,3 +1,4 @@
+const parameterValidationActionSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterValidationActions.ts', import.meta.url), 'utf8');
 const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
 const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
 const idealActionSource = readFileSync(new URL('../../src/features/workbench/workbenchIdealExperimentActions.ts', import.meta.url), 'utf8');
@@ -91,7 +92,7 @@ for (const requiredCall of [
   'workbenchCopy.logs.relationHasNoPoints',
   'getLocalizedWorkbenchValidationErrors(validation.errors, settingsLanguagePreference)',
 ]) {
-  const owningSource = ['standardFinished', 'standardResultsReady', 'idealPointRecorded', 'idealPointMissingSummary'].some(key => requiredCall.endsWith('.' + key)) ? frameLoopSource
+  const owningSource = requiredCall.startsWith('getLocalizedWorkbenchValidationErrors(') ? parameterValidationActionSource : ['standardFinished', 'standardResultsReady', 'idealPointRecorded', 'idealPointMissingSummary'].some(key => requiredCall.endsWith('.' + key)) ? frameLoopSource
     : ['runtimeCreateFailed', 'standardStarted', 'idealStarted', 'simulationPaused', 'standardTerminated', 'idealTerminated'].some(key => requiredCall.endsWith('.' + key)) ? runActionSource
     : ['controlledVariablesLocked', 'pauseBeforeEditingParameters', 'invalidParameter', 'pauseBeforeApplyingParameters', 'idealRuntimeAlreadyApplied', 'noSavedParameterChanges', 'idealRuntimeApplied', 'standardParametersApplied'].some(key => requiredCall.endsWith('.' + key)) ? parameterActionSource
     : ['pauseBeforeSwitchingRelation', 'relationAlreadyActive', 'relationSwitched', 'pauseBeforeChangingSamplingPreset', 'pauseBeforeChangingScanVariable', 'confirmRemoveIdealPoint', 'idealPointRemoved', 'relationHasNoPoints'].some(key => requiredCall.endsWith('.' + key)) ? idealActionSource
@@ -165,3 +166,5 @@ assert.ok(
 );
 
 console.log('workbenchExperimentLocalization tests passed');
+
+assert.match(source, /createWorkbenchParameterValidationActions\(\{ activeFile, settingsLanguagePreference, setParameterErrors, pushLog \}\)/);

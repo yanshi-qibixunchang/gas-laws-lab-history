@@ -1,3 +1,10 @@
+const runtimeuseWorkbenchHeatSceneRestoreSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatSceneRestore.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeworkbenchHeatRefreshSessionCaptureSource = readHeatRuntimeSource(new URL('../../src/features/workbench/workbenchHeatRefreshSessionCapture.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+import { readFileSync as readHeatRuntimeSource } from 'node:fs';
+const semanticCheckpointSource = readFileSync(new URL('../../src/features/workbench/workbenchSemanticCheckpointActions.ts', import.meta.url), 'utf8');
+const lifecycleCheckpointSource = readFileSync(new URL('../../src/features/workbench/workbenchLifecycleCheckpointActions.ts', import.meta.url), 'utf8');
+const lifecycleEventsSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchLifecyclePersistence.ts', import.meta.url), 'utf8');
+const persistenceCompositionSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchWorkspacePersistence.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchHeatCapacityModeControlSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityModeControl.tsx', import.meta.url), 'utf8');
@@ -142,7 +149,7 @@ assert.doesNotMatch(
   'Heat Capacity persistence must not read pixels back from the WebGL canvas',
 );
 assert.match(
-  workbenchSource,
+  semanticCheckpointSource,
   /const captureActiveHeatCapacitySemanticSceneCheckpoint = \(\) => \{[\s\S]*registration\?\.fileId !== activeSceneFile\.id[\s\S]*return registration\.provider\(\) !== null;[\s\S]*HEAT_CAPACITY_SEMANTIC_CHECKPOINT_DEBOUNCE_MS[\s\S]*HEAT_CAPACITY_SEMANTIC_CHECKPOINT_MAX_WAIT_MS/,
   'ordinary autosaves should refresh the semantic Ultra and hard-sphere checkpoint with debounce and bounded max wait',
 );
@@ -157,32 +164,32 @@ assert.match(
   'continuous experiment refreshes should only schedule scene capture when the 15-second runtime checkpoint is accepted',
 );
 assert.match(
-  workbenchSource,
-  /persistWorkspaceLifecycleCheckpointRef\.current = async \(forceFresh = false\) => \{[\s\S]*sceneCheckpointRegistration\?\.fileId === activeSceneFile\.id[\s\S]*sceneCheckpointCompleted = sceneCheckpointProvider\(\) !== null;[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*await flushWorkspacePersistenceRef\.current\(\)[\s\S]*window\.addEventListener\('pagehide', persistBeforePageHide\)[\s\S]*document\.addEventListener\('visibilitychange', persistWhenHidden\)/,
+  lifecycleCheckpointSource,
+  /const persistWorkspaceLifecycleCheckpoint = async \(forceFresh = false\) => \{[\s\S]*sceneCheckpointRegistration\?\.fileId === activeSceneFile\.id[\s\S]*sceneCheckpointCompleted = sceneCheckpointProvider\(\) !== null;[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*await flushWorkspacePersistenceRef\.current\(\)/,
   'Workbench should own the final scene → main-session → refresh-checkpoint lifecycle flush for hidden tabs and page hide',
 );
 assert.match(
-  workbenchSource,
+  lifecycleEventsSource,
   /const persistLifecycleCheckpointOnce = async \(\) => \{[\s\S]*HEAT_CAPACITY_LIFECYCLE_DUPLICATE_FLUSH_WINDOW_MS[\s\S]*await persistWorkspaceLifecycleCheckpointRef\.current\(\)[\s\S]*const persistBeforePageHide = \(\) => \{[\s\S]*void persistLifecycleCheckpointOnce\(\);[\s\S]*document\.visibilityState === 'hidden'[\s\S]*void persistLifecycleCheckpointOnce\(\);/,
   'pagehide and visibility-hidden should share an order-independent, short-window lifecycle flush guard',
 );
 assert.match(
-  workbenchSource,
+  lifecycleCheckpointSource,
   /if \(forceFresh\) \{[\s\S]*while \(activeFlush\)[\s\S]*await activeFlush[\s\S]*else \{[\s\S]*if \(activeFlush\) return activeFlush;[\s\S]*heatCapacityLifecycleFlushPromiseRef\.current = flushOperation;/,
   'ordinary lifecycle callers should share one in-flight promise while native exit can wait and force one fresh post-quiescence flush',
 );
 assert.match(
-  workbenchSource,
+  lifecycleEventsSource,
   /onPrepareExit\?\.\(\(request\) => \{[\s\S]*await persistWorkspaceLifecycleCheckpointRef\.current\(true\)[\s\S]*reportPersistenceResult\(\{[\s\S]*requestId: request\.requestId,[\s\S]*saved,/,
   'desktop close and updater restart should receive a correlated acknowledgement only after the durable flush resolves',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatSceneRestoreSource,
   /const handleHeatCapacitySceneCheckpoint = \([\s\S]*sceneFileId: string,[\s\S]*if \(sceneFileId !== activeFileIdRef\.current\) return;[\s\S]*currentFile\.id !== sceneFileId/,
   'stale checkpoints from an unmounting Heat Capacity file must never be stored under the newly active file',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatSceneRestoreSource,
   /if \(heatCapacitySceneCheckpointProviderRef\.current\?\.fileId === sceneFileId\) \{\s*heatCapacitySceneCheckpointProviderRef\.current = null;/,
   'an old keyed scene may clear only its own lifecycle checkpoint provider registration',
 );
@@ -192,7 +199,7 @@ assert.match(
   'Canvas should never retain its drawing buffer for persistence',
 );
 assert.match(
-  workbenchSource,
+  runtimeworkbenchHeatRefreshSessionCaptureSource,
   /Legacy pixel snapshots remain readable for one-time restore[\s\S]*session\.sceneSnapshot = null;/,
   'canonical refresh saves should never rewrite a legacy pixel snapshot',
 );
@@ -211,11 +218,8 @@ assert.match(
   /const handleSceneRevealReady = useCallback\(\(\) => \{\s*setSceneRevealReady\(true\);\s*props\.onSceneRestoreRevealComplete\?\.\(props\.sceneFileId\);/,
   'the scene should tell its parent when the one-time restored-frame reveal handshake completes',
 );
-assert.match(
-  workbenchSource,
-  /const handleHeatCapacitySceneRestoreRevealComplete = useCallback\(\(sceneFileId: string\) => \{[\s\S]*setHeatCapacityInitialSceneRestoreEnabled\(false\);[\s\S]*onSceneRestoreRevealComplete=\{handleHeatCapacitySceneRestoreRevealComplete\}/,
-  'Workbench should permanently consume the initial restore frame so theme or performance changes cannot resurrect it',
-);
+assert.match(runtimeuseWorkbenchHeatSceneRestoreSource, /const handleHeatCapacitySceneRestoreRevealComplete = useCallback\(\(sceneFileId: string\) => \{[\s\S]*setHeatCapacityInitialSceneRestoreEnabled\(false\);/, 'scene restore permanently consumes the initial frame after its reveal');
+assert.match(workbenchSource, /onSceneRestoreRevealComplete: handleHeatCapacitySceneRestoreRevealComplete/, 'the controlled Scene binding uses the consuming restore command');
 assert.match(
   sceneSource,
   /export type HeatCapacityCameraTransitionState = \{[\s\S]*targetPosition: \[number, number, number\];[\s\S]*target: \[number, number, number\];[\s\S]*durationMs: number;[\s\S]*elapsedMs: number;[\s\S]*remainingMs: number;/,
@@ -1223,3 +1227,8 @@ assert.doesNotMatch(
 console.log('heatCapacityUltraGlbIntegration tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityModeControl \} from '\.\/WorkbenchHeatCapacityModeControl\.tsx';/);
+
+assert.match(lifecycleEventsSource, /window\.addEventListener\('pagehide', persistBeforePageHide\)[\s\S]*document\.addEventListener\('visibilitychange', persistWhenHidden\)/);
+assert.match(persistenceCompositionSource, /persistWorkspaceLifecycleCheckpointRef\.current = lifecycle\.persistWorkspaceLifecycleCheckpoint/);
+assert.match(workbenchSource, /useWorkbenchWorkspacePersistence\(\{/);
+assert.match(workbenchSource, /useWorkbenchLifecyclePersistence\(\{ window, document, performance/);

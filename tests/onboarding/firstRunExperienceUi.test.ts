@@ -1,3 +1,5 @@
+const archUseWorkbenchLifecyclePersistenceSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchLifecyclePersistence.ts', import.meta.url), 'utf8');
+const archUseWorkbenchDesktopExitInputBlockSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchDesktopExitInputBlock.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -21,10 +23,12 @@ const copySource = readFileSync(new URL('../../src/features/onboarding/firstRunC
 const cssSource = readFileSync(new URL('../../src/features/onboarding/FirstRunExperience.css', import.meta.url), 'utf8');
 const settingsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
-const productIntroReplaySource = workbenchSource.slice(
-  workbenchSource.indexOf('const openProductIntroReplay'),
-  workbenchSource.indexOf('const openLearningNeedsReselect'),
-);
+const tutorialOverlaySource = readFileSync(new URL('../../src/features/workbench/workbenchTutorialOverlayActions.ts', import.meta.url), 'utf8');
+const tutorialExperienceOverlaysSource = readFileSync(new URL('../../src/features/workbench/WorkbenchLearningExperienceOverlays.tsx', import.meta.url), 'utf8');
+const productIntroReplaySource = tutorialOverlaySource.slice(tutorialOverlaySource.indexOf('const openProductIntroReplay'), tutorialOverlaySource.indexOf('const openLearningNeedsReselect'));
+assert.ok(productIntroReplaySource.length > 0);
+assert.match(workbenchSource, /<WorkbenchLearningExperienceOverlays/);
+assert.match(workbenchSource, /createWorkbenchTutorialOverlayActions\(/);
 
 assert.match(appSource, /resolveFirstRunEntryMode\(initialExperienceProfileLoad\)/);
 assert.match(appSource, /entryMode === 'workbench'/);
@@ -295,15 +299,18 @@ assert.doesNotMatch(
   /persistAppExperienceProfile|commitFirstRunExperienceProfile|acceptedLegalVersion|learning\s*:/,
   'replaying the product introduction must not rewrite consent or learning progress',
 );
-assert.match(workbenchSource, /data-first-run-language=\{settingsLanguagePreference\}[\s\S]*data-learning-overlay="product-intro"/);
+assert.match(tutorialExperienceOverlaysSource, /data-first-run-language=\{settingsLanguagePreference\}[\s\S]*data-learning-overlay="product-intro"/);
 assert.match(settingsSource, /onReselectLearningNeeds/);
 assert.match(settingsSource, /showSimulateFirstRun \?/);
-assert.match(workbenchSource, /prepareDesktopExitQuiescenceRef\.current\(\)/);
-assert.match(workbenchSource, /prepareDesktopExitQuiescenceRef\.current\(false\)/);
-assert.match(workbenchSource, /if \(!desktopExitInputBlockedRef\.current\) return;/);
+assert.match(archUseWorkbenchLifecyclePersistenceSource, /prepareDesktopExitQuiescenceRef\.current\(\)/);
+assert.match(tutorialOverlaySource, /prepareDesktopExitQuiescenceRef\.current\(false\)/);
+assert.match(archUseWorkbenchDesktopExitInputBlockSource, /if \(!desktopExitInputBlockedRef\.current\) return;/);
 assert.match(workbenchSource, /aria-busy=\{desktopExitInputBlocked\}/);
-assert.match(workbenchSource, /resumeDesktopExitQuiescenceRef\.current\(\)/);
+assert.match(archUseWorkbenchLifecyclePersistenceSource, /resumeDesktopExitQuiescenceRef\.current\(\)/);
 assert.match(workbenchSource, /import\.meta\.env\.DEV/);
-assert.match(workbenchSource, /APP_EXPERIENCE_PROFILE_STORAGE_KEY/);
+assert.match(tutorialOverlaySource, /APP_EXPERIENCE_PROFILE_STORAGE_KEY/);
 
 console.log('firstRunExperienceUi tests passed');
+
+assert.match(workbenchSource, /from '\.\/useWorkbenchLifecyclePersistence\.ts'/);
+assert.match(workbenchSource, /from '\.\/useWorkbenchDesktopExitInputBlock\.ts'/);

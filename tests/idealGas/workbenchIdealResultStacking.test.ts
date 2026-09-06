@@ -1,3 +1,4 @@
+const layoutStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchLayoutState.ts', import.meta.url), 'utf8');
 const layoutActionSource = readFileSync(new URL('../../src/features/workbench/workbenchLayoutActions.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
@@ -32,8 +33,8 @@ assert.match(
   'workbench layout compatibility should define a localStorage key for saved ideal result window defaults',
 );
 assert.match(
-  source,
-  /loadWorkbenchLayoutDefaults/,
+  layoutStateSource,
+  /useState<WorkbenchLayoutDefaults>\(\(\) => loadWorkbenchLayoutDefaults\(\)\)/,
   'workbench should load ideal result window defaults from localStorage',
 );
 assert.match(
@@ -106,3 +107,5 @@ assert.doesNotMatch(
 console.log('workbenchIdealResultStacking tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealResultsRegion \} from '\.\/WorkbenchIdealResultsRegion\.tsx';/);
+
+assert.match(source, /useWorkbenchLayoutState\(\{/);

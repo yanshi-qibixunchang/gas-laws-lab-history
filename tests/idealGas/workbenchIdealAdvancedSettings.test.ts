@@ -1,3 +1,4 @@
+const archUseWorkbenchParameterInteractionStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchParameterInteractionState.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchCurrentParametersSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchCurrentParameters.tsx', import.meta.url), 'utf8');
@@ -24,13 +25,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  archUseWorkbenchParameterInteractionStateSource,
   /const \[idealAdvancedSettingsOpen,\s*setIdealAdvancedSettingsOpen\] = useState\(false\);/,
   'ideal advanced settings should be collapsed by default',
 );
 
 assert.match(
-  source,
+  archUseWorkbenchParameterInteractionStateSource,
   /const \[idealAdvancedSettingsBodyVisible,\s*setIdealAdvancedSettingsBodyVisible\] = useState\(false\);/,
   'ideal advanced settings body should stay mounted while the collapse scroll animation returns',
 );
@@ -42,13 +43,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  archUseWorkbenchParameterInteractionStateSource,
   /const idealAdvancedSettingsBodyRef = useRef<HTMLDivElement \| null>\(null\);/,
   'ideal advanced settings body should keep a ref for automatic sidebar scrolling',
 );
 
 assert.match(
-  source,
+  archUseWorkbenchParameterInteractionStateSource,
   /const currentParametersBodyRef = useRef<HTMLDivElement \| null>\(null\);[\s\S]*?const idealAdvancedSettingsPreviousScrollTopRef = useRef\(0\);/,
   'current parameters sidebar should track the scroll position before advanced settings expand',
 );
@@ -157,3 +158,5 @@ assert.match(
 console.log('workbenchIdealAdvancedSettings tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchCurrentParameters \} from '\.\/WorkbenchCurrentParameters\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchParameterInteractionState\.ts'/);

@@ -1,3 +1,9 @@
+const heatDesktopExitSource = readHeatRuntimeSource(new URL('../../src/features/workbench/workbenchDesktopExitQuiescence.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatSceneStateSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatSceneState.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatModeRuntimeSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatModeRuntime.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeworkbenchTeachingUiTimingSource = readHeatRuntimeSource(new URL('../../src/features/workbench/workbenchTeachingUiTiming.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatRuntimeRecoverySource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatRuntimeRecovery.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+import { readFileSync as readHeatRuntimeSource } from 'node:fs';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,7 +46,7 @@ assert.match(
   'the watchdog must receive a full fresh timeout only after hydration or desktop quiescence releases its pause gate',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatSceneStateSource,
   /watchdogPaused:[\s\S]*?heatCapacityRefreshRestoring[\s\S]*?desktopExitQuiesced[\s\S]*?heatCapacityRuntimeFailureFileId !== null/,
   'scene hydration, desktop exit, and runtime failure must all pause the transition watchdog',
 );
@@ -52,46 +58,43 @@ assert.match(
 );
 assert.match(scene, /camera\.position\.copy\(targetPosition\)[\s\S]*transitionRuntimeRef\.current = null/);
 assert.match(scene, /setIsOrbitInteracting\(false\)[\s\S]*setMotionSettleRevision/);
-assert.match(workbench, /completeHeatCapacityModeSourceMotions[\s\S]*pumpBulbState: 'idle'/);
-assert.match(workbench, /zeroAction\.atMs \+ HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS/);
-assert.match(workbench, /Promise\.race\(\[[\s\S]*controller\.settleMotions\(requestId\)/);
-assert.match(workbench, /HEAT_CAPACITY_MODE_TRANSITION_SETTLE_DEADLINE_MS = 250/);
+assert.match(runtimeuseWorkbenchHeatModeRuntimeSource, /completeHeatCapacityModeSourceMotions[\s\S]*pumpBulbState: 'idle'/);
+assert.match(runtimeuseWorkbenchHeatModeRuntimeSource, /zeroAction\.atMs \+ HEAT_CAPACITY_AUTO_DEMO_ZERO_KNOB_MOTION_DURATION_MS/);
+assert.match(runtimeuseWorkbenchHeatModeRuntimeSource, /Promise\.race\(\[[\s\S]*controller\.settleMotions\(requestId\)/);
+assert.match(runtimeworkbenchTeachingUiTimingSource, /HEAT_CAPACITY_MODE_TRANSITION_SETTLE_DEADLINE_MS = 250/);
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /if \(!settled \|\| remainingReasons\.length > 0\)[\s\S]*abortHeatCapacityModeTransitionToVisibleFile\(requestId\)/,
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /const pauseHeatCapacityModeTransitionRuntime =[\s\S]*?getHeatCapacityModeTransitionVisualRemainingMs\(transition\)[\s\S]*?\.pause\(transition\.requestId\)[\s\S]*?const resumeHeatCapacityModeTransitionRuntime =[\s\S]*?type: 'animation-clock-rebased'[\s\S]*?durationMs: remainingMs[\s\S]*?\.resume\(transition\.requestId\)[\s\S]*?\}, remainingMs\);/,
   'cancelled exit and scene-ready retry must resume only the frozen visual remainder',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /Heat-capacity mode transition watchdog failed\.[\s\S]*abortHeatCapacityModeTransitionToVisibleFile\(requestId\)/,
   'watchdog rejection should share the Demo-aware abort path',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /function prepareHeatCapacityModeTarget\(requestId: number\) \{[\s\S]*?desktopExitQuiescedRef\.current[\s\S]*?heatCapacityRefreshRestorePendingRef\.current[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*?\) return;/,
   'late target preparation must not run while hydration, desktop exit, or runtime failure owns the renderer',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /heatCapacityModeTransitionWatchdogHandlerRef\.current =[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*?const currentTransition =[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null/,
   'the watchdog handler must reject both an early fire and a late async settle after any pause gate closes',
 );
+assert.match(heatDesktopExitSource, /const prepareDesktopExitQuiescence =[\s\S]*pauseHeatCapacityModeTransitionRuntime\(\)[\s\S]*const resumeDesktopExitQuiescence =[\s\S]*resumeHeatCapacityModeTransitionRuntime\(\)/, 'desktop close preparation pauses and resumes the transition through its runtime ports');
+assert.match(workbench, /prepareDesktopExitQuiescenceRef\.current = prepareDesktopExitQuiescence;[\s\S]*resumeDesktopExitQuiescenceRef\.current = resumeDesktopExitQuiescence;/, 'the desktop coordinator receives the live paired commands');
 assert.match(
-  workbench,
-  /prepareDesktopExitQuiescenceRef\.current =[\s\S]*pauseHeatCapacityModeTransitionRuntime\(\)[\s\S]*resumeDesktopExitQuiescenceRef\.current =[\s\S]*resumeHeatCapacityModeTransitionRuntime\(\)/,
-  'desktop close preparation must pause and resume a transition instead of synchronizing away its persisted state',
-);
-assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatRuntimeRecoverySource,
   /const handleHeatCapacitySceneRuntimeFailure =[\s\S]*?pauseHeatCapacityModeTransitionRuntime\(\)[\s\S]*?const handleHeatCapacitySceneRuntimeRecovered =[\s\S]*?const recoveryIntent[\s\S]*?rebaseHeatCapacityFileAfterSuspendedWallClock[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current = null;[\s\S]*?resumeHeatCapacityModeTransitionRuntime\(\);/,
   'authoritative scene-ready recovery must rebase the file before releasing and resuming the paused transition',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /const handleHeatCapacitySceneDiscreteMotionChange =[\s\S]*?heatCapacitySceneDiscreteMotionRef\.current = motionState;[\s\S]*?heatCapacityRuntimeFailureFileIdRef\.current !== null\) return;/,
   'scene teardown motion reports must refresh the authoritative snapshot without advancing the reducer while the runtime error card owns the scene',
 );

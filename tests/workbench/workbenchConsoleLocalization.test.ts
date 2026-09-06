@@ -1,3 +1,4 @@
+const archWorkbenchConsoleStateSource = readFileSync(new URL('../../src/features/workbench/workbenchConsoleState.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchConsoleSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchConsole.tsx', import.meta.url), 'utf8');
@@ -41,7 +42,7 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 assert.match(
-  workbenchSource,
+  archWorkbenchConsoleStateSource,
   /const pushLog = \(message: WorkbenchConsoleMessageInput,[\s\S]*?createConsoleLog\(current\.length \+ 1, kind, message, settingsLanguagePreference\)/,
   'console entries should materialize every localized message factory when they are appended',
 );
@@ -59,3 +60,5 @@ assert.match(
 console.log('workbenchConsoleLocalization tests passed');
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchConsole \} from '\.\/WorkbenchConsole\.tsx';/);
+
+assert.match(workbenchSource, /from '\.\/workbenchConsoleState\.ts'/);

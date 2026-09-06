@@ -1,3 +1,4 @@
+const archUseWorkbenchEditKeyboardSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchEditKeyboard.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -77,14 +78,16 @@ const workbenchSource = readFileSync(
   'utf8',
 );
 assert.match(
-  workbenchSource,
+  archUseWorkbenchEditKeyboardSource,
   /const handleKeyDown = \(event: KeyboardEvent\) => \{\s*if \(activeHeatCapacityModalLocked\) return;/,
   'the calculation modal lock must suppress global Undo/Redo shortcuts',
 );
 assert.match(
-  workbenchSource,
+  archUseWorkbenchEditKeyboardSource,
   /\[undoStack, redoStack, selectedPanel, activeHeatCapacityModalLocked\]/,
   'the global shortcut listener must refresh when the calculation modal lock changes',
 );
 
 console.log('workbenchHeatCapacityBatchLifecycleGuards tests passed');
+
+assert.match(workbenchSource, /from '\.\/useWorkbenchEditKeyboard\.ts'/);

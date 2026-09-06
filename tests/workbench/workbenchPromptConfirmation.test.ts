@@ -1,3 +1,5 @@
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatCapacityExperimentProgressSource = readHeatArchitectureSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityExperimentProgress.tsx', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchHeatCapacityCenterFeedbackSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchHeatCapacityCenterFeedback.tsx', import.meta.url), 'utf8');
@@ -77,16 +79,18 @@ assert.ok(copySource.includes('实验文件仍保留在本地缓存中，不会�
 assert.ok(copySource.includes('實驗檔案仍保留在本機快取中，不會被刪除。'));
 assert.ok(copySource.includes('The experiment file will remain in the local cache and will not be deleted.'));
 
-for (const promptId of [
-  'restart-heat-capacity-experiment',
-  'restart-heat-capacity-experiment-group',
-  'switch-heat-capacity-teaching-mode',
-  'close-running-workbench-file:',
+for (const [promptId, owner] of [
+  ['restart-heat-capacity-experiment', 'useWorkbenchHeatFreeWorkspace.ts'],
+  ['restart-heat-capacity-experiment-group', 'useWorkbenchHeatFreeWorkspace.ts'],
+  ['switch-heat-capacity-teaching-mode', 'useWorkbenchHeatModeRuntime.ts'],
+  ['close-running-workbench-file:', 'workbenchFileActions.ts'],
 ]) {
-  assert.ok((promptId === 'close-running-workbench-file:' ? readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8') : workbenchSource).includes(promptId), `workbench must route ${promptId} through the internal confirmation`);
+  const source = readFileSync(new URL('../../src/features/workbench/' + owner, import.meta.url), 'utf8');
+  assert.ok(source.includes(promptId), 'internal confirmation must remain in its scoped action owner: ' + promptId);
 }
-assert.match(workbenchSource, /id: 'restart-current-experiment'[\s\S]*onSelect: requestRestartHeatCapacityFreeExperiment/, 'the current-experiment restart should request confirmation from the shared progress menu');
-assert.match(workbenchSource, /id: 'restart-experiment-group'[\s\S]*onSelect: requestRestartHeatCapacityFreeGroup/, 'the whole-group restart should request a separate confirmation from the shared progress menu');
+
+assert.match(heatArchitectureWorkbenchHeatCapacityExperimentProgressSource, /id: 'restart-current-experiment'[\s\S]*onSelect: requestRestartHeatCapacityFreeExperiment/, 'the current-experiment restart should request confirmation from the shared progress menu');
+assert.match(heatArchitectureWorkbenchHeatCapacityExperimentProgressSource, /id: 'restart-experiment-group'[\s\S]*onSelect: requestRestartHeatCapacityFreeGroup/, 'the whole-group restart should request a separate confirmation from the shared progress menu');
 assert.match(workbenchHeatCapacityCenterFeedbackSource, /onReset=\{restartHeatCapacityFreeExperiment\}/, 'the invalid-flow dialog should execute the scoped current-experiment restart directly');
 assert.match(workbenchSource, /<PromptConfirmDialog[\s\S]*request=\{activePromptConfirmation\}/);
 

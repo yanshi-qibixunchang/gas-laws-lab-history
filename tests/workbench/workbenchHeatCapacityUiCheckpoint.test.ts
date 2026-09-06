@@ -1,3 +1,5 @@
+const heatCheckpointControllerSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatCapacityController.ts', import.meta.url), 'utf8');
+const heatFeedbackCheckpointSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatFeedback.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -168,9 +170,11 @@ assert.equal(
   'refresh checkpoint parsing must stay outside the Workbench coordinator',
 );
 assert.match(
-  workbenchSource,
+  heatFeedbackCheckpointSource,
   /from '.\/workbenchHeatCapacityUiCheckpoint\.ts'/,
   'the Workbench coordinator must consume the dedicated checkpoint boundary',
 );
 
 console.log('workbenchHeatCapacityUiCheckpoint tests passed');
+
+assert.match(heatFeedbackCheckpointSource, /normalizeHeatCapacityRecordSuccessTimerPlan\(/); assert.match(heatCheckpointControllerSource, /useWorkbenchHeatFeedback\(\{/); assert.match(workbenchSource, /useWorkbenchHeatCapacityController\(\{/);

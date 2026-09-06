@@ -1,3 +1,7 @@
+const heatControllerSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatCapacityController.ts', import.meta.url), 'utf8');
+const heatDemoUiSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatDemoUiActions.ts', import.meta.url), 'utf8');
+const heatDemoRuntimeSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatDemoRuntimeActions.ts', import.meta.url), 'utf8');
+const heatModeRuntimeSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchHeatModeRuntime.ts', import.meta.url), 'utf8');
 const registrySource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereRuntimeRegistry.ts', import.meta.url), 'utf8');
 const frameLoopSource = readFileSync(new URL('../../src/features/workbench/workbenchHardSphereFrameLoop.ts', import.meta.url), 'utf8');
 const runActionSource = readFileSync(new URL('../../src/features/workbench/workbenchExperimentRunActions.ts', import.meta.url), 'utf8');
@@ -89,7 +93,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  heatModeRuntimeSource,
   /switchMode: switchHeatCapacityMode,[\s\S]*request: requestHeatCapacityModeTransition,[\s\S]*schedulePreparation: \(requestId\) => scheduleHeatCapacityModeTargetPreparation\(requestId\)/,
   'mode actions should use the existing transition state and scene preparation owner',
 );
@@ -107,7 +111,7 @@ assert.match(
 );
 
 // Read the actual runner body, independent of unrelated helper declaration order.
-const workbenchAst = ts.createSourceFile('WorkbenchStudioPrototype.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const workbenchAst = ts.createSourceFile('workbenchHeatDemoRuntimeActions.ts', heatDemoRuntimeSource, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 let runAutoDemoBody: string | null = null;
 const findAutoDemoRunner = (node: ts.Node) => {
   if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
@@ -159,7 +163,7 @@ assert.match(
   'Demo mode button should route mode entry through the session switcher',
 );
 
-assert.match(source, /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*setHeatCapacityBatchSetupRequestedFileId[\s\S]*activateHeatCapacityModeFromExplore\('free'\)/, "the Free mode button should request group setup when needed or restore its independent session from Explore");
+assert.match(heatModeRuntimeSource, /const handleHeatCapacityModeSegmentClick[\s\S]*mode === 'free'[\s\S]*setHeatCapacityBatchSetupRequestedFileId[\s\S]*activateHeatCapacityModeFromExplore\('free'\)/, "the Free mode button should request group setup when needed or restore its independent session from Explore");
 
 let terminateAutoDemoBody = '';
 const findAutoDemoTermination = (node: ts.Node) => {
@@ -184,22 +188,26 @@ assert.doesNotMatch(
   'terminating auto demo must not leave the active file stuck in Demo mode',
 );
 
-const applyAutoDemoActionStart = source.indexOf('const applyHeatCapacityAutoDemoAction = (');
-assert.notEqual(applyAutoDemoActionStart, -1, 'heat capacity auto-demo action dispatcher should exist');
-const applyAutoDemoActionEnd = source.indexOf('\n  const setHeatCapacityAutoDemoStepState', applyAutoDemoActionStart);
-assert.notEqual(applyAutoDemoActionEnd, -1, 'auto-demo action dispatcher should end before step state helpers');
-const applyAutoDemoActionBody = source.slice(applyAutoDemoActionStart, applyAutoDemoActionEnd);
+const namedActionBody = (owner: string, name: string) => {
+  const ast = ts.createSourceFile('action.ts', owner, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const bodies: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name
+      && node.initializer && ts.isArrowFunction(node.initializer)) bodies.push(node.initializer.body.getText(ast));
+    ts.forEachChild(node, visit);
+  };
+  visit(ast);
+  assert.equal(bodies.length, 1, name + ' should have one action owner');
+  return bodies[0];
+};
+const applyAutoDemoActionBody = namedActionBody(heatDemoRuntimeSource, 'applyHeatCapacityAutoDemoAction');
 assert.match(
   applyAutoDemoActionBody,
   /if \(action === 'completeTeachingMode'\)[\s\S]*const completedFile = completeHeatCapacityTeachingModeWorkbenchState\(file, now\)[\s\S]*heatCapacityMaterialsExpanded:\s*true/,
   'natural auto-demo completion should keep the completed teaching result visible until explicit exit',
 );
 
-const clearAutoDemoUiStart = source.indexOf('const clearHeatCapacityAutoDemoUiState = () => {');
-assert.notEqual(clearAutoDemoUiStart, -1, 'heat capacity auto-demo UI cleanup helper should exist');
-const clearAutoDemoUiEnd = source.indexOf('\n  const isHeatCapacityUserInteractionLocked', clearAutoDemoUiStart);
-assert.notEqual(clearAutoDemoUiEnd, -1, 'heat capacity auto-demo UI cleanup helper should end before interaction lock helper');
-const clearAutoDemoUiBody = source.slice(clearAutoDemoUiStart, clearAutoDemoUiEnd);
+const clearAutoDemoUiBody = namedActionBody(heatDemoUiSource, 'clearHeatCapacityAutoDemoUiState');
 assert.match(
   clearAutoDemoUiBody,
   /setAutoDemoStepTitle\(''\)[\s\S]*setAutoDemoStepDescription\(''\)[\s\S]*setAutoDemoStepTarget\(''\)[\s\S]*setAutoDemoStepNote\(''\)/,
@@ -217,7 +225,7 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  source,
+  heatModeRuntimeSource,
   /showHeatCapacityAutoDemoCompletionToast\('正在启动引导模式'[\s\S]{0,700}window\.setTimeout/,
   'guide mode start notice should not delay activation behind a timer',
 );
@@ -229,7 +237,7 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  source,
+  workbenchHeatCapacityModeControlSource,
   /studio-heat-mode-action-next-trial/,
   'single guide mode should not keep the old next-trial guide action',
 );
@@ -277,7 +285,7 @@ assert.match(
 );
 
 assert.doesNotMatch(
-  source,
+  workbenchDockHeaderSource,
   /<Play size=\{13\}[\s\S]*?\}\s*(?:Run|Resume)|<Square size=\{12\}[\s\S]*?\}\s*Stop/,
   'run and stop controls should render as icon-only buttons with labels only in aria/title text',
 );
@@ -288,3 +296,8 @@ assert.match(workbenchViewShellSource, /import \{ WorkbenchDockHeader \} from '\
 assert.match(workbenchViewShellSource, /import \{ WorkbenchHeatCapacityModeControl \} from '\.\/WorkbenchHeatCapacityModeControl\.tsx';/);
 
 assert.match(workbenchHeatCapacityModeControlSource, /data-heat-capacity-mode="free"[\s\S]*handleHeatCapacityModeSegmentClick\('free'\)/);
+
+assert.match(source, /useWorkbenchHeatCapacityController\(\{/);
+assert.match(heatControllerSource, /useWorkbenchHeatModeRuntime\(\{/);
+assert.match(heatControllerSource, /createWorkbenchHeatDemoRuntimeActions\(\{/);
+assert.match(heatControllerSource, /createWorkbenchHeatDemoUiActions\(\{/);

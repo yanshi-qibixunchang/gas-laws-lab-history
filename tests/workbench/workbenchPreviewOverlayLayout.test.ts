@@ -1,3 +1,4 @@
+const instrumentViewSource = readFileSync(new URL('../../src/features/workbench/WorkbenchHeatCapacityInstrumentView.tsx', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -78,10 +79,10 @@ assert.match(sceneSource, /data-preview-overlay-item="heat-focus-panel"/, 'focus
 assert.match(sceneSource, /data-preview-overlay-item="heat-view-reset"/, 'reset action should be a tracked overlay item');
 
 assert.doesNotMatch(workbenchSource, /overlayTopLeft=\{heatCapacityTopLeftOverlay\}/, 'workbench should not pass the removed stopcock mini readout into the heat scene');
-assert.match(workbenchSource, /overlayTopRight=\{heatCapacityTopRightOverlay\}/, 'workbench should pass top-right overlay content into the heat scene');
-assert.match(workbenchSource, /overlayBottomRight=\{heatCapacityBottomRightOverlay\}/, 'workbench should pass bottom-right overlay content into the heat scene');
-assert.match(workbenchSource, /overlayCenter=\{heatCapacityCenterOverlay\}/, 'workbench should pass centered prompts into the heat scene');
-assert.match(workbenchSource, /overlayBottomCenter=\{heatCapacityBottomCenterOverlay\}/, 'workbench should pass bottom-centered prompts into the heat scene');
+assert.match(workbenchSource, /overlayTopRight:\s*heatCapacityTopRightOverlay/, 'workbench should pass top-right overlay content into the heat scene');
+assert.match(workbenchSource, /overlayBottomRight:\s*heatCapacityBottomRightOverlay/, 'workbench should pass bottom-right overlay content into the heat scene');
+assert.match(workbenchSource, /overlayCenter:\s*heatCapacityCenterOverlay/, 'workbench should pass centered prompts into the heat scene');
+assert.match(workbenchSource, /overlayBottomCenter:\s*heatCapacityBottomCenterOverlay/, 'workbench should pass bottom-centered prompts into the heat scene');
 assert.doesNotMatch(workbenchSource, /heatCapacityFocusPanelHeightPx/, 'focus panel height should not be measured as a one-off layout workaround');
 assert.doesNotMatch(workbenchSource, /document\.querySelector<HTMLElement>\('\[data-heat-capacity-focus-panel\]'\)/, 'workbench should not query the scene DOM to make sibling overlays move');
 assert.doesNotMatch(workbenchSource, /--heat-record-focus-offset/, 'record controls should move through the shared overlay stack, not a focus-only CSS variable');
@@ -173,3 +174,5 @@ assert.match(styleSource, /@keyframes studioOverlayFadeIn/, 'centered messages s
 assert.match(styleSource, /@keyframes studioOverlayFadeOut/, 'centered messages should use fade-only exit');
 assert.doesNotMatch(getCssBlock('.studio-heat-focus-panel'), /right:\s*14px/, 'focus panel should be positioned by its slot');
 assert.doesNotMatch(getCssBlock('.studio-heat-demo-step-panel'), /top:\s*48px/, 'demo step panel should be positioned by its slot');
+
+assert.match(instrumentViewSource, /<HeatCapacityInstrumentScene[\s\S]*\{\.\.\.overlays\}/); assert.match(workbenchSource, /<WorkbenchHeatCapacityInstrumentView[\s\S]*overlays=\{\{/);

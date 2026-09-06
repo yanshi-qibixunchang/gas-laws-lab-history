@@ -179,7 +179,7 @@ const workbenchSource = readFileSync(
 assert.match(coordinatorSource, /export const createWorkbenchFileClosePlan/);
 assert.match(coordinatorSource, /export const createWorkbenchFileSelectionPlan/);
 assert.match(readFileSync(new URL('../../src/features/workbench/workbenchFileActions.ts', import.meta.url), 'utf8'), /from '\.\/workbenchFileLifecycleCoordinator\.ts'/);
-assert.match(workbenchSource, /createWorkbenchFileActions\(\{/);
+assert.match(workbenchSource, /useWorkbenchFileActions\(\{/);
 assert.doesNotMatch(workbenchSource, /const cachedFile: WorkbenchFileState =/);
 assert.doesNotMatch(workbenchSource, /const remainingFiles = openFiles\.filter/);
 

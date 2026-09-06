@@ -1,3 +1,17 @@
+const heatClockSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatRealtimeClock.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const heatControllerSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatCapacityController.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatModeRuntimeSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatModeRuntime.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatGuideRuntimeSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatGuideRuntime.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatRuntimeLifecycleSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatRuntimeLifecycle.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatSceneRestoreSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatSceneRestore.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeworkbenchHeatRuntimeCheckpointSource = readHeatRuntimeSource(new URL('../../src/features/workbench/workbenchHeatRuntimeCheckpoint.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeworkbenchHeatDemoRuntimeActionsSource = readHeatRuntimeSource(new URL('../../src/features/workbench/workbenchHeatDemoRuntimeActions.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatRuntimeRecoverySource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatRuntimeRecovery.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatInstrumentSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatInstrument.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeuseWorkbenchHeatPumpAnimationSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatPumpAnimation.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+import { readFileSync as readHeatRuntimeSource } from 'node:fs';
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureUseWorkbenchHeatParameterProjectionSource = readHeatArchitectureSource(new URL('../../src/features/workbench/useWorkbenchHeatParameterProjection.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,7 +42,7 @@ const sourceBetween = (
 };
 
 const refreshResumeSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   'const resumePersistedTransition = () => {',
   '};\n\n    resumeFrameId = window.requestAnimationFrame(resumePersistedTransition);',
   'persisted mode-transition refresh resume',
@@ -50,13 +64,13 @@ assert.match(
 );
 
 const guidePulseSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   'const pulseGuideHeatCapacityControl = (\n    controlId?: string | null,',
   'const clearGuideHeatCapacityGuidancePulseTimer = () => {',
   'guide control pulse',
 );
 assert.match(
-  guidePulseSection,
+  heatArchitectureUseWorkbenchHeatParameterProjectionSource,
   /if \(heatCapacityModeTransitionStateRef\.current\.phase !== 'idle'\) return;/,
   'a guide pulse must not begin while a mode transition owns the scene',
 );
@@ -67,9 +81,9 @@ assert.match(
 );
 
 const guidePulseIntervalSection = sourceBetween(
-  workbenchSource,
-  'useEffect(() => {\n    clearGuideHeatCapacityGuidancePulseTimer();',
-  "useEffect(() => {\n    if (desktopExitQuiesced) return;\n    if (heatCapacityModeTransitionLocked || heatCapacityRefreshRestoring) return;",
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
+  'const guidePulseEffect = { run: () => {',
+  'const strongReminderTimerEffect = { run: () => {',
   'guide pulse interval',
 );
 assert.match(
@@ -84,7 +98,7 @@ assert.match(
 );
 
 const guideStrongActivationSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   'const activateGuideHeatCapacityStrongReminder = (controlId?: string | null) => {',
   'const scheduleGuideHeatCapacityStrongReminderAfterDelay = (',
   'guide strong-reminder activation',
@@ -101,7 +115,7 @@ assert.match(
 );
 
 const guidePendingReminderSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   'const scheduleGuideHeatCapacityStrongReminderAfterDelay = (',
   'const scheduleGuideHeatCapacityStrongReminderAfterToast = (controlId?: string | null) => {',
   'pending guide strong reminder',
@@ -120,8 +134,8 @@ assert.match(
 const pendingRuntimeFreezeMarker = "if (desktopExitQuiesced || heatCapacityModeTransitionLocked || runtimeFailureOwnsActiveGuide || guideReminderClockStopped) {\n      const remainingMs = getHeatCapacityRefreshRemainingMs(\n        guideHeatCapacityPendingStrongReminderDeadlineAtMsRef.current,";
 
 const guideStrongTimerSection = sourceBetween(
-  workbenchSource,
-  'useEffect(() => {\n    const previousTimerContext = guideHeatCapacityStrongReminderTimerContextRef.current;',
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
+  'const strongReminderTimerEffect = { run: () => {',
   pendingRuntimeFreezeMarker,
   'guide inactivity strong-reminder timer',
 );
@@ -137,9 +151,9 @@ assert.match(
 );
 
 const guidePendingResumeSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   pendingRuntimeFreezeMarker,
-  'const renderHeatCapacityGuideLessonOverlay = () => {',
+  'const pumpTargetResetEffect = { run: () => {',
   'paused pending-reminder resume',
 );
 assert.match(
@@ -149,18 +163,18 @@ assert.match(
 );
 
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   /const isHeatCapacityGuideReminderClockRunning = [\s\S]*heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*activeFileIdRef\.current !== fileId[\s\S]*file\.heatCapacityMode === 'guide'[\s\S]*file\.runState === 'running'/,
   'all Guide reminder entry points should share one active running-Guide clock gate',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatRuntimeLifecycleSource,
   /const clearHeatCapacityGuideTransientUiState = \(\) => {[\s\S]*guideHeatCapacityPausedPulseRef\.current = null;/,
   'leaving or resetting Guide should discard a pulse frozen for an obsolete step',
 );
 
 const guideRestoreSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatSceneRestoreSource,
   'const restoreHeatCapacityGuideUiCheckpoint = (',
   'const applyHeatCapacityModeUiProjection = (',
   'guide checkpoint UI restore',
@@ -176,23 +190,23 @@ assert.match(
   'Guide mode-session restoration should route its ordinary pulse through the shared running-clock gate',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   /const pauseGuideHeatCapacityPulse = \(fileId: string\) => \{[\s\S]*existingPausedPulse = guideHeatCapacityPausedPulseRef\.current\?\.fileId === fileId[\s\S]*existingPausedPulse\?\.remainingMs[\s\S]*guideHeatCapacityFocusControlId \?\? existingPausedPulse\?\.controlId[\s\S]*const guideReminderClockStopped = reminderOwnsActiveGuide[\s\S]*pauseGuideHeatCapacityPulse\(activeFile\.id\)[\s\S]*restoreGuideHeatCapacityPulse\(/,
   'ordinary Guide pulses should freeze while the Guide clock is stopped and resume only through the shared policy',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatGuideRuntimeSource,
   /guideHeatCapacityPulseTimerRef\.current = window\.setTimeout\(\(\) => \{\s*if \(!isHeatCapacityGuideReminderClockRunning\(plan\.fileId\)\) \{\s*pauseGuideHeatCapacityPulse\(plan\.fileId\);/,
   'the ordinary pulse deadline callback must recheck the shared clock gate before expiring state',
 );
 assert.match(
-  workbenchSource,
+  runtimeworkbenchHeatRuntimeCheckpointSource,
   /const captureHeatCapacityGuideUiCheckpoint = \([\s\S]*guideHeatCapacityPausedPulseRef\.current\?\.fileId === currentFile\.id[\s\S]*normalReminderControlId = pausedNormalReminder\?\.controlId[\s\S]*normalReminderRemainingMs = pausedNormalReminder[\s\S]*pausedNormalReminder\.remainingMs[\s\S]*normalReminder: normalReminderTimer && normalReminderControlId/,
   'a synchronously frozen Guide pulse for the current file should take priority over stale React state in autosave and mode-session checkpoints',
 );
 
 const transitionFinishSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   'function finishHeatCapacityModeTransitionAnimation() {',
   'function applyPreparedHeatCapacityModeTarget(',
   'mode transition animation completion',
@@ -220,7 +234,7 @@ assert.match(
 );
 
 const demoQuiesceSection = sourceBetween(
-  workbenchSource,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   'const quiesceHeatCapacityAutoDemoForModeTransition = (fileId: string) => {',
   'const resumeQuiescedHeatCapacityAutoDemo = (fileId: string) => {',
   'Demo transaction clock capture',
@@ -232,9 +246,9 @@ assert.match(
 );
 
 const demoResumeSection = sourceBetween(
-  workbenchSource,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   'const resumeQuiescedHeatCapacityAutoDemo = (fileId: string) => {',
-  'const requestHeatCapacityTeachingProgressReset = (',
+  '\n  return {',
   'Demo transaction clock resume',
 );
 assert.match(
@@ -244,7 +258,7 @@ assert.match(
 );
 
 const preparedTargetSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   'function applyPreparedHeatCapacityModeTarget(',
   'function prepareHeatCapacityModeTarget(requestId: number) {',
   'prepared target application',
@@ -266,7 +280,7 @@ assert.match(
 );
 
 const transitionAbortSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   'function abortHeatCapacityModeTransitionToVisibleFile(requestId: number) {',
   'function prepareHeatCapacityModeTarget(requestId: number) {',
   'mode transition abort recovery',
@@ -277,19 +291,19 @@ assert.match(
   'aborting a failed transition should resume the preserved Demo clock when Demo remains visible',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   /Heat-capacity mode target preparation failed:[\s\S]*abortHeatCapacityModeTransitionToVisibleFile\(requestId\)/,
   'target preparation failures should use the shared abort-and-resume path',
 );
 assert.match(
-  workbenchSource,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   /if \(deferTimelineUntilModeTransitionCommit\) \{[\s\S]*heatCapacityAutoDemoFileIdRef\.current = demoFileId;[\s\S]*heatCapacityAutoDemoTimelineRef\.current = timeline;[\s\S]*heatCapacityModeTransitionDemoClockRef\.current = \{/,
   'the deferred fresh-Demo transaction must register its timeline and clock as one commit resource',
 );
 
 const fileActionSource = readSource('src/features/workbench/workbenchFileActions.ts');
-assert.equal([...workbenchSource.matchAll(/releaseHeatCapacityRuntimeForFileExit\(/g)].length, 2,
-  'the shell retains navigation cleanup and one forwarding file-action port');
+assert.equal([...workbenchSource.matchAll(/releaseHeatCapacityRuntimeForFileExit\(/g)].length, 1,
+  'the shell retains one forwarding file-action port; mode navigation owns its cleanup internally');
 assert.match(workbenchSource, /releaseHeatCapacityRuntimeForFileExit: \(fileId\) => releaseHeatCapacityRuntimeForFileExit\(fileId\)/);
 assert.equal([...fileActionSource.matchAll(/releaseHeatCapacityRuntimeForFileExit\(/g)].length, 2,
   'file actions retain exactly the inactive-close and inactive-delete cleanup sites');
@@ -297,7 +311,7 @@ assert.match(fileActionSource, /const closeWorkbenchFile = [\s\S]*?file\.kind ==
 assert.match(fileActionSource, /const deleteWorkbenchFile = [\s\S]*?file\.kind === 'heatCapacity' && !deletingActiveFile\) \{\s*releaseHeatCapacityRuntimeForFileExit\(fileId\)/);
 
 const navigationSuspendSection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatModeRuntimeSource,
   'const suspendActiveHeatCapacityModeForNavigation = () => {',
   'const activateHeatCapacityFileModeSession = (fileId: string) => {',
   'file navigation suspension',
@@ -394,11 +408,7 @@ assert.match(
   /const retryUltraScene = useCallback\(\(\) => \{[\s\S]*if \(retainLostContextCanvas && !lostContextRestored\) return;[\s\S]*setUltraRuntimeGuardRevision\(\(revision\) => revision \+ 1\);[\s\S]*if \(!retainLostContextCanvas\) \{\s*setUltraRuntimeRetryAttempt[\s\S]*ultraSceneError === null \|\| retainLostContextCanvas[\s\S]*disabled=\{retainLostContextCanvas && !lostContextRestored\}/,
   'a restored lost Canvas should reset only the guard epoch in place, while other runtime failures retain the full remount path',
 );
-assert.match(
-  workbenchSource,
-  /useEffect\(\(\) => \{\s*if \(\s*desktopExitQuiesced \|\|[\s\S]*heatCapacityRefreshRestoring \|\|[\s\S]*heatCapacityRuntimeFailureFileId !== null[\s\S]*window\.setInterval\(\(\) => \{/,
-  'the real-time heat-capacity tick must not keep a background interval during exit, restore, or runtime failure',
-);
+assert.match(heatClockSource, /const realtimeClockEffect = \{ run: \(\) => \{\s*if \(\s*desktopExitQuiesced \|\|[\s\S]*heatCapacityRefreshRestoring \|\|[\s\S]*heatCapacityRuntimeFailureFileId !== null[\s\S]*window\.setInterval\(\(\) => \{/, 'the real-time heat-capacity tick must not acquire a clock during suspension');
 assert.match(
   sceneSource,
   /<HeatCapacityUltraErrorBoundary[\s\S]*key=\{`scene-runtime-\$\{ultraRuntimeRetryAttempt\}`\}[\s\S]*errorKind="runtime"[\s\S]*<Canvas[\s\S]*<HeatCapacityRuntimeGuardProvider/,
@@ -463,9 +473,9 @@ assert.doesNotMatch(
 );
 
 const workbenchRuntimeRecoverySection = sourceBetween(
-  workbenchSource,
+  runtimeuseWorkbenchHeatRuntimeRecoverySource,
   'const handleHeatCapacitySceneRuntimeFailure = (fileId: string, error: unknown) => {',
-  'const terminateHeatCapacityAutoDemo = () => {',
+  'const runtimeRecoveryEffect = { run:',
   'workbench runtime recovery policy',
 );
 assert.match(
@@ -474,7 +484,7 @@ assert.match(
   'runtime failure should remember auto-resume intent only for a Guide file that was actually running',
 );
 assert.match(
-  workbenchSource,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   /const freezeHeatCapacityAutoDemoForRuntimeFailure = \([\s\S]*desktopExitAutoDemoClockRef\.current\?\.fileId === fileId[\s\S]*heatCapacityRefreshRestorePendingRef\.current[\s\S]*\? null[\s\S]*clearHeatCapacityAutoDemoTimers\(\);[\s\S]*if \(!failureProjectionDeferred\) \{[\s\S]*setAutoDemoPhase\('paused'\)/,
   'a deferred runtime failure must freeze Demo resources without projecting post-anchor phase or file state',
 );
@@ -484,15 +494,11 @@ assert.doesNotMatch(
   'runtime failure must not route through the user pause command that mutates canonical state and logs',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatRuntimeRecoverySource,
   /const projectedRunState = failedFile\?\.kind === 'heatCapacity'[\s\S]*projectWorkbenchRunStateForRuntimeFailure\(failedFile\.runState\)[\s\S]*projectedFailureFile[\s\S]*expectedFile: expectedRecoveryFile,[\s\S]*projectedRunState,[\s\S]*hasSameHeatCapacityRuntimeRecoveryState\(currentFile, recoveryIntent\.expectedFile\)/,
   'runtime recovery must carry a collision-safe state token through the failure projection and true-ready callback',
 );
-assert.match(
-  workbenchSource,
-  /const handleHeatCapacitySceneRuntimeRecovered = \(fileId: string\) => \{[\s\S]*desktopExitQuiescedRef\.current[\s\S]*heatCapacityRefreshRestorePendingRef\.current[\s\S]*recoverHeatCapacityRuntimeIfReadyRef\.current = handleHeatCapacitySceneRuntimeRecovered[\s\S]*useEffect\(\(\) => \{[\s\S]*heatCapacitySceneReadyFileIdRef\.current === pendingRuntimeRecoveryFileId[\s\S]*recoverHeatCapacityRuntimeIfReadyRef\.current\(pendingRuntimeRecoveryFileId\)/,
-  'scene readiness during desktop or hydration quiescence must preserve the recovery intent and retry it only after the owning gate opens',
-);
+assert.match(runtimeuseWorkbenchHeatRuntimeRecoverySource, /const handleHeatCapacitySceneRuntimeRecovered = \(fileId: string\) => \{[\s\S]*desktopExitQuiescedRef\.current[\s\S]*heatCapacityRefreshRestorePendingRef\.current[\s\S]*recoverHeatCapacityRuntimeIfReadyRef\.current = handleHeatCapacitySceneRuntimeRecovered[\s\S]*const runtimeRecoveryEffect = \{ run: \(\) => \{[\s\S]*heatCapacitySceneReadyFileIdRef\.current === pendingRuntimeRecoveryFileId[\s\S]*recoverHeatCapacityRuntimeIfReadyRef\.current\(pendingRuntimeRecoveryFileId\)/, 'scene readiness preserves recovery intent until suspension releases');
 assert.match(
   workbenchRuntimeRecoverySection,
   /const recoveryStateMatches =[\s\S]*const recoveryRebaseStartMs = recoveryStateMatches[\s\S]*Math\.min\(recoveredAt, currentFile\.updatedAt\)[\s\S]*rebaseHeatCapacityFileAfterSuspendedWallClock\([\s\S]*recoveryRebaseStartMs,[\s\S]*const recoveredRunState = recoveryStateMatches[\s\S]*recoveryIntent\.projectedRunState[\s\S]*projectWorkbenchRunStateForRuntimeFailure\(file\.runState\)[\s\S]*return recoveryStateMatches &&[\s\S]*recoveryIntent\.resumeGuideRunState[\s\S]*runState: 'running'(?: as const)?/,
@@ -504,12 +510,12 @@ assert.match(
   'deferred failures must pause active work while preserving already-stable canonical run states after the owning gate releases',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatSceneRestoreSource,
   /const rebaseHeatCapacityFileForAutomaticSuspension = \([\s\S]*hasSameHeatCapacityRuntimeRecoveryState\(file, recoveryIntent\.expectedFile\)[\s\S]*runtimeIntervalCoveredMs = Math\.max\([\s\S]*resumedAtMs - Math\.max\(suspendedAtMs, recoveryIntent\.suspendedAtMs\)[\s\S]*expectedFile: rebasedFile,[\s\S]*suspendedAtMs: recoveryIntent\.suspendedAtMs \+ runtimeIntervalCoveredMs/,
   'automatic desktop or hydration rebases must advance only the runtime-failure interval they actually covered',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatInstrumentSource,
   /const isHeatCapacityUserInteractionLocked =[\s\S]*heatCapacityRuntimeFailureFileIdRef\.current === activeFileIdRef\.current/,
   'scene failure must lock physical user mutations while metadata-only rename remains independently recoverable',
 );
@@ -525,26 +531,26 @@ assert.match(
 );
 assert.match(
   workbenchSource,
-  /onSceneReady=\{\(\) => handleHeatCapacitySceneReady\(activeFile\.id\)\}/,
+  /onSceneReady: \(\) => handleHeatCapacitySceneReady\(activeFile\.id\)/,
   'the keyed scene should route its exact file id through the ready-gated recovery policy',
 );
 assert.match(
-  workbenchSource,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   /const scheduleHeatCapacityAutoDemoTimeline = \([\s\S]*window\.setTimeout\(\(\) => \{[\s\S]*desktopExitQuiescedRef\.current[\s\S]*heatCapacityRefreshRestorePendingRef\.current[\s\S]*heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*activeFileIdRef\.current !== demoFileId[\s\S]*heatCapacityAutoDemoFileIdRef\.current !== demoFileId/,
   'every late Demo timeline callback must re-check desktop, hydration, runtime, and file ownership gates',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatSceneRestoreSource,
   /restoreSession\.demo\.phase === 'running' &&[\s\S]*heatCapacityRuntimeFailureFileIdRef\.current === null[\s\S]*scheduleHeatCapacityAutoDemoTimeline\(/,
   'hydration must never restart a running Demo timeline while a runtime failure owns the scene',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatPumpAnimationSource,
   /const scheduleHeatCapacityPumpAnimation = \([\s\S]*releaseTimerId = window\.setTimeout\(\(\) => \{[\s\S]*desktopExitQuiescedRef\.current[\s\S]*heatCapacityRefreshRestorePendingRef\.current[\s\S]*heatCapacityRuntimeFailureFileIdRef\.current !== null[\s\S]*activeFileIdRef\.current !== fileId[\s\S]*idleTimerId = window\.setTimeout\(\(\) => \{[\s\S]*heatCapacityRuntimeFailureFileIdRef\.current !== null/,
   'late pump release and idle callbacks must re-check every automatic-suspension owner before mutating a file revision',
 );
 assert.match(
-  workbenchSource,
+  runtimeuseWorkbenchHeatSceneRestoreSource,
   /const restoreRuntimePaused = heatCapacityRuntimeFailureFileIdRef\.current !== null;[\s\S]*restorePumpAnimationPaused = [\s\S]*restoreRuntimePaused[\s\S]*heatCapacityToastPausedRef\.current = \{[\s\S]*heatCapacityAutoDemoCompleteToastPausedRef\.current = \{[\s\S]*desktopExitPausedPressureAlarmRef\.current = \{[\s\S]*desktopExitPausedClosePumpValveReminderRef\.current = \{/,
   'hydration during runtime failure must rebuild pump, toast, completion, and pressure clocks as paused plans only',
 );
@@ -553,10 +559,8 @@ assert.match(
   /if \(failureProjectionDeferred\) \{[\s\S]*pauseHeatCapacityPumpAnimation\(fileId\);[\s\S]*else \{[\s\S]*clearHeatCapacityPumpAnimationTimers\(\);[\s\S]*if \(recoveryApplied\) \{[\s\S]*clearHeatCapacityPumpAnimationTimers\(\);/,
   'a post-Tq failure must preserve the frozen pump checkpoint until successful recovery projects pump idle',
 );
-assert.match(
-  workbenchSource,
-  /const pauseGuideHeatCapacityReminderTimers = \(fileId: string\) => \{[\s\S]*pauseGuideHeatCapacityPulse\(fileId\)[\s\S]*guideHeatCapacityStrongReminderDeadlineAtMsRef[\s\S]*guideHeatCapacityPausedPendingStrongReminderRef[\s\S]*handleHeatCapacitySceneRuntimeFailure[\s\S]*pauseGuideHeatCapacityReminderTimers\(fileId\)/,
-  'Guide pulse, base reminder, and pending reminder clocks should all retain explicit runtime-error freeze paths',
-);
+assert.match(runtimeuseWorkbenchHeatGuideRuntimeSource, /const pauseGuideHeatCapacityReminderTimers = \(fileId: string\) => \{[\s\S]*pauseGuideHeatCapacityPulse\(fileId\)[\s\S]*guideHeatCapacityStrongReminderDeadlineAtMsRef[\s\S]*guideHeatCapacityPausedPendingStrongReminderRef/, 'the guide resource owner freezes all three reminder clocks');
+assert.match(runtimeuseWorkbenchHeatRuntimeRecoverySource, /const handleHeatCapacitySceneRuntimeFailure[\s\S]*pauseGuideHeatCapacityReminderTimers\(fileId\)/, 'runtime failure calls the shared reminder pause port');
+assert.match(heatControllerSource, /pauseGuideHeatCapacityReminderTimers: \(\.\.\.args\) => guide\.pauseGuideHeatCapacityReminderTimers\(\.\.\.args\)/, 'the runtime recovery port is wired to the unique guide owner');
 
 console.log('heatCapacityModeTransitionRuntimeGuards tests passed');

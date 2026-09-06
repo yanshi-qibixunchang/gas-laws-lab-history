@@ -1,3 +1,10 @@
+const runtimeuseWorkbenchHeatInstrumentSource = readHeatRuntimeSource(new URL('../../src/features/workbench/useWorkbenchHeatInstrument.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const runtimeworkbenchHeatDemoRuntimeActionsSource = readHeatRuntimeSource(new URL('../../src/features/workbench/workbenchHeatDemoRuntimeActions.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+import { readFileSync as readHeatRuntimeSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatSceneVisualsSource = readHeatArchitectureSource(new URL('../../src/features/workbench/workbenchHeatSceneVisuals.ts', import.meta.url), 'utf8');
+import { readFileSync as readHeatArchitectureSource } from 'node:fs';
+const heatArchitectureWorkbenchHeatPreviewWaitSource = readHeatArchitectureSource(new URL('../../src/features/workbench/workbenchHeatPreviewWait.ts', import.meta.url), 'utf8');
+const heatArchitectureWorkbenchHeatPreviewPhysicsSource = readHeatArchitectureSource(new URL('../../src/features/workbench/workbenchHeatPreviewPhysics.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -128,27 +135,27 @@ assert.match(
 assert.match(scene, /useHeatCapacityAudioController\(\{/);
 assert.match(scene, /pressureZeroTimelineDriven: props\.pressureZeroTimelineDriven/,
   'the scene should feed the scripted visual trajectory directly into the shared audio controller');
-assert.match(workbench, /deriveHeatCapacityAutoDemoZeroKnobMotion\([\s\S]*heatCapacityAutoDemoElapsedMs[\s\S]*activeFile\.pressureZeroKnobAngle/,
+assert.match(heatArchitectureWorkbenchHeatPreviewWaitSource, /deriveHeatCapacityAutoDemoZeroKnobMotion\([\s\S]*heatCapacityAutoDemoElapsedMs[\s\S]*activeFile\.pressureZeroKnobAngle/,
   'Workbench should derive demo knob angle and audio timing from one resumable timeline clock');
 assert.match(ultraModel, /props\.pressureZeroTimelineDriven[\s\S]*pressureZeroVisualTargetAngle[\s\S]*dampUltraControlAngle/,
   'the GLB knob should not add a second lag while the shared demo trajectory is driving it');
-assert.match(workbench, /releaseAudioPathOpen = isHeatCapacityReleaseFlowOpen\(activeFile\.heatCapacityReleaseState\)/,
+assert.match(heatArchitectureWorkbenchHeatPreviewPhysicsSource, /releaseAudioPathOpen = isHeatCapacityReleaseFlowOpen\(activeFile\.heatCapacityReleaseState\)/,
   'Workbench should report only the fully-open path and leave pressure qualification to the audio policy');
 assert.doesNotMatch(workbench, /releaseAudioPathOpen\s*=[\s\S]{0,180}HEAT_CAPACITY_RELEASE_NEAR_AMBIENT_KPA/,
   'the release pressure threshold should have one owner instead of being duplicated in Workbench');
-assert.match(workbench, /releaseAudioPathOpen=\{releaseAudioPathOpen\}/);
+assert.match(heatArchitectureWorkbenchHeatSceneVisualsSource, /releaseAudioPathOpen:\s*releaseAudioPathOpen/);
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatInstrumentSource,
   /let nextHeatCapacityFile = [\s\S]*?registerHeatCapacityPumpStroke[\s\S]*?setHeatCapacityPumpPulseId\(\(pulseId\) => pulseId \+ 1\)/,
   'the animation/audio pulse must still advance when a stroke is physically ineffective',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatInstrumentSource,
   /recordHeatCapacityGuideSample[\s\S]*?setHeatCapacityRecordPulseId\(\(pulseId\) => pulseId \+ 1\)/,
   'guided U0/U1/U2 record buttons should trigger the writing sound pulse',
 );
 assert.match(
-  workbench,
+  runtimeuseWorkbenchHeatInstrumentSource,
   /recordFreeHeatCapacitySample[\s\S]*?setHeatCapacityRecordPulseId\(\(pulseId\) => pulseId \+ 1\)/,
   'free record and rerecord buttons should trigger the writing sound pulse',
 );
@@ -158,12 +165,12 @@ assert.doesNotMatch(
   'automatic demo sampling should not play the writing sound',
 );
 assert.match(
-  workbench,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   /action === 'pumpStroke'[\s\S]*?pressHeatCapacityPumpBulb\(fileId, 'autoDemo'\)/,
   'demo pumping must use the same pulse-driven audio path as guide and free modes',
 );
 assert.match(
-  workbench,
+  runtimeworkbenchHeatDemoRuntimeActionsSource,
   /action === 'openStopcockForRelease' \|\| action === 'openStopcockForZero'[\s\S]*?setHeatCapacityStopcockOpenByFileId\(fileId, true\)/,
   'demo stopcock actions must use the shared release state that drives release audio',
 );

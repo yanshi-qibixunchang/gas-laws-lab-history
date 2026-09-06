@@ -1,3 +1,4 @@
+const archUseWorkbenchFileTreeStateSource = readFileSync(new URL('../../src/features/workbench/useWorkbenchFileTreeState.ts', import.meta.url), 'utf8');
 const workbenchViewShellSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchFileTreeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchFileTree.tsx', import.meta.url), 'utf8');
@@ -10,7 +11,7 @@ const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudi
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  archUseWorkbenchFileTreeStateSource,
   /const renameSelectionModeRef = useRef<'initial' \| 'normal'>\('normal'\);/,
   'rename should track whether the user is still in the initial full-selection mode',
 );
@@ -74,3 +75,5 @@ console.log('workbenchRenameSelection tests passed');
 
 
 assert.match(workbenchViewShellSource, /import \{ WorkbenchFileTree \} from '\.\/WorkbenchFileTree\.tsx';/);
+
+assert.match(source, /from '\.\/useWorkbenchFileTreeState\.ts'/);
