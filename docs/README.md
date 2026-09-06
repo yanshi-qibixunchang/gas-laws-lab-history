@@ -22,6 +22,7 @@
 | --- | --- | --- |
 | `docs/current-development-handoff.md` | 当前开发交接 | 跨对话恢复当前进度、已确认决策、后续阶段、验证门禁和版本库工作流 |
 | `docs/prompt-system-ui-spec.md` | 当前规范 | 软件提示窗口 A 方案和交互边界 |
+| `docs/architecture/workbench-ui-composition.md` | 当前拆分合同 | ARCH-003 整体完成条件、职责边界、不变合同及内部验证方式 |
 | `docs/architecture/` | 当前合同 | 模块边界、状态权威、持久化、迁移、桌面桥接和导出数据流 |
 | `docs/instrument-modeling/` | 当前规范与参考 | 按绝热膨胀法、活塞振荡法分开的物理模型、控制合同、验证和来源材料 |
 | `docs/theory/` | 当前参考 | 理论推导和公式材料 |

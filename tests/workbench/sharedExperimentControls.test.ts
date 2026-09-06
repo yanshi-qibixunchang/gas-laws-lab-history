@@ -1,3 +1,5 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchExperimentProgressCopySource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchExperimentProgressCopy.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -90,7 +92,7 @@ assert.equal(
   'both experiments and their empty-plan actions should use the same shared progress component',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchExperimentProgressCopySource,
   /heatProgress:[\s\S]*第 \$\{current\} \/ \$\{total\} 次实验[\s\S]*pistonProgress:[\s\S]*第 \$\{ordinal\} \/ \$\{total\} 次 · 目标 \$\{heightMm\} mm/,
   'both progress labels should use the approved compact single-line language',
 );
@@ -111,3 +113,5 @@ assert.doesNotMatch(
 );
 
 console.log('sharedExperimentControls tests passed');
+
+assert.ok(workbenchSource.includes("from './workbenchExperimentProgressCopy.ts'"), 'workbenchExperimentProgressCopy must remain connected to the shell');

@@ -2,6 +2,8 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const snapshotSource = readFileSync(new URL('../../src/features/workbench/workbenchEditSnapshot.ts', import.meta.url), 'utf8');
+const historySource = readFileSync(new URL('../../src/features/workbench/workbenchEditHistoryActions.ts', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
@@ -32,19 +34,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  snapshotSource,
   /interface WorkbenchPresentationEditSnapshot[\s\S]*?presentation:\s*WorkbenchFilePresentationSnapshot/,
   'Results layout history should use a presentation-only snapshot instead of a full runtime file snapshot',
 );
 
 assert.match(
-  source,
+  historySource,
   /const restorePresentationSnapshot[\s\S]*?\.\.\.structuredClone\(snapshot\.presentation\.state\)[\s\S]*?scheduleWorkspacePersistenceRef\.current\(\)/,
   'restoring Results layout should patch only presentation state and persist the resulting layout',
 );
 
 assert.doesNotMatch(
-  source.match(/const restorePresentationSnapshot[\s\S]*?\n  };\n\n  const restoreFileSnapshot/)?.[0] ?? '',
+  historySource.match(/const restorePresentationSnapshot[\s\S]*?\n  };\n\n  const restoreFileSnapshot/)?.[0] ?? '',
   /reconcileRuntime|suspendActiveHeatCapacityModeForNavigation|cloneWorkbenchFiles/,
   'restoring Results layout must not replace or rewind simulation runtime state',
 );

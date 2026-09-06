@@ -1,7 +1,10 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchEditLabelLocalizationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchEditLabelLocalization.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const historySource = readFileSync(new URL('../../src/features/workbench/workbenchEditHistoryActions.ts', import.meta.url), 'utf8');
 const workbenchStudioCopySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const styles = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
@@ -52,7 +55,7 @@ assert.match(
   /if \(!finished\) \{[\s\S]*updateRuntimeFileById\(file\.id,[\s\S]*scheduleIdealFrame\(file\.id\)/,
   'ideal-gas collection frames should stay runtime-only while the final recorded point remains semantic',
 );
-assert.match(source, /files: filesRef\.current,[\s\S]*closedFiles: closedFilesRef\.current,/, 'workspace persistence snapshots should keep open and closed file collections distinct');
+assert.match(source, /readFiles: \(\) => filesRef\.current,[\s\S]*readClosedFiles: \(\) => closedFilesRef\.current,/, 'workspace persistence capture must retain distinct authoritative open and closed file collection readers');
 assert.match(indexedDbPersistenceSource, /openFileIds: snapshot\.files\.map\(\(file\) => file\.id\),[\s\S]*closedFileIds: snapshot\.closedFiles\.map\(\(file\) => file\.id\),/, 'IndexedDB workspace metadata should preserve separate open and closed file ordering');
 assert.ok(sessionSource.includes('loadClosedWorkbenchFiles'), 'session bootstrap should expose closed cached files loaded from IndexedDB');
 assert.doesNotMatch(sessionSource, /persistClosedWorkbenchFiles/, 'the runtime session module should not retain the obsolete separate localStorage writer');
@@ -96,15 +99,16 @@ assert.match(
   'new experiment display numbering must be separate from its opaque persistent identity',
 );
 assert.match(
-  source,
+  historySource,
   /kind: 'workspace',[\s\S]*files: cloneWorkbenchFiles\(sourceFiles\),[\s\S]*closedFiles: cloneWorkbenchFiles\(closedFilesRef\.current\)/,
   'workspace undo snapshots must preserve both open and closed ownership collections',
 );
 assert.match(
-  source,
+  historySource,
   /const restoredClosedFiles = cloneWorkbenchFiles\(snapshot\.closedFiles\);[\s\S]*commitWorkbenchFileCollections\(restoredFiles, restoredClosedFiles, nextActiveFileId\)/,
   'workspace restore must atomically restore open and closed collections without duplicating an identity',
 );
+assert.match(source, /createWorkbenchEditHistoryActions\(\{/);
 assert.match(source, /useState<WorkbenchEditSnapshot\[]>\(\[\]\)/);
 assert.doesNotMatch(
   source.slice(
@@ -115,14 +119,14 @@ assert.doesNotMatch(
   'process-local edit history must not restore unvalidated legacy snapshots after restart',
 );
 assert.match(
-  source,
+  historySource,
   /const pushUndoSnapshot[\s\S]*undoStackRef\.current = nextUndoStack;[\s\S]*redoStackRef\.current = \[\];[\s\S]*setUndoStack/,
   'history refs must update synchronously before an immediate collection persistence flush',
 );
-assert.match(source, /'closed file': '关闭文件'/);
-assert.match(source, /'reopened file': '重新打开文件'/);
-assert.match(source, /'closed file': '關閉檔案'/);
-assert.match(source, /'reopened file': '重新開啟檔案'/);
+assert.match(presentationWorkbenchEditLabelLocalizationSource, /'closed file': '关闭文件'/);
+assert.match(presentationWorkbenchEditLabelLocalizationSource, /'reopened file': '重新打开文件'/);
+assert.match(presentationWorkbenchEditLabelLocalizationSource, /'closed file': '關閉檔案'/);
+assert.match(presentationWorkbenchEditLabelLocalizationSource, /'reopened file': '重新開啟檔案'/);
 assert.match(
   source,
   /const closeWorkbenchFile[\s\S]*captureUndoSnapshot\('closed file', 'workspace'\)[\s\S]*commitWorkbenchFileCollections/,
@@ -184,20 +188,17 @@ assertCollectionCommitPrecedesFlush(
   'delete-file',
 );
 
-const workspaceSnapshotSource = source.slice(
-  indexOfOrFail(source, 'const createWorkspacePersistenceSnapshot = (', 'workspace snapshot builder should exist'),
-  indexOfOrFail(source, 'const handleHeatCapacityCameraPoseChange = (', 'camera persistence handler should follow the snapshot builder'),
-);
-assert.match(
-  workspaceSnapshotSource,
-  /const snapshotCapturedAtMs = desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\);[\s\S]*resolveWorkbenchActiveModeCheckpointOverride[\s\S]*const refreshSession =[\s\S]*checkpointOverride\.provided[\s\S]*\? null[\s\S]*: buildCurrentHeatCapacityRefreshSession\(null, snapshotCapturedAtMs\)[\s\S]*checkpointOverride\.provided[\s\S]*\? checkpointOverride\.checkpoint[\s\S]*: buildHeatCapacityModeUiCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)/,
-  'an immediate file switch must distinguish absent, non-null, and explicit-null target checkpoints without reading the previous render',
-);
-assert.match(
-  workspaceSnapshotSource,
-  /flushWorkspacePersistenceRef\.current = async \(activeModeCheckpointOverride\) => \{\s*const snapshot = createWorkspacePersistenceSnapshot\(activeModeCheckpointOverride\);\s*const scheduler = workspacePersistenceSchedulerRef\.current;\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot, 'lifecycle'\);/,
-  'flush must materialize the target-file snapshot before awaiting any earlier save or React projection commit',
-);
+const workspaceSnapshotSource = readFileSync(new URL('../../src/features/workbench/workbenchWorkspacePersistenceActions.ts', import.meta.url), 'utf8');
+assert.match(source, /createWorkbenchWorkspaceSnapshotCapture\(\{[\s\S]*readCapturedAtMs: \(\) => desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\)/,
+  'the capture adapter must retain the desktop exit clock anchor');
+assert.match(source, /scheduleWorkspacePersistenceRef\.current = workspacePersistenceRequests\.schedule;[\s\S]*flushWorkspacePersistenceRef\.current = workspacePersistenceRequests\.flush;/,
+  'the main workspace must use the dedicated persistence requests');
+assert.match(workspaceSnapshotSource,
+  /resolveWorkbenchActiveModeCheckpointOverride\([\s\S]*const refreshSession =[\s\S]*checkpointOverride\.provided \? null : ports\.buildRefreshSession\(snapshotCapturedAtMs\)[\s\S]*checkpointOverride\.provided[\s\S]*\? checkpointOverride\.checkpoint[\s\S]*: ports\.buildModeCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)/,
+  'capture must distinguish absent and explicit-null target checkpoints');
+assert.match(workspaceSnapshotSource,
+  /const snapshot = ports\.capture\(activeModeCheckpointOverride\);\s*const scheduler = ports\.readScheduler\(\);\s*if \(!scheduler\) return false;\s*scheduler\.schedule\(\(\) => snapshot, 'lifecycle'\);/,
+  'flush must materialize the target-file snapshot before awaiting an earlier save or React commit');
 assert.match(
   source,
   /const flushWorkspaceAfterRunStateCommit = \(\) => \{[\s\S]*setTimeout\(\(\) => \{[\s\S]*persistWorkspaceLifecycleCheckpointRef\.current\(\)/,
@@ -298,3 +299,5 @@ assert.match(
 );
 
 console.log('workbenchExperimentFiles tests passed');
+
+assert.ok(source.includes("from './workbenchEditLabelLocalization.ts'"), 'workbenchEditLabelLocalization must remain connected to the shell');

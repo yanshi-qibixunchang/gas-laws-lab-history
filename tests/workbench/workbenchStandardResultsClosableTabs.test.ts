@@ -2,6 +2,7 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const actionSource = readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8');
 const coordinatorSource = readFileSync(new URL('../../src/features/workbench/workbenchResultsWindowCoordinator.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const fileStateSource = readFileSync(new URL('../../src/features/workbench/workbenchFileState.ts', import.meta.url), 'utf8');
@@ -26,13 +27,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /const openStandardResultsWindow = \(tab: WorkbenchStandardResultsTab = 'summary',\s*openAllTabs = false,\s*replaceOpenTabs = false\) =>/,
   'standard Results should have a dedicated opener that can reopen a closed child tab',
 );
 
 assert.match(
-  source,
+  actionSource,
   /const closeStandardResultsTab = \(tab: WorkbenchStandardResultsTab\) =>/,
   'standard Results should have a dedicated child tab close handler',
 );
@@ -44,7 +45,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /closePanel\('results',\s*false\)/,
   'closing the last standard Results child tab should close the whole Results panel',
 );
@@ -79,7 +80,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /openStandardResultsWindow\(tab,\s*false,\s*replaceOpenTabs\)/,
   'Window menu should open only the selected standard Results child tab from closed state and append to already open tabs',
 );
@@ -96,4 +97,5 @@ assert.match(
   'Results tab close buttons should be compact browser-style controls',
 );
 
+assert.match(source, /createWorkbenchWindowActions\(\{/);
 console.log('workbenchStandardResultsClosableTabs tests passed');

@@ -1,7 +1,11 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchParameterPresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchParameterPresentation.ts', import.meta.url), 'utf8');
+const presentationWorkbenchConsolePresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchConsolePresentation.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const windowActionSource = readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8');
 const copySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const generalSettingsWindowSource = readFileSync(new URL('../../src/features/workbench/WorkbenchGeneralSettingsWindow.tsx', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
@@ -183,13 +187,13 @@ assert.match(
 );
 
 assert.match(
-  source,
+  presentationWorkbenchParameterPresentationSource,
   /const getWorkbenchParameterDisplayLabel = \(/,
   'Parameter rows should resolve labels through a localized helper',
 );
 
 assert.match(
-  source,
+  presentationWorkbenchConsolePresentationSource,
   /createInitialLogs = \(language: WorkbenchLanguagePreference\)/,
   'Initial logs should be created from the selected language',
 );
@@ -213,7 +217,8 @@ for (const dynamicLogCall of [
   'workbenchCopies[language].logs.fileNameCannotBeEmpty',
   'workbenchCopies[language].logs.confirmDeleteFile',
 ]) {
-  assert.ok(source.includes(dynamicLogCall), `${dynamicLogCall} should localize common dynamic logs`);
+  const owningSource = dynamicLogCall === 'workbenchCopies[language].logs.standardResultsOpened' ? windowActionSource : source;
+  assert.ok(owningSource.includes(dynamicLogCall), `${dynamicLogCall} should localize common dynamic logs`);
 }
 
 for (const exportHardcodedCall of [
@@ -362,3 +367,6 @@ assert.match(
 );
 
 console.log('workbenchLanguageMode tests passed');
+
+assert.ok(source.includes("from './workbenchParameterPresentation.ts'"), 'workbenchParameterPresentation must remain connected to the shell');
+assert.ok(source.includes("from './workbenchConsolePresentation.ts'"), 'workbenchConsolePresentation must remain connected to the shell');

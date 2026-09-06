@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const windowActionSource = readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8');
 const copySource = readFileSync(new URL('../../src/features/workbench/workbenchStudioCopy.ts', import.meta.url), 'utf8');
 const realtimePanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchSimulationRealtimePanel.tsx', import.meta.url), 'utf8');
 const verificationPanelSource = readFileSync(new URL('../../src/features/workbench/WorkbenchIdealVerificationPanel.tsx', import.meta.url), 'utf8');
@@ -86,9 +87,10 @@ for (const requiredCall of [
   'workbenchCopy.logs.relationHasNoPoints',
   'getLocalizedWorkbenchValidationErrors(validation.errors, settingsLanguagePreference)',
 ]) {
+  const owningSource = ['workbenchCopy.logs.panelOpened', 'workbenchCopy.logs.panelClosed'].includes(requiredCall) ? windowActionSource : renderSource;
   const languageReactiveCall = requiredCall.replace('workbenchCopy.logs', 'workbenchCopies[language].logs');
   assert.ok(
-    renderSource.includes(requiredCall) || renderSource.includes(languageReactiveCall),
+    owningSource.includes(requiredCall) || owningSource.includes(languageReactiveCall),
     `${requiredCall} should be used by experiment UI/log logic`,
   );
 }
@@ -147,8 +149,10 @@ for (const hardcodedText of [
   assert.ok(!renderSource.includes(hardcodedText), `Experiment UI/log text should not be hardcoded as ${hardcodedText}`);
 }
 
+const parameterPresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchParameterPresentation.ts', import.meta.url), 'utf8');
+assert.ok(source.includes("from './workbenchParameterPresentation.ts'"));
 assert.ok(
-  source.includes('const getLocalizedWorkbenchValidationErrors = ('),
+  parameterPresentationSource.includes('const getLocalizedWorkbenchValidationErrors = ('),
   'Validation errors should have a language-aware mapping before reaching the UI and console',
 );
 

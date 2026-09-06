@@ -1,3 +1,5 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchPanelAvailabilitySource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPanelAvailability.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -190,9 +192,11 @@ assert.match(
   'all experiment files should share the same activation layout: left open and right collapsed',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPanelAvailabilitySource,
   /file\?\.kind === 'heatCapacity'[\s\S]*file\?\.kind === 'heatCapacityPistonOscillation'/,
 );
 assert.match(workbenchSource, /workbenchLayoutDefaults\.heatCapacity\.liveWorkspaceSplitRatio/);
 
 console.log('workbenchHeatCapacityFile tests passed');
+
+assert.ok(workbenchSource.includes("from './workbenchPanelAvailability.ts'"), 'workbenchPanelAvailability must remain connected to the shell');

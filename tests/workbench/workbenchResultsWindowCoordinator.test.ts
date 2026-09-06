@@ -167,7 +167,10 @@ const workbenchSource = readFileSync(
 );
 assert.match(coordinatorSource, /export const createIdealResultsTabOpenPlan/);
 assert.match(coordinatorSource, /export const createStandardResultsTabClosePlan/);
-assert.match(workbenchSource, /from '\.\/workbenchResultsWindowCoordinator\.ts'/);
+const actionSource = readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8');
+assert.match(actionSource, /from '\.\/workbenchResultsWindowCoordinator\.ts'/);
+assert.match(workbenchSource, /from '\.\/workbenchWindowActions\.ts'/);
+assert.match(workbenchSource, /createWorkbenchWindowActions\(\{/);
 assert.doesNotMatch(workbenchSource, /const normalizeIdealResultLayout =/);
 assert.doesNotMatch(workbenchSource, /const pickNextOpenTab =/);
 

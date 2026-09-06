@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import ts from 'typescript';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const modeActionsSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatCapacityModeActions.ts', import.meta.url), 'utf8');
@@ -9,7 +10,7 @@ const electronSource = readFileSync(new URL('../../electron/main.cjs', import.me
 
 assert.match(
   source,
-  /^\s*Square,\s*$/m,
+  /^import\s*\{[^}]*\bSquare\b[^}]*\}\s*from 'lucide-react'/m,
   'workbench preview controls should import the square stop icon used by IDE run toolbars',
 );
 
@@ -96,11 +97,20 @@ assert.match(
   'Guide mode should create a fresh guide runtime only when no resumable Guide checkpoint exists',
 );
 
-const runAutoDemoStart = source.indexOf('const runHeatCapacityAutoDemo = () => {');
-assert.notEqual(runAutoDemoStart, -1, 'heat capacity auto demo runner should exist');
-const runAutoDemoEnd = source.indexOf('\n  const createEditSnapshot', runAutoDemoStart);
-assert.notEqual(runAutoDemoEnd, -1, 'heat capacity auto demo runner should end before edit snapshot helpers');
-const runAutoDemoBody = source.slice(runAutoDemoStart, runAutoDemoEnd);
+// Read the actual runner body, independent of unrelated helper declaration order.
+const workbenchAst = ts.createSourceFile('WorkbenchStudioPrototype.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+let runAutoDemoBody: string | null = null;
+const findAutoDemoRunner = (node: ts.Node) => {
+  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
+    && node.name.text === 'runHeatCapacityAutoDemo' && node.initializer
+    && ts.isArrowFunction(node.initializer)) {
+    assert.equal(runAutoDemoBody, null, 'the Demo runner should have one owner');
+    runAutoDemoBody = node.initializer.body.getText(workbenchAst);
+  }
+  ts.forEachChild(node, findAutoDemoRunner);
+};
+findAutoDemoRunner(workbenchAst);
+assert.notEqual(runAutoDemoBody, null, 'heat capacity auto demo runner should exist');
 
 assert.match(
   runAutoDemoBody,

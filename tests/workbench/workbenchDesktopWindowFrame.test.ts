@@ -256,11 +256,14 @@ assert.match(
   /const refreshRestoreOwnedFileId = heatCapacityRefreshRestorePendingRef\.current[\s\S]*file\.id !== refreshRestoreOwnedFileId[\s\S]*const refreshRestoreOwnsActiveFile = activeFile\?\.id === refreshRestoreOwnedFileId;[\s\S]*activeFile\?\.kind === 'heatCapacity' && !refreshRestoreOwnsActiveFile[\s\S]*if \(\s*!refreshRestoreOwnsActiveFile &&\s*heatCapacityRuntimeFailureFileIdRef\.current === null\s*\) \{/,
   'desktop cancel-resume should leave pending-refresh or runtime-failure-owned clocks untouched so each resumes exactly once from its authoritative gate',
 );
-assert.match(
-  workbenchSource,
-  /const createWorkspacePersistenceSnapshot =[\s\S]*snapshotCapturedAtMs = desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\)[\s\S]*selectPendingWorkbenchHeatCapacityRefreshSession\(\{[\s\S]*restorePending: heatCapacityRefreshRestorePendingRef\.current,[\s\S]*buildCurrentHeatCapacityRefreshSession\(null, snapshotCapturedAtMs\)[\s\S]*buildHeatCapacityModeUiCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)[\s\S]*preserveActiveHeatCapacityModeSession: pendingRefreshSession !== null/,
-  'scheduled, pagehide, and lifecycle snapshots must retain the original refresh anchor and canonical mode checkpoint until scene hydration applies the restore',
-);
+const workspaceSnapshotSource = readFileSync(new URL('../../src/features/workbench/workbenchWorkspacePersistenceActions.ts', import.meta.url), 'utf8');
+assert.match(workbenchSource,
+  /createWorkbenchWorkspaceSnapshotCapture\(\{[\s\S]*readCapturedAtMs: \(\) => desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\),[\s\S]*readRefreshRestorePending: \(\) => heatCapacityRefreshRestorePendingRef\.current,[\s\S]*buildRefreshSession: \(capturedAtMs\) => buildCurrentHeatCapacityRefreshSession\(null, capturedAtMs\),[\s\S]*buildModeCheckpoint: buildHeatCapacityModeUiCheckpoint/,
+  'capture ports retain the frozen clock, pending restore owner and canonical checkpoint builders');
+assert.match(workspaceSnapshotSource,
+  /selectPendingWorkbenchHeatCapacityRefreshSession\(\{[\s\S]*restorePending: ports\.readRefreshRestorePending\(\),[\s\S]*preserveActiveHeatCapacityModeSession: pendingRefreshSession !== null/,
+  'scheduled, pagehide and lifecycle snapshots preserve the original mode session until scene hydration completes');
+
 assert.match(
   workbenchSource,
   /let switchingFromPendingHeatCapacityRefresh = false;[\s\S]*switchingFromPendingHeatCapacityRefresh = suspendActiveHeatCapacityModeForNavigation\(\);[\s\S]*if \(!switchingFromPendingHeatCapacityRefresh\) \{[\s\S]*heatCapacityRefreshPersistRef\.current\(\);[\s\S]*flushWorkspacePersistenceRef\.current\(\);[\s\S]*commitWorkbenchFileCollections/,
@@ -272,7 +275,7 @@ assert.match(
   'all navigation owners must share one pending-hydration path that preserves the original canonical mode entry',
 );
 assert.match(
-  workbenchSource,
+  readFileSync(new URL('../../src/features/workbench/workbenchEditHistoryActions.ts', import.meta.url), 'utf8'),
   /const createEditSnapshotFiles =[\s\S]*activeFileOwnsPendingHeatCapacityRefresh\(currentFile\)\) return currentFiles;[\s\S]*suspendHeatCapacityModeSession/,
   'undo snapshots captured during hydration must retain the original T0 mode store',
 );

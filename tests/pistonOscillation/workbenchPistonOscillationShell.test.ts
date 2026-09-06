@@ -1,3 +1,6 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchPanelAvailabilitySource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPanelAvailability.ts', import.meta.url), 'utf8');
+const presentationWorkbenchScientificTextSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/WorkbenchScientificText.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -74,12 +77,12 @@ const workbenchStyles = readFileSync(
   'utf8',
 );
 
-const sourceSlice = (start: string, end: string) => {
-  const startIndex = workbenchSource.indexOf(start);
-  const endIndex = workbenchSource.indexOf(end, startIndex);
+const sourceSlice = (start: string, end: string, source = workbenchSource) => {
+  const startIndex = source.indexOf(start);
+  const endIndex = source.indexOf(end, startIndex);
   assert.notEqual(startIndex, -1, `missing source marker: ${start}`);
   assert.notEqual(endIndex, -1, `missing source marker: ${end}`);
-  return workbenchSource.slice(startIndex, endIndex);
+  return source.slice(startIndex, endIndex);
 };
 
 assert.match(
@@ -109,11 +112,11 @@ assert.match(
   'the piston experiment should keep its own panel adapter so Data processing can open independently of Heat panels',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPanelAvailabilitySource,
   /const isPistonOscillationUnavailableMaterialsPanelKey = \([\s\S]*file\.kind !== 'heatCapacityPistonOscillation'[\s\S]*isHeatCapacityPanelKey\(panel\)/,
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPanelAvailabilitySource,
   /getPistonOscillationMaterialsPanelOrder\(file\)\.includes\(panel\)/,
   'Data processing availability should follow the currently active Free or Guide session without leaking stale data from the other mode',
 );
@@ -121,6 +124,7 @@ assert.match(
 const openPanelSource = sourceSlice(
   'const openPanel = (panel: WorkbenchPanelKey) => {',
   'const closePanel = (panel: WorkbenchPanelKey',
+  readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8'),
 );
 assert.ok(
   openPanelSource.indexOf('isPistonOscillationUnavailableMaterialsPanelKey(activeFile, panel)') <
@@ -594,12 +598,12 @@ assert.match(
   /selectionToolPulse \? 'is-guide-highlighted' : ''/,
   'the hand/crosshair mode switch should receive the approved acquisition control pulse',
 );
-assert.match(
-  workbenchSource,
-  /periodTool: '\[data-piston-guide-target="period-tool"\]'[\s\S]*targetId === 'periodTool'[\s\S]*selectionToolReminder/,
-  'the strong reminder must cut out the mode switch and explain its localized interaction',
-);
-assert.match(
+const maskDomSource = readFileSync(new URL('../../src/features/workbench/workbenchPistonGuideMaskDom.ts', import.meta.url), 'utf8');
+const guidePresentationSource = readFileSync(new URL('../../src/features/workbench/workbenchPistonGuidePresentation.ts', import.meta.url), 'utf8');
+assert.match(maskDomSource, /periodTool: '\[data-piston-guide-target="period-tool"\]'/, 'the strong reminder must cut out the mode switch');
+assert.match(guidePresentationSource, /targetId === 'periodTool'[\s\S]*selectionToolReminder/, 'the reminder must explain its localized interaction');
+assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskDom.ts'"));
+assert.ok(workbenchSource.includes("from './workbenchPistonGuidePresentation.ts'"));assert.match(
   workbenchSource,
   /openPistonOscillationDataProcessingReview[\s\S]*setPistonOscillationDataProcessingReviewOpen\(true\)[\s\S]*panel\.key === 'heatCapacityGuide'[\s\S]*openPistonOscillationDataProcessingReview\(\)/,
   'double-clicking Data processing after completion must reopen the B-stage review before C/D calculations',
@@ -856,9 +860,10 @@ assert.doesNotMatch(
   /pistonGuideStrongPlatformInteractionHidden|setPistonOscillationGuideMouseHeld/,
   'an authorized platform drag should keep the reminder wall visible instead of hiding it while the mouse is held',
 );
+assert.match(maskDomSource, /stage\.dataset\.pistonFocusPlatformX[\s\S]*stage\.dataset\.pistonFocusPlatformY/, 'the platform cutout should consume live projected platform coordinates');
 assert.match(
   workbenchSource,
-  /stage\.dataset\.pistonFocusPlatformX[\s\S]*stage\.dataset\.pistonFocusPlatformY[\s\S]*pistonGuideStrongTargetId === 'platform' \? 32 : 120/,
+  /pistonGuideStrongTargetId === 'platform' \? 32 : 120/,
   'the platform cutout should follow the live projected platform position throughout the drag',
 );
 assert.match(
@@ -941,9 +946,10 @@ assert.match(
   /pistonOscillationGuideStrongReminderActiveContext !== null[\s\S]*pistonOscillationGuidePressureIssue === 'overpressure'[\s\S]*\? 'redo'[\s\S]*pressureTooLowStrongReminder[\s\S]*pressureTooHighStrongReminder/,
   'a strong pressure reminder must pulse and cut out the exact platform or Redo target with concise copy',
 );
+assert.match(guidePresentationSource, /kind: 'pressureRange'[\s\S]*kind: 'lockingScrew'[\s\S]*kind: 'multiPeriod'/, 'all exclusive lesson kinds must remain in the shared presentation model');
 assert.match(
   workbenchSource,
-  /kind: 'pressureRange'[\s\S]*kind: 'lockingScrew'[\s\S]*kind: 'multiPeriod'[\s\S]*pressureRangeLessonTitle[\s\S]*pressureRangeLessonBody[\s\S]*lockingScrewLessonTitle[\s\S]*lockingScrewLessonBody[\s\S]*multiPeriodLessonTitle[\s\S]*multiPeriodLessonBody/,
+  /pressureRangeLessonTitle[\s\S]*pressureRangeLessonBody[\s\S]*lockingScrewLessonTitle[\s\S]*lockingScrewLessonBody[\s\S]*multiPeriodLessonTitle[\s\S]*multiPeriodLessonBody/,
   'pressure-range, locking-screw, and multi-period explanations must use the shared exclusive lesson dialog',
 );
 assert.match(
@@ -962,7 +968,7 @@ assert.match(
   'the locking-screw explanation should open once after the first completed loosening action',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchScientificTextSource,
   /text\.split\(\/\(Uₜ₁\|Uₜ₂\|Uₜ\|Uₚ\|t₁\|t₂\|T²[\s\S]*part === 't₁'[\s\S]*<sub>1<\/sub>[\s\S]*part === 't₂'[\s\S]*<sub>2<\/sub>[\s\S]*part === 'T²'[\s\S]*<sup>2<\/sup>/,
   'lesson formulas must render semantic subscripts and superscripts instead of exposing source markup',
 );
@@ -1009,3 +1015,6 @@ assert.match(
 );
 
 console.log('workbenchPistonOscillationShell tests passed');
+
+assert.ok(workbenchSource.includes("from './workbenchPanelAvailability.ts'"), 'workbenchPanelAvailability must remain connected to the shell');
+assert.ok(workbenchSource.includes("from './WorkbenchScientificText.tsx'"), 'WorkbenchScientificText must remain connected to the shell');

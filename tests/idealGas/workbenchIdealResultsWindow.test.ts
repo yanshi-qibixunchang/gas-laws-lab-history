@@ -1,3 +1,5 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchConsolePresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchConsolePresentation.ts', import.meta.url), 'utf8');
 ﻿import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -20,7 +22,9 @@ const getRuleBody = (selector: string) => {
   return '';
 };
 
-const idealPanelsMatch = source.match(/const createIdealPanels[\s\S]*?\n\];/);
+const panelDefinitionsSource = readFileSync(new URL('../../src/features/workbench/workbenchPanelDefinitions.tsx', import.meta.url), 'utf8');
+assert.ok(source.includes("from './workbenchPanelDefinitions.tsx'"));
+const idealPanelsMatch = panelDefinitionsSource.match(/const createIdealPanels[\s\S]*?\n\];/);
 assert.ok(idealPanelsMatch, 'createIdealPanels definition should exist');
 const idealPanelsBlock = idealPanelsMatch[0];
 
@@ -167,7 +171,7 @@ assert.match(
   'ideal Results single-child open should replace default open tabs with only the selected tab',
 );
 assert.match(
-  source,
+  readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8'),
   /openIdealResultsWindow\(tab,\s*false,\s*replaceOpenTabs\)/,
   'ideal Results child switches should single-open from closed state and append to already open tabs',
 );
@@ -287,7 +291,7 @@ assert.match(
   'ideal Results metric blocks should use stable compact heights without excessive blank space',
 );
 assert.match(
-  source,
+  presentationWorkbenchConsolePresentationSource,
   /type ConsoleTab = 'logs' \| 'warnings' \| 'summary'/,
   'Console Output should define clickable log filter tabs',
 );
@@ -348,3 +352,5 @@ assert.match(
 );
 
 console.log('workbenchIdealResultsWindow tests passed');
+
+assert.ok(source.includes("from './workbenchConsolePresentation.ts'"), 'workbenchConsolePresentation must remain connected to the shell');

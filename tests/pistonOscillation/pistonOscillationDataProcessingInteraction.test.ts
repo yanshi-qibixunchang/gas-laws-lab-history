@@ -1,3 +1,5 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchPistonGuideMaskDomSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPistonGuideMaskDom.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -276,7 +278,7 @@ assert.match(
   'the strong reminder cutout must track its target while the processing workspace scrolls',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /const top = root\.classList\.contains\('studio-live-workspace-piston-processing'\)[\s\S]*\? 0[\s\S]*: dockHeaderBottom/,
   'a processing reminder must dim the title, run list, selection instructions, and chart as one continuous workspace',
 );
@@ -302,3 +304,5 @@ assert.match(
 );
 
 console.log('pistonOscillationDataProcessingInteraction tests passed');
+
+assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskDom.ts'"), 'workbenchPistonGuideMaskDom must remain connected to the shell');

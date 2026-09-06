@@ -2,17 +2,18 @@
 import { readFileSync } from 'node:fs';
 
 const source = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
+const actionSource = readFileSync(new URL('../../src/features/workbench/workbenchWindowActions.ts', import.meta.url), 'utf8');
 const topCommandsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchTopCommands.tsx', import.meta.url), 'utf8');
 const cssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 assert.match(
-  source,
+  actionSource,
   /const openIdealResultsWindow = \(tab: WorkbenchIdealResultWindowKey = 'experimentPoints',\s*openAllTabs = false,\s*replaceOpenTabs = false\) =>/,
   'ideal Results should expose a dedicated helper for opening the single tabbed result window',
 );
 
 assert.match(
-  source,
+  actionSource,
   /openIdealResultTab\(tab,\s*\{ openAllTabs,\s*replaceOpenTabs \}\)/,
   'opening the ideal Results window should set the requested active tab and optionally restore all tabs',
 );
@@ -36,7 +37,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /const openIdealResultWindow = \(panel: WorkbenchIdealResultWindowKey\) => \{[\s\S]*?const replaceOpenTabs = !activeFile\.visiblePanels\.includes\('results'\)[\s\S]*?openIdealResultsWindow\(panel,\s*false,\s*replaceOpenTabs\)/,
   'left-tree ideal child double-click should single-open from closed Results and append to existing open tabs',
 );
@@ -54,7 +55,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /selectResultsSection[\s\S]*?const replaceOpenTabs = !activeFile\.visiblePanels\.includes\('results'\)[\s\S]*?openStandardResultsWindow\(section,\s*false,\s*replaceOpenTabs\)/,
   'left-tree standard child double-click should single-open from closed Results and append to existing open tabs',
 );
@@ -78,19 +79,19 @@ assert.match(
 );
 
 assert.match(
-  source,
-  /const isWindowPanelVisible = \(panel: WorkbenchPanelKey\) => \([\s\S]*?activeFile\.visiblePanels\.includes\(panel\)/,
+  actionSource,
+  /const isWindowPanelVisible = \(panel: WorkbenchPanelKey\) => \{[\s\S]*?activeFile\.visiblePanels\.includes\(panel\)/,
   'Window menu should treat ideal Results as on only when the single Results window is open',
 );
 
 assert.match(
-  source,
+  actionSource,
   /const toggleWindowPanel = \(panel: WorkbenchPanelKey\) => \{[\s\S]*?activeFile\.kind === 'ideal' && panel === 'results'[\s\S]*?isWindowPanelVisible\(panel\)[\s\S]*?closeIdealResultsWindow\(\)[\s\S]*?openIdealResultsWindow\('experimentPoints',\s*true\)/,
   'Window menu Results switch should open or close the single ideal Results window',
 );
 
 assert.match(
-  source,
+  actionSource,
   /const runWindowMenuSwitch = \(action: \(\) => void\) => \{[\s\S]*?action\(\);[\s\S]*?setOpenTopMenu\(null\);[\s\S]*?\};/,
   'Window menu switch actions should clear the open top-menu state after changing windows',
 );
@@ -102,7 +103,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /activeFile\.kind === 'standard' && panel === 'results'[\s\S]*?openStandardResultsWindow\('summary',\s*true\)/,
   'Window menu Results switch should open standard Results with all child tabs',
 );
@@ -120,19 +121,19 @@ assert.doesNotMatch(
 );
 
 assert.match(
-  source,
+  actionSource,
   /const toggleWindowIdealResultTab = \(tab: WorkbenchIdealResultWindowKey\) =>/,
   'Window menu should expose a single-click ideal Results child tab switch handler',
 );
 
 assert.match(
-  source,
+  actionSource,
   /const openIdealResultTab = \(tab: WorkbenchIdealResultWindowKey,\s*options: \{ openAllTabs\?: boolean; replaceOpenTabs\?: boolean \} = \{\}\) =>/,
   'ideal Results should support replacing all open tabs with the selected child tab',
 );
 
 assert.match(
-  source,
+  actionSource,
   /toggleWindowIdealResultTab[\s\S]*?const replaceOpenTabs = !activeFile\.visiblePanels\.includes\('results'\)[\s\S]*?openIdealResultsWindow\(tab,\s*false,\s*replaceOpenTabs\)/,
   'Window ideal child switches should single-open from a closed Results window and append when another child tab is already open',
 );
@@ -144,19 +145,19 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /const toggleWindowStandardResultsTab = \(tab: WorkbenchStandardResultsTab\) =>/,
   'Window menu should expose a single-click standard Results child tab switch handler',
 );
 
 assert.match(
-  source,
+  actionSource,
   /const openStandardResultsWindow = \(tab: WorkbenchStandardResultsTab = 'summary',\s*openAllTabs = false,\s*replaceOpenTabs = false\) =>/,
   'standard Results should support replacing all open tabs with the selected child tab',
 );
 
 assert.match(
-  source,
+  actionSource,
   /toggleWindowStandardResultsTab[\s\S]*?const replaceOpenTabs = !activeFile\.visiblePanels\.includes\('results'\)[\s\S]*?openStandardResultsWindow\(tab,\s*false,\s*replaceOpenTabs\)/,
   'Window standard child switches should single-open from a closed Results window and append when another child tab is already open',
 );
@@ -168,7 +169,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  actionSource,
   /const closeIdealResultTab = \(tab: WorkbenchIdealResultWindowKey\) =>[\s\S]*?captureUndoSnapshot\(\s*`closed \$\{[\s\S]*? tab`,\s*'presentation',?\s*\)[\s\S]*?closeIdealResultsWindow\(false\)/,
   'closing the last ideal Results child tab should close the whole Results window with undo history',
 );

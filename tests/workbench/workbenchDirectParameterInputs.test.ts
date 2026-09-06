@@ -1,3 +1,5 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchParameterPresentationSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchParameterPresentation.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
@@ -36,12 +38,12 @@ assert.match(
 );
 
 assert.match(
-  source,
+  presentationWorkbenchParameterPresentationSource,
   /const WORKBENCH_PARAMETER_DETAILS: Record<WorkbenchAdvancedParameterKey, \{[\s\S]*?symbol: WorkbenchParameterSymbolPart\[\];[\s\S]*?help: Record<WorkbenchLanguagePreference, string>[\s\S]*?N:[\s\S]*?r:[\s\S]*?L:[\s\S]*?dt:[\s\S]*?nu:[\s\S]*?equilibriumTime:[\s\S]*?statsDuration:/,
   'standard and ideal advanced parameter rows should have symbols and model-effect help for every visible field',
 );
 assert.doesNotMatch(
-  source.match(/const WORKBENCH_PARAMETER_DETAILS:[\s\S]*?\n\};/)?.[0] ?? '',
+  presentationWorkbenchParameterPresentationSource.match(/const WORKBENCH_PARAMETER_DETAILS:[\s\S]*?\n\};/)?.[0] ?? '',
   /\n\s+(?:m|k|targetTemperature):\s*\{/,
   'internal and dedicated fields should not retain unreachable advanced-row help entries',
 );
@@ -59,7 +61,7 @@ assert.match(
 );
 
 assert.match(
-  source,
+  presentationWorkbenchParameterPresentationSource,
   /const getWorkbenchParameterDisplayUnit = \([\s\S]*?param: WorkbenchParameterRow[\s\S]*?language: WorkbenchLanguagePreference[\s\S]*?param\.key === 'N'[\s\S]*?'zh-CN'[\s\S]*?'个'[\s\S]*?'zh-TW'[\s\S]*?'個'[\s\S]*?return param\.unit/,
   'standard and ideal parameter rows should localize human-readable units without mutating model parameter rows',
 );
@@ -101,3 +103,5 @@ assert.match(
 );
 
 console.log('workbenchDirectParameterInputs tests passed');
+
+assert.ok(source.includes("from './workbenchParameterPresentation.ts'"), 'workbenchParameterPresentation must remain connected to the shell');

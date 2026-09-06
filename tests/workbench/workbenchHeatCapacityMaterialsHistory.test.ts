@@ -1,41 +1,16 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { runInNewContext } from 'node:vm';
-import ts from 'typescript';
 import { createDefaultHeatCapacityFile } from '../../src/features/workbench/workbenchHeatCapacityFileFactory.ts';
-import { createDefaultStandardFile } from '../../src/features/workbench/workbenchFileState.ts';
+import { createDefaultStandardFile, type WorkbenchPanelKey } from '../../src/features/workbench/workbenchFileState.ts';
 import type { WorkbenchFileState } from '../../src/features/workbench/workbenchFileUnion.ts';
 import type { WorkbenchHeatCapacityState } from '../../src/features/workbench/workbenchHeatCapacityStateTypes.ts';
-import * as materials from '../../src/features/workbench/workbenchHeatCapacityMaterialsWindowCoordinator.ts';
-import { trimWorkbenchEditHistory } from '../../src/features/workbench/workbenchEditHistory.ts';
+import type { WorkbenchEditSnapshot } from '../../src/features/workbench/workbenchEditSnapshot.ts';
+import { createWorkbenchEditHistoryActions } from '../../src/features/workbench/workbenchEditHistoryActions.ts';
+import { createWorkbenchWindowActions } from '../../src/features/workbench/workbenchWindowActions.ts';
+import { createDefaultWorkbenchLayoutDefaults } from '../../src/features/workbench/workbenchLayoutCompatibility.ts';
+import { getHeatCapacityRealtimeCopy } from '../../src/features/workbench/workbenchHeatCapacityRealtimeCopy.ts';
 
-// Execute the actual UI callbacks and history implementation, with synchronous render ports.
-// Pure layout-plan tests alone cannot detect a missing history capture in a UI callback.
-const source = ts.createSourceFile('WorkbenchStudioPrototype.tsx', readFileSync(
-  new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8',
-), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-const callbackNames = [
-  'createFilePresentationSnapshot', 'createEditSnapshot', 'restorePresentationSnapshot',
-  'restoreSnapshot', 'pushUndoSnapshot', 'captureUndoSnapshot', 'undoLastEdit', 'redoLastEdit',
-  'activateHeatCapacityTab', 'openHeatCapacityTab', 'openAllHeatCapacityMaterialsTabs',
-  'closeHeatCapacityTab', 'closeHeatCapacityMaterialsWindow', 'toggleWindowHeatCapacityTab',
-];
-const declarations = new Map<string, string>();
-const visit = (node: ts.Node) => {
-  if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name)
-    && callbackNames.includes(node.name.text)) {
-    assert.equal(declarations.has(node.name.text), false, `ambiguous callback ${node.name.text}`);
-    declarations.set(node.name.text, `const ${node.getText(source)};`);
-  }
-  ts.forEachChild(node, visit);
-};
-visit(source);
-assert.equal(declarations.size, callbackNames.length);
-const callbackCode = ts.transpileModule(
-  [...declarations.values(), `({ ${callbackNames.join(', ')} })`].join('\n'),
-  { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.None } },
-).outputText;
-
+// Run the same production factories used by the UI, with synchronous render ports.
+// A missing history capture in a window callback must fail the continuous action sequence.
 const createHarness = (mode: 'guide' | 'free') => {
   const initialFile: WorkbenchHeatCapacityState = {
     ...createDefaultHeatCapacityFile(1), heatCapacityMode: mode,
@@ -46,32 +21,57 @@ const createHarness = (mode: 'guide' | 'free') => {
   const otherFile = createDefaultStandardFile(1);
   const filesRef = { current: [initialFile, otherFile] as WorkbenchFileState[] };
   const activeFileIdRef = { current: initialFile.id };
-  const selectedPanelRef = { current: 'preview' };
-  const undoStackRef = { current: [] as { kind: string; label: string }[] };
-  const redoStackRef = { current: [] as { kind: string; label: string }[] };
+  const selectedPanelRef = { current: 'preview' as WorkbenchPanelKey };
+  const undoStackRef = { current: [] as WorkbenchEditSnapshot[] };
+  const redoStackRef = { current: [] as WorkbenchEditSnapshot[] };
   let persistenceRequests = 0;
   const getFile = () => filesRef.current.find(file => file.id === initialFile.id) as WorkbenchHeatCapacityState;
-  const forbidDomainRestore = () => assert.fail('materials history must never snapshot or restore experiment state');
-  const actions = runInNewContext(callbackCode, {
-    ...materials, closeHeatCapacityMaterialsWindowState: materials.closeHeatCapacityMaterialsWindow,
-    trimWorkbenchEditHistory, structuredClone,
+  const forbidDomainRestore = (): never => assert.fail('materials history must never snapshot or restore experiment state');
+  const setWorkbenchFiles = (update: (files: WorkbenchFileState[]) => WorkbenchFileState[]) => {
+    filesRef.current = update(filesRef.current);
+  };
+  const setSelectedPanel = (panel: WorkbenchPanelKey) => { selectedPanelRef.current = panel; };
+  const history = createWorkbenchEditHistoryActions({
     filesRef, activeFileIdRef, selectedPanelRef, undoStackRef, redoStackRef,
-    tutorialActiveRef: { current: false },
-    get activeFile() { return filesRef.current.find(file => file.id === activeFileIdRef.current); },
-    setWorkbenchFiles: (update: (files: WorkbenchFileState[]) => WorkbenchFileState[]) => {
-      filesRef.current = update(filesRef.current);
-    },
-    updateActiveFile: (update: (file: WorkbenchFileState) => WorkbenchFileState) => {
+    closedFilesRef: { current: [] }, tutorialActiveRef: { current: false },
+    setWorkbenchFiles, setSelectedPanel,
+    setUndoStack: () => {}, setRedoStack: () => {}, setOpenTopMenu: () => {}, pushLog: () => {},
+    guardWorkbenchTutorialAction: () => true, getLocalizedWorkbenchEditLabel: label => label,
+    activeFileOwnsPendingHeatCapacityRefresh: forbidDomainRestore,
+    resolveDeferredHeatCapacityGuideUiCheckpoint: forbidDomainRestore,
+    captureHeatCapacityModeSceneMetadata: forbidDomainRestore,
+    buildHeatCapacityModeUiCheckpoint: forbidDomainRestore,
+    suspendActiveHeatCapacityModeForNavigation: forbidDomainRestore,
+    activateHeatCapacityFileModeSession: forbidDomainRestore,
+    commitWorkbenchFileCollections: forbidDomainRestore,
+    reconcileRuntimeAfterFileRestore: forbidDomainRestore,
+    reconcileRuntimesAfterRestore: forbidDomainRestore,
+    clearEditRestoreTransientUi: forbidDomainRestore, setParametersCollapsed: forbidDomainRestore,
+    flushWorkspacePersistenceRef: { current: forbidDomainRestore },
+    scheduleWorkspacePersistenceRef: { current: () => { persistenceRequests += 1; } },
+  });
+  const windows = createWorkbenchWindowActions({
+    getActiveFile: () => filesRef.current.find(file => file.id === activeFileIdRef.current)!,
+    getSelectedPanel: () => selectedPanelRef.current,
+    setWorkbenchFiles, setSelectedPanel,
+    updateActiveFile: update => {
       filesRef.current = filesRef.current.map(file => file.id === activeFileIdRef.current ? update(file) : file);
     },
-    setSelectedPanel: (panel: string) => { selectedPanelRef.current = panel; },
-    setUndoStack: () => {}, setRedoStack: () => {}, pushLog: () => {},
-    guardWorkbenchTutorialAction: () => true,
-    getHeatCapacityTabDefinition: (tabId: string) => ({ title: tabId }),
-    createEditSnapshotFiles: forbidDomainRestore,
-    restoreFileSnapshot: forbidDomainRestore, restoreWorkspaceSnapshot: forbidDomainRestore,
-    scheduleWorkspacePersistenceRef: { current: () => { persistenceRequests += 1; } },
-  }) as Record<string, (...args: unknown[]) => void>;
+    workbenchLayoutDefaults: createDefaultWorkbenchLayoutDefaults(),
+    heatCapacityRealtimeCopy: getHeatCapacityRealtimeCopy('zh-CN'),
+    availablePanels: [
+      { key: 'heatCapacityGuide', title: 'guide', hint: '', icon: null },
+      { key: 'heatCapacityRecords', title: 'records', hint: '', icon: null },
+      { key: 'heatCapacityReview', title: 'review', hint: '', icon: null },
+    ],
+    idealResultWindowPanels: [], resultsSections: [],
+    createIdealPanels: () => [], createResultsSections: () => [],
+    getLocalizedWorkbenchPanelTitle: title => title,
+    setResultsChildrenCollapsed: () => {}, setOpenTopMenu: () => {},
+    captureUndoSnapshot: history.captureUndoSnapshot,
+    guardWorkbenchTutorialAction: () => true, pushLog: () => {},
+  });
+  const actions = { ...history, ...windows };
   return { actions, getFile, filesRef, activeFileIdRef, selectedPanelRef, undoStackRef, redoStackRef,
     otherFile, getPersistenceRequests: () => persistenceRequests };
 };

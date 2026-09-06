@@ -1,3 +1,5 @@
+import { readFileSync as readWorkbenchPresentationSource } from 'node:fs';
+const presentationWorkbenchPistonGuideMaskDomSource = readWorkbenchPresentationSource(new URL('../../src/features/workbench/workbenchPistonGuideMaskDom.ts', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -267,27 +269,27 @@ assert.doesNotMatch(
 assert.doesNotMatch(workbenchCss, /\.studio-piston-guide-strong-mask \* \{[\s\S]*pointer-events: none !important;/);
 assert.match(workbenchCss, /\.studio-piston-guide-strong-mask \.studio-heat-guide-strong-dim \{\s*\n\s*pointer-events: auto;/);
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /const scaleX = rootRect\.width \/ localWidth;[\s\S]*const scaleY = rootRect\.height \/ localHeight;[\s\S]*querySelectorAll<HTMLElement>\('\.studio-dock-header'\)[\s\S]*const dockHeaderBottom = Math\.max[\s\S]*root\.classList\.contains\('studio-live-workspace-piston-processing'\)[\s\S]*\? 0[\s\S]*: dockHeaderBottom[\s\S]*contextCutouts[\s\S]*getPistonOscillationGuideStrongContextKind/,
   'the strong mask should convert scaled workspace coordinates, cover the complete processing workspace, preserve instrument mode headers, and retain target context cutouts',
 );
 assert.doesNotMatch(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /operationVisualizationToggleCutout/,
   'the operation-visualization switch must sit above the Guide wall instead of becoming an SVG hole',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /targetId === 'hoseDisconnect' \|\| targetId === 'hoseReconnect'[\s\S]*pistonFocusHoseConnectedHandle[\s\S]*pistonFocusHoseDetachedHandle[\s\S]*projectedBoundsCutout/,
   'hose reminders should use one projected connector-plus-near-hose handle for the step-specific endpoint',
 );
 assert.doesNotMatch(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /contextKind === 'hosePath'|pistonFocusHoseConnectedX|pistonFocusHoseDetachedX/,
   'hose reminders must not restore the old two-endpoint bounding rectangle context',
 );
 assert.doesNotMatch(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /protectedContextSelectors|contextCutouts\.push\(protectedCutout\)/,
   'overlay panels should sit above the reminder wall instead of becoming SVG holes',
 );
@@ -306,18 +308,21 @@ assert.match(
   /\.piston-focus-interaction-overlay-layer[\s\S]*\.studio-preview-overlay-slot\s*> \*\s*\{\s*pointer-events:\s*none;[\s\S]*\.piston-operation-visualization-toggle-shell\.is-visible,[\s\S]*\.piston-focus-interaction-parent-top-right-panel[\s\S]*> \*,[\s\S]*\.piston-oscillation-view-reset,[\s\S]*\.piston-focus-interaction-focus-panel\s*\{\s*pointer-events:\s*auto;/,
   'piston overlays should explicitly opt interactive surfaces in so CSS bundle order cannot create transparent pointer blockers',
 );
+const maskGeometrySource = readFileSync(new URL('../../src/features/workbench/workbenchPistonGuideMaskGeometry.ts', import.meta.url), 'utf8');
+assert.match(maskGeometrySource, /getPistonOscillationGuideStrongDimPath[\s\S]*contextCutouts\.map\(getPistonOscillationGuideRoundedRectPath\)/);
+assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskGeometry.ts'"));
 assert.match(
   workbenchSource,
-  /getPistonOscillationGuideStrongDimPath[\s\S]*contextCutouts\.map\(getPistonOscillationGuideRoundedRectPath\)[\s\S]*data-piston-guide-strong-mask-blocking="true"[\s\S]*fillRule="evenodd"[\s\S]*studio-piston-guide-strong-card-compact/,
+  /data-piston-guide-strong-mask-blocking="true"[\s\S]*fillRule="evenodd"[\s\S]*studio-piston-guide-strong-card-compact/,
   'the reminder should block the dimmed region while adapting its card around all protected context regions',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /renderedStrongCard[\s\S]*renderedStrongCardHeight = renderedStrongCard\?\.offsetHeight[\s\S]*cardWidth = Math\.min\(compact \? 232 : 340[\s\S]*estimatedCardHeight = compact \? 168 : 112[\s\S]*Math\.max\(estimatedCardHeight, renderedStrongCardHeight\)/,
   'strong-reminder placement should reserve a conservative card height and then honor the actual rendered copy height',
 );
 assert.match(
-  workbenchSource,
+  presentationWorkbenchPistonGuideMaskDomSource,
   /const protectedObstacles = obstacleSelectors[\s\S]*const obstacles = \[\.\.\.protectedObstacles\][\s\S]*chooseCard\(true, protectedObstacles\)/,
   'when no fully empty slot exists, the compact reminder may yield to its scene target but must still preserve every panel obstacle',
 );
@@ -328,3 +333,5 @@ assert.match(
 );
 
 console.log('pistonOscillationGuidePresentation.test.ts passed');
+
+assert.ok(workbenchSource.includes("from './workbenchPistonGuideMaskDom.ts'"), 'workbenchPistonGuideMaskDom must remain connected to the shell');
