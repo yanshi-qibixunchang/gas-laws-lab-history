@@ -1,7 +1,8 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback } from 'react';
 import { Particle, Translation } from '../shared/types';
 import { MousePointer2, Lock, Unlock, Hand, Rotate3d, Maximize } from 'lucide-react';
 import { usePreviewOverlayMotion } from '../features/workbench/usePreviewOverlayMotion';
+import { observeSimulationCanvasSize } from './simulationCanvasResize.ts';
 
 interface SimulationCanvasProps {
   particles: Particle[];
@@ -216,6 +217,11 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
     });
   }, [particles, rotation, scale, pan, L, r]);
 
+  const drawRef = useRef(draw);
+  useLayoutEffect(() => {
+    drawRef.current = draw;
+  }, [draw]);
+
   useEffect(() => {
     draw();
   }, [draw, isRunning]);
@@ -225,29 +231,9 @@ const SimulationCanvas: React.FC<SimulationCanvasProps> = ({
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const updateSize = () => {
-      const { width, height } = container.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-
-      if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-
-        const ctx = canvas.getContext('2d');
-        if (ctx) ctx.scale(dpr, dpr);
-        draw();
-      }
-    };
-
-    const resizeObserver = new ResizeObserver(() => {
-      requestAnimationFrame(updateSize);
-    });
-
-    resizeObserver.observe(container);
-    updateSize();
-
-    return () => resizeObserver.disconnect();
-  }, [draw]);
+    // Particle and camera updates redraw independently of the size subscription.
+    return observeSimulationCanvasSize(canvas, container, () => drawRef.current());
+  }, []);
 
   useEffect(() => {
     const handleGlobalWheel = (event: WheelEvent) => {

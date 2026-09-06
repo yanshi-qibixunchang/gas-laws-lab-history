@@ -7236,6 +7236,12 @@
   box-shadow: inset 0 0 0 1px rgba(79, 127, 184, 0.24);
 }
 
+.simulation-canvas-workbench-frame > canvas {
+  /* The viewport owns the size; the drawing buffer must not size its ancestors. */
+  position: absolute;
+  inset: 0;
+}
+
 .simulation-canvas-workbench-tools {
   position: absolute;
   top: var(--studio-preview-overlay-inset);
