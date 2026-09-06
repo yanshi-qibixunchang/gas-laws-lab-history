@@ -2465,6 +2465,7 @@ const getLocalizedWorkbenchEditLabel = (
       'closed ideal Results window': '关闭理想气体结果窗口',
       'opened Results panel': '打开结果面板',
       'opened heat-capacity materials tabs': '打开热容比实验资料标签页',
+      'closed heat-capacity materials window': '关闭实验资料与结果窗口',
       'changed ideal relation': '更改理想气体关系',
       'changed ideal scan variable': '更改理想气体扫描变量',
       'removed ideal experiment point': '移除理想气体实验点',
@@ -2490,6 +2491,7 @@ const getLocalizedWorkbenchEditLabel = (
       'closed ideal Results window': '關閉理想氣體結果視窗',
       'opened Results panel': '開啟結果面板',
       'opened heat-capacity materials tabs': '開啟熱容比實驗資料分頁',
+      'closed heat-capacity materials window': '關閉實驗資料與結果視窗',
       'changed ideal relation': '變更理想氣體關係',
       'changed ideal scan variable': '變更理想氣體掃描變量',
       'removed ideal experiment point': '移除理想氣體實驗點',
@@ -17961,6 +17963,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const closeHeatCapacityMaterialsWindow = () => {
     if (activeFile.kind !== 'heatCapacity' || activeFile.openHeatCapacityTabs.length === 0) return;
+    captureUndoSnapshot('closed heat-capacity materials window', 'presentation');
     setSelectedPanel('preview');
     updateActiveFile((file) => (
       file.kind === 'heatCapacity'

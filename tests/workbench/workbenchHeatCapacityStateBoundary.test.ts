@@ -627,8 +627,8 @@ assert.match(
 );
 assert.match(
   authoritySource,
-  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*`workbenchState\.ts` 兼容入口收尾已经完成[\s\S]*下一大改动断点转向 25,291 行的 `WorkbenchStudioPrototype\.tsx`/,
-  'the authority table should record the completed facade boundary and next UI-coordinator breakpoint',
+  /heatCapacityFreeRunWorkspace\.currentExperimentStatus[\s\S]*`workbenchState\.ts` 兼容入口收尾已经完成[\s\S]*绝热膨胀模式入口与保存触发的职责拆分已完成/,
+  'the authority table should record the completed facade and mode-action boundaries without freezing a historical line count',
 );
 
 console.log('workbenchHeatCapacityStateBoundary tests passed');
