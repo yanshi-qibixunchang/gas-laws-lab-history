@@ -1,0 +1,125 @@
+{
+  "schemaVersion": 1,
+  "protocol": {
+    "version": "piston-operation-sweep-v1",
+    "scope": "real-air-model-sensitivity-not-apparatus-calibration",
+    "heightsMm": [
+      80,
+      70,
+      60,
+      50,
+      40,
+      30
+    ],
+    "dragReferencePx": [
+      120,
+      160,
+      200,
+      240,
+      300,
+      350
+    ],
+    "rampDurationsS": [
+      0.1,
+      0.4,
+      1.1,
+      2
+    ],
+    "holdDurationsS": [
+      0,
+      0.1,
+      0.4
+    ],
+    "seeds": [
+      11,
+      29,
+      47,
+      71,
+      101
+    ],
+    "sampleRateHz": 1000,
+    "triggerThresholdKpa": 120,
+    "recordedDurationS": 0.5,
+    "releaseDurationS": 0.8,
+    "selection": "earliest-locally-accepted-two-primary-cycles-no-gamma-feedback"
+  },
+  "productionSourceCommit": "483f18460b134b33041d8e7c2ec8ffd62f4ced1d",
+  "sources": [
+    {
+      "path": "docs/instrument-modeling/piston-oscillation/validation/operation-sweep-protocol.md",
+      "sha256": "c403f4637b0b617de9d575e11ad34f2aeb2e43c5df3496db98d56fd7b9e99b2e"
+    },
+    {
+      "path": "scripts/analysis/pistonOperationSweepModel.ts",
+      "sha256": "bd7719ae8f4377f524404723cc4ad109c5ccb9ae0d3170b0b8a0044271a5aad1"
+    },
+    {
+      "path": "scripts/analysis/runPistonOperationSweep.ts",
+      "sha256": "d6b54099d1799b19cb545e67d318ec13a9ea22f3cef18e4ce9fa946bacf57b12"
+    },
+    {
+      "path": "src/domain/calculation/decimalHalfEven.ts",
+      "sha256": "ec11781aa59fa99f2db60c30b13a224ee7527cf495c9d909797905c65e963b55"
+    },
+    {
+      "path": "src/domain/calculation/numericAnswerValidation.ts",
+      "sha256": "f30e3155180d2d6534e0a61ba9a3b934881a4c2f459fda202e6b1b2822882417"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts",
+      "sha256": "77e2df8dd880aff38812c33840e38e87ff45f15d276e1003272a720c4f8c655a"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts",
+      "sha256": "45661f3007e4384025d78bf7fb63ee6b2b9e5ced75d63c8ae78c8cedde71a665"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationExperimentContextModel.ts",
+      "sha256": "dc8933c12555ee785d18c8fa76e03578d52928ef556d5e43b67bc2bdff7ba15c"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts",
+      "sha256": "eaf365d5458cea3480546a5050dbe97ab3fdd8a9cf4fc9e5c5404f96b0c9cfaf"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationGasMaterialModel.ts",
+      "sha256": "3e668a4d3a69533198d7f4d53884ee1cf614a1854d1b51d489a5c144efa90744"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationLegacyCompatibility.ts",
+      "sha256": "4d1dadf9e0940fb168e2105c6d7140172532e8643ad296fd8763ecc2cfac7901"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts",
+      "sha256": "12805867f1c243f8740a0c73c52fab259073ad0907d1b44a16cca3efa7a27201"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts",
+      "sha256": "db9bd0d4289c1a4164292b0cd09749b8fbc5f9b91a4c38a5116d1280baa9f8e7"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts",
+      "sha256": "086d483923815faa2609d71a2ef44a94e1a89b7ba52c1a2e2ea96093530a513a"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationReleaseAsymmetryModel.ts",
+      "sha256": "d6e59791b1bd4e47b7fa3c85f9ee22232efdccb45dfca1e37878d53fc258eed3"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts",
+      "sha256": "ff4d1a66a1271107ccca9f7c02de8f1fd3a5795a89964999ee5331b08714a7ed"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationTailIrregularityObservationModel.ts",
+      "sha256": "6439b4933355590ebd8ffb01856876382e286b251332f23473d4c1bf9e1fa875"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts",
+      "sha256": "dcf19fa53384e6e7caf3b63efe8f4d43825ec3779de28bdae3c5610f45ee79d7"
+    },
+    {
+      "path": "src/domain/pistonOscillation/pistonOscillationVirtualHandModel.ts",
+      "sha256": "af6301fbd7b62a5ed73334ba47b30f512fcbdca79bba22f4f1adfafabdb56d19"
+    }
+  ]
+}
