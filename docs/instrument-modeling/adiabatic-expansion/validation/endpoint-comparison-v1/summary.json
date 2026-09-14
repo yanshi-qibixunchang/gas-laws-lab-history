@@ -1,0 +1,4014 @@
+{
+  "baseline": {
+    "total": 135,
+    "statuses": {
+      "recorded": 129,
+      "invalid-record": 0,
+      "no-cue-within-observation": 6,
+      "reaction-exceeds-observation": 0
+    },
+    "cueS": {
+      "count": 129,
+      "min": 0.16,
+      "max": 3.6,
+      "mean": 0.964651162790696
+    },
+    "closeS": {
+      "count": 129,
+      "min": 0.16,
+      "max": 3.9,
+      "mean": 1.1146511627906976
+    },
+    "gamma": {
+      "count": 129,
+      "min": 1.231393,
+      "max": 1.375233,
+      "mean": 1.330499255813953
+    },
+    "errorPercent": {
+      "count": 129,
+      "min": 1.7690714285714275,
+      "max": 12.04335714285714,
+      "mean": 4.964338870431887
+    }
+  },
+  "refinement": {
+    "total": 135,
+    "statuses": {
+      "recorded": 129,
+      "invalid-record": 0,
+      "no-cue-within-observation": 6,
+      "reaction-exceeds-observation": 0
+    },
+    "cueS": {
+      "count": 129,
+      "min": 0.16,
+      "max": 4.1,
+      "mean": 0.9711627906976728
+    },
+    "closeS": {
+      "count": 129,
+      "min": 0.16,
+      "max": 4.4,
+      "mean": 1.1211627906976742
+    },
+    "gamma": {
+      "count": 129,
+      "min": 1.237611,
+      "max": 1.375233,
+      "mean": 1.3281459534883724
+    },
+    "errorPercent": {
+      "count": 129,
+      "min": 1.7690714285714275,
+      "max": 11.599214285714279,
+      "mean": 5.1324318936877
+    }
+  },
+  "groups": [
+    {
+      "scenario": "standard",
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.47,
+          "max": 0.47,
+          "mean": 0.4699999999999999
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.47,
+          "max": 0.47,
+          "mean": 0.4699999999999999
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.62,
+          "max": 0.62,
+          "mean": 0.62
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.32,
+          "max": 0.32,
+          "mean": 0.32
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.62,
+          "max": 0.62,
+          "mean": 0.62
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 1.28,
+          "mean": 1.28
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 1.28,
+          "mean": 1.28
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.350652,
+          "max": 1.352293,
+          "mean": 1.3512262
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 3.4076428571428536,
+          "max": 3.5248571428571394,
+          "mean": 3.483842857142853
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 4.1,
+          "mean": 1.8679999999999999
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 4.1,
+          "mean": 1.8679999999999999
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.292577,
+          "max": 1.352293,
+          "mean": 1.3396112
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 3.4076428571428536,
+          "max": 7.673071428571417,
+          "mean": 4.313485714285709
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 1.28,
+          "mean": 1.28
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.43,
+          "max": 1.43,
+          "mean": 1.43
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.350652,
+          "max": 1.352293,
+          "mean": 1.3512262
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 3.4076428571428536,
+          "max": 3.5248571428571394,
+          "mean": 3.483842857142853
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 4.1,
+          "mean": 1.8679999999999999
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.43,
+          "max": 4.25,
+          "mean": 2.018
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.292577,
+          "max": 1.352293,
+          "mean": 1.3396112
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 3.4076428571428536,
+          "max": 7.673071428571417,
+          "mean": 4.313485714285709
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 1.28,
+          "mean": 1.28
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.58,
+          "max": 1.58,
+          "mean": 1.58
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.350652,
+          "max": 1.352293,
+          "mean": 1.3512262
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 3.4076428571428536,
+          "max": 3.5248571428571394,
+          "mean": 3.483842857142853
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.28,
+          "max": 4.1,
+          "mean": 1.8679999999999999
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.58,
+          "max": 4.4,
+          "mean": 2.168
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.292577,
+          "max": 1.352293,
+          "mean": 1.3347232000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 3.4076428571428536,
+          "max": 7.673071428571417,
+          "mean": 4.662628571428563
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.372289,
+          "max": 1.375233,
+          "mean": 1.3738936000000002
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.7690714285714275,
+          "max": 1.97935714285713,
+          "mean": 1.8647428571428493
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.36556,
+          "max": 1.367236,
+          "mean": 1.3661438000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.3402857142857156,
+          "max": 2.459999999999986,
+          "mean": 2.418299999999991
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.36556,
+          "max": 1.367236,
+          "mean": 1.3661438000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.3402857142857156,
+          "max": 2.459999999999986,
+          "mean": 2.418299999999991
+        }
+      }
+    },
+    {
+      "scenario": "standard",
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.36556,
+          "max": 1.367236,
+          "mean": 1.3661438000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.3402857142857156,
+          "max": 2.459999999999986,
+          "mean": 2.418299999999991
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.36556,
+          "max": 1.367236,
+          "mean": 1.3661438000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.3402857142857156,
+          "max": 2.459999999999986,
+          "mean": 2.418299999999991
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.31,
+          "max": 0.31,
+          "mean": 0.31
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.31,
+          "max": 0.31,
+          "mean": 0.31
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.46,
+          "max": 0.46,
+          "mean": 0.4600000000000001
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.16,
+          "max": 0.16,
+          "mean": 0.16
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.46,
+          "max": 0.46,
+          "mean": 0.4600000000000001
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 4,
+          "invalid-record": 0,
+          "no-cue-within-observation": 1,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 4,
+          "min": 1.6,
+          "max": 3.04,
+          "mean": 1.9600000000000002
+        },
+        "closeS": {
+          "count": 4,
+          "min": 1.6,
+          "max": 3.04,
+          "mean": 1.9600000000000002
+        },
+        "gamma": {
+          "count": 4,
+          "min": 1.231393,
+          "max": 1.256647,
+          "mean": 1.24904875
+        },
+        "errorPercent": {
+          "count": 4,
+          "min": 10.239499999999989,
+          "max": 12.04335714285714,
+          "mean": 10.782232142857133
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.48,
+          "max": 3.1,
+          "mean": 1.8720000000000003
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.48,
+          "max": 3.1,
+          "mean": 1.8720000000000003
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.237611,
+          "max": 1.256647,
+          "mean": 1.2505300000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 10.239499999999989,
+          "max": 11.599214285714279,
+          "mean": 10.67642857142856
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 4,
+          "invalid-record": 0,
+          "no-cue-within-observation": 1,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 4,
+          "min": 1.6,
+          "max": 3.04,
+          "mean": 1.9600000000000002
+        },
+        "closeS": {
+          "count": 4,
+          "min": 1.75,
+          "max": 3.19,
+          "mean": 2.11
+        },
+        "gamma": {
+          "count": 4,
+          "min": 1.231393,
+          "max": 1.256647,
+          "mean": 1.24904875
+        },
+        "errorPercent": {
+          "count": 4,
+          "min": 10.239499999999989,
+          "max": 12.04335714285714,
+          "mean": 10.782232142857133
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.48,
+          "max": 3.1,
+          "mean": 1.8720000000000003
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.63,
+          "max": 3.25,
+          "mean": 2.022
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.237611,
+          "max": 1.256647,
+          "mean": 1.2505300000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 10.239499999999989,
+          "max": 11.599214285714279,
+          "mean": 10.67642857142856
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 4,
+          "invalid-record": 0,
+          "no-cue-within-observation": 1,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 4,
+          "min": 1.6,
+          "max": 3.04,
+          "mean": 1.9600000000000002
+        },
+        "closeS": {
+          "count": 4,
+          "min": 1.9,
+          "max": 3.34,
+          "mean": 2.26
+        },
+        "gamma": {
+          "count": 4,
+          "min": 1.231393,
+          "max": 1.256647,
+          "mean": 1.24904875
+        },
+        "errorPercent": {
+          "count": 4,
+          "min": 10.239499999999989,
+          "max": 12.04335714285714,
+          "mean": 10.782232142857133
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 1.48,
+          "max": 3.1,
+          "mean": 1.8720000000000003
+        },
+        "closeS": {
+          "count": 5,
+          "min": 1.78,
+          "max": 3.4,
+          "mean": 2.1719999999999997
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.237611,
+          "max": 1.256647,
+          "mean": 1.2505300000000001
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 10.239499999999989,
+          "max": 11.599214285714279,
+          "mean": 10.67642857142856
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.276275,
+          "max": 1.282953,
+          "mean": 1.2805682
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 8.360499999999993,
+          "max": 8.837499999999991,
+          "mean": 8.53084285714285
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.363888,
+          "max": 1.36556,
+          "mean": 1.3644708
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.459999999999986,
+          "max": 2.579428571428566,
+          "mean": 2.5377999999999927
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.363888,
+          "max": 1.36556,
+          "mean": 1.3644708
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.459999999999986,
+          "max": 2.579428571428566,
+          "mean": 2.5377999999999927
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 4,
+          "invalid-record": 0,
+          "no-cue-within-observation": 1,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 4,
+          "min": 2.04,
+          "max": 3.6,
+          "mean": 3.21
+        },
+        "closeS": {
+          "count": 4,
+          "min": 2.04,
+          "max": 3.6,
+          "mean": 3.21
+        },
+        "gamma": {
+          "count": 4,
+          "min": 1.304715,
+          "max": 1.337667,
+          "mean": 1.31325
+        },
+        "errorPercent": {
+          "count": 4,
+          "min": 4.452357142857141,
+          "max": 6.806071428571419,
+          "mean": 6.196428571428564
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 3,
+          "invalid-record": 0,
+          "no-cue-within-observation": 2,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 3,
+          "min": 1.42,
+          "max": 3.62,
+          "mean": 2.8866666666666667
+        },
+        "closeS": {
+          "count": 3,
+          "min": 1.42,
+          "max": 3.62,
+          "mean": 2.8866666666666667
+        },
+        "gamma": {
+          "count": 3,
+          "min": 1.304715,
+          "max": 1.350652,
+          "mean": 1.3205383333333334
+        },
+        "errorPercent": {
+          "count": 3,
+          "min": 3.5248571428571394,
+          "max": 6.806071428571419,
+          "mean": 5.675833333333325
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 4,
+          "invalid-record": 0,
+          "no-cue-within-observation": 1,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 4,
+          "min": 2.04,
+          "max": 3.6,
+          "mean": 3.21
+        },
+        "closeS": {
+          "count": 4,
+          "min": 2.19,
+          "max": 3.75,
+          "mean": 3.36
+        },
+        "gamma": {
+          "count": 4,
+          "min": 1.304715,
+          "max": 1.337667,
+          "mean": 1.31325
+        },
+        "errorPercent": {
+          "count": 4,
+          "min": 4.452357142857141,
+          "max": 6.806071428571419,
+          "mean": 6.196428571428564
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 3,
+          "invalid-record": 0,
+          "no-cue-within-observation": 2,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 3,
+          "min": 1.42,
+          "max": 3.62,
+          "mean": 2.8866666666666667
+        },
+        "closeS": {
+          "count": 3,
+          "min": 1.57,
+          "max": 3.77,
+          "mean": 3.0366666666666666
+        },
+        "gamma": {
+          "count": 3,
+          "min": 1.304715,
+          "max": 1.350652,
+          "mean": 1.3205383333333334
+        },
+        "errorPercent": {
+          "count": 3,
+          "min": 3.5248571428571394,
+          "max": 6.806071428571419,
+          "mean": 5.675833333333325
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 4,
+          "invalid-record": 0,
+          "no-cue-within-observation": 1,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 4,
+          "min": 2.04,
+          "max": 3.6,
+          "mean": 3.21
+        },
+        "closeS": {
+          "count": 4,
+          "min": 2.34,
+          "max": 3.9,
+          "mean": 3.5100000000000002
+        },
+        "gamma": {
+          "count": 4,
+          "min": 1.304715,
+          "max": 1.331265,
+          "mean": 1.3116495
+        },
+        "errorPercent": {
+          "count": 4,
+          "min": 4.909642857142857,
+          "max": 6.806071428571419,
+          "mean": 6.3107499999999925
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 3,
+          "invalid-record": 0,
+          "no-cue-within-observation": 2,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 3,
+          "min": 1.42,
+          "max": 3.62,
+          "mean": 2.8866666666666667
+        },
+        "closeS": {
+          "count": 3,
+          "min": 1.72,
+          "max": 3.92,
+          "mean": 3.186666666666666
+        },
+        "gamma": {
+          "count": 3,
+          "min": 1.304715,
+          "max": 1.344129,
+          "mean": 1.3183639999999999
+        },
+        "errorPercent": {
+          "count": 3,
+          "min": 3.990785714285715,
+          "max": 6.806071428571419,
+          "mean": 5.83114285714285
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.75,
+          "max": 0.75,
+          "mean": 0.75
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.370601,
+          "max": 1.372289,
+          "mean": 1.3711882
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 1.97935714285713,
+          "max": 2.0999285714285683,
+          "mean": 2.0579857142857074
+        }
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "base": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.363888,
+          "max": 1.36556,
+          "mean": 1.3644708
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.459999999999986,
+          "max": 2.579428571428566,
+          "mean": 2.5377999999999927
+        }
+      },
+      "refined": {
+        "total": 5,
+        "statuses": {
+          "recorded": 5,
+          "invalid-record": 0,
+          "no-cue-within-observation": 0,
+          "reaction-exceeds-observation": 0
+        },
+        "cueS": {
+          "count": 5,
+          "min": 0.6,
+          "max": 0.6,
+          "mean": 0.6
+        },
+        "closeS": {
+          "count": 5,
+          "min": 0.9,
+          "max": 0.9,
+          "mean": 0.9
+        },
+        "gamma": {
+          "count": 5,
+          "min": 1.363888,
+          "max": 1.36556,
+          "mean": 1.3644708
+        },
+        "errorPercent": {
+          "count": 5,
+          "min": 2.459999999999986,
+          "max": 2.579428571428566,
+          "mean": 2.5377999999999927
+        }
+      }
+    }
+  ],
+  "pairs": [
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.375233,
+      "refinedGamma": 1.375233,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.375233,
+      "refinedGamma": 1.375233,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.375233,
+      "refinedGamma": 1.375233,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.351882,
+      "refinedGamma": 1.351882,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.351882,
+      "refinedGamma": 1.351882,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.351882,
+      "refinedGamma": 1.34373,
+      "gammaDifference": -0.008151999999999937
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.375233,
+      "refinedGamma": 1.375233,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.366803,
+      "refinedGamma": 1.366803,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.366803,
+      "refinedGamma": 1.366803,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 4.1,
+      "cueDifferenceS": 2.8199999999999994,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.292577,
+      "gammaDifference": -0.05807499999999988
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 4.1,
+      "cueDifferenceS": 2.8199999999999994,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.292577,
+      "gammaDifference": -0.05807499999999988
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 4.1,
+      "cueDifferenceS": 2.8199999999999994,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.292577,
+      "gammaDifference": -0.05807499999999988
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.28,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.352293,
+      "refinedGamma": 1.352293,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.28,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.352293,
+      "refinedGamma": 1.352293,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.28,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.352293,
+      "refinedGamma": 1.352293,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.367236,
+      "refinedGamma": 1.367236,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.367236,
+      "refinedGamma": 1.367236,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.350652,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.350652,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.342508,
+      "gammaDifference": -0.008143999999999929
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.32,
+      "refinedCueS": 0.32,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.350652,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.350652,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.28,
+      "refinedCueS": 1.32,
+      "cueDifferenceS": 0.040000000000000036,
+      "baseGamma": 1.350652,
+      "refinedGamma": 1.342508,
+      "gammaDifference": -0.008143999999999929
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.373982,
+      "refinedGamma": 1.373982,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "standard",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.66,
+      "cueDifferenceS": 0.05999999999999983,
+      "baseGamma": 1.256647,
+      "refinedGamma": 1.256647,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.66,
+      "cueDifferenceS": 0.05999999999999983,
+      "baseGamma": 1.256647,
+      "refinedGamma": 1.256647,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.66,
+      "cueDifferenceS": 0.05999999999999983,
+      "baseGamma": 1.256647,
+      "refinedGamma": 1.256647,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.48,
+      "cueDifferenceS": -0.1200000000000001,
+      "baseGamma": 1.256647,
+      "refinedGamma": 1.256647,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.48,
+      "cueDifferenceS": -0.1200000000000001,
+      "baseGamma": 1.256647,
+      "refinedGamma": 1.256647,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.48,
+      "cueDifferenceS": -0.1200000000000001,
+      "baseGamma": 1.256647,
+      "refinedGamma": 1.256647,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "no-cue-within-observation",
+      "refinedStatus": "recorded",
+      "statusChanged": true,
+      "baseCueS": null,
+      "refinedCueS": 3.1,
+      "cueDifferenceS": null,
+      "baseGamma": null,
+      "refinedGamma": 1.237611,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "no-cue-within-observation",
+      "refinedStatus": "recorded",
+      "statusChanged": true,
+      "baseCueS": null,
+      "refinedCueS": 3.1,
+      "cueDifferenceS": null,
+      "baseGamma": null,
+      "refinedGamma": 1.237611,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "no-cue-within-observation",
+      "refinedStatus": "recorded",
+      "statusChanged": true,
+      "baseCueS": null,
+      "refinedCueS": 3.1,
+      "cueDifferenceS": null,
+      "baseGamma": null,
+      "refinedGamma": 1.237611,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.282953,
+      "refinedGamma": 1.282953,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.277707,
+      "refinedGamma": 1.277707,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.277707,
+      "refinedGamma": 1.277707,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.277707,
+      "refinedGamma": 1.277707,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.56,
+      "cueDifferenceS": -0.040000000000000036,
+      "baseGamma": 1.251508,
+      "refinedGamma": 1.251508,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.56,
+      "cueDifferenceS": -0.040000000000000036,
+      "baseGamma": 1.251508,
+      "refinedGamma": 1.251508,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 1.6,
+      "refinedCueS": 1.56,
+      "cueDifferenceS": -0.040000000000000036,
+      "baseGamma": 1.251508,
+      "refinedGamma": 1.251508,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.277707,
+      "refinedGamma": 1.277707,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.277707,
+      "refinedGamma": 1.277707,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.277707,
+      "refinedGamma": 1.277707,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.276275,
+      "refinedGamma": 1.276275,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.276275,
+      "refinedGamma": 1.276275,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.16,
+      "refinedCueS": 0.16,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.276275,
+      "refinedGamma": 1.276275,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 3.04,
+      "refinedCueS": 1.56,
+      "cueDifferenceS": -1.48,
+      "baseGamma": 1.231393,
+      "refinedGamma": 1.250237,
+      "gammaDifference": 0.018844000000000083
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 3.04,
+      "refinedCueS": 1.56,
+      "cueDifferenceS": -1.48,
+      "baseGamma": 1.231393,
+      "refinedGamma": 1.250237,
+      "gammaDifference": 0.018844000000000083
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 3.04,
+      "refinedCueS": 1.56,
+      "cueDifferenceS": -1.48,
+      "baseGamma": 1.231393,
+      "refinedGamma": 1.250237,
+      "gammaDifference": 0.018844000000000083
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.276275,
+      "refinedGamma": 1.276275,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.276275,
+      "refinedGamma": 1.276275,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "low-pressure",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.276275,
+      "refinedGamma": 1.276275,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.371849,
+      "refinedGamma": 1.371849,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.371849,
+      "refinedGamma": 1.371849,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36513,
+      "refinedGamma": 1.36513,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "no-cue-within-observation",
+      "statusChanged": true,
+      "baseCueS": 3.6,
+      "refinedCueS": null,
+      "cueDifferenceS": null,
+      "baseGamma": 1.305903,
+      "refinedGamma": null,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "no-cue-within-observation",
+      "statusChanged": true,
+      "baseCueS": 3.6,
+      "refinedCueS": null,
+      "cueDifferenceS": null,
+      "baseGamma": 1.305903,
+      "refinedGamma": null,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "no-cue-within-observation",
+      "statusChanged": true,
+      "baseCueS": 3.6,
+      "refinedCueS": null,
+      "cueDifferenceS": null,
+      "baseGamma": 1.305903,
+      "refinedGamma": null,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.371849,
+      "refinedGamma": 1.371849,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.371849,
+      "refinedGamma": 1.371849,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 11,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36513,
+      "refinedGamma": 1.36513,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.363888,
+      "refinedGamma": 1.363888,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "no-cue-within-observation",
+      "refinedStatus": "recorded",
+      "statusChanged": true,
+      "baseCueS": null,
+      "refinedCueS": 1.42,
+      "cueDifferenceS": null,
+      "baseGamma": null,
+      "refinedGamma": 1.350652,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "no-cue-within-observation",
+      "refinedStatus": "recorded",
+      "statusChanged": true,
+      "baseCueS": null,
+      "refinedCueS": 1.42,
+      "cueDifferenceS": null,
+      "baseGamma": null,
+      "refinedGamma": 1.350652,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "no-cue-within-observation",
+      "refinedStatus": "recorded",
+      "statusChanged": true,
+      "baseCueS": null,
+      "refinedCueS": 1.42,
+      "cueDifferenceS": null,
+      "baseGamma": null,
+      "refinedGamma": 1.344129,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 23,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.363888,
+      "refinedGamma": 1.363888,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 2.04,
+      "refinedCueS": 3.62,
+      "cueDifferenceS": 1.58,
+      "baseGamma": 1.337667,
+      "refinedGamma": 1.306248,
+      "gammaDifference": -0.031418999999999864
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 2.04,
+      "refinedCueS": 3.62,
+      "cueDifferenceS": 1.58,
+      "baseGamma": 1.337667,
+      "refinedGamma": 1.306248,
+      "gammaDifference": -0.031418999999999864
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 2.04,
+      "refinedCueS": 3.62,
+      "cueDifferenceS": 1.58,
+      "baseGamma": 1.331265,
+      "refinedGamma": 1.306248,
+      "gammaDifference": -0.025016999999999845
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.372289,
+      "refinedGamma": 1.372289,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 37,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.36556,
+      "refinedGamma": 1.36556,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.363888,
+      "refinedGamma": 1.363888,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "no-cue-within-observation",
+      "statusChanged": true,
+      "baseCueS": 3.6,
+      "refinedCueS": null,
+      "cueDifferenceS": null,
+      "baseGamma": 1.304715,
+      "refinedGamma": null,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "no-cue-within-observation",
+      "statusChanged": true,
+      "baseCueS": 3.6,
+      "refinedCueS": null,
+      "cueDifferenceS": null,
+      "baseGamma": 1.304715,
+      "refinedGamma": null,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "no-cue-within-observation",
+      "statusChanged": true,
+      "baseCueS": 3.6,
+      "refinedCueS": null,
+      "cueDifferenceS": null,
+      "baseGamma": 1.304715,
+      "refinedGamma": null,
+      "gammaDifference": null
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 53,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.363888,
+      "refinedGamma": 1.363888,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "sound-stop",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.363888,
+      "refinedGamma": 1.363888,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 3.6,
+      "refinedCueS": 3.62,
+      "cueDifferenceS": 0.020000000000000018,
+      "baseGamma": 1.304715,
+      "refinedGamma": 1.304715,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 3.6,
+      "refinedCueS": 3.62,
+      "cueDifferenceS": 0.020000000000000018,
+      "baseGamma": 1.304715,
+      "refinedGamma": 1.304715,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "display-zero",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 3.6,
+      "refinedCueS": 3.62,
+      "cueDifferenceS": 0.020000000000000018,
+      "baseGamma": 1.304715,
+      "refinedGamma": 1.304715,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0.15,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.370601,
+      "refinedGamma": 1.370601,
+      "gammaDifference": 0
+    },
+    {
+      "scenario": "slower-flow",
+      "seed": 71,
+      "method": "fixed-time",
+      "reactionDelayS": 0.3,
+      "baseStatus": "recorded",
+      "refinedStatus": "recorded",
+      "statusChanged": false,
+      "baseCueS": 0.6,
+      "refinedCueS": 0.6,
+      "cueDifferenceS": 0,
+      "baseGamma": 1.363888,
+      "refinedGamma": 1.363888,
+      "gammaDifference": 0
+    }
+  ]
+}

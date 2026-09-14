@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用版本：6.4.0 及其后的未发布开发版本
-> 最后核验：2026-09-14
+> 最后核验：2026-09-15
 
 本文件是仓库非代码材料的统一入口。阅读或修改资料时，先判断文档状态，再决定它能否作为当前实现依据。
 
@@ -26,6 +26,7 @@
 | `docs/architecture/` | 当前合同 | 模块边界、状态权威、持久化、迁移、桌面桥接和导出数据流 |
 | `docs/instrument-modeling/` | 当前规范与参考 | 按绝热膨胀法、活塞振荡法分开的物理模型、控制合同、验证和来源材料 |
 | `docs/instrument-modeling/piston-oscillation/validation/operation-sweep-protocol.md` | 当前模型验证口径 | PO-CAL-001 六高度操作扫描、评价指标及实物证据边界；同目录 `operation-sweep-v1/report.md` 为可复现结果 |
+| `docs/instrument-modeling/adiabatic-expansion/validation/endpoint-comparison-protocol.md` | 当前模型验证口径 | HC-PHYS-001 程序声音代理、显示归零、固定时长的配对对照与观察网格敏感性；同目录 `endpoint-comparison-v1/report.md` 为可复现结果 |
 | `docs/theory/` | 当前参考 | 理论推导和公式材料 |
 | `docs/validation/` | 当前生成证据 | 绝热膨胀、理想气体和硬球模型的可重复验证数据 |
 | `docs/releases/` | 当前发布历史 | 结构化发布说明和版本记录 |

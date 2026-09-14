@@ -1,0 +1,401 @@
+{
+  "schemaVersion": 1,
+  "protocol": {
+    "version": "heat-capacity-endpoint-comparison-v1",
+    "seeds": [
+      11,
+      23,
+      37,
+      53,
+      71
+    ],
+    "reactionDelaysS": [
+      0,
+      0.15,
+      0.3
+    ],
+    "stepS": 0.04,
+    "refinementStepS": 0.02,
+    "observationLimitS": 5,
+    "fixedDurationS": 0.6,
+    "preparation": "preheated, zeroed at ambient; recorded U0 = 0.0 mV",
+    "pumpFirstToLastStartS": 8,
+    "waitAfterPumpS": 300,
+    "waitAfterClosingAnimationS": 300,
+    "gas": "air",
+    "scheme": "real"
+  },
+  "scenarios": [
+    {
+      "id": "standard",
+      "label": "标准 18 次打气",
+      "pumpStrokes": 18,
+      "flowCoefficient": 0.79
+    },
+    {
+      "id": "low-pressure",
+      "label": "低起始压差：4 次打气",
+      "pumpStrokes": 4,
+      "flowCoefficient": 0.79
+    },
+    {
+      "id": "slower-flow",
+      "label": "较慢流量：18 次打气、系数 0.4",
+      "pumpStrokes": 18,
+      "flowCoefficient": 0.4
+    }
+  ],
+  "packageVersion": "6.4.0",
+  "nodeMajorVersion": 24,
+  "productionSourceCommit": "44dd4cd0d4510f54979194936f8ab9da5e31bea9",
+  "configs": [
+    {
+      "scenario": "standard",
+      "physics": {
+        "environment": {
+          "ambientPressureKPa": 101.3,
+          "ambientTemperatureK": 298.15
+        },
+        "vesselVolumeL": 2,
+        "gamma": 1.4,
+        "pumpAmountGainRatio": 0.00334,
+        "pumpWorkRetention": 0.3,
+        "pumpPressureLimitKPa": 109,
+        "stopcockFlowRate": 0.79,
+        "thermal": {
+          "gasWallConductanceWPerK": 0.08,
+          "wallAmbientConductanceWPerK": 0.45,
+          "wallHeatCapacityJPerK": 45,
+          "minimumGasHeatCapacityJPerK": 0.1
+        },
+        "pumpValveExchange": {
+          "enabled": true,
+          "gasExchangeRatePerS": 0.005,
+          "thermalConductanceWPerK": 0.004,
+          "openingDelayS": 0.42
+        },
+        "environmentDisturbance": {
+          "enabled": true,
+          "pressureAmplitudeKPa": 0.002,
+          "temperatureAmplitudeK": 0.015,
+          "timeScaleS": 180
+        },
+        "leakage": {
+          "enabled": true,
+          "ratePerS": 0.00005
+        }
+      },
+      "sensor": {
+        "pressureMvPerKPa": 20,
+        "temperatureMvAtAmbient": 1498.7,
+        "temperatureMvPerK": 5,
+        "lagRate": 8,
+        "noiseMv": 0.04,
+        "quantizationMv": 0.01,
+        "minSampleIntervalS": 0.08,
+        "maxSampleIntervalS": 0.12,
+        "historyWindowS": 2,
+        "pressureNonlinearity": {
+          "enabled": true,
+          "kneeMv": 15,
+          "minGain": 0.65,
+          "exponent": 1.4,
+          "extraNoiseMv": 0.08
+        }
+      },
+      "record": {
+        "u0ZeroToleranceMv": 0.12,
+        "pressureStableSlopeMvPerS": 0.25,
+        "temperatureStableSlopeMvPerS": 0.3,
+        "temperatureAmbientToleranceMv": 0.875,
+        "minimumUsefulU1CorrectedMv": 90,
+        "overVentedMinimumU2CorrectedMv": 0.2,
+        "pressureDangerMv": 140
+      }
+    },
+    {
+      "scenario": "low-pressure",
+      "physics": {
+        "environment": {
+          "ambientPressureKPa": 101.3,
+          "ambientTemperatureK": 298.15
+        },
+        "vesselVolumeL": 2,
+        "gamma": 1.4,
+        "pumpAmountGainRatio": 0.00334,
+        "pumpWorkRetention": 0.3,
+        "pumpPressureLimitKPa": 109,
+        "stopcockFlowRate": 0.79,
+        "thermal": {
+          "gasWallConductanceWPerK": 0.08,
+          "wallAmbientConductanceWPerK": 0.45,
+          "wallHeatCapacityJPerK": 45,
+          "minimumGasHeatCapacityJPerK": 0.1
+        },
+        "pumpValveExchange": {
+          "enabled": true,
+          "gasExchangeRatePerS": 0.005,
+          "thermalConductanceWPerK": 0.004,
+          "openingDelayS": 0.42
+        },
+        "environmentDisturbance": {
+          "enabled": true,
+          "pressureAmplitudeKPa": 0.002,
+          "temperatureAmplitudeK": 0.015,
+          "timeScaleS": 180
+        },
+        "leakage": {
+          "enabled": true,
+          "ratePerS": 0.00005
+        }
+      },
+      "sensor": {
+        "pressureMvPerKPa": 20,
+        "temperatureMvAtAmbient": 1498.7,
+        "temperatureMvPerK": 5,
+        "lagRate": 8,
+        "noiseMv": 0.04,
+        "quantizationMv": 0.01,
+        "minSampleIntervalS": 0.08,
+        "maxSampleIntervalS": 0.12,
+        "historyWindowS": 2,
+        "pressureNonlinearity": {
+          "enabled": true,
+          "kneeMv": 15,
+          "minGain": 0.65,
+          "exponent": 1.4,
+          "extraNoiseMv": 0.08
+        }
+      },
+      "record": {
+        "u0ZeroToleranceMv": 0.12,
+        "pressureStableSlopeMvPerS": 0.25,
+        "temperatureStableSlopeMvPerS": 0.3,
+        "temperatureAmbientToleranceMv": 0.875,
+        "minimumUsefulU1CorrectedMv": 90,
+        "overVentedMinimumU2CorrectedMv": 0.2,
+        "pressureDangerMv": 140
+      }
+    },
+    {
+      "scenario": "slower-flow",
+      "physics": {
+        "environment": {
+          "ambientPressureKPa": 101.3,
+          "ambientTemperatureK": 298.15
+        },
+        "vesselVolumeL": 2,
+        "gamma": 1.4,
+        "pumpAmountGainRatio": 0.00334,
+        "pumpWorkRetention": 0.3,
+        "pumpPressureLimitKPa": 109,
+        "stopcockFlowRate": 0.4,
+        "thermal": {
+          "gasWallConductanceWPerK": 0.08,
+          "wallAmbientConductanceWPerK": 0.45,
+          "wallHeatCapacityJPerK": 45,
+          "minimumGasHeatCapacityJPerK": 0.1
+        },
+        "pumpValveExchange": {
+          "enabled": true,
+          "gasExchangeRatePerS": 0.005,
+          "thermalConductanceWPerK": 0.004,
+          "openingDelayS": 0.42
+        },
+        "environmentDisturbance": {
+          "enabled": true,
+          "pressureAmplitudeKPa": 0.002,
+          "temperatureAmplitudeK": 0.015,
+          "timeScaleS": 180
+        },
+        "leakage": {
+          "enabled": true,
+          "ratePerS": 0.00005
+        }
+      },
+      "sensor": {
+        "pressureMvPerKPa": 20,
+        "temperatureMvAtAmbient": 1498.7,
+        "temperatureMvPerK": 5,
+        "lagRate": 8,
+        "noiseMv": 0.04,
+        "quantizationMv": 0.01,
+        "minSampleIntervalS": 0.08,
+        "maxSampleIntervalS": 0.12,
+        "historyWindowS": 2,
+        "pressureNonlinearity": {
+          "enabled": true,
+          "kneeMv": 15,
+          "minGain": 0.65,
+          "exponent": 1.4,
+          "extraNoiseMv": 0.08
+        }
+      },
+      "record": {
+        "u0ZeroToleranceMv": 0.12,
+        "pressureStableSlopeMvPerS": 0.25,
+        "temperatureStableSlopeMvPerS": 0.3,
+        "temperatureAmbientToleranceMv": 0.875,
+        "minimumUsefulU1CorrectedMv": 90,
+        "overVentedMinimumU2CorrectedMv": 0.2,
+        "pressureDangerMv": 140
+      }
+    }
+  ],
+  "sources": [
+    {
+      "path": "docs/instrument-modeling/adiabatic-expansion/validation/endpoint-comparison-protocol.md",
+      "sha256": "99173aae150a41eda34cb83634843260203274909e2a11c507cbb16f50efca92"
+    },
+    {
+      "path": "scripts/analysis/heatCapacityEndpointComparisonModel.ts",
+      "sha256": "8f61959e2b0e15851bfbe068f66ec804e03d979f950af1a9977f57188171b60c"
+    },
+    {
+      "path": "scripts/analysis/runHeatCapacityEndpointComparison.ts",
+      "sha256": "5bd7fc359507dbb8fff77a5ef2338896229831a5c669c3fe736a665a8ea71e9c"
+    },
+    {
+      "path": "src/audio/experiments/heatCapacity/heatCapacityAudioPolicy.ts",
+      "sha256": "85efaa971de94b9d6e200170dc58725c2909a7184d9ec0fa714feaea3e4cf7ed"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityCalculationModel.ts",
+      "sha256": "017ba2d56d0b2094a056f06acf0198f9f4923b969bbe686bcf124dd9ded4548d"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityDefaultConfig.ts",
+      "sha256": "22052d180f4233fc6672f9cac2b4b1ba2b431282ea2bd010a39f17f045c903f9"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeCalibrationModel.ts",
+      "sha256": "dccfc54ef158446fcc03368711b742913a23bd2a6892b785125900b6fe95b7cf"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts",
+      "sha256": "9f0ae743708b579373e43fc14cf98c49eb425d6d836c8470d99e41a36fecf383"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeLeakageModel.ts",
+      "sha256": "e70797b30d4764b901d9f45573ddef36585aa479eda698f65ed7a3fe396acada"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreePhysicsEngine.ts",
+      "sha256": "186fc648f6acf29d0d9d8872a2ab0de9cd38aca27a079d2a3c233e28455406c8"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreePressureSensorNonlinearityModel.ts",
+      "sha256": "dfdecf7714dd24443ae21b0ad7166778dd0335d907b6a1e1213b47ec9aa8691d"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeProcessMetrics.ts",
+      "sha256": "00024de0c1b7b41cafcb36c39a07687a19abd4fe99b90f67096a2b018f61af3a"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeProcessReviewTypes.ts",
+      "sha256": "1c4dc5d0258e0047fa2419ff3ef78815de6853bfde83ea38d80b4639f316b74d"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreePumpValveExchangeModel.ts",
+      "sha256": "d35bac73167868449c47e3dd50baecab9b237467f5cef32386c86020919e78d3"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeRecordModel.ts",
+      "sha256": "3698a7ef7b5f298bdb4ae82bb55d3ddd8f1d939db5ed082190a7630d2bfbf143"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeResultBiasModel.ts",
+      "sha256": "ed5348b06aa04da5405ffa85ad7072466688d2c8025629857c8b93da2eb7fa2b"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeSensorModel.ts",
+      "sha256": "1f21f4ae95a2020eb4041165983080cda91d03b23cf98f2774a258b10f7dc973"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts",
+      "sha256": "531da7cce7eab051723a11e79e8d86242807a9db1967a5e93678a837f71eb79f"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeStopcockApertureModel.ts",
+      "sha256": "eab5ab9b3ba3e87db32a94428ffd3515dd3775a91ce027af9c0218654ab95c3e"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeThermalModel.ts",
+      "sha256": "24b18b8fa7fdbf3536bcdecac3a2b36772e5becbf11ee2cc1c3bb7fa5c64ed3a"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeTraceModel.ts",
+      "sha256": "53c100a5c9fe3344677a3c24a177744e7008a262da45e6ec6aab064c06695b16"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityFreeTrialModel.ts",
+      "sha256": "3548b2a46af93e30b245e5e0b0d8a118e1a4e927959b0cb825faa63be1d74c05"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityGasTheory.ts",
+      "sha256": "ab5a9a85a3dd9d4b2f8a977bcfa510e43f8f9b165e68ad8c52b0ab9f57d91053"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityGuidePhysicsEngine.ts",
+      "sha256": "1c32c39368c264de1829476212e09dc845dade97392933d1708a5a4dffa50755"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityProcessTypes.ts",
+      "sha256": "d516e2c4dd93516789e5ac63c798fb4518c6bffdd1ca30fe84f5515f60351407"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityReleaseFeedbackModel.ts",
+      "sha256": "1037b3e52cd64447d84eda248fdd25ee0cb3c8afed97de0ddc723d468cd977eb"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityReleaseModel.ts",
+      "sha256": "bb2c0f1f1fa05dba54161b35ba46b286dc04b61ec786790cc8dcc7d24a4fc4e6"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacitySensorMapping.ts",
+      "sha256": "8f38d0b44da2262e095e728e7d83e4378b1a819cc234d3e8eb0e52e9fdc13922"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacitySignalDisplayModel.ts",
+      "sha256": "46c93853a541031d7568b044d56c77e904286b30e4da31d2afe6b814534b56ed"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityTemperatureSensorModel.ts",
+      "sha256": "68dcb932ff353ef80d6e277d93a9dc4aa29e0ec72929ba7ea8646a1c4080d631"
+    },
+    {
+      "path": "src/domain/heatCapacity/heatCapacityThermodynamicKernel.ts",
+      "sha256": "c53d7a372f0464b462620e99632d9414b3de3b3887ad418ad25b2d1e71cbc3ed"
+    },
+    {
+      "path": "src/features/workbench/workbenchHeatCapacityFreeRuntimeCoordinator.ts",
+      "sha256": "72168364292d4920fd00b7fe520d2445d7a4ebf8eab64ae9a864969d9260f248"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "runs.csv",
+      "sha256": "b66f66dd0d04cc78f178728a5f9adbe8557e2e5d9c76cf856ccfc7e9d9f9ee1b"
+    },
+    {
+      "name": "refined-runs.csv",
+      "sha256": "02eb79fedf6c974661e573e1155908721541363610c09b571cc9484b163abda2"
+    },
+    {
+      "name": "summary.json",
+      "sha256": "c0dcffb520550187b273354973b8cf62ab33de92aa6f287d06cd044888cf410c"
+    },
+    {
+      "name": "prepared-states.json",
+      "sha256": "4a8878cc9baf5c4d5532f8e1e2ed0940ffd573654046b89ce10ed9d587d70ce4"
+    },
+    {
+      "name": "representative-traces.json",
+      "sha256": "76f04522ad0a23d56f027c905b492ebea03eb2f41f06c11fa94f4a45d2651363"
+    },
+    {
+      "name": "report.md",
+      "sha256": "009390f66d5d6b9388c867988b31f9ec51b8afc30e443fd1581fcbc331a16217"
+    }
+  ]
+}
