@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const childProcess = require('node:child_process');
+const { reserveLocalAcceptanceDirectory } = require('../build/releaseOutputDirectory.cjs');
 
 const ELECTRON_BUILDER_TARGETS = new Set(['nsis', 'portable']);
 const NPM_COLLECTOR_ARGUMENT_SETS = [
@@ -11,11 +12,12 @@ const NPM_COLLECTOR_ARGUMENT_SETS = [
 ];
 const CMD_UNSAFE_TOKEN_PATTERN = /[\u0000-\u001f"&|<>^%!()]/;
 
-const getElectronBuilderCliArgs = (target) => {
+const getElectronBuilderCliArgs = (target, outputDirectory) => {
   if (!ELECTRON_BUILDER_TARGETS.has(target)) {
     throw new Error(`Unsupported electron-builder target: ${target || '<missing>'}`);
   }
-  return ['--win', target, '--x64', '--publish', 'never'];
+  return ['--win', target, '--x64', '--publish', 'never',
+    ...(outputDirectory ? [`--config.directories.output=${outputDirectory}`] : [])];
 };
 
 const inspectElectronBuilderNpmCollectorSpawn = (
@@ -114,7 +116,12 @@ const run = () => {
     throw new Error('Usage: node scripts/runElectronBuilder.cjs <nsis|portable>');
   }
 
-  const cliArgs = getElectronBuilderCliArgs(process.argv[2]);
+  // Validate the target before reserving a directory or starting the builder.
+  getElectronBuilderCliArgs(process.argv[2]);
+  const outputOverride = process.env.HSL_RELEASE_OUTPUT_DIR;
+  const outputDirectory = outputOverride === undefined ? undefined
+    : reserveLocalAcceptanceDirectory(path.resolve(__dirname, '..'), outputOverride);
+  const cliArgs = getElectronBuilderCliArgs(process.argv[2], outputDirectory);
   const packageRoot = path.dirname(require.resolve('electron-builder/package.json'));
   const cliPath = path.join(packageRoot, 'out', 'cli', 'cli.js');
   installElectronBuilderSpawnSafety();

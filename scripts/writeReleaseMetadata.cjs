@@ -1,13 +1,13 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const yaml = require('js-yaml');
+const { resolveReleaseOutputDirectory } = require('../build/releaseOutputDirectory.cjs');
 
 const rootDir = path.resolve(__dirname, '..');
 const packageJson = require(path.join(rootDir, 'package.json'));
 const releaseNotesCatalog = require(path.join(rootDir, 'docs', 'releases', 'release-notes.json'));
 
 const locale = 'zh-CN';
-const latestYmlPath = path.join(rootDir, 'release', 'latest.yml');
 
 const normalizeVersion = (version) => String(version || '').trim().replace(/^v/i, '');
 
@@ -51,6 +51,7 @@ const findRelease = (version) => {
 };
 
 const main = () => {
+  const latestYmlPath = path.join(resolveReleaseOutputDirectory(rootDir), 'latest.yml');
   const version = normalizeVersion(process.argv[2] || packageJson.version);
   const release = findRelease(version);
   if (!release) {

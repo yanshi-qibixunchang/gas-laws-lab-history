@@ -3539,6 +3539,7 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
         textColor=colors.HexColor("#111827"),
         spaceBefore=10,
         spaceAfter=6,
+        keepWithNext=True,
     )
     body_style = ParagraphStyle(
         "HSLBody",
@@ -3645,7 +3646,10 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
         return paired
 
     def make_figure_block(image_path: Path, width: float) -> Any:
-        image = Image(str(image_path), width=width, height=105 * mm, kind="proportional")
+        # Reserve room for the conclusion in compact single-figure reports;
+        # otherwise P-T/P-N produce a second page with only that paragraph.
+        height = (90 if len(figure_outputs) == 1 else 105) * mm
+        image = Image(str(image_path), width=width, height=height, kind="proportional")
         block = Table(
             [[image]],
             colWidths=[width],
@@ -3721,7 +3725,9 @@ def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv
     for output in figure_outputs:
         png_path = output.get("png")
         if png_path and png_path.exists():
-            story.extend([make_figure_block(png_path, figure_width), Spacer(1, 6 * mm)])
+            story.append(make_figure_block(png_path, figure_width))
+            if len(figure_outputs) > 1:
+                story.append(Spacer(1, 6 * mm))
 
     story.append(Paragraph("Conclusion", section_style))
     if relation:

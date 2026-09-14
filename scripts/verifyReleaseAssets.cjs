@@ -7,6 +7,7 @@ const { TextDecoder } = require('node:util');
 const zlib = require('node:zlib');
 const yaml = require('js-yaml');
 const { renderPlainReleaseNotes } = require('./writeReleaseMetadata.cjs');
+const { resolveReleaseOutputDirectory } = require('../build/releaseOutputDirectory.cjs');
 
 const BLOCKMAP_MAX_COMPRESSED_BYTES = 16 * 1024 * 1024;
 const BLOCKMAP_MAX_DECOMPRESSED_BYTES = 64 * 1024 * 1024;
@@ -347,6 +348,7 @@ const verifyReleaseAssets = ({
   rootDir = path.resolve(__dirname, '..'),
   version: requestedVersion,
   blockmapBuilderScriptPath,
+  outputDirectory = process.env.HSL_RELEASE_OUTPUT_DIR,
 } = {}) => {
   const packageJson = readJson(path.join(rootDir, 'package.json'));
   const packageLock = readJson(path.join(rootDir, 'package-lock.json'));
@@ -365,7 +367,7 @@ const verifyReleaseAssets = ({
   const installerName = `heat-capacity-lab-setup-${version}.exe`;
   const blockmapName = `${installerName}.blockmap`;
   const latestName = 'latest.yml';
-  const releaseDir = path.join(rootDir, 'release');
+  const releaseDir = resolveReleaseOutputDirectory(rootDir, outputDirectory);
   const releaseRealPath = fs.realpathSync(releaseDir);
   const expectedNames = [installerName, blockmapName, latestName];
   const currentVersionAssetNames = fs.readdirSync(releaseDir)

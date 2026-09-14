@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import {
+  cpSync,
   mkdtempSync,
   mkdirSync,
   readFileSync,
@@ -33,6 +34,7 @@ const { verifyBlockmapSchema, verifyReleaseAssets } = require('../../scripts/ver
     rootDir: string;
     version?: string;
     blockmapBuilderScriptPath?: string;
+    outputDirectory?: string;
   }) => ReleaseVerificationResult;
 };
 
@@ -223,7 +225,20 @@ try {
   const blockmapPath = join(rootDir, 'release', blockmapName);
   const latestPath = join(rootDir, 'release', 'latest.yml');
   const installerBytes = createPeInstallerFixture(version, productName);
-  writeFileSync(installerPath, installerBytes);
+  // Windows can briefly lock a newly written executable fixture. Retry only
+  // that filesystem condition; assertion failures and other errors still fail.
+  const writeInstallerFixture = (bytes: Buffer) => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        writeFileSync(installerPath, bytes);
+        return;
+      } catch (error) {
+        if (process.platform !== 'win32' || (error as NodeJS.ErrnoException).code !== 'EBUSY' || attempt >= 20) throw error;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50);
+      }
+    }
+  };
+  writeInstallerFixture(installerBytes);
   const blockmapResult = spawnSync(process.execPath, [
     blockmapBuilderScriptPath,
     installerPath,
@@ -258,6 +273,11 @@ try {
   assert.equal(result.installerMetadata.productVersion, '5.1.2.0');
   assert.ok(result.blockmapMetadata.chunkCount > 0 && result.blockmapMetadata.decompressedSize > 0);
   assert.ok(result.assets.every((asset) => asset.size > 0 && asset.sha512.length > 0 && asset.sha512Hex.length === 128));
+  const acceptanceDirectory = join(rootDir, 'output', 'local-acceptance', 'candidate');
+  cpSync(join(rootDir, 'release'), acceptanceDirectory, { recursive: true });
+  const isolatedResult = verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath, outputDirectory: acceptanceDirectory });
+  assert.deepEqual(isolatedResult.assets.map(asset => asset.sha512), result.assets.map(asset => asset.sha512),
+    'an isolated candidate receives the same real installer, metadata and regenerated-blockmap gates');
 
   writeLatest({
     ...validLatest,
@@ -270,24 +290,23 @@ try {
   );
   writeLatest();
 
-  writeFileSync(installerPath, Buffer.from('installer-fixture'));
+  writeInstallerFixture(Buffer.from('installer-fixture'));
   assert.throws(
     () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /DOS MZ signature|too small/,
     'plain text must never pass as a Windows installer',
   );
-  writeFileSync(installerPath, installerBytes);
+  writeInstallerFixture(installerBytes);
 
-  writeFileSync(installerPath, createPeInstallerFixture(version, 'Wrong Product'));
+  writeInstallerFixture(createPeInstallerFixture(version, 'Wrong Product'));
   assert.throws(
     () => verifyReleaseAssets({ rootDir, blockmapBuilderScriptPath }),
     /ProductName does not match/,
     'the installer VERSIONINFO ProductName must match package.json exactly',
   );
-  writeFileSync(installerPath, installerBytes);
+  writeInstallerFixture(installerBytes);
 
-  writeFileSync(
-    installerPath,
+  writeInstallerFixture(
     createPeInstallerFixture(version, productName, { productNameOutsideRoot: true }),
   );
   assert.throws(
@@ -295,7 +314,7 @@ try {
     /ProductName does not match/,
     'VERSIONINFO strings outside the declared root block must not satisfy installer metadata checks',
   );
-  writeFileSync(installerPath, installerBytes);
+  writeInstallerFixture(installerBytes);
 
   const outsideInstallerPath = join(rootDir, 'outside-installer.exe');
   writeFileSync(outsideInstallerPath, installerBytes);
@@ -313,7 +332,7 @@ try {
     if ((error as NodeJS.ErrnoException).code !== 'EPERM') throw error;
   } finally {
     if (symlinkCreated) rmSync(installerPath);
-    writeFileSync(installerPath, installerBytes);
+    writeInstallerFixture(installerBytes);
   }
 
   writeFileSync(blockmapPath, Buffer.concat([validBlockmap, Buffer.from([0])]));

@@ -29,7 +29,8 @@
 | `docs/instrument-modeling/adiabatic-expansion/validation/endpoint-comparison-protocol.md` | 当前模型验证口径 | HC-PHYS-001 程序声音代理、显示归零、固定时长的配对对照与观察网格敏感性；同目录 `endpoint-comparison-v1/report.md` 为可复现结果 |
 | `docs/theory/` | 当前参考 | 理论推导和公式材料 |
 | `docs/validation/` | 当前生成证据 | 绝热膨胀、理想气体和硬球模型的可重复验证数据 |
-| `docs/releases/` | 当前发布历史 | 结构化发布说明和版本记录 |
+| `docs/releases/local-acceptance-2026-09-15.md` | 当前本地验收入口 | 发布前候选、启动方法、桌面/PDF/性能证据及尚未执行的发行操作；等待用户验收 |
+| `docs/releases/` | 发布历史与本地候选说明 | 结构化发布说明、版本记录和明确标记为未发布的候选验收 |
 | `docs/legal/` | 当前核验基线 | 构建、权限、第三方组件、原创资产来源和生成型法律材料入口 |
 | `docs/audio/` | 当前来源记录 | 第三方音效和程序化音效说明 |
 | `docs/ideas/improvement-ideas.md` | 当前待办入口 | 从历史方案和仓库审查中提炼出的仍有效事项与未来想法 |
