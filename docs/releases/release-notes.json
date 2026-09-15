@@ -3,6 +3,98 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.4.2",
+      "date": "2026-09-15",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.4.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.2/heat-capacity-lab-setup-6.4.2.exe"
+      },
+      "summary": {
+        "zh-CN": "6.4.2 修复源码在全新环境安装依赖时的锁文件缺项，增加依赖完整性检查，调整升级验证顺序，并校对开发记录。实验功能、精确计算和数据格式沿用 6.4.1。",
+        "zh-TW": "6.4.2 修正原始碼在全新環境安裝依賴時的鎖定檔缺項，加入依賴完整性檢查，調整升級驗證順序，並校對開發記錄。實驗功能、精確計算及資料格式沿用 6.4.1。",
+        "en": "Version 6.4.2 repairs a missing lockfile entry that blocked clean dependency installation, checks required peers, improves upgrade-validation ordering, and updates development records. Experiment behavior, exact calculations, and data formats remain compatible with 6.4.1."
+      },
+      "sections": [
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "构建与升级验证",
+            "zh-TW": "建置與升級驗證",
+            "en": "Build and upgrade validation"
+          },
+          "items": [
+            {
+              "scope": "build-peer-lock-completeness",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复全新环境的依赖安装",
+                "zh-TW": "修正全新環境的依賴安裝",
+                "en": "Repair clean dependency installation"
+              },
+              "body": {
+                "zh-CN": "补齐构建工具可选 WASM 分支所需的 @emnapi/runtime 1.11.3 锁定记录，解决新版 npm 拒绝安装的问题。新增检查覆盖所有必需的同级依赖，保留既有依赖的版本、下载地址和完整性校验值。",
+                "zh-TW": "補齊建置工具可選 WASM 分支所需的 @emnapi/runtime 1.11.3 鎖定記錄，解決新版 npm 拒絕安裝的問題。新增檢查涵蓋所有必要的同層依賴，保留既有依賴版本、下載位址及完整性校驗值。",
+                "en": "Adds the missing @emnapi/runtime 1.11.3 peer required by an optional WASM build branch, resolving rejection by newer npm versions. A regression check covers all required peers; existing dependency versions, URLs, and integrity values are preserved."
+              }
+            },
+            {
+              "scope": "early-upgrade-dependency-gate",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "升级验证先检查依赖",
+                "zh-TW": "升級驗證先檢查依賴",
+                "en": "Check dependencies before upgrade testing"
+              },
+              "body": {
+                "zh-CN": "Windows 升级工作流先完成锁定依赖安装，再下载和安装待测程序，避免在依赖检查失败前改变测试环境中的安装状态。",
+                "zh-TW": "Windows 升級工作流程先完成鎖定依賴安裝，再下載及安裝待測程式，避免依賴檢查失敗前變更測試環境的安裝狀態。",
+                "en": "The Windows upgrade workflow installs locked dependencies before downloading or installing either app, so dependency failures are caught before changing the test installation."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "开发记录与发行",
+            "zh-TW": "開發記錄與發行",
+            "en": "Development records and release"
+          },
+          "items": [
+            {
+              "scope": "development-records-refresh",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "校对开发记录和文档入口",
+                "zh-TW": "校對開發記錄與文件入口",
+                "en": "Review development records and indexes"
+              },
+              "body": {
+                "zh-CN": "核对新增当前文档的链接、版本背景和匿名信息，补充架构组合合同索引，区分历史本地候选、正式发行和未完成验证。归档计划与模型扫描不重新作为开发待办或实物标定结论。",
+                "zh-TW": "核對新增現行文件的連結、版本背景及匿名資訊，補齊架構組合合同索引，區分歷史本地候選、正式發行及未完成驗證。歸檔計畫與模型掃描不重新視為待辦或實物標定結論。",
+                "en": "Reviews links, version context, and identity information in new current documents; adds the missing architecture-composition index; and distinguishes historical candidates, releases, and incomplete checks. Archived plans and model scans are not reclassified as pending work or physical calibration."
+              }
+            },
+            {
+              "scope": "desktop-update-v6-4-2",
+              "importance": "high",
+              "title": {
+                "zh-CN": "6.4.2 补丁更新与兼容",
+                "zh-TW": "6.4.2 修補更新與相容",
+                "en": "6.4.2 patch update and compatibility"
+              },
+              "body": {
+                "zh-CN": "继续使用原应用 ID、安装身份、用户资料目录和更新仓库，随附安装程序及完整自动更新资产。6.4.1 的实验行为、状态权威、保存恢复和精确判题保持不变；更早活塞版本的失效拟合与下游计算仍需按现行规则重新完成。",
+                "zh-TW": "繼續使用原應用程式 ID、安裝身分、使用者資料目錄及更新倉庫，提供安裝程式與完整自動更新資產。6.4.1 的實驗行為、狀態權威、儲存還原及精確判題維持不變；更早活塞版本的失效擬合與後續計算仍須依現行規則重做。",
+                "en": "Retains the application ID, installer identity, user-data directory, and update repository, with the installer and complete update assets. Experiment behavior, state ownership, persistence, and exact answer checks match 6.4.1. Obsolete fits and downstream calculations from earlier piston versions still require recomputation."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.4.1",
       "date": "2026-09-15",
       "channel": "stable",
