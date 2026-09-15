@@ -3,6 +3,212 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.4.1",
+      "date": "2026-09-15",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.4.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.1/heat-capacity-lab-setup-6.4.1.exe"
+      },
+      "summary": {
+        "zh-CN": "6.4.1 完善两种热容比实验的真实／理想条件、空气／氦气和逐步学习流程，修复活塞主周期识别、断电转场与按显示值精确计算，并完成工作台架构拆分、保存恢复、性能和报告改进。",
+        "zh-TW": "6.4.1 完善兩種熱容比實驗的真實／理想條件、空氣／氦氣和逐步學習流程，修正活塞主週期辨識、斷電轉場與依顯示值精確計算，並完成工作臺架構拆分、儲存還原、效能和報告改進。",
+        "en": "Version 6.4.1 completes Real/Ideal conditions, air/helium profiles, and staged learning for both heat-capacity experiments. It fixes piston primary-cycle detection, power-off handoff, and exact calculations from displayed values, with workbench, persistence, performance, and report improvements."
+      },
+      "sections": [
+        {
+          "type": "added",
+          "title": {
+            "zh-CN": "实验条件与学习流程",
+            "zh-TW": "實驗條件與學習流程",
+            "en": "Experiment conditions and learning"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-gas-and-condition-profiles",
+              "importance": "high",
+              "title": {
+                "zh-CN": "两种实验统一真实／理想与空气／氦气",
+                "zh-TW": "兩種實驗統一真實／理想與空氣／氦氣",
+                "en": "Real/Ideal and air/helium profiles for both methods"
+              },
+              "body": {
+                "zh-CN": "绝热膨胀法与活塞振动法支持真实／理想实验条件及空气／氦气。理想条件消除预置的环境、观测与损耗扰动，仍需按相同流程操作、处理和计算；错误操作仍有物理后果，理想条件只提供过程诊断，不生成数值评分。",
+                "zh-TW": "絕熱膨脹法與活塞振動法支援真實／理想實驗條件及空氣／氦氣。理想條件消除預設的環境、觀測與損耗擾動，仍須依相同流程操作、處理和計算；錯誤操作仍有物理後果，理想條件僅提供過程診斷，不產生數值評分。",
+                "en": "Both methods support Real/Ideal experiment conditions and air/helium. Ideal presets remove modeled environmental, observation, and loss disturbances while retaining manual operation, processing, and calculation. Incorrect operation still has physical consequences; Ideal provides diagnostics without numerical scores."
+              }
+            },
+            {
+              "scope": "staged-learning-and-mode-retention",
+              "importance": "high",
+              "title": {
+                "zh-CN": "按熟悉程度逐步学习并保留自由实验",
+                "zh-TW": "依熟悉程度逐步學習並保留自由實驗",
+                "en": "Staged learning with Free-mode retention"
+              },
+              "body": {
+                "zh-CN": "首次使用可分别选择是否熟悉两种实验，需要学习时按实验顺序逐步解锁演示、引导和自由模式。演示与未完成引导不作为自由实验保存；已完成引导可复查，自由模式数据保留到完整重置，切换模式不会覆盖自由实验。",
+                "zh-TW": "首次使用可分別選擇是否熟悉兩種實驗，需要學習時依實驗順序逐步解鎖演示、引導和自由模式。演示與未完成引導不作為自由實驗儲存；已完成引導可複查，自由模式資料保留至完整重設，切換模式不會覆蓋自由實驗。",
+                "en": "First use records familiarity with each method and unlocks Demo, Guide, and Free in sequence where learning is needed. Demo and unfinished Guide sessions do not become Free experiments. Completed guides remain reviewable, and Free data survives mode switching until a full reset."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "活塞引导与精确计算",
+            "zh-TW": "活塞引導與精確計算",
+            "en": "Piston guidance and exact calculations"
+          },
+          "items": [
+            {
+              "scope": "piston-guide-primary-periods",
+              "importance": "high",
+              "title": {
+                "zh-CN": "至少两个主周期，断电后进入计算",
+                "zh-TW": "至少兩個主週期，斷電後進入計算",
+                "en": "At least two primary periods and a correct power-off handoff"
+              },
+              "body": {
+                "zh-CN": "引导框选至少两个可信主周期，通过主周期与主峰／主谷识别排除局部小峰；含糊曲线不会被凑成足够周期。三组处理后关闭电源会正常进入拟合与计算，不再回到参数设置。",
+                "zh-TW": "引導框選至少兩個可信主週期，透過主週期與主峰／主谷辨識排除局部小峰；含糊曲線不會被湊成足夠週期。三組處理後關閉電源會正常進入擬合與計算，不再回到參數設定。",
+                "en": "Guided selections require at least two reliable primary periods. Primary-period and peak/trough detection excludes small local peaks and rejects ambiguous traces. After processing three measurements, switching power off correctly opens fitting and calculation instead of returning to parameter setup."
+              }
+            },
+            {
+              "scope": "piston-exact-displayed-value-calculation",
+              "importance": "high",
+              "title": {
+                "zh-CN": "逐步使用界面显示值，严格判定正确答案",
+                "zh-TW": "逐步使用介面顯示值，嚴格判定正確答案",
+                "en": "Exact answers calculated step by step from displayed values"
+              },
+              "body": {
+                "zh-CN": "周期平方、拟合、截面积、比热容比和相对误差均使用界面已经显示并舍入的数据逐步计算。修复周期平方的十进制中点舍入，统一表格和拟合坐标；精度合规但仅接近正确值的答案仍判错，不使用容差或隐藏高精度答案。",
+                "zh-TW": "週期平方、擬合、截面積、比熱容比和相對誤差均使用介面已顯示並捨入的資料逐步計算。修正週期平方的十進位中點捨入，統一表格和擬合座標；精度合規但僅接近正確值的答案仍判錯，不使用容差或隱藏高精度答案。",
+                "en": "Squared periods, fitting, area, heat-capacity ratio, and relative error now follow the already displayed and rounded values at every step. Decimal midpoint rounding is corrected and table/fit coordinates agree. Answers with valid precision but unequal values are rejected; no tolerance or hidden high-precision answer is used."
+              }
+            },
+            {
+              "scope": "piston-interaction-and-sidebar-fixes",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "恢复操作镜命中并精简参数栏",
+                "zh-TW": "還原操作鏡命中並精簡參數欄",
+                "en": "Reliable interaction picking and a simpler parameter sidebar"
+              },
+              "body": {
+                "zh-CN": "修复操作说明临时禁用后重新启用螺钉操作镜时的鼠标命中错误。移除真实氦气参数栏的教学候选说明框，气体参数和物理行为保持不变。",
+                "zh-TW": "修正操作說明暫時停用後重新啟用螺釘操作鏡時的滑鼠命中錯誤。移除真實氦氣參數欄的教學候選說明框，氣體參數與物理行為維持不變。",
+                "en": "Restores correct pointer picking when the screw interaction mirror is re-enabled after instructions. Removes the Real-helium candidate notice box without changing gas parameters or physical behavior."
+              }
+            }
+          ]
+        },
+        {
+          "type": "changed",
+          "title": {
+            "zh-CN": "工作台、保存与性能",
+            "zh-TW": "工作臺、儲存與效能",
+            "en": "Workbench, persistence, and performance"
+          },
+          "items": [
+            {
+              "scope": "workbench-architecture-and-history",
+              "importance": "high",
+              "title": {
+                "zh-CN": "明确工作台职责与撤销范围",
+                "zh-TW": "明確工作臺職責與復原範圍",
+                "en": "Clear workbench responsibilities and undo boundaries"
+              },
+              "body": {
+                "zh-CN": "完成工作台文件、实验控制、只读展示、教学、保存退出和兼容读取的职责拆分，保持实验状态、采样及存档权威一致。绝热膨胀资料窗口整体关闭现在可以独立撤销和重做，恢复标签顺序而不回滚实验过程。",
+                "zh-TW": "完成工作臺檔案、實驗控制、唯讀顯示、教學、儲存退出和相容讀取的職責拆分，保持實驗狀態、取樣及存檔權威一致。絕熱膨脹資料視窗整體關閉現在可獨立復原和重做，還原分頁順序而不回滾實驗過程。",
+                "en": "Separates file actions, experiment controllers, read-only views, learning, safe exit, and compatibility readers while preserving experiment, sampling, and persistence contracts. Closing the complete adiabatic materials window is independently undoable and restores tab order without rewinding the experiment."
+              }
+            },
+            {
+              "scope": "simulation-rendering-overhead",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "减少重复绘制与布局开销",
+                "zh-TW": "減少重複繪製與版面配置開銷",
+                "en": "Less redundant rendering and layout work"
+              },
+              "body": {
+                "zh-CN": "隐藏的活塞操作镜暂停绘制；标准模拟画布避免随粒子更新反复订阅尺寸或重置未变的缓冲区。降低无效工作，同时保持物理步进和采样不变；开发预览中仍观察到偶发长帧。",
+                "zh-TW": "隱藏的活塞操作鏡暫停繪製；標準模擬畫布避免隨粒子更新反覆訂閱尺寸或重設未變的緩衝區。降低無效工作，同時保持物理步進和取樣不變；開發預覽中仍觀察到偶發長幀。",
+                "en": "Hidden piston interaction mirrors stop rendering, and the standard simulation canvas avoids repeated size subscriptions and unchanged buffer resets. Physics steps and sampling are unchanged. Occasional long frames remain observable in the development preview."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "报告与更新组件",
+            "zh-TW": "報告與更新元件",
+            "en": "Reports and updater components"
+          },
+          "items": [
+            {
+              "scope": "ideal-report-conclusion-pagination",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "理想气体报告不再孤立结论页",
+                "zh-TW": "理想氣體報告不再產生孤立結論頁",
+                "en": "Keep ideal-gas conclusions with their figure"
+              },
+              "body": {
+                "zh-CN": "P–T、P–N 单图 PDF 为结论预留空间，章节标题与正文保持相邻，避免仅有结论的多余页面；图表数据和计算结果不变。",
+                "zh-TW": "P–T、P–N 單圖 PDF 為結論預留空間，章節標題與正文保持相鄰，避免僅有結論的多餘頁面；圖表資料與計算結果不變。",
+                "en": "Single-figure P–T and P–N PDFs reserve space for their conclusions and keep section headings with their text, avoiding an extra conclusion-only page without changing report data."
+              }
+            },
+            {
+              "scope": "updater-yaml-security",
+              "importance": "high",
+              "title": {
+                "zh-CN": "修复更新清单解析依赖",
+                "zh-TW": "修正更新清單解析相依套件",
+                "en": "Patch the update-manifest parser dependency"
+              },
+              "body": {
+                "zh-CN": "更新清单解析使用 js-yaml 4.3.2 补丁版，保留正常更新信息、中文版本说明及异常输入限制，并同步第三方许可记录。",
+                "zh-TW": "更新清單解析使用 js-yaml 4.3.2 修補版，保留正常更新資訊、中文版本說明及異常輸入限制，並同步第三方授權記錄。",
+                "en": "Update-manifest parsing uses patched js-yaml 4.3.2, retaining normal update metadata, localized release notes, and malformed-input limits with refreshed third-party records."
+              }
+            }
+          ]
+        },
+        {
+          "type": "compatibility",
+          "title": {
+            "zh-CN": "升级与旧计算结果",
+            "zh-TW": "升級與舊計算結果",
+            "en": "Upgrading and historical calculations"
+          },
+          "items": [
+            {
+              "scope": "desktop-update-v6-4-1",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保留原始记录，更新失效计算",
+                "zh-TW": "保留原始記錄，更新失效計算",
+                "en": "Retain raw records and recompute obsolete calculations"
+              },
+              "body": {
+                "zh-CN": "继续沿用原应用 ID、安装身份、用户资料目录和公开更新仓库。旧活塞原始记录及有效周期读数保留；受旧舍入规则影响的拟合与下游计算会要求重新完成，不能复用过时答案。请在升级前备份重要实验。",
+                "zh-TW": "繼續沿用原應用程式 ID、安裝身分、使用者資料目錄和公開更新倉庫。舊活塞原始記錄及有效週期讀數保留；受舊捨入規則影響的擬合與後續計算會要求重新完成，不能重用過時答案。請於升級前備份重要實驗。",
+                "en": "The application ID, installer identity, user-data directory, and public update repository remain unchanged. Historical piston raw records and valid period readings are retained; fits and downstream calculations affected by obsolete rounding rules must be recomputed. Back up important experiments before upgrading."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.4.0",
       "date": "2026-08-31",
       "channel": "stable",

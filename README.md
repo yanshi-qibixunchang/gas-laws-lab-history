@@ -4,7 +4,7 @@
 
 Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v6.4.0`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
+The latest published desktop release is `v6.4.1`. The `main` branch may contain reviewed work completed after that tag; source changes on `main` are not a new desktop release until the version is explicitly bumped and a complete update package is published.
 
 - Public downloads and update metadata: [gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -23,6 +23,9 @@ The latest published desktop release is `v6.4.0`. The `main` branch may contain 
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.
+- `v6.4.1` adds Real/Ideal conditions and air/helium profiles across both heat-capacity methods, plus staged learning and consistent Demo/Guide/Free retention.
+- `v6.4.1` requires at least two primary piston periods, ignores small local peaks, fixes the power-off calculation handoff, and computes exact answers from displayed rounded values. Obsolete fits and calculations must be recomputed while raw records are retained.
+- `v6.4.1` completes the workbench responsibility split, restores scoped materials-window undo, reduces redundant canvas/mirror rendering, fixes single-figure PDF pagination, and patches the updater YAML dependency.
 - `v6.4.0` adds a complete Piston-Oscillation Free-mode review and scoring workspace. Each experiment attempt has its own instrument-operation timeline, saved-curve evidence, selection result, expandable scoring evidence, and consistent per-attempt switching; user-facing text now uses experiment numbers rather than the internal “Run” name.
 - `v6.4.0` adds local PDF report export for completed piston experiments. The report follows the established adiabatic-expansion layout and includes compact file information, recorded measurements, calculation results, process evidence, and score summaries without adding a separate theory chapter.
 - `v6.4.0` adds a Free-mode parameter sidebar aligned with the existing heat-capacity controls. Ambient pressure and temperature, sampling, trigger level, and input visualization are available directly; reviewed thermal, sensor, release-asymmetry, and tail-observation parameters remain behind an acknowledged advanced-settings dialog and freeze after the first formal curve is saved.

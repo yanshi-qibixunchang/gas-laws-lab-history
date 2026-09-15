@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.4.0', 'next desktop update release should bump package version to 6.4.0');
-assert.match(readme, /latest published desktop release is `v6\.4\.0`/, 'English README should name the current public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.4\.0`/, 'Simplified Chinese README should name the current public release');
-assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.4\.0`/, 'Traditional Chinese README should name the current public release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.4\.0。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.4.1', 'desktop update release should use the user-selected version 6.4.1');
+assert.match(readme, /latest published desktop release is `v6\.4\.1`/, 'English README should name the current public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.4\.1`/, 'Simplified Chinese README should name the current public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.4\.1`/, 'Traditional Chinese README should name the current public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.4\.1。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -98,24 +98,41 @@ assert.equal(
   `${packageJson.version} installer should be published in the public release repository`,
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
+for (const scope of [
+  'heat-capacity-gas-and-condition-profiles',
+  'staged-learning-and-mode-retention',
+  'piston-guide-primary-periods',
+  'piston-exact-displayed-value-calculation',
+  'workbench-architecture-and-history',
+  'updater-yaml-security',
+  'desktop-update-v6-4-1',
+]) {
+  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'),
+    `6.4.1 release notes should explain ${scope}`);
+}
+assert.ok(currentItems.some(item => item.scope === 'ideal-report-conclusion-pagination'),
+  '6.4.1 should explain the corrected ideal-gas report pagination');
+const previousRelease = findRelease('6.4.0');
+assert.ok(previousRelease, 'release notes should retain the 6.4.0 release');
+const previousItems = previousRelease.sections?.flatMap(section => section.items ?? []) ?? [];
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-process-review-scoring' && item.importance === 'high'),
+  previousItems.some((item) => item.scope === 'piston-process-review-scoring' && item.importance === 'high'),
   '6.4.0 should include the high-importance process-review and scoring update',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-report-export' && item.importance === 'high'),
+  previousItems.some((item) => item.scope === 'piston-report-export' && item.importance === 'high'),
   '6.4.0 should include the high-importance piston report export',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-free-parameter-sidebar' && item.importance === 'high'),
+  previousItems.some((item) => item.scope === 'piston-free-parameter-sidebar' && item.importance === 'high'),
   '6.4.0 should include the high-importance Free parameter sidebar',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-dynamic-trigger-window' && item.importance === 'high'),
+  previousItems.some((item) => item.scope === 'piston-dynamic-trigger-window' && item.importance === 'high'),
   '6.4.0 should include the high-importance ambient-pressure-adaptive trigger window',
 );
 assert.ok(
-  currentItems.some((item) => item.scope === 'piston-review-acquisition-stability' && item.importance === 'high'),
+  previousItems.some((item) => item.scope === 'piston-review-acquisition-stability' && item.importance === 'high'),
   '6.4.0 should retain acquisition stability after process-review integration',
 );
 
