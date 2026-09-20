@@ -4,7 +4,7 @@
 
 Gas Laws Lab is a Windows engineering workbench for hard-sphere molecular dynamics, ideal-gas relation studies, and air heat-capacity-ratio experiments using both adiabatic expansion and piston oscillation.
 
-The latest published desktop release is `v6.4.1`. Version `6.4.2` is an unpublished patch candidate; publication is paused while an old piston-workspace compatibility failure is investigated. The `main` branch may contain reviewed work completed after the published tag.
+The latest published desktop release is `v6.4.1`. The unpublished `6.4.2` patch has passed local compatibility and packaging checks and is awaiting clean Windows upgrade acceptance. The `main` branch may contain reviewed work completed after the published tag.
 
 - Public downloads and update metadata: [gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - Security and disclosure policy: [SECURITY.md](./SECURITY.md)
@@ -21,7 +21,7 @@ The latest published desktop release is `v6.4.1`. Version `6.4.2` is an unpublis
 
 ## Current Source Highlights
 
-- `v6.4.2` repairs clean dependency installation, checks required peers across optional build branches, moves the upgrade dependency gate earlier, and refreshes development records. Experiment behavior and data formats match `v6.4.1`.
+- The `v6.4.2` candidate adds strict migration for older piston workspaces, repairs clean dependency installation, and strengthens upgrade verification. Raw records remain authoritative; obsolete fits and calculations require recomputation. Experiment operation and exact checks based on displayed values follow `v6.4.1`.
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.
 - Each heat-capacity method keeps an explicit runtime and persistence boundary separate from standard and ideal-gas files.

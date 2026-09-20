@@ -98,7 +98,7 @@ assert.equal(
   `${packageJson.version} installer should be published in the public release repository`,
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
-for (const scope of ['build-peer-lock-completeness', 'desktop-update-v6-4-2']) {
+for (const scope of ['piston-legacy-workspace-migration', 'build-peer-lock-completeness', 'desktop-update-v6-4-2']) {
   assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'),
     `6.4.2 release notes should explain ${scope}`);
 }

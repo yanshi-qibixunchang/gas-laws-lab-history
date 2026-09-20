@@ -2,7 +2,7 @@
 
 > 状态：当前合同
 > 适用版本：6.4.1 及后续沿用相同架构合同的版本
-> 最后核验：2026-09-15（版本背景与文档入口复核；整体拆分证据见交接第 4.15 节）
+> 最后核验：2026-09-20（补齐已知活塞嵌套会话迁移边界；整体拆分证据见交接第 4.15 节）
 > 替代关系：替代归档目录中所有旧架构草案；旧草案只作历史背景
 
 ## 1. 总体数据流
@@ -93,6 +93,7 @@ Persistence V3 的字段分类以 `src/features/workbench/persistenceV3/contract
 - 调度请求、快照读端口及生命周期触发由 `useWorkbenchWorkspacePersistence.ts` 组合；普通 UI 的 40 个值由 `workbenchRefreshPresentationCapture.ts` 在保存调用时采集，再并入 Heat 的 67 字段刷新 UI 载荷。
 - `workbenchDesktopExitQuiescence.ts` 冻结原运行时和时钟；原生退出经 `useWorkbenchLifecyclePersistence.ts` 等待已有 flush 后请求强制新鲜检查点，保持退出、场景恢复及故障恢复的原引用权威。
 - 当前 V3 的生产保存与恢复只能依赖 `productionFacade.ts`、`workspaceCodec.ts` 和当前版本编解码器，不得静态依赖历史迁移实现。
+- 当前活塞 V3 投影中的已知嵌套自由会话 8/9→10，由 `pistonFreeSessionMigration.ts` 校验有界变换：保留原始采样、冻结配置和有效周期读数，旧拟合及计算失效后重新拟合。只有 Guide 权威投影为 3 且其余字段保持规范相等时可迁移；未知字段、矛盾答题证据和未来版本仍隔离。该边界不导入 V1/V2 或早期 V3 工作区解析器，也不改变当前格式写出和精确判题。
 - 在 Persistence V3 内，V2 工作区、V1 文件信封和早期 V3 投影只允许从 `src/features/workbench/persistenceV3/compat/workspaceCompatibilityDecoder.ts` 进入；支持的格式族与版本以 `compat/legacySupportMatrix.ts` 为准，具体旧格式解析冻结在 `compat/legacyV2Adapter.ts`，迁移成功后只写当前格式。
 - 浏览器旧 `localStorage/sessionStorage` 的启动迁移仍由 `workbenchPersistenceMigration.ts` 单独负责，并且只能在没有可恢复 V3 代际时进入；它不得成为当前 V3 工作区的普通解码依赖。
 - 早期 V3 绝热膨胀投影缺少实验组权威字段时，只有兼容入口可通过 `compat/legacyV3ProjectionAdapter.ts` 补齐；当前 V3 普通解码不得用默认值猜测性修复。

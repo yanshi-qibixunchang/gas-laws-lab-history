@@ -1,6 +1,12 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { spawn } = require('node:child_process');
+const {
+  assertHostedWindowsUpgradeProbe,
+  isUpgradeWorkspaceIdentityPreserved,
+  hasUpgradeWorkspaceSchema,
+  observePackagedProcessExit,
+} = require('./packagedDesktopProbePolicy.cjs');
 
 const parseArguments = (argumentsList) => {
   const parsed = {};
@@ -21,6 +27,17 @@ const evidenceDirectory = path.resolve(options['evidence-dir'] ?? '');
 const phase = options.phase;
 const port = Number(options.port);
 const comparePath = options.compare ? path.resolve(options.compare) : null;
+const expectedFreeSessionVersion = options['expected-free-session-version'] === undefined
+  ? null
+  : Number(options['expected-free-session-version']);
+
+assertHostedWindowsUpgradeProbe({
+  platform: process.platform,
+  environment: process.env,
+  executablePath,
+  evidenceDirectory,
+  comparePath,
+});
 
 if (!fs.existsSync(executablePath)) throw new Error(`Packaged executable is missing: ${executablePath}`);
 if (!['seed', 'confirm', 'verify'].includes(phase)) {
@@ -29,6 +46,11 @@ if (!['seed', 'confirm', 'verify'].includes(phase)) {
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Port is invalid.');
 if (phase !== 'seed' && (!comparePath || !fs.existsSync(comparePath))) {
   throw new Error(`${phase} phase requires an existing --compare report.`);
+}
+if (expectedFreeSessionVersion !== null && (
+  phase !== 'verify' || !Number.isSafeInteger(expectedFreeSessionVersion) || expectedFreeSessionVersion < 1
+)) {
+  throw new Error('Expected Free session version must be a positive integer used with the verify phase.');
 }
 
 const markerKey = 'hsl_upgrade_smoke_from_5_3_1';
@@ -212,6 +234,9 @@ const indexedDbSnapshotExpression = `
           pistonGuideSessionProjectionVersion:
             record?.projection?.fields?.authoritative
               ?.pistonGuideSessionProjectionVersion ?? null,
+          pistonFreeSessionSchemaVersion:
+            record?.projection?.fields?.authoritative
+              ?.freeSession?.schemaVersion ?? null,
           hasDemoSession: Object.prototype.hasOwnProperty.call(
             record?.projection?.fields?.authoritative ?? {},
             'demoSession',
@@ -335,6 +360,7 @@ const run = async () => {
   });
   child.stdout.on('data', (chunk) => stdout.push(chunk.toString('utf8')));
   child.stderr.on('data', (chunk) => stderr.push(chunk.toString('utf8')));
+  const processExit = observePackagedProcessExit(child);
 
   let client;
   try {
@@ -418,7 +444,7 @@ const run = async () => {
         button.click();
         return true;
       })()`);
-      if (!created) throw new Error('Unable to create the packaged 5.3.1 piston-oscillation workspace file.');
+      if (!created) throw new Error('Unable to create the installed piston-oscillation workspace file.');
       await waitForEvaluation(
         client,
         `document.body.innerText.includes(${JSON.stringify(workspaceFileName)})`,
@@ -487,6 +513,11 @@ const run = async () => {
         generationContainsWorkspaceFile(activeGeneration, workspaceFileName),
       rendererHasNoCriticalErrors: criticalErrors.length === 0,
       ...(previous ? {
+        workspaceFileIdentityPreserved: isUpgradeWorkspaceIdentityPreserved(
+          activeGeneration,
+          previous.activeGeneration,
+          workspaceFileName,
+        ),
         experienceProfilePreserved:
           rendererState.experienceProfile === previous.rendererState.experienceProfile,
         indexedDbSchemaPreserved:
@@ -499,6 +530,13 @@ const run = async () => {
         indexedDbHasReadableWorkspaceGeneration:
           currentGenerations !== null && currentGenerations.count >= 1,
       } : {}),
+      ...(expectedFreeSessionVersion === null ? {} : {
+        migratedWorkspaceSchemaPersisted: hasUpgradeWorkspaceSchema(
+          activeGeneration,
+          previous?.activeGeneration?.files?.find((file) => file.name === workspaceFileName)?.fileId,
+          expectedFreeSessionVersion,
+        ),
+      }),
     };
 
     const reportPath = path.join(evidenceDirectory, `${phase}-packaged-app.json`);
@@ -507,6 +545,7 @@ const run = async () => {
       phase,
       executablePath,
       workspaceFileName,
+      expectedFreeSessionVersion,
       checks,
       passed: Object.values(checks).every(Boolean),
       rendererState,
@@ -530,10 +569,11 @@ const run = async () => {
     } catch (error) {
       if (!String(error).includes('CDP closed')) throw error;
     }
+    let exitTimeout;
     const exit = await Promise.race([
-      new Promise((resolve) => child.once('exit', (code, signal) => resolve({ code, signal }))),
-      sleep(20_000).then(() => null),
-    ]);
+      processExit,
+      new Promise((resolve) => { exitTimeout = setTimeout(() => resolve(null), 20_000); }),
+    ]).finally(() => clearTimeout(exitTimeout));
     if (!exit) {
       child.kill();
       throw new Error('Packaged app did not close through its desktop bridge.');

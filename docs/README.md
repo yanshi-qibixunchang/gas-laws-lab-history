@@ -2,7 +2,7 @@
 
 > 状态：当前文档入口
 > 适用版本：6.4.2 补丁发行
-> 最后核验：2026-09-15
+> 最后核验：2026-09-20
 
 本文件是仓库非代码材料的统一入口。阅读或修改资料时，先判断文档状态，再决定它能否作为当前实现依据。
 
@@ -29,7 +29,7 @@
 | `docs/instrument-modeling/adiabatic-expansion/validation/endpoint-comparison-protocol.md` | 当前模型验证口径 | HC-PHYS-001 程序声音代理、显示归零、固定时长的配对对照与观察网格敏感性；同目录 `endpoint-comparison-v1/report.md` 为可复现结果 |
 | `docs/theory/` | 当前参考 | 理论推导和公式材料 |
 | `docs/validation/` | 当前生成证据 | 绝热膨胀、理想气体和硬球模型的可重复验证数据 |
-| `docs/releases/v6.4.2.md` | 未发布补丁候选／兼容性阻断 | 锁文件修复、开发记录核验、Windows 升级失败及资料诊断停点 |
+| `docs/releases/v6.4.2.md` | 本地门禁通过／待 Windows 升级验收 | 锁文件修复、开发记录核验、旧活塞迁移与两条 Windows 升级门禁 |
 | `docs/releases/v6.4.1.md` | 功能发行基线 | 6.4.1 更新范围、三项更新资产、兼容边界及补充验证历史 |
 | `docs/releases/local-acceptance-2026-09-15.md` | 发布前验收历史 | 同版本本地候选、启动方法、桌面/PDF/性能证据；后续已转入用户授权的 6.4.1 发行 |
 | `docs/releases/` | 发布历史与本地候选说明 | 结构化发布说明、版本记录和明确标记为未发布的候选验收 |

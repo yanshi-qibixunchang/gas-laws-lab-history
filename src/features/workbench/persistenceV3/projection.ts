@@ -108,6 +108,10 @@ import {
   canonicalizeWorkbenchPersistenceV3Json,
 } from './fingerprint.ts';
 import {
+  isAllowedPistonFreeSessionMigration,
+  isKnownPistonFreeSessionMigrationSource,
+} from './pistonFreeSessionMigration.ts';
+import {
   decodeHeatCapacityV3AuthorityValues,
 } from './heatCapacityValueDecoder.ts';
 import {
@@ -428,12 +432,21 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
         sourceProjectionVersion !== undefined
         && sourceProjectionVersion !== 1
         && sourceProjectionVersion !== 2
+        && sourceProjectionVersion !== PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
       ) ||
       canonicalAuthority.pistonGuideSessionProjectionVersion !==
         PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
     ) return false;
     try {
       const migratedAuthority = canonicalClone(sourceAuthority);
+      if (sourceProjectionVersion === PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION) {
+        if (!isAllowedPistonFreeSessionMigration(
+          sourceAuthority.freeSession,
+          canonicalAuthority.freeSession,
+        )) return false;
+        migratedAuthority.freeSession = canonicalClone(canonicalAuthority.freeSession);
+        return areCanonicalValuesEqual(migratedAuthority, canonicalAuthority);
+      }
       migratedAuthority.pistonGuideSessionProjectionVersion =
         PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
       if (
@@ -3132,6 +3145,7 @@ const reprojectPistonOscillationFile = (
   const guideSession = modeSessionRepair.guideSession;
   const freeSession = modeSessionRepair.freeSession;
   const migrated = !isPlainRecord(freeSessionSource) ||
+    isKnownPistonFreeSessionMigrationSource(freeSessionSource) ||
     projection.fields.authoritative.pistonGuideSessionProjectionVersion !==
       PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
   const expectedDerivedCache = createPistonOscillationGuideDerivedCache(

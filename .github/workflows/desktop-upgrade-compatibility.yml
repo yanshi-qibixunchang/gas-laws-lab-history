@@ -67,7 +67,7 @@ jobs:
           $installRoot = Join-Path $env:RUNNER_TEMP 'Gas Laws Lab Upgrade Target'
           $installer = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.old_version }}.exe"
           $installArgument = '"/D={0}"' -f $installRoot
-          $process = Start-Process -FilePath $installer -ArgumentList '/S', $installArgument -Wait -PassThru
+          $process = Start-Process -FilePath $installer -ArgumentList '/S', $installArgument -Wait -PassThru -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw "Old installer exited with $($process.ExitCode)." }
           $executable = Join-Path $installRoot 'Gas Laws Lab.exe'
           if (-not (Test-Path -LiteralPath $executable)) { throw "Old executable was not installed at $executable" }
@@ -113,7 +113,7 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $installer = Join-Path $env:HSL_UPGRADE_DOWNLOAD_ROOT "heat-capacity-lab-setup-${{ inputs.new_version }}.exe"
           $installArgument = '"/D={0}"' -f $env:HSL_UPGRADE_INSTALL_ROOT
-          $process = Start-Process -FilePath $installer -ArgumentList '/S', $installArgument -Wait -PassThru
+          $process = Start-Process -FilePath $installer -ArgumentList '/S', $installArgument -Wait -PassThru -WindowStyle Hidden
           if ($process.ExitCode -ne 0) { throw "New installer exited with $($process.ExitCode)." }
           $executable = Join-Path $env:HSL_UPGRADE_INSTALL_ROOT 'Gas Laws Lab.exe'
           if (-not (Test-Path -LiteralPath $executable)) { throw "New executable is missing at $executable" }
@@ -125,6 +125,22 @@ jobs:
             --port 9333 `
             --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT `
             --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'confirm-packaged-app.json')
+
+      - name: Relaunch the upgraded version and confirm its migrated workspace
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $executable = Join-Path $env:HSL_UPGRADE_INSTALL_ROOT 'Gas Laws Lab.exe'
+          $restartEvidence = Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'upgraded-restart'
+          $freeSessionVersion = node --input-type=module -e "import { PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION } from './src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts'; console.log(PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION);"
+          if ($LASTEXITCODE -ne 0) { throw 'Unable to read the expected Free session version.' }
+          node scripts/verifyPackagedDesktopState.cjs `
+            --executable $executable `
+            --phase verify `
+            --port 9334 `
+            --evidence-dir $restartEvidence `
+            --expected-free-session-version $freeSessionVersion `
+            --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'verify-packaged-app.json')
 
       - name: Record the compatibility result
         if: always()
@@ -140,7 +156,7 @@ jobs:
           - Installation: silent NSIS in-place replacement at one absolute path
           - Old installer SHA256: `$oldHash`
           - New installer SHA256: `$newHash`
-          - Update validation: exact differential reconstruction, old-version self-restore, upgraded workspace restore, shared profile marker, experience profile, IndexedDB schema and semantic generation summaries, console errors, resource errors, clean exit
+          - Update validation: exact differential reconstruction, old-version self-restore, upgraded workspace restore and second restart, persistent file identity, shared profile marker, experience profile, IndexedDB schema and semantic generation summaries, console errors, resource errors, clean exit
           "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
 
       - name: Upload screenshots and structured evidence

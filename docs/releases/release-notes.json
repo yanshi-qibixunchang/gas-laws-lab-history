@@ -4,26 +4,40 @@
   "releases": [
     {
       "version": "6.4.2",
-      "date": "2026-09-15",
+      "date": "2026-09-20",
       "channel": "stable",
       "download": {
         "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.4.2",
         "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.2/heat-capacity-lab-setup-6.4.2.exe"
       },
       "summary": {
-        "zh-CN": "6.4.2 修复源码在全新环境安装依赖时的锁文件缺项，增加依赖完整性检查，调整升级验证顺序，并校对开发记录。实验功能、精确计算和数据格式沿用 6.4.1。",
-        "zh-TW": "6.4.2 修正原始碼在全新環境安裝依賴時的鎖定檔缺項，加入依賴完整性檢查，調整升級驗證順序，並校對開發記錄。實驗功能、精確計算及資料格式沿用 6.4.1。",
-        "en": "Version 6.4.2 repairs a missing lockfile entry that blocked clean dependency installation, checks required peers, improves upgrade-validation ordering, and updates development records. Experiment behavior, exact calculations, and data formats remain compatible with 6.4.1."
+        "zh-CN": "6.4.2 修复旧活塞存档升级后不显示的问题，保留原始实验记录，并按现行规则使旧拟合与计算失效、要求重新拟合；同时修复全新环境的依赖安装，完善 Windows 升级验证并校对开发记录。实验操作和按显示值精确判题保持不变。",
+        "zh-TW": "6.4.2 修正舊活塞存檔升級後不顯示的問題，保留原始實驗記錄，並依現行規則讓舊擬合與計算失效、要求重新擬合；同時修正全新環境的依賴安裝，完善 Windows 升級驗證並校對開發記錄。實驗操作與依顯示值精確判題維持不變。",
+        "en": "Version 6.4.2 restores supported older piston workspaces after upgrade, preserves raw experiment records, and invalidates obsolete fits and calculations under the current refitting rules. It also repairs clean dependency installation, strengthens Windows upgrade verification, and reviews development records. Experiment operation and exact checks based on displayed values are unchanged."
       },
       "sections": [
         {
           "type": "fixed",
           "title": {
-            "zh-CN": "构建与升级验证",
-            "zh-TW": "建置與升級驗證",
-            "en": "Build and upgrade validation"
+            "zh-CN": "存档兼容、构建与升级验证",
+            "zh-TW": "存檔相容、建置與升級驗證",
+            "en": "Workspace compatibility, builds, and upgrades"
           },
           "items": [
+            {
+              "scope": "piston-legacy-workspace-migration",
+              "importance": "high",
+              "title": {
+                "zh-CN": "恢复旧活塞实验文件",
+                "zh-TW": "還原舊活塞實驗檔案",
+                "en": "Restore older piston experiment files"
+              },
+              "body": {
+                "zh-CN": "补齐旧活塞自由会话和测量记录的严格版本迁移，避免原记录仍在数据库却无法显示。保留原始采样、冻结参数和有效周期读数，迁入实验组；旧算法的拟合与下游计算需要重新完成。未知字段、未来版本和损坏证据继续原样保留并隔离，不放宽精确判题。",
+                "zh-TW": "補齊舊活塞自由工作階段與量測記錄的嚴格版本遷移，避免原記錄仍在資料庫卻無法顯示。保留原始取樣、凍結參數及有效週期讀數，遷入實驗組；舊演算法的擬合與後續計算需要重做。未知欄位、未來版本和損壞證據繼續原樣保留並隔離，不放寬精確判題。",
+                "en": "Adds strict version migrations for older piston Free sessions and measurements so records still present in storage can appear again. Raw samples, frozen parameters, and valid period readings are retained in the experiment group; obsolete fits and downstream calculations require recomputation. Unknown fields, future versions, and damaged evidence remain preserved and quarantined, with no relaxation of exact answer checks."
+              }
+            },
             {
               "scope": "build-peer-lock-completeness",
               "importance": "high",
@@ -47,9 +61,9 @@
                 "en": "Check dependencies before upgrade testing"
               },
               "body": {
-                "zh-CN": "Windows 升级工作流先完成锁定依赖安装，再下载和安装待测程序，避免在依赖检查失败前改变测试环境中的安装状态。",
-                "zh-TW": "Windows 升級工作流程先完成鎖定依賴安裝，再下載及安裝待測程式，避免依賴檢查失敗前變更測試環境的安裝狀態。",
-                "en": "The Windows upgrade workflow installs locked dependencies before downloading or installing either app, so dependency failures are caught before changing the test installation."
+                "zh-CN": "Windows 升级工作流先完成锁定依赖安装，再下载和安装待测程序。旧版诊断限定于干净的托管 Windows 环境，检查原文件身份，并在覆盖升级后再次重启确认保存恢复；普通本机执行会在启动旧程序前拒绝。",
+                "zh-TW": "Windows 升級工作流程先完成鎖定依賴安裝，再下載及安裝待測程式。舊版診斷限定於乾淨的託管 Windows 環境，檢查原檔案身分，並在覆蓋升級後再次重啟確認儲存還原；一般本機執行會在啟動舊程式前拒絕。",
+                "en": "The Windows upgrade workflow installs locked dependencies before downloading or installing either app. Legacy probes are restricted to clean hosted Windows runners, verify the original file identity, and restart again after upgrade to confirm persistence. Ordinary local execution is rejected before launching an old app."
               }
             }
           ]
