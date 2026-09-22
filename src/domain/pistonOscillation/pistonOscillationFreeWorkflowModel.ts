@@ -1,4 +1,5 @@
 import {
+  applyPistonUncertaintyAction,
   advancePistonOscillationPeriodRun,
   analyzePistonOscillationPrimaryCycleEligibility,
   clearPistonOscillationPeriodSelection,
@@ -29,6 +30,7 @@ import {
   type PistonOscillationPrimaryCycleEligibilityReport,
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
+import type { PistonUncertaintyAction } from './pistonOscillationUncertaintyModel.ts';
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
   createPistonOscillationFreeExperimentGroup,
@@ -334,6 +336,7 @@ export type PistonOscillationFreeEvent =
       type: 'revealCalculationAnswer';
       field: PistonOscillationCalculationFieldId;
     } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'uncertaintyAction'; action: PistonUncertaintyAction } & PistonOscillationFreeTimedEvent)
   | ({ type: 'completeCalculation' } & PistonOscillationFreeTimedEvent);
 
 const FREE_EVENT_TYPES: readonly PistonOscillationFreeAuditEventType[] = [
@@ -1304,7 +1307,7 @@ export const transitionPistonOscillationFreeSession = (
         : createPistonOscillationDataProcessingSession(
             savedMeasurements,
             event.nowMs,
-            { answerValidationMode: 'batch' },
+            { answerValidationMode: 'batch', includeUncertainty: true },
           )
       : null;
     const next = {
@@ -1633,6 +1636,12 @@ export const transitionPistonOscillationFreeSession = (
         event.nowMs,
       ),
     };
+  }
+
+  if (event.type === 'uncertaintyAction') {
+    if (!session.dataProcessing) return session;
+    return { ...session, updatedAtMs: event.nowMs,
+      dataProcessing: applyPistonUncertaintyAction(session.dataProcessing, event.action, event.nowMs) };
   }
 
   if (event.type === 'completeCalculation') {
@@ -2102,7 +2111,7 @@ export const normalizePistonOscillationFreeSession = (
         value.dataProcessing,
         savedMeasurements,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
-        { answerValidationMode: 'batch' },
+        { answerValidationMode: 'batch', includeUncertainty: true },
       )
     : null;
   const persistedSampleRateHz = Number.isSafeInteger(value.sampleRateHz)
@@ -2249,7 +2258,7 @@ export const normalizePistonOscillationFreeSession = (
         value.dataProcessing,
         contextualizedSavedMeasurements,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
-        { answerValidationMode: 'batch' },
+        { answerValidationMode: 'batch', includeUncertainty: true },
       )
     : null;
   const parameterDraft = experimentGroup.parameterSnapshot?.parameters

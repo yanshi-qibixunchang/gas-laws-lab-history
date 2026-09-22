@@ -1,0 +1,40 @@
+.piston-uncertainty { color: var(--studio-text); font-family: var(--app-font-ui); font-size: 12px; line-height: 1.65; min-width: 0; }
+.piston-uncertainty { display: grid; gap: 14px; padding: 16px; border: 1px solid var(--studio-border); border-radius: 6px; background: var(--studio-surface); }
+.piston-uncertainty > header { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; }
+.piston-uncertainty p { margin: 6px 0; }
+.piston-uncertainty-note, .piston-uncertainty small { color: var(--studio-muted); }
+.piston-uncertainty-table-scroll { overflow: auto; max-width: 100%; margin: 10px 0; }
+.piston-uncertainty table { width: 100%; border-collapse: collapse; text-align: left; font-size: 12px; font-variant-numeric: tabular-nums; }
+.piston-uncertainty td, .piston-uncertainty th { border: 1px solid var(--studio-border); padding: 7px 9px; vertical-align: top; }
+.piston-uncertainty th { background: var(--studio-surface-2); white-space: nowrap; }
+.piston-uncertainty summary { cursor: pointer; color: var(--studio-accent-strong); padding: 6px 0; }
+.piston-uncertainty summary:focus-visible { outline: 2px solid var(--studio-accent-strong); outline-offset: 2px; }
+.piston-uncertainty-phase { border-top: 1px solid var(--studio-border); padding-top: 7px; }
+.piston-uncertainty-phase > summary { font-size: 12px; font-weight: 700; }
+.piston-uncertainty-lesson { padding: 8px 12px; background: var(--studio-surface-2); border-radius: 5px; margin: 7px 0 12px; }
+.piston-uncertainty-lesson details { margin-top: 6px; }
+.piston-uncertainty-exercise { border: 1px solid var(--studio-border); padding: 12px; margin-top: 10px; border-radius: 5px; min-width: 0; }
+.piston-uncertainty-active { background: var(--studio-accent-softer); border-color: var(--studio-accent-border); }
+.piston-uncertainty-math { font-family: "Cambria Math", "Times New Roman", serif; font-size: 1em; font-weight: 400; }
+.piston-uncertainty-math mtext { font-family: var(--app-font-ui); font-size: 0.9em; }
+.piston-uncertainty-math[display="block"] { margin: 0; text-align: left; }
+.piston-uncertainty-lesson math { font-size: 14px; math-style: normal; }
+.piston-uncertainty-formula { padding: 12px 0; font-size: 14px; font-family: "Cambria Math", "Times New Roman", serif; overflow-x: auto; scrollbar-width: thin; }
+.piston-uncertainty-formula > math { width: max-content; }
+.piston-uncertainty-basis { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.piston-uncertainty-inputs { font-family: var(--app-font-ui); font-size: 12px; overflow-wrap: anywhere; color: var(--studio-muted); font-variant-numeric: tabular-nums; }
+.piston-uncertainty-inputs math { white-space: nowrap; }
+.piston-uncertainty table mn { font-family: var(--app-font-ui); }
+.piston-uncertainty-answer-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 9px 0 3px; }
+.piston-uncertainty input { background: var(--studio-surface); color: var(--studio-text); border: 1px solid var(--studio-border); border-radius: 4px; padding: 0 8px; width: 116px; height: 29px; box-sizing: border-box; font-family: inherit; font-size: 12px; font-variant-numeric: tabular-nums; text-align: center; }
+.piston-uncertainty input:focus { outline: 2px solid var(--studio-accent-strong); outline-offset: 1px; }
+.piston-uncertainty button { border: 1px solid var(--studio-accent-border); color: var(--studio-accent-strong); background: var(--studio-accent-soft); padding: 6px 12px; border-radius: 4px; cursor: pointer; font-family: inherit; font-size: 12px; }
+.piston-uncertainty button:focus-visible { outline: 2px solid var(--studio-accent-strong); outline-offset: 2px; }
+.piston-uncertainty .piston-uncertainty-secondary { background: var(--studio-surface); }
+.piston-uncertainty-feedback { color: var(--studio-danger, #c34c3d); }
+.piston-uncertainty-feedback:empty { display: none; }
+.piston-uncertainty-result { border: 1px solid var(--studio-accent-border); padding: 14px; background: var(--studio-accent-softer); border-radius: 6px; }
+.piston-uncertainty-result strong { font-size: 14px; font-family: "Cambria Math", "Times New Roman", serif; }
+@media (max-width: 700px) { .piston-uncertainty { padding: 10px; } }
+
+.studio-piston-calculation-known-panel .piston-uncertainty-math mn { font-family: var(--app-font-ui); }

@@ -7,6 +7,8 @@ export interface HeatCapacityCalculationGroupInput {
 }
 
 export interface HeatCapacityCalculationGroupReference {
+  /** Present in strict teaching sessions to retain the displayed sensitivity. */
+  pressureSensitivityMvPerKPa?: number;
   u0Mv: number;
   u1Mv: number;
   u2Mv: number;

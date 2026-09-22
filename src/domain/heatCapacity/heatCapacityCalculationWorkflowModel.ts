@@ -1,4 +1,8 @@
 import {
+  calculateDisplayedHeatCapacityBatchStatistics,
+  createDisplayedHeatCapacityGroupReference,
+} from './heatCapacityCalculationPrecisionModel.ts';
+import {
   calculateHeatCapacityBatchStatistics,
   calculateHeatCapacityRelativeErrorPercent,
   type HeatCapacityCalculationBatchStatistics,
@@ -6,8 +10,10 @@ import {
 } from './heatCapacityCalculationModel.ts';
 import {
   formatHeatCapacityCalculationReference,
-  HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
+  getHeatCapacityCalculationAnswerSpec,
+  HEAT_CAPACITY_STRICT_ANSWER_RULE,
   type HeatCapacityCalculationAnswerKind,
+  type HeatCapacityCalculationAnswerRule,
 } from './heatCapacityCalculationValidation.ts';
 import {
   createHeatCapacityCalculationAnswerState,
@@ -78,6 +84,7 @@ export interface HeatCapacityCalculationWorkflowAggregate {
 
 export interface HeatCapacityCalculationWorkflowSession {
   version: typeof HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION;
+  answerRule?: HeatCapacityCalculationAnswerRule;
   mode: HeatCapacityCalculationWorkflowMode;
   presentation: HeatCapacityCalculationWorkflowPresentation;
   status: HeatCapacityCalculationWorkflowStatus;
@@ -95,6 +102,7 @@ export interface HeatCapacityCalculationWorkflowSession {
 }
 
 export interface CreateHeatCapacityCalculationWorkflowSessionOptions {
+  answerRule?: HeatCapacityCalculationAnswerRule;
   mode: HeatCapacityCalculationWorkflowMode;
   groups: Array<{
     trialId: string;
@@ -236,17 +244,17 @@ const createAggregate = (
   theoreticalGamma: number,
   scoringConfig: HeatCapacityCalculationScoringConfig,
   systemResolved: boolean,
+  answerRule: HeatCapacityCalculationAnswerRule,
 ): HeatCapacityCalculationWorkflowAggregate => {
   const displayedFormulaGammas = groups.map((group) => Number(
     formatHeatCapacityCalculationReference(
       group.reference.formulaGamma,
-      HEAT_CAPACITY_CALCULATION_ANSWER_SPECS.gamma,
+      getHeatCapacityCalculationAnswerSpec('gamma', answerRule),
     ),
   ));
-  const reference = calculateHeatCapacityBatchStatistics(
-    displayedFormulaGammas,
-    theoreticalGamma,
-  );
+  const reference = answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
+    ? calculateDisplayedHeatCapacityBatchStatistics(displayedFormulaGammas, theoreticalGamma)
+    : calculateHeatCapacityBatchStatistics(displayedFormulaGammas, theoreticalGamma);
   if (reference === null) {
     throw new Error('The batch statistics reference is invalid.');
   }
@@ -423,9 +431,15 @@ export const createHeatCapacityCalculationWorkflowSession = (
   const scoringConfig = options.scoringConfig ??
     DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG;
   const systemResolved = presentation !== 'interactive';
+  const answerRule = options.answerRule ?? HEAT_CAPACITY_STRICT_ANSWER_RULE;
+  // The model's theoretical ratio is a reference constant, not a measured
+  // intermediate answer (e.g. monatomic gas uses exactly 5/3).
+  const theoreticalGamma = options.theoreticalGamma;
   const groups = options.groups.map((group) => createGroup(
-    group,
-    options.theoreticalGamma,
+    answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
+      ? { ...group, reference: createDisplayedHeatCapacityGroupReference(group.reference) }
+      : group,
+    theoreticalGamma,
     options.mode,
     scoringConfig,
     systemResolved,
@@ -433,18 +447,20 @@ export const createHeatCapacityCalculationWorkflowSession = (
   const aggregate = options.mode === 'free'
     ? createAggregate(
         groups,
-        options.theoreticalGamma,
+        theoreticalGamma,
         scoringConfig,
         systemResolved,
+        answerRule,
       )
     : null;
   const now = options.now ?? Date.now();
   return {
     version: HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION,
+    answerRule,
     mode: options.mode,
     presentation,
     status: systemResolved ? 'completed' : 'in-progress',
-    theoreticalGamma: options.theoreticalGamma,
+    theoreticalGamma,
     groups,
     aggregate,
     activeGroupIndex: 0,
@@ -514,6 +530,7 @@ const hasSameCalculationWorkflowStructure = (
 const replayCalculationFieldProgress = (
   persisted: HeatCapacityCalculationWorkflowField,
   canonical: HeatCapacityCalculationWorkflowField,
+  answerRule: HeatCapacityCalculationAnswerRule | undefined,
 ): HeatCapacityCalculationWorkflowField => {
   let answer = createHeatCapacityCalculationAnswerState(
     canonical.answer.scoringConfig,
@@ -524,7 +541,7 @@ const replayCalculationFieldProgress = (
     const submission = submitHeatCapacityCalculationAnswer(answer, {
       rawInput: attempt.rawInput,
       expectedValue: canonical.expectedValue,
-      spec: HEAT_CAPACITY_CALCULATION_ANSWER_SPECS[canonical.answerKind],
+      spec: getHeatCapacityCalculationAnswerSpec(canonical.answerKind, answerRule),
     });
     answer = submission.state;
     feedback = submission.outcome === 'correct'
@@ -564,7 +581,10 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
   persisted: HeatCapacityCalculationWorkflowSession,
   options: CreateHeatCapacityCalculationWorkflowSessionOptions,
 ): HeatCapacityCalculationWorkflowSession => {
-  const canonical = createHeatCapacityCalculationWorkflowSession(options);
+  const canonical = createHeatCapacityCalculationWorkflowSession({
+    ...options,
+    answerRule: persisted.answerRule ?? 'legacy-tolerance-v1',
+  });
   if (!hasSameCalculationWorkflowStructure(persisted, canonical)) {
     return canonical;
   }
@@ -596,7 +616,7 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
       if (canonicalField) {
         replayedFieldsById.set(
           field.id,
-          replayCalculationFieldProgress(field, canonicalField),
+          replayCalculationFieldProgress(field, canonicalField, canonical.answerRule),
         );
       }
     }
@@ -606,7 +626,7 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
     if (canonicalField) {
       replayedFieldsById.set(
         field.id,
-        replayCalculationFieldProgress(field, canonicalField),
+        replayCalculationFieldProgress(field, canonicalField, canonical.answerRule),
       );
     }
   }
@@ -738,7 +758,7 @@ export const submitHeatCapacityCalculationStep = (
     const submission = submitHeatCapacityCalculationAnswer(field.answer, {
       rawInput: field.draftRaw,
       expectedValue: field.expectedValue,
-      spec: HEAT_CAPACITY_CALCULATION_ANSWER_SPECS[field.answerKind],
+      spec: getHeatCapacityCalculationAnswerSpec(field.answerKind, session.answerRule),
     });
     nextSession = replaceField(nextSession, fieldId, (current) => ({
       ...current,

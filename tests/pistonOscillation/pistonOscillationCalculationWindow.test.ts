@@ -160,7 +160,7 @@ assert.match(modelSource, /display-rounded-piston-slope-calculation-v3/);
 assert.match(componentSource, /const fitHeightMm = run\.fitHeightMm/);
 assert.match(
   componentSource,
-  /x: Number\(formatDataValue\(run\.result\.periodSquaredS2, 5\)\)[\s\S]*y: Number\(formatDataValue\(run\.fitHeightMm, 4\)\) \/ 1000/,
+  /x: run\.result\.periodSquaredS2[\s\S]*y: \(run\.calculationPrecision \? run\.fitHeightMm : Number\(formatDataValue\(run\.fitHeightMm, 4\)\)\) \/ 1000/,
   'the chart points must use the same displayed coordinates as the fitted data table',
 );
 assert.match(

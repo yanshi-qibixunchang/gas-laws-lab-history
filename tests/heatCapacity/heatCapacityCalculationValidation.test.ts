@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
+  LEGACY_HEAT_CAPACITY_CALCULATION_ANSWER_SPECS as HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
   formatHeatCapacityCalculationReference,
   getHeatCapacityLastSignificantDigitTolerance,
   parseHeatCapacityCalculationInput,

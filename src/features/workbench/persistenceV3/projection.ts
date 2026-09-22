@@ -332,9 +332,12 @@ const createPistonOscillationDataProcessingAuthority = (
 ) => ({
   schemaVersion: session.schemaVersion,
   processingPolicy: session.processingPolicy,
+  ...(session.precisionVersion ? { precisionVersion: session.precisionVersion, precisionNotice: session.precisionNotice } : {}),
+  ...(session.uncertaintyCourseVersion ? { uncertaintyCourseVersion: session.uncertaintyCourseVersion } : {}),
   status: session.status,
   activeRunIndex: session.activeRunIndex,
   runs: session.runs.map((run) => ({
+    ...(run.calculationPrecision ? { calculationPrecision: run.calculationPrecision } : {}),
     rawMeasurementRecordId: run.rawMeasurementRecordId,
     measurementIndex: run.measurementIndex,
     selection: run.selection === null
@@ -377,6 +380,7 @@ const createPistonOscillationDataProcessingAuthority = (
         schemaVersion: session.calculationSession.schemaVersion,
         status: session.calculationSession.status,
         knowns: session.calculationSession.knowns,
+        ...(session.calculationSession.uncertainty ? { uncertainty: session.calculationSession.uncertainty } : {}),
         selectedRunIndices: session.calculationSession.selectedRunIndices,
         activeFieldId: session.calculationSession.activeFieldId,
         answers: {

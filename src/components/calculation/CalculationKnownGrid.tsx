@@ -1,13 +1,15 @@
 import type {
   CSSProperties,
   HTMLAttributes,
+  ReactNode,
 } from 'react';
 import './CalculationKnownGrid.css';
 
 export interface CalculationKnownDatum {
   key: string;
-  label: string;
+  label: ReactNode;
   value: string;
+  formattedValue?: ReactNode;
 }
 
 export interface CalculationKnownGridClassNames {
@@ -116,7 +118,7 @@ export const CalculationKnownGrid = ({
                     : undefined,
                 )}
               >
-                {datum.value || '\u00A0'}
+                {datum.formattedValue ?? (datum.value || '\u00A0')}
               </span>
             </span>
           ))}

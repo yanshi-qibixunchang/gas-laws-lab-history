@@ -18,7 +18,9 @@ import {
 } from '../../domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
 import {
   formatHeatCapacityCalculationReference,
-  HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
+  getHeatCapacityCalculationAnswerSpec,
+  HEAT_CAPACITY_STRICT_ANSWER_RULE,
+  type HeatCapacityCalculationAnswerRule,
 } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
 import './HeatCapacityCalculationWindow.css';
@@ -50,6 +52,8 @@ const COPY = {
     close: '关闭计算窗口',
     tolerance:
       '判定说明：答案同时检查数值与规定精度；数值落在允许容差内即可判定正确，因此你的答案可能与参考答案略有差异。',
+    strictRule: '判定说明：每步按提示采用“四舍六入五成双”舍入，后续步骤使用已显示的数值。答案须同时满足数值和位数要求；支持等价的科学计数法。',
+    strictNumericWrong: '数值与按规定精度舍入后的结果不一致',
     knownGroup: (index: number) => `第 ${index + 1} 次实验数据与过程量`,
     knownAggregate: '本组统计量',
     knownGuide: '计算已知量',
@@ -94,6 +98,8 @@ const COPY = {
     close: '關閉計算視窗',
     tolerance:
       '判定說明：答案同時檢查數值與規定精度；數值落在允許容差內即可判定正確，因此你的答案可能與參考答案略有差異。',
+    strictRule: '判定說明：每步按提示採用「四捨六入五成雙」捨入，後續步驟使用已顯示的數值。答案須同時符合數值和位數要求；支援等價的科學記號。',
+    strictNumericWrong: '數值與按規定精度捨入後的結果不一致',
     knownGroup: (index: number) => `第 ${index + 1} 次實驗資料與過程量`,
     knownAggregate: '本組統計量',
     knownGuide: '計算已知量',
@@ -138,6 +144,8 @@ const COPY = {
     close: 'Close calculation window',
     tolerance:
       'Answer check: both the numerical value and required precision are checked. Values within the stated tolerance are accepted, so your entry may differ slightly from the reference.',
+    strictRule: 'Round each step to the required precision using round-half-to-even; use the displayed values in later steps. Both value and written precision must match. Equivalent scientific notation is accepted.',
+    strictNumericWrong: 'Value does not match the result rounded to the required precision',
     knownGroup: (index: number) => `Experiment ${index + 1} data and derived values`,
     knownAggregate: 'Group statistics',
     knownGuide: 'Known values',
@@ -185,6 +193,7 @@ const formatSensitivity = (value: number) => (
 const getPressureSensitivity = (
   reference: HeatCapacityCalculationWorkflowSession['groups'][number]['reference'],
 ) => {
+  if (reference.pressureSensitivityMvPerKPa !== undefined) return reference.pressureSensitivityMvPerKPa;
   const p1Delta = reference.p1KPa - reference.p0KPa;
   if (Math.abs(p1Delta) > Number.EPSILON) return reference.u1PrimeMv / p1Delta;
   const p2Delta = reference.p2KPa - reference.p0KPa;
@@ -192,18 +201,22 @@ const getPressureSensitivity = (
   return Number.NaN;
 };
 
-const formatReference = (field: HeatCapacityCalculationWorkflowField) => (
+const formatReference = (
+  field: HeatCapacityCalculationWorkflowField,
+  answerRule: HeatCapacityCalculationAnswerRule | undefined,
+) => (
   formatHeatCapacityCalculationReference(
     field.expectedValue,
-    HEAT_CAPACITY_CALCULATION_ANSWER_SPECS[field.answerKind],
+    getHeatCapacityCalculationAnswerSpec(field.answerKind, answerRule),
   )
 );
 
 const getResolvedValue = (
   field: HeatCapacityCalculationWorkflowField | null,
+  answerRule: HeatCapacityCalculationAnswerRule | undefined,
 ) => (
   field && field.answer.status !== 'unresolved'
-    ? formatReference(field)
+    ? formatReference(field, answerRule)
     : ''
 );
 
@@ -211,6 +224,11 @@ const findFieldByEnding = (
   fields: readonly HeatCapacityCalculationWorkflowField[],
   ending: string,
 ) => fields.find((field) => field.id.endsWith(ending)) ?? null;
+
+const getTheoryKnownDatum = (session: HeatCapacityCalculationWorkflowSession): HeatCapacityKnownDatum => ({
+  key: 'theoreticalGamma', label: 'γ₀',
+  value: session.theoreticalGamma === 5 / 3 ? '5/3' : String(session.theoreticalGamma),
+});
 
 const buildGuideKnownData = (
   session: HeatCapacityCalculationWorkflowSession,
@@ -243,6 +261,7 @@ const buildGuideKnownData = (
       label: 'S（mV/kPa）',
       value: formatSensitivity(getPressureSensitivity(group.reference)),
     },
+    getTheoryKnownDatum(session),
   ];
 };
 
@@ -266,28 +285,29 @@ const buildGroupKnownData = (
     {
       key: 'u1Prime',
       label: 'U₁′（mV）',
-      value: getResolvedValue(findFieldByEnding(group.fields, ':u1Prime')),
+      value: getResolvedValue(findFieldByEnding(group.fields, ':u1Prime'), session.answerRule),
     },
     {
       key: 'u2Prime',
       label: 'U₂′（mV）',
-      value: getResolvedValue(findFieldByEnding(group.fields, ':u2Prime')),
+      value: getResolvedValue(findFieldByEnding(group.fields, ':u2Prime'), session.answerRule),
     },
     {
       key: 'p1',
       label: 'P₁（kPa）',
-      value: getResolvedValue(findFieldByEnding(group.fields, ':p1')),
+      value: getResolvedValue(findFieldByEnding(group.fields, ':p1'), session.answerRule),
     },
     {
       key: 'p2',
       label: 'P₂（kPa）',
-      value: getResolvedValue(findFieldByEnding(group.fields, ':p2')),
+      value: getResolvedValue(findFieldByEnding(group.fields, ':p2'), session.answerRule),
     },
     {
       key: 'gamma',
       label: 'γ',
-      value: getResolvedValue(findFieldByEnding(group.fields, ':gamma')),
+      value: getResolvedValue(findFieldByEnding(group.fields, ':gamma'), session.answerRule),
     },
+    getTheoryKnownDatum(session),
   ];
 };
 
@@ -297,7 +317,7 @@ const buildAggregateKnownData = (
   const gammaData = session.groups.map((group, index) => ({
     key: `gamma-${group.trialId}`,
     label: `γ${index + 1}`,
-    value: getResolvedValue(findFieldByEnding(group.fields, ':gamma')),
+    value: getResolvedValue(findFieldByEnding(group.fields, ':gamma'), session.answerRule),
   }));
   const aggregate = session.aggregate;
   if (!aggregate) return gammaData;
@@ -306,23 +326,24 @@ const buildAggregateKnownData = (
     {
       key: 'meanGamma',
       label: 'γ̄',
-      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':meanGamma')),
+      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':meanGamma'), session.answerRule),
     },
     {
       key: 'sampleStandardDeviation',
       label: 's(γ)',
-      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':sampleStandardDeviation')),
+      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':sampleStandardDeviation'), session.answerRule),
     },
     {
       key: 'typeAStandardUncertainty',
       label: 'uA(γ̄)',
-      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':typeAStandardUncertainty')),
+      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':typeAStandardUncertainty'), session.answerRule),
     },
     {
       key: 'relativeError',
       label: 'Eᵣ（%）',
-      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':relativeError')),
+      value: getResolvedValue(findFieldByEnding(aggregate.fields, ':relativeError'), session.answerRule),
     },
+    getTheoryKnownDatum(session),
   ];
 };
 
@@ -335,11 +356,12 @@ const buildPotentialKnownValues = (
     formatFixed(group.reference.u2Mv, 1),
     formatFixed(group.reference.p0KPa, 3),
     formatSensitivity(getPressureSensitivity(group.reference)),
-    ...group.fields.map(formatReference),
+    ...group.fields.map((field) => formatReference(field, session.answerRule)),
   ]);
   if (session.aggregate) {
-    values.push(...session.aggregate.fields.map(formatReference));
+    values.push(...session.aggregate.fields.map((field) => formatReference(field, session.answerRule)));
   }
+  values.push(getTheoryKnownDatum(session).value);
   return values;
 };
 
@@ -380,6 +402,7 @@ const getFeedbackMessageKey = (
 
 const HeatCapacityCalculationField = ({
   field,
+  answerRule,
   formula,
   language,
   interactive,
@@ -389,6 +412,7 @@ const HeatCapacityCalculationField = ({
   onRevealAnswer,
 }: {
   field: HeatCapacityCalculationWorkflowField;
+  answerRule: HeatCapacityCalculationAnswerRule | undefined;
   formula: string;
   language: WorkbenchLanguagePreference;
   interactive: boolean;
@@ -398,7 +422,7 @@ const HeatCapacityCalculationField = ({
   onRevealAnswer: (fieldId: string) => void;
 }) => {
   const copy = COPY[language] ?? COPY['zh-CN'];
-  const spec = HEAT_CAPACITY_CALCULATION_ANSWER_SPECS[field.answerKind];
+  const spec = getHeatCapacityCalculationAnswerSpec(field.answerKind, answerRule);
   const precision = spec.precision.type === 'decimal-places'
     ? copy.precisionDecimal(spec.precision.digits)
     : copy.precisionSignificant(spec.precision.digits);
@@ -406,7 +430,7 @@ const HeatCapacityCalculationField = ({
   const isCorrect = field.answer.status === 'correct';
   const resolved = field.answer.status !== 'unresolved';
   const feedbackMessageKey = getFeedbackMessageKey(field);
-  const displayValue = systemReadOnly ? formatReference(field) : field.draftRaw;
+  const displayValue = systemReadOnly ? formatReference(field, answerRule) : field.draftRaw;
   const referenceTone = field.answer.referenceTone;
   const statusText = isCorrect
     ? systemReadOnly
@@ -415,7 +439,9 @@ const HeatCapacityCalculationField = ({
     : field.answer.status === 'revealed'
       ? copy.revealed
       : feedbackMessageKey
-        ? copy[feedbackMessageKey]
+        ? feedbackMessageKey === 'numericWrong' && answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
+          ? copy.strictNumericWrong
+          : copy[feedbackMessageKey]
         : '';
 
   return (
@@ -465,7 +491,7 @@ const HeatCapacityCalculationField = ({
                 : ''
           } ${resolved ? '' : 'studio-heat-calculation-reference-placeholder'}`}
         >
-          {resolved ? `${copy.reference}${formatReference(field)}` : `${copy.reference}\u00A0`}
+          {resolved ? `${copy.reference}${formatReference(field, answerRule)}` : `${copy.reference}\u00A0`}
         </span>
         {field.feedback !== null ? (
           <span className="studio-heat-calculation-error-actions">
@@ -540,6 +566,7 @@ const HeatCapacityCalculationStep = ({
             <HeatCapacityCalculationField
               key={field.id}
               field={field}
+              answerRule={session.answerRule}
               formula={getStepFormula(step.kind, field, session.groups.length)}
               language={language}
               interactive={active}
@@ -649,7 +676,7 @@ export const HeatCapacityCalculationWindow = ({
           className="studio-heat-calculation-tolerance-note"
           role="note"
         >
-          {copy.tolerance}
+          {session.answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE ? copy.strictRule : copy.tolerance}
         </div>
 
         {session.mode === 'free' ? (

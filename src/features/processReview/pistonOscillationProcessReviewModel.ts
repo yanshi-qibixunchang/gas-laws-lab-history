@@ -6,6 +6,8 @@ import type {
   PistonOscillationPeriodRunState,
   PistonOscillationRawMeasurementRecord,
 } from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import { formatPistonOscillationCalculationAnswer } from '../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import { calculatePistonUncertainty, pistonUncertaintyReference } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import type {
   PistonOscillationFreeAuditEvent,
   PistonOscillationFreeSession,
@@ -920,6 +922,11 @@ export const selectPistonOscillationProcessReviewModels = (
   const calculation = processing.calculationSession;
   const gamma = calculation?.answers.gamma.expectedValue ?? null;
   const relativeError = calculation?.answers.relativeError.expectedValue ?? null;
+  const uncertainty = processing.precisionVersion && calculation?.uncertainty && processing.linearFitResult
+    ? calculatePistonUncertainty(calculation.knowns, processing.linearFitResult, processing.runs, calculation.uncertainty.profile) : null;
+  const gammaText = uncertainty ? pistonUncertaintyReference('result', uncertainty) : formatNumber(gamma, 3);
+  const errorText = relativeError === null ? '--' : processing.precisionVersion
+    ? formatPistonOscillationCalculationAnswer('relativeError', relativeError, calculation?.answers.relativeError) : relativeError.toFixed(2);
   const rSquared = processing.linearFitResult?.rSquared ?? null;
   const gasType = calculation?.knowns?.gasType
     ?? session.experimentGroup?.gasMaterialSnapshot.gasType
@@ -995,7 +1002,7 @@ export const selectPistonOscillationProcessReviewModels = (
         ? tr(language, '本轮正式曲线、周期处理、线性拟合和最终答案均已完成；回顾页面只读，不会改写原始数据。', '本輪正式曲線、週期處理、線性擬合和最終答案均已完成；回顧頁面唯讀，不會改寫原始資料。', 'Formal curves, period processing, fit, and final answers are complete. This review is read-only.')
         : tr(language, '本轮仍完成正式曲线、周期处理、线性拟合和最终答案；回顾页面只读，理想实验不生成评分。', '本輪仍完成正式曲線、週期處理、線性擬合和最終答案；回顧頁面唯讀，理想實驗不產生評分。', 'Formal curves, period processing, fit, and final answers are complete. This read-only Ideal review does not generate a score.'),
       metrics: [
-        { label: 'γ', value: formatNumber(gamma, 3), detail: relativeError === null ? '--' : tr(language, `相对理论误差 ${relativeError.toFixed(2)}%`, `相對理論誤差 ${relativeError.toFixed(2)}%`, `Relative error ${relativeError.toFixed(2)}%`), tone: relativeError !== null && relativeError <= 3 ? 'good' : 'attention' },
+        { label: 'γ', value: gammaText, detail: relativeError === null ? '--' : tr(language, `相对理论误差 ${errorText}%`, `相對理論誤差 ${errorText}%`, `Relative error ${errorText}%`), tone: relativeError !== null && relativeError <= 3 ? 'good' : 'attention' },
         { label: tr(language, '线性拟合 R²', '線性擬合 R²', 'Linear-fit R²'), value: formatNumber(rSquared, 4), detail: tr(language, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 个拟合点`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 個擬合點`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} fit points`), tone: rSquared !== null && rSquared >= 0.98 ? 'good' : 'attention' },
         scoringEligible
           ? { label: tr(language, '本次实验操作', '本次實驗操作', 'Current run'), value: `${score.operationScore} / 75`, detail: tr(language, '按本次实验的实际证据归因', '按本次實驗的實際證據歸因', 'Attributed from this run evidence'), tone: toneForScore(score.operationScore, 75) }

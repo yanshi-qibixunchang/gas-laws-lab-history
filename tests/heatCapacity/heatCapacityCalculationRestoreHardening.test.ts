@@ -35,6 +35,7 @@ const authority = {
 } as const satisfies CreateHeatCapacityCalculationWorkflowSessionOptions;
 
 let persisted = createHeatCapacityCalculationWorkflowSession(authority);
+const canonicalReference = structuredClone(persisted.groups[0].reference);
 const firstStep = persisted.groups[0].steps[0];
 const firstField = persisted.groups[0].fields.find(
   (field) => field.id === firstStep.fieldIds[0],
@@ -75,7 +76,7 @@ const restored = normalizeHeatCapacityCalculationWorkflowSessionForTrials(
 );
 assert.notEqual(restored, null);
 assert.equal(restored!.theoreticalGamma, authority.theoreticalGamma);
-assert.deepEqual(restored!.groups[0].reference, reference);
+assert.deepEqual(restored!.groups[0].reference, canonicalReference);
 assert.equal(
   restored!.groups[0].fields[0].expectedValue,
   reference!.u1PrimeMv,
@@ -111,7 +112,7 @@ const rebuilt = normalizeHeatCapacityCalculationWorkflowSessionForTrials(
 );
 assert.notEqual(rebuilt, null);
 assert.equal(rebuilt!.groups[0].trialId, 'guide-authoritative');
-assert.deepEqual(rebuilt!.groups[0].reference, reference);
+assert.deepEqual(rebuilt!.groups[0].reference, canonicalReference);
 assert.equal(rebuilt!.groups[0].fields[0].answer.attempts.length, 0);
 assert.equal(rebuilt!.status, 'in-progress');
 

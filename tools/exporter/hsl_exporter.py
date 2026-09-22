@@ -17,6 +17,7 @@ import re
 import shutil
 import sys
 from datetime import datetime, timezone
+from decimal import Decimal, localcontext, ROUND_HALF_EVEN, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 from xml.sax.saxutils import escape
@@ -1248,7 +1249,7 @@ def save_heat_figure(fig: Any, target: Path, deps: dict[str, Any]) -> dict[str, 
 
 
 def plot_heat_capacity_overview(data: dict[str, Any], figures_dir: Path, deps: dict[str, Any]) -> dict[str, Path] | None:
-    model = data.get("allGroupsOverview") or {}
+    model = get_heat_report_overview(data)
     points = [point for point in (model.get("points") or []) if point.get("meanGamma") is not None]
     if len(points) < 2:
         return None
@@ -1340,7 +1341,7 @@ def plot_heat_capacity_overview(data: dict[str, Any], figures_dir: Path, deps: d
 
 
 def plot_heat_capacity_lollipop(data: dict[str, Any], group: dict[str, Any], figures_dir: Path, deps: dict[str, Any]) -> dict[str, Path] | None:
-    model = group.get("lollipopChart") or {}
+    model = get_heat_report_lollipop(group)
     points = [point for point in (model.get("points") or []) if point.get("gamma") is not None]
     if model.get("status") == "hidden" or len(points) < 3:
         return None
@@ -1521,19 +1522,56 @@ def format_heat_value(value: Any, digits: int = 6, suffix: str = "") -> str:
     return str(value)
 
 
-def format_heat_fixed(value: Any, decimals: int, suffix: str = "") -> str:
+def format_calculation_number(
+    value: Any,
+    digits: int,
+    *,
+    significant: bool = False,
+    half_even: bool = False,
+    suffix: str = "",
+    missing: str = "-",
+) -> str:
+    """Match the calculation UI, keeping written zeros and small uncertainties.
+
+    The legacy heat calculation uses JS native rounding of the binary float;
+    the piston calculation uses decimal-string, ties-to-even rounding. Keep
+    those contracts separate until the teaching calculation itself changes.
+    """
     if value is None or isinstance(value, bool):
-        return "-"
+        return missing
     try:
         number = float(value)
     except (TypeError, ValueError):
-        return str(value)
+        return missing
     if not math.isfinite(number):
-        return "-"
-    threshold = 0.5 * (10 ** -decimals)
-    if abs(number) < threshold:
-        number = 0.0
-    return f"{number:.{decimals}f}{suffix}"
+        return missing
+    with localcontext() as context:
+        context.prec = 1100
+        source = Decimal(str(number)) if half_even else Decimal.from_float(number)
+        exponent = source.copy_abs().adjusted() - digits + 1 if significant and source else (
+            1 - digits if significant else -digits
+        )
+        rounded = source.quantize(Decimal(1).scaleb(exponent),
+                                  rounding=ROUND_HALF_EVEN if half_even else ROUND_HALF_UP)
+        if rounded.is_zero():
+            rounded = rounded.copy_abs()
+        if significant and rounded:
+            leading_power = rounded.copy_abs().adjusted()
+            # A carry (9.999 -> 10.00) changes the required decimal places.
+            exponent = leading_power - digits + 1
+            rounded = rounded.quantize(Decimal(1).scaleb(exponent))
+            if leading_power >= digits or leading_power < -6:
+                mantissa = rounded.scaleb(-leading_power)
+                return f"{mantissa:.{digits - 1}f}e{leading_power:+d}{suffix}"
+        return f"{rounded:.{max(0, -exponent)}f}{suffix}"
+
+
+def format_heat_fixed(value: Any, decimals: int, suffix: str = "") -> str:
+    return format_calculation_number(value, decimals, suffix=suffix)
+
+
+def format_heat_significant(value: Any, digits: int, suffix: str = "") -> str:
+    return format_calculation_number(value, digits, significant=True, suffix=suffix)
 
 
 def finite_heat_number(value: Any) -> float | None:
@@ -1571,14 +1609,99 @@ def get_heat_pressure_values(
     return p0, p1, p2
 
 
-def format_heat_calculation_reference(value: Any, answer_kind: str) -> str:
+def format_heat_calculation_reference(value: Any, answer_kind: str, half_even: bool = False) -> str:
     if answer_kind in {"correctedVoltage"}:
-        return format_heat_fixed(value, 2)
+        return format_calculation_number(value, 1, half_even=half_even)
     if answer_kind in {"absolutePressure"}:
-        return format_heat_fixed(value, 3)
+        return format_calculation_number(value, 3, half_even=half_even)
     if answer_kind in {"relativeErrorPercent"}:
-        return format_heat_fixed(value, 2, "%")
-    return format_heat_fixed(value, 4)
+        return format_calculation_number(value, 3, significant=True, half_even=half_even, suffix="%")
+    if answer_kind in {"sampleStandardDeviation", "typeAStandardUncertainty"}:
+        return format_calculation_number(value, 2, significant=True, half_even=half_even)
+    return format_calculation_number(value, 4, significant=True, half_even=half_even)
+
+
+def get_heat_report_half_even(group: dict[str, Any]) -> bool:
+    session = ((group.get("calculation") or {}).get("session") or {})
+    return session.get("answerRule") == "strict-half-even-v2"
+
+
+def format_heat_theory_reference(value: Any, strict: bool) -> str:
+    if not strict:
+        return format_heat_significant(value, 4)
+    numeric = finite_heat_number(value)
+    if numeric is None:
+        return "-"
+    return "5/3" if numeric == 5 / 3 else str(numeric)
+
+
+def get_heat_report_result(group: dict[str, Any]) -> dict[str, Any]:
+    """Present the learner's calculation; retain raw derived values in CSV/JSON."""
+    result = dict(group.get("result") or {})
+    calculation = group.get("calculation") or {}
+    if calculation.get("kind") in {"real-interactive", "ideal-interactive"}:
+        session = calculation.get("session") or {}
+        aggregate = session.get("aggregate") or {}
+        result.update(aggregate.get("reference") or {})
+        if session.get("theoreticalGamma") is not None:
+            result["theoreticalGamma"] = session["theoreticalGamma"]
+    return result
+
+
+def get_heat_report_derived(group: dict[str, Any], experiment: dict[str, Any]) -> dict[str, Any]:
+    derived = dict(experiment.get("derivedResult") or {})
+    calculation = group.get("calculation") or {}
+    if calculation.get("kind") in {"real-interactive", "ideal-interactive"}:
+        session = calculation.get("session") or {}
+        matched = next((item for item in session.get("groups") or []
+                        if item.get("trialId") == experiment.get("id")), None)
+        if matched:
+            reference = matched.get("reference") or {}
+            for report_key, reference_key in {
+                "U1CorrectedMv": "u1PrimeMv", "U2CorrectedMv": "u2PrimeMv",
+                "p0KPa": "p0KPa", "p1KPa": "p1KPa", "p2KPa": "p2KPa",
+                "gamma": "formulaGamma",
+            }.items():
+                if reference_key in reference:
+                    derived[report_key] = reference[reference_key]
+    return derived
+
+
+def get_heat_report_lollipop(group: dict[str, Any]) -> dict[str, Any]:
+    """Project the exported figure onto the same calculation as its report table."""
+    model = dict(group.get("lollipopChart") or {})
+    if (group.get("calculation") or {}).get("kind") not in {"real-interactive", "ideal-interactive"}:
+        return model
+    result = get_heat_report_result(group)
+    for key in ("meanGamma", "sampleStandardDeviation", "typeAStandardUncertainty",
+                "relativeErrorPercent", "theoreticalGamma"):
+        if key in model and key in result:
+            model[key] = result[key]
+    model["points"] = [
+        {**point, "gamma": get_heat_report_derived(group, {
+            "id": point.get("trialId"), "derivedResult": {"gamma": point.get("gamma")},
+        }).get("gamma")}
+        for point in model.get("points") or []
+    ]
+    return model
+
+
+def get_heat_report_overview(data: dict[str, Any]) -> dict[str, Any]:
+    model = dict(data.get("allGroupsOverview") or {})
+    groups = {group["id"]: group for group in data.get("groups") or [] if group.get("id")}
+    points = []
+    for raw_point in model.get("points") or []:
+        point = dict(raw_point)
+        group = groups.get(point.get("groupId"), {})
+        result = (get_heat_report_result(group)
+                  if (group.get("calculation") or {}).get("kind") in {"real-interactive", "ideal-interactive"}
+                  else {})
+        for key in ("meanGamma", "typeAStandardUncertainty"):
+            if key in result:
+                point[key] = result[key]
+        points.append(point)
+    model["points"] = points
+    return model
 
 
 def normalize_heat_symbol(value: Any) -> str:
@@ -1595,6 +1718,7 @@ def build_heat_calculation_audit_rows(
     group: dict[str, Any],
     copy: dict[str, str],
 ) -> list[list[str]]:
+    half_even = get_heat_report_half_even(group)
     export_records = group.get("calculationAudit") or []
     if isinstance(export_records, list) and export_records:
         exported_rows: list[list[str]] = []
@@ -1621,7 +1745,7 @@ def build_heat_calculation_audit_rows(
             exported_rows.append([
                 f"{prefix} / {symbol}",
                 str(record.get("finalAnswer") or "").strip() or "-",
-                format_heat_calculation_reference(record.get("expectedValue"), str(record.get("answerKind") or "")),
+                format_heat_calculation_reference(record.get("expectedValue"), str(record.get("answerKind") or ""), half_even),
                 f"{result}；{feedback}",
                 str(int(record.get("attempts") or 0)),
                 "-" if credit_ratio is None else format_heat_fixed(credit_ratio * 100, 0, "%"),
@@ -1663,7 +1787,7 @@ def build_heat_calculation_audit_rows(
         rows.append([
             f"{prefix} / {symbol}",
             final_answer,
-            format_heat_calculation_reference(field.get("expectedValue"), str(field.get("answerKind") or "")),
+            format_heat_calculation_reference(field.get("expectedValue"), str(field.get("answerKind") or ""), half_even),
             f"{result}；{feedback}" if group.get("scheme") == "real" else copy["automatic"],
             str(len(attempts)),
             credit,
@@ -2175,17 +2299,17 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
     def make_figure(path: Path, title: str, width: float = 160 * mm, height: float = 78 * mm) -> Any:
         return KeepTogether(make_figure_parts(path, title, width, height))
 
-    def append_result_summary(story: list[Any], result: dict[str, Any], title: str) -> None:
+    def append_result_summary(story: list[Any], result: dict[str, Any], title: str, half_even: bool) -> None:
         append_numbered_table(
             story,
             title,
             [copy["mean"], copy["std_dev"], copy["uncertainty"], copy["theory"], copy["relative_error"]],
             [[
-                format_heat_fixed(result.get("meanGamma"), 4),
-                format_heat_fixed(result.get("sampleStandardDeviation"), 4),
-                format_heat_fixed(result.get("typeAStandardUncertainty"), 4),
-                format_heat_fixed(result.get("theoreticalGamma"), 4),
-                format_heat_fixed(result.get("relativeErrorPercent"), 2, "%"),
+                format_heat_calculation_reference(result.get("meanGamma"), "meanGamma", half_even),
+                format_heat_calculation_reference(result.get("sampleStandardDeviation"), "sampleStandardDeviation", half_even),
+                format_heat_calculation_reference(result.get("typeAStandardUncertainty"), "typeAStandardUncertainty", half_even),
+                format_heat_theory_reference(result.get("theoreticalGamma"), half_even),
+                format_heat_calculation_reference(result.get("relativeErrorPercent"), "relativeErrorPercent", half_even),
             ]],
             [34 * mm] * 5,
             compact=True,
@@ -2268,7 +2392,8 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
     story.append(paragraph(f"1.2 {copy['group_overview']}", group_style, bold=True))
     overview_rows: list[list[Any]] = []
     for group in groups:
-        result = group.get("result") or {}
+        result = get_heat_report_result(group)
+        half_even = get_heat_report_half_even(group)
         score = group.get("score") or {}
         scheme_label = copy["ideal"] if group.get("scheme") == "ideal" else copy["real"]
         completed_count = int(group.get("completedExperimentCount") or 0)
@@ -2289,8 +2414,8 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
             format_timestamp(group.get("completedAtMs")),
             f"{completed_count} / {target_count}",
             heat_group_status(group, copy),
-            format_heat_fixed(result.get("meanGamma"), 4),
-            format_heat_fixed(result.get("relativeErrorPercent"), 2, "%"),
+            format_heat_calculation_reference(result.get("meanGamma"), "meanGamma", half_even),
+            format_heat_calculation_reference(result.get("relativeErrorPercent"), "relativeErrorPercent", half_even),
             score_text,
         ])
     append_numbered_table(
@@ -2332,6 +2457,7 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
             paragraph(f"{chapter_number} {chapter_title}", chapter_style, bold=True),
         ])
         for group_position, group in enumerate(scheme_groups, start=1):
+            half_even = get_heat_report_half_even(group)
             label = heat_group_label(group, copy)
             report_label = heat_group_report_label(group, copy)
             group_prefix = f"{chapter_number}.{group_position}"
@@ -2347,24 +2473,27 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
             raw_rows: list[list[Any]] = []
             derived_rows: list[list[Any]] = []
             for experiment in group.get("experiments") or []:
-                derived = experiment.get("derivedResult") or {}
+                derived = get_heat_report_derived(group, experiment)
                 experiment_number = int(experiment.get("experimentNumber") or len(raw_rows) + 1)
                 p0, p1, p2 = get_heat_pressure_values(group, experiment)
+                p0 = derived.get("p0KPa", p0)
+                p1 = derived.get("p1KPa", p1)
+                p2 = derived.get("p2KPa", p2)
                 raw_rows.append([
                     copy["experiment"].format(number=experiment_number),
-                    format_heat_fixed(get_heat_record_signal(experiment, "u0"), 2),
-                    format_heat_fixed(get_heat_record_signal(experiment, "u1"), 2),
-                    format_heat_fixed(get_heat_record_signal(experiment, "u2"), 2),
+                    format_heat_fixed(get_heat_record_signal(experiment, "u0"), 1),
+                    format_heat_fixed(get_heat_record_signal(experiment, "u1"), 1),
+                    format_heat_fixed(get_heat_record_signal(experiment, "u2"), 1),
                     copy["completed"] if experiment.get("completed") else copy["incomplete"],
                 ])
                 derived_rows.append([
                     copy["experiment"].format(number=experiment_number),
-                    format_heat_fixed(derived.get("U1CorrectedMv"), 2),
-                    format_heat_fixed(derived.get("U2CorrectedMv"), 2),
-                    format_heat_fixed(p0, 3),
-                    format_heat_fixed(p1, 3),
-                    format_heat_fixed(p2, 3),
-                    format_heat_fixed(derived.get("gamma"), 4),
+                    format_heat_calculation_reference(derived.get("U1CorrectedMv"), "correctedVoltage", half_even),
+                    format_heat_calculation_reference(derived.get("U2CorrectedMv"), "correctedVoltage", half_even),
+                    format_heat_calculation_reference(p0, "absolutePressure", half_even),
+                    format_heat_calculation_reference(p1, "absolutePressure", half_even),
+                    format_heat_calculation_reference(p2, "absolutePressure", half_even),
+                    format_heat_calculation_reference(derived.get("gamma"), "gamma", half_even),
                 ])
 
             subsection_number = 1
@@ -2401,8 +2530,8 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
                 [18 * mm, 22 * mm, 22 * mm, 27 * mm, 27 * mm, 27 * mm, 27 * mm],
                 compact=True,
             )
-            result = group.get("result") or {}
-            append_result_summary(story, result, f"{report_label}{copy['group_statistics']}")
+            result = get_heat_report_result(group)
+            append_result_summary(story, result, f"{report_label}{copy['group_statistics']}", half_even)
 
             group_figure = figures_dir / heat_group_stem(group) / "group-results.png"
             if scheme == "real":
@@ -2489,10 +2618,10 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
                     f"{report_label}{copy['theory_comparison']}",
                     [copy["mean"], copy["theory"], copy["difference"], copy["relative_error"]],
                     [[
-                        format_heat_fixed(mean_gamma, 4),
-                        format_heat_fixed(theory_gamma, 4),
-                        format_heat_fixed(difference, 4),
-                        format_heat_fixed(result.get("relativeErrorPercent"), 2, "%"),
+                        format_heat_calculation_reference(mean_gamma, "meanGamma", half_even),
+                        format_heat_theory_reference(theory_gamma, half_even),
+                        format_heat_significant(difference, 4),
+                        format_heat_calculation_reference(result.get("relativeErrorPercent"), "relativeErrorPercent", half_even),
                     ]],
                     [42.5 * mm] * 4,
                     compact=True,
@@ -2768,8 +2897,17 @@ def piston_finite_number(value: Any) -> float | None:
 
 
 def format_piston_number(value: Any, decimals: int, suffix: str = "") -> str:
-    number = piston_finite_number(value)
-    return "--" if number is None else f"{number:.{decimals}f}{suffix}"
+    return format_calculation_number(value, decimals, half_even=True, suffix=suffix, missing="--")
+
+
+def format_piston_significant(value: Any, digits: int, suffix: str = "") -> str:
+    return format_calculation_number(value, digits, significant=True, half_even=True,
+                                     suffix=suffix, missing="--")
+
+
+def format_piston_calculation_reference(value: Any, field: str, digits: int | None = None) -> str:
+    suffix = {"area": " m^2", "relativeError": "%"}.get(field, "")
+    return format_piston_significant(value, digits or (3 if field == "relativeError" else 4), suffix)
 
 
 def format_piston_datetime(value: Any) -> str:
@@ -2841,7 +2979,9 @@ def plot_piston_oscillation_fit(
     ax.text(
         0.03,
         0.95,
-        f"h = {slope:.5f} T^2 {intercept:+.6f}\nR^2 = {safe_float(fit.get('rSquared')):.4f}",
+        f"h = {format_piston_significant(slope, ((fit.get('precisionPlan') or {}).get('digits') or {}).get('slope', 5))} T^2 "
+        f"{'+' if intercept >= 0 else '-'} {format_piston_significant(abs(intercept), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('intercept', 5))}\n"
+        f"R^2 = {format_piston_number(fit.get('rSquared'), 5)}",
         transform=ax.transAxes,
         ha="left",
         va="top",
@@ -3109,8 +3249,9 @@ def build_piston_oscillation_report(
         compact: bool = False,
     ) -> None:
         nonlocal table_number
-        table_number += 1
-        story.append(paragraph(f"表 {table_number} {caption}", caption_style))
+        if caption:
+            table_number += 1
+            story.append(paragraph(f"表 {table_number} {caption}", caption_style))
         left_columns = left_columns or set()
         cell_style = table_style if not compact else ParagraphStyle(
             f"PistonTableCompact{table_number}",
@@ -3211,10 +3352,10 @@ def build_piston_oscillation_report(
         [[
             summary.get("measurementCount"),
             summary.get("fitPointCount"),
-            format_piston_number(summary.get("gamma"), 4),
-            format_piston_number(summary.get("referenceGamma"), 4),
-            format_piston_number(summary.get("relativeErrorPercent"), 2, "%"),
-            format_piston_number(summary.get("rSquared"), 4),
+            summary.get("reportedGamma") or format_piston_calculation_reference(summary.get("gamma"), "gamma"),
+            format_piston_number(summary.get("referenceGamma"), 2),
+            format_piston_calculation_reference(summary.get("relativeErrorPercent"), "relativeError"),
+            format_piston_number(summary.get("rSquared"), 5),
             f"{summary.get('operationAverageScore', '--')} + {summary.get('calculationScore', '--')}"
             if scoring_eligible else copy["not_scored"],
             f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}"
@@ -3272,9 +3413,9 @@ def build_piston_oscillation_report(
             format_piston_number(result.get("t1S"), 3),
             format_piston_number(result.get("t2S"), 3),
             format_piston_number(result.get("periodCount"), 1).rstrip("0").rstrip("."),
-            format_piston_number(result.get("deltaTimeS"), 4),
-            format_piston_number(result.get("periodS"), 5),
-            format_piston_number(result.get("periodSquaredS2"), 7),
+            format_piston_number(result.get("deltaTimeS"), 3),
+            format_piston_significant(result.get("periodS"), (measurement.get("calculationPrecision") or {}).get("period", 4)),
+            format_piston_significant(result.get("periodSquaredS2"), (measurement.get("calculationPrecision") or {}).get("squared", 5)),
             deviation_text,
             copy["yes"] if measurement.get("includedInFit") else copy["no"],
         ])
@@ -3293,20 +3434,21 @@ def build_piston_oscillation_report(
         [copy["fit_points"], copy["slope"], copy["intercept"], "R^2"],
         [[
             len(fit.get("selectedRunIndices") or []),
-            format_piston_number(fit.get("slopeMPerS2"), 5),
-            format_piston_number(fit.get("interceptM"), 6),
-            format_piston_number(fit.get("rSquared"), 6),
+            format_piston_significant(fit.get("slopeMPerS2"), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('slope', 5)),
+            format_piston_significant(fit.get("interceptM"), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('intercept', 5)),
+            format_piston_number(fit.get("rSquared"), 5),
         ]],
         [42.5 * mm] * 4,
         compact=True,
     )
     story.append(paragraph(f"3.3 {copy['final_results']}", section_style))
 
-    def answer_row(field: str, label: str, decimals: int, suffix: str = "") -> list[Any]:
+    def answer_row(field: str, label: str, suffix: str = "") -> list[Any]:
         answer = answers.get(field) or {}
         expected = answer.get("expectedValue")
         raw = str(answer.get("draftRaw") or "").strip()
-        user_value = raw if raw else format_piston_number(expected, decimals, suffix)
+        reference = format_piston_calculation_reference(expected, field, answer.get("significantFigures"))
+        user_value = f"{raw}{suffix}" if raw else reference
         resolution = answer.get("resolution")
         if resolution == "first-correct":
             evaluation, credit = copy["first_correct"], "100%"
@@ -3320,8 +3462,8 @@ def build_piston_oscillation_report(
             credit = copy["not_scored"]
         return [
             label,
-            f"{user_value}{suffix if raw and suffix else ''}",
-            format_piston_number(expected, decimals, suffix),
+            user_value,
+            reference,
             evaluation,
             credit,
         ]
@@ -3331,13 +3473,58 @@ def build_piston_oscillation_report(
         "最终计算与答案评价" if language != "en" else "Final calculation and answer evaluation",
         [copy["calculation_item"], copy["user_result"], copy["reference"], copy["evaluation"], copy["credit"]],
         [
-            answer_row("area", copy["area"], 6, " m^2"),
-            answer_row("gamma", copy["gamma"], 4),
-            answer_row("relativeError", copy["relative_error"], 2, "%"),
+            answer_row("area", copy["area"], " m^2"),
+            answer_row("gamma", copy["gamma"]),
+            answer_row("relativeError", copy["relative_error"], "%"),
         ],
         [45 * mm, 35 * mm, 35 * mm, 35 * mm, 20 * mm],
         compact=True,
     )
+
+    uncertainty_report = data.get("uncertaintyReport")
+    if isinstance(uncertainty_report, dict):
+        uncertainty_heading = ParagraphStyle("PistonUncertaintyHeading", parent=section_style, keepWithNext=True)
+        analysis = uncertainty_report.get("analysis") or {}
+        story.append(PageBreak())
+        story.append(paragraph("3.4 不确定度教学与计算" if language != "en" else "3.4 Uncertainty evaluation", chapter_style))
+        story.append(paragraph(
+            "使用表中给定量与本次计算结果进行不确定度评定。每一步已核验的数值直接用于后续计算；中间量按各题要求保留保护位，最终扩展不确定度保留两位有效数字，γ 的末位与其对齐。"
+            if language != "en" else
+            "Use the given quantities and results from this experiment. Each checked value is used in subsequent steps at the stated precision. Round final expanded uncertainty to two significant figures and align the last digit of gamma.", body_style))
+        append_table(story,
+            "仪器给定资料" if language != "en" else "Instrument data",
+            ["变量", "数值", "变量", "数值"] if language != "en" else ["Variable", "Value", "Variable", "Value"],
+            uncertainty_report.get("parameterRows") or [],
+            [42.5 * mm, 42.5 * mm, 42.5 * mm, 42.5 * mm], compact=True)
+        story.append(paragraph(
+            f"n = {analysis.get('n')}; Q = {analysis.get('q')} m^2; Sxx = {analysis.get('sxx')} s^4; "
+            f"mean(T^2) = {analysis.get('meanX', '--')}; mean(h) = {analysis.get('meanY', '--')}", body_style))
+        append_table(story, "拟合残差" if language != "en" else "Fit residuals",
+            ["#", "T^2 / s^2", "h / m", "e / m"],
+            [[row.get("runIndex", 0) + 1, row.get("x"), row.get("y"), row.get("residual")] for row in analysis.get("rows") or []],
+            [15 * mm, 50 * mm, 45 * mm, 60 * mm], compact=True)
+        for phase in uncertainty_report.get("phases") or []:
+            story.append(paragraph(phase.get("title") or "", uncertainty_heading))
+            for line in phase.get("lines") or []:
+                story.append(paragraph(line, body_style))
+            for detail in phase.get("why") or []:
+                story.append(paragraph(f"{detail.get('title', '')} {detail.get('body', '')}", body_style))
+            for item in phase.get("items") or []:
+                item_start = len(story)
+                story.append(paragraph(item.get("label") or "", section_style))
+                story.append(paragraph(item.get("formula") or "", body_style))
+                story.append(paragraph(item.get("inputs") or "", body_style))
+                answer = item.get("answer") or {}
+                state = answer.get("status")
+                evaluation = ("已查看答案" if state == "revealed" else "核验通过" if state == "correct" else "未完成") if language != "en" else ("Answer shown" if state == "revealed" else "Correct" if state == "correct" else "Unresolved")
+                append_table(story, "",
+                    ["提交", "参考结果", "有效数字", "核验"] if language != "en" else ["Submitted", "Reference", "Significant figures", "Evaluation"],
+                    [[answer.get("draft") or "--", f"{item.get('reference', '--')} {item.get('unit', '')}", ("末位对齐" if language != "en" else "Aligned") if item.get("id") == "result" else item.get("significantFigures"), evaluation]],
+                    [40 * mm, 40 * mm, 55 * mm, 35 * mm], compact=True)
+                item_flowables = story[item_start:]
+                del story[item_start:]
+                story.append(deps["KeepTogether"](item_flowables))
+        story.append(paragraph(uncertainty_report.get("result") or "", section_style))
 
     story.append(PageBreak())
     process_section_title = copy["process_score"] if scoring_eligible else copy["process_review"]
@@ -3446,7 +3633,7 @@ def build_piston_oscillation_report(
         copy["file_information"],
         copy["actual_records"],
         copy["calculation_results"],
-        process_section_title,
+        ("计算与过程记录" if language != "en" else "Calculations and process records") if uncertainty_report else process_section_title,
     ]
 
     def draw_page(canvas: Any, document: Any) -> None:

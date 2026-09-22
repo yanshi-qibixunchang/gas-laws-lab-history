@@ -270,6 +270,7 @@ const resolveSelectionInfoPlacement = (options: {
 const PistonOscillationPeriodAnswerField = ({
   field,
   answer,
+  significantFigures,
   label,
   precision,
   unit,
@@ -284,6 +285,7 @@ const PistonOscillationPeriodAnswerField = ({
 }: {
   field: PistonOscillationPeriodAnswerField;
   answer: PistonOscillationPeriodAnswerState;
+  significantFigures?: number;
   label: string;
   precision: string;
   unit: string;
@@ -310,7 +312,7 @@ const PistonOscillationPeriodAnswerField = ({
   const reference = answer.expectedValue === null
     ? ''
     : field === 'period'
-      ? formatPistonOscillationPeriod(answer.expectedValue)
+      ? formatPistonOscillationPeriod(answer.expectedValue, significantFigures ? { calculationPrecision: { period: significantFigures, squared: 7 } } : undefined)
       : formatPistonOscillationEndpointTime(answer.expectedValue);
 
   return (
@@ -1197,6 +1199,17 @@ export const PistonOscillationDataProcessingPanel = ({
       data-piston-processing-run-index={runIndex}
       data-piston-processing-review={reviewMode || undefined}
     >
+      {processing.precisionNotice && !reviewMode && <p role="status" className="piston-processing-guidance">
+        {language === 'en'
+          ? processing.precisionNotice === 'teaching-updated' ? 'The uncertainty exercises and pressure given have changed. Measurements are retained; please recalculate periods and subsequent results.'
+            : processing.precisionNotice === 'upgraded' ? 'Calculation precision has been updated. Measurements are retained; please recalculate periods and subsequent results.'
+            : processing.precisionNotice === 'more-digits' ? 'These data need more guard digits. Endpoint readings are retained; recalculate the reopened period questions using the stated precision.'
+            : 'These data remain too close to a rounding boundary. Select a longer time interval or a wider height range before recalculating.'
+          : processing.precisionNotice === 'teaching-updated' ? '不确定度题目与压强给定值已更新。测量记录已保留，旧作答不再适用，请重新完成周期及后续计算。'
+            : processing.precisionNotice === 'upgraded' ? '计算精度规则已更新。测量记录已保留，请重新完成周期及后续计算。'
+            : processing.precisionNotice === 'more-digits' ? '本组数据需要更多保护位。端点读数已保留，请按题目要求重算已重新开放的周期题。'
+            : '本组数据过于接近修约边界，请增加选取的周期数或扩大高度范围后重新计算。'}
+      </p>}
       <div className="piston-processing-run-list" role="group" aria-label={copy.runListAria}>
         {processing.runs.map((candidate, index) => {
           const state = getRunState(candidate, runIndex, index);
@@ -1718,7 +1731,8 @@ export const PistonOscillationDataProcessingPanel = ({
                         field="period"
                         answer={run.answers.period}
                         label={copy.periodLabel}
-                        precision={copy.periodPrecision}
+                        significantFigures={run.calculationPrecision?.period}
+                        precision={run.calculationPrecision ? (language === 'en' ? `Use ${run.calculationPrecision.period} significant figures` : `保留 ${run.calculationPrecision.period} 位有效数字`) : copy.periodPrecision}
                         unit="s"
                         language={language}
                         disabled={run.result !== null}
@@ -1840,7 +1854,8 @@ export const PistonOscillationDataProcessingPanel = ({
                         field="period"
                         answer={run.answers.period}
                         label={copy.periodLabel}
-                        precision={copy.periodPrecision}
+                        significantFigures={run.calculationPrecision?.period}
+                        precision={run.calculationPrecision ? (language === 'en' ? `Use ${run.calculationPrecision.period} significant figures` : `保留 ${run.calculationPrecision.period} 位有效数字`) : copy.periodPrecision}
                         unit="s"
                         language={language}
                         disabled={!endpointsResolved}
@@ -1879,8 +1894,8 @@ export const PistonOscillationDataProcessingPanel = ({
             <div className="piston-period-result-strip" aria-live="polite">
               <span><em>Δt</em><strong>{run.result.deltaTimeS.toFixed(3)} s</strong></span>
               <span><em>N</em><strong>{formatPistonOscillationPeriodCount(run.result.periodCount)}</strong></span>
-              <span><em>T</em><strong>{formatPistonOscillationPeriod(run.result.periodS)} s</strong></span>
-              <span><em>T²</em><strong>{formatSignificantFiguresHalfEven(run.result.periodSquaredS2, 5)} s²</strong></span>
+              <span><em>T</em><strong>{formatPistonOscillationPeriod(run.result.periodS, run)} s</strong></span>
+              <span><em>T²</em><strong>{formatSignificantFiguresHalfEven(run.result.periodSquaredS2, run.calculationPrecision?.squared ?? 5)} s²</strong></span>
             </div>
             {reviewMode ? (
               <div className="piston-period-review-audit" role="note">

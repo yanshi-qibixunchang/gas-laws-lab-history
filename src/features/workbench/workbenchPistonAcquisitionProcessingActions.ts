@@ -316,8 +316,12 @@ export const createWorkbenchPistonAcquisitionProcessingActions = (ports: createW
 
   const closePistonOscillationCalculationReview = () => {
     const calculationStatus = activePistonOscillationCalculationSession?.status ?? null;
-    if (calculationStatus !== 'completed') return;
+    if (calculationStatus !== 'completed' && !activePistonOscillationCalculationSession?.uncertainty) return;
     setPistonOscillationCalculationReviewOpen(false);
+    if (calculationStatus !== 'completed') {
+      setPistonOscillationCalculationSuppressedFileId(activeFile.id);
+      window.setTimeout(() => { void flushWorkspacePersistenceRef.current(); }, 0);
+    }
   };
 
   const openPistonOscillationDataProcessingReview = () => {

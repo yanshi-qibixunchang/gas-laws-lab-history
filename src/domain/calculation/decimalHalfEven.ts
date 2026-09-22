@@ -279,6 +279,21 @@ export const roundProductSignificantFiguresHalfEven = (
   );
 };
 
+/** Sum products of written decimals without binary cancellation at a tie. */
+export const roundSumProductsSignificantFiguresHalfEven = (
+  terms: readonly (readonly [ExactDecimalInput, ExactDecimalInput])[],
+  significantFigures: number,
+): number => {
+  const products = terms.map(([left, right]) => {
+    const a = parseExactDecimal(left), b = parseExactDecimal(right);
+    return { coefficient: BigInt(a.sign * b.sign) * a.coefficient * b.coefficient, exponent: a.exponent + b.exponent };
+  });
+  if (products.length === 0) return 0;
+  const exponent = Math.min(...products.map(p => p.exponent));
+  const coefficient = products.reduce((sum, p) => sum + p.coefficient * powerOfTen(p.exponent - exponent), BIGINT_ZERO);
+  return roundSignificantFiguresHalfEven(`${coefficient}e${exponent}`, significantFigures);
+};
+
 const normalizeExactRatio = (numerator: bigint, denominator: bigint) => {
   if (denominator === BIGINT_ZERO) {
     throw new RangeError('Ratio denominator must not be zero.');
@@ -377,3 +392,65 @@ export const roundRatioSignificantFiguresHalfEven = (
     significantFigures,
   ),
 );
+
+/** Average written decimals exactly before rounding, including midpoint ties. */
+export const roundMeanSignificantFiguresHalfEven = (
+  values: readonly ExactDecimalInput[],
+  significantFigures: number,
+): number => {
+  if (values.length === 0) throw new RangeError('A mean requires at least one value.');
+  const decimals = values.map(parseExactDecimal);
+  const exponent = Math.min(...decimals.map((value) => value.exponent));
+  let numerator = decimals.reduce((sum, value) => sum
+    + BigInt(value.sign) * value.coefficient * powerOfTen(value.exponent - exponent), BIGINT_ZERO);
+  let denominator = BigInt(values.length);
+  if (exponent < 0) denominator *= powerOfTen(-exponent);
+  else numerator *= powerOfTen(exponent);
+  return roundRatioSignificantFiguresHalfEven(numerator, denominator, significantFigures);
+};
+
+const integerSquareRoot = (value: bigint): bigint => {
+  if (value < BIGINT_TWO) return value;
+  let root = BIGINT_ONE << BigInt(Math.ceil(value.toString(2).length / 2));
+  let next = (root + value / root) / BIGINT_TWO;
+  while (next < root) {
+    root = next;
+    next = (root + value / root) / BIGINT_TWO;
+  }
+  return root;
+};
+
+/** Round sqrt(sum((x-center)^2)/divisor) using exact squared midpoint comparisons. */
+export const roundRootSumSquaresHalfEven = (
+  values: readonly ExactDecimalInput[],
+  center: ExactDecimalInput,
+  divisor: number,
+  significantFigures: number,
+): number => {
+  assertWholeNumberInRange(significantFigures, 'significantFigures', 1);
+  if (!Number.isSafeInteger(divisor) || divisor <= 0) throw new RangeError('Divisor must be a positive integer.');
+  const decimals = [...values.map(parseExactDecimal), parseExactDecimal(center)];
+  const exponent = Math.min(...decimals.map((value) => value.exponent));
+  const integers = decimals.map((value) => BigInt(value.sign) * value.coefficient * powerOfTen(value.exponent - exponent));
+  const centerInteger = integers.pop()!;
+  let numerator = integers.reduce((sum, value) => {
+    const difference = value - centerInteger;
+    return sum + difference * difference;
+  }, BIGINT_ZERO);
+  if (numerator === BIGINT_ZERO) return 0;
+  let denominator = BigInt(divisor);
+  if (exponent < 0) denominator *= powerOfTen(-2 * exponent);
+  else numerator *= powerOfTen(2 * exponent);
+  const leadingPower = Math.floor(getRatioLeadingDigitPower(numerator, denominator) / 2);
+  const targetExponent = leadingPower - significantFigures + 1;
+  if (targetExponent < 0) numerator *= powerOfTen(-2 * targetExponent);
+  else denominator *= powerOfTen(2 * targetExponent);
+  let coefficient = integerSquareRoot(numerator / denominator);
+  const twiceMidpoint = BIGINT_TWO * coefficient + BIGINT_ONE;
+  const midpointSquare = denominator * twiceMidpoint * twiceMidpoint;
+  const scaledNumerator = numerator * BigInt(4);
+  if (scaledNumerator > midpointSquare || (scaledNumerator === midpointSquare && coefficient % BIGINT_TWO !== BIGINT_ZERO)) {
+    coefficient += BIGINT_ONE;
+  }
+  return roundSignificantFiguresHalfEven(`${coefficient}e${targetExponent}`, significantFigures);
+};

@@ -11,11 +11,12 @@ import {
 } from 'react';
 import {
   CalculationKnownGrid,
+  splitCalculationKnownDataRows,
   type CalculationKnownDatum,
 } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
-  PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS,
+  getPistonCalculationSpec,
   formatPistonOscillationCalculationAnswer,
   getInvalidPistonOscillationCalculationBatchFields,
   type PistonOscillationCalculationAnswerState,
@@ -41,6 +42,9 @@ import {
 } from './pistonOscillationCalculationCopy.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import './PistonOscillationCalculationWindow.css';
+import { calculatePistonUncertainty } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import { PistonOscillationUncertainty, buildPistonUncertaintyKnownData } from './PistonOscillationUncertainty.tsx';
+import { pistonUncertaintyComplete } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 
 export interface PistonOscillationCalculationWindowProps {
   open: boolean;
@@ -98,9 +102,9 @@ const formatDataValue = (value: number, significantFigures = 5) => (
     : '—'
 );
 
-const formatFitCoefficient = (value: number) => {
+const formatFitCoefficient = (value: number, digits = 5) => {
   if (!Number.isFinite(value)) return '—';
-  return formatSignificantFiguresHalfEven(value, 5);
+  return formatSignificantFiguresHalfEven(value, digits);
 };
 
 const toSuperscriptInteger = (value: number) => String(value)
@@ -201,15 +205,22 @@ export const choosePistonOscillationFitCalloutCorner = (options: {
 
 const buildKnownConstantRows = (
   processing: PistonOscillationDataProcessingSession,
+  language: PistonOscillationLanguage,
 ): CalculationKnownDatum[][] => {
   const calculationSession = processing.calculationSession;
   if (!calculationSession) return [];
   const { knowns } = calculationSession;
-  return [[
+  const constants: CalculationKnownDatum[] = [
     { key: 'mass', label: 'm（kg）', value: formatDecimalPlacesHalfEven(knowns.movingMassKg, 4) },
     { key: 'diameter', label: 'd（mm）', value: formatDecimalPlacesHalfEven(knowns.cylinderDiameterM * 1000, 1) },
-    { key: 'pressure', label: 'P（Pa）', value: formatKnownPressure(knowns.pressurePa) },
-  ]];
+    { key: 'pressure', label: 'P（Pa）', value: processing.precisionVersion ? `${knowns.pressurePa}` : formatKnownPressure(knowns.pressurePa) },
+  ];
+  if (!calculationSession.uncertainty) return [constants];
+  return splitCalculationKnownDataRows([
+    ...constants,
+    ...buildPistonUncertaintyKnownData(calculationSession.uncertainty, processing.linearFitResult
+      ? calculatePistonUncertainty(knowns, processing.linearFitResult, processing.runs, calculationSession.uncertainty.profile) : null, language),
+  ], 2);
 };
 
 const buildFitDataRows = (
@@ -219,13 +230,13 @@ const buildFitDataRows = (
   const periodSquared = run.result?.periodSquaredS2 ?? Number.NaN;
   const fitHeightMm = run.fitHeightMm;
   return [
-    { key: `run-${runIndex}-period`, label: 'T（s）', value: formatDataValue(period, 4) },
-    { key: `run-${runIndex}-period2`, label: 'T²（s²）', value: formatDataValue(periodSquared, 5) },
-    { key: `run-${runIndex}-height`, label: 'h（mm）', value: formatDataValue(fitHeightMm, 4) },
+    { key: `run-${runIndex}-period`, label: 'T（s）', value: formatDataValue(period, run.calculationPrecision?.period ?? 4) },
+    { key: `run-${runIndex}-period2`, label: 'T²（s²）', value: formatDataValue(periodSquared, run.calculationPrecision?.squared ?? 5) },
+    { key: `run-${runIndex}-height`, label: 'h（mm）', value: run.calculationPrecision ? String(fitHeightMm) : formatDataValue(fitHeightMm, 4) },
     {
       key: `run-${runIndex}-coordinate`,
       label: '（T², h）',
-      value: `(${formatDataValue(periodSquared, 5)}, ${formatDataValue(fitHeightMm, 4)})`,
+      value: `(${formatDataValue(periodSquared, run.calculationPrecision?.squared ?? 5)}, ${run.calculationPrecision ? String(fitHeightMm) : formatDataValue(fitHeightMm, 4)})`,
     },
   ];
 });
@@ -281,7 +292,7 @@ const PistonOscillationCalculationField = ({
 }) => {
   const resolved = answer.status !== 'unresolved';
   const hasFeedback = answer.feedback !== null;
-  const precision = PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS[fieldId].precision;
+  const precision = getPistonCalculationSpec(fieldId, answer).precision;
   const statusText = answer.status === 'correct'
     ? copy.correct
     : answer.status === 'revealed'
@@ -362,7 +373,7 @@ const PistonOscillationCalculationField = ({
               resolved ? '' : 'studio-piston-calculation-reference-placeholder'
             }`}>
               {resolved && answer.expectedValue !== null
-                ? `${copy.reference}${formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue)}`
+                ? `${copy.reference}${formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue, answer)}`
                 : `${copy.reference}\u00A0`}
             </span>
             {hasFeedback ? (
@@ -422,8 +433,8 @@ const PistonOscillationFitChart = ({
     run.result
       ? [{
           runIndex,
-          x: Number(formatDataValue(run.result.periodSquaredS2, 5)),
-          y: Number(formatDataValue(run.fitHeightMm, 4)) / 1000,
+          x: run.result.periodSquaredS2,
+          y: (run.calculationPrecision ? run.fitHeightMm : Number(formatDataValue(run.fitHeightMm, 4))) / 1000,
           selected: selectedRunIndices.has(runIndex),
         }]
       : []
@@ -461,16 +472,16 @@ const PistonOscillationFitChart = ({
     x: scaleX(xMax),
     y: scaleY(fit.slopeMPerS2 * xMax + fit.interceptM),
   };
+  const interceptSign = fit.interceptM < 0 ? '−' : '+';
+  const equation = `h = ${formatFitCoefficient(fit.slopeMPerS2, fit.precisionPlan?.digits.slope)}T² ${interceptSign} ${formatFitCoefficient(Math.abs(fit.interceptM), fit.precisionPlan?.digits.intercept)}（m）`;
   const callout = choosePistonOscillationFitCalloutCorner({
     plot,
     lineStart,
     lineEnd,
     points: points.map((point) => ({ x: point.chartX, y: point.chartY })),
-    calloutWidth: 252,
+    calloutWidth: Math.min(plot.width - 24, Math.max(252, equation.length * 7 + 24)),
     calloutHeight: 64,
   });
-  const interceptSign = fit.interceptM < 0 ? '−' : '+';
-  const equation = `h = ${formatFitCoefficient(fit.slopeMPerS2)}T² ${interceptSign} ${formatFitCoefficient(Math.abs(fit.interceptM))}（m）`;
   const xTicks = Array.from({ length: 5 }, (_, index) => xMin + (xMax - xMin) * index / 4);
   const yTicks = Array.from({ length: 5 }, (_, index) => yMin + (yMax - yMin) * index / 4);
 
@@ -730,11 +741,12 @@ export const PistonOscillationCalculationWindow = ({
 
   if (!open || !processing || !calculationSession) return null;
 
-  const knownRows = buildKnownConstantRows(processing);
+  const knownRows = buildKnownConstantRows(processing, language);
   const fitDataRows = buildFitDataRows(processing);
-  const canDismiss = calculationSession.status === 'ready-to-exit'
+  const uncertaintyDone = pistonUncertaintyComplete(calculationSession.uncertainty);
+  const canDismiss = Boolean(calculationSession.uncertainty) || calculationSession.status === 'ready-to-exit'
     || calculationSession.status === 'completed';
-  const readyToComplete = calculationSession.status === 'ready-to-exit';
+  const readyToComplete = calculationSession.status === 'ready-to-exit' && uncertaintyDone;
   const handleDismiss = () => {
     if (!canDismiss) return;
     if (readyToComplete) onCompleteAndExit();
@@ -792,14 +804,18 @@ export const PistonOscillationCalculationWindow = ({
       }}
     >
       <div id={noteId} className="studio-piston-calculation-tolerance-note" role="note">
-        {copy.tolerance}
+        {calculationSession.uncertainty
+          ? language === 'en'
+            ? 'Use each checked result in the next step. Keep the stated significant figures, using ties-to-even rounding; round γ for the final report after evaluating uncertainty.'
+            : '各步结果直接用于后续计算；按题目要求保留有效数字，采用五成双修约。完成不确定度计算后，再修约最终报告的 γ。'
+          : copy.tolerance}
       </div>
       <div className="studio-piston-calculation-body" data-scroll-on-overflow="true">
         <section className="studio-piston-calculation-known-panel" aria-labelledby={knownTitleId}>
           <header><strong id={knownTitleId}>{copy.knownTitle}</strong></header>
           <CalculationKnownGrid
             rows={knownRows}
-            columns={4}
+            columns={calculationSession.uncertainty ? 2 : 4}
             shortRowAlignment="start"
             style={{ '--calculation-known-value-width': '8ch' } as CSSProperties}
           />
@@ -927,13 +943,17 @@ export const PistonOscillationCalculationWindow = ({
                     {copy.checkAll}
                   </button>
                 ) : null}
-              {calculationSession.status === 'ready-to-exit'
-                || calculationSession.status === 'completed' ? (
+              {(calculationSession.status === 'ready-to-exit'
+                || calculationSession.status === 'completed') && uncertaintyDone ? (
                   <div className="studio-piston-calculation-ready" role="status">
                     {batchMode ? copy.freeReady : copy.ready}
                   </div>
                 ) : null}
             </div>
+            {calculationSession.uncertainty && (calculationSession.status === 'ready-to-exit' || calculationSession.status === 'completed') && (
+              <PistonOscillationUncertainty processing={processing} language={language}
+                onAction={action => dispatch({ type: 'uncertaintyAction', action })} />
+            )}
           </>
         ) : null}
       </div>
@@ -941,7 +961,9 @@ export const PistonOscillationCalculationWindow = ({
       {canDismiss ? (
         <footer className="studio-piston-calculation-footer">
           <button type="button" className="studio-piston-calculation-exit" onClick={handleDismiss}>
-            {readyToComplete ? copy.completeAndExit : copy.closeButton}
+            {readyToComplete ? copy.completeAndExit : calculationSession.uncertainty && calculationSession.status !== 'completed'
+              ? language === 'en' ? 'Save progress and close' : '保存进度，稍后继续'
+              : copy.closeButton}
           </button>
         </footer>
       ) : null}

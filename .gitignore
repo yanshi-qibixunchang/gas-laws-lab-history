@@ -27,6 +27,8 @@ __pycache__/
 # Local Codex workspace state
 .codex/
 .codex-tmp/
+.codex-precision-*
+.codex-uncertainty-teaching-qa/
 .playwright-cli/
 .playwright-mcp/
 output/

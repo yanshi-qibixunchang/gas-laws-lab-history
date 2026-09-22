@@ -115,6 +115,8 @@ assert.equal(completeHeatCapacityCalculationWorkflow(readOnly), readOnly);
 const zeroSpreadReference = createReference(0);
 let completeFree = createHeatCapacityCalculationWorkflowSession({
   mode: 'free',
+  // Preserve the historical rounded-gamma aggregation contract for old sessions.
+  answerRule: 'legacy-tolerance-v1',
   groups: [
     {
       trialId: 'rounded-free-1',

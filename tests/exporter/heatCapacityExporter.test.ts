@@ -4,6 +4,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import {
+  LEGACY_HEAT_CAPACITY_CALCULATION_ANSWER_SPECS as HEAT_CAPACITY_CALCULATION_ANSWER_SPECS,
+  validateHeatCapacityCalculationAnswer,
+  type HeatCapacityCalculationAnswerKind,
+} from '../../src/domain/heatCapacity/heatCapacityCalculationValidation.ts';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const exporter = join(root, 'tools', 'exporter', 'hsl_exporter.py');
@@ -22,7 +27,13 @@ const payload = JSON.parse(readFileSync(fixture, 'utf8')) as {
         physics: { gamma: number };
         sensor: { pressureMvPerKPa: number };
       };
-      calculationAudit: Array<{ symbol: string }>;
+      calculationAudit: Array<{
+        symbol: string;
+        answerKind: HeatCapacityCalculationAnswerKind;
+        expectedValue: number;
+        finalAnswer: string;
+        status: string;
+      }>;
       experiments: Array<{
         records: Record<'u0' | 'u1' | 'u2', { displayPressureMv: number }>;
         derivedResult: { U1CorrectedMv: number; U2CorrectedMv: number; gamma: number };
@@ -65,6 +76,13 @@ const assertClose = (actual: number, expected: number, label: string, tolerance 
 };
 
 for (const group of payload.data.groups) {
+  for (const record of group.calculationAudit) {
+    if (record.status !== 'correct') continue;
+    assert.equal(validateHeatCapacityCalculationAnswer(
+      record.finalAnswer, record.expectedValue,
+      HEAT_CAPACITY_CALCULATION_ANSWER_SPECS[record.answerKind],
+    ).correct, true, 'report examples marked correct must satisfy the real calculation rules');
+  }
   const p0 = group.parameterSnapshot.environment.ambientPressureKPa;
   const sensitivity = group.parameterSnapshot.sensor.pressureMvPerKPa;
   const gammaValues = group.experiments.map((experiment, index) => {
@@ -162,6 +180,29 @@ if (pythonCheck.status !== 0) {
       assert.match(pdffontsCheck.stdout, /SimSun/);
       assert.match(pdffontsCheck.stdout, /TimesNewRoman/);
       assert.doesNotMatch(pdffontsCheck.stdout, /Helvetica|MicrosoftYaHei|SimHei/);
+    }
+
+    // Exercise session-selected rounding through the complete PDF path. This
+    // exact midpoint differs between native binary rounding and decimal half-even.
+    const strictPayload = JSON.parse(readFileSync(fixture, 'utf8')) as {
+      data: { groups: Array<{
+        calculation: { kind: string; session?: { answerRule: string } };
+        result: { sampleStandardDeviation: number };
+      }> };
+    };
+    strictPayload.data.groups[0].calculation.session = { answerRule: 'strict-half-even-v2' };
+    strictPayload.data.groups[0].result.sampleStandardDeviation = 0.0325;
+    const strictInput = join(temporaryRoot, 'strict-midpoint.json');
+    const strictOutput = join(temporaryRoot, 'strict-midpoint');
+    writeFileSync(strictInput, JSON.stringify(strictPayload), 'utf8');
+    const strictExport = spawnSync('python', [exporter, '--input', strictInput,
+      '--out', strictOutput, '--formats', 'report'], { cwd: root, encoding: 'utf8', timeout: 120_000 });
+    assert.equal(strictExport.status, 0, strictExport.stderr || strictExport.stdout);
+    if (pdftotextAvailable) {
+      const strictText = spawnSync('pdftotext', [join(strictOutput, 'report.pdf'), '-'], { encoding: 'utf8' });
+      assert.equal(strictText.status, 0, strictText.stderr);
+      assert.match(strictText.stdout, /0\.032\b/, 'new reports must follow decimal half-even rounding');
+      assert.doesNotMatch(strictText.stdout, /0\.033\b/, 'new reports must not fall back to legacy midpoint rounding');
     }
 
     const reportOnlyOutput = join(temporaryRoot, 'report-only');

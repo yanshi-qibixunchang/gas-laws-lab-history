@@ -23,6 +23,8 @@ import type {
 import type {
   WorkbenchHeatCapacityPistonOscillationState,
 } from './workbenchPistonOscillationState.ts';
+import { calculatePistonUncertainty, PISTON_UNCERTAINTY_PHASES, PISTON_UNCERTAINTY_FIELDS, pistonUncertaintyComplete, pistonUncertaintyReference, pistonUncertaintyDigits } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import { buildPistonUncertaintyPresentation } from '../../domain/pistonOscillation/pistonOscillationUncertaintyPresentation.ts';
 
 export const PISTON_OSCILLATION_REPORT_EXPORT_KIND =
   'heat-capacity-piston-oscillation' as const;
@@ -67,6 +69,7 @@ export const isPistonOscillationReportReady = (
     || processing?.status !== 'completed'
     || processing.linearFitResult === null
     || processing.calculationSession?.status !== 'completed'
+    || !pistonUncertaintyComplete(processing.calculationSession.uncertainty)
     || processing.runs.length < 3
   ) return false;
   if (
@@ -215,6 +218,8 @@ export const createPistonOscillationReportExportPayload = (
       pressOperationEvidence: record.pressOperationEvidence,
       selection: run.selection,
       periodResult: run.result,
+      calculationPrecision: run.calculationPrecision,
+      fitHeightMm: run.fitHeightMm,
       includedInFit: processing.linearFitResult?.selectedRunIndices.includes(
         run.measurementIndex,
       ) ?? false,
@@ -267,6 +272,26 @@ export const createPistonOscillationReportExportPayload = (
       )
     : null;
   const calculation = processing.calculationSession;
+  const uncertaintyAnalysis = calculation?.uncertainty && processing.linearFitResult
+    ? calculatePistonUncertainty(calculation.knowns, processing.linearFitResult, processing.runs, calculation.uncertainty.profile) : null;
+  const uncertaintyCopy = calculation?.uncertainty && uncertaintyAnalysis
+    ? buildPistonUncertaintyPresentation(calculation.uncertainty, uncertaintyAnalysis, language) : null;
+  const uncertaintyReport = calculation?.uncertainty && uncertaintyAnalysis && uncertaintyCopy ? {
+    version: calculation.uncertainty.version,
+    parameterRows: uncertaintyCopy.parameterRows,
+    analysis: uncertaintyAnalysis,
+    phases: PISTON_UNCERTAINTY_PHASES.map(phase => ({
+      ...uncertaintyCopy.lessons[phase],
+      items: PISTON_UNCERTAINTY_FIELDS[phase].map(id => ({
+        id, ...uncertaintyCopy.fields[id],
+        reference: pistonUncertaintyReference(id, uncertaintyAnalysis),
+        working: uncertaintyAnalysis.values[id],
+        significantFigures: pistonUncertaintyDigits(id, uncertaintyAnalysis),
+        answer: calculation.uncertainty!.answers[id],
+      })),
+    })),
+    result: `γ = ${pistonUncertaintyReference('result', uncertaintyAnalysis)} ± ${pistonUncertaintyReference('expanded', uncertaintyAnalysis)} (k = ${calculation.uncertainty.profile.coverage})`,
+  } : null;
   const completedAtMs = getSessionCompletionTime(session);
   const exportedAtMs = Date.now();
   const scheme = session.experimentGroup.scheme;
@@ -314,6 +339,7 @@ export const createPistonOscillationReportExportPayload = (
         fitPointCount: processing.linearFitResult?.selectedRunIndices.length ?? 0,
         areaM2: calculation?.answers.area.expectedValue ?? null,
         gamma: calculation?.answers.gamma.expectedValue ?? null,
+        reportedGamma: uncertaintyAnalysis ? pistonUncertaintyReference('result', uncertaintyAnalysis) : null,
         scheme,
         gasType,
         scoringEligible,
@@ -334,6 +360,8 @@ export const createPistonOscillationReportExportPayload = (
       measurements,
       linearFitResult: processing.linearFitResult,
       calculationSession: calculation,
+      ...(uncertaintyReport ? { uncertaintyReport } : {}),
+      precisionVersion: processing.precisionVersion,
       processingAudit: processing.audit,
       instrumentAudit: session.audit,
     },

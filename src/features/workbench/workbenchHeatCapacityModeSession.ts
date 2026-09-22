@@ -981,6 +981,7 @@ const decodeCalculationWorkflowStep = decodeRecord({
 });
 
 const decodeCalculationGroupReference = decodeRecord({
+  pressureSensitivityMvPerKPa: decodeOptional(decodePositiveFiniteNumber),
   u0Mv: decodeFiniteNumber,
   u1Mv: decodeFiniteNumber,
   u2Mv: decodeFiniteNumber,
@@ -1016,6 +1017,7 @@ const decodeCalculationWorkflowAggregate = decodeRecord({
 
 const decodeCalculationWorkflowSessionShape = decodeRecord({
   version: decodeLiteral([1]),
+  answerRule: decodeOptional(decodeLiteral(['legacy-tolerance-v1', 'strict-half-even-v2'])),
   mode: decodeLiteral(['guide', 'free', 'demo']),
   presentation: decodeLiteral(['interactive', 'system-readonly', 'legacy-readonly']),
   status: decodeLiteral(['in-progress', 'ready-to-exit', 'completed']),
@@ -1138,10 +1140,9 @@ export const normalizeHeatCapacityCalculationWorkflowSessionForTrials = (
   authority: CreateHeatCapacityCalculationWorkflowSessionOptions,
 ): HeatCapacityCalculationWorkflowSession | null => {
   if (value === null || value === undefined) return null;
-  const canonical = createHeatCapacityCalculationWorkflowSession(authority);
   const decoded = decodeCalculationWorkflowSessionShape(value);
   if (decoded === INVALID_RUNTIME_VALUE || !isPlainRecord(decoded)) {
-    return canonical;
+    return createHeatCapacityCalculationWorkflowSession(authority);
   }
   return rehydrateHeatCapacityCalculationWorkflowSession(
     decoded as unknown as HeatCapacityCalculationWorkflowSession,

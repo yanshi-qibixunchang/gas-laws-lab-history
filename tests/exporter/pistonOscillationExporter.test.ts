@@ -3,6 +3,10 @@ const workbenchStandardResultsWindowSource = readWorkbenchViewSource(new URL('..
 import { readFileSync as readWorkbenchViewSource } from 'node:fs';
 const workbenchPistonOscillationRealtimeSource = readWorkbenchViewSource(new URL('../../src/features/workbench/WorkbenchPistonOscillationRealtime.tsx', import.meta.url), 'utf8');
 import assert from 'node:assert/strict';
+import { createPistonUncertaintyCourse, calculatePistonUncertainty, normalizePistonUncertaintyCourse } from '../../src/domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import { completeUncertaintyExercises } from '../pistonOscillation/helpers/pistonUncertaintyCourseTestHelpers.ts';
+import { completePistonOscillationCalculation, formatPistonOscillationCalculationAnswer, getPistonPrecisionObservations } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import { normalizePistonPrecisionKnowns, planPistonPrecision, PISTON_PRECISION_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationPrecisionModel.ts';
 import { spawnSync } from 'node:child_process';
 import {
   copyFileSync,
@@ -146,24 +150,24 @@ const runs = records.map((record, measurementIndex) => {
 
 const calculationAnswers = {
   area: {
-    draftRaw: '0.000830',
-    expectedValue: 0.00083,
+    draftRaw: '0.0008296',
+    expectedValue: 0.0008296,
     status: 'correct',
     feedback: null,
     attempts: [],
     resolution: 'first-correct',
   },
   gamma: {
-    draftRaw: '1.3987',
-    expectedValue: 1.3987,
+    draftRaw: '1.379',
+    expectedValue: 1.379,
     status: 'correct',
     feedback: null,
     attempts: [],
     resolution: 'retry-correct',
   },
   relativeError: {
-    draftRaw: '0.11',
-    expectedValue: 0.11,
+    draftRaw: '1.50',
+    expectedValue: 1.50,
     status: 'correct',
     feedback: null,
     attempts: [],
@@ -483,6 +487,10 @@ if (pythonCheck.status !== 0) {
       assert.match(reportText, /第\s*1\s*次/);
       assert.doesNotMatch(reportText, /实验原理|计算公式/);
       assert.doesNotMatch(reportText, /�/u);
+      assert.match(reportText, /0\.0008296\s*m\^2/, 'area must retain four significant figures');
+      assert.match(reportText, /1\.379\b/, 'gamma must retain four significant figures');
+      assert.doesNotMatch(reportText, /1\.3790\b|0\.000830\s*m\^2/);
+      assert.match(reportText, /1\.50%/, 'relative error must retain three significant figures');
     }
 
     const idealInput = join(temporaryRoot, 'ideal-payload.json');
@@ -541,6 +549,72 @@ if (pythonCheck.status !== 0) {
     if (qaSixReportPath) {
       mkdirSync(dirname(qaSixReportPath), { recursive: true });
       copyFileSync(join(sixOutput, 'report.pdf'), qaSixReportPath);
+    }
+    const uncertaintyFile = structuredClone(file);
+    uncertaintyFile.name = '活塞振动法 - 不确定度教学示例';
+    let processing = uncertaintyFile.pistonOscillationFreeSession.dataProcessing!;
+    const newCourse = createPistonUncertaintyCourse();
+    const sampleKnowns = normalizePistonPrecisionKnowns(processing.calculationSession!.knowns);
+    processing.calculationSession!.knowns = sampleKnowns;
+    processing.precisionVersion = PISTON_PRECISION_VERSION;
+    for (const run of processing.runs) {
+      run.calculationPrecision = { period: 6, squared: 7 };
+      run.fitHeightMm = run.targetHeightMm;
+      run.result!.t1S = Number(run.result!.t1S.toFixed(3));
+      run.result!.t2S = Number(run.result!.t2S.toFixed(3));
+      run.result!.deltaTimeS = Number((run.result!.t2S - run.result!.t1S).toFixed(3));
+    }
+    const { plan, chain } = planPistonPrecision(sampleKnowns, getPistonPrecisionObservations(processing.runs, [0,1,2]), newCourse.profile);
+    assert.equal(plan.verified, true);
+    for (const row of chain.rows) {
+      const run = processing.runs[row.runIndex];
+      run.calculationPrecision = plan.periods[row.runIndex];
+      run.result!.periodS = row.periodS;
+      run.result!.periodSquaredS2 = row.x;
+    }
+    processing.linearFitResult = { ...processing.linearFitResult!, precisionPlan: plan,
+      slopeMPerS2: chain.slope, interceptM: chain.intercept, rSquared: chain.rSquared,
+      points: processing.linearFitResult!.points.map((point, i) => ({ ...point, periodSquaredS2: chain.rows[i].x, heightM: chain.rows[i].y })),
+    };
+    for (const [id, value] of [['area', chain.area], ['gamma', chain.gamma], ['relativeError', chain.relativeError]] as const) {
+      const answer = processing.calculationSession!.answers[id];
+      answer.expectedValue = value;
+      answer.significantFigures = id === 'relativeError' ? 3 : plan.digits[id];
+      answer.draftRaw = formatPistonOscillationCalculationAnswer(id, value, answer);
+    }
+    processing.processingPolicy.answerValidationMode = 'batch';
+    processing.status = 'calculation-ready';
+    processing.calculationSession!.status = 'ready-to-exit';
+    processing.uncertaintyCourseVersion = newCourse.version;
+    processing.calculationSession!.uncertainty = normalizePistonUncertaintyCourse(null,
+      calculatePistonUncertainty(processing.calculationSession!.knowns, processing.linearFitResult!, processing.runs, newCourse.profile));
+    assert.equal(isPistonOscillationReportReady(uncertaintyFile), false);
+    processing = completePistonOscillationCalculation(completeUncertaintyExercises(processing), 1_725_080_550_000);
+    uncertaintyFile.pistonOscillationFreeSession.dataProcessing = processing;
+    const uncertaintyPayload = createPistonOscillationReportExportPayload(uncertaintyFile, 'zh-CN');
+    if (uncertaintyPayload.kind !== 'json') throw new Error('Expected uncertainty JSON report payload.');
+    assert.equal(uncertaintyPayload.data.uncertaintyReport?.phases.length, 3);
+    assert.equal(uncertaintyPayload.data.uncertaintyReport?.phases.flatMap(phase => phase.items).length, 10);
+    assert.equal(uncertaintyPayload.data.uncertaintyReport?.analysis.values.pressure, 100);
+    const uncertaintyInput = join(temporaryRoot, 'uncertainty.json');
+    const uncertaintyOutput = join(temporaryRoot, 'uncertainty');
+    writeFileSync(uncertaintyInput, JSON.stringify(uncertaintyPayload), 'utf8');
+    const uncertaintyResult = spawnSync('python', [exporter, '--input', uncertaintyInput, '--out', uncertaintyOutput, '--formats', 'report'], { cwd: root, encoding: 'utf8', timeout: 120_000 });
+    assert.equal(uncertaintyResult.status, 0, uncertaintyResult.stderr || uncertaintyResult.stdout);
+    const uncertaintyText = join(temporaryRoot, 'uncertainty.txt');
+    const uncertaintyExtract = spawnSync('pdftotext', [join(uncertaintyOutput, 'report.pdf'), uncertaintyText], { encoding: 'utf8' });
+    if (uncertaintyExtract.status === 0) {
+      const contents = readFileSync(uncertaintyText, 'utf8');
+      for (const phrase of ['不确定度教学与计算', '误差限换算与传播', '合成标准不确定度', '扩展不确定度']) assert.ok(contents.includes(phrase), phrase);
+      assert.doesNotMatch(contents, /�/u);
+      assert.ok(contents.includes('0.0003464'));
+      assert.doesNotMatch(contents, /标尺比例|时基比例|校准残余|显示量化|逐点依据|√12/);
+      assert.doesNotMatch(contents, /前面逐步舍入|本段独立|后续运算值/);
+    }
+    const uncertaintyQaPath = process.env.HSL_PISTON_UNCERTAINTY_QA_REPORT_PATH;
+    if (uncertaintyQaPath) {
+      mkdirSync(dirname(uncertaintyQaPath), { recursive: true });
+      copyFileSync(join(uncertaintyOutput, 'report.pdf'), uncertaintyQaPath);
     }
   } finally {
     rmSync(temporaryRoot, { recursive: true, force: true });

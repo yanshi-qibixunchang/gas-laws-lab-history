@@ -7,6 +7,8 @@ import {
   roundProductSignificantFiguresHalfEven,
   roundRatioSignificantFiguresHalfEven,
   roundSignificantFiguresHalfEven,
+  roundMeanSignificantFiguresHalfEven,
+  roundRootSumSquaresHalfEven,
 } from '../../src/domain/calculation/decimalHalfEven.ts';
 import {
   formatNumericAnswerReference,
@@ -16,6 +18,18 @@ import {
 
 // Exact decimal ties must use the retained digit's parity, not a binary-float
 // approximation around 0.5.
+assert.equal(roundMeanSignificantFiguresHalfEven(['1.370', '1.381', '1.379', '1.400'], 4), 1.382);
+assert.equal(roundMeanSignificantFiguresHalfEven(['-1.382', '-1.383'], 4), -1.382);
+assert.equal(roundMeanSignificantFiguresHalfEven(['0', '0'], 4), 0);
+assert.throws(() => roundMeanSignificantFiguresHalfEven([], 4), RangeError);
+for (const [input, expected] of [['0.105', 0.10], ['0.115', 0.12], ['9.95', 10],
+  ['-0.105', 0.10], ['0.000000105', 1e-7]] as const) {
+  assert.equal(roundRootSumSquaresHalfEven([input], 0, 1, 2), expected);
+}
+assert.equal(roundRootSumSquaresHalfEven(['3', '4'], 0, 1, 4), 5);
+assert.equal(roundRootSumSquaresHalfEven(['1', '1'], 0, 1, 5), 1.4142);
+assert.equal(roundRootSumSquaresHalfEven(['1', '1'], 1, 1, 2), 0);
+assert.throws(() => roundRootSumSquaresHalfEven(['1'], 0, 0, 2), RangeError);
 assert.equal(formatDecimalPlacesHalfEven('2.675', 2), '2.68');
 assert.equal(formatDecimalPlacesHalfEven('2.685', 2), '2.68');
 assert.equal(formatDecimalPlacesHalfEven('2.6851', 2), '2.69');

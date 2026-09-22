@@ -27,12 +27,14 @@ import {
 import {
   completePistonOscillationCalculation,
   formatPistonOscillationCalculationAnswer,
+  normalizePistonOscillationDataProcessingSession,
   submitPistonOscillationCalculationField,
   submitPistonOscillationLinearFit,
   togglePistonOscillationFitRun,
   updatePistonOscillationCalculationDraft,
   type PistonOscillationDataProcessingSession,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import { createPistonUncertaintyCourse, PISTON_UNCERTAINTY_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import type {
   PistonOscillationFreeSession,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
@@ -147,20 +149,16 @@ for (const [filename, sourceCommit, sourceVersion] of fixtureSources) {
     if (oldProcessing !== null) {
       const processing = current.dataProcessing as PistonOscillationDataProcessingSession;
       assert.equal(oldProcessing.status, 'completed');
-      assert.equal(processing.status, 'calculation-ready');
+      assert.equal(processing.status, 'period-processing');
+      assert.equal(processing.precisionNotice, 'upgraded');
       assert.equal(processing.linearFitResult, null);
-      assert.equal(processing.calculationSession?.status, 'selecting-points');
-      assert.deepEqual(processing.calculationSession?.selectedRunIndices, []);
-      assert.deepEqual(processing.audit, oldProcessing.audit);
+      assert.equal(processing.calculationSession, null);
       for (const [index, run] of processing.runs.entries()) {
         const oldRun = oldProcessing.runs[index]!;
-        assert.deepEqual(run.selection, oldRun.selection);
-        assert.deepEqual(run.answers, oldRun.answers, 'valid endpoint/period answer evidence must survive');
-        assert.deepEqual(run.batchAttempts, oldRun.batchAttempts);
-        assert.equal(run.result?.periodS, oldRun.result?.periodS);
-        assert.equal(run.result?.leftSampleIndex, oldRun.result?.leftSampleIndex);
-        assert.equal(run.result?.rightSampleIndex, oldRun.result?.rightSampleIndex);
-        assert.equal(run.result?.completedAtMs, oldRun.result?.completedAtMs);
+        assert.equal(run.rawMeasurementRecordId, oldRun.rawMeasurementRecordId);
+        assert.ok(Object.values(run.answers).every(answer => answer.status === 'unresolved'));
+        assert.equal(run.result, null, 'obsolete precision checks must not remain approved');
+        assert.deepEqual(run.calculationPrecision, { period: 6, squared: 7 });
       }
     }
     const runtime = reprojectWorkbenchPersistenceV3File(decoded.value);
@@ -221,22 +219,8 @@ for (const [filename, sourceCommit, sourceVersion] of fixtureSources) {
   const processedFile = restoredFiles.at(-1)!;
   assert.equal(processedFile.kind, 'heatCapacityPistonOscillation');
   if (processedFile.kind !== 'heatCapacityPistonOscillation') throw new Error('Expected piston file.');
-  let processing = processedFile.pistonOscillationFreeSession.dataProcessing!;
-  for (let index = 0; index < processing.runs.length; index += 1) {
-    processing = togglePistonOscillationFitRun(processing, index, 4000 + index);
-  }
-  processing = submitPistonOscillationLinearFit(processing, 4100, { requireAllRuns: true });
-  for (const field of ['area', 'gamma', 'relativeError'] as const) {
-    processing = updatePistonOscillationCalculationDraft(
-      processing, field,
-      formatPistonOscillationCalculationAnswer(field, processing.calculationSession!.answers[field].expectedValue!),
-      4200,
-    );
-    processing = submitPistonOscillationCalculationField(processing, field, 4300);
-  }
-  processing = completePistonOscillationCalculation(processing, 4400);
-  assert.equal(processing.status, 'completed');
-  processedFile.pistonOscillationFreeSession.dataProcessing = processing;
+  const processing = processedFile.pistonOscillationFreeSession.dataProcessing!;
+  assert.equal(processing.status, 'period-processing');
   const currentProjection = projectWorkbenchPersistenceV3File(processedFile);
   assert.ok(currentProjection.ok);
   if (!currentProjection.ok) throw new Error('Expected current completed experiment to project.');
@@ -250,6 +234,48 @@ for (const [filename, sourceCommit, sourceVersion] of fixtureSources) {
     assert.deepEqual((currentDecoded.value.fields.authoritative.freeSession as PistonOscillationFreeSession).dataProcessing, processing);
   }
 
+  // Also upgrade the immediately preceding schema-10 calculation precision,
+  // including files with the old uncertainty course already attached.
+  let oldCurrent = normalizePistonOscillationDataProcessingSession(
+    recordOf(sourceRecords[2]!.projection.fields.authoritative.freeSession).dataProcessing,
+    processedFile.pistonOscillationFreeSession.savedMeasurements, 4000,
+    { answerValidationMode: 'batch' },
+  )!;
+  for (let index = 0; index < oldCurrent.runs.length; index++) oldCurrent = togglePistonOscillationFitRun(oldCurrent, index, 4001);
+  oldCurrent = submitPistonOscillationLinearFit(oldCurrent, 4100, { requireAllRuns: true });
+  for (const field of ['area', 'gamma', 'relativeError'] as const) {
+    oldCurrent = updatePistonOscillationCalculationDraft(oldCurrent, field,
+      formatPistonOscillationCalculationAnswer(field, oldCurrent.calculationSession!.answers[field].expectedValue!), 4200);
+    oldCurrent = submitPistonOscillationCalculationField(oldCurrent, field, 4300);
+  }
+  oldCurrent = completePistonOscillationCalculation(oldCurrent, 4400);
+  assert.equal(oldCurrent.status, 'completed');
+  for (const withUncertainty of [false, true]) {
+    const prior = structuredClone(currentEncoded.value);
+    const free = recordOf(prior.projection.fields.authoritative.freeSession);
+    const legacyProgress = structuredClone(oldCurrent);
+    if (withUncertainty) {
+      legacyProgress.uncertaintyCourseVersion = PISTON_UNCERTAINTY_VERSION;
+      legacyProgress.calculationSession!.uncertainty = createPistonUncertaintyCourse();
+      legacyProgress.status = 'calculation-ready';
+      legacyProgress.calculationSession!.status = 'calculating';
+      legacyProgress.calculationSession!.completedAtMs = null;
+    }
+    free.dataProcessing = legacyProgress;
+    const upgraded = decodeWorkbenchPersistenceV3FileRecord(prior);
+    assert.ok(upgraded.ok, `schema 10 precision migration: ${JSON.stringify(upgraded.diagnostics)}`);
+    if (upgraded.ok) {
+      assert.equal(upgraded.status, 'migrated');
+      const upgradedFree = recordOf(upgraded.value.fields.authoritative.freeSession);
+      assert.deepEqual(upgradedFree.savedMeasurements, free.savedMeasurements);
+      assert.equal(recordOf(upgradedFree.dataProcessing).precisionNotice, 'upgraded');
+      assert.equal(recordOf(upgradedFree.dataProcessing).calculationSession, null);
+    }
+    const malformed = structuredClone(prior);
+    recordOf(recordOf(malformed.projection.fields.authoritative.freeSession).dataProcessing).unknownAuthority = true;
+    assert.equal(decodeWorkbenchPersistenceV3FileRecord(malformed).ok, false);
+  }
+
   const observedOutcomes = new Set<string>();
   for (const { name, dataProcessing } of fixture.answerCases) {
     const source = structuredClone(sourceRecords[2]!);
@@ -260,13 +286,12 @@ for (const [filename, sourceCommit, sourceVersion] of fixtureSources) {
     assert.equal(decoded.status, 'migrated');
     const restored = (decoded.value.fields.authoritative.freeSession as PistonOscillationFreeSession).dataProcessing!;
     for (const [index, run] of dataProcessing.runs.entries()) {
-      assert.deepEqual(restored.runs[index]!.answers, run.answers, `${name}: preserve period answer evidence`);
-      assert.deepEqual(restored.runs[index]!.batchAttempts, run.batchAttempts, `${name}: preserve period batch evidence`);
+      assert.equal(restored.runs[index]!.rawMeasurementRecordId, run.rawMeasurementRecordId);
+      assert.ok(Object.values(restored.runs[index]!.answers).every(answer => answer.status === 'unresolved'), `${name}: invalidate obsolete precision checks`);
+      assert.equal(restored.runs[index]!.result, null);
     }
-    assert.deepEqual(restored.audit, dataProcessing.audit);
-    if (dataProcessing.calculationSession !== null) {
-      assert.equal(restored.calculationSession?.status, 'selecting-points');
-    }
+    assert.equal(restored.precisionNotice, 'upgraded');
+    assert.equal(restored.calculationSession, null);
     for (const answers of [
       ...dataProcessing.runs.map((run) => Object.values(run.answers)),
       Object.values(dataProcessing.calculationSession?.answers ?? {}),
@@ -287,12 +312,12 @@ for (const [filename, sourceCommit, sourceVersion] of fixtureSources) {
     assert.equal(decoded.status, 'migrated');
     const restored = (decoded.value.fields.authoritative.freeSession as PistonOscillationFreeSession).dataProcessing!;
     assert.equal(restored.linearFitResult, null);
-    assert.equal(restored.calculationSession?.status, 'selecting-points');
+    assert.equal(restored.calculationSession, null);
     for (const [index, run] of original.runs.entries()) {
-      assert.deepEqual(restored.runs[index]!.answers, run.answers);
-      assert.equal(restored.runs[index]!.result?.periodS, run.result?.periodS);
+      assert.equal(restored.runs[index]!.rawMeasurementRecordId, run.rawMeasurementRecordId);
+      assert.equal(restored.runs[index]!.result, null);
     }
-    assert.deepEqual(restored.audit, original.audit);
+    assert.equal(restored.precisionNotice, 'upgraded');
     legacyFitCaseCount += 1;
     for (const field of ['rSquared', 'slopeMPerS2', 'interceptM']) {
       const malformed = structuredClone(record);
