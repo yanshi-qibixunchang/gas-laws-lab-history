@@ -53,7 +53,8 @@ const discardCurrentHeatCapacityFreeExperimentRuntime = (
     [
       shouldDiscardLastTrial ? lastTrial?.traceTrialId ?? null : null,
       file.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId,
-    ].filter((id): id is string => typeof id === 'string'),
+    ].filter((id): id is string => typeof id === 'string'
+      && !file.heatCapacityFreeRunWorkspace.trials.some(trial => trial.completedAtMs != null && trial.traceTrialId === id)),
   );
   let traceStore = file.heatCapacityFreeRunWorkspace.traceStore;
   for (const traceTrialId of traceTrialIds) {
@@ -194,4 +195,3 @@ export const prepareNextHeatCapacityFreeExperimentWorkbenchState = (
     false,
   );
 };
-

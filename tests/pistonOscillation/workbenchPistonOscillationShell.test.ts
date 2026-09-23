@@ -531,8 +531,8 @@ assert.match(
 );
 assert.match(
   workbenchPistonOscillationRealtimeSource,
-  /experimentGroup\.scheme === 'ideal'[\s\S]*不评分的过程证据[\s\S]*score summary as PDF/,
-  'report export copy must distinguish unscored Ideal evidence from Real score summaries',
+  /Export saved curves, data tables, or a complete PDF report\./,
+  'the shared export entry describes available formats without promising scores for Ideal experiments',
 );
 assert.match(contractUseWorkbenchPistonProcessingViewSource, /completedDataProcessingReview: pistonOscillationCompletedDataProcessingReview,[\s\S]*dataProcessingOpen: activePistonOscillationDataProcessing,[\s\S]*dataProcessingReviewRequested: pistonOscillationDataProcessingReviewOpen,/, 'completed processing review must use the shared view selection and explicit UI request');
 assert.match(contractWorkbenchPistonOscillationRealtimeSource, /reviewMode=\{pistonOscillationCompletedDataProcessingReview\}/, 'completed processing review must use the shared view selection and explicit UI request');

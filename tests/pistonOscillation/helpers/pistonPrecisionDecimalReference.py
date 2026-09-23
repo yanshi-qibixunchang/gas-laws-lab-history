@@ -46,7 +46,7 @@ def calc(case, rounded):
         q = D(0)
     area = r('area', PI*k['cylinderDiameterM']**2/4)
     gamma = r('gamma', 4*PI**2*k['movingMassKg']*a/(area*k['pressurePa']))
-    v = {}
+    v = {'meanX': mx, 'sxx': sxx}
     v['residual'] = r('residual', (q/(n-2)).sqrt())
     v['slopeA'] = r('slopeA', v['residual']/sxx.sqrt())
     v['gammaA'] = r('gammaA', abs(gamma/a)*v['slopeA'])
@@ -61,8 +61,8 @@ def calc(case, rounded):
     v['gammaB'] = r('gammaB', abs(gamma)*((v['slopeB']/a)**2+(v['mass']/k['movingMassKg'])**2+(2*v['diameter']/k['cylinderDiameterM'])**2+(v['pressure']/k['pressurePa'])**2).sqrt())
     v['combined'] = r('combined', (v['gammaA']**2+v['gammaB']**2).sqrt())
     v['relative'] = sig(100*v['combined']/abs(gamma), 3)
-    v['expanded'] = sig(p['coverage']*v['combined'], 2)
-    power = v['expanded'].adjusted()-1
+    v['reportCombined'] = sig(v['combined'], 2)
+    power = v['reportCombined'].adjusted()-1
     v['result'] = gamma.quantize(D(1).scaleb(power), rounding=ROUND_HALF_EVEN)
     return dict(values=v, gamma=gamma, area=area, slope=a, intercept=b, q=q, sxx=sxx,
                 meanX=mx, meanY=my, relativeError=sig(100*abs(gamma-k['referenceGamma'])/k['referenceGamma'], 3), rows=rows)

@@ -1,4 +1,4 @@
-import { formatDecimalPlacesHalfEven, formatSignificantFiguresHalfEven, roundSignificantFiguresHalfEven, roundDecimalPlacesHalfEven, roundProductSignificantFiguresHalfEven, roundSumProductsSignificantFiguresHalfEven, roundRatioSignificantFiguresHalfEven } from '../calculation/decimalHalfEven.ts';
+import { formatDecimalPlacesHalfEven, formatSignificantFiguresHalfEven, roundSignificantFiguresHalfEven, roundDecimalPlacesHalfEven, roundProductSignificantFiguresHalfEven, roundSumProductsSignificantFiguresHalfEven, roundRatioSignificantFiguresHalfEven, roundMeanSignificantFiguresHalfEven } from '../calculation/decimalHalfEven.ts';
 
 export const PISTON_PRECISION_VERSION = 'piston-continuous-precision-v1' as const;
 export const PISTON_PERIOD_DIGITS = 6;
@@ -6,7 +6,7 @@ export const PISTON_SQUARED_DIGITS = 7;
 export interface PistonPrecisionKnowns { movingMassKg: number; cylinderDiameterM: number; pressurePa: number; referenceGamma: number }
 export interface PistonPrecisionProfile {
   massLimitKg: number; diameterLimitM: number;
-  heightScaleLimit: number; timeScaleLimit: number; heightStepM: number; coverage: number;
+  heightScaleLimit: number; timeScaleLimit: number; heightStepM: number;
   pressureStandardPa: number;
 }
 export interface PistonPrecisionObservation {
@@ -66,7 +66,8 @@ export const evaluatePistonPrecisionChain = (
   const exactSlope = points.reduce((sum, p) => sum + (p.x - exactMeanX) * (p.y - exactMeanY), 0) / fitSxx;
   const slope = r('slope', exactSlope);
   const intercept = r('intercept', exactMeanY - exactSlope * exactMeanX);
-  const meanX = r('meanX', exactMeanX);
+  const meanX = plan && n > 0 && points.every(p => Number.isFinite(p.x))
+    ? roundMeanSignificantFiguresHalfEven(points.map(p => p.x), plan.digits.meanX) : exactMeanX;
   const meanY = r('meanY', exactMeanY);
   const sxx = r('sxx', points.reduce((sum, p) => sum + (p.x - meanX) ** 2, 0));
   const rows = points.map(p => ({
@@ -104,10 +105,10 @@ export const evaluatePistonPrecisionChain = (
   const gammaB = r('gammaB', Math.abs(gamma) * Math.hypot(slopeB / slope, mass / knowns.movingMassKg, 2 * diameter / knowns.cylinderDiameterM, pressure / knowns.pressurePa));
   const combined = r('combined', Math.hypot(gammaA, gammaB));
   const relative = finiteRound(100 * combined / Math.abs(gamma), 3);
-  const expanded = finiteRound(profile.coverage * combined, 2); // final report only
-  const resultPower = expanded > 0 && Number.isFinite(expanded) ? Math.floor(Math.log10(expanded)) - 1 : 0;
+  const reportCombined = finiteRound(combined, 2); // final report only; no coverage multiplier
+  const resultPower = reportCombined > 0 && Number.isFinite(reportCombined) ? Math.floor(Math.log10(reportCombined)) - 1 : 0;
   const result = Number.isFinite(gamma) ? Number(`${formatDecimalPlacesHalfEven(gamma / 10 ** resultPower, 0)}e${resultPower}`) : NaN;
-  const values = { residual, slopeA, gammaA, mass, diameter, pressure, heightScale, timeScale, heightReadout, slopeReadout, slopeSupplement, slopeB, gammaB, combined, relative, expanded, result };
+  const values = { meanX, sxx, residual, slopeA, gammaA, mass, diameter, pressure, heightScale, timeScale, heightReadout, slopeReadout, slopeSupplement, slopeB, gammaB, combined, relative, reportCombined, result };
   const total = points.reduce((sum, p) => sum + (p.y - exactMeanY) ** 2, 0);
   const rSquared = total > 0 ? 1 - rows.reduce((sum, p) => sum + p.residual ** 2, 0) / total : 1;
   return { n, area, gamma, relativeError, slope, intercept, meanX, meanY, sxx, q, rows, values, resultPower, rSquared };
@@ -124,7 +125,7 @@ export const assessPistonPrecision = (actual: PistonPrecisionChain, reference: P
     return Math.abs(actual.values[id] - reference.values[id]) <= Math.abs(reference.values[id]) * 0.001;
   });
   const supplementAgrees = Math.abs(actual.values.slopeSupplement - reference.values.slopeSupplement) * Math.abs(reference.gamma / reference.slope) <= uc * 0.001;
-  const reportsAgree = actual.values.expanded === reference.values.expanded
+  const reportsAgree = actual.values.reportCombined === reference.values.reportCombined
     && actual.values.result === reference.values.result && actual.resultPower === reference.resultPower
     && actual.values.relative === reference.values.relative && actual.relativeError === reference.relativeError;
   return { verified: gammaErrorInUc <= 0.001 && combinedRelativeError <= 0.001 && budgetsAgree && sourcesAgree && supplementAgrees && reportsAgree, gammaErrorInUc, combinedRelativeError };

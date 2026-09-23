@@ -74,7 +74,7 @@ export interface HeatCapacityFreeCorrectedSignals {
   U2DisplayMv: number;
   U1CorrectedMv: number;
   U2CorrectedMv: number;
-  u0Source: 'recorded' | 'assumed-zero';
+  u0Source: 'recorded' | 'automatic' | 'assumed-zero';
   formulaGamma: number;
   preheatBiasGamma: number;
   gamma: number;
@@ -129,7 +129,7 @@ export interface HeatCapacityFreeProcessingTrialResult {
   U2DisplayMv: number | null;
   U1CorrectedMv: number | null;
   U2CorrectedMv: number | null;
-  u0Source: 'recorded' | 'assumed-zero' | null;
+  u0Source: 'recorded' | 'automatic' | 'assumed-zero' | null;
   formulaGamma: number | null;
   preheatBiasGamma: number | null;
   gamma: number | null;
@@ -224,6 +224,15 @@ export const normalizeHeatCapacityFreeRecordInput = (
   eventId: input.eventId ?? null,
 });
 
+/** Manual records take precedence; an absent zero record is never a zero value. */
+export const getHeatCapacityFreePublicZero = (trial: Pick<HeatCapacityFreeTrial, 'u0' | 'automaticU0'>) => {
+  const record = trial.u0 ?? trial.automaticU0;
+  return record && Number.isFinite(record.displayPressureMv)
+    ? { ...record, displayPressureMv: truncateHeatCapacitySignalMv(record.displayPressureMv),
+        displayTemperatureMv: truncateHeatCapacitySignalMv(record.displayTemperatureMv) }
+    : null;
+};
+
 export const calculateFreeHeatCapacityTrialSignals = (
   trial: HeatCapacityFreeTrial,
   options: HeatCapacityFreeTrialCalculationOptions = {},
@@ -231,7 +240,9 @@ export const calculateFreeHeatCapacityTrialSignals = (
   if (!trial.u1 || !trial.u2) {
     return null;
   }
-  const U0DisplayMv = trial.u0?.displayPressureMv ?? 0;
+  const zero = getHeatCapacityFreePublicZero(trial);
+  if (!zero) return null;
+  const U0DisplayMv = zero.displayPressureMv;
   const corrected = getFreeCorrectedSignals({
     U0DisplayMv,
     U1DisplayMv: trial.u1.displayPressureMv,
@@ -265,7 +276,7 @@ export const calculateFreeHeatCapacityTrialSignals = (
     U2DisplayMv: trial.u2.displayPressureMv,
     U1CorrectedMv: roundNumber(corrected.U1CorrectedMv),
     U2CorrectedMv: roundNumber(corrected.U2CorrectedMv),
-    u0Source: trial.u0 ? 'recorded' : 'assumed-zero',
+    u0Source: trial.u0 ? 'recorded' : 'automatic',
     formulaGamma,
     preheatBiasGamma: biased.preheatBiasGamma,
     gamma: biased.gamma,
@@ -310,14 +321,13 @@ export const calculateFreeHeatCapacityTrialResult = (
   trial: HeatCapacityFreeTrial,
   trialIndex: number,
 ): HeatCapacityFreeProcessingTrialResult => {
-  if (!trial.u1 || !trial.u2) {
+  if (!trial.u1 || !trial.u2 || !getHeatCapacityFreePublicZero(trial)) {
     return invalidFreeTrialResult(trial, trialIndex, 'Free trial is incomplete or invalid.');
   }
   if (!trial.configSnapshot) {
     return invalidFreeTrialResult(trial, trialIndex, 'Free trial is missing its parameter snapshot.');
   }
-  const correctedSignals = trial.correctedSignals ??
-    calculateFreeHeatCapacityTrialSignals(
+  const correctedSignals = calculateFreeHeatCapacityTrialSignals(
       trial,
       {
         ...getFreeGammaOptionsFromConfigSnapshot(trial.configSnapshot),
@@ -333,9 +343,7 @@ export const calculateFreeHeatCapacityTrialResult = (
     completedAtMs: trial.completedAtMs,
     ...correctedSignals,
     status: 'valid',
-    message: correctedSignals.u0Source === 'assumed-zero'
-      ? 'Valid; U0 was not recorded and was calculated as 0 mV.'
-      : 'Valid',
+    message: 'Valid',
   };
 };
 

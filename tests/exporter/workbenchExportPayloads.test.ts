@@ -79,6 +79,10 @@ assert.equal(standardPayload.kind, 'json');
 assert.equal(standardPayload.mode, 'figuresZip');
 assert.ok(standardPayload.data.figureSpecs.length >= 5);
 assert.ok(createWorkbenchFigureSpecs(standard).every((spec) => standardPayload.data.figureSpecs.some((payloadSpec) => payloadSpec.id === spec.id)));
+const standardTables = createWorkbenchExportPayload(standard, 'tablesCsv');
+assert.equal(standardTables.kind, 'json');
+assert.equal(standardTables.mode, 'tablesCsv');
+assert.deepEqual(standardTables.data.finalChartData, standard.finalChartData, 'table export must include distribution bins as well as history');
 
 const standardCompleteBundle = createWorkbenchExportPayload(standard, 'completeBundle');
 assert.equal(standardCompleteBundle.kind, 'json');
@@ -159,6 +163,7 @@ const blankDraftFile = {
   },
 };
 assert.equal(isHeatCapacityExportModeReady(blankDraftFile, 'report'), false);
+assert.equal(isHeatCapacityExportModeReady(blankDraftFile, 'tablesCsv'), false);
 assert.equal(isHeatCapacityExportModeReady({
   ...blankDraftFile,
   heatCapacityFreeExperimentGroups: {

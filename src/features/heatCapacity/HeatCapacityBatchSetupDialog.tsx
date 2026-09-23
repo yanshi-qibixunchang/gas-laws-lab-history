@@ -115,6 +115,7 @@ export const HeatCapacityBatchSetupDialog = ({
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const [countDraft, setCountDraft] = useState('');
+  const countOptions = scheme === 'real' ? [3] as const : HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS;
   const [countMenuOpen, setCountMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -122,12 +123,13 @@ export const HeatCapacityBatchSetupDialog = ({
       setCountMenuOpen(false);
       return;
     }
-    setCountDraft(selectedCount === null ? '' : String(selectedCount));
+    setCountDraft(scheme === 'real' ? '3' : selectedCount === null ? '' : String(selectedCount));
+    if (scheme === 'real') onSelectedCountChange(3);
   }, [open]);
 
   const resolvedCount = parseExperimentCountDraft(
     countDraft,
-    HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS,
+    countOptions,
   ) as HeatCapacityBatchGroupCount | null;
 
   const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
@@ -189,12 +191,12 @@ export const HeatCapacityBatchSetupDialog = ({
         <section className="studio-settings-section studio-settings-control-row studio-heat-batch-setup-section">
           <div className="studio-settings-section-title">
             <strong>{copy.sectionTitle}</strong>
-            <span id={descriptionId}>{copy.description(purpose)}</span>
+            <span id={descriptionId}>{scheme === 'real' ? (language === 'en' ? 'Repeat three experiments under the same conditions.' : '在相同条件下完成三次重复实验。') : copy.description(purpose)}</span>
           </div>
           <div className="studio-settings-control-surface">
             <ExperimentCountSelector
               ref={countInputRef}
-              options={HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS}
+              options={countOptions}
               draft={countDraft}
               onDraftChange={setCountDraft}
               onValidValueChange={(count) => {
@@ -207,9 +209,9 @@ export const HeatCapacityBatchSetupDialog = ({
                 menuAria: copy.menuAria,
                 menuButtonAria: copy.menuButtonAria,
                 placeholder: copy.placeholder,
-                emptyHint: copy.emptyHint,
+                emptyHint: scheme === 'real' ? copy.selected(3) : copy.emptyHint,
                 unit: language === 'en' ? 'experiments' : '次',
-                invalid: copy.invalid,
+                invalid: scheme === 'real' ? copy.selected(3) : copy.invalid,
                 selected: copy.selected,
                 option: copy.option,
                 optionHint: copy.optionHint,

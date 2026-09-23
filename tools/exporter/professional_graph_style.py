@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 
-PROFESSIONAL_FONT_FAMILY = ["Times New Roman", "Times", "DejaVu Serif", "serif"]
+PROFESSIONAL_FONT_FAMILY = ["Times New Roman", "SimSun"]
 
 ENGINEERING_EXPORT_STYLE = {
     "plot_face": "#ffffff",
@@ -46,9 +46,9 @@ def apply_professional_rc_params(plt: Any) -> None:
         "axes.labelsize": 10,
         "font.family": "serif",
         "font.serif": PROFESSIONAL_FONT_FAMILY,
-        "font.size": 9.5,
+        "font.size": 9,
         "legend.frameon": True,
-        "legend.fontsize": 8.8,
+        "legend.fontsize": 9,
         "xtick.color": PROFESSIONAL_COLORS["muted"],
         "ytick.color": PROFESSIONAL_COLORS["muted"],
         "savefig.dpi": 300,
@@ -67,62 +67,27 @@ def create_professional_figure(
     subplot_left: float = 0.12,
     subplot_right: float = 0.96,
 ) -> tuple[Any, Any]:
-    fig, ax = plt.subplots(figsize=figsize)
-    fig.subplots_adjust(top=subplot_top, bottom=subplot_bottom, left=subplot_left, right=subplot_right)
-    fig.text(
-        0.12,
-        0.940,
-        title,
-        color=PROFESSIONAL_COLORS["ink"],
-        fontsize=15,
-        fontweight="bold",
-        ha="left",
-        va="center",
-    )
-    fig.text(
-        0.12,
-        0.902,
-        subtitle,
-        color=PROFESSIONAL_COLORS["muted"],
-        fontsize=9.4,
-        ha="left",
-        va="center",
-    )
-    fig.text(
-        0.96,
-        0.940,
-        status,
-        color=PROFESSIONAL_COLORS["muted"],
-        fontsize=8.8,
-        ha="right",
-        va="center",
-    )
-    fig.lines.append(plt.Line2D(
-        [0.12, 0.96],
-        [0.855, 0.855],
-        transform=fig.transFigure,
-        color=PROFESSIONAL_COLORS["grid_major"],
-        linewidth=0.75,
-    ))
+    # Titles and metadata belong to the report text, not inside the plot.
+    fig, ax = plt.subplots(figsize=(6.3, 3.65))
+    fig.subplots_adjust(top=0.82, bottom=0.17, left=0.13, right=0.97)
     return fig, ax
+
 
 
 def style_axes(ax: Any, xlabel: str, ylabel: str) -> None:
     ax.set_facecolor(ENGINEERING_EXPORT_STYLE["plot_face"])
     ax.set_axisbelow(True)
-    ax.set_xlabel(xlabel, labelpad=8, fontweight="bold")
-    ax.set_ylabel(ylabel, labelpad=8, fontweight="bold")
+    ax.set_xlabel(xlabel, labelpad=6, fontsize=10, fontweight="normal")
+    ax.set_ylabel(ylabel, labelpad=6, fontsize=10, fontweight="normal")
     ax.grid(True, which="major", color=PROFESSIONAL_COLORS["grid_major"], linewidth=ENGINEERING_EXPORT_STYLE["grid_major_width"])
-    ax.grid(True, which="minor", color=PROFESSIONAL_COLORS["grid_minor"], linewidth=ENGINEERING_EXPORT_STYLE["grid_minor_width"])
-    ax.minorticks_on()
-    ax.tick_params(axis="both", which="major", direction="in", length=3.2, width=0.6)
-    ax.tick_params(axis="both", which="minor", direction="in", length=1.8, width=0.4)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
-    ax.spines["left"].set_linewidth(ENGINEERING_EXPORT_STYLE["axis_width"])
-    ax.spines["bottom"].set_linewidth(ENGINEERING_EXPORT_STYLE["axis_width"])
-    ax.spines["left"].set_color(PROFESSIONAL_COLORS["axis"])
-    ax.spines["bottom"].set_color(PROFESSIONAL_COLORS["axis"])
+    ax.grid(False, which="minor")
+    ax.tick_params(axis="both", which="major", direction="in", length=3.2, width=0.6, top=True, right=True, labelsize=9, colors=PROFESSIONAL_COLORS["ink"])
+    ax.tick_params(axis="both", which="minor", direction="in", length=1.8, width=0.4, top=True, right=True)
+    for spine in ax.spines.values():
+        spine.set_visible(True)
+        spine.set_linewidth(ENGINEERING_EXPORT_STYLE["axis_width"])
+        spine.set_color(PROFESSIONAL_COLORS["axis"])
+
 
 
 def add_readout_panel(ax: Any, rows: Iterable[tuple[str, str]], *, loc: str = "upper left") -> None:
@@ -190,14 +155,44 @@ def add_metadata_band(
         )
 
 
-def add_legend(ax: Any, *, loc: str = "upper right") -> None:
-    legend = ax.legend(loc=loc, borderpad=0.55, handlelength=2.0, fancybox=False)
+def add_legend(ax: Any, *, loc: str = "best") -> None:
+    # The dedicated space above the axes guarantees no data are obscured.
+    handles, labels = ax.get_legend_handles_labels()
+    if not handles:
+        return
+    legend = ax.legend(handles, labels, loc="lower center", bbox_to_anchor=(0.5, 1.02),
+                       ncol=min(3, len(handles)), borderpad=0.35, columnspacing=1.0,
+                       handletextpad=0.5, handlelength=2.0, fancybox=False, framealpha=1, fontsize=9)
     legend.get_frame().set_facecolor(PROFESSIONAL_COLORS["surface"])
-    legend.get_frame().set_edgecolor("#c2c2c2")
+    legend.get_frame().set_edgecolor(PROFESSIONAL_COLORS["axis"])
     legend.get_frame().set_linewidth(0.55)
 
 
+def prepare_report_figure(fig: Any) -> None:
+    """Apply the same final axes, typography and legend rules to every exporter."""
+    from matplotlib.text import Text
+    active_axes = [ax for ax in fig.axes if ax.axison]
+    for ax in active_axes:
+        style_axes(ax, ax.get_xlabel(), ax.get_ylabel())
+        if len(active_axes) == 1:
+            ax.set_title("")
+        else:
+            ax.title.set_fontsize(10)
+        if ax.get_legend() is not None:
+            ax.get_legend().remove()
+        add_legend(ax)
+    for text in fig.findobj(Text):
+        text.set_fontfamily(PROFESSIONAL_FONT_FAMILY)
+        text.set_fontweight("normal")
+        text.set_color(PROFESSIONAL_COLORS["ink"])
+    if len(active_axes) == 1:
+        fig.tight_layout(pad=1.0, rect=(0, 0, 1, 0.98))
+    else:
+        fig.tight_layout(pad=1.0, h_pad=2.2, w_pad=2.0)
+
+
 def save_professional_figure(fig: Any, path: Path) -> Path:
+    prepare_report_figure(fig)
     path.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(path, dpi=300, bbox_inches="tight", facecolor=PROFESSIONAL_COLORS["surface"])
+    fig.savefig(path, dpi=300, facecolor=PROFESSIONAL_COLORS["surface"])
     return path

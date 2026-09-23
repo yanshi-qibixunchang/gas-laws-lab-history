@@ -434,6 +434,8 @@ export const finalizeCompletedHeatCapacityFreeExperimentGroupWorkbenchState = (
   file: WorkbenchHeatCapacityState,
   now: number,
 ): WorkbenchHeatCapacityState => {
+  // A repeated power-off must not re-stamp history or remove a newer trace.
+  if (file.heatCapacityFreeRunWorkspace.trials.at(-1)?.completedAtMs != null) return file;
   const stampedFile = stampLatestCompletedHeatCapacityFreeTrial(file, now);
   const trials = stampedFile.heatCapacityFreeRunWorkspace.trials;
   const latestTrial = trials[trials.length - 1] ?? null;

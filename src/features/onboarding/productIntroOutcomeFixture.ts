@@ -283,8 +283,8 @@ const createOutcomeGroupTrial = (
   gamma: number,
 ): HeatCapacityFreeTrial => {
   const u0 = 0.1;
-  const u1 = 120.1 + (trialIndex - 2) * 0.8;
-  const u2 = 40.1 + (trialIndex - 2) * 0.3;
+  // Public 0.1 mV readings reproduce the four-significant-figure example ratios.
+  const [u1, u2] = [[119.2, 33.0], [120.2, 33.6], [120.9, 34.1]][trialIndex - 1];
   return {
     id: `product-intro-trial-${trialIndex}`,
     source: 'free',

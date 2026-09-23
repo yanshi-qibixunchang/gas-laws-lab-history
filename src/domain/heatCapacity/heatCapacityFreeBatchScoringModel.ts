@@ -113,6 +113,9 @@ const createAggregateDetail = (input: {
   const fields = input.session.aggregate
     ? findStepFields(input.session.aggregate, input.kind)
     : [];
+  if (input.kind === 'typeAStandardUncertainty' && input.session.aggregate) {
+    fields.push(...findStepFields(input.session.aggregate, 'finalReport'));
+  }
   const complete = allFieldsResolved(fields);
   const score = quantizeCalculationScore(
     input.maxScore * calculateFieldRatio(fields),

@@ -438,6 +438,15 @@ export const applyHeatCapacityFreeGasTypeModelDefaultsToDraft = (
   }, draft);
 };
 
+/** New experiments use one recording standard. Historical snapshots keep their original values. */
+export const withStandardHeatCapacityRecordCriteria = (
+  draft: HeatCapacityFreeParameterDraft,
+): HeatCapacityFreeParameterDraft => ({
+  ...draft,
+  ...createDefaultHeatCapacityFreeRecordConfig(),
+  pressureWarningMv: HEAT_CAPACITY_DEFAULT_PRESSURE_WARNING_MV,
+});
+
 export const applyHeatCapacityFreeParameterDraftToConfigs = (
   draft: HeatCapacityFreeParameterDraft,
 ): HeatCapacityFreeParameterApplyResult => {

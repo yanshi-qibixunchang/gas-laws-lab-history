@@ -208,9 +208,29 @@
 }
 
 .studio-heat-calculation-step-header {
+  justify-content: space-between;
   display: flex;
   align-items: center;
   min-height: 19px;
+}
+
+.studio-heat-calculation-math {
+  font-size: 1em;
+  font-family: var(--app-font-formula, "Cambria Math", math);
+}
+.studio-heat-calculation-explanation {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--studio-text);
+}
+.studio-heat-calculation-explanation p { margin: 4px 0 8px; }
+.studio-heat-calculation-restart {
+  font: inherit;
+  font-size: 11px;
+  color: var(--studio-accent-strong);
+  border: 0;
+  background: transparent;
+  cursor: pointer;
 }
 
 .studio-heat-calculation-step-header strong {
@@ -266,6 +286,7 @@
 }
 
 .studio-heat-calculation-formula-line label {
+  padding-block: 2px;
   display: flex;
   min-width: 0;
   align-items: center;

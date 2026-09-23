@@ -16,10 +16,11 @@ for (const raw of ['', '  ', 'not a number', 'Infinity']) {
 }
 assert.deepEqual(validation.validateHeatCapacityFreeNumberValue(temperature, ' 20.125 ', draft), { valid: true, value: 293.275 });
 assert.equal(validation.validateHeatCapacityFreeNumberValue(temperature, String(temperature.min - 1), draft).valid, false);
-const danger = heatCapacityFreeAdvancedNumberParameters.find(p => p.id === 'pressureDangerMv')!;
-const maximum = validation.getHeatCapacityFreeParameterMaximum(danger, draft);
-assert.ok(maximum !== null);
-assert.ok(validation.getHeatCapacityFreeValueTooLargeMessage(danger, maximum, 'en').includes('kPa'));
+assert.equal(heatCapacityFreeAdvancedNumberParameters.find(p => p.id === 'pressureDangerMv'), undefined);
+const conductance = heatCapacityFreeAdvancedNumberParameters.find(p => p.id === 'gasWallConductanceWPerK')!;
+const maximum = validation.getHeatCapacityFreeParameterMaximum(conductance, draft);
+assert.equal(maximum, 5);
+assert.ok(validation.getHeatCapacityFreeValueTooLargeMessage(conductance, maximum!, 'en').includes('W/K'));
 
 const filesRef = { current: [file] };
 const basicDrafts = state<Record<string, string>>({ ambientTemperatureK: '20.125', ambientPressureKPa: '101.325' });

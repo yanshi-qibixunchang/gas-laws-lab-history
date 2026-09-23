@@ -1,3 +1,4 @@
+import { truncateHeatCapacitySignalMv } from './heatCapacitySignalDisplayModel.ts';
 export const FREE_U0_ZERO_TOLERANCE_MV = 0.08;
 
 export interface HeatCapacityFreeZeroEvent {
@@ -84,8 +85,8 @@ export const captureAutomaticU0IfReady = (
   return {
     ...state,
     automaticU0: {
-      displayPressureMv: input.displayPressureMv,
-      displayTemperatureMv: input.displayTemperatureMv,
+      displayPressureMv: truncateHeatCapacitySignalMv(input.displayPressureMv),
+      displayTemperatureMv: truncateHeatCapacitySignalMv(input.displayTemperatureMv),
       calibrationVersion: state.calibrationVersion,
       zeroEventId: input.zeroEventId,
       atS: input.atS,

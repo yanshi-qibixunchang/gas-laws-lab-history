@@ -1036,7 +1036,8 @@ const assumedZeroRestored = restoreHeatCapacityFileFromPersistencePayload({
 assert.equal(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].u0, null);
 assert.notEqual(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].u1, null);
 assert.notEqual(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].u2, null);
-assert.equal(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].correctedSignals, null);
+assert.equal(assumedZeroRestored.heatCapacityFreeRunWorkspace.trials[0].completedAtMs, null);
 
 const standardReferenceFixture = createCompleteProcessReviewFixtureParts();
 const contaminatedStandardReference = createHeatCapacityFreeStandardReference({
@@ -1207,8 +1208,8 @@ const editedPayload = createHeatCapacityPersistencePayload(acceptedRiskFile, 999
 assert.equal(editedPayload.free?.gasType, 'helium');
 assert.equal(editedPayload.free?.parameterDraft?.ambientPressureKPa, 99.4);
 assert.equal(editedPayload.free?.parameterDraft?.gasType, 'helium');
-assert.equal(editedPayload.free?.recordConfig?.pressureDangerMv, 151);
-assert.equal(editedPayload.free?.pressureWarningMv, 121);
+assert.equal(editedPayload.free?.recordConfig?.pressureDangerMv, 140);
+assert.equal(editedPayload.free?.pressureWarningMv, 120);
 assert.equal(editedPayload.free?.instrumentNoiseEnabled, false);
 assert.deepEqual(editedPayload.free?.acknowledgements, {
   advancedParametersRisk: true,
@@ -1236,8 +1237,8 @@ assert.equal(selectHeatCapacityFreeAppliedParameterDraft(restored).gasType, 'hel
 assert.equal(restored.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(restored.theoreticalGamma, 5 / 3);
 assert.equal(selectHeatCapacityFreeAppliedParameterDraft(restored).instrumentNoiseEnabled, false);
-assert.equal(restored.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 151);
-assert.equal(restored.heatCapacityFreeInstrumentConfig.pressureWarningMv, 121);
+assert.equal(restored.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 140);
+assert.equal(restored.heatCapacityFreeInstrumentConfig.pressureWarningMv, 120);
 assert.equal(restored.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
 assert.deepEqual(restored.heatCapacityFreeFileAcknowledgements, {
   advancedParametersRisk: true,

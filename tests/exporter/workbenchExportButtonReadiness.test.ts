@@ -24,7 +24,7 @@ assert.match(
 for (const [mode, buttonLabel] of [
   ['completeBundle', 'Export All'],
   ['report', 'Report PDF'],
-  ['verificationFigure', 'Verification Figure'],
+  ['figuresZip', 'Export Figures'],
   ['pointsCsv', 'Points CSV'],
 ]) {
   assert.ok(

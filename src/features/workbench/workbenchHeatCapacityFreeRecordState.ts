@@ -1,6 +1,7 @@
 import {
   createHeatCapacityFreeBatchTrial,
   createHeatCapacityFreeTrial,
+  getHeatCapacityFreePublicZero,
   type HeatCapacityFreeRecordRejectReason,
   type HeatCapacityFreeTrial,
 } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
@@ -71,6 +72,15 @@ export type HeatCapacityFreeWorkbenchRecordAttempt =
 export interface HeatCapacityFreeWorkbenchRecordOptions {
   enforceRecordReadiness?: boolean;
 }
+
+export const getHeatCapacityFreeRecordedTrialIssue = (
+  file: WorkbenchHeatCapacityState,
+): 'missing-zero' | 'invalid-data' | null => {
+  const trial = file.heatCapacityFreeRunWorkspace.trials.at(-1);
+  if (!trial?.u2) return null;
+  if (!getHeatCapacityFreePublicZero(trial)) return 'missing-zero';
+  return trial.correctedSignals === null ? 'invalid-data' : null;
+};
 
 export const getHeatCapacityFreeRecordBlockReason = (
   file: WorkbenchHeatCapacityState,
@@ -344,7 +354,7 @@ const applyHeatCapacityFreeRecordWorkbenchStateCore = (
       batch: trialIdentityAllocation?.batch ?? recordTrace.file.heatCapacityFreeRunWorkspace.batch,
       trials: heatCapacityFreeTrials,
       currentExperimentStatus: kind === 'u2'
-        ? 'completed'
+        ? recordTrial.correctedSignals !== null ? 'completed' : 'running'
         : recordTrace.file.heatCapacityFreeRunWorkspace.currentExperimentStatus,
     },
     updatedAt: now,

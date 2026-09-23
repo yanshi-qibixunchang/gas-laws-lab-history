@@ -31,6 +31,7 @@ import {
   type PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
 import type { PistonUncertaintyAction } from './pistonOscillationUncertaintyModel.ts';
+import { evaluatePistonUncertaintyEligibility } from './pistonOscillationUncertaintyEligibility.ts';
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
   createPistonOscillationFreeExperimentGroup,
@@ -1307,7 +1308,9 @@ export const transitionPistonOscillationFreeSession = (
         : createPistonOscillationDataProcessingSession(
             savedMeasurements,
             event.nowMs,
-            { answerValidationMode: 'batch', includeUncertainty: true },
+            { answerValidationMode: 'batch', unifiedPrecision: true,
+              includeUncertainty: evaluatePistonUncertaintyEligibility(lockedSession.experimentGroup).eligible,
+              uncertaintyEligibility: evaluatePistonUncertaintyEligibility(lockedSession.experimentGroup) },
           )
       : null;
     const next = {
@@ -2111,7 +2114,7 @@ export const normalizePistonOscillationFreeSession = (
         value.dataProcessing,
         savedMeasurements,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
-        { answerValidationMode: 'batch', includeUncertainty: true },
+        { answerValidationMode: 'batch', unifiedPrecision: true, includeUncertainty: false },
       )
     : null;
   const persistedSampleRateHz = Number.isSafeInteger(value.sampleRateHz)
@@ -2258,7 +2261,9 @@ export const normalizePistonOscillationFreeSession = (
         value.dataProcessing,
         contextualizedSavedMeasurements,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : Date.now(),
-        { answerValidationMode: 'batch', includeUncertainty: true },
+        { answerValidationMode: 'batch', unifiedPrecision: true,
+          includeUncertainty: evaluatePistonUncertaintyEligibility(experimentGroup).eligible,
+          uncertaintyEligibility: evaluatePistonUncertaintyEligibility(experimentGroup) },
       )
     : null;
   const parameterDraft = experimentGroup.parameterSnapshot?.parameters

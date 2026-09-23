@@ -331,7 +331,7 @@ if (restoredHeatCapacity.kind === 'heatCapacity') {
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials.length, 2, 'stale top-level runtime normalization must preserve migrated domain trials');
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].automaticU0?.zeroEventId, 'zero-1');
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].u0, null, 'automatic-only saved Free trials must not be promoted to official manual U0 records');
-  assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.u0Source, 'assumed-zero', 'restored U1/U2 records without formal U0 must use U0 = 0');
+  assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.u0Source, 'automatic', 'restored records must use the recorded automatic zero when no manual zero exists');
   assert.equal(restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].correctedSignals?.U0DisplayMv, 0);
   assert.equal(
     restoredHeatCapacity.heatCapacityFreeRunWorkspace.trials[0].configSnapshot,
@@ -2999,8 +2999,8 @@ assert.deepEqual(customFreeFile.heatCapacityFreeFileAcknowledgements, {
   idealParameterProfileIntro: true,
 });
 assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
-assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 123);
-assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 152);
+assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 120);
+assert.equal(customFreeFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 140);
 assert.equal(selectHeatCapacityFreeAppliedParameterDraft(customFreeFile).ambientPressureKPa, 99.2);
 assert.equal(
   Object.prototype.hasOwnProperty.call(customFreeFile, 'heatCapacityFreeActiveRunConfigSnapshot'),
@@ -3017,7 +3017,7 @@ assert.equal(
 );
 assert.equal(
   selectHeatCapacityFreeActiveRunConfigSnapshot(customFreeFile)?.record.pressureDangerMv,
-  152,
+  140,
 );
 
 const {

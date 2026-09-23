@@ -65,7 +65,7 @@ assert.match(
 );
 assert.match(
   groupChart,
-  /studio-heat-group-chart-legend-theory[\s\S]*model\.theoreticalGamma\.toFixed\(4\)[\s\S]*studio-heat-group-chart-legend-mean[\s\S]*mean\.toFixed\(4\)[\s\S]*studio-heat-group-chart-legend-uncertainty[\s\S]*uncertainty\.toFixed\(4\)/,
+  /studio-heat-group-chart-legend-theory[\s\S]*model\.theoreticalGamma\.toFixed\(4\)[\s\S]*studio-heat-group-chart-legend-mean[\s\S]*gammaLabel\(mean\)[\s\S]*studio-heat-group-chart-legend-uncertainty[\s\S]*uncertaintyLabel/,
   'the group chart legend should pair each visual encoding with its exact value',
 );
 assert.match(
@@ -80,7 +80,7 @@ assert.match(
 );
 assert.match(
   leftPanel,
-  /data-heat-capacity-export-actions="true"[\s\S]*导出实验包[\s\S]*导出报告[\s\S]*导出图表/,
+  /data-heat-capacity-export-actions="true"[\s\S]*导出实验包[\s\S]*导出报告[\s\S]*导出图像/,
   'Free Mode results should expose the three approved export actions',
 );
 assert.match(

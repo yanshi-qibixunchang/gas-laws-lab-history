@@ -6,6 +6,7 @@ import {
 } from './heatCapacityFreePhysicsEngine.ts';
 import {
   calculateFreeHeatCapacityTrialSignals,
+  getHeatCapacityFreePublicZero,
   type HeatCapacityFreeRecordInput,
   type HeatCapacityFreeRecordRejectReason,
   type HeatCapacityFreeTrialCalculationOptions,
@@ -140,7 +141,9 @@ export const evaluateFreeU2Record = (
   if (!physics.releaseStarted || !physics.releaseReference) {
     return createEvaluation('release-not-started');
   }
-  const correctedU2Mv = display.displayPressureMv - (trial.u0?.displayPressureMv ?? 0);
+  const zero = getHeatCapacityFreePublicZero(trial);
+  if (!zero) return createEvaluation('zero-not-ready');
+  const correctedU2Mv = display.displayPressureMv - zero.displayPressureMv;
   if (correctedU2Mv < config.overVentedMinimumU2CorrectedMv) {
     return createEvaluation('over-vented');
   }

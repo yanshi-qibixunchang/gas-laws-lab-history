@@ -2,6 +2,7 @@ import type {
   HeatCapacityFreeAllGroupsOverviewModel,
 } from '../../domain/heatCapacity/heatCapacityFreeGroupChartModel.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
+import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
 
 interface HeatCapacityAllGroupsOverviewChartProps {
   model: HeatCapacityFreeAllGroupsOverviewModel;
@@ -64,7 +65,7 @@ export const HeatCapacityAllGroupsOverviewChart = ({
               r={point.completed ? 6 : 5}
               className={`studio-heat-chart-dot studio-heat-chart-dot-${point.scheme} ${point.completed ? '' : 'studio-heat-chart-dot-in-progress'}`}
             >
-              <title>{`${label} · ${gas} · ${copy.group} ${point.schemeGroupNumber}: γ̄ = ${point.meanGamma.toFixed(5)}`}</title>
+              <title>{`${label} · ${gas} · ${copy.group} ${point.schemeGroupNumber}: γ̄ = ${point.publicTeachingValues ? formatSignificantFiguresHalfEven(point.meanGamma, 4) : point.meanGamma.toFixed(5)}`}</title>
             </circle>
             <text x={x(index)} y={height - 30} textAnchor="middle" className="studio-heat-chart-axis-label">
               {label}{point.schemeGroupNumber}·{gas}

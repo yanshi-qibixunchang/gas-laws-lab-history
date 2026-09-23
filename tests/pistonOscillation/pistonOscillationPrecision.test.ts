@@ -54,7 +54,7 @@ for (let c = 0; c < 360; c++) {
 for (const noise of [0, 1e-10, 1e-7, 0.0001, 0.001]) {
   add([.02, .03, .04, .05].map((periodS, runIndex) => ({ runIndex, periodS, heightM: 50*periodS**2 + [1,-1,-1,1][runIndex]*noise, periodCount: 10, sampleRateHz: 1000 })));
 }
-// Probe both sides of an expanded-uncertainty rounding boundary, as well as
+// Probe both sides of an standard-uncertainty rounding boundary, as well as
 // gamma report boundaries. These synthetic values isolate numerical behaviour.
 const boundaryRows = [.03, .035, .04].map((periodS, runIndex) => ({ runIndex, periodS, heightM: [.05,.069,.09][runIndex], periodCount: 10, sampleRateHz: 1000 }));
 for (const target of [1.34499999, 1.34500001, 1.3999999, 1.4000001, 1.99499999, 1.99500001]) {
@@ -65,7 +65,7 @@ for (const target of [.099499999, .099500001]) {
   let low = 1000, high = 1000000;
   for (let i = 0; i < 70; i++) {
     const pressurePa = (low+high)/2;
-    const u = evaluatePistonPrecisionChain({ ...knowns, pressurePa }, boundaryRows, profile).values.combined*profile.coverage;
+    const u = evaluatePistonPrecisionChain({ ...knowns, pressurePa }, boundaryRows, profile).values.combined;
     if (u > target) low = pressurePa; else high = pressurePa;
   }
   add(boundaryRows, { ...knowns, pressurePa: (low+high)/2 });
@@ -87,7 +87,7 @@ const results = JSON.parse(oracle.stdout);
 for (const [index, c] of cases.entries()) {
   const actual = evaluatePistonPrecisionChain(c.knowns, c.observations, profile, c.plan);
   const { reference, rounded } = results[index];
-  for (const key of ['expanded', 'result', 'relative'] as const) assert.equal(actual.values[key], Number(reference.values[key]), `80-digit final ${index}/${key}`);
+  for (const key of ['reportCombined', 'result', 'relative'] as const) assert.equal(actual.values[key], Number(reference.values[key]), `80-digit final ${index}/${key}`);
   assert.equal(actual.relativeError, Number(reference.relativeError), `80-digit relative error ${index}`);
   // Independently repeat every rounded exercise, using the earlier submitted
   // results. Tight equality verifies display -> check -> next step continuity.

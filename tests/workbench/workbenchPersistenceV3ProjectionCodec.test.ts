@@ -605,6 +605,10 @@ const durableTrialAuthority = {
   preheatOutcome: 'completed' as const,
 };
 const futureCorrectedSignalTrial = structuredClone(durableTrialAuthority);
+futureCorrectedSignalTrial.u0 = normalizeHeatCapacityFreeRecordInput({
+  atS: 1, displayPressureMv: 0, displayTemperatureMv: 0,
+  calibrationVersion: 1, zeroEventId: 'zero-v3-cache-test', phaseAtRecord: 'zeroed',
+});
 futureCorrectedSignalTrial.u1 = normalizeHeatCapacityFreeRecordInput({
   atS: 4,
   displayPressureMv: 100,

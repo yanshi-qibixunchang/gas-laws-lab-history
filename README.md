@@ -21,6 +21,8 @@ The latest published desktop release is `v6.4.2`. Clean Windows upgrades from bo
 
 ## Current Source Highlights
 
+- `v6.4.3` prepares continuous Free-mode Type A/B uncertainty teaching for both heat-capacity experiments, fixes recording and calculation handoffs, and unifies Chinese report, figure and CSV exports across four experiments. See [release verification](docs/releases/v6.4.3.md) for publication status.
+
 - `v6.4.2` adds strict migration for older piston workspaces, repairs clean dependency installation, and strengthens upgrade verification. Raw records remain authoritative; obsolete fits and calculations require recomputation. Experiment operation and exact checks based on displayed values follow `v6.4.1`.
 
 - The workbench UI is split into focused command, settings, updater, parameter, persistence, and experiment modules.

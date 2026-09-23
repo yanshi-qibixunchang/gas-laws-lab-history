@@ -427,6 +427,7 @@ correctedSignalCacheTrial.u2 = normalizeHeatCapacityFreeRecordInput({
   zeroEventId: 'zero-cache-test',
   phaseAtRecord: 'recovering',
 });
+correctedSignalCacheTrial.u0 = { ...correctedSignalCacheTrial.u1!, atS: 3, displayPressureMv: 0 };
 correctedSignalCacheTrial.correctedSignals =
   calculateFreeHeatCapacityTrialSignals(correctedSignalCacheTrial);
 if (correctedSignalCacheTrial.correctedSignals === null) {

@@ -67,6 +67,19 @@ const resolveHeatCapacityFreeResetStructure = (
   const trials = file.heatCapacityFreeRunWorkspace.trials;
   const lastTrial = trials[trials.length - 1] ?? null;
   const activeTraceTrialId = file.heatCapacityFreeRunWorkspace.traceStore.activeTraceTrialId;
+  // A scoped restart may already have discarded the unfinished trial. The
+  // previous, power-off committed trial is history, regardless of the old
+  // instrument's currentExperimentStatus or power state.
+  if (lastTrial && lastTrial.completedAtMs != null && isHeatCapacityFreeTrialComplete(lastTrial)) {
+    const activeTraceIsSaved = trials.some(trial => trial.completedAtMs != null
+      && trial.traceTrialId === activeTraceTrialId);
+    return {
+      trials,
+      traceStore: activeTraceIsSaved
+        ? { ...file.heatCapacityFreeRunWorkspace.traceStore, activeTraceTrialId: null }
+        : removeHeatCapacityFreeTraceTrialFromStore(file.heatCapacityFreeRunWorkspace.traceStore, activeTraceTrialId),
+    };
+  }
   if (file.heatCapacityFreeRunWorkspace.activeAttempt?.status === 'invalid') {
     const traceTrialIds = new Set(
       [lastTrial?.traceTrialId ?? null, activeTraceTrialId]

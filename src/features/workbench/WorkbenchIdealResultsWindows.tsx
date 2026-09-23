@@ -304,9 +304,9 @@ export const WorkbenchIdealVerificationWindow = ({
             <Download size={13} />
             {workbenchCopy.results.reportPdf}
           </button>
-          <button type="button" disabled={!isExportReady('verificationFigure') || exportInProgress} onClick={() => onExport('verificationFigure')}>
+          <button type="button" disabled={!isExportReady('figuresZip') || exportInProgress} onClick={() => onExport('figuresZip')}>
             <BarChart3 size={13} />
-            {workbenchCopy.results.verificationFigure}
+            {workbenchCopy.results.exportFigures}
           </button>
           <button type="button" disabled={!isExportReady('pointsCsv') || exportInProgress} onClick={() => onExport('pointsCsv')}>
             <Table2 size={13} />

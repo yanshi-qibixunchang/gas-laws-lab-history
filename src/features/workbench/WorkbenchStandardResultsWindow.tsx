@@ -82,6 +82,14 @@ export const WorkbenchStandardResultsWindow = ({
             </button>
             <button
               type="button"
+              disabled={!isExportModeDataReady('tablesCsv') || exportInProgress}
+              onClick={() => handleExportAction('tablesCsv')}
+            >
+              <Download size={13} />
+              {workbenchCopy.results.exportTables}
+            </button>
+            <button
+              type="button"
               aria-label={`${workbenchCopy.actions.close} ${workbenchCopy.results.title}`}
               onClick={(event) => {
                 event.stopPropagation();

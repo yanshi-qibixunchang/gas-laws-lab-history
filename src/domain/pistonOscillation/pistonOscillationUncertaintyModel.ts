@@ -3,17 +3,19 @@ import { parseNumericAnswerInput, validateNumericAnswer, type NumericAnswerSpec 
 import type { PistonOscillationCalculationKnownsSnapshot, PistonOscillationLinearFitResultSnapshot, PistonOscillationPeriodRunState } from './pistonOscillationDataProcessingModel.ts';
 import { evaluatePistonPrecisionChain, type PistonPrecisionPlan } from './pistonOscillationPrecisionModel.ts';
 
-export const PISTON_UNCERTAINTY_VERSION = 'piston-free-uncertainty-v2' as const;
+export const PISTON_UNCERTAINTY_VERSION = 'piston-free-fit-statistics-uncertainty-v4' as const;
+export const PISTON_STANDARD_UNCERTAINTY_VERSION = 'piston-free-standard-uncertainty-v3' as const;
+export const PISTON_EXPANDED_UNCERTAINTY_VERSION = 'piston-free-uncertainty-v2' as const;
 export const PISTON_LEGACY_UNCERTAINTY_VERSION = 'piston-free-uncertainty-v1' as const;
 export const PISTON_UNCERTAINTY_PHASES = ['A', 'B', 'C'] as const;
 export type PistonUncertaintyPhase = typeof PISTON_UNCERTAINTY_PHASES[number];
 export const PISTON_UNCERTAINTY_FIELDS = {
-  A: ['residual', 'slopeA', 'gammaA'],
+  A: ['meanX', 'sxx', 'residual', 'slopeA', 'gammaA'],
   B: ['mass', 'diameter', 'gammaB'],
-  C: ['combined', 'relative', 'expanded', 'result'],
+  C: ['combined', 'relative', 'reportCombined', 'result'],
 } as const;
 export type PistonUncertaintyExerciseField = typeof PISTON_UNCERTAINTY_FIELDS[PistonUncertaintyPhase][number];
-// Internal components remain in the model; only the ten teaching exercises are answers.
+// Internal instrument components remain in the model, outside the teaching exercises.
 export type PistonUncertaintyField = PistonUncertaintyExerciseField | 'pressure' | 'heightScale' | 'timeScale' | 'heightReadout' | 'slopeReadout' | 'slopeSupplement' | 'slopeB';
 export const PISTON_UNCERTAINTY_FIELD_ORDER = PISTON_UNCERTAINTY_PHASES.flatMap(phase => [...PISTON_UNCERTAINTY_FIELDS[phase]]);
 
@@ -25,7 +27,6 @@ export interface PistonUncertaintyProfile {
   heightScaleLimit: number;
   timeScaleLimit: number;
   heightStepM: number;
-  coverage: number;
 }
 export const createPistonUncertaintyProfile = (): PistonUncertaintyProfile => ({
   version: PISTON_UNCERTAINTY_VERSION,
@@ -35,7 +36,6 @@ export const createPistonUncertaintyProfile = (): PistonUncertaintyProfile => ({
   heightScaleLimit: 0.005,
   timeScaleLimit: 0.0001,
   heightStepM: 0.001,
-  coverage: 2,
 });
 
 export interface PistonUncertaintyAnswer {
@@ -118,7 +118,7 @@ export const pistonUncertaintyReference = (id: PistonUncertaintyField, analysis:
   return formatSignificantFiguresHalfEven(value, pistonUncertaintyDigits(id, analysis));
 };
 export const pistonUncertaintyDigits = (id: PistonUncertaintyField, analysis: PistonUncertaintyAnalysis) => id === 'relative' ? 3
-  : id === 'expanded' || id === 'result' ? 2 : analysis.precisionPlan.digits[id];
+  : id === 'reportCombined' || id === 'result' ? 2 : analysis.precisionPlan.digits[id];
 export const validatePistonUncertaintyAnswer = (id: PistonUncertaintyExerciseField, raw: string, analysis: PistonUncertaintyAnalysis): PistonUncertaintyAnswer['feedback'] => {
   const parsed = parseNumericAnswerInput(raw);
   if (parsed.status !== 'valid') return parsed.status;
@@ -131,14 +131,15 @@ export const validatePistonUncertaintyAnswer = (id: PistonUncertaintyExerciseFie
   return !validation.numericCorrect ? 'numeric-wrong' : !validation.precisionCorrect ? 'precision-wrong' : null;
 };
 export const pistonUncertaintyComplete = (course: PistonUncertaintyCourse | undefined) => !course || (
-  course.readPhases.length === 3 && PISTON_UNCERTAINTY_FIELD_ORDER.every(id => course.answers[id].status !== 'unresolved')
+  course.version === PISTON_UNCERTAINTY_VERSION && course.readPhases.length === 3
+  && PISTON_UNCERTAINTY_FIELD_ORDER.every(id => course.answers[id] && course.answers[id].status !== 'unresolved')
 );
 export const pistonSlopeBAvailable = (course: PistonUncertaintyCourse) => course.answers.slopeA.status !== 'unresolved';
 export const activePistonUncertaintyPhase = (course: PistonUncertaintyCourse): PistonUncertaintyPhase | null => PISTON_UNCERTAINTY_PHASES.find(phase => !course.readPhases.includes(phase) || PISTON_UNCERTAINTY_FIELDS[phase].some(id => course.answers[id].status === 'unresolved')) ?? null;
 export type PistonUncertaintyAction =
   | { kind: 'read'; phase: PistonUncertaintyPhase }
   | { kind: 'edit'; field: PistonUncertaintyExerciseField; value: string }
-  | { kind: 'check' | 'reveal'; field: PistonUncertaintyExerciseField };
+  | { kind: 'check' | 'reveal' | 'continue'; field: PistonUncertaintyExerciseField };
 
 export const transitionPistonUncertainty = (course: PistonUncertaintyCourse, analysis: PistonUncertaintyAnalysis, action: PistonUncertaintyAction, atMs: number): PistonUncertaintyCourse => {
   if (analysis.issue) return course;
@@ -150,12 +151,19 @@ export const transitionPistonUncertainty = (course: PistonUncertaintyCourse, ana
   if (!course.readPhases.includes(phase) || action.field !== current) return course;
   const answer = course.answers[current];
   let next: PistonUncertaintyAnswer;
-  if (action.kind === 'edit') next = { ...answer, draft: action.value, feedback: null };
+  if (action.kind === 'continue') {
+    if (answer.feedback === null) return course;
+    next = { ...answer, feedback: null };
+  } else if (action.kind === 'edit') {
+    if (answer.feedback !== null) return course;
+    next = { ...answer, draft: action.value, feedback: null };
+  }
   else if (action.kind === 'reveal') {
-    if (answer.attempts.length === 0) return course;
+    if (answer.feedback === null) return course;
     next = { ...answer, draft: pistonUncertaintyReference(current, analysis), status: 'revealed', feedback: null,
       attempts: [...answer.attempts, { atMs, raw: answer.draft, outcome: 'revealed' }] };
   } else {
+    if (answer.feedback !== null) return course;
     const feedback = validatePistonUncertaintyAnswer(current, answer.draft, analysis);
     next = { ...answer, status: feedback ? 'unresolved' : 'correct', feedback,
       attempts: [...answer.attempts, { atMs, raw: answer.draft, outcome: feedback ?? 'correct' }] };
@@ -169,6 +177,9 @@ export const normalizePistonUncertaintyCourse = (value: unknown, analysis: Pisto
   if (analysis) fresh.fingerprint = analysis.fingerprint;
   if (!isObject(value)) return fresh;
   if (value.version !== PISTON_UNCERTAINTY_VERSION) return { ...fresh, resetNotice: true };
+  if (!isObject(value.answers) || PISTON_UNCERTAINTY_FIELD_ORDER.some(id => !isObject(value.answers) || !isObject(value.answers[id]))) {
+    return { ...fresh, resetNotice: true };
+  }
   if (analysis && value.fingerprint !== analysis.fingerprint) return { ...fresh, resetNotice: Boolean(value.fingerprint) };
   if (!analysis || analysis.issue) return fresh;
   let open = true;
@@ -183,7 +194,7 @@ export const normalizePistonUncertaintyCourse = (value: unknown, analysis: Pisto
       const valid = validatePistonUncertaintyAnswer(id, draft, analysis) === null;
       const status = valid && answer.status === 'correct' ? 'correct'
         : valid && answer.status === 'revealed' && attempts.some(a => a.outcome === 'revealed') ? 'revealed' : 'unresolved';
-      fresh.answers[id] = { draft, status, attempts, feedback: status === 'unresolved' && attempts.length > 0 ? validatePistonUncertaintyAnswer(id, draft, analysis) : null };
+      fresh.answers[id] = { draft, status, attempts, feedback: status === 'unresolved' && answer.feedback != null && attempts.length > 0 ? validatePistonUncertaintyAnswer(id, draft, analysis) : null };
       if (status === 'unresolved') open = false;
     }
   }

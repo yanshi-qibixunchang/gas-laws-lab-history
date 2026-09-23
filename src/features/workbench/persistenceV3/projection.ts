@@ -656,6 +656,11 @@ export const isWorkbenchPersistenceV3AuthoritativeCacheRepairAllowed = (
       }
       candidateDomains[scheme] = canonicalClone(canonicalDomain);
     }
+    if (!areCanonicalValuesEqual(sourceDomains.experimentGroups, canonicalDomains.experimentGroups)) {
+      const scopedGroups = normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(sourceDomains.experimentGroups);
+      if (scopedGroups === null || !areCanonicalValuesEqual(scopedGroups, canonicalDomains.experimentGroups)) return false;
+      candidateDomains.experimentGroups = canonicalClone(scopedGroups);
+    }
     if (
       !areCanonicalValuesEqual(
         sourceAuthority.modeSessions,

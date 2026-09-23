@@ -1,6 +1,9 @@
 import {
   useId,
+  useEffect,
+  useRef,
   type CSSProperties,
+  type ReactNode,
 } from 'react';
 import {
   CalculationKnownGrid,
@@ -10,6 +13,7 @@ import {
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
   getHeatCapacityCalculationWorkflowField,
+  getHeatCapacityCalculationNextPage,
   getHeatCapacityCalculationWorkflowVisibleSteps,
   type HeatCapacityCalculationStepKind,
   type HeatCapacityCalculationWorkflowField,
@@ -18,12 +22,16 @@ import {
 } from '../../domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
 import {
   formatHeatCapacityCalculationReference,
-  getHeatCapacityCalculationAnswerSpec,
+  getHeatCapacityCalculationFieldSpec,
+  isHeatCapacitySequentialAnswerRule,
   HEAT_CAPACITY_STRICT_ANSWER_RULE,
   type HeatCapacityCalculationAnswerRule,
 } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
 import './HeatCapacityCalculationWindow.css';
+import { HeatCapacityCalculationMath, HeatCapacityQDefinition, HeatCapacityFinalResult, HeatCapacityPropagationDefinition } from './HeatCapacityCalculationMath.tsx';
+import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
+import { getUncertaintyTeachingNotice } from '../../domain/calculation/uncertaintyTeachingEligibility.ts';
 
 export interface HeatCapacityCalculationWindowProps {
   open: boolean;
@@ -71,7 +79,9 @@ const COPY = {
     precisionWrong: '数值正确，有效数字不符合要求',
     answerWrong: '数值或有效数字不正确',
     continueAnswer: '继续作答',
-    revealAnswer: '查看并继续',
+    revealAnswer: '查看答案',
+    nextGroup: '进入下一次计算',
+    nextAggregate: '进入汇总计算',
     confirm: '确认',
     closeButton: '关闭',
     completeAndExit: '完成并退出',
@@ -85,7 +95,10 @@ const COPY = {
       meanGamma: '计算比热容比平均值',
       sampleStandardDeviation: '计算样本标准差',
       typeAStandardUncertainty: '计算 A 类标准不确定度',
+      typeBStandardUncertainty: '计算平均值的 B 类标准不确定度',
+      combinedStandardUncertainty: '计算合成标准不确定度',
       batchRelativeError: '计算本组相对误差',
+      finalReport: '最终结果修约',
     },
   },
   'zh-TW': {
@@ -117,7 +130,9 @@ const COPY = {
     precisionWrong: '數值正確，有效數字不符合要求',
     answerWrong: '數值或有效數字不正確',
     continueAnswer: '繼續作答',
-    revealAnswer: '查看並繼續',
+    revealAnswer: '查看答案',
+    nextGroup: '進入下一次計算',
+    nextAggregate: '進入彙總計算',
     confirm: '確認',
     closeButton: '關閉',
     completeAndExit: '完成並退出',
@@ -131,7 +146,10 @@ const COPY = {
       meanGamma: '計算比熱容比平均值',
       sampleStandardDeviation: '計算樣本標準差',
       typeAStandardUncertainty: '計算 A 類標準不確定度',
+      typeBStandardUncertainty: '計算平均值的 B 類標準不確定度',
+      combinedStandardUncertainty: '計算合成標準不確定度',
       batchRelativeError: '計算本組相對誤差',
+      finalReport: '最終結果修約',
     },
   },
   en: {
@@ -163,7 +181,9 @@ const COPY = {
     precisionWrong: 'Value accepted; precision is incorrect',
     answerWrong: 'Value or precision is incorrect',
     continueAnswer: 'Try again',
-    revealAnswer: 'Show & continue',
+    revealAnswer: 'Show answer',
+    nextGroup: 'Next experiment',
+    nextAggregate: 'Continue to summary',
     confirm: 'Check',
     closeButton: 'Close',
     completeAndExit: 'Finish & exit',
@@ -177,7 +197,10 @@ const COPY = {
       meanGamma: 'Calculate the mean heat-capacity ratio',
       sampleStandardDeviation: 'Calculate sample standard deviation',
       typeAStandardUncertainty: 'Calculate Type A standard uncertainty',
+      typeBStandardUncertainty: 'Calculate the mean Type B standard uncertainty',
+      combinedStandardUncertainty: 'Calculate combined standard uncertainty',
       batchRelativeError: 'Calculate group relative error',
+      finalReport: 'Round the final result',
     },
   },
 } as const;
@@ -189,6 +212,7 @@ const formatFixed = (value: number, digits: number) => (
 const formatSensitivity = (value: number) => (
   Number.isFinite(value) ? value.toPrecision(4) : '—'
 );
+const formatPublicPressure = (value: number) => Number(value.toFixed(2)) === value ? value.toFixed(2) : String(value);
 
 const getPressureSensitivity = (
   reference: HeatCapacityCalculationWorkflowSession['groups'][number]['reference'],
@@ -207,7 +231,7 @@ const formatReference = (
 ) => (
   formatHeatCapacityCalculationReference(
     field.expectedValue,
-    getHeatCapacityCalculationAnswerSpec(field.answerKind, answerRule),
+    getHeatCapacityCalculationFieldSpec(field, answerRule),
   )
 );
 
@@ -226,7 +250,7 @@ const findFieldByEnding = (
 ) => fields.find((field) => field.id.endsWith(ending)) ?? null;
 
 const getTheoryKnownDatum = (session: HeatCapacityCalculationWorkflowSession): HeatCapacityKnownDatum => ({
-  key: 'theoreticalGamma', label: 'γ₀',
+  key: 'theoreticalGamma', label: isHeatCapacitySequentialAnswerRule(session.answerRule) ? <span>γ<sub>ref</sub></span> : 'γ₀',
   value: session.theoreticalGamma === 5 / 3 ? '5/3' : String(session.theoreticalGamma),
 });
 
@@ -276,7 +300,7 @@ const buildGroupKnownData = (
     { key: 'u0', label: 'U₀（mV）', value: formatFixed(reference.u0Mv, 1) },
     { key: 'u1', label: 'U₁（mV）', value: formatFixed(reference.u1Mv, 1) },
     { key: 'u2', label: 'U₂（mV）', value: formatFixed(reference.u2Mv, 1) },
-    { key: 'p0', label: 'P₀（kPa）', value: formatFixed(reference.p0KPa, 3) },
+    { key: 'p0', label: 'P₀（kPa）', value: isHeatCapacitySequentialAnswerRule(session.answerRule) ? formatPublicPressure(reference.p0KPa) : formatFixed(reference.p0KPa, 3) },
     {
       key: 's',
       label: 'S（mV/kPa）',
@@ -307,8 +331,14 @@ const buildGroupKnownData = (
       label: 'γ',
       value: getResolvedValue(findFieldByEnding(group.fields, ':gamma'), session.answerRule),
     },
+    ...(isHeatCapacitySequentialAnswerRule(session.answerRule) ? [{ key: 'n', label: 'n', value: String(session.groups.length) }] : []),
     getTheoryKnownDatum(session),
   ];
+};
+
+const formatQ = (session: HeatCapacityCalculationWorkflowSession) => {
+  const q = session.aggregate?.reference.sumSquaredDeviations ?? 0;
+  return q === 0 ? '0' : formatSignificantFiguresHalfEven(q, 4);
 };
 
 const buildAggregateKnownData = (
@@ -316,13 +346,19 @@ const buildAggregateKnownData = (
 ): HeatCapacityKnownDatum[] => {
   const gammaData = session.groups.map((group, index) => ({
     key: `gamma-${group.trialId}`,
-    label: `γ${index + 1}`,
+    label: <span>γ<sub>{index + 1}</sub></span>,
     value: getResolvedValue(findFieldByEnding(group.fields, ':gamma'), session.answerRule),
   }));
   const aggregate = session.aggregate;
   if (!aggregate) return gammaData;
   return [
     ...gammaData,
+    { key: 'n', label: 'n', value: String(session.groups.length) },
+    ...(aggregate.reference.voltageInstrumentStandardUncertaintyMv !== undefined ? [
+      { key: 'voltageInstrumentStandardUncertaintyMv', label: <span>u<sub>仪器</sub>(U)（mV）</span>, value: String(aggregate.reference.voltageInstrumentStandardUncertaintyMv) },
+      { key: 'propagationCoefficient', label: <span>C（mV<sup>−1</sup>）</span>, value: formatSignificantFiguresHalfEven(aggregate.reference.propagationCoefficient!, 4) },
+    ] : []),
+    ...(session.aggregate.fields.some(field => field.answerKind === 'sampleStandardDeviation') && isHeatCapacitySequentialAnswerRule(session.answerRule) ? [{ key: 'Q', label: 'Q', value: getResolvedValue(findFieldByEnding(aggregate.fields, ':meanGamma'), session.answerRule) ? formatQ(session) : '' }] : []),
     {
       key: 'meanGamma',
       label: 'γ̄',
@@ -335,7 +371,7 @@ const buildAggregateKnownData = (
     },
     {
       key: 'typeAStandardUncertainty',
-      label: 'uA(γ̄)',
+      label: <span>u<sub>A</sub>(γ̄)</span>,
       value: getResolvedValue(findFieldByEnding(aggregate.fields, ':typeAStandardUncertainty'), session.answerRule),
     },
     {
@@ -343,8 +379,12 @@ const buildAggregateKnownData = (
       label: 'Eᵣ（%）',
       value: getResolvedValue(findFieldByEnding(aggregate.fields, ':relativeError'), session.answerRule),
     },
+    ...(aggregate.reference.voltageInstrumentStandardUncertaintyMv !== undefined ? [
+      { key: 'typeBStandardUncertainty', label: <span>u<sub>B</sub>(γ̄)</span>, value: getResolvedValue(findFieldByEnding(aggregate.fields, ':typeBStandardUncertainty'), session.answerRule) },
+      { key: 'combinedStandardUncertainty', label: <span>u<sub>c</sub>(γ̄)</span>, value: getResolvedValue(findFieldByEnding(aggregate.fields, ':combinedStandardUncertainty'), session.answerRule) },
+    ] : []),
     getTheoryKnownDatum(session),
-  ];
+  ].filter(datum => !['sampleStandardDeviation', 'typeAStandardUncertainty'].includes(datum.key) || aggregate.fields.some(field => field.answerKind === datum.key));
 };
 
 const buildPotentialKnownValues = (
@@ -383,8 +423,11 @@ const getStepFormula = (
   if (kind === 'groupGamma') return 'γ = ln(P₁ / P₀) / ln(P₁ / P₂) =';
   if (kind === 'guideRelativeError') return 'Eᵣ = |γ − γ₀| / γ₀ × 100% =';
   if (kind === 'meanGamma') return `γ̄ = (γ₁ + ⋯ + γ${groupCount}) / ${groupCount} =`;
-  if (kind === 'sampleStandardDeviation') return 's(γ) = √[Σ(γᵢ − γ̄)² / (n − 1)] =';
+  if (kind === 'sampleStandardDeviation') return 's = √[Q / (n − 1)] =';
+  if (kind === 'finalReport') return field.answerKind === 'reportMeanGamma' ? 'γ̄ =' : 'uc(γ̄) =';
   if (kind === 'typeAStandardUncertainty') return 'uA(γ̄) = s(γ) / √n =';
+  if (kind === 'typeBStandardUncertainty') return 'uB(γ̄) = C × u仪器(U) =';
+  if (kind === 'combinedStandardUncertainty') return 'uc(γ̄) = √[uA²(γ̄) + uB²(γ̄)] =';
   return 'Eᵣ = |γ̄ − γ₀| / γ₀ × 100% =';
 };
 
@@ -413,7 +456,7 @@ const HeatCapacityCalculationField = ({
 }: {
   field: HeatCapacityCalculationWorkflowField;
   answerRule: HeatCapacityCalculationAnswerRule | undefined;
-  formula: string;
+  formula: ReactNode;
   language: WorkbenchLanguagePreference;
   interactive: boolean;
   systemReadOnly: boolean;
@@ -422,7 +465,7 @@ const HeatCapacityCalculationField = ({
   onRevealAnswer: (fieldId: string) => void;
 }) => {
   const copy = COPY[language] ?? COPY['zh-CN'];
-  const spec = getHeatCapacityCalculationAnswerSpec(field.answerKind, answerRule);
+  const spec = getHeatCapacityCalculationFieldSpec(field, answerRule);
   const precision = spec.precision.type === 'decimal-places'
     ? copy.precisionDecimal(spec.precision.digits)
     : copy.precisionSignificant(spec.precision.digits);
@@ -439,7 +482,7 @@ const HeatCapacityCalculationField = ({
     : field.answer.status === 'revealed'
       ? copy.revealed
       : feedbackMessageKey
-        ? feedbackMessageKey === 'numericWrong' && answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
+        ? feedbackMessageKey === 'numericWrong' && (answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE || isHeatCapacitySequentialAnswerRule(answerRule))
           ? copy.strictNumericWrong
           : copy[feedbackMessageKey]
         : '';
@@ -467,6 +510,7 @@ const HeatCapacityCalculationField = ({
             aria-describedby={`heat-calculation-${field.id}-precision heat-calculation-${field.id}-feedback`}
             onChange={(event) => onDraftChange(field.id, event.currentTarget.value)}
           />
+          <span>{field.answerKind === 'correctedVoltage' ? 'mV' : field.answerKind === 'absolutePressure' ? 'kPa' : field.answerKind === 'relativeErrorPercent' ? '%' : ''}</span>
         </label>
         <span
           id={`heat-calculation-${field.id}-precision`}
@@ -554,7 +598,24 @@ const HeatCapacityCalculationStep = ({
     >
       <header className="studio-heat-calculation-step-header">
         <strong>{copy.stepTitle[step.kind]}</strong>
+        {isHeatCapacitySequentialAnswerRule(session.answerRule) && session.presentation === 'interactive' && fields.every(field => field.answer.status !== 'unresolved') && <button type="button" className="studio-heat-calculation-restart" onClick={() => onContinueAnswer(fields[0]!.id)}>{language === 'en' ? 'Recalculate from here' : '从此步重新计算'}</button>}
       </header>
+      {step.kind === 'sampleStandardDeviation' && isHeatCapacitySequentialAnswerRule(session.answerRule) && <div className="studio-heat-calculation-explanation">
+        <p>{language === 'en' ? 'The three results may differ. The standard deviation describes their spread; the Type A standard uncertainty of the mean assesses the effect of repeat measurements on the mean.' : '三次实验结果可能存在一定分散。标准差描述各次结果的离散程度，平均值的 A 类标准不确定度用于评定重复测量对平均值的影响。'}</p>
+        <HeatCapacityQDefinition value={formatQ(session)} />
+      </div>}
+      {step.kind === 'typeAStandardUncertainty' && isHeatCapacitySequentialAnswerRule(session.answerRule) && <details className="studio-heat-calculation-explanation">
+        <summary>{language === 'en' ? 'Why divide by √n?' : '为什么除以 √n？'}</summary>
+        <p>{language === 'en' ? 'For independent repetitions under the same conditions, the standard deviation of the mean equals the standard deviation of a single result divided by √n. Here n = 3. This is a statistical relation, not a conversion of an instrument error limit.' : '同一条件下独立重复实验，平均值的标准差等于单次结果的标准差除以 √n。本组 n = 3；这是重复实验平均值的统计关系，不是仪器误差限的换算。'}</p>
+      </details>}
+      {step.kind === 'finalReport' && <p className="studio-heat-calculation-explanation">{language === 'en' ? 'Round the combined standard uncertainty to two significant figures and align the mean to its decimal place.' : '合成标准不确定度保留两位有效数字，平均值的小数末位与其对齐。'}</p>}
+      {step.kind === 'typeBStandardUncertainty' && <div className="studio-heat-calculation-explanation">
+        <p>{language === 'en' ? 'The given voltage instrument standard uncertainty is 0.1 mV. Multiply it by the public coefficient C to obtain the Type B standard uncertainty of the mean.' : '给定电压仪器标准不确定度为 0.1 mV，乘以表中的传播系数 C，得到平均 γ 的 B 类标准不确定度。'}</p>
+        <details><summary>{language === 'en' ? 'Where does C come from?' : 'C 从哪里来？'}</summary>
+          <p>{language === 'en' ? 'The system calculates how U₀, U₁ and U₂ affect the mean using this group’s public data. Their sensitivity coefficients are c₀, c₁ and c₂. C combines these contributions; no derivative calculation is required.' : '系统根据本组公开数据计算 U₀、U₁、U₂ 对平均 γ 的影响，分别得到系数 c₀、c₁、c₂，再合成为 C。无需手算偏导数。'}</p>
+          <HeatCapacityPropagationDefinition />
+        </details>
+      </div>}
       <div className="studio-heat-calculation-step-main">
         <div
           className={`studio-heat-calculation-step-fields ${
@@ -567,7 +628,9 @@ const HeatCapacityCalculationStep = ({
               key={field.id}
               field={field}
               answerRule={session.answerRule}
-              formula={getStepFormula(step.kind, field, session.groups.length)}
+              formula={isHeatCapacitySequentialAnswerRule(session.answerRule)
+                ? <HeatCapacityCalculationMath kind={step.kind} fieldId={field.id} count={session.groups.length} usePublicQ label={getStepFormula(step.kind, field, session.groups.length).replaceAll('γ₀', 'γref')} />
+                : getStepFormula(step.kind, field, session.groups.length)}
               language={language}
               interactive={active}
               systemReadOnly={systemReadOnly}
@@ -589,6 +652,10 @@ const HeatCapacityCalculationStep = ({
           {copy.confirm}
         </button>
       </div>
+      {step.kind === 'finalReport' && <div className="studio-heat-calculation-explanation">
+        {fields.every(field => field.answer.status !== 'unresolved') && <HeatCapacityFinalResult average={formatReference(fields[0]!, session.answerRule)} uncertainty={formatReference(fields[1]!, session.answerRule)} />}
+        <p>{language === 'en' ? 'This result reports the combined standard uncertainty from repeat measurements and the specified voltage instrument effect.' : '本结果报告重复测量 A 类与给定电压仪器 B 类合成的标准不确定度。'}</p>
+      </div>}
     </article>
   );
 };
@@ -607,6 +674,13 @@ export const HeatCapacityCalculationWindow = ({
   onClose,
 }: HeatCapacityCalculationWindowProps) => {
   const generatedId = useId();
+  const stepsRef = useRef<HTMLDivElement>(null);
+  const nextPage = open && session ? getHeatCapacityCalculationNextPage(session) : null;
+  useEffect(() => {
+    if (nextPage !== null || session?.status === 'ready-to-exit') {
+      stepsRef.current?.lastElementChild?.scrollIntoView({ block: 'nearest' });
+    }
+  }, [nextPage, session?.selectedGroupIndex, session?.status]);
   if (!open || session === null) return null;
 
   const copy = COPY[language] ?? COPY['zh-CN'];
@@ -661,7 +735,7 @@ export const HeatCapacityCalculationWindow = ({
         '.studio-heat-calculation-step-active button:not(:disabled), ' +
         '.studio-heat-calculation-exit, .studio-settings-close'
       }
-      focusKey={`${session.activeStepId}:${session.status}:${session.presentation}`}
+      focusKey={`${session.activeStepId}:${session.status}:${session.presentation}:${session.selectedGroupIndex}:${session.aggregateSelected}`}
       overlayClassName="studio-settings-overlay studio-heat-calculation-overlay"
       dialogClassName="studio-settings-window studio-heat-calculation-window"
       headerClassName="studio-settings-header studio-heat-calculation-header"
@@ -676,7 +750,13 @@ export const HeatCapacityCalculationWindow = ({
           className="studio-heat-calculation-tolerance-note"
           role="note"
         >
-          {session.answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE ? copy.strictRule : copy.tolerance}
+          {(session.answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE || isHeatCapacitySequentialAnswerRule(session.answerRule)) ? copy.strictRule : copy.tolerance}
+          {session.recalculationNotice && session.status !== 'completed' && <p role="status">{language === 'en' ? 'The calculation rules have changed. Previous answer checks have been cleared; recalculate the related steps using the saved readings.' : '计算规则已更新，旧答案的核验状态已清除，请使用保存的原始读数重新完成相关计算。'}</p>}
+          {session.uncertaintyUpgradeNotice && session.status !== 'completed' && <p role="status">{language === 'en' ? 'The instrument uncertainty definition has been updated. Valid preceding answers are retained; recalculate Type B, combined uncertainty and the final report.' : '仪器不确定度定义已更新，前序有效答案已保留；请重新计算 B 类、合成不确定度及最终报告。'}</p>}
+          {isHeatCapacitySequentialAnswerRule(session.answerRule) && session.groups.length !== 3 && <p>{language === 'en' ? 'This saved group does not contain three trials. Its original records are retained; start a three-trial group for this Type A course.' : '此旧组不是三次实验，原始记录保留；本次 A 类教学请使用三次实验的新组。'}</p>}
+          {getUncertaintyTeachingNotice(session.uncertaintyEligibility, language) && (
+            <p>{getUncertaintyTeachingNotice(session.uncertaintyEligibility, language)}</p>
+          )}
         </div>
 
         {session.mode === 'free' ? (
@@ -705,9 +785,9 @@ export const HeatCapacityCalculationWindow = ({
               type="button"
               className={session.aggregateSelected ? 'studio-heat-calculation-tab-active' : ''}
               aria-current={session.aggregateSelected ? 'page' : undefined}
-              disabled={session.status === 'in-progress' && !session.aggregateSelected}
+              disabled={session.status === 'in-progress' && !session.groups.every(group => group.fields.every(field => field.answer.status !== 'unresolved'))}
               data-prompt-tooltip={
-                session.status === 'in-progress' && !session.aggregateSelected
+                session.status === 'in-progress' && !session.groups.every(group => group.fields.every(field => field.answer.status !== 'unresolved'))
                   ? copy.futureAggregate
                   : undefined
               }
@@ -742,7 +822,7 @@ export const HeatCapacityCalculationWindow = ({
           />
         </section>
 
-        <div className="studio-heat-calculation-steps" data-scroll-on-overflow="true">
+        <div ref={stepsRef} className="studio-heat-calculation-steps" data-scroll-on-overflow="true">
           {visibleSteps.map((step) => (
             <HeatCapacityCalculationStep
               key={step.id}
@@ -757,14 +837,18 @@ export const HeatCapacityCalculationWindow = ({
           ))}
         </div>
 
-        {canDismiss ? (
+        {canDismiss || nextPage !== null ? (
           <footer className="studio-heat-calculation-footer">
             <button
               type="button"
               className="studio-heat-calculation-exit"
-              onClick={handleDismiss}
+              onClick={() => {
+                if (nextPage === 'aggregate') onSelectAggregate();
+                else if (nextPage !== null) onSelectGroup(nextPage);
+                else handleDismiss();
+              }}
             >
-              {isReadyForCompletion ? copy.completeAndExit : copy.closeButton}
+              {nextPage === 'aggregate' ? copy.nextAggregate : nextPage !== null ? copy.nextGroup : isReadyForCompletion ? copy.completeAndExit : copy.closeButton}
             </button>
           </footer>
         ) : null}

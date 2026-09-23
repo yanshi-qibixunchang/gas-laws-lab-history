@@ -15,8 +15,9 @@ import {
   type PistonOscillationRawMeasurementRecord,
 } from '../../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import { PISTON_PRECISION_VERSION } from '../../../domain/pistonOscillation/pistonOscillationPrecisionModel.ts';
+import { evaluatePistonUncertaintyEligibility } from '../../../domain/pistonOscillation/pistonOscillationUncertaintyEligibility.ts';
 import { cleanPistonUncertaintySnapshot, LEGACY_PISTON_PRESSURE_METADATA } from '../../../domain/pistonOscillation/pistonUncertaintySnapshotMigration.ts';
-import { PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION, createPistonUncertaintyProfile } from '../../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import { PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION, PISTON_EXPANDED_UNCERTAINTY_VERSION, PISTON_STANDARD_UNCERTAINTY_VERSION, createPistonUncertaintyProfile } from '../../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
   normalizePistonOscillationFreeExperimentGroup,
@@ -393,16 +394,17 @@ const hasObsoletePrecision = (value: JsonRecord) => isRecord(value.dataProcessin
 const hasObsoleteTeaching = (value: JsonRecord) => isRecord(value.dataProcessing)
   && value.dataProcessing.schemaVersion === PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION
   && value.dataProcessing.precisionVersion === PISTON_PRECISION_VERSION
-  && value.dataProcessing.uncertaintyCourseVersion === PISTON_LEGACY_UNCERTAINTY_VERSION;
+  && [PISTON_LEGACY_UNCERTAINTY_VERSION, PISTON_EXPANDED_UNCERTAINTY_VERSION, PISTON_STANDARD_UNCERTAINTY_VERSION].includes(value.dataProcessing.uncertaintyCourseVersion as typeof PISTON_LEGACY_UNCERTAINTY_VERSION);
 
-// Only derived progress from the explicitly recognised 19-question course is
+// Only derived progress from the explicitly recognised obsolete courses is
 // discarded. The outer exact comparison still protects all measured records,
 // apparatus settings, operation history and other session authority.
 const upgradeTeaching = (candidate: JsonRecord) => {
   if (!hasObsoleteTeaching(candidate) || !Array.isArray(candidate.savedMeasurements)
     || !finite(candidate.updatedAtMs)) return false;
   const processing = candidate.dataProcessing as JsonRecord;
-  const allowed = ['schemaVersion', 'precisionVersion', 'precisionNotice', 'uncertaintyCourseVersion',
+  const isStandardCourse = processing.uncertaintyCourseVersion === PISTON_STANDARD_UNCERTAINTY_VERSION;
+  const allowed = ['schemaVersion', 'precisionVersion', 'precisionNotice', 'uncertaintyCourseVersion', 'uncertaintyEligibility',
     'processingPolicy', 'scoringPolicy', 'status', 'activeRunIndex', 'runs', 'linearFitResult',
     'calculationSession', 'audit', 'startedAtMs', 'updatedAtMs'];
   if (Object.keys(processing).some(key => !allowed.includes(key))
@@ -450,15 +452,25 @@ const upgradeTeaching = (candidate: JsonRecord) => {
       }) || !isKnownBatchAttempts(calculation.batchAttempts, calculationFields)) return false;
     const course = calculation.uncertainty;
     if (!exactKeys(course, ['version', 'profile', 'fingerprint', 'readPhases', 'answers', 'resetNotice'])
-      || course.version !== PISTON_LEGACY_UNCERTAINTY_VERSION || typeof course.fingerprint !== 'string'
+      || course.version !== processing.uncertaintyCourseVersion || typeof course.fingerprint !== 'string'
       || typeof course.resetNotice !== 'boolean' || !Array.isArray(course.readPhases)
       || course.readPhases.some(phase => !['A', 'B', 'C'].includes(phase as string))) return false;
     const { pressureStandardPa: _given, ...profile } = createPistonUncertaintyProfile();
-    if (!equal(course.profile, { ...profile, ...LEGACY_PISTON_PRESSURE_METADATA, version: PISTON_LEGACY_UNCERTAINTY_VERSION })) return false;
-    const fields = ['residual', 'slopeA', 'gammaA', 'mass', 'diameter', 'pressureCalibration', 'pressureReadout',
+    const isV1 = course.version === PISTON_LEGACY_UNCERTAINTY_VERSION;
+    const oldProfile = isV1
+      ? { ...profile, ...LEGACY_PISTON_PRESSURE_METADATA, coverage: 2, version: PISTON_LEGACY_UNCERTAINTY_VERSION }
+      : isStandardCourse
+        ? { ...createPistonUncertaintyProfile(), version: PISTON_STANDARD_UNCERTAINTY_VERSION }
+        : { ...createPistonUncertaintyProfile(), coverage: 2, version: PISTON_EXPANDED_UNCERTAINTY_VERSION };
+    if (!equal(course.profile, oldProfile)) return false;
+    const fields = isV1 ? ['residual', 'slopeA', 'gammaA', 'mass', 'diameter', 'pressureCalibration', 'pressureReadout',
       'pressure', 'heightScale', 'timeScale', 'heightReadout', 'slopeReadout', 'slopeSupplement', 'slopeB',
-      'gammaB', 'combined', 'relative', 'expanded', 'result'];
-    if (!exactKeys(course.answers, fields) || !fields.every(field => {
+      'gammaB', 'combined', 'relative', 'expanded', 'result']
+      : ['meanX', 'sxx', 'residual', 'slopeA', 'gammaA', 'mass', 'diameter', 'gammaB', 'combined', 'relative', isStandardCourse ? 'reportCombined' : 'expanded', 'result'];
+    // Recognise snapshots with and without the preliminary fit-statistic exercises.
+    const answerFields = !isV1 && exactKeys(course.answers, fields.filter(field => !['meanX', 'sxx'].includes(field)))
+      ? fields.filter(field => !['meanX', 'sxx'].includes(field)) : fields;
+    if (!exactKeys(course.answers, answerFields) || !answerFields.every(field => {
       const answer = (course.answers as JsonRecord)[field];
       return exactKeys(answer, ['draft', 'status', 'feedback', 'attempts']) && typeof answer.draft === 'string'
         && ['unresolved', 'correct', 'revealed'].includes(answer.status as string)
@@ -467,6 +479,24 @@ const upgradeTeaching = (candidate: JsonRecord) => {
           && finite(attempt.atMs) && typeof attempt.raw === 'string'
           && ['correct', 'revealed', 'empty', 'invalid', 'numeric-wrong', 'precision-wrong'].includes(attempt.outcome as string));
     })) return false;
+  }
+  if (isStandardCourse) {
+    // Only the uncertainty course changed. Retain every period, fit and base
+    // calculation; the exact comparison rejects any other normalization repair.
+    const normalized = normalizePistonOscillationDataProcessingSession(processing,
+      candidate.savedMeasurements as PistonOscillationRawMeasurementRecord[], candidate.updatedAtMs,
+      { answerValidationMode: 'batch', includeUncertainty: true,
+        uncertaintyEligibility: processing.uncertaintyEligibility as ReturnType<typeof evaluatePistonUncertaintyEligibility> | undefined });
+    if (!normalized) return false;
+    const retained = { ...processing, uncertaintyCourseVersion: PISTON_UNCERTAINTY_VERSION,
+      status: normalized.status,
+      calculationSession: isRecord(processing.calculationSession) && normalized.calculationSession
+        ? { ...processing.calculationSession, uncertainty: normalized.calculationSession.uncertainty,
+            status: normalized.calculationSession.status, completedAtMs: normalized.calculationSession.completedAtMs }
+        : processing.calculationSession };
+    if (!equal(retained, normalized)) return false;
+    candidate.dataProcessing = retained;
+    return true;
   }
   candidate.dataProcessing = { ...fresh, precisionNotice: 'teaching-updated' };
   return true;
@@ -480,8 +510,9 @@ const upgradeProcessingPrecision = (candidate: JsonRecord) => {
     || !finite(candidate.updatedAtMs)) return false;
   const original = candidate.dataProcessing as JsonRecord;
   const legacy = JSON.parse(canonicalizeWorkbenchPersistenceV3Json(original)) as JsonRecord;
+  delete legacy.uncertaintyEligibility;
   if (legacy.uncertaintyCourseVersion !== undefined) {
-    if (![PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION].includes(legacy.uncertaintyCourseVersion as typeof PISTON_UNCERTAINTY_VERSION)) return false;
+    if (![PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION, PISTON_EXPANDED_UNCERTAINTY_VERSION, PISTON_STANDARD_UNCERTAINTY_VERSION].includes(legacy.uncertaintyCourseVersion as typeof PISTON_UNCERTAINTY_VERSION)) return false;
     delete legacy.uncertaintyCourseVersion;
     if (isRecord(legacy.calculationSession) && legacy.calculationSession.uncertainty !== undefined) {
       if (!isRecord(legacy.calculationSession.uncertainty)
@@ -492,7 +523,7 @@ const upgradeProcessingPrecision = (candidate: JsonRecord) => {
   const saved = candidate.savedMeasurements as PistonOscillationRawMeasurementRecord[];
   const normalized = normalizePistonOscillationDataProcessingSession(legacy, saved, candidate.updatedAtMs,
     { answerValidationMode: 'batch' });
-  if ([PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION].includes(original.uncertaintyCourseVersion as typeof PISTON_UNCERTAINTY_VERSION) && normalized) {
+  if ([PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION, PISTON_EXPANDED_UNCERTAINTY_VERSION, PISTON_STANDARD_UNCERTAINTY_VERSION].includes(original.uncertaintyCourseVersion as typeof PISTON_UNCERTAINTY_VERSION) && normalized) {
     // The old course could hold an otherwise finished base calculation open.
     if (!['period-processing', 'calculation-ready', 'completed'].includes(legacy.status as string)) return false;
     legacy.status = normalized.status;
@@ -510,10 +541,39 @@ const upgradeProcessingPrecision = (candidate: JsonRecord) => {
   return true;
 };
 
+// Validate the previous course before applying the new scope. This permits only
+// derived eligibility/course changes, never repairs to measurement authority.
+const migrateUncertaintyEligibility = (candidate: JsonRecord) => {
+  if (candidate.dataProcessing === null) return true;
+  if (!isRecord(candidate.dataProcessing) || !isRecord(candidate.experimentGroup)
+    || !Array.isArray(candidate.savedMeasurements) || !finite(candidate.updatedAtMs)) return false;
+  const { uncertaintyEligibility: _oldEligibility, ...previous } = candidate.dataProcessing;
+  const records = candidate.savedMeasurements as PistonOscillationRawMeasurementRecord[];
+  const options = { answerValidationMode: 'batch' as const,
+    unifiedPrecision: previous.precisionVersion === PISTON_PRECISION_VERSION,
+    includeUncertainty: previous.uncertaintyCourseVersion === PISTON_UNCERTAINTY_VERSION };
+  const validated = normalizePistonOscillationDataProcessingSession(previous, records, candidate.updatedAtMs, options);
+  if (!equal(previous, validated)) return false;
+  const eligibility = evaluatePistonUncertaintyEligibility(candidate.experimentGroup as unknown as PistonOscillationFreeExperimentGroup);
+  candidate.dataProcessing = normalizePistonOscillationDataProcessingSession(previous, records, candidate.updatedAtMs,
+    { ...options, unifiedPrecision: true, includeUncertainty: eligibility.eligible, uncertaintyEligibility: eligibility });
+  return true;
+};
+
+const hasObsoleteEligibility = (value: JsonRecord) => {
+  if (!isRecord(value.dataProcessing) || !isRecord(value.experimentGroup)) return false;
+  try {
+    const expected = evaluatePistonUncertaintyEligibility(value.experimentGroup as unknown as PistonOscillationFreeExperimentGroup);
+    return value.dataProcessing.uncertaintyEligibility === undefined
+      || !equal(value.dataProcessing.uncertaintyEligibility, expected)
+      || (value.dataProcessing.uncertaintyCourseVersion === PISTON_UNCERTAINTY_VERSION) !== expected.eligible;
+  } catch { return false; }
+};
+
 export const isKnownPistonFreeSessionMigrationSource = (value: unknown) => (
   isRecord(value) && (value.schemaVersion === 8 || value.schemaVersion === 9
     || (value.schemaVersion === PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION && (hasObsoletePrecision(value) || hasObsoleteTeaching(value)
-      || cleanPistonUncertaintySnapshot(value.dataProcessing) !== value.dataProcessing)))
+      || cleanPistonUncertaintySnapshot(value.dataProcessing) !== value.dataProcessing || hasObsoleteEligibility(value))))
 );
 
 /**
@@ -529,10 +589,10 @@ export const isAllowedPistonFreeSessionMigration = (source: unknown, canonical: 
     const sourceVersion = source.schemaVersion;
     if (sourceVersion === PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION) {
       const cleaned = cleanPistonUncertaintySnapshot(candidate.dataProcessing);
-      if (cleaned !== candidate.dataProcessing) return equal({ ...candidate, dataProcessing: cleaned }, canonical);
-      return isRecord(canonical.dataProcessing)
-        && canonical.dataProcessing.precisionVersion === PISTON_PRECISION_VERSION
-        && (hasObsoleteTeaching(candidate) ? upgradeTeaching(candidate) : upgradeProcessingPrecision(candidate)) && equal(candidate, canonical);
+      candidate.dataProcessing = cleaned;
+      if (hasObsoleteTeaching(candidate) && !upgradeTeaching(candidate)) return false;
+      if (hasObsoletePrecision(candidate) && !upgradeProcessingPrecision(candidate)) return false;
+      return migrateUncertaintyEligibility(candidate) && equal(candidate, canonical);
     }
     if (sourceVersion !== 8 && sourceVersion !== 9) return false;
     if (!Array.isArray(candidate.savedMeasurements) || !Array.isArray(candidate.excludedAttempts)
@@ -599,7 +659,7 @@ export const isAllowedPistonFreeSessionMigration = (source: unknown, canonical: 
     if (!migrateProcessing(candidate.dataProcessing, sourceVersion, saved)) return false;
     if (!upgradeProcessingPrecision(candidate)) return false;
     candidate.schemaVersion = PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION;
-    return equal(candidate, canonical);
+    return migrateUncertaintyEligibility(candidate) && equal(candidate, canonical);
   } catch {
     return false;
   }

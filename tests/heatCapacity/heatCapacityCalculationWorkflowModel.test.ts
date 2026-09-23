@@ -85,7 +85,7 @@ const free = createHeatCapacityCalculationWorkflowSession({
   now: 200,
 });
 assert.notEqual(free.aggregate, null);
-assert.equal(free.aggregate?.steps.length, 4);
+assert.equal(free.aggregate?.steps.length, 7);
 assert.equal(selectHeatCapacityCalculationGroup(free, 1), free);
 
 let revealProgress = submitHeatCapacityCalculationStep(
@@ -144,7 +144,7 @@ assert.equal(completeFree.aggregate?.reference.typeAStandardUncertainty, 0);
 assert.equal(completeFree.aggregate?.reference.relativeErrorPercent, 0);
 
 while (completeFree.status === 'in-progress') {
-  const activeSteps = completeFree.aggregateSelected
+  const activeSteps = completeFree.activeStepId?.startsWith('aggregate:')
     ? completeFree.aggregate?.steps ?? []
     : completeFree.groups[completeFree.activeGroupIndex].steps;
   const activeStep = activeSteps.find((step) => (

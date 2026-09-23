@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { getHeatCapacityFreeRecordedTrialIssue } from '../../src/features/workbench/workbenchHeatCapacityFreeRecordState.ts';
 import {
   applyHeatCapacityFreeRecordWorkbenchState,
   completeHeatCapacityFreePreheatWorkbenchState,
@@ -124,8 +125,8 @@ assert.ok(
 );
 assert.equal(deriveHeatCapacityFreeWorkbenchAttemptWaitTimer(acceleratedPowerOffWait).stage, 'u1-wait');
 
-// Complete the normal Free flow without U0. U1/U2 remain recordable and the
-// calculation must explicitly use U0 = 0 mV.
+// Raw U1/U2 remain recordable without U0, but this is not a completed trial.
+// The UI must explain the missing zero rather than silently assuming zero.
 let normal = setHeatCapacityFreePumpValveOpen(preheated, true, 6_410);
 normal = registerHeatCapacityPumpStroke(normal, 6_420);
 normal = stepHeatCapacityWorkbenchFile(normal, 6_540);
@@ -155,12 +156,13 @@ normal = setHeatCapacityFreeEquilibriumSpeedMultiplier(normal, 16, 7_830);
 normal = stepHeatCapacityWorkbenchFile(normal, 27_830);
 const u2 = applyHeatCapacityFreeRecordWorkbenchState(normal, 'u2', 27_840);
 assert.equal(u2.accepted, true);
-assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.correctedSignals?.u0Source, 'assumed-zero');
-assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.correctedSignals?.U0DisplayMv, 0);
+assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.correctedSignals, null, 'missing manual and automatic zero records prevent calculation');
 assert.equal(u2.file.heatCapacityFreeRunWorkspace.trials[0]?.preheatOutcome, 'completed');
+assert.equal(getHeatCapacityFreeRecordedTrialIssue(u2.file), 'missing-zero');
+assert.equal(u2.file.heatCapacityFreeRunWorkspace.currentExperimentStatus, 'running');
 
 const completed = powerHeatCapacityWorkbenchFile(u2.file, false, 27_850);
-assert.equal(completed.heatCapacityFreeRunWorkspace.activeAttempt, null);
-assert.notEqual(completed.heatCapacityFreeRunWorkspace.trials[0]?.completedAtMs, null);
+assert.notEqual(completed.heatCapacityFreeRunWorkspace.activeAttempt, null, 'missing zero data must not finalize a valid experiment');
+assert.equal(completed.heatCapacityFreeRunWorkspace.trials[0]?.completedAtMs, null);
 
 console.log('workbenchHeatCapacityFreeAttemptIntegration tests passed');

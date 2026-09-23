@@ -26,7 +26,6 @@ from professional_graph_style import (
     ENGINEERING_EXPORT_STYLE,
     PROFESSIONAL_COLORS,
     add_legend,
-    add_metadata_band,
     apply_professional_rc_params,
     create_professional_figure,
     save_professional_figure,
@@ -61,7 +60,7 @@ def _import_dependencies():
         cjk_font_names: list[str] = []
         font_candidates = [
             FONT_DIR / "simsun.ttc",
-            FONT_DIR / "msyh.ttc",
+
         ]
         for candidate in font_candidates:
             if not candidate.exists():
@@ -74,10 +73,7 @@ def _import_dependencies():
         if cjk_font_names:
             plt.rcParams["font.serif"] = [
                 "Times New Roman",
-                "Times",
                 *cjk_font_names,
-                "DejaVu Serif",
-                "serif",
             ]
         plt.rcParams["axes.unicode_minus"] = False
         from reportlab.lib import colors
@@ -161,7 +157,7 @@ def register_report_fonts(deps: dict[str, Any]) -> dict[str, str]:
         FONT_NAMES["cjk_sans"]: FONT_DIR / "msyh.ttc",
         FONT_NAMES["cjk_sans_bold"]: first_existing_path([
             FONT_DIR / "msyhbd.ttc",
-            FONT_DIR / "msyh.ttc",
+
         ]),
     }
 
@@ -174,7 +170,10 @@ def register_report_fonts(deps: dict[str, Any]) -> dict[str, str]:
                 continue
         registered[name] = name if name in pdfmetrics.getRegisteredFontNames() else "Times-Roman"
 
-    cjk_font = registered.get(FONT_NAMES["cjk"], "STSong-Light")
+    required = [FONT_NAMES[key] for key in ("serif", "serif_bold", "cjk")]
+    if any(name not in pdfmetrics.getRegisteredFontNames() for name in required):
+        raise RuntimeError("报告导出需要安装宋体及 Times New Roman（含粗体），不能替换为其他字体。")
+    cjk_font = registered[FONT_NAMES["cjk"]]
     cjk_sans_font = (
         FONT_NAMES["cjk_sans"]
         if FONT_NAMES["cjk_sans"] in pdfmetrics.getRegisteredFontNames()
@@ -280,8 +279,8 @@ def configure_axis(ax: Any, title: str, xlabel: str, ylabel: str) -> None:
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.grid(True, color="#d7dee8", linewidth=0.8, alpha=0.75)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
 
 
 def format_graph_metric(value: Any, digits: int = 4, suffix: str = "") -> str:
@@ -483,7 +482,13 @@ def save_figure(fig: Any, figures_dir: Path, stem: str, caption: str) -> dict[st
     outputs = {
         "png": figure_dir / f"{stem}.png",
     }
-    save_professional_figure(fig, outputs["png"])
+    # Export requests may contain several plots; release each canvas even if
+    # writing the image fails, just as the heat-capacity exporters do.
+    from matplotlib import pyplot as plt
+    try:
+        save_professional_figure(fig, outputs["png"])
+    finally:
+        plt.close(fig)
     return outputs
 
 
@@ -510,7 +515,7 @@ def plot_ideal_verification(data: dict[str, Any], figures_dir: Path, deps: dict[
         color=PROFESSIONAL_COLORS["primary"],
         edgecolor="white",
         linewidth=0.5,
-        label="Measured",
+        label="模拟数据",
         zorder=4,
     )
     ideal_x, ideal_y = sorted_xy(x_values, ideal_values)
@@ -519,7 +524,7 @@ def plot_ideal_verification(data: dict[str, Any], figures_dir: Path, deps: dict[
         ideal_y,
         color=PROFESSIONAL_COLORS["theory"],
         linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
-        label="Ideal reference",
+        label="理想参考",
     )
     if len(x_values) >= 2:
         slope = safe_float(verification.get("slope"))
@@ -532,24 +537,16 @@ def plot_ideal_verification(data: dict[str, Any], figures_dir: Path, deps: dict[
             color=PROFESSIONAL_COLORS["fit"],
             linewidth=ENGINEERING_EXPORT_STYLE["fit_line_width"],
             linestyle="--",
-            label="Linear fit",
+            label="线性拟合",
         )
     x_label = (
-        "Inverse volume 1/V"
+        "体积倒数 1/V"
         if relation == "pv"
-        else "Particle count N"
+        else "粒子数 N"
         if relation == "pn"
-        else "Equilibrium temperature T"
+        else "平衡温度 T"
     )
-    style_axes(ax, x_label, "Pressure P")
-    add_metadata_band(
-        fig,
-        [
-            ("Samples", str(len(points))),
-            ("R2", format_graph_metric(verification.get("rSquared"), 5)),
-            ("Slope error", format_graph_metric(verification.get("slopeError"), 3, "%")),
-        ],
-    )
+    style_axes(ax, x_label, "压强 P")
     add_legend(ax, loc="best")
     return save_figure(fig, figures_dir, f"{relation}-verification", f"Figure 1. {relation.upper()} Verification with Ideal Reference and Linear Fit")
 
@@ -578,7 +575,7 @@ def plot_ideal_raw_pv(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         markersize=4.2,
         color=PROFESSIONAL_COLORS["primary"],
         linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
-        label="Measured",
+        label="模拟数据",
     )
     ax.plot(
         ideal_x,
@@ -587,16 +584,9 @@ def plot_ideal_raw_pv(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         markersize=3.6,
         color=PROFESSIONAL_COLORS["theory"],
         linewidth=ENGINEERING_EXPORT_STYLE["fit_line_width"],
-        label="Ideal reference",
+        label="理想参考",
     )
-    style_axes(ax, "Volume V", "Pressure P")
-    add_metadata_band(
-        fig,
-        [
-            ("Samples", str(len(points))),
-            ("Volume range", f"{format_graph_metric(min(volumes), 4)}-{format_graph_metric(max(volumes), 4)}" if volumes else "--"),
-        ],
-    )
+    style_axes(ax, "体积 V", "压强 P")
     add_legend(ax, loc="best")
     return save_figure(fig, figures_dir, "pv-raw-relationship", "Figure 2. Raw P-V Relationship between Volume and Pressure")
 
@@ -615,8 +605,8 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
     theory_centers = series["theoryCenters"]
     theory = series["theory"]
     params = data.get("params", {})
-    x_label = "Speed v" if key == "speed" else "Energy E"
-    y_label = "Log density" if key == "energyLog" else "Probability density"
+    x_label = "速率 v" if key == "speed" else "能量 E"
+    y_label = "概率密度对数 ln f(E)" if key == "energyLog" else "概率密度"
     subtitle = (
         "Final speed histogram against Maxwell-Boltzmann reference"
         if key == "speed"
@@ -654,7 +644,7 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
             color=PROFESSIONAL_COLORS["primary"],
             edgecolor="white",
             linewidth=0.55,
-            label="Selected bins",
+            label="选中分箱",
             zorder=4,
         )
         if excluded_x:
@@ -666,7 +656,7 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
                 edgecolors="#6f8799",
                 linewidth=0.5,
                 alpha=0.72,
-                label="Excluded bins",
+                label="未选中分箱",
                 zorder=3,
             )
         selection_start = series.get("selectionStart")
@@ -677,7 +667,7 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
                 color=PROFESSIONAL_COLORS["reference"],
                 linewidth=0.8,
                 linestyle=(0, (3, 2)),
-                label="Fit window",
+                label="拟合区间",
                 zorder=2,
             )
             ax.axvline(
@@ -696,7 +686,7 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
             color="#d7e7f2",
             edgecolor=PROFESSIONAL_COLORS["primary_dark"],
             linewidth=0.45,
-            label="Simulation bins",
+            label="模拟分布",
             zorder=3,
         )
     theory_x, theory_y = sorted_xy(theory_centers, theory)
@@ -705,7 +695,7 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
         theory_y,
         color=PROFESSIONAL_COLORS["theory"],
         linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
-        label="Theory",
+        label="理论曲线",
     )
     style_axes(ax, x_label, y_label)
     if key == "energyLog":
@@ -720,10 +710,8 @@ def plot_distribution(data: dict[str, Any], figures_dir: Path, deps: dict[str, A
             span_y = max(max_y - min_y, 1e-6)
             ax.set_ylim(min_y - span_y * 0.08, max_y + span_y * 0.16)
     if key == "energyLog":
-        add_metadata_band(fig, build_semilog_metadata(series, params))
         add_legend(ax, loc="upper right")
     else:
-        add_metadata_band(fig, build_distribution_metadata(key, series, params))
         add_legend(ax, loc="upper right")
     return save_figure(fig, figures_dir, stem, caption)
 
@@ -750,18 +738,17 @@ def plot_history(data: dict[str, Any], figures_dir: Path, deps: dict[str, Any], 
         f"STD / {len(rows)} windows / trace",
     )
     if field == "error":
-        ax.axhline(0, color=PROFESSIONAL_COLORS["reference"], linewidth=0.85, linestyle=":", label="Target reference")
+        ax.axhline(0, color=PROFESSIONAL_COLORS["reference"], linewidth=0.85, linestyle=":", label="目标参考")
     ax.plot(
         times,
         values,
         color=PROFESSIONAL_COLORS["primary"],
         linewidth=ENGINEERING_EXPORT_STYLE["data_line_width"],
-        label="Temperature error" if field == "error" else "Total energy",
+        label="温度相对误差" if field == "error" else "总能量",
     )
     if field == "error":
         ax.fill_between(times, values, 0, color=PROFESSIONAL_COLORS["accent"], alpha=0.12, linewidth=0)
-    style_axes(ax, "Time t", ylabel)
-    add_metadata_band(fig, build_history_metadata(field, rows, values, params))
+    style_axes(ax, "时间 t", ylabel)
     add_legend(ax, loc="best")
     return save_figure(fig, figures_dir, stem, caption)
 
@@ -1257,14 +1244,6 @@ def plot_heat_capacity_overview(data: dict[str, Any], figures_dir: Path, deps: d
     plt = deps["plt"]
     fig, ax = plt.subplots(figsize=(6.3, 2.85))
     fig.subplots_adjust(left=0.12, right=0.98, bottom=0.21, top=0.73)
-    fig.text(0.12, 0.94, copy["overview"], fontsize=15, fontweight="bold", ha="left")
-    fig.lines.append(plt.Line2D(
-        [0.12, 0.98],
-        [0.875, 0.875],
-        transform=fig.transFigure,
-        color=PROFESSIONAL_COLORS["grid_major"],
-        linewidth=0.75,
-    ))
     x_values = list(range(1, len(points) + 1))
     y_values = [safe_float(point.get("meanGamma")) for point in points]
     errors = [max(safe_float(point.get("typeAStandardUncertainty")), 0) for point in points]
@@ -1326,8 +1305,8 @@ def plot_heat_capacity_overview(data: dict[str, Any], figures_dir: Path, deps: d
     ax.tick_params(axis="both", labelsize=9, colors="#334155")
     ax.grid(axis="y", color="#d7dee8", linewidth=0.55, alpha=0.75)
     ax.grid(axis="x", visible=False)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
     ax.spines["left"].set_color("#64748b")
     ax.spines["bottom"].set_color("#64748b")
     ax.legend(
@@ -1351,15 +1330,6 @@ def plot_heat_capacity_lollipop(data: dict[str, Any], group: dict[str, Any], fig
     fig.subplots_adjust(left=0.12, right=0.98, bottom=0.19, top=0.76)
     group_label = heat_group_label(group, copy)
     group_status = heat_group_status(group, copy)
-    fig.text(0.12, 0.94, group_label, fontsize=15, fontweight="bold", ha="left")
-    fig.text(0.98, 0.94, group_status, fontsize=8.8, color=PROFESSIONAL_COLORS["muted"], ha="right")
-    fig.lines.append(plt.Line2D(
-        [0.12, 0.98],
-        [0.875, 0.875],
-        transform=fig.transFigure,
-        color=PROFESSIONAL_COLORS["grid_major"],
-        linewidth=0.75,
-    ))
     x_values = [int(point.get("experimentNumber") or index + 1) for index, point in enumerate(points)]
     y_values = [safe_float(point.get("gamma")) for point in points]
     theory = safe_float(model.get("theoreticalGamma"), 1.4)
@@ -1389,8 +1359,8 @@ def plot_heat_capacity_lollipop(data: dict[str, Any], group: dict[str, Any], fig
     ax.tick_params(axis="both", labelsize=9, colors="#334155")
     ax.grid(axis="y", color="#d7dee8", linewidth=0.55, alpha=0.75)
     ax.grid(axis="x", visible=False)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
     ax.spines["left"].set_color("#64748b")
     ax.spines["bottom"].set_color("#64748b")
     ax.legend(
@@ -1400,8 +1370,6 @@ def plot_heat_capacity_lollipop(data: dict[str, Any], group: dict[str, Any], fig
         frameon=False,
         fontsize=9,
     )
-    if not group.get("completed"):
-        fig.text(0.5, 0.51, copy["incomplete"], ha="center", va="center", fontsize=25, color="#a84e2a", alpha=0.12, rotation=18)
     return save_heat_figure(fig, figures_dir / heat_group_stem(group) / "group-results.png", deps)
 
 
@@ -1417,16 +1385,6 @@ def plot_heat_capacity_process(data: dict[str, Any], group: dict[str, Any], expe
     group_label = heat_group_label(group, copy)
     experiment_number = int(experiment.get("experimentNumber") or 1)
     process_complete = bool(group.get("completed") and experiment.get("completed"))
-    fig.text(0.12, 0.94, f"{group_label} · {copy['experiment'].format(number=experiment_number)}", fontsize=15, fontweight="bold", ha="left")
-    fig.text(0.12, 0.895, copy["process"], fontsize=9.4, color=PROFESSIONAL_COLORS["muted"], ha="left")
-    fig.text(0.96, 0.94, copy["completed"] if process_complete else copy["incomplete"], fontsize=8.8, color=PROFESSIONAL_COLORS["muted"], ha="right")
-    fig.lines.append(plt.Line2D(
-        [0.12, 0.96],
-        [0.875, 0.875],
-        transform=fig.transFigure,
-        color=PROFESSIONAL_COLORS["grid_major"],
-        linewidth=0.75,
-    ))
     times = [safe_float(point.get("timeS")) for point in trace]
     pressure = [safe_float(point.get("pressureDeltaKPa")) for point in trace]
     temperature = [safe_float(point.get("temperatureDeltaK")) for point in trace]
@@ -1435,12 +1393,6 @@ def plot_heat_capacity_process(data: dict[str, Any], group: dict[str, Any], expe
     records = chart.get("records") or []
     record_times = {str(record.get("id") or "").lower(): safe_float(record.get("timeS")) for record in records}
     operation_score = (experiment.get("process") or {}).get("operationScore") or {}
-    add_metadata_band(fig, [
-        ("U0", format_graph_metric(record_times.get("u0"), 4, " s")),
-        ("U1", format_graph_metric(record_times.get("u1"), 4, " s")),
-        ("U2", format_graph_metric(record_times.get("u2"), 4, " s")),
-        (copy["operation_score"], f"{format_graph_metric(operation_score.get('total'), 4)} / {format_graph_metric(operation_score.get('maxScore'), 4)}"),
-    ], label_y=0.852, value_y=0.827)
     record_colors = {"u0": "#64748b", "u1": "#2563eb", "u2": "#d97706"}
     for record in records:
         at_s = safe_float(record.get("timeS"))
@@ -1452,8 +1404,6 @@ def plot_heat_capacity_process(data: dict[str, Any], group: dict[str, Any], expe
     style_axes(axes[1], copy["process_time"], copy["temperature_change"])
     for axis in axes:
         add_legend(axis, loc="best")
-    if not process_complete:
-        fig.text(0.5, 0.51, copy["incomplete"], ha="center", va="center", fontsize=25, color="#a84e2a", alpha=0.12, rotation=18)
     return save_heat_figure(
         fig,
         figures_dir / heat_group_stem(group) / f"experiment-{experiment_number:02d}-process.png",
@@ -1599,6 +1549,8 @@ def get_heat_pressure_values(
         sensitivity = finite_heat_number(sensor.get("pressureMvPerKPa"))
     p1 = finite_heat_number(derived.get("p1KPa"))
     p2 = finite_heat_number(derived.get("p2KPa"))
+    if derived.get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}:
+        return p0, p1, p2
     u1_prime = finite_heat_number(derived.get("U1CorrectedMv"))
     u2_prime = finite_heat_number(derived.get("U2CorrectedMv"))
     if p0 is not None and sensitivity is not None and sensitivity > 0:
@@ -1609,7 +1561,16 @@ def get_heat_pressure_values(
     return p0, p1, p2
 
 
-def format_heat_calculation_reference(value: Any, answer_kind: str, half_even: bool = False) -> str:
+def format_heat_calculation_reference(value: Any, answer_kind: str, half_even: bool = False,
+                                      type_a_course: bool = False, report_decimals: int | None = None) -> str:
+    if type_a_course and finite_heat_number(value) == 0:
+        return "0%" if answer_kind == "relativeErrorPercent" else "0"
+    if answer_kind == "reportMeanGamma" and report_decimals is not None:
+        return format_calculation_number(value, report_decimals, half_even=True)
+    if answer_kind in {"reportTypeA", "reportCombined"}:
+        return format_calculation_number(value, 2, significant=True, half_even=half_even)
+    if answer_kind in {"voltageTypeB", "typeBStandardUncertainty", "combinedStandardUncertainty"}:
+        return format_calculation_number(value, 3, significant=True, half_even=half_even)
     if answer_kind in {"correctedVoltage"}:
         return format_calculation_number(value, 1, half_even=half_even)
     if answer_kind in {"absolutePressure"}:
@@ -1617,13 +1578,13 @@ def format_heat_calculation_reference(value: Any, answer_kind: str, half_even: b
     if answer_kind in {"relativeErrorPercent"}:
         return format_calculation_number(value, 3, significant=True, half_even=half_even, suffix="%")
     if answer_kind in {"sampleStandardDeviation", "typeAStandardUncertainty"}:
-        return format_calculation_number(value, 2, significant=True, half_even=half_even)
+        return format_calculation_number(value, 3 if type_a_course else 2, significant=True, half_even=half_even)
     return format_calculation_number(value, 4, significant=True, half_even=half_even)
 
 
 def get_heat_report_half_even(group: dict[str, Any]) -> bool:
     session = ((group.get("calculation") or {}).get("session") or {})
-    return session.get("answerRule") == "strict-half-even-v2"
+    return session.get("answerRule") in {"strict-half-even-v2", "free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}
 
 
 def format_heat_theory_reference(value: Any, strict: bool) -> str:
@@ -1636,8 +1597,10 @@ def format_heat_theory_reference(value: Any, strict: bool) -> str:
 
 
 def get_heat_report_result(group: dict[str, Any]) -> dict[str, Any]:
-    """Present the learner's calculation; retain raw derived values in CSV/JSON."""
+    """Present the same checked calculation as the UI and data export."""
     result = dict(group.get("result") or {})
+    if result.get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}:
+        return result
     calculation = group.get("calculation") or {}
     if calculation.get("kind") in {"real-interactive", "ideal-interactive"}:
         session = calculation.get("session") or {}
@@ -1650,6 +1613,8 @@ def get_heat_report_result(group: dict[str, Any]) -> dict[str, Any]:
 
 def get_heat_report_derived(group: dict[str, Any], experiment: dict[str, Any]) -> dict[str, Any]:
     derived = dict(experiment.get("derivedResult") or {})
+    if (group.get("result") or {}).get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}:
+        return derived
     calculation = group.get("calculation") or {}
     if calculation.get("kind") in {"real-interactive", "ideal-interactive"}:
         session = calculation.get("session") or {}
@@ -1745,7 +1710,7 @@ def build_heat_calculation_audit_rows(
             exported_rows.append([
                 f"{prefix} / {symbol}",
                 str(record.get("finalAnswer") or "").strip() or "-",
-                format_heat_calculation_reference(record.get("expectedValue"), str(record.get("answerKind") or ""), half_even),
+                format_heat_calculation_reference(record.get("expectedValue"), str(record.get("answerKind") or ""), half_even, (group.get("result") or {}).get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}, record.get("reportDecimalPlaces")),
                 f"{result}；{feedback}",
                 str(int(record.get("attempts") or 0)),
                 "-" if credit_ratio is None else format_heat_fixed(credit_ratio * 100, 0, "%"),
@@ -1787,7 +1752,7 @@ def build_heat_calculation_audit_rows(
         rows.append([
             f"{prefix} / {symbol}",
             final_answer,
-            format_heat_calculation_reference(field.get("expectedValue"), str(field.get("answerKind") or ""), half_even),
+            format_heat_calculation_reference(field.get("expectedValue"), str(field.get("answerKind") or ""), half_even, session.get("answerRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}, field.get("reportDecimalPlaces")),
             f"{result}；{feedback}" if group.get("scheme") == "real" else copy["automatic"],
             str(len(attempts)),
             credit,
@@ -1864,6 +1829,28 @@ def write_heat_capacity_data_files(data: dict[str, Any], data_dir: Path, include
                 rows,
                 data_dir,
             ))
+        result = get_heat_report_result(group)
+        half_even = get_heat_report_half_even(group)
+        teaching = result.get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}
+        statistics = []
+        for key, unit in [
+            ("meanGamma", "1"), ("sampleStandardDeviation", "1"),
+            ("sumSquaredDeviations", "1"), ("typeAStandardUncertainty", "1"),
+            ("voltageInstrumentStandardUncertaintyMv", "mV"), ("propagationCoefficient", "mV^-1"),
+            ("typeBStandardUncertainty", "1"), ("combinedStandardUncertainty", "1"),
+            ("theoreticalGamma", "1"), ("relativeErrorPercent", "%"),
+            ("reportMeanGamma", "1"), ("reportCombined", "1"), ("reportTypeA", "1"),
+        ]:
+            value = result.get(key)
+            if value is None:
+                continue
+            if key in {"voltageInstrumentStandardUncertaintyMv", "theoreticalGamma"}:
+                text = str(value)
+            else:
+                text = format_heat_calculation_reference(value, key, half_even, teaching, result.get("reportDecimalPlaces")).removesuffix("%")
+            statistics.append([key, text, unit])
+        if statistics:
+            outputs.append(write_rows_csv(f"{heat_group_stem(group)}-statistics.csv", ["quantity", "value", "unit"], statistics, data_dir))
     if include_package:
         target = data_dir / "experiment-package.json"
         target.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
@@ -1905,6 +1892,149 @@ def get_heat_parameter_rows(data: dict[str, Any], group: dict[str, Any]) -> list
     return [(label, value) for label, value in rows if value != "-"]
 
 
+def report_styles(deps: dict[str, Any], fonts: dict[str, str]) -> dict[str, Any]:
+    """Shared report typography, matching the adiabatic report."""
+    ParagraphStyle = deps["ParagraphStyle"]
+    styles = deps["getSampleStyleSheet"]()
+    colors = deps["colors"]
+    TA_CENTER, TA_LEFT = deps["TA_CENTER"], deps["TA_LEFT"]
+    title_style = ParagraphStyle(
+        "ReportTitle",
+        parent=styles["Title"],
+        fontName=fonts["cjk"],
+        bulletFontName=fonts["cjk"],
+        fontSize=22,
+        leading=30,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        spaceAfter=10,
+    )
+    chapter_style = ParagraphStyle(
+        "ReportChapter",
+        parent=styles["Heading1"],
+        fontName=fonts["cjk"],
+        bulletFontName=fonts["cjk"],
+        fontSize=18,
+        leading=25,
+        alignment=TA_LEFT,
+        textColor=colors.black,
+        spaceBefore=11,
+        spaceAfter=7,
+        keepWithNext=True,
+    )
+    group_style = ParagraphStyle(
+        "ReportGroup",
+        parent=styles["Heading2"],
+        fontName=fonts["cjk"],
+        bulletFontName=fonts["cjk"],
+        fontSize=15,
+        leading=21,
+        alignment=TA_LEFT,
+        textColor=colors.black,
+        spaceBefore=9,
+        spaceAfter=6,
+        keepWithNext=True,
+    )
+    section_style = ParagraphStyle(
+        "ReportSection",
+        parent=styles["Heading3"],
+        fontName=fonts["cjk"],
+        bulletFontName=fonts["cjk"],
+        fontSize=13,
+        leading=18,
+        alignment=TA_LEFT,
+        textColor=colors.black,
+        spaceBefore=7,
+        spaceAfter=4,
+        keepWithNext=True,
+    )
+    body_style = ParagraphStyle(
+        "ReportBody",
+        parent=styles["BodyText"],
+        wordWrap="CJK",
+        fontName=fonts["cjk"],
+        bulletFontName=fonts["cjk"],
+        fontSize=11,
+        leading=17,
+        alignment=TA_LEFT,
+        textColor=colors.black,
+    )
+    table_body_style = ParagraphStyle(
+        "ReportTableBody",
+        parent=body_style,
+        fontSize=9,
+        leading=12,
+        alignment=TA_LEFT,
+        textColor=colors.black,
+    )
+    table_numeric_style = ParagraphStyle(
+        "ReportTableNumeric",
+        parent=table_body_style,
+        alignment=TA_CENTER,
+    )
+    table_header_style = ParagraphStyle(
+        "ReportTableHeader",
+        parent=table_body_style,
+        fontName=fonts["cjk"],
+        fontSize=10,
+        leading=13,
+        textColor=colors.black,
+        alignment=TA_CENTER,
+    )
+    table_caption_style = ParagraphStyle(
+        "ReportTableCaption",
+        parent=body_style,
+        fontName=fonts["cjk"],
+        fontSize=12,
+        leading=16,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        spaceBefore=2,
+        spaceAfter=4,
+        keepWithNext=True,
+    )
+    figure_caption_style = ParagraphStyle(
+        "ReportFigureCaption",
+        parent=body_style,
+        fontName=fonts["cjk"],
+        fontSize=12,
+        leading=16,
+        alignment=TA_CENTER,
+        textColor=colors.black,
+        spaceBefore=4,
+    )
+
+    return {"title": title_style, "chapter": chapter_style, "group": group_style, "section": section_style, "body": body_style, "table_body": table_body_style, "table_numeric": table_numeric_style, "table_header": table_header_style, "table_caption": table_caption_style, "figure_caption": figure_caption_style}
+
+
+def report_markup(value: Any, fonts: dict[str, str], *, bold: bool = False) -> str:
+    text = str(value if value is not None else "--")
+    runs: list[tuple[str, str]] = []
+    for character in text:
+        c = ord(character)
+        cjk = 0x2E80 <= c <= 0x303F or 0x3400 <= c <= 0x9FFF or 0xF900 <= c <= 0xFAFF or 0xFF00 <= c <= 0xFFEF
+        font = fonts["cjk"] if cjk else fonts["serif_bold"] if bold else fonts["serif"]
+        if runs and runs[-1][0] == font:
+            runs[-1] = (font, runs[-1][1] + character)
+        else:
+            runs.append((font, character))
+    return "".join(f'<font name="{font}">{escape(text)}</font>' for font, text in runs)
+
+
+def report_numeric_cell(value: Any) -> bool:
+    text = str(value if value is not None else "--").strip()
+    return text in ("-", "--") or bool(re.fullmatch(r"[\d\s.,:eE+/%\-−±]+", text))
+
+
+def report_centered_columns(headers: list[Any], rows: list[list[Any]]) -> set[int]:
+    centered = {i for i, h in enumerate(headers) if str(h) in {"实验组", "类型", "次序", "状态", "内容", "数值", "序号"}}
+    for i in range(len(headers)):
+        values = [str(row[i]).strip() for row in rows if i < len(row)]
+        if len(values) >= 2 and all(v and not report_numeric_cell(v) for v in values) and len({len(re.sub(r"\s+", "", v)) for v in values}) == 1:
+            centered.add(i)
+    return centered
+
+
 def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir: Path, deps: dict[str, Any]) -> Path:
     colors = deps["colors"]
     A4 = deps["A4"]
@@ -1927,110 +2057,17 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
     pdfmetrics = deps["pdfmetrics"]
     copy = get_heat_copy(data)
 
-    title_style = ParagraphStyle(
-        "HeatTitle",
-        parent=styles["Title"],
-        fontName=fonts["cjk"],
-        bulletFontName=fonts["cjk"],
-        fontSize=22,
-        leading=30,
-        alignment=TA_CENTER,
-        textColor=colors.black,
-        spaceAfter=10,
-    )
-    chapter_style = ParagraphStyle(
-        "HeatChapter",
-        parent=styles["Heading1"],
-        fontName=fonts["cjk"],
-        bulletFontName=fonts["cjk"],
-        fontSize=18,
-        leading=25,
-        alignment=TA_LEFT,
-        textColor=colors.black,
-        spaceBefore=11,
-        spaceAfter=7,
-        keepWithNext=True,
-    )
-    group_style = ParagraphStyle(
-        "HeatGroup",
-        parent=styles["Heading2"],
-        fontName=fonts["cjk"],
-        bulletFontName=fonts["cjk"],
-        fontSize=15,
-        leading=21,
-        alignment=TA_LEFT,
-        textColor=colors.black,
-        spaceBefore=9,
-        spaceAfter=6,
-        keepWithNext=True,
-    )
-    section_style = ParagraphStyle(
-        "HeatSection",
-        parent=styles["Heading3"],
-        fontName=fonts["cjk"],
-        bulletFontName=fonts["cjk"],
-        fontSize=13,
-        leading=18,
-        alignment=TA_LEFT,
-        textColor=colors.black,
-        spaceBefore=7,
-        spaceAfter=4,
-        keepWithNext=True,
-    )
-    body_style = ParagraphStyle(
-        "HeatBody",
-        parent=styles["BodyText"],
-        fontName=fonts["cjk"],
-        bulletFontName=fonts["cjk"],
-        fontSize=11,
-        leading=17,
-        alignment=TA_LEFT,
-        textColor=colors.black,
-    )
-    table_body_style = ParagraphStyle(
-        "HeatTableBody",
-        parent=body_style,
-        fontSize=9,
-        leading=12,
-        alignment=TA_LEFT,
-        textColor=colors.black,
-    )
-    table_numeric_style = ParagraphStyle(
-        "HeatTableNumeric",
-        parent=table_body_style,
-        alignment=TA_CENTER,
-    )
-    table_header_style = ParagraphStyle(
-        "HeatTableHeader",
-        parent=table_body_style,
-        fontName=fonts["cjk"],
-        fontSize=10,
-        leading=13,
-        textColor=colors.black,
-        alignment=TA_CENTER,
-    )
-    table_caption_style = ParagraphStyle(
-        "HeatTableCaption",
-        parent=body_style,
-        fontName=fonts["cjk"],
-        fontSize=12,
-        leading=16,
-        alignment=TA_CENTER,
-        textColor=colors.black,
-        spaceBefore=2,
-        spaceAfter=4,
-        keepWithNext=True,
-    )
-    figure_caption_style = ParagraphStyle(
-        "HeatFigureCaption",
-        parent=body_style,
-        fontName=fonts["cjk"],
-        fontSize=12,
-        leading=16,
-        alignment=TA_CENTER,
-        textColor=colors.black,
-        spaceBefore=4,
-    )
+    shared_styles = report_styles(deps, fonts)
+    title_style = shared_styles["title"]
+    chapter_style = shared_styles["chapter"]
+    group_style = shared_styles["group"]
+    section_style = shared_styles["section"]
+    body_style = shared_styles["body"]
+    table_body_style = shared_styles["table_body"]
+    table_numeric_style = shared_styles["table_numeric"]
+    table_header_style = shared_styles["table_header"]
+    table_caption_style = shared_styles["table_caption"]
+    figure_caption_style = shared_styles["figure_caption"]
 
     target = out_dir / "report.pdf"
     doc = SimpleDocTemplate(
@@ -2306,14 +2343,45 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
             [copy["mean"], copy["std_dev"], copy["uncertainty"], copy["theory"], copy["relative_error"]],
             [[
                 format_heat_calculation_reference(result.get("meanGamma"), "meanGamma", half_even),
-                format_heat_calculation_reference(result.get("sampleStandardDeviation"), "sampleStandardDeviation", half_even),
-                format_heat_calculation_reference(result.get("typeAStandardUncertainty"), "typeAStandardUncertainty", half_even),
+                format_heat_calculation_reference(result.get("sampleStandardDeviation"), "sampleStandardDeviation", half_even, result.get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}),
+                format_heat_calculation_reference(result.get("typeAStandardUncertainty"), "typeAStandardUncertainty", half_even, result.get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"}),
                 format_heat_theory_reference(result.get("theoreticalGamma"), half_even),
                 format_heat_calculation_reference(result.get("relativeErrorPercent"), "relativeErrorPercent", half_even),
             ]],
             [34 * mm] * 5,
             compact=True,
         )
+
+        if result.get("uncertaintyScope") == "repeat-measurement-and-voltage-instrument":
+            given_voltage = result.get("voltageInstrumentStandardUncertaintyMv")
+            budget_headers = ["u仪器(U) / mV", "C / mV^-1", "uB(γ)", "uc(γ)"] if given_voltage is not None else ["Δ(U) / mV", "C / mV^-1", "uB(U) / mV", "uB(γ)", "uc(γ)"]
+            budget_values = [str(given_voltage if given_voltage is not None else result.get("voltageErrorLimitMv", "-")),
+                format_calculation_number(result.get("propagationCoefficient"), 4, significant=True, half_even=True)]
+            if given_voltage is None:
+                budget_values.append(format_heat_calculation_reference(result.get("voltageTypeB"), "voltageTypeB", True, True))
+            budget_values.extend([
+                format_heat_calculation_reference(result.get("typeBStandardUncertainty"), "typeBStandardUncertainty", True, True),
+                format_heat_calculation_reference(result.get("combinedStandardUncertainty"), "combinedStandardUncertainty", True, True)])
+            append_numbered_table(
+                story, "Instrument uncertainty" if data.get("language") == "en" else "仪器不确定度与合成",
+                budget_headers, [budget_values], [170 * mm / len(budget_headers)] * len(budget_headers), compact=True,
+            )
+            if result.get("reportMeanGamma") is not None and result.get("reportCombined") is not None:
+                mean = format_heat_calculation_reference(result["reportMeanGamma"], "reportMeanGamma", True, True, result.get("reportDecimalPlaces"))
+                uncertainty = format_heat_calculation_reference(result["reportCombined"], "reportCombined", True, True)
+                story.append(paragraph(f"γ = {mean} ± {uncertainty}", body_style))
+            scope_note = ("Combined standard uncertainty from repeat measurements and the specified voltage instrument effect."
+                          if data.get("language") == "en" else "本结果报告重复测量 A 类与给定电压仪器 B 类合成的标准不确定度。")
+            story.append(paragraph(scope_note, body_style))
+
+        if result.get("uncertaintyScope") == "repeat-measurement-type-a-only":
+            if result.get("reportMeanGamma") is not None and result.get("reportTypeA") is not None:
+                mean = format_heat_calculation_reference(result["reportMeanGamma"], "reportMeanGamma", True, True, result.get("reportDecimalPlaces"))
+                uncertainty = format_heat_calculation_reference(result["reportTypeA"], "reportTypeA", True, True)
+                story.append(paragraph(f"γ = {mean} ± {uncertainty}", body_style))
+            scope_note = ("This result evaluates only the Type A standard uncertainty from repeat measurements."
+                          if data.get("language") == "en" else "本结果仅评定重复测量的 A 类标准不确定度。")
+            story.append(paragraph(scope_note, body_style))
 
     def format_timestamp(value: Any) -> str:
         timestamp_ms = finite_heat_number(value)
@@ -2490,7 +2558,7 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
                     copy["experiment"].format(number=experiment_number),
                     format_heat_calculation_reference(derived.get("U1CorrectedMv"), "correctedVoltage", half_even),
                     format_heat_calculation_reference(derived.get("U2CorrectedMv"), "correctedVoltage", half_even),
-                    format_heat_calculation_reference(p0, "absolutePressure", half_even),
+                    str(p0) if derived.get("calculationRule") in {"free-type-a-half-even-v3", "free-ab-half-even-v4", "free-ab-given-standard-half-even-v5"} and p0 is not None else format_heat_calculation_reference(p0, "absolutePressure", half_even),
                     format_heat_calculation_reference(p1, "absolutePressure", half_even),
                     format_heat_calculation_reference(p2, "absolutePressure", half_even),
                     format_heat_calculation_reference(derived.get("gamma"), "gamma", half_even),
@@ -2673,7 +2741,7 @@ def build_heat_capacity_report(data: dict[str, Any], figures_dir: Path, out_dir:
 
     def draw_footer(canvas: Any, document: Any) -> None:
         canvas.setFillColor(colors.HexColor("#64748b"))
-        draw_mixed_string(canvas, 18 * mm, 9 * mm, "Gas Laws Lab", 8)
+        draw_mixed_string(canvas, 18 * mm, 9 * mm, "气律实验室", 8)
         draw_mixed_string(
             canvas,
             A4[0] - 18 * mm,
@@ -2976,28 +3044,16 @@ def plot_piston_oscillation_fit(
         linewidth=1.35,
         label="线性拟合" if data.get("language") != "en" else "Linear fit",
     )
-    ax.text(
-        0.03,
-        0.95,
-        f"h = {format_piston_significant(slope, ((fit.get('precisionPlan') or {}).get('digits') or {}).get('slope', 5))} T^2 "
-        f"{'+' if intercept >= 0 else '-'} {format_piston_significant(abs(intercept), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('intercept', 5))}\n"
-        f"R^2 = {format_piston_number(fit.get('rSquared'), 5)}",
-        transform=ax.transAxes,
-        ha="left",
-        va="top",
-        fontsize=8.5,
-        bbox={"boxstyle": "round,pad=0.35", "facecolor": "white", "edgecolor": "#cbd5e1"},
-    )
     ax.set_title(
         "h-T^2 线性拟合" if data.get("language") != "en" else "h-T^2 linear fit",
         fontsize=11,
         fontfamily=cjk_font if data.get("language") != "en" else None,
     )
-    ax.set_xlabel("T^2 / s^2")
+    ax.set_xlabel("T² / s²")
     ax.set_ylabel("h / m")
     ax.grid(True, color="#d7dee8", linewidth=0.65, alpha=0.78)
-    ax.spines["top"].set_visible(False)
-    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(True)
+    ax.spines["right"].set_visible(True)
     ax.legend(
         loc="lower right",
         frameon=False,
@@ -3025,7 +3081,7 @@ def plot_piston_oscillation_pressure_overview(
     cjk_font = deps.get("matplotlib_cjk_font")
     columns = 2
     rows = math.ceil(len(measurements) / columns)
-    fig, axes = plt.subplots(rows, columns, figsize=(6.75, 1.72 * rows + 0.28), squeeze=False)
+    fig, axes = plt.subplots(rows, columns, figsize=(6.3, 2.15 * rows + 0.3), squeeze=False)
     fig.subplots_adjust(
         left=0.085,
         right=0.985,
@@ -3087,8 +3143,8 @@ def plot_piston_oscillation_pressure_overview(
         )
         axis.tick_params(axis="both", labelsize=6.6, colors="#475569")
         axis.grid(True, color="#d7dee8", linewidth=0.48, alpha=0.72)
-        axis.spines["top"].set_visible(False)
-        axis.spines["right"].set_visible(False)
+        axis.spines["top"].set_visible(True)
+        axis.spines["right"].set_visible(True)
     return save_piston_figure(fig, figures_dir / "piston-pressure-overview.png", deps)
 
 
@@ -3134,75 +3190,23 @@ def build_piston_oscillation_report(
         pagesize=A4,
         leftMargin=18 * mm,
         rightMargin=18 * mm,
-        topMargin=17 * mm,
+        topMargin=19 * mm,
         bottomMargin=17 * mm,
         title=copy["title"],
         author="Gas Laws Lab",
     )
 
-    title_style = ParagraphStyle(
-        "PistonTitle",
-        fontName=fonts["cjk"],
-        fontSize=20,
-        leading=26,
-        textColor=colors.HexColor("#111827"),
-        alignment=TA_CENTER,
-        spaceAfter=17 * mm,
-    )
-    chapter_style = ParagraphStyle(
-        "PistonChapter",
-        fontName=fonts["cjk"],
-        fontSize=16.5,
-        leading=21,
-        textColor=colors.HexColor("#111827"),
-        spaceAfter=7 * mm,
-    )
-    section_style = ParagraphStyle(
-        "PistonSection",
-        fontName=fonts["cjk"],
-        fontSize=12.5,
-        leading=16,
-        textColor=colors.HexColor("#1f2937"),
-        spaceBefore=2.2 * mm,
-        spaceAfter=3.5 * mm,
-    )
-    body_style = ParagraphStyle(
-        "PistonBody",
-        fontName=fonts["cjk"],
-        fontSize=8.4,
-        leading=11.2,
-        textColor=colors.HexColor("#334155"),
-        alignment=TA_LEFT,
-    )
-    table_style = ParagraphStyle(
-        "PistonTable",
-        parent=body_style,
-        fontSize=7.7,
-        leading=9.5,
-        alignment=TA_CENTER,
-    )
-    table_left_style = ParagraphStyle(
-        "PistonTableLeft",
-        parent=table_style,
-        alignment=TA_LEFT,
-    )
-    caption_style = ParagraphStyle(
-        "PistonCaption",
-        parent=body_style,
-        fontSize=8.4,
-        leading=11,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor("#1f2937"),
-        spaceBefore=2.2 * mm,
-        spaceAfter=3 * mm,
-    )
-    note_style = ParagraphStyle(
-        "PistonNote",
-        parent=body_style,
-        fontSize=7.7,
-        leading=10.3,
-        textColor=colors.HexColor("#64748b"),
-    )
+    shared_styles = report_styles(deps, fonts)
+    title_style = shared_styles["title"]
+    chapter_style = shared_styles["chapter"]
+    section_style = shared_styles["group"]
+    body_style = shared_styles["body"]
+    table_style = shared_styles["table_numeric"]
+    table_left_style = shared_styles["table_body"]
+    table_header_style = shared_styles["table_header"]
+    caption_style = shared_styles["figure_caption"]
+    table_caption_style = shared_styles["table_caption"]
+    note_style = shared_styles["body"]
 
     def is_cjk(character: str) -> bool:
         codepoint = ord(character)
@@ -3213,7 +3217,7 @@ def build_piston_oscillation_report(
         )
 
     def mixed_markup(value: Any, *, bold: bool = False) -> str:
-        text = str(value if value is not None else "--")
+        text = str(value if value is not None else "--").replace("⋯", "…")
         if not text:
             text = "--"
         runs: list[tuple[str, str]] = []
@@ -3251,36 +3255,26 @@ def build_piston_oscillation_report(
         nonlocal table_number
         if caption:
             table_number += 1
-            story.append(paragraph(f"表 {table_number} {caption}", caption_style))
-        left_columns = left_columns or set()
-        cell_style = table_style if not compact else ParagraphStyle(
-            f"PistonTableCompact{table_number}",
-            parent=table_style,
-            fontSize=7.0,
-            leading=8.3,
-        )
-        left_style = table_left_style if not compact else ParagraphStyle(
-            f"PistonTableCompactLeft{table_number}",
-            parent=cell_style,
-            alignment=TA_LEFT,
-        )
-        data_rows = [[paragraph(header, cell_style, bold=True) for header in headers]]
+            story.append(paragraph(f"表 {table_number} {caption}", table_caption_style, bold=True))
+        centered_columns = report_centered_columns(headers, rows)
+        data_rows = [[paragraph(header, table_header_style, bold=True) for header in headers]]
         for row in rows:
             data_rows.append([
-                paragraph(value, left_style if column_index in left_columns else cell_style)
+                paragraph(value, table_style if column_index in centered_columns or report_numeric_cell(value) else table_left_style)
                 for column_index, value in enumerate(row)
             ])
+        widths = [width * doc.width / sum(widths) for width in widths]
         table = Table(data_rows, colWidths=widths, repeatRows=1, hAlign="LEFT")
         table.setStyle(TableStyle([
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-            ("LINEABOVE", (0, 0), (-1, 0), 0.8, colors.HexColor("#111827")),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.45, colors.HexColor("#111827")),
-            ("LINEBELOW", (0, -1), (-1, -1), 0.8, colors.HexColor("#111827")),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2.2),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2.2),
-            ("TOPPADDING", (0, 0), (-1, -1), 2.4 if compact else 3.1),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.4 if compact else 3.1),
+            ("LINEABOVE", (0, 0), (-1, 0), 1.15, colors.black),
+            ("LINEBELOW", (0, 0), (-1, 0), 0.55, colors.black),
+            ("LINEBELOW", (0, -1), (-1, -1), 1.15, colors.black),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 2.6 if compact else 3.4),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 2.6 if compact else 3.4),
         ]))
         story.append(table)
         story.append(Spacer(1, 3.5 * mm))
@@ -3310,7 +3304,7 @@ def build_piston_oscillation_report(
     knowns = calculation.get("knowns") or {}
     story: list[Any] = []
 
-    story.append(paragraph(data.get("experimentName") or copy["title"], title_style))
+    story.append(paragraph(copy["title"], title_style))
     story.append(paragraph(f"1 {copy['file_information']}", chapter_style))
     story.append(paragraph(f"1.1 {copy['basic_information']}", section_style))
     append_table(
@@ -3319,7 +3313,7 @@ def build_piston_oscillation_report(
         [copy["information_item"], copy["content"]],
         [
             [copy["file"], data.get("fileName")],
-            [copy["experiment"], data.get("experimentName")],
+            [copy["experiment"], "活塞振动法测空气比热容比"],
             [copy["experiment_mode"], copy["mode"]],
             [
                 copy["experiment_scheme"],
@@ -3483,14 +3477,14 @@ def build_piston_oscillation_report(
 
     uncertainty_report = data.get("uncertaintyReport")
     if isinstance(uncertainty_report, dict):
-        uncertainty_heading = ParagraphStyle("PistonUncertaintyHeading", parent=section_style, keepWithNext=True)
+        uncertainty_heading = ParagraphStyle("PistonUncertaintyHeading", parent=shared_styles["section"], keepWithNext=True)
         analysis = uncertainty_report.get("analysis") or {}
         story.append(PageBreak())
-        story.append(paragraph("3.4 不确定度教学与计算" if language != "en" else "3.4 Uncertainty evaluation", chapter_style))
+        story.append(paragraph("3.4 不确定度教学与计算" if language != "en" else "3.4 Uncertainty evaluation", section_style))
         story.append(paragraph(
-            "使用表中给定量与本次计算结果进行不确定度评定。每一步已核验的数值直接用于后续计算；中间量按各题要求保留保护位，最终扩展不确定度保留两位有效数字，γ 的末位与其对齐。"
+            "使用表中给定量与本次计算结果进行不确定度评定。每一步已核验的数值直接用于后续计算；中间量按各题要求保留保护位，报告中的合成标准不确定度保留两位有效数字，γ 的末位与其对齐。"
             if language != "en" else
-            "Use the given quantities and results from this experiment. Each checked value is used in subsequent steps at the stated precision. Round final expanded uncertainty to two significant figures and align the last digit of gamma.", body_style))
+            "Use the given quantities and results from this experiment. Each checked value is used in subsequent steps at the stated precision. Round the reported combined standard uncertainty to two significant figures and align the last digit of gamma.", body_style))
         append_table(story,
             "仪器给定资料" if language != "en" else "Instrument data",
             ["变量", "数值", "变量", "数值"] if language != "en" else ["Variable", "Value", "Variable", "Value"],
@@ -3498,9 +3492,9 @@ def build_piston_oscillation_report(
             [42.5 * mm, 42.5 * mm, 42.5 * mm, 42.5 * mm], compact=True)
         story.append(paragraph(
             f"n = {analysis.get('n')}; Q = {analysis.get('q')} m^2; Sxx = {analysis.get('sxx')} s^4; "
-            f"mean(T^2) = {analysis.get('meanX', '--')}; mean(h) = {analysis.get('meanY', '--')}", body_style))
+            f"T² 平均值 = {analysis.get('meanX', '--')}; h 平均值 = {analysis.get('meanY', '--')}", body_style))
         append_table(story, "拟合残差" if language != "en" else "Fit residuals",
-            ["#", "T^2 / s^2", "h / m", "e / m"],
+            ["#", "T² / s²", "h / m", "e / m"],
             [[row.get("runIndex", 0) + 1, row.get("x"), row.get("y"), row.get("residual")] for row in analysis.get("rows") or []],
             [15 * mm, 50 * mm, 45 * mm, 60 * mm], compact=True)
         for phase in uncertainty_report.get("phases") or []:
@@ -3511,7 +3505,7 @@ def build_piston_oscillation_report(
                 story.append(paragraph(f"{detail.get('title', '')} {detail.get('body', '')}", body_style))
             for item in phase.get("items") or []:
                 item_start = len(story)
-                story.append(paragraph(item.get("label") or "", section_style))
+                story.append(paragraph(item.get("label") or "", shared_styles["body"], bold=True))
                 story.append(paragraph(item.get("formula") or "", body_style))
                 story.append(paragraph(item.get("inputs") or "", body_style))
                 answer = item.get("answer") or {}
@@ -3526,7 +3520,7 @@ def build_piston_oscillation_report(
                 story.append(deps["KeepTogether"](item_flowables))
         story.append(paragraph(uncertainty_report.get("result") or "", section_style))
 
-    story.append(PageBreak())
+    story.append(Spacer(1, 5 * mm))
     process_section_title = copy["process_score"] if scoring_eligible else copy["process_review"]
     story.append(paragraph(f"4 {process_section_title}", chapter_style))
     story.append(paragraph(f"4.1 {copy['process_evidence']}", section_style))
@@ -3644,22 +3638,22 @@ def build_piston_oscillation_report(
             canvas.setStrokeColor(colors.HexColor("#cbd5e1"))
             canvas.setLineWidth(0.4)
             canvas.line(18 * mm, A4[1] - 12 * mm, A4[0] - 18 * mm, A4[1] - 12 * mm)
-            draw_mixed_string(canvas, 18 * mm, A4[1] - 9 * mm, data.get("fileName") or "", 7.6)
+            draw_mixed_string(canvas, 18 * mm, A4[1] - 9 * mm, data.get("fileName") or "", 8)
             draw_mixed_string(
                 canvas,
                 A4[0] - 18 * mm,
                 A4[1] - 9 * mm,
                 page_contexts[min(page_number - 1, len(page_contexts) - 1)],
-                7.6,
+                8,
                 align="right",
             )
-        draw_mixed_string(canvas, 18 * mm, 9 * mm, "Gas Laws Lab", 7.6)
+        draw_mixed_string(canvas, 18 * mm, 9 * mm, "气律实验室", 8)
         draw_mixed_string(
             canvas,
             A4[0] - 18 * mm,
             9 * mm,
             copy["page"].format(number=page_number),
-            7.6,
+            8,
             align="right",
         )
         canvas.restoreState()
@@ -3677,260 +3671,207 @@ def build_piston_oscillation_report(
     return target
 
 
+def write_piston_oscillation_data_files(data: dict[str, Any], data_dir: Path) -> list[Path]:
+    outputs: list[Path] = []
+    measurements = data.get("measurements") or []
+    rows = []
+    for index, measurement in enumerate(measurements):
+        result = measurement.get("periodResult") or {}
+        precision = measurement.get("calculationPrecision") or {}
+        acquisition = measurement.get("acquisitionSettings") or {}
+        rows.append([
+            measurement.get("number"), measurement.get("targetHeightMm"), measurement.get("confirmedHeightMm"),
+            measurement.get("fitHeightMm"), acquisition.get("sampleRateHz"),
+            format_piston_number(result.get("t1S"), 3), format_piston_number(result.get("t2S"), 3),
+            result.get("periodCount"), format_piston_number(result.get("deltaTimeS"), 3),
+            format_piston_significant(result.get("periodS"), precision.get("period", 4)),
+            format_piston_significant(result.get("periodSquaredS2"), precision.get("squared", 5)),
+            measurement.get("includedInFit"),
+        ])
+        samples = measurement.get("samples") or []
+        if samples:
+            outputs.append(write_rows_csv(
+                f"piston-run-{index + 1:02d}-pressure.csv", ["timeS", "absolutePressureKPa"],
+                [[sample.get("timeS"), sample.get("absolutePressureKpa")] for sample in samples], data_dir,
+            ))
+    if rows:
+        outputs.insert(0, write_rows_csv("piston-periods.csv", [
+            "run", "targetHeightMm", "confirmedHeightMm", "fitHeightMm", "sampleRateHz",
+            "t1S", "t2S", "periodCount", "deltaTimeS", "periodS", "periodSquaredS2", "includedInFit",
+        ], rows, data_dir))
+    fit = data.get("linearFitResult") or {}
+    digits = (fit.get("precisionPlan") or {}).get("digits") or {}
+    outputs.append(write_rows_csv("piston-fit.csv", ["pointCount", "slopeMPerS2", "interceptM", "rSquared"], [[
+        len(fit.get("points") or []), format_piston_significant(fit.get("slopeMPerS2"), digits.get("slope", 5)),
+        format_piston_significant(fit.get("interceptM"), digits.get("intercept", 5)), fit.get("rSquared"),
+    ]], data_dir))
+    calculation = data.get("calculationSession") or {}
+    knowns = calculation.get("knowns") or {}
+    known_rows = [[field, knowns[field], unit] for field, unit in [
+        ("movingMassKg", "kg"), ("cylinderDiameterM", "m"),
+        ("pressurePa", "Pa"), ("referenceGamma", "1"),
+    ] if knowns.get(field) is not None]
+    if known_rows:
+        outputs.append(write_rows_csv("piston-knowns.csv", ["quantity", "value", "unit"], known_rows, data_dir))
+    answers = calculation.get("answers") or {}
+    calculation_rows = []
+    for field, unit in [("area", "m^2"), ("gamma", "1"), ("relativeError", "%")]:
+        answer = answers.get(field) or {}
+        if answer.get("status") not in {"correct", "revealed"}:
+            continue
+        value = format_piston_calculation_reference(answer.get("expectedValue"), field, answer.get("significantFigures")).removesuffix("%")
+        calculation_rows.append([field, value, unit])
+    if calculation_rows:
+        outputs.append(write_rows_csv("piston-calculation.csv", ["quantity", "value", "unit"], calculation_rows, data_dir))
+    uncertainty = data.get("uncertaintyReport") or {}
+    parameter_rows = [
+        [row[offset], row[offset + 1]]
+        for row in uncertainty.get("parameterRows") or [] for offset in [0, 2]
+        if len(row) > offset + 1 and row[offset]
+    ]
+    if parameter_rows:
+        outputs.append(write_rows_csv("piston-uncertainty-knowns.csv", ["quantityWithUnit", "value"], parameter_rows, data_dir))
+    uncertainty_rows = [
+        [item.get("id"), item.get("label"), item.get("reference"), item.get("unit") or "1"]
+        for phase in uncertainty.get("phases") or [] for item in phase.get("items") or []
+    ]
+    if uncertainty_rows:
+        outputs.append(write_rows_csv("piston-uncertainty.csv", ["quantity", "label", "value", "unit"], uncertainty_rows, data_dir))
+        analysis = uncertainty.get("analysis") or {}
+        outputs.append(write_rows_csv("piston-fit-residuals.csv", ["run", "periodSquaredS2", "heightM", "residualM"], [
+            [row.get("runIndex", 0) + 1, row.get("x"), row.get("y"), row.get("residual")]
+            for row in analysis.get("rows") or []
+        ], data_dir))
+    return outputs
+
+
 def export_piston_oscillation_payload(
     data: dict[str, Any],
     out_dir: Path,
     formats: set[str],
     deps: dict[str, Any],
 ) -> list[Path]:
-    if "report" not in formats:
-        raise ValueError("Piston-oscillation export currently supports report output only.")
-    paths = ensure_dirs(out_dir, include_figures=True, include_data=False)
-    create_piston_oscillation_figures(data, paths["figures"], deps)
-    report = build_piston_oscillation_report(data, paths["figures"], paths["root"], deps)
-    shutil.rmtree(paths["figures"], ignore_errors=True)
-    return [report]
+    include_report = "report" in formats
+    include_csv = "csv" in formats
+    include_public_figures = "figures" in formats
+    paths = ensure_dirs(out_dir, include_figures=include_report or (include_public_figures and include_csv), include_data=include_csv)
+    figure_root = paths["figures"] if include_report or include_csv else paths["root"]
+    figures = create_piston_oscillation_figures(data, figure_root, deps) if include_report or include_public_figures else []
+    outputs: list[Path] = []
+    if include_report:
+        outputs.append(build_piston_oscillation_report(data, figure_root, paths["root"], deps))
+    if include_csv:
+        outputs.extend(write_piston_oscillation_data_files(data, paths["data"]))
+    if include_public_figures:
+        for figure in figures:
+            outputs.extend(figure.values())
+    elif include_report:
+        shutil.rmtree(paths["figures"], ignore_errors=True)
+    return outputs
 
 
 def build_story(data: dict[str, Any], figure_outputs: list[dict[str, Path]], csv_outputs: list[Path], out_dir: Path, deps: dict[str, Any]) -> Path:
-    colors = deps["colors"]
-    A4 = deps["A4"]
-    Paragraph = deps["Paragraph"]
-    ParagraphStyle = deps["ParagraphStyle"]
-    SimpleDocTemplate = deps["SimpleDocTemplate"]
-    Spacer = deps["Spacer"]
-    Table = deps["Table"]
-    TableStyle = deps["TableStyle"]
-    Image = deps["Image"]
-    TA_CENTER = deps["TA_CENTER"]
-    mm = deps["mm"]
-    styles = deps["getSampleStyleSheet"]()
+    """Chinese standard/ideal reports using the shared adiabatic report style."""
     fonts = register_report_fonts(deps)
-
-    title_style = ParagraphStyle(
-        "HSLTitle",
-        parent=styles["Title"],
-        fontName=fonts["serif_bold"],
-        fontSize=24,
-        leading=30,
-        alignment=TA_CENTER,
-        textColor=colors.HexColor("#0f172a"),
-        spaceAfter=16,
-    )
-    section_style = ParagraphStyle(
-        "HSLSection",
-        parent=styles["Heading2"],
-        fontName=fonts["serif_bold"],
-        fontSize=14,
-        leading=18,
-        textColor=colors.HexColor("#111827"),
-        spaceBefore=10,
-        spaceAfter=6,
-        keepWithNext=True,
-    )
-    body_style = ParagraphStyle(
-        "HSLBody",
-        parent=styles["BodyText"],
-        fontName=fonts["serif"],
-        fontSize=9.5,
-        leading=14,
-        textColor=colors.HexColor("#334155"),
-    )
-    table_header_style = ParagraphStyle(
-        "HSLTableHeader",
-        parent=body_style,
-        fontName=fonts["serif_bold"],
-        fontSize=8.6,
-        leading=10.5,
-        textColor=colors.HexColor("#111827"),
-    )
-    table_cell_style = ParagraphStyle(
-        "HSLTableCell",
-        parent=body_style,
-        fontName=fonts["serif"],
-        fontSize=8.2,
-        leading=10,
-        textColor=colors.HexColor("#111827"),
-    )
-    table_caption_style = ParagraphStyle(
-        "HSLTableCaption",
-        parent=body_style,
-        fontName=fonts["serif_bold"],
-        fontSize=8.6,
-        leading=10.5,
-        textColor=colors.HexColor("#111827"),
-        spaceAfter=2,
-    )
-
-    target = out_dir / "report.pdf"
-    doc = SimpleDocTemplate(
-        str(target),
-        pagesize=A4,
-        rightMargin=18 * mm,
-        leftMargin=18 * mm,
-        topMargin=18 * mm,
-        bottomMargin=18 * mm,
-        title="Gas Laws Lab Export Report",
-    )
-
+    st = report_styles(deps, fonts)
+    Paragraph, Table, TableStyle = deps["Paragraph"], deps["Table"], deps["TableStyle"]
+    Spacer, KeepTogether, mm = deps["Spacer"], deps["KeepTogether"], deps["mm"]
+    colors = deps["colors"]
     relation = data.get("relation")
-    summary = data.get("summary", {})
-    verification = data.get("verification", {})
-    params = data.get("params", {})
-    relation_label = str(relation).upper() if relation else "simulation"
+    relation_label = {"pv": "P-V", "pt": "P-T", "pn": "P-N"}.get(relation, "")
+    title = f"理想气体{relation_label}关系实验报告" if relation else "标准模拟实验报告"
+    target = out_dir / "report.pdf"
+    doc = deps["SimpleDocTemplate"](str(target), pagesize=deps["A4"],
+        leftMargin=18 * mm, rightMargin=18 * mm, topMargin=19 * mm, bottomMargin=17 * mm,
+        title=title, author="气律实验室")
 
-    def make_three_line_table(caption: str, headers: tuple[str, str], rows: list[list[str]], width: float) -> Any:
-        table_data = [[Paragraph(headers[0], table_header_style), Paragraph(headers[1], table_header_style)]]
-        table_data.extend([
-            [Paragraph(str(label), table_cell_style), Paragraph(str(value), table_cell_style)]
-            for label, value in rows
-        ])
-        table = Table(table_data, colWidths=[width * 0.58, width * 0.42], hAlign="LEFT")
+    def paragraph(value: Any, style: str = "body", *, bold: bool = False) -> Any:
+        return Paragraph(report_markup(value, fonts, bold=bold), st[style])
+
+    def append_table(caption: str, headers: list[str], rows: list[list[Any]]) -> None:
+        centered = report_centered_columns(headers, rows)
+        table_data = [[paragraph(h, "table_header", bold=True) for h in headers]]
+        table_data.extend([[paragraph(v, "table_numeric" if i in centered or report_numeric_cell(v) else "table_body")
+                            for i, v in enumerate(row)] for row in rows])
+        table = Table(table_data, colWidths=[doc.width * .48, doc.width * .52], repeatRows=1, hAlign="LEFT")
         table.setStyle(TableStyle([
-            ("LINEABOVE", (0, 0), (-1, 0), 1.5, colors.black),
-            ("LINEBELOW", (0, 0), (-1, 0), 0.75, colors.black),
-            ("LINEBELOW", (0, -1), (-1, -1), 1.5, colors.black),
-            ("FONTNAME", (0, 0), (-1, -1), fonts["serif"]),
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 2),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 2),
-            ("TOPPADDING", (0, 0), (-1, -1), 3),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+            ("LINEABOVE", (0, 0), (-1, 0), 1.15, colors.black),
+            ("LINEBELOW", (0, 0), (-1, 0), .55, colors.black),
+            ("LINEBELOW", (0, -1), (-1, -1), 1.15, colors.black),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 3), ("RIGHTPADDING", (0, 0), (-1, -1), 3),
+            ("TOPPADDING", (0, 0), (-1, -1), 3.4), ("BOTTOMPADDING", (0, 0), (-1, -1), 3.4),
         ]))
-        block = Table(
-            [[Paragraph(caption, table_caption_style)], [table]],
-            colWidths=[width],
-            hAlign="LEFT",
-        )
-        block.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        return block
+        story.extend([paragraph(caption, "table_caption", bold=True), table, Spacer(1, 4 * mm)])
 
-    def pair_flowables(items: list[Any], col_width: float, gap_width: float) -> list[Any]:
-        paired: list[Any] = []
-        for index in range(0, len(items), 2):
-            left = items[index]
-            if index + 1 < len(items):
-                row = [left, "", items[index + 1]]
-                widths = [col_width, gap_width, col_width]
-            else:
-                row = ["", left, ""]
-                widths = [col_width / 2, col_width, col_width / 2]
-            pair = Table([row], colWidths=widths)
-            pair.setStyle(TableStyle([
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                ("LEFTPADDING", (0, 0), (-1, -1), 0),
-                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-                ("TOPPADDING", (0, 0), (-1, -1), 0),
-                ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-            ]))
-            paired.extend([pair, Spacer(1, 5 * mm)])
-        return paired
-
-    def make_figure_block(image_path: Path, width: float) -> Any:
-        # Reserve room for the conclusion in compact single-figure reports;
-        # otherwise P-T/P-N produce a second page with only that paragraph.
-        height = (90 if len(figure_outputs) == 1 else 105) * mm
-        image = Image(str(image_path), width=width, height=height, kind="proportional")
-        block = Table(
-            [[image]],
-            colWidths=[width],
-            hAlign="CENTER",
-        )
-        block.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 0),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-        ]))
-        return block
-
-    story = [
-        Paragraph("Gas Laws Lab Export Report", title_style),
-        Paragraph(f"Dataset: {data.get('fileName', 'Workbench Export')}", body_style),
-        Paragraph(f"Generated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}", body_style),
-        Spacer(1, 7 * mm),
-        Paragraph("Tables", section_style),
-    ]
-
-    if relation:
-        story.append(Paragraph(
-            f"This report summarizes an ideal-gas {relation_label} verification study. "
-            "Measured pressure data are compared with the ideal reference and a linear fit.",
-            body_style,
-        ))
-    else:
-        story.append(Paragraph(
-            "This report summarizes final hard-sphere simulation diagnostics, including distribution and time-history figures.",
-            body_style,
-        ))
-
-    metric_rows: list[list[str]] = []
+    summary, verification, params = data.get("summary", {}), data.get("verification", {}), data.get("params", {})
+    story = [paragraph(title, "title", bold=True), paragraph("1 实验文件信息", "chapter", bold=True)]
+    append_table("表 1 实验文件信息", ["信息项", "内容"], [
+        ["实验文件", data.get("fileName", "未命名实验")], ["实验类型", f"理想气体 {relation_label} 关系验证" if relation else "硬球气体标准模拟"],
+        ["导出时间", datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
+    ])
+    story.append(paragraph("2 实验结果", "chapter", bold=True))
+    story.append(paragraph("2.1 结果与参数", "group", bold=True))
+    metric_rows = []
+    state_labels = {"completed": "已完成", "finished": "已完成", "running": "运行中", "paused": "已暂停", "idle": "未开始", "stopped": "已停止"}
     for label, value in [
-        ("Run state", summary.get("runState")),
-        ("Final time", summary.get("finalTime")),
-        ("Temperature", summary.get("temperature")),
-        ("Pressure", summary.get("pressure")),
-        ("Mean speed", summary.get("meanSpeed")),
-        ("RMS speed", summary.get("rmsSpeed")),
-        ("R squared", verification.get("rSquared")),
-        ("Slope error", verification.get("slopeError")),
+        ("运行状态", state_labels.get(summary.get("runState"), summary.get("runState"))),
+        ("最终时间 t", summary.get("finalTime")), ("温度 T", summary.get("temperature")),
+        ("压强 P", summary.get("pressure")), ("平均速率", summary.get("meanSpeed")), ("方均根速率", summary.get("rmsSpeed")),
+        ("决定系数 R²", verification.get("rSquared")), ("拟合斜率", verification.get("slope")),
+        ("拟合截距", verification.get("intercept")), ("斜率相对误差 / %", verification.get("slopeError")),
     ]:
         if value is not None:
-            metric_rows.append([label, f"{safe_float(value):.6g}" if isinstance(value, (int, float)) else str(value)])
-
-    param_rows: list[list[str]] = []
-    for key in ["N", "L", "r", "m", "k", "dt", "nu", "targetTemperature", "equilibriumTime", "statsDuration"]:
-        if key in params:
-            param_rows.append([key, f"{safe_float(params.get(key)):.6g}"])
-
-    table_width = 80 * mm
-    gap_width = 8 * mm
-    figure_width = 160 * mm
-    summary_table = make_three_line_table(
-        "Table 1. Simulation Summary and Verification Metrics",
-        ("Metric", "Value"),
-        metric_rows,
-        table_width,
-    )
-    param_table = make_three_line_table(
-        f"Table 2. Model Parameters Used for the {relation_label} Study",
-        ("Parameter", "Value"),
-        param_rows,
-        table_width,
-    )
-    story.extend([Spacer(1, 4 * mm), *pair_flowables([summary_table, param_table], table_width, gap_width)])
-
-    story.append(Paragraph("Figures", section_style))
-    for output in figure_outputs:
-        png_path = output.get("png")
-        if png_path and png_path.exists():
-            story.append(make_figure_block(png_path, figure_width))
-            if len(figure_outputs) > 1:
-                story.append(Spacer(1, 6 * mm))
-
-    story.append(Paragraph("Conclusion", section_style))
+            metric_rows.append([label, f"{value:.6g}" if isinstance(value, (int, float)) else str(value)])
     if relation:
-        verdict = verification.get("verdictState", "not assessed")
-        story.append(Paragraph(
-            f"The exported data support a {relation_label} verification workflow. "
-            f"The current automated verdict is {verdict}.",
-            body_style,
-        ))
+        metric_rows.insert(0, ["采样点数", len(data.get("points") or [])])
+    append_table("表 2 实验结果与验证指标", ["指标", "数值"], metric_rows or [["结果", "暂无数据"]])
+    parameter_labels = {"N": "粒子数 N", "L": "容器边长 L", "r": "粒子半径 r", "m": "粒子质量 m", "k": "玻尔兹曼常数 k",
+        "dt": "时间步长 Δt", "nu": "碰撞频率 ν", "targetTemperature": "目标温度 T", "equilibriumTime": "平衡时间", "statsDuration": "统计时长"}
+    append_table("表 3 模型与采样参数", ["参数", "数值"], [[label, f"{safe_float(params[key]):.6g}"]
+        for key, label in parameter_labels.items() if key in params])
+    story.append(paragraph("数值及坐标轴沿用仿真采用的单位体系。", "body"))
+    captions = {"speed-distribution": "速率分布与理论曲线", "energy-distribution": "能量分布与理论曲线",
+        "semilog-energy": "能量分布半对数图", "temperature-error": "温度相对误差随时间的变化", "total-energy": "总能量随时间的变化",
+        "pv-raw-relationship": "压强与体积的关系", "pv-verification": "压强与体积倒数的关系及线性拟合",
+        "pt-verification": "压强与温度的关系及线性拟合", "pn-verification": "压强与粒子数的关系及线性拟合"}
+    for index, output in enumerate(figure_outputs, 1):
+        path = output.get("png")
+        if path and path.exists():
+            image = deps["Image"](str(path))
+            figure_width = 160 * mm
+            source_width, source_height = image.imageWidth, image.imageHeight
+            image.drawWidth = figure_width
+            image.drawHeight = source_height * figure_width / source_width
+            image.hAlign = "CENTER"
+            caption = captions.get(path.stem, "实验结果图")
+            story.append(KeepTogether([
+                paragraph(f"2.{index + 1} {caption}", "group", bold=True), image,
+                paragraph(f"图 {index} {caption}", "figure_caption", bold=True), Spacer(1, 4 * mm)]))
+    story.append(paragraph("3 结果说明", "chapter", bold=True))
+    if relation:
+        verdicts = {"pass": "通过", "passed": "通过", "consistent": "符合", "verified": "通过", "deviation": "存在偏差", "warning": "需关注", "fail": "未通过", "failed": "未通过", "inconclusive": "尚不能确定", "insufficient": "数据不足", "pending": "待评定", "not assessed": "未评定"}
+        verdict = verification.get("verdictState") or "not assessed"
+        story.append(paragraph(f"本报告展示 {relation_label} 关系的采样结果、理论参考及线性拟合。自动验证结果：{verdicts.get(verdict, '未评定')}。"))
     else:
-        story.append(Paragraph(
-            "The exported diagnostics provide a reproducible view of the final simulation state and figure-ready data.",
-            body_style,
-        ))
+        story.append(paragraph("本报告汇总本次模拟的最终状态、分布统计及时间变化曲线，可结合理论曲线和守恒量变化评价实验结果。"))
 
-    doc.build(story)
+    def draw_page(canvas: Any, document: Any) -> None:
+        canvas.saveState()
+        canvas.setFillColor(colors.HexColor("#64748b"))
+        canvas.setFont(fonts["cjk"], 8)
+        canvas.drawString(18 * mm, 9 * mm, "气律实验室")
+        footer = paragraph(f"第 {document.page} 页", "table_numeric")
+        footer.style = deps["ParagraphStyle"]("ReportFooter", parent=st["table_numeric"], fontSize=8, leading=10, textColor=colors.HexColor("#64748b"))
+        footer.wrapOn(canvas, 45 * mm, 10 * mm)
+        footer.drawOn(canvas, deps["A4"][0] - 58 * mm, 8 * mm)
+        canvas.restoreState()
+
+    def make_canvas(*args: Any, **kwargs: Any) -> Any:
+        kwargs["initialFontName"] = fonts["serif"]
+        return deps["Canvas"](*args, **kwargs)
+
+    doc.build(story, onFirstPage=draw_page, onLaterPages=draw_page, canvasmaker=make_canvas)
     return target
 
 
@@ -3971,6 +3912,7 @@ def export_json_payload(payload: dict[str, Any], out_dir: Path, formats: set[str
     data = payload.get("data")
     if not isinstance(data, dict):
         raise ValueError("JSON payload is missing object data.")
+    data = {**data, "language": "zh-CN"}
     if is_piston_oscillation_export(data):
         return export_piston_oscillation_payload(data, out_dir, formats, deps)
     if is_heat_capacity_export(data):
@@ -4021,13 +3963,27 @@ def export_json_payload(payload: dict[str, Any], out_dir: Path, formats: set[str
                 [[row.get("time"), row.get("temperature"), row.get("targetTemperature"), row.get("error"), row.get("totalEnergy")] for row in history],
                 paths["data"],
             ))
+        if include_csv:
+            for key in ["summary", "params"]:
+                values = data.get(key) or {}
+                rows = [[name, value] for name, value in values.items() if value is not None and not isinstance(value, (dict, list))]
+                if rows:
+                    csv_outputs.append(write_rows_csv(f"standard-{key}.csv", ["quantity", "value"], rows, paths["data"]))
+            for key, name, columns in [
+                ("speed", "standard-speed-distribution.csv", ["binStart", "binEnd", "count", "probability", "theoretical"]),
+                ("energy", "standard-energy-distribution.csv", ["binStart", "binEnd", "count", "probability", "theoretical"]),
+                ("energyLog", "standard-energy-log.csv", ["energy", "logProb", "theoreticalLog"]),
+            ]:
+                rows = final.get(key) or []
+                if rows:
+                    csv_outputs.append(write_rows_csv(name, columns, [[row.get(column) for column in columns] for row in rows], paths["data"]))
         if include_figures:
             for output in [
                 plot_distribution(data, figure_root, deps, "speed", "speed-distribution", "Speed Distribution", "Figure 1. Speed Distribution Compared with Theoretical Prediction"),
                 plot_distribution(data, figure_root, deps, "energy", "energy-distribution", "Energy Distribution", "Figure 2. Energy Distribution Compared with Theoretical Prediction"),
                 plot_distribution(data, figure_root, deps, "energyLog", "semilog-energy", "Semi-log Energy Distribution", "Figure 3. Semi-log Energy Distribution"),
-                plot_history(data, figure_root, deps, "error", "temperature-error", "Temperature Error History", "Error (%)", "Figure 4. Temperature Error History"),
-                plot_history(data, figure_root, deps, "totalEnergy", "total-energy", "Total Energy History", "Total energy", "Figure 5. Total Energy History"),
+                plot_history(data, figure_root, deps, "error", "temperature-error", "Temperature Error History", "相对误差 / %", "Figure 4. Temperature Error History"),
+                plot_history(data, figure_root, deps, "totalEnergy", "total-energy", "Total Energy History", "总能量 E", "Figure 5. Total Energy History"),
             ]:
                 if output:
                     figure_outputs.append(output)

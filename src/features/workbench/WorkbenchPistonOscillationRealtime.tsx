@@ -139,26 +139,30 @@ export const WorkbenchPistonOscillationRealtime = ({
                 <div>
                   <strong>
                     {settingsLanguagePreference === 'en'
-                      ? 'Export report'
+                      ? 'Export'
                       : settingsLanguagePreference === 'zh-TW'
-                        ? '匯出報告'
-                        : '导出报告'}
+                        ? '匯出'
+                        : '导出'}
                   </strong>
                   <span>
-                    {activeFile.pistonOscillationFreeSession.experimentGroup.scheme === 'ideal'
-                      ? settingsLanguagePreference === 'en'
-                        ? 'Export the saved curves, calculation results, and unscored process evidence as PDF.'
-                        : settingsLanguagePreference === 'zh-TW'
-                          ? '將已儲存曲線、計算結果與不評分的過程證據匯出為 PDF。'
-                          : '将已保存曲线、计算结果和不评分的过程证据导出为 PDF。'
-                      : settingsLanguagePreference === 'en'
-                        ? 'Export the saved curves, calculation results, process evidence, and score summary as PDF.'
-                        : settingsLanguagePreference === 'zh-TW'
-                          ? '將已儲存曲線、計算結果、過程證據與評分摘要匯出為 PDF。'
-                          : '将已保存曲线、计算结果、过程证据与评分摘要导出为 PDF。'}
+                    {settingsLanguagePreference === 'en'
+                      ? 'Export saved curves, data tables, or a complete PDF report.'
+                      : settingsLanguagePreference === 'zh-TW'
+                        ? '匯出已儲存曲線、資料表或完整 PDF 報告。'
+                        : '导出已保存曲线、数据表或完整 PDF 报告。'}
                   </span>
                 </div>
                 <div className="studio-heat-export-buttons">
+                  <button type="button" disabled={!isExportModeDataReady('figuresZip') || exportInProgress}
+                    onClick={() => { void handleExportAction('figuresZip'); }}>
+                    <Download size={13} />
+                    {settingsLanguagePreference === 'en' ? 'Export figures' : settingsLanguagePreference === 'zh-TW' ? '匯出圖像' : '导出图像'}
+                  </button>
+                  <button type="button" disabled={!isExportModeDataReady('tablesCsv') || exportInProgress}
+                    onClick={() => { void handleExportAction('tablesCsv'); }}>
+                    <Download size={13} />
+                    {settingsLanguagePreference === 'en' ? 'Export tables' : settingsLanguagePreference === 'zh-TW' ? '匯出資料表' : '导出数据表'}
+                  </button>
                   <button
                     type="button"
                     disabled={!isExportModeDataReady('report') || exportInProgress}

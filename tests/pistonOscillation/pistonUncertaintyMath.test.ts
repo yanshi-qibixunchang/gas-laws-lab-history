@@ -25,7 +25,20 @@ const readout = renderToStaticMarkup(createElement(PistonRichText, { text: 'u仪
 assert.match(readout, /<mtext>instrument<\/mtext>/);
 console.log('Uncertainty math preserves numerical precision, formats scientific notation and leaves prose intact.');
 
-const propagation = renderToStaticMarkup(createElement(PistonUncertaintyFormula, { field: 'gammaB', language: 'zh-CN', coverage: 2, label: 'B 类传播' }));
+const propagation = renderToStaticMarkup(createElement(PistonUncertaintyFormula, { field: 'gammaB', language: 'zh-CN', label: 'B 类传播' }));
 assert.match(propagation, /<mtext>仪器<\/mtext>/);
 assert.match(propagation, /<msqrt>/);
 assert.match(propagation, /<mfrac>/);
+const meanSquaredMarkup = '<mover><msup><mi>T</mi><mn>2</mn></msup><mo>¯</mo></mover>';
+for (const field of ['meanX', 'sxx'] as const) {
+  const markup = renderToStaticMarkup(createElement(PistonUncertaintyFormula, { field, language: 'zh-CN', label: '' }));
+  assert.ok(markup.includes(meanSquaredMarkup), 'the bar must cover T squared, not just T');
+  assert.match(markup, /<munderover><mo>∑<\/mo>.*<mi>i<\/mi>.*<mn>1<\/mn>.*<mi>n<\/mi><\/munderover>/);
+  assert.match(markup, /<msup><msub><mi>T<\/mi><mi>i<\/mi><\/msub><mn>2<\/mn><\/msup>/);
+}
+for (const field of ['reportCombined', 'result'] as const) {
+  const markup = renderToStaticMarkup(createElement(PistonUncertaintyFormula, { field, language: 'zh-CN', label: '' }));
+  assert.match(markup, /<msub><mi>u<\/mi><mtext>c<\/mtext><\/msub>/);
+  assert.doesNotMatch(markup, /<mi>[Uk]<\/mi>/);
+  if (field === 'result') assert.match(markup, /<mo>±<\/mo>/);
+}

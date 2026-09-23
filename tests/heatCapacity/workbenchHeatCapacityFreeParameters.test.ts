@@ -191,8 +191,8 @@ assert.equal(
 assert.equal(frozenConfigSnapshot?.physics.leakage.enabled, true);
 assert.equal(frozenConfigSnapshot?.sensor.noiseMv, 0);
 assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.instrumentNoiseEnabled, false);
-assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 122);
-assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 150);
+assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.pressureWarningMv, 120);
+assert.equal(frozenFile.heatCapacityFreeInstrumentConfig.record.pressureDangerMv, 140);
 
 const blockedNextGroupFile = prepareNextHeatCapacityFreeExperimentWorkbenchState(frozenFile);
 assert.equal(blockedNextGroupFile, frozenFile, 'Next Group must stay disabled until a valid group is complete and powered off');
@@ -269,6 +269,25 @@ assert.equal(
 const currentGroupAfterExperimentRestart = restartedCurrentExperiment.heatCapacityFreeExperimentGroups.groups.find(
   (group) => group.id === currentGroupIdBeforeExperimentRestart,
 );
+// Rerecording/restarting after U2, but before power-off, must not also remove
+// the preceding saved experiment when resetting the instrument.
+const restartedAfterU2 = restartCurrentHeatCapacityFreeExperimentWorkbenchState({
+  ...frozenFile,
+  powerOn: true,
+  heatCapacityFreeRunWorkspace: {
+    ...frozenFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed',
+    batch: { ...frozenFile.heatCapacityFreeRunWorkspace.batch, nextTrialSequence: 3 },
+    trials: [completedExperimentBeforeRestart, {
+      ...completedFreeTrial,
+      id: partialCurrentExperiment.id,
+      batchMembership: partialCurrentExperiment.batchMembership,
+      completedAtMs: null,
+    }],
+  },
+}, 1_650);
+assert.deepEqual(restartedAfterU2.heatCapacityFreeRunWorkspace.trials.map(trial => trial.id),
+  [completedExperimentBeforeRestart.id], 'restart after U2 must preserve the earlier saved experiment');
 assert.deepEqual(
   currentGroupAfterExperimentRestart?.runSeries.trials.map((trial) => trial.id),
   [completedExperimentBeforeRestart.id],

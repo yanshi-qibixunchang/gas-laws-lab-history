@@ -477,6 +477,8 @@ const getExporterFormatsForMode = (mode, payload) => {
     case 'verificationFigure':
     case 'figuresZip':
       return 'figures';
+    case 'tablesCsv':
+      return 'csv';
     case 'completeBundle':
       if (isIdealExportPayload(payload) && getIdealExportPointCount(payload) < 2) {
         return 'csv,metadata';

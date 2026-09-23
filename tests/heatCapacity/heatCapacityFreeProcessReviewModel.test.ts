@@ -77,17 +77,8 @@ const missingU0Review = selectHeatCapacityFreeProcessReview({
   theoreticalGamma: 1.4,
   selectedTrialId: missingU0Trial.id,
 });
-assert.equal(missingU0Review.status, 'ready');
-assert.equal(missingU0Review.trialOptions[0]?.status, 'complete');
-assert.deepEqual(missingU0Review.chart.records.map((record) => record.id), ['u1', 'u2']);
-assert.equal(missingU0Review.summary?.u1?.pressureDeltaKPa, 5.6);
-assert.notEqual(missingU0Review.score.total, null);
-assert.equal(
-  missingU0Review.score.items
-    .find((item) => item.id === 'recordChain')
-    ?.details.find((detail) => detail.id === 'record-chain-zeroing')?.score,
-  0,
-);
+assert.equal(missingU0Review.status, 'incomplete');
+assert.equal(missingU0Trial.correctedSignals, null);
 
 let quickToggleBranch = appendFreeTraceEvent(parts.branch, {
   atS: 30.1,

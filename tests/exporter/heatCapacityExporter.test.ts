@@ -58,7 +58,7 @@ assert.match(heatReportSource, /ContinuedCaptionTable/, 'long academic tables sh
 assert.match(heatReportSource, /theory_comparison[\s\S]*subsection_number \+= 1[\s\S]*result_figure/, 'ideal-group figures should have their own numbered subsection');
 assert.match(heatReportSource, /result_figure_heading[\s\S]*KeepTogether\(\[\s*result_figure_heading,[\s\S]*\*make_figure_parts/, 'result-figure headings should stay with their figures instead of being orphaned at a page bottom');
 assert.match(heatReportSource, /\("ALIGN", \(0, 0\), \(-1, 0\), "CENTER"\)/, 'table headers should be centered');
-assert.match(heatReportSource, /table_numeric_style = ParagraphStyle\([\s\S]*alignment=TA_CENTER/, 'numeric table cells should use a centered paragraph style');
+assert.match(exporterSource, /table_numeric_style = ParagraphStyle\([\s\S]*alignment=TA_CENTER/, 'numeric table cells should use a centered paragraph style');
 assert.match(heatReportSource, /def is_numeric_table_value[\s\S]*re\.fullmatch[\s\S]*def table_body_paragraph[\s\S]*table_numeric_style if center_text or is_numeric_table_value/, 'table cells should select centered alignment for numeric-like values or inferred uniform text columns');
 assert.match(exporterSource, /"value": "内容"/, 'the basic-information value column should be labeled as content rather than numeric value');
 assert.match(heatReportSource, /always_centered_headers = [\s\S]*"group_axis"[\s\S]*"group_type"[\s\S]*"number"[\s\S]*"status"[\s\S]*"value"/, 'short categorical columns and the basic-information content column should always be centered');
@@ -205,6 +205,39 @@ if (pythonCheck.status !== 0) {
       assert.doesNotMatch(strictText.stdout, /0\.033\b/, 'new reports must not fall back to legacy midpoint rounding');
     }
 
+    for (const zero of [false, true]) {
+      const coursePayload = JSON.parse(readFileSync(fixture, 'utf8'));
+      const group = coursePayload.data.groups[0];
+      coursePayload.data.groups = [group];
+      group.calculation.session = { answerRule: 'free-type-a-half-even-v3' };
+      group.calculationAudit = [];
+      Object.assign(group.result, {
+        calculationRule: 'free-type-a-half-even-v3', uncertaintyScope: 'repeat-measurement-type-a-only',
+        meanGamma: zero ? 1.4 : 1.389, sampleStandardDeviation: zero ? 0 : 0.00851,
+        typeAStandardUncertainty: zero ? 0 : 0.00491, relativeErrorPercent: zero ? 0 : 0.786,
+        reportMeanGamma: zero ? 1.4 : 1.389, reportTypeA: zero ? 0 : 0.0049,
+        reportDecimalPlaces: zero ? undefined : 4, sumSquaredDeviations: zero ? 0 : 0.000145,
+      });
+      const input = join(temporaryRoot, `type-a-${zero}.json`);
+      const courseOutput = join(temporaryRoot, `type-a-${zero}`);
+      writeFileSync(input, JSON.stringify(coursePayload), 'utf8');
+      const exported = spawnSync('python', [exporter, '--input', input, '--out', courseOutput,
+        '--formats', 'report,csv'], { cwd: root, encoding: 'utf8', timeout: 120_000 });
+      assert.equal(exported.status, 0, exported.stderr || exported.stdout);
+      const restoredPackage = JSON.parse(readFileSync(join(courseOutput, 'data', 'experiment-package.json'), 'utf8'));
+      assert.equal(restoredPackage.groups[0].result.reportTypeA, zero ? 0 : 0.0049);
+      if (pdftotextAvailable) {
+        const text = spawnSync('pdftotext', [join(courseOutput, 'report.pdf'), '-'], { encoding: 'utf8' });
+        assert.equal(text.status, 0, text.stderr);
+        assert.match(text.stdout, /本结果仅评定重复测量的 A 类标准不确定度/);
+        assert.match(text.stdout, zero ? /1\.400\s*±\s*0\b/ : /1\.3890\s*±\s*0\.0049\b/);
+        if (!zero) {
+          assert.match(text.stdout, /0\.00851\b/);
+          assert.match(text.stdout, /0\.00491\b/);
+        }
+      }
+    }
+
     const reportOnlyOutput = join(temporaryRoot, 'report-only');
     const reportOnlyResult = spawnSync('python', [
       exporter,
@@ -222,6 +255,39 @@ if (pythonCheck.status !== 0) {
     assert.equal(reportOnlyParsed.metadata, null);
     assert.equal(existsSync(join(reportOnlyOutput, 'figures')), false, 'report-only export should remove intermediate plot images');
     assert.equal(existsSync(join(reportOnlyOutput, 'data')), false, 'report-only export should not expose raw package JSON or CSV files');
+
+    const abPayload = JSON.parse(readFileSync(fixture, 'utf8'));
+    const abGroup = abPayload.data.groups[0];
+    abPayload.data.groups = [abGroup];
+    abGroup.calculation.session = { answerRule: 'free-ab-given-standard-half-even-v5' };
+    abGroup.calculationAudit = [];
+    Object.assign(abGroup.result, {
+      calculationRule: 'free-ab-given-standard-half-even-v5', uncertaintyScope: 'repeat-measurement-and-voltage-instrument',
+      meanGamma: 1.389, sampleStandardDeviation: 0.00851, typeAStandardUncertainty: 0.00491,
+      relativeErrorPercent: 0.786, voltageInstrumentStandardUncertaintyMv: 0.1,
+      propagationCoefficient: 0.02956, typeBStandardUncertainty: 0.00296, combinedStandardUncertainty: 0.00573,
+      reportMeanGamma: 1.389, reportCombined: 0.0057, reportDecimalPlaces: 4,
+    });
+    const abInput = join(temporaryRoot, 'type-ab.json'), abOutput = join(temporaryRoot, 'type-ab');
+    writeFileSync(abInput, JSON.stringify(abPayload), 'utf8');
+    const abExport = spawnSync('python', [exporter, '--input', abInput, '--out', abOutput,
+      '--formats', 'report,csv'], { cwd: root, encoding: 'utf8', timeout: 120_000 });
+    assert.equal(abExport.status, 0, abExport.stderr || abExport.stdout);
+    const abPackage = JSON.parse(readFileSync(join(abOutput, 'data', 'experiment-package.json'), 'utf8'));
+    assert.equal(abPackage.groups[0].result.reportCombined, 0.0057);
+    const abStatistics = readFileSync(join(abOutput, 'data', 'real-group-01-statistics.csv'), 'utf8');
+    assert.match(abStatistics, /typeBStandardUncertainty,0\.00296,1/);
+    assert.match(abStatistics, /combinedStandardUncertainty,0\.00573,1/);
+    assert.match(abStatistics, /reportMeanGamma,1\.3890,1/);
+    assert.match(abStatistics, /reportCombined,0\.0057,1/);
+    if (pdftotextAvailable) {
+      const abText = spawnSync('pdftotext', [join(abOutput, 'report.pdf'), '-'], { encoding: 'utf8' });
+      assert.equal(abText.status, 0, abText.stderr);
+      assert.match(abText.stdout, /1\.3890\s*±\s*0\.0057\b/);
+      for (const value of ['0.02956','0.00296','0.00573']) assert.ok(abText.stdout.includes(value));
+      assert.match(abText.stdout, /给定电压仪器 B 类合成/);
+      assert.doesNotMatch(abText.stdout, /本结果仅评定重复测量/);
+    }
 
     const idealOnlyPayload = JSON.parse(readFileSync(fixture, 'utf8')) as {
       data: {

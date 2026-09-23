@@ -9,6 +9,8 @@ import type { PistonOscillationDataProcessingSession } from '../../domain/piston
 import type { CalculationKnownDatum } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PistonMathNumber, PistonMathUnit, PistonRichText, PistonUncertaintyFormula, PistonUncertaintyGammaBasis } from './PistonUncertaintyMath.tsx';
 import './PistonOscillationUncertainty.css';
+import { PistonCalculationAnswerField } from './PistonCalculationAnswerField.tsx';
+import { getPistonOscillationCalculationCopy } from './pistonOscillationCalculationCopy.ts';
 
 export const buildPistonUncertaintyKnownData = (
   course: PistonUncertaintyCourse,
@@ -45,12 +47,8 @@ export const PistonOscillationUncertainty = ({ processing, language, onAction }:
   const t = (zh: string, english: string) => en ? english : zh;
   const { fields, lessons } = buildPistonUncertaintyPresentation(course, analysis, language);
   const completed = pistonUncertaintyComplete(course);
-  const feedbackText = {
-    empty: t('请先填写计算结果。', 'Enter a result first.'),
-    invalid: t('请输入有限数值，可使用 e 表示科学计数法。', 'Enter a finite number; e notation is accepted.'),
-    'numeric-wrong': t('计算结果不正确，请检查公式、单位和所用数据。', 'Check the formula, units and supplied working values.'),
-    'precision-wrong': t('数值正确，但末位或有效数字不符合本题要求。', 'The value is correct; check significant figures or the last written digit.'),
-  };
+  const answerCopy = getPistonOscillationCalculationCopy(language === 'en' ? 'en' : language === 'zh-TW' ? 'zh-TW' : 'zh-CN');
+
   if (analysis.issue) return <section className="piston-uncertainty" role="status">
     <strong>{t('不确定度计算需要复核数据', 'Review data before evaluating uncertainty')}</strong>
     <p>{analysis.issue === 'precision-boundary' ? t('当前数据无法确定稳定的修约结果，请重新选取周期或调整高度范围。', 'A stable rounded result cannot be established for these data. Reselect the time interval or height range.') : analysis.issue === 'time-resolution'
@@ -58,14 +56,13 @@ export const PistonOscillationUncertainty = ({ processing, language, onAction }:
       : t('至少需要三个有效点、正斜率及有效的周期和采样率；请返回数据处理复核。', 'At least three valid points, a positive slope, and valid periods and sample rates are required.')}</p>
   </section>;
   return <div className="piston-uncertainty" ref={root} data-piston-uncertainty>
-    <header><strong>{t('不确定度 · 从来源到结果', 'Uncertainty · from sources to result')}</strong>
+    <header><strong>{t('不确定度', 'Uncertainty')}</strong>
       <span>{Object.values(course.answers).filter(a => a.status !== 'unresolved').length} / {Object.keys(course.answers).length}</span></header>
-    <p className="piston-uncertainty-note"><PistonRichText language={language} text={t('使用前一步通过核验的结果继续计算，位数要求见各题。中间量保留必要的保护位；最终 Uγ 保留 2 位有效数字，γ 的末位与 Uγ 对齐。零值填 0。', 'Use each checked result in subsequent steps, with the precision stated for each question. Keep guard digits in intermediate values; report Uγ to 2 significant figures and align the last digit of γ. Enter 0 for a zero value.')} /></p>
-    {course.resetNotice && <p role="status">{t('观测数据或仪器资料已变化，不确定度作答已重置，请按当前数据重新计算。', 'Observations or instrument data changed. Uncertainty answers were reset; recalculate using current data.')}</p>}
+    {course.resetNotice && <p role="status">{t('不确定度题目或数据已更新，请重新完成本段计算。', 'Uncertainty exercises or data have changed. Please complete this section again.')}</p>}
     <details><summary><PistonRichText language={language} text={t('拟合数据与计算参数', 'Fit data and calculation parameters')} /></summary>
       <p><PistonRichText language={language} text={t('以下数据与前面的周期、拟合和 γ 计算一致。相对误差使用修约为最终报告值之前的 γ。', 'These are the same periods, fit and γ used above. Relative error uses γ before its final report rounding.')} /></p>
       <div className="piston-uncertainty-formula piston-uncertainty-basis"><PistonUncertaintyGammaBasis gamma={analysis.gamma} slope={analysis.slope} /></div>
-      <p className="piston-uncertainty-inputs"><PistonRichText language={language} text={`n = ${analysis.n}; b = ${analysis.intercept ?? fit.interceptM} m; Q = ${analysis.q} m²; Sxx = ${analysis.sxx} s⁴${analysis.meanX !== undefined ? `; x̄ = ${analysis.meanX} s²; h̄ = ${analysis.meanY} m` : ''}`} /></p>
+      <p className="piston-uncertainty-inputs"><PistonRichText language={language} text={`n = ${analysis.n}; b = ${analysis.intercept} m; Q = ${analysis.q} m²; h̄ = ${analysis.meanY} m`} /></p>
       <div className="piston-uncertainty-table-scroll"><table><thead><tr>{['#', 'T² (s²)', 'h (m)', 'eᵢ (m)'].map(s => <th key={s}><PistonRichText text={s} language={language} /></th>)}</tr></thead>
         <tbody>{analysis.rows.map(row => <tr key={row.runIndex}><td>{row.runIndex + 1}</td><td><PistonMathNumber value={row.x} /></td><td><PistonMathNumber value={row.y} /></td><td><PistonMathNumber value={row.residual} /></td></tr>)}</tbody></table></div>
     </details>
@@ -90,30 +87,29 @@ export const PistonOscillationUncertainty = ({ processing, language, onAction }:
           const active = id === currentField;
           const inputId = `piston-uncertainty-${id}`;
           const digits = pistonUncertaintyDigits(id, analysis);
-          const precision = id === 'result' ? t('末位与 Uγ 对齐', 'Align the last digit with Uγ') : t(`${digits} 位有效数字（零填 0）`, `${digits} significant figures (0 for zero)`);
-          return <section key={id} className={`piston-uncertainty-exercise ${active ? 'piston-uncertainty-active' : ''}`} data-uncertainty-current={active ? 'true' : undefined}>
-            <label htmlFor={inputId}><strong><PistonRichText text={field.label} language={language} /></strong></label>
-            <div className="piston-uncertainty-formula"><PistonUncertaintyFormula field={id} language={language} coverage={course.profile.coverage} label={field.formula} /></div>
-            <p className="piston-uncertainty-inputs"><PistonRichText text={field.inputs} language={language} /></p>
-            <div className="piston-uncertainty-answer-row">
-              <input id={inputId} type="text" inputMode="decimal" autoComplete="off" spellCheck={false}
-                value={answer.draft} disabled={!active} aria-invalid={!!answer.feedback}
-                aria-describedby={`${inputId}-help ${inputId}-feedback`}
-                onChange={e => onAction({ kind: 'edit', field: id, value: e.target.value })}
-                onKeyDown={e => { if (e.key === 'Enter' && active) { e.preventDefault(); onAction({ kind: 'check', field: id }); } }} />
-              <span><PistonMathUnit value={field.unit} /></span>
-              {active && <button type="button" onClick={() => onAction({ kind: 'check', field: id })}>{t('核验', 'Check')}</button>}
-              {active && answer.attempts.length > 0 && <button type="button" className="piston-uncertainty-secondary" onClick={() => onAction({ kind: 'reveal', field: id })}>{t('查看答案', 'Show answer')}</button>}
-              {!active && <span>{answer.status === 'revealed' ? t('已查看答案', 'Answer shown') : t('核验通过', 'Correct')}</span>}
-            </div>
-            <small id={`${inputId}-help`}><PistonRichText text={precision} language={language} /></small>
-            <p id={`${inputId}-feedback`} className="piston-uncertainty-feedback" role="status">{answer.feedback ? feedbackText[answer.feedback] : ''}</p>
-          </section>;
+          const precision = id === 'result' ? t('末位与 uc(γ) 对齐', 'Align the last digit with uc(γ)') : answerCopy.precisionSignificant(digits);
+          return <div key={id} data-uncertainty-current={active ? 'true' : undefined}>
+            <PistonCalculationAnswerField fieldId={id} inputId={inputId}
+              title={<PistonRichText text={field.label} language={language} />}
+              formula={<PistonUncertaintyFormula field={id} language={language} label={field.formula} />}
+              unit={<PistonMathUnit value={field.unit} />}
+              details={<p className="piston-uncertainty-inputs"><PistonRichText text={field.inputs} language={language} /></p>}
+              precision={<PistonRichText text={precision} language={language} />}
+              value={answer.draft} status={answer.status}
+              feedback={answer.feedback ? answerCopy.feedback[answer.feedback] : null}
+              reference={pistonUncertaintyReference(id, analysis)} active={active}
+              actionLabel={answerCopy.check} copy={answerCopy}
+              onDraftChange={value => onAction({ kind: 'edit', field: id, value })}
+              onContinue={() => onAction({ kind: 'continue', field: id })}
+              onReveal={() => onAction({ kind: 'reveal', field: id })}
+              onCheck={() => onAction({ kind: 'check', field: id })} />
+          </div>;
         })}
       </details>;
     })}
     {completed && <div className="piston-uncertainty-result" role="status">
-      <strong><PistonRichText text={`γ = ${pistonUncertaintyReference('result', analysis)} ± ${pistonUncertaintyReference('expanded', analysis)} (k = ${course.profile.coverage})`} language={language} /></strong>
+      <strong><PistonRichText text={`γ = ${pistonUncertaintyReference('result', analysis)} ± ${pistonUncertaintyReference('reportCombined', analysis)}`} language={language} /></strong>
+      <p>{t('本结果报告 A 类与 B 类合成的标准不确定度。', 'This result reports the combined standard uncertainty from Type A and Type B evaluations.')}</p>
       <p><PistonRichText text={`uc(γ) = ${pistonUncertaintyReference('combined', analysis)}; ur = ${pistonUncertaintyReference('relative', analysis)}%`} language={language} /></p>
       <p>{t('本结果基于本实验给定的仪器参数和测量条件。', 'This result uses the instrument parameters and measurement conditions specified for this experiment.')}</p>
     </div>}

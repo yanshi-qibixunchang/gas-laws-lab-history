@@ -4,6 +4,7 @@ import { calculatePistonUncertainty } from '../../src/domain/pistonOscillation/p
 import { InMemoryWorkbenchPersistenceV3GenerationStore } from '../../src/features/workbench/persistenceV3/generationStore.ts';
 import { commitWorkbenchPersistenceV3ProductionSnapshot, restoreWorkbenchPersistenceV3ProductionWorkspace } from '../../src/features/workbench/persistenceV3/productionFacade.ts';
 import { createDefaultHeatCapacityPistonOscillationFile } from '../../src/features/workbench/workbenchState.ts';
+import { isPistonOscillationReportReady, createPistonOscillationReportExportPayload } from '../../src/features/workbench/workbenchPistonOscillationExport.ts';
 import {
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
@@ -492,6 +493,11 @@ const legacyCourse = legacyTeaching.dataProcessing.calculationSession.uncertaint
 legacyCourse.version = legacyCourse.profile.version = 'piston-free-uncertainty-v1';
 delete legacyCourse.profile.pressureStandardPa;
 Object.assign(legacyCourse.profile, { pressureExpandedPa: 200, pressureCoverage: 2, pressureStepPa: 10 });
+legacyCourse.profile.coverage = 2;
+legacyCourse.answers.expanded = legacyCourse.answers.reportCombined;
+delete legacyCourse.answers.reportCombined;
+delete legacyCourse.answers.meanX;
+delete legacyCourse.answers.sxx;
 for (const field of ['pressureCalibration', 'pressureReadout', 'pressure', 'heightScale', 'timeScale', 'heightReadout', 'slopeReadout', 'slopeSupplement', 'slopeB']) {
   legacyCourse.answers[field] = { draft: '', status: 'unresolved', feedback: null, attempts: [] };
 }
@@ -507,13 +513,79 @@ if (!projected.ok) throw new Error('projection failed');
 const encoded = encodeWorkbenchPersistenceV3FileProjection(projected.value);
 assert.ok(encoded.ok);
 if (!encoded.ok) throw new Error('encoding failed');
+// v3 -> fit-statistics exercises: retain all earlier calculations and reopen
+// only uncertainty. Old ten-question progress must not count as completed.
+for (const withDraftStatistics of [false, true]) {
+  const previous = structuredClone(detailedSession) as any;
+  const previousProcessing = previous.dataProcessing;
+  const previousCourse = previousProcessing.calculationSession.uncertainty;
+  previousProcessing.uncertaintyCourseVersion = 'piston-free-standard-uncertainty-v3';
+  previousCourse.version = previousCourse.profile.version = 'piston-free-standard-uncertainty-v3';
+  const fingerprint = JSON.parse(previousCourse.fingerprint);
+  fingerprint.version = fingerprint.profile.version = 'piston-free-standard-uncertainty-v3';
+  previousCourse.fingerprint = JSON.stringify(fingerprint);
+  if (!withDraftStatistics) {
+    delete previousCourse.answers.meanX;
+    delete previousCourse.answers.sxx;
+  }
+  const restored = normalizePistonOscillationFreeSession(previous);
+  assert.deepEqual(restored.savedMeasurements, previous.savedMeasurements);
+  assert.deepEqual(restored.dataProcessing!.runs, previousProcessing.runs);
+  assert.deepEqual(restored.dataProcessing!.linearFitResult, previousProcessing.linearFitResult);
+  assert.deepEqual(restored.dataProcessing!.calculationSession!.answers, previousProcessing.calculationSession.answers);
+  assert.equal(restored.dataProcessing!.status, 'calculation-ready');
+  assert.equal(restored.dataProcessing!.calculationSession!.completedAtMs, null);
+  const resetCourse = restored.dataProcessing!.calculationSession!.uncertainty!;
+  assert.equal(resetCourse.resetNotice, true);
+  assert.ok(Object.values(resetCourse.answers).every(answer => answer.status === 'unresolved'));
+  const previousRecord = structuredClone(encoded.value);
+  (previousRecord.projection.fields.authoritative as any).freeSession = previous;
+  const decoded = decodeWorkbenchPersistenceV3FileRecord(previousRecord);
+  assert.ok(decoded.ok, JSON.stringify(decoded.ok ? null : decoded.diagnostics));
+  const oldFile = { ...uncertaintyFile, pistonOscillationFreeSession: previous };
+  assert.equal(isPistonOscillationReportReady(oldFile), false);
+  assert.throws(() => createPistonOscillationReportExportPayload(oldFile, 'zh-CN'), /not complete/);
+  const alteredPrevious = structuredClone(previousRecord);
+  (alteredPrevious.projection.fields.authoritative as any).freeSession.dataProcessing.calculationSession.uncertainty.profile.massLimitKg = 999;
+  assert.equal(decodeWorkbenchPersistenceV3FileRecord(alteredPrevious).ok, false,
+    'course migration must not silently repair altered instrument parameters');
+}
 const legacyRecord = structuredClone(encoded.value);
 (legacyRecord.projection.fields.authoritative as any).freeSession = legacyTeaching;
 const migratedTeaching = decodeWorkbenchPersistenceV3FileRecord(legacyRecord);
 assert.ok(migratedTeaching.ok, JSON.stringify(migratedTeaching));
 
-// The ten-question course's redundant metadata can be removed without losing answers.
+// Both recognised v2 layouts invalidate expanded reports and retain measurements.
+const legacyExpanded = structuredClone(detailedSession) as any;
+legacyExpanded.dataProcessing.uncertaintyCourseVersion = 'piston-free-uncertainty-v2';
+const expandedCourse = legacyExpanded.dataProcessing.calculationSession.uncertainty;
+expandedCourse.version = expandedCourse.profile.version = 'piston-free-uncertainty-v2';
+expandedCourse.profile.coverage = 2;
+expandedCourse.answers.expanded = expandedCourse.answers.reportCombined;
+delete expandedCourse.answers.reportCombined;
+const oldFingerprint = JSON.parse(expandedCourse.fingerprint);
+oldFingerprint.version = oldFingerprint.profile.version = 'piston-free-uncertainty-v2';
+oldFingerprint.profile.coverage = 2;
+expandedCourse.fingerprint = JSON.stringify(oldFingerprint);
+for (const withFitExercises of [true, false]) {
+  const expandedRecord = structuredClone(encoded.value);
+  const oldSession = structuredClone(legacyExpanded);
+  if (!withFitExercises) {
+    delete oldSession.dataProcessing.calculationSession.uncertainty.answers.meanX;
+    delete oldSession.dataProcessing.calculationSession.uncertainty.answers.sxx;
+  }
+  (expandedRecord.projection.fields.authoritative as any).freeSession = oldSession;
+  const migrated = decodeWorkbenchPersistenceV3FileRecord(expandedRecord);
+  assert.ok(migrated.ok, JSON.stringify(migrated));
+  const restored = normalizePistonOscillationFreeSession(oldSession);
+  assert.equal(restored.dataProcessing!.precisionNotice, 'teaching-updated');
+  assert.equal(restored.dataProcessing!.calculationSession, null);
+  assert.deepEqual(restored.savedMeasurements, detailedSession.savedMeasurements);
+}
+
+// Legacy redundant pressure metadata is cleaned before the v2 course reset.
 const redundantRecord = structuredClone(encoded.value);
+(redundantRecord.projection.fields.authoritative as any).freeSession = structuredClone(legacyExpanded);
 const redundantSession = (redundantRecord.projection.fields.authoritative as any).freeSession;
 const redundantProcessing = redundantSession.dataProcessing;
 const redundantCourse = redundantProcessing.calculationSession.uncertainty;
@@ -525,23 +597,24 @@ const fingerprint = JSON.parse(redundantCourse.fingerprint);
 Object.assign(fingerprint.profile, obsoleteProfile);
 Object.assign(fingerprint.precision.digits, obsoleteDigits);
 redundantCourse.fingerprint = JSON.stringify(fingerprint);
-const answersBeforeCleanup = structuredClone(redundantCourse.answers);
 const cleanedTeaching = normalizePistonOscillationFreeSession(redundantSession);
-assert.deepEqual(cleanedTeaching.dataProcessing!.calculationSession!.uncertainty!.answers, answersBeforeCleanup);
+assert.equal(cleanedTeaching.dataProcessing!.precisionNotice, 'teaching-updated');
+assert.equal(cleanedTeaching.dataProcessing!.calculationSession, null);
 assert.deepEqual(cleanedTeaching.savedMeasurements, redundantSession.savedMeasurements);
-assert.ok(!('pressureExpandedPa' in cleanedTeaching.dataProcessing!.calculationSession!.uncertainty!.profile));
-assert.ok(!('pressureCalibration' in cleanedTeaching.dataProcessing!.linearFitResult!.precisionPlan!.digits));
+assert.equal(cleanedTeaching.dataProcessing!.linearFitResult, null);
 assert.ok(decodeWorkbenchPersistenceV3FileRecord(redundantRecord).ok, 'recognised metadata cleanup survives production restore');
 for (const mutate of [
   (v: any) => { v.dataProcessing.calculationSession.uncertainty.profile.pressureExpandedPa = 999; },
   (v: any) => { v.dataProcessing.unknownAuthority = true; },
   (v: any) => { v.dataProcessing.calculationSession.uncertainty.profile.unknownSource = 42; },
-  (v: any) => { v.dataProcessing.calculationSession.uncertainty.answers.mass.draft = '999'; },
 ]) {
   const broken = structuredClone(redundantRecord);
   mutate((broken.projection.fields.authoritative as any).freeSession);
-  assert.equal(decodeWorkbenchPersistenceV3FileRecord(broken).ok, false, 'cleanup must not hide changed authority or invalid answers');
+  assert.equal(decodeWorkbenchPersistenceV3FileRecord(broken).ok, false, 'cleanup must not hide changed authority');
 }
+const invalidCurrentAnswer = structuredClone(encoded.value);
+(invalidCurrentAnswer.projection.fields.authoritative as any).freeSession.dataProcessing.calculationSession.uncertainty.answers.mass.draft = '999';
+assert.equal(decodeWorkbenchPersistenceV3FileRecord(invalidCurrentAnswer).ok, false, 'current course cannot silently keep an invalid checked answer');
 for (const mutate of [
   (v: any) => { v.dataProcessing.unknownAuthority = true; },
   (v: any) => { v.dataProcessing.calculationSession.uncertainty.profile.pressureExpandedPa = 999; },

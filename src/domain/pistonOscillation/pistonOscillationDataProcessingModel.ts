@@ -82,6 +82,7 @@ import {
 } from './pistonOscillationExperimentContextModel.ts';
 import {
   PISTON_UNCERTAINTY_VERSION,
+  PISTON_STANDARD_UNCERTAINTY_VERSION,
   calculatePistonUncertainty,
   createPistonUncertaintyCourse,
   createPistonUncertaintyProfile,
@@ -496,6 +497,7 @@ export interface PistonOscillationCalculationSessionSnapshot {
 }
 
 export interface PistonOscillationDataProcessingSession {
+  uncertaintyEligibility?: import('../calculation/uncertaintyTeachingEligibility.ts').UncertaintyTeachingEligibility;
   precisionVersion?: typeof PISTON_PRECISION_VERSION;
   precisionNotice?: 'upgraded' | 'teaching-updated' | 'more-digits' | 'unresolved-boundary';
   schemaVersion: typeof PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION;
@@ -2932,9 +2934,10 @@ export const createPistonOscillationCalculationSession = (
   records: readonly PistonOscillationRawMeasurementRecord[],
   nowMs: number,
   includeUncertainty = false,
+  unifiedPrecision = includeUncertainty,
 ): PistonOscillationCalculationSessionSnapshot => {
   const rawKnowns = createPistonOscillationCalculationKnownsSnapshot(records);
-  const knowns = includeUncertainty ? normalizePistonPrecisionKnowns(rawKnowns) : rawKnowns;
+  const knowns = unifiedPrecision ? normalizePistonPrecisionKnowns(rawKnowns) : rawKnowns;
   const areaM2 = calculateDisplayedPistonAreaM2(knowns);
   return {
     schemaVersion: 2,
@@ -2958,6 +2961,8 @@ export const createPistonOscillationCalculationSession = (
 export interface CreatePistonOscillationDataProcessingSessionOptions {
   answerValidationMode?: PistonOscillationAnswerValidationMode;
   includeUncertainty?: boolean;
+  unifiedPrecision?: boolean;
+  uncertaintyEligibility?: import('../calculation/uncertaintyTeachingEligibility.ts').UncertaintyTeachingEligibility;
 }
 
 export const createPistonOscillationDataProcessingSession = (
@@ -2967,8 +2972,9 @@ export const createPistonOscillationDataProcessingSession = (
 ): PistonOscillationDataProcessingSession => {
   requireConsistentPistonOscillationGasMaterialSnapshot(records);
   const scoringPolicy = createPistonOscillationScoringPolicySnapshot(records);
-  const unified = options.includeUncertainty && options.answerValidationMode === 'batch';
+  const unified = (options.unifiedPrecision ?? options.includeUncertainty) && options.answerValidationMode === 'batch';
   return {
+    ...(options.uncertaintyEligibility ? { uncertaintyEligibility: options.uncertaintyEligibility } : {}),
     ...(unified ? { precisionVersion: PISTON_PRECISION_VERSION } : {}),
     schemaVersion: PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION,
     ...(options.includeUncertainty && options.answerValidationMode === 'batch'
@@ -3844,7 +3850,7 @@ export const advancePistonOscillationPeriodRun = (
     status: isLastRun ? 'calculation-ready' : session.status,
     activeRunIndex: isLastRun ? session.activeRunIndex : session.activeRunIndex + 1,
     calculationSession: isLastRun
-      ? createPistonOscillationCalculationSession(records, nowMs, session.uncertaintyCourseVersion === PISTON_UNCERTAINTY_VERSION)
+      ? createPistonOscillationCalculationSession(records, nowMs, session.uncertaintyCourseVersion === PISTON_UNCERTAINTY_VERSION, Boolean(session.precisionVersion))
       : session.calculationSession,
     updatedAtMs: nowMs,
     audit,
@@ -5051,10 +5057,11 @@ const normalizeCalculationSession = (
   answerValidationMode: PistonOscillationAnswerValidationMode,
   runs: readonly PistonOscillationPeriodRunState[],
   includeUncertainty: boolean,
+  unifiedPrecision: boolean,
 ): PistonOscillationCalculationSessionSnapshot => {
   const persisted = isPlainRecord(value) ? value : null;
-  const fallback = createPistonOscillationCalculationSession(records, nowMs, includeUncertainty);
-  const knowns = includeUncertainty ? normalizePistonPrecisionKnowns(createPistonOscillationCalculationKnownsSnapshot(records)) : normalizeCalculationKnowns(persisted?.knowns, records);
+  const fallback = createPistonOscillationCalculationSession(records, nowMs, includeUncertainty, unifiedPrecision);
+  const knowns = unifiedPrecision ? normalizePistonPrecisionKnowns(createPistonOscillationCalculationKnownsSnapshot(records)) : normalizeCalculationKnowns(persisted?.knowns, records);
   if (knowns === null) return null;
   const selectedRunIndices = fitResult?.selectedRunIndices
     ?? (Array.isArray(persisted?.selectedRunIndices)
@@ -5179,16 +5186,22 @@ export const normalizePistonOscillationDataProcessingSession = (
   value = cleanPistonUncertaintySnapshot(value);
   if (records.length === 0) return null;
   if (!getConsistentPistonOscillationGasMaterialSnapshot(records)) return null;
-  const wantUnified = options.includeUncertainty === true || (isPlainRecord(value) && typeof value.uncertaintyCourseVersion === 'string');
-  const fallback = createPistonOscillationDataProcessingSession(records, nowMs, { ...options, includeUncertainty: wantUnified });
+  const wantUncertainty = options.uncertaintyEligibility?.eligible ?? options.includeUncertainty
+    ?? (isPlainRecord(value) && typeof value.uncertaintyCourseVersion === 'string');
+  const wantUnified = options.unifiedPrecision ?? (wantUncertainty
+    || (isPlainRecord(value) && value.precisionVersion === PISTON_PRECISION_VERSION));
+  const fallback = createPistonOscillationDataProcessingSession(records, nowMs, { ...options, includeUncertainty: wantUncertainty, unifiedPrecision: wantUnified });
   if (!isPlainRecord(value) || !Array.isArray(value.runs)) return fallback;
   const processingPolicy = normalizePistonOscillationProcessingPolicy(
     value.processingPolicy,
     options.answerValidationMode,
   );
-  const includeUncertainty = wantUnified && processingPolicy.answerValidationMode === 'batch';
-  if (includeUncertainty && value.precisionVersion !== PISTON_PRECISION_VERSION) return { ...fallback, precisionNotice: 'upgraded' };
-  if (includeUncertainty && value.uncertaintyCourseVersion !== undefined && value.uncertaintyCourseVersion !== PISTON_UNCERTAINTY_VERSION) return { ...fallback, precisionNotice: 'teaching-updated' };
+  const unified = wantUnified && processingPolicy.answerValidationMode === 'batch';
+  const includeUncertainty = wantUncertainty && processingPolicy.answerValidationMode === 'batch';
+  if (unified && value.precisionVersion !== PISTON_PRECISION_VERSION) return { ...fallback, precisionNotice: 'upgraded' };
+  if (includeUncertainty && value.uncertaintyCourseVersion !== undefined
+    && value.uncertaintyCourseVersion !== PISTON_UNCERTAINTY_VERSION
+    && value.uncertaintyCourseVersion !== PISTON_STANDARD_UNCERTAINTY_VERSION) return { ...fallback, precisionNotice: 'teaching-updated' };
   const persistedRuns = value.runs;
   const restoredRuns = fallback.runs.map((fallbackRun) => {
     const record = records.find((candidate) => (
@@ -5208,17 +5221,17 @@ export const normalizePistonOscillationDataProcessingSession = (
       processingPolicy,
       nowMs,
     );
-    const precision = includeUncertainty && isPlainRecord(persisted.calculationPrecision)
+    const precision = unified && isPlainRecord(persisted.calculationPrecision)
       && Number.isInteger(persisted.calculationPrecision.period) && Number.isInteger(persisted.calculationPrecision.squared)
       && Number(persisted.calculationPrecision.period) >= PISTON_PERIOD_DIGITS && Number(persisted.calculationPrecision.period) <= 12
       && Number(persisted.calculationPrecision.squared) >= PISTON_SQUARED_DIGITS && Number(persisted.calculationPrecision.squared) <= 12
       ? { period: Number(persisted.calculationPrecision.period), squared: Number(persisted.calculationPrecision.squared) } : fallbackRun.calculationPrecision;
     const precisionRun = { ...fallbackRun, ...(precision ? { calculationPrecision: precision } : {}) };
     const t1Expected = selection?.leftEndpoint
-      ? includeUncertainty ? roundDecimalPlacesHalfEven(selection.leftEndpoint.timeS, 3) : selection.leftEndpoint.timeS
+      ? unified ? roundDecimalPlacesHalfEven(selection.leftEndpoint.timeS, 3) : selection.leftEndpoint.timeS
       : null;
     const t2Expected = selection?.rightEndpoint
-      ? includeUncertainty ? roundDecimalPlacesHalfEven(selection.rightEndpoint.timeS, 3) : selection.rightEndpoint.timeS
+      ? unified ? roundDecimalPlacesHalfEven(selection.rightEndpoint.timeS, 3) : selection.rightEndpoint.timeS
       : null;
     const t1 = normalizeAnswer(
       isPlainRecord(persisted.answers) ? persisted.answers.t1 : null,
@@ -5274,7 +5287,7 @@ export const normalizePistonOscillationDataProcessingSession = (
     return run;
   });
   const firstIncompleteRunIndex = restoredRuns.findIndex((run) => run.result === null);
-  const runs = includeUncertainty || firstIncompleteRunIndex < 0
+  const runs = unified || firstIncompleteRunIndex < 0
     ? restoredRuns
     : restoredRuns.map((run, runIndex) => (
         runIndex <= firstIncompleteRunIndex ? run : fallback.runs[runIndex]!
@@ -5284,7 +5297,7 @@ export const normalizePistonOscillationDataProcessingSession = (
     ? Math.max(0, Math.min(runs.length - 1, value.activeRunIndex as number))
     : Math.max(0, runs.findIndex((run) => run.result === null));
   const restoredLinearFitResult = allRunsCompleted
-    ? normalizeLinearFitResult(value.linearFitResult, runs, includeUncertainty ? normalizePistonPrecisionKnowns(createPistonOscillationCalculationKnownsSnapshot(records)) : undefined)
+    ? normalizeLinearFitResult(value.linearFitResult, runs, unified ? normalizePistonPrecisionKnowns(createPistonOscillationCalculationKnownsSnapshot(records)) : undefined)
     : null;
   const restoredCalculationSession = allRunsCompleted
     ? normalizeCalculationSession(
@@ -5295,6 +5308,7 @@ export const normalizePistonOscillationDataProcessingSession = (
         processingPolicy.answerValidationMode,
         runs,
         includeUncertainty,
+        unified,
       )
     : null;
   const calculationVersionUnsupported = allRunsCompleted
@@ -5307,6 +5321,7 @@ export const normalizePistonOscillationDataProcessingSession = (
         records,
         isFiniteNumber(value.updatedAtMs) ? value.updatedAtMs : nowMs,
         includeUncertainty,
+        unified,
       )
     : restoredCalculationSession;
   const status = !allRunsCompleted

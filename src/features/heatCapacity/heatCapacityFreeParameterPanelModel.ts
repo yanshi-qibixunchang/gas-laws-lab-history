@@ -19,8 +19,7 @@ export type HeatCapacityFreeParameterSymbolPart = string | { sub: string };
 
 export type HeatCapacityFreeAdvancedParameterGroupId =
   | 'thermalExchange'
-  | 'nonIdealCorrection'
-  | 'recordCriteria';
+  | 'nonIdealCorrection';
 
 export interface HeatCapacityFreeNumberParameterDefinition {
   id: HeatCapacityFreeDraftNumberKey;
@@ -197,9 +196,9 @@ export const heatCapacityFreeSharedText = {
     en: 'Confirm Advanced Parameter Changes',
   },
   riskBody: {
-    'zh-CN': '高级参数会影响当前实验文件的模型判定、传感器读数和记录阈值。确认后，本实验文件后续打开高级参数不再重复提示。',
-    'zh-TW': '進階參數會影響目前實驗檔案的模型判定、感測器讀數和記錄閾值。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
-    en: "Advanced parameters affect this experiment file's model checks, sensor readings, and record thresholds. After confirmation, this file will not ask again when Advanced Parameters are opened.",
+    'zh-CN': '高级参数会影响模型行为、传感器读数及不确定度计算的适用性。记录判定与安全阈值采用统一标准。确认后，本实验文件后续打开高级参数不再重复提示。',
+    'zh-TW': '進階參數會影響模型行為、感測器讀數及不確定度計算的適用性。記錄判定與安全閾值採用統一標準。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
+    en: 'Advanced parameters affect the model, sensor readings and availability of uncertainty calculations. Recording and safety criteria use fixed standards. This confirmation appears only once per file.',
   },
   invalidNumber: {
     'zh-CN': '请输入合法数值。',
@@ -401,118 +400,6 @@ export const heatCapacityFreeAdvancedNumberParameters: HeatCapacityFreeNumberPar
     min: 1 / 60,
     max: 100,
   },
-  {
-    id: 'u0ZeroToleranceMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '零点记录容差', 'zh-TW': '零點記錄容差', en: 'Zero record tolerance' },
-    parts: ['U', { sub: '0' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '决定 U0 记录时压力读数接近 0 的合格范围。',
-      'zh-TW': '決定 U0 記錄時壓力讀數接近 0 的合格範圍。',
-      en: 'Sets how close to zero the pressure reading must be for U0.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'pressureStableSlopeMvPerS',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '压力稳定斜率阈值', 'zh-TW': '壓力穩定斜率閾值', en: 'Pressure slope limit' },
-    parts: [],
-    unit: 'mV/s',
-    effect: {
-      'zh-CN': '决定压力读数足够平稳后才允许记录。',
-      'zh-TW': '決定壓力讀數足夠平穩後才允許記錄。',
-      en: 'Requires pressure readings to settle before recording.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'temperatureStableSlopeMvPerS',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '温度稳定斜率阈值', 'zh-TW': '溫度穩定斜率閾值', en: 'Temperature slope limit' },
-    parts: [],
-    unit: 'mV/s',
-    effect: {
-      'zh-CN': '决定温度读数足够平稳后才允许记录。',
-      'zh-TW': '決定溫度讀數足夠平穩後才允許記錄。',
-      en: 'Requires temperature readings to settle before recording.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'temperatureAmbientToleranceMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '环境温度容差', 'zh-TW': '環境溫度容差', en: 'Ambient temperature tolerance' },
-    parts: [],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '决定温度是否已经回到环境附近。',
-      'zh-TW': '決定溫度是否已經回到環境附近。',
-      en: 'Sets how close temperature must be to ambient.',
-    },
-    precision: 3,
-    min: 0,
-  },
-  {
-    id: 'minimumUsefulU1CorrectedMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '最小有效值', 'zh-TW': '最小有效值', en: 'Minimum useful U1' },
-    parts: ['U', { sub: '1,min' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '防止打气不足时记录无效数据。',
-      'zh-TW': '防止打氣不足時記錄無效資料。',
-      en: 'Prevents recording invalid data when pumping is insufficient.',
-    },
-    precision: 2,
-    min: 0,
-  },
-  {
-    id: 'overVentedMinimumU2CorrectedMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '最小有效值', 'zh-TW': '最小有效值', en: 'Minimum useful U2' },
-    parts: ['U', { sub: '2,min' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '防止放气后压力读数异常或过低。',
-      'zh-TW': '防止放氣後壓力讀數異常或過低。',
-      en: 'Prevents accepting abnormal or too-low post-release readings.',
-    },
-    precision: 2,
-    min: 0,
-  },
-  {
-    id: 'pressureWarningMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '建议停止阈值', 'zh-TW': '建議停止閾值', en: 'Suggested-stop threshold' },
-    parts: ['U', { sub: 'warn' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '控制进入建议停止打气区的普通提示，不作为错误或报警。',
-      'zh-TW': '控制進入建議停止打氣區的一般提示，不作為錯誤或警報。',
-      en: 'Controls the ordinary suggested-stop hint, not an error or alarm.',
-    },
-    precision: 2,
-    min: 0,
-  },
-  {
-    id: 'pressureDangerMv',
-    group: 'recordCriteria',
-    label: { 'zh-CN': '压力危险阈值', 'zh-TW': '壓力危險閾值', en: 'Pressure danger threshold' },
-    parts: ['U', { sub: 'danger' }],
-    unit: 'mV',
-    effect: {
-      'zh-CN': '控制危险状态、禁止继续打气或记录失败边界；绝对压强最高受 300 kPa 可用上限保护。',
-      'zh-TW': '控制危險狀態、禁止繼續打氣或記錄失敗邊界；絕對壓強最高受 300 kPa 可用上限保護。',
-      en: 'Controls danger state, pumping block, and failed-record boundaries; absolute pressure is capped at 300 kPa.',
-    },
-    precision: 2,
-    min: 0,
-  },
 ];
 
 export const heatCapacityFreeAdvancedParameterGroups: HeatCapacityFreeAdvancedParameterGroupDefinition[] = [
@@ -523,10 +410,6 @@ export const heatCapacityFreeAdvancedParameterGroups: HeatCapacityFreeAdvancedPa
   {
     id: 'nonIdealCorrection',
     title: { 'zh-CN': '非理想过程修正', 'zh-TW': '非理想過程修正', en: 'Non-Ideal Corrections' },
-  },
-  {
-    id: 'recordCriteria',
-    title: { 'zh-CN': '记录判定与安全阈值', 'zh-TW': '記錄判定與安全閾值', en: 'Record Criteria and Safety Limits' },
   },
 ];
 

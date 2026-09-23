@@ -1,3 +1,8 @@
+import { projectHeatCapacityTeachingResult } from '../../domain/heatCapacity/heatCapacityTeachingResultProjection.ts';
+import { isHeatCapacitySequentialAnswerRule } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
+import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
+import { getHeatCapacityFreePublicZero } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import { formatHeatCapacitySignalMv } from '../../domain/heatCapacity/heatCapacitySignalDisplayModel.ts';
 ﻿import React, { useMemo, useState } from 'react';
 import { BarChart3, ChevronDown, Download, FileArchive } from 'lucide-react';
 import type {
@@ -47,9 +52,11 @@ interface HeatCapacityLeftPanelProps {
   exportInProgress: boolean;
   canExportReport: boolean;
   canExportFigures: boolean;
+  canExportTables: boolean;
   onExportExperimentPackage: () => void;
   onExportReport: () => void;
   onExportFigures: () => void;
+  onExportTables: () => void;
 }
 
 interface DocumentDisclosureProps {
@@ -609,6 +616,8 @@ const renderFreeDataAndResultsTab = (
   onExportExperimentPackage: () => void,
   onExportReport: () => void,
   onExportFigures: () => void,
+  canExportTables: boolean,
+  onExportTables: () => void,
 ) => {
   const displayedDomain = selectDisplayedHeatCapacityFreeDomain(file);
   const currentGroup = selectCurrentHeatCapacityFreeExperimentGroup(groupCollection);
@@ -622,11 +631,18 @@ const renderFreeDataAndResultsTab = (
     : null;
   const completed = displayedTrials.filter(isHeatCapacityFreeTrialComplete).length;
   const displayedTheoreticalGamma = viewedGroup?.parameterSnapshot?.physics.gamma ?? file.theoreticalGamma;
-  const result = calculateFreeHeatCapacityMeanResult(displayedTrials, {
+  const teachingSession = viewedGroup?.calculation?.kind === 'real-interactive' || viewedGroup?.calculation?.kind === 'ideal-interactive'
+    ? viewedGroup.calculation.session : viewedGroup?.runSeries.batch.calculationSession;
+  const result = projectHeatCapacityTeachingResult(calculateFreeHeatCapacityMeanResult(displayedTrials, {
     theoreticalGamma: displayedTheoreticalGamma,
-  });
+  }), teachingSession);
+  const isTypeACourse = isHeatCapacitySequentialAnswerRule(teachingSession?.answerRule);
+  const courseGamma = (value: number | null | undefined) => isTypeACourse && value != null
+    ? formatSignificantFiguresHalfEven(value, 4) : formatGamma(value);
+  const courseError = (value: number | null | undefined) => isTypeACourse && value != null
+    ? `${value === 0 ? '0' : formatSignificantFiguresHalfEven(value, 3)}%` : formatPercent(value);
   const trialResultsById = new Map<string, HeatCapacityFreeProcessingTrialResult>(
-    result.trialResults.map((trial) => [trial.trialId, trial]),
+    result.trialResults.map((trial) => [trial.trialId, trial] as const),
   );
   const displayTrialSource = {
     heatCapacityFreeRunWorkspace: {
@@ -656,8 +672,8 @@ const renderFreeDataAndResultsTab = (
   const summaryLine = copy.freeRecording.summaryLine(
     displayedTheoreticalGamma.toFixed(2),
     result.validTrialCount,
-    formatGamma(result.meanGamma),
-    formatPercent(result.relativeErrorPercent),
+    courseGamma(result.meanGamma),
+    courseError(result.relativeErrorPercent),
   );
   const renderRemoveRecordButton = (
     trialIndex: number,
@@ -746,7 +762,11 @@ const renderFreeDataAndResultsTab = (
           </button>
           <button type="button" disabled={!canExportFigures || exportInProgress} onClick={onExportFigures}>
             <BarChart3 size={13} />
-            {language === 'en' ? 'Export figures' : language === 'zh-TW' ? '匯出圖表' : '导出图表'}
+            {language === 'en' ? 'Export figures' : language === 'zh-TW' ? '匯出圖像' : '导出图像'}
+          </button>
+          <button type="button" disabled={!canExportTables || exportInProgress} onClick={onExportTables}>
+            <Download size={13} />
+            {language === 'en' ? 'Export tables' : language === 'zh-TW' ? '匯出資料表' : '导出数据表'}
           </button>
         </div>
       </section>
@@ -769,8 +789,8 @@ const renderFreeDataAndResultsTab = (
           </div>
           <div className="studio-heat-sample-row">
             <span><strong>{copy.freeRecording.automaticCandidate}</strong></span>
-            <span>{formatNumber(automaticU0?.displayPressureMv, 2)}</span>
-            <span>{formatNumber(automaticU0?.displayTemperatureMv, 2)}</span>
+            <span>{automaticU0 ? formatHeatCapacitySignalMv(automaticU0.displayPressureMv) : '--'}</span>
+            <span>{automaticU0 ? formatHeatCapacitySignalMv(automaticU0.displayTemperatureMv) : '--'}</span>
             <span className={automaticU0 ? 'studio-heat-sample-recorded' : 'studio-heat-sample-waiting'}>
               {automaticU0 ? copy.freeRecording.statusComplete : copy.freeRecording.statusPending}
             </span>
@@ -825,6 +845,8 @@ const renderFreeDataAndResultsTab = (
       ) : null}
       <section className="studio-heat-result-summary-line" data-heat-capacity-free-result-summary="true">
         <strong>{summaryLine}</strong>
+        {teachingSession?.recalculationNotice && teachingSession.status !== 'completed' && <p>{language === 'en' ? 'Calculation rules updated: recalculate using the saved readings; previous answer checks are no longer valid.' : '计算规则已更新：旧核验状态不再有效，请使用保存的读数重新计算。'}</p>}
+        {displayedTrials.some(trial => trial.u1 && trial.u2 && !getHeatCapacityFreePublicZero(trial)) && <p>{language === 'en' ? 'A zero reading is missing. Record U₀ before calculating.' : '缺少零点记录 U₀，请补充有效记录后再计算。'}</p>}
       </section>
       <div className="studio-heat-table-scroll">
         <table className="studio-table studio-heat-recording-table" data-heat-capacity-free-record-table="true">
@@ -859,14 +881,10 @@ const renderFreeDataAndResultsTab = (
                   <tr>
                     <td>{index + 1}</td>
                     <td>{formatFreeTrialCompletedAt(trial.completedAtMs)}</td>
-                    <td>{trial.u0
-                      ? formatNumber(trial.u0.displayPressureMv, 2)
-                      : trialResult?.u0Source === 'assumed-zero'
-                        ? copy.freeRecording.assumedZeroU0Source
-                        : '--'}</td>
-                    <td>{formatNumber(trial.u1?.displayPressureMv, 2)}</td>
-                    <td>{formatNumber(trial.u2?.displayPressureMv, 2)}</td>
-                    <td>{formatGamma(trialResult?.gamma)}</td>
+                    <td>{getHeatCapacityFreePublicZero(trial) ? formatHeatCapacitySignalMv(getHeatCapacityFreePublicZero(trial)!.displayPressureMv) : '--'}</td>
+                    <td>{trial.u1 ? formatHeatCapacitySignalMv(trial.u1.displayPressureMv) : '--'}</td>
+                    <td>{trial.u2 ? formatHeatCapacitySignalMv(trial.u2.displayPressureMv) : '--'}</td>
+                    <td>{courseGamma(trialResult?.gamma)}</td>
                     <td>{statusText}</td>
                     <td>
                       <div className="studio-table-action-row">
@@ -886,30 +904,30 @@ const renderFreeDataAndResultsTab = (
                         <div className="studio-heat-sample-grid">
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.u1Corrected}</span>
-                            <span>{formatNumber(trialResult?.U1CorrectedMv, 2)}</span>
+                            <span>{formatNumber(trialResult?.U1CorrectedMv, 1)}</span>
                           </div>
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.u2Corrected}</span>
-                            <span>{formatNumber(trialResult?.U2CorrectedMv, 2)}</span>
+                            <span>{formatNumber(trialResult?.U2CorrectedMv, 1)}</span>
                           </div>
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.u0Source}</span>
-                            <span>{trialResult?.u0Source === 'assumed-zero'
-                              ? copy.freeRecording.assumedZeroU0Source
+                            <span>{trialResult?.u0Source === 'automatic'
+                              ? (language === 'en' ? 'Automatic record' : '自动记录')
                               : copy.freeRecording.recordedU0Source}</span>
                           </div>
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.formulaGamma}</span>
-                            <span>{formatGamma(trialResult?.formulaGamma)}</span>
+                            <span>{courseGamma(trialResult?.formulaGamma)}</span>
                           </div>
-                          <div className="studio-heat-sample-row">
+                          {!isTypeACourse && <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.preheatBiasGamma}</span>
                             <span>{formatNumber(trialResult?.preheatBiasGamma, 3)}</span>
-                          </div>
-                          <div className="studio-heat-sample-row">
+                          </div>}
+                          {!isTypeACourse && <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.finalGamma}</span>
                             <span>{formatGamma(trialResult?.gamma)}</span>
-                          </div>
+                          </div>}
                           <div className="studio-heat-sample-row">
                             <span>{copy.freeRecording.includedInMean}</span>
                             <span>{includedInMean ? copy.freeRecording.included : copy.freeRecording.excluded}</span>
@@ -1077,6 +1095,8 @@ export const HeatCapacityLeftPanel = ({
   onExportExperimentPackage,
   onExportReport,
   onExportFigures,
+  canExportTables,
+  onExportTables,
 }: HeatCapacityLeftPanelProps) => {
   const copy = text(language);
   const contentTitle = useMemo(() => {
@@ -1113,6 +1133,8 @@ export const HeatCapacityLeftPanel = ({
                 onExportExperimentPackage,
                 onExportReport,
                 onExportFigures,
+                canExportTables,
+                onExportTables,
               )
             : renderSingleTrialDataAndResultsTab(file, copy)}
       </div>

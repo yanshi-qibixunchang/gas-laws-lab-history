@@ -54,7 +54,7 @@ export interface WorkbenchFigureSpec {
   recommendedFilename: string;
 }
 
-export type WorkbenchExportMode = 'completeBundle' | 'report' | 'figuresZip' | 'verificationFigure' | 'pointsCsv';
+export type WorkbenchExportMode = 'completeBundle' | 'report' | 'figuresZip' | 'verificationFigure' | 'pointsCsv' | 'tablesCsv';
 
 export interface WorkbenchCsvExportPayload {
   kind: 'csv';
@@ -419,8 +419,8 @@ export const createWorkbenchExportPayload = (
   if (file.kind === 'heatCapacity') {
     return createHeatCapacityExportPayload(file, mode, language, heatCapacitySelection);
   }
-  if (file.kind === 'heatCapacityPistonOscillation' && mode === 'report') {
-    return createPistonOscillationReportExportPayload(file, language);
+  if (file.kind === 'heatCapacityPistonOscillation') {
+    return createPistonOscillationReportExportPayload(file, language, mode);
   }
   if (mode === 'pointsCsv') {
     return {
@@ -440,6 +440,8 @@ export const createWorkbenchExportPayload = (
     ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.bundle.json')
     : mode === 'figuresZip'
       ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.figures.json')
+      : mode === 'tablesCsv'
+        ? formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.tables.json')
       : formatWorkbenchExportFilename(file, figureCode).replace(/\.pdf$/, '.json');
 
   return {

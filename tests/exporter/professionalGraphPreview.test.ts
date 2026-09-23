@@ -14,7 +14,7 @@ const packageJson = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
 try {
   assert.match(
     previewStyleSource,
-    /PROFESSIONAL_FONT_FAMILY = \["Times New Roman", "Times", "DejaVu Serif", "serif"\]/,
+    /PROFESSIONAL_FONT_FAMILY = \["Times New Roman", "SimSun"\]/,
     'professional graph preview style should use a Times-family serif stack',
   );
 
@@ -32,19 +32,19 @@ try {
 
   assert.match(
     previewStyleSource,
-    /ax\.legend\(loc=loc, borderpad=0\.55, handlelength=2\.0, fancybox=False\)/,
+    /ax\.legend\(handles, labels,[\s\S]*fancybox=False, framealpha=1/,
     'professional graph preview legends should use square engineering-style frames',
   );
 
   assert.match(
     previewStyleSource,
-    /ax\.tick_params\(axis="both", which="major", direction="in", length=3\.2, width=0\.6\)/,
+    /ax\.tick_params\(axis="both", which="major", direction="in", length=3\.2, width=0\.6, top=True, right=True/,
     'professional graph preview major ticks should point inward like engineering export plots',
   );
 
   assert.match(
     previewStyleSource,
-    /ax\.tick_params\(axis="both", which="minor", direction="in", length=1\.8, width=0\.4\)/,
+    /ax\.tick_params\(axis="both", which="minor", direction="in", length=1\.8, width=0\.4, top=True, right=True/,
     'professional graph preview minor ticks should point inward and stay shorter than major ticks',
   );
 

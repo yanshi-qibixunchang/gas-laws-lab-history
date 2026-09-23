@@ -120,8 +120,11 @@ const free = createHeatCapacityCalculationWorkflowSession({
   })),
 });
 assert.deepEqual(free.aggregate!.reference, {
-  count: 3, meanGamma: 1.389, sampleStandardDeviation: 0.0085,
-  typeAStandardUncertainty: 0.0049, relativeErrorPercent: 0.786,
+  count: 3, meanGamma: 1.389, sampleStandardDeviation: 0.00851,
+  typeAStandardUncertainty: 0.00491, relativeErrorPercent: 0.786,
+  sumSquaredDeviations: 0.000145, reportMeanGamma: 1.389, reportDecimalPlaces: 4,
+  voltageInstrumentStandardUncertaintyMv: 0.1, propagationCoefficient: 0.02956,
+  typeBStandardUncertainty: 0.00296, combinedStandardUncertainty: 0.00573, reportCombined: 0.0057,
 }, 'all later teaching steps must be reproducible using the displayed earlier answers');
 const midpointBatch = createHeatCapacityCalculationWorkflowSession({
   ...authority, mode: 'free',

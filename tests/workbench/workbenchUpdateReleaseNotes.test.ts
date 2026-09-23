@@ -75,7 +75,7 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.4.2', 'desktop update should use the authorized next patch version');
+assert.equal(packageJson.version, '6.4.3', 'desktop update should use the authorized next patch version');
 assert.match(readme, /latest published desktop release is `v6\.4\.2`/, 'English README should name the verified public release');
 assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.4\.2`/, 'Simplified Chinese README should name the verified public release');
 assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.4\.2`/, 'Traditional Chinese README should name the verified public release');
@@ -98,12 +98,12 @@ assert.equal(
   `${packageJson.version} installer should be published in the public release repository`,
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
-for (const scope of ['piston-legacy-workspace-migration', 'build-peer-lock-completeness', 'desktop-update-v6-4-2']) {
+for (const scope of ['heat-capacity-ab-uncertainty', 'piston-uncertainty-statistics', 'desktop-update-v6-4-3']) {
   assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'),
-    `6.4.2 release notes should explain ${scope}`);
+    `6.4.3 release notes should explain ${scope}`);
 }
-for (const scope of ['early-upgrade-dependency-gate', 'development-records-refresh']) {
-  assert.ok(currentItems.some(item => item.scope === scope), `6.4.2 release notes should explain ${scope}`);
+for (const scope of ['experiment-recording-and-progress', 'four-experiment-report-export']) {
+  assert.ok(currentItems.some(item => item.scope === scope), `6.4.3 release notes should explain ${scope}`);
 }
 const featureRelease = findRelease('6.4.1');
 assert.ok(featureRelease, 'release notes should retain the 6.4.1 release');

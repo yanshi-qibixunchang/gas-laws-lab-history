@@ -28,6 +28,7 @@ const createReference = (offset: number) => {
 
 const createSession = (groupCount: number) => createHeatCapacityCalculationWorkflowSession({
   mode: 'free',
+  answerRule: 'strict-half-even-v2',
   groups: Array.from({ length: groupCount }, (_, index) => ({
     trialId: `trial-${index + 1}`,
     reference: createReference(index),

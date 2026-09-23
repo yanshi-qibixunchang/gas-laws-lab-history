@@ -164,6 +164,17 @@ assert.equal(truncatedRecord.displayPressureMv, -0.1, 'Free records should trunc
 assert.equal(truncatedRecord.displayTemperatureMv, 1499.1, 'Free temperature records should use the same one-decimal instrument reading');
 
 const automaticOnlyTrial = createTrialWithU0();
+const automaticCheckTrial: HeatCapacityFreeTrial = { ...automaticOnlyTrial,
+  automaticU0: { ...automaticU0!, displayPressureMv: 0.1 },
+  u1: normalizeHeatCapacityFreeRecordInput({ ...u0Input, displayPressureMv: 80 }),
+};
+assert.equal(evaluateFreeU2Record(automaticCheckTrial, calibration,
+  { ...display, displayPressureMv: 0.55 }, recoveredPhysics, recordConfig).reason, 'over-vented',
+  'U2 acceptance must subtract the same public automatic zero as the calculation');
+assert.equal(evaluateFreeU2Record({ ...automaticCheckTrial, automaticU0: null }, calibration,
+  display, recoveredPhysics, recordConfig).reason, 'zero-not-ready', 'missing zero cannot silently become zero');
+assert.equal(evaluateFreeU2Record({ ...automaticCheckTrial, u0: normalizeHeatCapacityFreeRecordInput({ ...u0Input, displayPressureMv: 0 }) }, calibration,
+  { ...display, displayPressureMv: 0.55 }, recoveredPhysics, recordConfig).reason, 'ready', 'manual zero retains precedence');
 assert.deepEqual(
   evaluateFreeU1Record(
     automaticOnlyTrial,
@@ -471,9 +482,7 @@ const missingU0U2 = recordFreeU2(missingU0U1.trial, {
   theoreticalGamma: 1.4,
 });
 assert.equal(missingU0U2.accepted, true, 'missing U0 must not block U2');
-assert.equal(missingU0U2.trial.correctedSignals?.u0Source, 'assumed-zero');
-assert.equal(missingU0U2.trial.correctedSignals?.U0DisplayMv, 0);
-assert.equal(missingU0U2.trial.correctedSignals?.gamma, 1.400222);
+assert.equal(missingU0U2.trial.correctedSignals, null, 'missing zero records must not silently become zero');
 
 const missingU0CalibrationMismatch = recordFreeU2(missingU0U1.trial, {
   atS: 42,
@@ -571,7 +580,7 @@ const freeRemovalU0 = removeHeatCapacityFreeTrialRecord([recordedU2TrialWithSnap
 assert.equal(freeRemovalU0.u0, null);
 assert.notEqual(freeRemovalU0.u1, null, 'removing Free U0 should preserve U1');
 assert.notEqual(freeRemovalU0.u2, null, 'removing Free U0 should preserve U2');
-assert.equal(freeRemovalU0.correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(freeRemovalU0.correctedSignals?.u0Source, 'automatic');
 assert.equal(freeRemovalU0.correctedSignals?.U0DisplayMv, 0);
 
 const freeRemovalTrial = removeHeatCapacityFreeTrialRecord([recordedU2.trial], 0, 'trial');

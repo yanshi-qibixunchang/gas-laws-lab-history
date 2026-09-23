@@ -152,12 +152,10 @@ const missingU0Signals = calculateFreeHeatCapacityTrialSignals(missingU0Trial, {
   pressureSensitivityMvPerKPa: snapshotA.sensor.pressureMvPerKPa,
   theoreticalGamma: snapshotA.physics.gamma,
 });
-assert.notEqual(missingU0Signals, null);
-assert.equal(missingU0Signals?.u0Source, 'assumed-zero');
-assert.equal(missingU0Signals?.U0DisplayMv, 0);
+assert.equal(missingU0Signals, null);
 
 const omittedPreheatTrial: HeatCapacityFreeTrial = {
-  ...missingU0Trial,
+  ...createCompleteTrial('preheated-fixture', snapshotA),
   id: 'trial-with-omitted-preheat',
   preheatOutcome: 'omitted',
 };
@@ -216,6 +214,6 @@ const removedU0 = removeHeatCapacityFreeTrialRecord([{
 assert.equal(removedU0.u0, null);
 assert.notEqual(removedU0.u1, null, 'removing U0 should preserve U1');
 assert.notEqual(removedU0.u2, null, 'removing U0 should preserve U2');
-assert.equal(removedU0.correctedSignals?.u0Source, 'assumed-zero');
+assert.equal(removedU0.correctedSignals, null);
 
 console.log('heatCapacityFreeTrialModel tests passed');

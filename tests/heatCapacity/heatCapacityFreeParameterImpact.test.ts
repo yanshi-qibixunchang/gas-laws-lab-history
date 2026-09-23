@@ -33,7 +33,6 @@ import {
   type HeatCapacityFreeTrial,
 } from '../../src/domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
-  applyHeatCapacityFreeParameterDraftWorkbenchState,
   createDefaultHeatCapacityFile,
   getHeatCapacityGaugePressureState,
   selectHeatCapacityFreeAppliedParameterDraft,
@@ -333,10 +332,13 @@ const createRecordPhysics = (
 });
 
 const warningMetric = (draft: HeatCapacityFreeParameterDraft, pressureDeltaKPa: number) => {
-  const appliedFile = applyHeatCapacityFreeParameterDraftWorkbenchState(
-    defaultFile,
-    draft,
-  );
+  // Historical snapshots still replay their original safety settings. New UI
+  // edits are covered separately by uncertaintyTeachingEligibility.test.ts.
+  const legacy = applyHeatCapacityFreeParameterDraftToConfigs(draft);
+  const appliedFile = { ...defaultFile, heatCapacityFreeInstrumentConfig: {
+    ...defaultFile.heatCapacityFreeInstrumentConfig,
+    record: legacy.recordConfig, pressureWarningMv: legacy.pressureWarningMv,
+  } };
   const gauge = getHeatCapacityGaugePressureState(
     pressureDeltaKPa,
     true,

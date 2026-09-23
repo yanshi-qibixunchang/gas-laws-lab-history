@@ -5,6 +5,10 @@ import {
   configureHeatCapacityFreeBatchWorkbenchState,
   createDefaultHeatCapacityFile,
   freezeHeatCapacityFreeParametersForCurrentGroup,
+  getHeatCapacityFreeBatchProgress,
+  powerHeatCapacityWorkbenchFile,
+  prepareNextHeatCapacityFreeExperimentWorkbenchState,
+  restartCurrentHeatCapacityFreeExperimentWorkbenchState,
   selectHeatCapacityFreeAppliedParameterDraft,
   setHeatCapacityFreeParameterSchemeWorkbenchState,
   storeHeatCapacityFreeRuntimeFieldsInDomain,
@@ -41,6 +45,16 @@ import {
 import {
   selectCurrentHeatCapacityFreeExperimentGroup,
 } from '../../src/domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
+import { createCompleteProcessReviewFixtureParts } from './helpers/heatCapacityProcessReviewTestFactory.ts';
+import { createHeatCapacityFreeStandardReference } from '../../src/domain/heatCapacity/heatCapacityFreeStandardReferenceModel.ts';
+import { createHeatCapacityCalculationWorkflowSession, submitHeatCapacityCalculationStep,
+  revealHeatCapacityCalculationWorkflowAnswer, completeHeatCapacityCalculationWorkflow,
+  type HeatCapacityCalculationWorkflowSession } from '../../src/domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
+
+const standardParts = createCompleteProcessReviewFixtureParts();
+const standardReference = createHeatCapacityFreeStandardReference({
+  traceTrial: standardParts.traceTrial, trial: standardParts.trial, theoreticalGamma: 1.4,
+});
 
 const guideRecord = (
   displayPressureMv: number,
@@ -224,6 +238,8 @@ const freeTrials = [0, 1, 2].map((index): HeatCapacityFreeTrial => {
   allocatedBatch = allocation.batch;
   const base = {
     ...createHeatCapacityFreeBatchTrial(allocation.identity),
+    standardReferenceSnapshot: standardReference,
+    preheatOutcome: 'completed' as const,
     u0: makeFreeRecord(0, 1),
     u1: makeFreeRecord(120 + index * 2, 2),
     u2: makeFreeRecord(50 + index, 3),
@@ -239,6 +255,46 @@ const freeTrials = [0, 1, 2].map((index): HeatCapacityFreeTrial => {
     }),
   };
 });
+// Restart after U2 (before power-off) must discard only this attempt, retaining
+// every earlier record/trace. Completing a replacement third trial must then
+// unlock the same three-trial calculation and review data.
+const savedTrace = { ...standardParts.traceTrial, id: 'saved-trace-1' };
+const discardedTrace = { ...standardParts.traceTrial, id: 'discarded-trace-2' };
+let restartedFlow = restartCurrentHeatCapacityFreeExperimentWorkbenchState({
+  ...freeFile,
+  powerOn: true,
+  heatCapacityFreeRunWorkspace: {
+    ...freeFile.heatCapacityFreeRunWorkspace,
+    currentExperimentStatus: 'completed',
+    batch: allocatedBatch,
+    trials: [{ ...freeTrials[0]!, traceTrialId: savedTrace.id },
+      { ...freeTrials[1]!, traceTrialId: discardedTrace.id, completedAtMs: null }],
+    traceStore: { ...standardParts.traceStore, activeTraceTrialId: discardedTrace.id,
+      traceTrials: [savedTrace, discardedTrace] },
+  },
+}, 215);
+assert.equal(getHeatCapacityFreeBatchProgress(restartedFlow).completedGroupCount, 1);
+assert.deepEqual(restartedFlow.heatCapacityFreeRunWorkspace.traceStore.traceTrials.map(t => t.id), [savedTrace.id]);
+for (const index of [1, 2]) {
+  const trace = { ...standardParts.traceTrial, id: `replacement-trace-${index}` };
+  const before = restartedFlow.heatCapacityFreeRunWorkspace;
+  restartedFlow = powerHeatCapacityWorkbenchFile({
+    ...restartedFlow, powerOn: true,
+    heatCapacityFreeRunWorkspace: {
+      ...before, currentExperimentStatus: 'completed',
+      trials: [...before.trials, { ...freeTrials[index]!, traceTrialId: trace.id, completedAtMs: null }],
+      traceStore: { ...before.traceStore, activeTraceTrialId: trace.id,
+        traceTrials: [...before.traceStore.traceTrials, trace] },
+    },
+  }, false, 216 + index);
+  assert.equal(getHeatCapacityFreeBatchProgress(restartedFlow).completedGroupCount, index + 1);
+  assert.equal(restartedFlow.heatCapacityFreeRunWorkspace.traceStore.traceTrials.length, index + 1);
+  if (index === 1) restartedFlow = prepareNextHeatCapacityFreeExperimentWorkbenchState(restartedFlow, 218);
+}
+assert.equal(getHeatCapacityFreeBatchProgress(restartedFlow).allGroupsRecorded, true);
+assert.equal(getHeatCapacityCalculationSession(restartedFlow)?.status, 'in-progress');
+assert.equal(getHeatCapacityCalculationSession(restartedFlow)?.groups.length, 3);
+
 freeFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
   ...freeFile,
   heatCapacityFreeRunWorkspace: {
@@ -249,6 +305,8 @@ freeFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
 }, 'real');
 freeFile = startHeatCapacityFreeBatchCalculationWorkbenchState(freeFile, 220);
 const freeSession = getHeatCapacityCalculationSession(freeFile);
+assert.equal(freeSession?.uncertaintyEligibility?.eligible, true);
+assert.ok(freeSession?.aggregate?.fields.some(field => field.answerKind === 'typeAStandardUncertainty'));
 assert.equal(freeSession?.mode, 'free');
 assert.equal(freeSession?.groups.length, 3);
 assert.equal(freeSession?.aggregate?.reference.count, 3);
@@ -292,6 +350,8 @@ const idealTrials = [0, 1, 2].map((index): HeatCapacityFreeTrial => {
   idealBatch = allocation.batch;
   const base = {
     ...createHeatCapacityFreeBatchTrial(allocation.identity, null, 'ideal'),
+    standardReferenceSnapshot: standardReference,
+    preheatOutcome: 'completed' as const,
     u0: makeFreeRecord(0, 1),
     u1: makeFreeRecord(120 + index * 2, 2),
     u2: makeFreeRecord(50 + index, 3),
@@ -317,6 +377,8 @@ idealFile = storeHeatCapacityFreeRuntimeFieldsInDomain({
 }, 'ideal');
 idealFile = startHeatCapacityFreeBatchCalculationWorkbenchState(idealFile, 320);
 const idealCalculationSession = getHeatCapacityCalculationSession(idealFile);
+assert.equal(idealCalculationSession?.uncertaintyEligibility?.reason, 'ideal');
+assert.deepEqual(idealCalculationSession?.aggregate?.fields.map(field => field.answerKind), ['meanGamma', 'relativeErrorPercent']);
 assert.equal(idealCalculationSession?.theoreticalGamma, 5 / 3);
 assert.equal(idealCalculationSession?.presentation, 'interactive');
 assert.equal(
@@ -334,5 +396,95 @@ const completedIdealGroup = selectCurrentHeatCapacityFreeExperimentGroup(
 assert.equal(completedIdealGroup?.status, 'completed');
 assert.equal(completedIdealGroup?.calculation?.kind, 'ideal-interactive');
 assert.equal(completedIdealGroup?.finalScore, null, 'Ideal manual calculations must remain unscored');
+
+const { projectWorkbenchPersistenceV3File, reprojectWorkbenchPersistenceV3File } = await import('../../src/features/workbench/persistenceV3/projection.ts');
+const { encodeWorkbenchPersistenceV3FileProjection, decodeWorkbenchPersistenceV3FileRecord } = await import('../../src/features/workbench/persistenceV3/codecRegistry.ts');
+for (const file of [freeFile, idealFile]) {
+  const projected = projectWorkbenchPersistenceV3File(file);
+  assert.ok(projected.ok, JSON.stringify(projected.ok ? null : projected.diagnostics));
+  if (!projected.ok) throw new Error('projection failed');
+  const encoded = encodeWorkbenchPersistenceV3FileProjection(projected.value);
+  assert.ok(encoded.ok);
+  if (!encoded.ok) throw new Error('encode failed');
+  const decoded = decodeWorkbenchPersistenceV3FileRecord(encoded.value);
+  assert.ok(decoded.ok, JSON.stringify(decoded.ok ? null : decoded.diagnostics));
+  if (!decoded.ok) throw new Error('decode failed');
+  const reopened = reprojectWorkbenchPersistenceV3File(decoded.value);
+  assert.ok(reopened.ok);
+  if (!reopened.ok || reopened.value.kind !== 'heatCapacity') throw new Error('restore failed');
+  assert.deepEqual(getHeatCapacityCalculationSession(reopened.value), getHeatCapacityCalculationSession(file));
+  const oldARecord = structuredClone(encoded.value);
+  const replaceWithOldA = (value: unknown): void => {
+    if (!value || typeof value !== 'object') return;
+    const item = value as Record<string, unknown>;
+    if (item.answerRule === 'free-ab-given-standard-half-even-v5') {
+      const current = item as unknown as HeatCapacityCalculationWorkflowSession;
+      let old = createHeatCapacityCalculationWorkflowSession({ ...current, now: current.startedAtMs,
+        answerRule: 'free-type-a-half-even-v3' });
+      while (old.status === 'in-progress') {
+        const step = [...old.groups.flatMap(g => g.steps), ...old.aggregate!.steps].find(s => s.id === old.activeStepId)!;
+        old = submitHeatCapacityCalculationStep(old, step.id, current.readyToExitAtMs!);
+        for (const id of step.fieldIds) old = revealHeatCapacityCalculationWorkflowAnswer(old, id, current.readyToExitAtMs!);
+      }
+      old = completeHeatCapacityCalculationWorkflow(old, current.completedAtMs!);
+      Object.assign(item, old);
+      return;
+    }
+    Object.values(item).forEach(replaceWithOldA);
+  };
+  replaceWithOldA(oldARecord);
+  const aDecoded = decodeWorkbenchPersistenceV3FileRecord(oldARecord);
+  assert.ok(aDecoded.ok, JSON.stringify(aDecoded.ok ? null : aDecoded.diagnostics));
+  if (!aDecoded.ok) throw new Error('A-only migration failed');
+  const aReopened = reprojectWorkbenchPersistenceV3File(aDecoded.value);
+  assert.ok(aReopened.ok);
+  if (!aReopened.ok || aReopened.value.kind !== 'heatCapacity') throw new Error('A-only restore failed');
+  const migratedA = getHeatCapacityCalculationSession(aReopened.value)!;
+  if (file === freeFile) {
+    assert.equal(migratedA.activeStepId, 'aggregate:typeBStandardUncertainty');
+    assert.equal(migratedA.uncertaintyUpgradeNotice, true);
+    assert.ok(migratedA.groups.every(g => g.fields.every(f => f.answer.status === 'revealed')));
+  } else assert.equal(migratedA.status, 'completed', 'ideal course should not gain uncertainty tasks');
+  assert.ok(projectWorkbenchPersistenceV3File(aReopened.value).ok, 'A-only upgrades must remain saveable');
+  const oldRuleRecord = structuredClone(encoded.value);
+  const downgradeRule = (value: unknown): void => {
+    if (!value || typeof value !== 'object') return;
+    const item = value as Record<string, unknown>;
+    if (item.answerRule === 'free-ab-given-standard-half-even-v5') item.answerRule = 'strict-half-even-v2';
+    Object.values(item).forEach(downgradeRule);
+  };
+  downgradeRule(oldRuleRecord);
+  const oldDecoded = decodeWorkbenchPersistenceV3FileRecord(oldRuleRecord);
+  assert.ok(oldDecoded.ok, JSON.stringify(oldDecoded.ok ? null : oldDecoded.diagnostics));
+  if (!oldDecoded.ok) throw new Error('old completed course migration failed');
+  const oldReopened = reprojectWorkbenchPersistenceV3File(oldDecoded.value);
+  assert.ok(oldReopened.ok);
+  if (!oldReopened.ok || oldReopened.value.kind !== 'heatCapacity') throw new Error('old course restore failed');
+  const resetSession = getHeatCapacityCalculationSession(oldReopened.value)!;
+  assert.equal(resetSession.recalculationNotice, true);
+  assert.equal(resetSession.status, 'in-progress');
+  assert.ok([...resetSession.groups.flatMap(group => group.fields), ...resetSession.aggregate!.fields]
+    .every(field => field.answer.status === 'unresolved'));
+  const resaved = projectWorkbenchPersistenceV3File(oldReopened.value);
+  assert.ok(resaved.ok, 'migrated completed records must remain saveable');
+  // Older files have no eligibility metadata; a persisted flag is never authority.
+  for (const forged of [false, true]) {
+    const legacy = structuredClone(encoded.value);
+    const visit = (value: unknown): void => {
+      if (!value || typeof value !== 'object') return;
+      const item = value as Record<string, unknown>;
+      if ('uncertaintyEligibility' in item) {
+        if (forged) item.uncertaintyEligibility = { version: 'standard-real-teaching-v1', eligible: false, reason: 'ideal' };
+        else delete item.uncertaintyEligibility;
+      }
+      Object.values(item).forEach(visit);
+    };
+    visit(legacy);
+    const migrated = decodeWorkbenchPersistenceV3FileRecord(legacy);
+    assert.ok(migrated.ok, JSON.stringify(migrated.ok ? null : migrated.diagnostics));
+    if (!migrated.ok) throw new Error('legacy scope migration failed');
+    assert.deepEqual(migrated.value.fields.authoritative, decoded.value.fields.authoritative);
+  }
+}
 
 console.log('workbenchHeatCapacityCalculationIntegration tests passed');

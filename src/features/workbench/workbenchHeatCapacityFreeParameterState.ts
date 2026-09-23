@@ -13,6 +13,7 @@ import {
   getHeatCapacityFreeIdealTheoreticalGamma,
   normalizeHeatCapacityFreeGasType,
   normalizeHeatCapacityFreeParameterDraft,
+  withStandardHeatCapacityRecordCriteria,
   type HeatCapacityFreeParameterDraft,
 } from '../../domain/heatCapacity/heatCapacityFreeParameterConfig.ts';
 import type {
@@ -89,6 +90,7 @@ export const shouldPromptHeatCapacityFreePowerOffBeforeNextGroup = (
     heatCapacityFile?.heatCapacityMode === 'free' &&
     heatCapacityFile.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'completed' &&
     heatCapacityFile.heatCapacityFreeRunWorkspace.activeAttempt?.status !== 'invalid' &&
+    heatCapacityFile.heatCapacityFreeRunWorkspace.trials.at(-1)?.completedAtMs == null &&
     hasCompletedHeatCapacityFreeRecordSet(heatCapacityFile) &&
     heatCapacityFile.powerOn
   );
@@ -167,11 +169,10 @@ export const getHeatCapacityParameterSidebarBlockReason = (
     : null;
 };
 
-export const applyHeatCapacityFreeParameterDraftConfigWorkbenchState = (
+const applyHeatCapacityFreeParameterDraftConfig = (
   file: WorkbenchHeatCapacityState,
   draft: HeatCapacityFreeParameterDraft,
 ): WorkbenchHeatCapacityState => {
-  if (!isHeatCapacityFreeParameterEditingAvailable(file)) return file;
   const gasTypeEditingAvailable = isHeatCapacityFreeGasTypeEditingAvailable(file);
   const appliedDraft = selectHeatCapacityFreeAppliedParameterDraft(file);
   const lockedGasType = selectHeatCapacityFreeGasType(file);
@@ -208,7 +209,7 @@ export const applyHeatCapacityFreeParameterDraftConfigWorkbenchState = (
         },
     appliedDraft,
   );
-  const parameterState = applyHeatCapacityFreeParameterDraftToConfigs(normalizedDraft);
+  const parameterState = applyHeatCapacityFreeParameterDraftToConfigs(withStandardHeatCapacityRecordCriteria(normalizedDraft));
   const theoreticalGamma = gasTypeEditingAvailable
     ? parameterState.physicsConfig.gamma
     : file.theoreticalGamma;
@@ -225,6 +226,13 @@ export const applyHeatCapacityFreeParameterDraftConfigWorkbenchState = (
     theoreticalGamma,
   }, parameterState.gasType);
 };
+
+export const applyHeatCapacityFreeParameterDraftConfigWorkbenchState = (
+  file: WorkbenchHeatCapacityState,
+  draft: HeatCapacityFreeParameterDraft,
+): WorkbenchHeatCapacityState => isHeatCapacityFreeParameterEditingAvailable(file)
+  ? applyHeatCapacityFreeParameterDraftConfig(file, draft)
+  : file;
 
 export const applyHeatCapacityFreeParameterDraftWorkbenchState = (
   file: WorkbenchHeatCapacityState,
@@ -274,7 +282,9 @@ export const freezeHeatCapacityFreeParametersForCurrentGroup = (
       },
     }, file.heatCapacityFreeParameterScheme);
   }
-  const appliedFile = applyHeatCapacityFreeParameterDraftConfigWorkbenchState(
+  // This is a new, unfrozen group. Apply the fixed recording standard even if
+  // a restored runtime has already entered running/paused before power-on.
+  const appliedFile = applyHeatCapacityFreeParameterDraftConfig(
     file,
     selectHeatCapacityFreeAppliedParameterDraft(file),
   );

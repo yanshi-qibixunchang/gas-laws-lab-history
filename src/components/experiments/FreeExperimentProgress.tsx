@@ -259,13 +259,38 @@ export const FreeExperimentProgress = ({
   return (
     <div
       ref={rootRef}
-      className={`free-experiment-progress ${label ? '' : 'is-action-only'}`.trim()}
+      className="free-experiment-progress"
       data-free-experiment-progress={dataOwner}
     >
-      {label ? (
-        <span className="free-experiment-progress-label" role="status" aria-live="polite">
-          {label}
-        </span>
+      {label || (!primaryAction && hasMenu) ? (
+        <div className="free-experiment-progress-status">
+          {label ? (
+            <span className="free-experiment-progress-label" role="status" aria-live="polite">
+              {label}
+            </span>
+          ) : null}
+          {!primaryAction && hasMenu ? (
+            <button
+              ref={triggerRef}
+              type="button"
+              className="free-experiment-progress-trigger"
+              aria-label={openMenuLabel}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls={menuOpen ? menuId : undefined}
+              disabled={disabled}
+              onClick={() => {
+                if (menuOpen) closeMenu();
+                else {
+                  setPendingDeleteId(null);
+                  setMenuOpen(true);
+                }
+              }}
+            >
+              <MoreHorizontal size={14} strokeWidth={2.4} aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
       ) : null}
       {primaryAction ? (
         <button
@@ -277,26 +302,6 @@ export const FreeExperimentProgress = ({
         >
           {renderActionIcon(primaryAction.icon)}
           <span>{primaryAction.label}</span>
-        </button>
-      ) : hasMenu ? (
-        <button
-          ref={triggerRef}
-          type="button"
-          className="free-experiment-progress-trigger"
-          aria-label={openMenuLabel}
-          aria-haspopup="menu"
-          aria-expanded={menuOpen}
-          aria-controls={menuOpen ? menuId : undefined}
-          disabled={disabled}
-          onClick={() => {
-            if (menuOpen) closeMenu();
-            else {
-              setPendingDeleteId(null);
-              setMenuOpen(true);
-            }
-          }}
-        >
-          <MoreHorizontal size={14} strokeWidth={2.4} aria-hidden="true" />
         </button>
       ) : null}
       {floatingMenu}

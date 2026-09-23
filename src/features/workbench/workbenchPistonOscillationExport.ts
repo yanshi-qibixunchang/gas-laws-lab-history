@@ -18,6 +18,7 @@ import {
 import type { PistonOscillationLanguage } from '../pistonOscillation/pistonOscillationCopy.ts';
 import type {
   WorkbenchExportLanguage,
+  WorkbenchExportMode,
   WorkbenchExportPayload,
 } from './workbenchResults.ts';
 import type {
@@ -25,6 +26,7 @@ import type {
 } from './workbenchPistonOscillationState.ts';
 import { calculatePistonUncertainty, PISTON_UNCERTAINTY_PHASES, PISTON_UNCERTAINTY_FIELDS, pistonUncertaintyComplete, pistonUncertaintyReference, pistonUncertaintyDigits } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import { buildPistonUncertaintyPresentation } from '../../domain/pistonOscillation/pistonOscillationUncertaintyPresentation.ts';
+import { evaluatePistonUncertaintyEligibility } from '../../domain/pistonOscillation/pistonOscillationUncertaintyEligibility.ts';
 
 export const PISTON_OSCILLATION_REPORT_EXPORT_KIND =
   'heat-capacity-piston-oscillation' as const;
@@ -47,7 +49,7 @@ const sanitizeFilenamePart = (value: string) => (
   value
     .trim()
     .replace(/\s+/g, '-')
-    .replace(/[^a-zA-Z0-9._-]/g, '-')
+    .replace(/[^\p{L}\p{N}._-]/gu, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '') || 'piston-oscillation'
 );
@@ -123,10 +125,15 @@ const getHeightSource = (
 export const createPistonOscillationReportExportPayload = (
   file: WorkbenchHeatCapacityPistonOscillationState,
   language: WorkbenchExportLanguage = 'zh-CN',
+  mode: WorkbenchExportMode = 'report',
 ): WorkbenchExportPayload => {
+  if (!['report', 'figuresZip', 'tablesCsv', 'completeBundle'].includes(mode)) {
+    throw new Error(`Unsupported piston-oscillation export mode: ${mode}`);
+  }
   const session = file.pistonOscillationFreeSession;
   const processing = session.dataProcessing;
-  if (!processing || processing.status !== 'completed') {
+  if (!processing || processing.status !== 'completed'
+    || !pistonUncertaintyComplete(processing.calculationSession?.uncertainty)) {
     throw new Error('Piston-oscillation report data are not complete.');
   }
   if (
@@ -272,7 +279,8 @@ export const createPistonOscillationReportExportPayload = (
       )
     : null;
   const calculation = processing.calculationSession;
-  const uncertaintyAnalysis = calculation?.uncertainty && processing.linearFitResult
+  const uncertaintyEligibility = evaluatePistonUncertaintyEligibility(session.experimentGroup);
+  const uncertaintyAnalysis = uncertaintyEligibility.eligible && calculation?.uncertainty && processing.linearFitResult
     ? calculatePistonUncertainty(calculation.knowns, processing.linearFitResult, processing.runs, calculation.uncertainty.profile) : null;
   const uncertaintyCopy = calculation?.uncertainty && uncertaintyAnalysis
     ? buildPistonUncertaintyPresentation(calculation.uncertainty, uncertaintyAnalysis, language) : null;
@@ -290,7 +298,7 @@ export const createPistonOscillationReportExportPayload = (
         answer: calculation.uncertainty!.answers[id],
       })),
     })),
-    result: `γ = ${pistonUncertaintyReference('result', uncertaintyAnalysis)} ± ${pistonUncertaintyReference('expanded', uncertaintyAnalysis)} (k = ${calculation.uncertainty.profile.coverage})`,
+    result: `γ = ${pistonUncertaintyReference('result', uncertaintyAnalysis)} ± ${pistonUncertaintyReference('reportCombined', uncertaintyAnalysis)} (${language === 'en' ? 'combined standard uncertainty' : '合成标准不确定度'})`,
   } : null;
   const completedAtMs = getSessionCompletionTime(session);
   const exportedAtMs = Date.now();
@@ -304,8 +312,8 @@ export const createPistonOscillationReportExportPayload = (
 
   return {
     kind: 'json',
-    mode: 'report',
-    filename: `${sanitizeFilenamePart(file.name)}-piston-oscillation-report-${formatTimestamp(completedAtMs)}.json`,
+    mode,
+    filename: `${sanitizeFilenamePart(file.name)}-piston-oscillation-${mode === 'report' ? 'report' : mode === 'figuresZip' ? 'figures' : mode === 'tablesCsv' ? 'tables' : 'bundle'}-${formatTimestamp(completedAtMs)}.json`,
     data: {
       exportKind: PISTON_OSCILLATION_REPORT_EXPORT_KIND,
       schemaVersion: 4,

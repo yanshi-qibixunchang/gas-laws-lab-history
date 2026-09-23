@@ -105,6 +105,7 @@ assert.doesNotMatch(
 );
 
 const localizedViewSources: Record<string, string> = {
+  'workbenchCopy.results.exportTables': readFileSync(new URL('../../src/features/workbench/WorkbenchStandardResultsWindow.tsx', import.meta.url), 'utf8'),
   'workbenchCopy.status.idealRuntime': consoleProjectionSource,
   "workbenchCopy.parameters.samplingPreset": workbenchIdealControlsSource,
   "workbenchCopy.parameters.relationHints[option.key]": workbenchIdealControlsSource,
@@ -163,7 +164,7 @@ for (const expression of [
   'workbenchCopy.results.remove',
   'workbenchCopy.results.exportFigures',
   'workbenchCopy.results.reportPdf',
-  'workbenchCopy.results.verificationFigure',
+  'workbenchCopy.results.exportTables',
   'workbenchCopy.results.pointsCsv',
   'workbenchCopy.exportEnvironment[exportEnvironmentStatus]',
   'workbenchCopy.console.tabs[tab]',

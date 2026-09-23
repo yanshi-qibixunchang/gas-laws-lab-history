@@ -180,9 +180,11 @@ export const WorkbenchPanelContent = ({
           exportInProgress={exportInProgress}
           canExportReport={isExportModeDataReady('report')}
           canExportFigures={isExportModeDataReady('figuresZip')}
+          canExportTables={isExportModeDataReady('tablesCsv')}
           onExportExperimentPackage={() => { void handleExportAction('completeBundle'); }}
           onExportReport={openHeatCapacityReportExport}
           onExportFigures={() => { void handleExportAction('figuresZip'); }}
+          onExportTables={() => { void handleExportAction('tablesCsv'); }}
         />
       );
     }

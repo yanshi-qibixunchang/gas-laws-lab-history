@@ -38,13 +38,14 @@ export const getActiveHeatCapacityFreeTrialIndex = (
   file: HeatCapacityFreeActiveTrialSource,
 ) => {
   const incompleteIndex = file.heatCapacityFreeRunWorkspace.trials.findIndex((trial) => (
-    !isHeatCapacityFreeTrialRecordComplete(trial)
+    trial.completedAtMs == null && !isHeatCapacityFreeTrialRecordComplete(trial)
   ));
   if (incompleteIndex >= 0) return incompleteIndex;
   if (
     file.powerOn === true &&
     file.heatCapacityFreeRunWorkspace.currentExperimentStatus === 'completed' &&
-    file.heatCapacityFreeRunWorkspace.trials.length > 0
+    file.heatCapacityFreeRunWorkspace.trials.length > 0 &&
+    file.heatCapacityFreeRunWorkspace.trials.at(-1)?.completedAtMs == null
   ) {
     return file.heatCapacityFreeRunWorkspace.trials.length - 1;
   }

@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
+  useId,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -487,6 +488,7 @@ PistonOscillationAcquisitionPanelProps
   );
   const chartWrapRef = useRef<HTMLDivElement | null>(null);
   const liveCurveCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const pressurePlotClipId = useId();
   const [graphWidth, setGraphWidth] = useState(GRAPH_DEFAULT_WIDTH);
   const liveCurvePixelRatio = Math.max(
     1,
@@ -2602,6 +2604,9 @@ PistonOscillationAcquisitionPanelProps
       <div ref={chartWrapRef} className="piston-acquisition-chart-wrap">
         <div className="piston-acquisition-chart-viewport">
           <svg viewBox={`0 0 ${graphWidth} ${GRAPH_HEIGHT}`} role="img" aria-label={copy.curveAria}>
+          <defs><clipPath id={pressurePlotClipId}>
+            <rect x={GRAPH_LEFT} y={GRAPH_TOP} width={graphRight - GRAPH_LEFT} height={GRAPH_BOTTOM - GRAPH_TOP} />
+          </clipPath></defs>
           <rect
             x={GRAPH_LEFT}
             y={GRAPH_TOP}
@@ -2664,6 +2669,7 @@ PistonOscillationAcquisitionPanelProps
               </text>
             </>
           ) : null}
+          <g clipPath={`url(#${pressurePlotClipId})`}>
           {pressurePath ? <path d={pressurePath} className="piston-acquisition-pressure-path" /> : null}
           {pressureSampleMarkerPath ? (
             <path
@@ -2672,6 +2678,7 @@ PistonOscillationAcquisitionPanelProps
               aria-hidden="true"
             />
           ) : null}
+          </g>
           <rect
             x={GRAPH_LEFT}
             y={GRAPH_TOP}

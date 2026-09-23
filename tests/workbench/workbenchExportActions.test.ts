@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { createDefaultStandardFile } from '../../src/features/workbench/workbenchFileState.ts';
+import { createDefaultIdealFile, createDefaultStandardFile } from '../../src/features/workbench/workbenchFileState.ts';
 import { createWorkbenchExportActions, type WorkbenchExportActionPorts } from '../../src/features/workbench/workbenchExportActions.ts';
 import { workbenchCopies } from '../../src/features/workbench/workbenchStudioCopy.ts';
 import { createWorkbenchExportPayload } from '../../src/features/workbench/workbenchResults.ts';
@@ -38,6 +38,25 @@ const harness = () => {
 for (const status of ['cancelled', 'error'] as const) {
  const h = harness(); h.setResult({ status }); await h.run().handleExportAction('report');
  assert.match(h.events[3], status === 'cancelled' ? /^log:warning:/ : /^log:error:/); assert.equal(h.events.at(-1), 'busy:false');
+}
+for (const mode of ['figuresZip', 'tablesCsv', 'report'] as const) {
+ const h = harness();
+ await h.run().handleExportAction(mode);
+ assert.equal(h.payloads.length, 1);
+ assert.equal((h.payloads[0] as { mode: string }).mode, mode);
+ h.ports.resultSummary.ready = false;
+ assert.equal(h.run().isExportModeDataReady(mode), false, 'empty results must keep export disabled');
+}
+{
+ const h = harness(); h.ports.activeFile = createDefaultIdealFile();
+ assert.equal(h.run().isExportModeDataReady('tablesCsv'), false);
+ h.ports.idealPointCount = 1;
+ assert.equal(h.run().isExportModeDataReady('tablesCsv'), true);
+ assert.equal(h.run().isExportModeDataReady('figuresZip'), false);
+ assert.equal(h.run().isExportModeDataReady('report'), false);
+ h.ports.idealPointCount = 2;
+ assert.equal(h.run().isExportModeDataReady('figuresZip'), true);
+ assert.equal(h.run().isExportModeDataReady('report'), true);
 }
 {
  const h = harness(); h.fail(); await h.run().handleExportAction('report'); assert.match(h.events[3], /disk unavailable/); assert.equal(h.events.at(-1), 'busy:false');

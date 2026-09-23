@@ -2,6 +2,8 @@ import {
   createHeatCapacityFreeAllGroupsOverviewModel,
   createHeatCapacityFreeGroupLollipopChartModel,
 } from '../../domain/heatCapacity/heatCapacityFreeGroupChartModel.ts';
+import { isHeatCapacitySequentialAnswerRule } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
+import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
 import type {
   HeatCapacityFreeExperimentGroupCollection,
   HeatCapacityFreeExperimentGroupRecord,
@@ -73,15 +75,20 @@ export const HeatCapacityGroupResultsPanel = ({
   const model = createHeatCapacityFreeGroupLollipopChartModel(group);
   const overview = createHeatCapacityFreeAllGroupsOverviewModel(collection);
   const score = group.finalScore;
+  const session = group.calculation?.kind === 'real-interactive' || group.calculation?.kind === 'ideal-interactive'
+    ? group.calculation.session : group.runSeries.batch.calculationSession;
+  const isTypeACourse = isHeatCapacitySequentialAnswerRule(session?.answerRule);
+  const courseNumber = (value: number | null, significantDigits: number) => !isTypeACourse
+    ? number(value) : value === null ? '--' : value === 0 ? '0' : formatSignificantFiguresHalfEven(value, significantDigits);
   return (
     <div className="studio-heat-group-results" data-heat-capacity-group-results="true">
       <section className="studio-heat-group-result-card">
         <div className="studio-heat-group-result-heading"><strong>{copy.title}</strong></div>
         <div className="studio-heat-group-stat-grid">
-          <span><small>{copy.mean}</small><strong>{number(model.meanGamma)}</strong></span>
-          <span><small>{copy.sd}</small><strong>{number(model.sampleStandardDeviation)}</strong></span>
-          <span><small>{copy.ua}</small><strong>{number(model.typeAStandardUncertainty)}</strong></span>
-          <span><small>{copy.error}</small><strong>{model.relativeErrorPercent === null ? '--' : `${model.relativeErrorPercent.toFixed(2)}%`}</strong></span>
+          <span><small>{copy.mean}</small><strong>{courseNumber(model.meanGamma, 4)}</strong></span>
+          <span><small>{copy.sd}</small><strong>{courseNumber(model.sampleStandardDeviation, 3)}</strong></span>
+          <span><small>{copy.ua}</small><strong>{courseNumber(model.typeAStandardUncertainty, 3)}</strong></span>
+          <span><small>{copy.error}</small><strong>{model.relativeErrorPercent === null ? '--' : `${isTypeACourse ? courseNumber(model.relativeErrorPercent, 3) : model.relativeErrorPercent.toFixed(2)}%`}</strong></span>
         </div>
         {model.status === 'hidden' ? (
           <p className="studio-heat-group-chart-placeholder">{copy.wait(model.completedExperimentCount)}</p>

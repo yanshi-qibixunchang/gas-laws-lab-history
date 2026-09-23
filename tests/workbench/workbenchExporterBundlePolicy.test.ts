@@ -85,7 +85,7 @@ assert.match(policySource, /fingerprintJson\(storedInventory\) !== fingerprintJs
 assert.match(policySource, /createExporterExecutableDescriptor[\s\S]*sizeBytes: stat\.size[\s\S]*createHash\('sha256'\)/, 'exporter manifests should bind the exact executable size and SHA-256');
 assert.match(policySource, /EXPORTER_INVENTORY_POLICY_FILES/, 'changes to the frozen-archive ownership policy should invalidate the bundle manifest');
 assert.match(exporterSource, /EXPORTER_SOURCE_FINGERPRINT = os\.environ\.get/, 'exporter self-check should report its embedded source fingerprint');
-assert.match(exporterSource, /Gas Laws Lab Export Report/, 'exported reports should use the current English brand');
+assert.match(exporterSource, /author="气律实验室"/, 'Chinese reports should use the current Chinese brand in their metadata');
 assert.match(exporterSource, /Gas Laws Lab local exporter/, 'the exporter command description should use the current English brand');
 assert.doesNotMatch(exporterSource, /Hard Sphere Lab/, 'the exporter should not expose the retired English brand');
 assert.doesNotMatch(exporterGraphStyleSource, /Hard Sphere Lab/, 'exporter helper modules should not expose the retired English brand');

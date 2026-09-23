@@ -1,5 +1,6 @@
 import {
   calculateDisplayedHeatCapacityBatchStatistics,
+  calculateHeatCapacityTypeAStatistics,
   createDisplayedHeatCapacityGroupReference,
 } from './heatCapacityCalculationPrecisionModel.ts';
 import {
@@ -11,7 +12,12 @@ import {
 import {
   formatHeatCapacityCalculationReference,
   getHeatCapacityCalculationAnswerSpec,
+  getHeatCapacityCalculationFieldSpec,
   HEAT_CAPACITY_STRICT_ANSWER_RULE,
+  HEAT_CAPACITY_TYPE_A_ANSWER_RULE,
+  HEAT_CAPACITY_AB_ANSWER_RULE,
+  HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE,
+  isHeatCapacitySequentialAnswerRule,
   type HeatCapacityCalculationAnswerKind,
   type HeatCapacityCalculationAnswerRule,
 } from './heatCapacityCalculationValidation.ts';
@@ -24,6 +30,7 @@ import {
   type HeatCapacityCalculationScoringConfig,
   DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG,
 } from './heatCapacityCalculationScoringModel.ts';
+import { calculateHeatCapacityInstrumentBudget } from './heatCapacityInstrumentUncertaintyModel.ts';
 
 export const HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION = 1 as const;
 
@@ -44,7 +51,10 @@ export type HeatCapacityCalculationStepKind =
   | 'meanGamma'
   | 'sampleStandardDeviation'
   | 'typeAStandardUncertainty'
-  | 'batchRelativeError';
+  | 'typeBStandardUncertainty'
+  | 'combinedStandardUncertainty'
+  | 'batchRelativeError'
+  | 'finalReport';
 
 export interface HeatCapacityCalculationFieldFeedback {
   outcome: Exclude<HeatCapacityCalculationAttemptOutcome, 'correct'>;
@@ -53,6 +63,7 @@ export interface HeatCapacityCalculationFieldFeedback {
 }
 
 export interface HeatCapacityCalculationWorkflowField {
+  reportDecimalPlaces?: number;
   id: string;
   symbol: string;
   answerKind: HeatCapacityCalculationAnswerKind;
@@ -83,6 +94,9 @@ export interface HeatCapacityCalculationWorkflowAggregate {
 }
 
 export interface HeatCapacityCalculationWorkflowSession {
+  recalculationNotice?: boolean;
+  uncertaintyUpgradeNotice?: boolean;
+  uncertaintyEligibility?: import('../calculation/uncertaintyTeachingEligibility.ts').UncertaintyTeachingEligibility;
   version: typeof HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION;
   answerRule?: HeatCapacityCalculationAnswerRule;
   mode: HeatCapacityCalculationWorkflowMode;
@@ -102,6 +116,7 @@ export interface HeatCapacityCalculationWorkflowSession {
 }
 
 export interface CreateHeatCapacityCalculationWorkflowSessionOptions {
+  uncertaintyEligibility?: import('../calculation/uncertaintyTeachingEligibility.ts').UncertaintyTeachingEligibility;
   answerRule?: HeatCapacityCalculationAnswerRule;
   mode: HeatCapacityCalculationWorkflowMode;
   groups: Array<{
@@ -239,12 +254,15 @@ const createGroup = (
   };
 };
 
+const isUncertaintyStatistic = (kind: string) => ['sampleStandardDeviation', 'typeAStandardUncertainty', 'typeBStandardUncertainty', 'combinedStandardUncertainty', 'reportCombined', 'reportMeanGamma', 'reportTypeA', 'finalReport'].includes(kind);
+
 const createAggregate = (
   groups: readonly HeatCapacityCalculationWorkflowGroup[],
   theoreticalGamma: number,
   scoringConfig: HeatCapacityCalculationScoringConfig,
   systemResolved: boolean,
   answerRule: HeatCapacityCalculationAnswerRule,
+  includeInstrumentUncertainty: boolean,
 ): HeatCapacityCalculationWorkflowAggregate => {
   const displayedFormulaGammas = groups.map((group) => Number(
     formatHeatCapacityCalculationReference(
@@ -252,11 +270,17 @@ const createAggregate = (
       getHeatCapacityCalculationAnswerSpec('gamma', answerRule),
     ),
   ));
-  const reference = answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
+  let reference = isHeatCapacitySequentialAnswerRule(answerRule)
+    ? calculateHeatCapacityTypeAStatistics(displayedFormulaGammas, theoreticalGamma)
+    : answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
     ? calculateDisplayedHeatCapacityBatchStatistics(displayedFormulaGammas, theoreticalGamma)
     : calculateHeatCapacityBatchStatistics(displayedFormulaGammas, theoreticalGamma);
   if (reference === null) {
     throw new Error('The batch statistics reference is invalid.');
+  }
+  if (answerRule === HEAT_CAPACITY_AB_ANSWER_RULE && includeInstrumentUncertainty) {
+    const { reportTypeA: _oldReport, ...statistics } = reference;
+    reference = { ...statistics, ...calculateHeatCapacityInstrumentBudget(groups.map(group => group.reference), reference.meanGamma, reference.typeAStandardUncertainty) };
   }
   const prefix = 'aggregate';
   return {
@@ -330,7 +354,7 @@ const allFields = (
 const getActiveSteps = (
   session: HeatCapacityCalculationWorkflowSession,
 ) => (
-  session.aggregateSelected
+  session.activeStepId?.startsWith('aggregate:')
     ? session.aggregate?.steps ?? []
     : session.groups[session.activeGroupIndex]?.steps ?? []
 );
@@ -386,22 +410,25 @@ const advanceWorkflow = (
     };
   }
 
-  if (!session.aggregateSelected && session.activeGroupIndex < session.groups.length - 1) {
+  const activeAggregate = session.activeStepId?.startsWith('aggregate:') ?? false;
+  // Unlock the next page without moving away from the answer just checked.
+  const keepCompletedGroupVisible = session.mode === 'free' && session.presentation === 'interactive';
+  if (!activeAggregate && session.activeGroupIndex < session.groups.length - 1) {
     const activeGroupIndex = session.activeGroupIndex + 1;
     return {
       ...session,
       activeGroupIndex,
-      selectedGroupIndex: activeGroupIndex,
+      selectedGroupIndex: keepCompletedGroupVisible ? session.activeGroupIndex : activeGroupIndex,
       aggregateSelected: false,
       activeStepId: session.groups[activeGroupIndex].steps[0]?.id ?? null,
     };
   }
 
-  if (!session.aggregateSelected && session.aggregate) {
+  if (!activeAggregate && session.aggregate) {
     return {
       ...session,
-      selectedGroupIndex: null,
-      aggregateSelected: true,
+      selectedGroupIndex: keepCompletedGroupVisible ? session.activeGroupIndex : null,
+      aggregateSelected: !keepCompletedGroupVisible,
       activeStepId: session.aggregate.steps[0]?.id ?? null,
     };
   }
@@ -409,6 +436,7 @@ const advanceWorkflow = (
   return {
     ...session,
     status: 'ready-to-exit',
+    ...(activeAggregate ? { selectedGroupIndex: null, aggregateSelected: true } : {}),
     activeStepId: null,
     readyToExitAtMs: session.readyToExitAtMs ?? now,
   };
@@ -431,13 +459,13 @@ export const createHeatCapacityCalculationWorkflowSession = (
   const scoringConfig = options.scoringConfig ??
     DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG;
   const systemResolved = presentation !== 'interactive';
-  const answerRule = options.answerRule ?? HEAT_CAPACITY_STRICT_ANSWER_RULE;
+  const answerRule = options.answerRule ?? (options.mode === 'free' ? HEAT_CAPACITY_AB_ANSWER_RULE : HEAT_CAPACITY_STRICT_ANSWER_RULE);
   // The model's theoretical ratio is a reference constant, not a measured
   // intermediate answer (e.g. monatomic gas uses exactly 5/3).
   const theoreticalGamma = options.theoreticalGamma;
   const groups = options.groups.map((group) => createGroup(
-    answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE
-      ? { ...group, reference: createDisplayedHeatCapacityGroupReference(group.reference) }
+    answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE || isHeatCapacitySequentialAnswerRule(answerRule)
+      ? { ...group, reference: createDisplayedHeatCapacityGroupReference(group.reference, isHeatCapacitySequentialAnswerRule(answerRule)) }
       : group,
     theoreticalGamma,
     options.mode,
@@ -451,11 +479,38 @@ export const createHeatCapacityCalculationWorkflowSession = (
         scoringConfig,
         systemResolved,
         answerRule,
+        options.uncertaintyEligibility?.eligible !== false && groups.length === 3,
       )
     : null;
+  if (aggregate && isHeatCapacitySequentialAnswerRule(answerRule)) {
+    const hasInstrumentBudget = aggregate.reference.combinedStandardUncertainty !== undefined;
+    if (hasInstrumentBudget) {
+      const additions = [
+        createField('aggregate:typeBStandardUncertainty', 'uB(γ̄)', 'typeBStandardUncertainty', aggregate.reference.typeBStandardUncertainty!, scoringConfig, systemResolved),
+        createField('aggregate:combinedStandardUncertainty', 'uc(γ̄)', 'combinedStandardUncertainty', aggregate.reference.combinedStandardUncertainty!, scoringConfig, systemResolved),
+      ];
+      const beforeError = aggregate.steps.findIndex(step => step.kind === 'batchRelativeError');
+      aggregate.fields.splice(aggregate.fields.findIndex(field => field.id === 'aggregate:relativeError'), 0, ...additions);
+      aggregate.steps.splice(beforeError, 0, ...additions.map(field => ({
+        id: field.id, kind: field.answerKind as HeatCapacityCalculationStepKind, fieldIds: [field.id],
+      })));
+    }
+    const reportId = hasInstrumentBudget ? 'reportCombined' : 'reportTypeA';
+    aggregate.fields.push(
+      { ...createField('aggregate:reportMeanGamma', 'γ̄', 'reportMeanGamma', aggregate.reference.reportMeanGamma!, scoringConfig, systemResolved),
+        ...(aggregate.reference.reportDecimalPlaces === undefined ? {} : { reportDecimalPlaces: aggregate.reference.reportDecimalPlaces }) },
+      createField(`aggregate:${reportId}`, hasInstrumentBudget ? 'uc(γ̄)' : 'uA(γ̄)', reportId, hasInstrumentBudget ? aggregate.reference.reportCombined! : aggregate.reference.reportTypeA!, scoringConfig, systemResolved),
+    );
+    aggregate.steps.push({ id: 'aggregate:finalReport', kind: 'finalReport', fieldIds: ['aggregate:reportMeanGamma', `aggregate:${reportId}`] });
+  }
+  if (aggregate && (options.uncertaintyEligibility?.eligible === false || (isHeatCapacitySequentialAnswerRule(answerRule) && groups.length !== 3))) {
+    aggregate.fields = aggregate.fields.filter(field => !isUncertaintyStatistic(field.answerKind));
+    aggregate.steps = aggregate.steps.filter(step => !isUncertaintyStatistic(step.kind));
+  }
   const now = options.now ?? Date.now();
   return {
     version: HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION,
+    ...(options.uncertaintyEligibility ? { uncertaintyEligibility: options.uncertaintyEligibility } : {}),
     answerRule,
     mode: options.mode,
     presentation,
@@ -522,8 +577,8 @@ const hasSameCalculationWorkflowStructure = (
       persisted.aggregate === null
         ? canonical.aggregate === null
         : canonical.aggregate !== null &&
-          sameFields(persisted.aggregate.fields, canonical.aggregate.fields) &&
-          sameSteps(persisted.aggregate.steps, canonical.aggregate.steps)
+          sameFields(persisted.aggregate.fields.filter(field => canonical.uncertaintyEligibility?.eligible !== false || !isUncertaintyStatistic(field.answerKind)), canonical.aggregate.fields) &&
+          sameSteps(persisted.aggregate.steps.filter(step => canonical.uncertaintyEligibility?.eligible !== false || !isUncertaintyStatistic(step.kind)), canonical.aggregate.steps)
     );
 };
 
@@ -541,7 +596,7 @@ const replayCalculationFieldProgress = (
     const submission = submitHeatCapacityCalculationAnswer(answer, {
       rawInput: attempt.rawInput,
       expectedValue: canonical.expectedValue,
-      spec: getHeatCapacityCalculationAnswerSpec(canonical.answerKind, answerRule),
+      spec: getHeatCapacityCalculationFieldSpec(canonical, answerRule),
     });
     answer = submission.state;
     feedback = submission.outcome === 'correct'
@@ -583,10 +638,25 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
 ): HeatCapacityCalculationWorkflowSession => {
   const canonical = createHeatCapacityCalculationWorkflowSession({
     ...options,
-    answerRule: persisted.answerRule ?? 'legacy-tolerance-v1',
+    answerRule: options.mode === 'free' ? HEAT_CAPACITY_AB_ANSWER_RULE : persisted.answerRule ?? 'legacy-tolerance-v1',
   });
+  if (options.mode === 'free' && !isHeatCapacitySequentialAnswerRule(persisted.answerRule)) {
+    return { ...canonical, startedAtMs: persisted.startedAtMs, recalculationNotice: true };
+  }
+  if (options.mode === 'free' && (persisted.answerRule === HEAT_CAPACITY_TYPE_A_ANSWER_RULE || persisted.answerRule === HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE)) {
+    // Preserve acquisition/A answers. Changed B definitions require fresh B and report answers.
+    const oldFields = new Map(allFields(persisted).map(field => [field.id, field]));
+    persisted = { ...persisted, answerRule: HEAT_CAPACITY_AB_ANSWER_RULE,
+      uncertaintyUpgradeNotice: canonical.aggregate?.reference.combinedStandardUncertainty !== undefined,
+      aggregate: canonical.aggregate ? { ...canonical.aggregate,
+        fields: canonical.aggregate.fields.map(field => field.answerKind.startsWith('report') || ['typeBStandardUncertainty', 'combinedStandardUncertainty'].includes(field.answerKind)
+          ? field : oldFields.get(field.id) ?? field),
+      } : null };
+  }
+  if (persisted.recalculationNotice !== undefined) canonical.recalculationNotice = persisted.recalculationNotice;
+  if (persisted.uncertaintyUpgradeNotice !== undefined) canonical.uncertaintyUpgradeNotice = persisted.uncertaintyUpgradeNotice;
   if (!hasSameCalculationWorkflowStructure(persisted, canonical)) {
-    return canonical;
+    return { ...canonical, recalculationNotice: true };
   }
   if (canonical.presentation !== 'interactive') {
     const startedAtMs = persisted.startedAtMs;
@@ -654,7 +724,7 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
       progressBlocked = true;
       activeStepId = step.id;
       aggregateSelected = groupIndex === null;
-      if (groupIndex !== null) activeGroupIndex = groupIndex;
+      activeGroupIndex = groupIndex ?? Math.max(0, canonical.groups.length - 1);
     }
   };
   canonical.groups.forEach((group, groupIndex) => {
@@ -676,14 +746,18 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
     : null;
   const startedAtMs = persisted.startedAtMs;
   if (activeStepId !== null) {
+    const savedGroupIndex = persisted.selectedGroupIndex;
+    const preserveSelectedGroup = canonical.mode === 'free' && !persisted.aggregateSelected &&
+      savedGroupIndex !== null && Number.isInteger(savedGroupIndex) &&
+      savedGroupIndex >= 0 && savedGroupIndex <= activeGroupIndex;
     return {
       ...canonical,
       groups,
       aggregate,
       status: 'in-progress',
       activeGroupIndex,
-      selectedGroupIndex: aggregateSelected ? null : activeGroupIndex,
-      aggregateSelected,
+      selectedGroupIndex: preserveSelectedGroup ? savedGroupIndex : aggregateSelected ? null : activeGroupIndex,
+      aggregateSelected: preserveSelectedGroup ? false : aggregateSelected,
       activeStepId,
       startedAtMs,
       readyToExitAtMs: null,
@@ -758,7 +832,7 @@ export const submitHeatCapacityCalculationStep = (
     const submission = submitHeatCapacityCalculationAnswer(field.answer, {
       rawInput: field.draftRaw,
       expectedValue: field.expectedValue,
-      spec: getHeatCapacityCalculationAnswerSpec(field.answerKind, session.answerRule),
+      spec: getHeatCapacityCalculationFieldSpec(field, session.answerRule),
     });
     nextSession = replaceField(nextSession, fieldId, (current) => ({
       ...current,
@@ -779,6 +853,24 @@ export const continueHeatCapacityCalculationAnswer = (
   session: HeatCapacityCalculationWorkflowSession,
   fieldId: string,
 ): HeatCapacityCalculationWorkflowSession => {
+  const resolvedField = findField(session, fieldId);
+  if (isHeatCapacitySequentialAnswerRule(session.answerRule) && session.presentation === 'interactive' && resolvedField?.answer.status !== 'unresolved' && resolvedField) {
+    // Restart the selected step and every dependent step. Correct answers are
+    // strict canonical values, so recomputing them uses exactly the submitted operands.
+    const steps = [...session.groups.flatMap(group => group.steps), ...(session.aggregate?.steps ?? [])];
+    const start = steps.findIndex(step => step.fieldIds.includes(fieldId));
+    if (start < 0) return session;
+    let next = session;
+    for (const step of steps.slice(start)) for (const id of step.fieldIds) {
+      next = replaceField(next, id, current => ({ ...current, draftRaw: '', feedback: null,
+        answer: createHeatCapacityCalculationAnswerState(current.answer.scoringConfig) }));
+    }
+    const groupIndex = session.groups.findIndex(group => group.fields.some(field => field.id === fieldId));
+    return { ...next, status: 'in-progress', readyToExitAtMs: null, completedAtMs: null,
+      activeGroupIndex: groupIndex < 0 ? session.groups.length - 1 : groupIndex,
+      selectedGroupIndex: groupIndex < 0 ? null : groupIndex, aggregateSelected: groupIndex < 0,
+      activeStepId: steps[start]!.id };
+  }
   if (session.status !== 'in-progress' || session.presentation !== 'interactive') {
     return session;
   }
@@ -837,7 +929,7 @@ export const selectHeatCapacityCalculationAggregate = (
   session.aggregate === null ||
   (
     session.status === 'in-progress' &&
-    !session.aggregateSelected
+    !session.groups.every(group => group.fields.every(isFieldResolved))
   )
     ? session
     : {
@@ -846,6 +938,20 @@ export const selectHeatCapacityCalculationAggregate = (
         aggregateSelected: true,
       }
 );
+
+export const getHeatCapacityCalculationNextPage = (
+  session: HeatCapacityCalculationWorkflowSession,
+): number | 'aggregate' | null => {
+  const selected = session.selectedGroupIndex;
+  if (session.mode !== 'free' || session.presentation !== 'interactive' ||
+      session.status !== 'in-progress' || session.aggregateSelected || selected === null ||
+      !session.groups[selected]?.fields.every(isFieldResolved)) return null;
+  if (selected + 1 < session.groups.length) {
+    return selected + 1 <= session.activeGroupIndex ? selected + 1 : null;
+  }
+  return session.aggregate && session.groups.every(group => group.fields.every(isFieldResolved))
+    ? 'aggregate' : null;
+};
 
 export const completeHeatCapacityCalculationWorkflow = (
   session: HeatCapacityCalculationWorkflowSession,

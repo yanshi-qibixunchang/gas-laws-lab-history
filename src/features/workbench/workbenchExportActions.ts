@@ -26,9 +26,9 @@ export const createWorkbenchExportActions = ({ activeFile, idealPointCount, resu
     activeFile.kind === 'heatCapacity'
       ? isHeatCapacityExportModeReady(activeFile, mode)
       : activeFile.kind === 'heatCapacityPistonOscillation'
-        ? mode === 'report' && isPistonOscillationReportReady(activeFile)
+        ? ['report', 'figuresZip', 'tablesCsv', 'completeBundle'].includes(mode) && isPistonOscillationReportReady(activeFile)
       : activeFile.kind === 'ideal'
-      ? mode === 'pointsCsv' || mode === 'completeBundle'
+      ? mode === 'pointsCsv' || mode === 'completeBundle' || mode === 'tablesCsv'
         ? idealPointCount > 0
         : idealPointCount >= 2
       : resultSummary.ready
@@ -52,6 +52,7 @@ export const createWorkbenchExportActions = ({ activeFile, idealPointCount, resu
   };
   
   const getExportFolderLabel = (mode: WorkbenchExportMode) => {
+    if (mode === 'tablesCsv') return workbenchCopy.results.exportTables;
     if (activeFile.kind === 'heatCapacity') {
       if (mode === 'completeBundle') {
         return settingsLanguagePreference === 'en'
@@ -79,7 +80,7 @@ export const createWorkbenchExportActions = ({ activeFile, idealPointCount, resu
     if (!guardWorkbenchTutorialAction('export-file')) return;
     if (!isExportModeDataReady(mode)) {
       pushLog(
-        (language) => activeFile.kind === 'ideal' && mode !== 'pointsCsv' && idealPointCount > 0
+        (language) => activeFile.kind === 'ideal' && !['pointsCsv', 'tablesCsv', 'completeBundle'].includes(mode) && idealPointCount > 0
           ? workbenchCopies[language].logs.exportNeedsTwoPoints(activeFile.name)
           : workbenchCopies[language].logs.exportNotReady(activeFile.name),
         'warning',

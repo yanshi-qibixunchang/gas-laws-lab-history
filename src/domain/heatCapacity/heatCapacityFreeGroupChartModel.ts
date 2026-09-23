@@ -1,3 +1,6 @@
+import { projectHeatCapacityTeachingResult } from './heatCapacityTeachingResultProjection.ts';
+import { isHeatCapacitySequentialAnswerRule } from './heatCapacityCalculationValidation.ts';
+import { evaluateHeatCapacityUncertaintyEligibility } from './heatCapacityUncertaintyEligibility.ts';
 import {
   calculateFreeHeatCapacityMeanResult,
 } from './heatCapacityFreeTrialModel.ts';
@@ -16,6 +19,7 @@ export interface HeatCapacityFreeGroupLollipopPoint {
 }
 
 export interface HeatCapacityFreeGroupLollipopChartModel {
+  publicTeachingValues?: boolean;
   groupId: string;
   scheme: HeatCapacityFreeExperimentGroupScheme;
   gasType: HeatCapacityFreeGasType;
@@ -32,6 +36,7 @@ export interface HeatCapacityFreeGroupLollipopChartModel {
 }
 
 export interface HeatCapacityFreeAllGroupsOverviewPoint {
+  publicTeachingValues?: boolean;
   groupId: string;
   scheme: HeatCapacityFreeExperimentGroupScheme;
   gasType: HeatCapacityFreeGasType;
@@ -64,10 +69,11 @@ export const createHeatCapacityFreeGroupLollipopChartModel = (
   group: HeatCapacityFreeExperimentGroupRecord,
 ): HeatCapacityFreeGroupLollipopChartModel => {
   const theoreticalGamma = getTheoreticalGamma(group) ?? 0;
-  const processing = calculateFreeHeatCapacityMeanResult(
+  const processing = projectHeatCapacityTeachingResult(calculateFreeHeatCapacityMeanResult(
     group.runSeries.trials,
     { theoreticalGamma },
-  );
+  ), group.calculation?.kind === 'real-interactive' || group.calculation?.kind === 'ideal-interactive'
+    ? group.calculation.session : group.runSeries.batch.calculationSession);
   const points = processing.trialResults.flatMap((trial) => (
     trial.status === 'valid' && trial.gamma !== null
       ? [{
@@ -78,8 +84,11 @@ export const createHeatCapacityFreeGroupLollipopChartModel = (
         }]
       : []
   ));
-  const visible = points.length >= 3;
+  const publicTeachingValues = 'calculationRule' in processing && isHeatCapacitySequentialAnswerRule(processing.calculationRule);
+  const visible = points.length >= 3 && (!publicTeachingValues || processing.meanGamma !== null);
+  const includeUncertainty = evaluateHeatCapacityUncertaintyEligibility(group.scheme, group.gasType, group.parameterSnapshot).eligible;
   return {
+    ...(publicTeachingValues ? { publicTeachingValues: true } : {}),
     groupId: group.id,
     scheme: group.scheme,
     gasType: group.gasType,
@@ -97,7 +106,7 @@ export const createHeatCapacityFreeGroupLollipopChartModel = (
     theoreticalGamma,
     meanGamma: processing.meanGamma,
     sampleStandardDeviation: processing.sampleStandardDeviation,
-    typeAStandardUncertainty: processing.typeAStandardUncertainty,
+    typeAStandardUncertainty: includeUncertainty ? processing.typeAStandardUncertainty : null,
     relativeErrorPercent: processing.relativeErrorPercent,
   };
 };
@@ -127,6 +136,7 @@ export const createHeatCapacityFreeAllGroupsOverviewModel = (
       .map((model) => {
         const group = collection.groups.find((candidate) => candidate.id === model.groupId)!;
         return {
+          ...(model.publicTeachingValues ? { publicTeachingValues: true } : {}),
           groupId: model.groupId,
           scheme: model.scheme,
           gasType: model.gasType,

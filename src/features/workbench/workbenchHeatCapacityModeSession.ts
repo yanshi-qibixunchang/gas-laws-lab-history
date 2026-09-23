@@ -1,3 +1,6 @@
+import { getHeatCapacityFreePublicZero } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import { resolveHeatCapacityFreeGasTypeFromGamma } from '../../domain/heatCapacity/heatCapacityGasTheory.ts';
+import { evaluateHeatCapacityUncertaintyEligibility, reconcileHeatCapacityGroupUncertainty } from '../../domain/heatCapacity/heatCapacityUncertaintyEligibility.ts';
 import type { HeatCapacityMode } from '../../domain/heatCapacity/heatCapacityModeTypes.ts';
 import {
   HEAT_CAPACITY_FREE_ATTEMPT_TARGET_WAIT_S,
@@ -948,6 +951,7 @@ const decodeCalculationFieldFeedback = decodeNullable(decodeRecord({
 }));
 
 const decodeCalculationWorkflowField = decodeRecord({
+  reportDecimalPlaces: decodeOptional(decodeNonNegativeInteger),
   id: decodeString,
   symbol: decodeString,
   answerKind: decodeLiteral([
@@ -958,6 +962,12 @@ const decodeCalculationWorkflowField = decodeRecord({
     'sampleStandardDeviation',
     'typeAStandardUncertainty',
     'relativeErrorPercent',
+    'reportMeanGamma',
+    'reportTypeA',
+    'voltageTypeB', // v4 serialization only; removed before restoring the current course
+    'typeBStandardUncertainty',
+    'combinedStandardUncertainty',
+    'reportCombined',
   ]),
   expectedValue: decodeFiniteNumber,
   draftRaw: decodeString,
@@ -976,6 +986,10 @@ const decodeCalculationWorkflowStep = decodeRecord({
     'sampleStandardDeviation',
     'typeAStandardUncertainty',
     'batchRelativeError',
+    'finalReport',
+    'voltageTypeB', // v4 serialization only
+    'typeBStandardUncertainty',
+    'combinedStandardUncertainty',
   ]),
   fieldIds: decodeNonEmptyArray(decodeString),
 });
@@ -1002,6 +1016,18 @@ const decodeCalculationWorkflowGroup = decodeRecord({
 });
 
 const decodeCalculationBatchStatistics = decodeRecord({
+  // Recognize the v4 input budget for migration; current calculation results omit it.
+  voltageErrorLimitMv: decodeOptional(decodePositiveFiniteNumber),
+  voltageTypeB: decodeOptional(decodePositiveFiniteNumber),
+  voltageInstrumentStandardUncertaintyMv: decodeOptional(decodePositiveFiniteNumber),
+  propagationCoefficient: decodeOptional(decodePositiveFiniteNumber),
+  typeBStandardUncertainty: decodeOptional(decodeNonNegativeFiniteNumber),
+  combinedStandardUncertainty: decodeOptional(decodeNonNegativeFiniteNumber),
+  reportCombined: decodeOptional(decodeNonNegativeFiniteNumber),
+  sumSquaredDeviations: decodeOptional(decodeNonNegativeFiniteNumber),
+  reportMeanGamma: decodeOptional(decodePositiveFiniteNumber),
+  reportTypeA: decodeOptional(decodeNonNegativeFiniteNumber),
+  reportDecimalPlaces: decodeOptional(decodeNonNegativeInteger),
   count: decodePositiveInteger,
   meanGamma: decodePositiveFiniteNumber,
   sampleStandardDeviation: decodeNonNegativeFiniteNumber,
@@ -1016,8 +1042,15 @@ const decodeCalculationWorkflowAggregate = decodeRecord({
 });
 
 const decodeCalculationWorkflowSessionShape = decodeRecord({
+  recalculationNotice: decodeOptional(decodeBoolean),
+  uncertaintyUpgradeNotice: decodeOptional(decodeBoolean),
+  uncertaintyEligibility: decodeOptional(decodeRecord({
+    version: decodeLiteral(['standard-real-teaching-v1']),
+    eligible: decodeBoolean,
+    reason: decodeLiteral(['eligible', 'ideal', 'missing-snapshot', 'environment', 'instrument-model', 'record-criteria', 'acquisition']),
+  })),
   version: decodeLiteral([1]),
-  answerRule: decodeOptional(decodeLiteral(['legacy-tolerance-v1', 'strict-half-even-v2'])),
+  answerRule: decodeOptional(decodeLiteral(['legacy-tolerance-v1', 'strict-half-even-v2', 'free-type-a-half-even-v3', 'free-ab-half-even-v4', 'free-ab-given-standard-half-even-v5'])),
   mode: decodeLiteral(['guide', 'free', 'demo']),
   presentation: decodeLiteral(['interactive', 'system-readonly', 'legacy-readonly']),
   status: decodeLiteral(['in-progress', 'ready-to-exit', 'completed']),
@@ -1142,7 +1175,7 @@ export const normalizeHeatCapacityCalculationWorkflowSessionForTrials = (
   if (value === null || value === undefined) return null;
   const decoded = decodeCalculationWorkflowSessionShape(value);
   if (decoded === INVALID_RUNTIME_VALUE || !isPlainRecord(decoded)) {
-    return createHeatCapacityCalculationWorkflowSession(authority);
+    return { ...createHeatCapacityCalculationWorkflowSession(authority), recalculationNotice: true };
   }
   return rehydrateHeatCapacityCalculationWorkflowSession(
     decoded as unknown as HeatCapacityCalculationWorkflowSession,
@@ -1169,14 +1202,14 @@ export const calculateHeatCapacityFreeCalculationReference = (
   trial: HeatCapacityFreeTrial,
   snapshot: HeatCapacityFreeConfigSnapshot,
 ): HeatCapacityCalculationGroupReference | null => {
-  const u0 = trial.u0 ?? trial.automaticU0;
+  const u0 = getHeatCapacityFreePublicZero(trial);
   if (
     !trial.u1 ||
     !trial.u2 ||
-    (!u0 && trial.correctedSignals?.u0Source !== 'assumed-zero')
+    !u0
   ) return null;
   return calculateHeatCapacityGroupReference({
-    u0Mv: u0?.displayPressureMv ?? 0,
+    u0Mv: u0.displayPressureMv,
     u1Mv: trial.u1.displayPressureMv,
     u2Mv: trial.u2.displayPressureMv,
     atmosphericPressureKPa: snapshot.environment.ambientPressureKPa,
@@ -2074,7 +2107,7 @@ const decodeFreeCorrectedSignalsShape = decodeRecord({
   U2DisplayMv: decodeFiniteNumber,
   U1CorrectedMv: decodeFiniteNumber,
   U2CorrectedMv: decodeFiniteNumber,
-  u0Source: decodeLiteral(['recorded', 'assumed-zero']),
+  u0Source: decodeLiteral(['recorded', 'automatic', 'assumed-zero']),
   formulaGamma: decodeFiniteNumber,
   preheatBiasGamma: decodeFiniteNumber,
   gamma: decodeFiniteNumber,
@@ -2178,6 +2211,7 @@ const isHistoricalArchivedCompletedFreeTrial = (trial: HeatCapacityFreeTrial) =>
 
 const isFreeTrialSignalSemanticsValid = (trial: HeatCapacityFreeTrial) => {
   const signals = trial.correctedSignals;
+  if (!getHeatCapacityFreePublicZero(trial)) return signals === null && trial.completedAtMs === null;
   const legacyUntraced = isLegacyUntracedFreeTrial(trial);
   if (
     trial.u2 !== null && (signals === null || (trial.configSnapshot === null && !legacyUntraced)) ||
@@ -2206,7 +2240,9 @@ const isFreeTrialSignalSemanticsValid = (trial: HeatCapacityFreeTrial) => {
       !areFreeSignalNumbersClose(signals.pressureSensitivityMvPerKPa, expectedPressureSensitivityMvPerKPa)
     ))
   ) return false;
-  const expectedU0DisplayMv = trial.u0?.displayPressureMv ?? 0;
+  const zero = getHeatCapacityFreePublicZero(trial);
+  if (!zero) return false;
+  const expectedU0DisplayMv = zero.displayPressureMv;
   const corrected = getFreeCorrectedSignals({
     U0DisplayMv: expectedU0DisplayMv,
     U1DisplayMv: trial.u1.displayPressureMv,
@@ -2215,7 +2251,7 @@ const isFreeTrialSignalSemanticsValid = (trial: HeatCapacityFreeTrial) => {
     atmosphericPressureKPa: expectedAtmosphericPressureKPa,
     pressureSensitivityMvPerKPa: expectedPressureSensitivityMvPerKPa,
   });
-  return signals.u0Source === (trial.u0 === null ? 'assumed-zero' : 'recorded') &&
+  return signals.u0Source === (trial.u0 === null ? 'automatic' : 'recorded') &&
     areFreeSignalNumbersClose(signals.U0DisplayMv, expectedU0DisplayMv) &&
     areFreeSignalNumbersClose(signals.U1DisplayMv, trial.u1.displayPressureMv) &&
     areFreeSignalNumbersClose(signals.U2DisplayMv, trial.u2.displayPressureMv) &&
@@ -2232,6 +2268,10 @@ const decodeFreeTrial: RuntimeValueDecoder = (value) => {
     ...decoded,
     batchMembership: decoded.batchMembership ?? null,
   } as unknown as HeatCapacityFreeTrial;
+  if (!getHeatCapacityFreePublicZero(trial)) {
+    trial.correctedSignals = null;
+    trial.completedAtMs = null;
+  }
   if (trial.u2 !== null && trial.u1 === null) return INVALID_RUNTIME_VALUE;
   const records = [trial.u0, trial.u1, trial.u2].filter((record) => record !== null);
   const firstRecord = records[0];
@@ -3743,7 +3783,7 @@ const decodeFreeProcessingTrialResult = decodeRecord({
   U2DisplayMv: decodeNullableFiniteNumber,
   U1CorrectedMv: decodeNullableFiniteNumber,
   U2CorrectedMv: decodeNullableFiniteNumber,
-  u0Source: decodeNullable(decodeLiteral(['recorded', 'assumed-zero'])),
+  u0Source: decodeNullable(decodeLiteral(['recorded', 'automatic', 'assumed-zero'])),
   formulaGamma: decodeNullableFiniteNumber,
   preheatBiasGamma: decodeNullableFiniteNumber,
   gamma: decodeNullableFiniteNumber,
@@ -3935,7 +3975,15 @@ const decodeFreeExperimentGroupCollection: RuntimeValueDecoder = (value) => {
       )
     ))
   ) return INVALID_RUNTIME_VALUE;
-  return collection;
+  const groups = collection.groups.map(reconcileHeatCapacityGroupUncertainty);
+  const current = groups.find(group => group.id === collection.currentGroupId);
+  if (current?.status === 'legacy-incomplete-readonly' &&
+      (current.calculation?.kind === 'real-interactive' || current.calculation?.kind === 'ideal-interactive') &&
+      current.calculation.session.recalculationNotice && current.calculation.session.status !== 'completed') {
+    current.status = current.scheme === 'real' ? 'awaiting-real-calculation' : 'awaiting-ideal-calculation';
+    current.completedAtMs = null;
+  }
+  return { ...collection, groups };
 };
 
 export const normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence = (
@@ -5428,6 +5476,9 @@ const canonicalizeFreeDomainCalculationCache = (
               mode: 'free' as const,
               groups,
               theoreticalGamma: snapshot.physics.gamma,
+              uncertaintyEligibility: evaluateHeatCapacityUncertaintyEligibility(
+                value.scheme === 'ideal' ? 'ideal' : 'real', resolveHeatCapacityFreeGasTypeFromGamma(snapshot.physics.gamma), snapshot,
+              ),
               presentation: 'interactive' as const,
             }
           : null;
@@ -5485,6 +5536,9 @@ const canonicalizeFreeRuntimeCalculationCaches = (
     heatCapacityFreeRealDomain: real.domain,
     heatCapacityFreeIdealDomain: ideal.domain,
     heatCapacityFreeBatch: normalizedTopLevelBatch,
+    ...(value.heatCapacityFreeExperimentGroups !== undefined ? {
+      heatCapacityFreeExperimentGroups: normalizeHeatCapacityFreeExperimentGroupCollectionForPersistence(value.heatCapacityFreeExperimentGroups),
+    } : {}),
   };
 };
 

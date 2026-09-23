@@ -21,6 +21,15 @@ export interface HeatCapacityCalculationGroupReference {
 }
 
 export interface HeatCapacityCalculationBatchStatistics {
+  voltageInstrumentStandardUncertaintyMv?: number;
+  propagationCoefficient?: number;
+  typeBStandardUncertainty?: number;
+  combinedStandardUncertainty?: number;
+  reportCombined?: number;
+  sumSquaredDeviations?: number;
+  reportMeanGamma?: number;
+  reportTypeA?: number;
+  reportDecimalPlaces?: number;
   count: number;
   meanGamma: number;
   sampleStandardDeviation: number;

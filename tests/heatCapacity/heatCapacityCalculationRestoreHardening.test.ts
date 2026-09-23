@@ -115,5 +115,24 @@ assert.equal(rebuilt!.groups[0].trialId, 'guide-authoritative');
 assert.deepEqual(rebuilt!.groups[0].reference, canonicalReference);
 assert.equal(rebuilt!.groups[0].fields[0].answer.attempts.length, 0);
 assert.equal(rebuilt!.status, 'in-progress');
+assert.equal(rebuilt!.recalculationNotice, true, 'discarded checks must be accompanied by a recalculation notice');
+
+const freeAuthority = { ...authority, mode: 'free' as const,
+  groups: Array.from({ length: 3 }, (_, i) => ({ trialId: `repeat-${i}`, reference: reference! })) };
+const incompleteCourse = createHeatCapacityCalculationWorkflowSession(freeAuthority);
+const report = incompleteCourse.aggregate!.steps.pop()!;
+incompleteCourse.aggregate!.fields = incompleteCourse.aggregate!.fields.filter(field => !report.fieldIds.includes(field.id));
+const rebuiltFree = normalizeHeatCapacityCalculationWorkflowSessionForTrials(incompleteCourse, freeAuthority);
+assert.ok(rebuiltFree);
+assert.equal(rebuiltFree.recalculationNotice, true);
+assert.equal(rebuiltFree.status, 'in-progress');
+assert.equal(rebuiltFree.aggregate!.steps.at(-1)!.kind, 'finalReport');
+assert.ok(rebuiltFree.groups.every(group => group.fields.every(field => field.answer.status === 'unresolved')));
+
+const malformed = structuredClone(incompleteCourse) as unknown as Record<string, any>;
+delete malformed.groups[0].fields[0].answer;
+const rebuiltMalformed = normalizeHeatCapacityCalculationWorkflowSessionForTrials(malformed, freeAuthority);
+assert.ok(rebuiltMalformed);
+assert.equal(rebuiltMalformed.recalculationNotice, true, 'unreadable answer state must not reset silently');
 
 console.log('heatCapacityCalculationRestoreHardening tests passed');

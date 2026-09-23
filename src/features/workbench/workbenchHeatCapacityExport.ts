@@ -1,3 +1,5 @@
+import { projectHeatCapacityTeachingResult } from '../../domain/heatCapacity/heatCapacityTeachingResultProjection.ts';
+import { getHeatCapacityFreePublicZero } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   createHeatCapacityFreeAllGroupsOverviewModel,
   createHeatCapacityFreeGroupLollipopChartModel,
@@ -12,6 +14,7 @@ import type {
   HeatCapacityFreeExperimentGroupRecord,
 } from '../../domain/heatCapacity/heatCapacityFreeExperimentGroupModel.ts';
 import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTypes.ts';
+import { evaluateHeatCapacityUncertaintyEligibility, reconcileHeatCapacityGroupUncertainty } from '../../domain/heatCapacity/heatCapacityUncertaintyEligibility.ts';
 import {
   selectHeatCapacityFreeAppliedParameterDraft,
 } from './workbenchHeatCapacityFreeAuthorityTransaction.ts';
@@ -69,10 +72,10 @@ const createExperimentExportRecord = (
 ) => {
   const trial = group.runSeries.trials[trialIndex]!;
   const theory = getTheory(group);
-  const result = calculateFreeHeatCapacityMeanResult(
-    [trial],
-    { theoreticalGamma: theory },
-  ).trialResults[0] ?? null;
+  const result = projectHeatCapacityTeachingResult(calculateFreeHeatCapacityMeanResult(
+    [trial], { theoreticalGamma: theory },
+  ), group.calculation?.kind === 'real-interactive' || group.calculation?.kind === 'ideal-interactive'
+    ? group.calculation.session : group.runSeries.batch.calculationSession).trialResults[0] ?? null;
   const review = selectHeatCapacityFreeProcessReview({
     trials: group.runSeries.trials,
     traceStore: group.runSeries.traceStore,
@@ -90,7 +93,7 @@ const createExperimentExportRecord = (
     completed: trial.completedAtMs !== null,
     completedAtMs: trial.completedAtMs,
     records: {
-      u0: trial.u0,
+      u0: getHeatCapacityFreePublicZero(trial),
       u1: trial.u1,
       u2: trial.u2,
     },
@@ -128,6 +131,7 @@ const createCalculationAuditExportRecords = (
     symbol: field.symbol,
     answerKind: field.answerKind,
     expectedValue: field.expectedValue,
+    reportDecimalPlaces: field.reportDecimalPlaces,
     finalAnswer: field.answer.lastSubmittedRaw,
     status: field.answer.status,
     attempts: field.answer.attempts.length,
@@ -148,13 +152,15 @@ const createCalculationAuditExportRecords = (
 };
 
 const createGroupExportRecord = (
-  group: HeatCapacityFreeExperimentGroupRecord,
+  sourceGroup: HeatCapacityFreeExperimentGroupRecord,
 ) => {
+  const group = reconcileHeatCapacityGroupUncertainty(sourceGroup);
+  const uncertaintyEligibility = evaluateHeatCapacityUncertaintyEligibility(group.scheme, group.gasType, group.parameterSnapshot);
   const theory = getTheory(group);
-  const result = calculateFreeHeatCapacityMeanResult(
-    group.runSeries.trials,
-    { theoreticalGamma: theory },
-  );
+  const result = projectHeatCapacityTeachingResult(calculateFreeHeatCapacityMeanResult(
+    group.runSeries.trials, { theoreticalGamma: theory },
+  ), group.calculation?.kind === 'real-interactive' || group.calculation?.kind === 'ideal-interactive'
+    ? group.calculation.session : group.runSeries.batch.calculationSession);
   return {
     id: group.id,
     reportable: isHeatCapacityGroupReportable(group),
@@ -172,7 +178,8 @@ const createGroupExportRecord = (
     startedAtMs: group.startedAtMs,
     acquisitionCompletedAtMs: group.acquisitionCompletedAtMs,
     completedAtMs: group.completedAtMs,
-    result,
+    uncertaintyEligibility,
+    result: { ...result, typeAStandardUncertainty: uncertaintyEligibility.eligible ? result.typeAStandardUncertainty : null },
     lollipopChart: createHeatCapacityFreeGroupLollipopChartModel(group),
     calculation: group.calculation,
     calculationAudit: createCalculationAuditExportRecords(group),
@@ -205,6 +212,9 @@ export const isHeatCapacityExportModeReady = (
   const groups = file.heatCapacityFreeExperimentGroups.groups;
   if (mode === 'completeBundle') return true;
   if (mode === 'report') return groups.some(isHeatCapacityGroupReportable);
+  if (mode === 'tablesCsv') return groups.some(group => group.runSeries.trials.some(trial => (
+    getHeatCapacityFreePublicZero(trial) !== null || trial.u1 !== null || trial.u2 !== null
+  )));
   if (mode === 'figuresZip' || mode === 'verificationFigure') {
     return groups.some((group) => (
       group.runSeries.traceStore.traceTrials.some((traceTrial) => (
@@ -235,6 +245,7 @@ export const createHeatCapacityExportPayload = (
     ? 'experiment-package'
     : mode === 'figuresZip' || mode === 'verificationFigure'
       ? 'figures'
+      : mode === 'tablesCsv' ? 'tables'
       : 'report';
   return {
     kind: 'json',

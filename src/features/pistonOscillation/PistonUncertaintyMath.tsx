@@ -18,6 +18,7 @@ const absolute = (value: ReactNode) => group(value, '|', '|');
 const join = (op: string, ...items: ReactNode[]) => row(...items.flatMap((item, index) => index ? [operator(op), item] : [item]));
 const equals = (...items: ReactNode[]) => join('=', ...items);
 const mean = (name: string) => element('mover', variable(name), operator('¯'));
+const meanSquaredPeriod = () => element('mover', square(variable('T')), operator('¯'));
 const space = () => createElement('mspace', { width: '0.3em' });
 
 export const pistonMathNumber = (value: number | string): ReactNode => {
@@ -64,15 +65,18 @@ const pistonMathSymbols = (en: boolean) => {
     const name = index ? sub(variable('u'), text(suffix)) : variable('u');
     return quantity ? row(name, group(quantity)) : name;
   };
-  const expanded = sub(variable('U'), g);
-  return { a, g, sr, sxx, i, u, expanded };
+  return { a, g, sr, sxx, i, u };
 };
 
-const formulaNodes = (en: boolean, coverage: number): Record<PistonUncertaintyExerciseField, ReactNode> => {
-  const { a, g, sr, sxx, u, expanded } = pistonMathSymbols(en);
+const formulaNodes = (en: boolean): Record<PistonUncertaintyExerciseField, ReactNode> => {
+  const { a, g, sr, sxx, u } = pistonMathSymbols(en);
   const delta = (name: string) => row(variable('Δ'), variable(name));
   const calibrationRatio = (name: string, factor = 1) => square(group(fraction(row(...(factor === 1 ? [] : [pistonMathNumber(factor)]), u('B', variable(name))), variable(name))));
+  const sum = (value: ReactNode) => row(element('munderover', operator('∑'), equals(variable('i'), pistonMathNumber(1)), variable('n')), value);
+  const squaredPeriod = square(sub(variable('T'), variable('i')));
   return {
+    meanX: equals(meanSquaredPeriod(), fraction(sum(squaredPeriod), variable('n'))),
+    sxx: equals(sxx, sum(square(group(join('−', squaredPeriod, meanSquaredPeriod()))))),
     residual: equals(sr, root(fraction(variable('Q'), join('−', variable('n'), pistonMathNumber(2))))),
     slopeA: equals(u('A', a), fraction(sr, root(sxx))),
     gammaA: equals(u('A', g), row(absolute(fraction(g, a)), u('A', a))),
@@ -81,12 +85,12 @@ const formulaNodes = (en: boolean, coverage: number): Record<PistonUncertaintyEx
     gammaB: equals(u('B', g), row(absolute(g), root(join('+', calibrationRatio('a'), calibrationRatio('m'), calibrationRatio('d', 2), square(group(fraction(u('instrument', variable('P')), variable('P')))))))),
     combined: equals(u('c', g), root(join('+', square(u('A', g)), square(u('B', g))))),
     relative: equals(u('r'), row(fraction(u('c', g), absolute(g)), operator('×'), pistonMathNumber(100), operator('%'))),
-    expanded: equals(expanded, row(variable('k'), u('c', g))),
-    result: row(g, operator('±'), expanded, space(), group(equals(variable('k'), pistonMathNumber(coverage)))),
+    reportCombined: u('c', g),
+    result: row(g, operator('±'), u('c', g)),
   };
 };
 
-export const PistonUncertaintyFormula = ({ field, language, coverage, label }: { field: PistonUncertaintyExerciseField; language: string; coverage: number; label: string }) => <PistonMath block label={label}>{formulaNodes(language === 'en', coverage)[field]}</PistonMath>;
+export const PistonUncertaintyFormula = ({ field, language, label }: { field: PistonUncertaintyExerciseField; language: string; label: string }) => <PistonMath block label={label}>{formulaNodes(language === 'en')[field]}</PistonMath>;
 
 export const PistonUncertaintyGammaBasis = ({ gamma, slope }: { gamma: number; slope: number }) => <>
   <PistonMath block>{equals(variable('γ'), fraction(row(pistonMathNumber(4), square(variable('π')), variable('m'), variable('a')), row(variable('A'), variable('P'))), pistonMathNumber(gamma))}</PistonMath>
@@ -94,16 +98,15 @@ export const PistonUncertaintyGammaBasis = ({ gamma, slope }: { gamma: number; s
 </>;
 
 const inlineCatalogue = (en: boolean): Record<string, ReactNode> => {
-  const { a, g, sr, sxx, i, u, expanded } = pistonMathSymbols(en);
+  const { a, sr, sxx, i, u } = pistonMathSymbols(en);
   const out: Record<string, ReactNode> = {
     'h = aT² + b': equals(variable('h'), join('+', row(a, square(variable('T'))), variable('b'))),
     'Q/(n−2)': fraction(variable('Q'), group(join('−', variable('n'), pistonMathNumber(2)))),
     'n−2': join('−', variable('n'), pistonMathNumber(2)),
     '√3': root(pistonMathNumber(3)),
     'Δ/√3': fraction(variable('Δ'), root(pistonMathNumber(3))),
-    'Uγ = k·uc(γ)': equals(expanded, row(variable('k'), u('c', g))),
-    'sr': sr, 'Sxx': sxx, 'Uγ': expanded, 'uc': u('c'), 'ur': u('r'),
-    'T²': square(variable('T')), 'R²': square(variable('R')),
+    'sr': sr, 'Sxx': sxx, 'uc': u('c'), 'ur': u('r'),
+    'T²̄': meanSquaredPeriod(), 'T²': square(variable('T')), 'R²': square(variable('R')),
     'eᵢ': sub(variable('e'), i), 'x̄': mean('x'), 'h̄': mean('h'),
     'm/s²': row(text('m'), operator('·'), power(text('s'), element('mn', '−2'))),
     'm²': square(text('m')), 's²': square(text('s')), 's⁴': power(text('s'), element('mn', '4')),
@@ -115,7 +118,7 @@ const inlineCatalogue = (en: boolean): Record<string, ReactNode> => {
     out[`u${index}`] = u(canonical);
     for (const quantity of ['γ', 'a', 'm', 'd', 'P']) out[`u${index}(${quantity})`] = u(canonical, variable(quantity));
   }
-  for (const name of ['a', 'b', 'n', 'Q', 'γ', 'm', 'd', 'P', 'k']) out[name] = variable(name);
+  for (const name of ['a', 'b', 'n', 'Q', 'γ', 'm', 'd', 'P']) out[name] = variable(name);
   return out;
 };
 

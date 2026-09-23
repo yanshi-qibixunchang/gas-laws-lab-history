@@ -28,7 +28,9 @@ import {
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
   createPistonOscillationFreeExperimentGroup,
+  lockPistonOscillationFreeExperimentGroup,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
+import { createPistonOscillationRealParameterDraft } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 import {
   createDefaultHeatCapacityPistonOscillationFile,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -43,6 +45,8 @@ import {
 
 const root = resolve(import.meta.dirname, '..', '..');
 const exporter = join(root, 'tools', 'exporter', 'hsl_exporter.py');
+const exportCommand = process.env.HSL_EXPORTER_EXECUTABLE || 'python';
+const exportPrefix = process.env.HSL_EXPORTER_EXECUTABLE ? [] : [exporter];
 
 const defaultPistonFile = createDefaultHeatCapacityPistonOscillationFile(1);
 const exportExperimentGroup = {
@@ -331,6 +335,14 @@ assert.throws(
   /experiment-group context is inconsistent/,
 );
 const commonPayload = createWorkbenchExportPayload(file, 'report', 'zh-CN');
+for (const mode of ['figuresZip', 'tablesCsv', 'completeBundle'] as const) {
+  const routed = createWorkbenchExportPayload({ ...file, name: '活塞实验一' }, mode, 'zh-CN');
+  assert.equal(routed.kind, 'json');
+  if (routed.kind !== 'json') throw new Error('Expected piston JSON payload');
+  assert.equal(routed.mode, mode);
+  assert.equal(routed.data.exportKind, PISTON_OSCILLATION_REPORT_EXPORT_KIND);
+  assert.ok(routed.filename.includes('活塞实验一'));
+}
 assert.equal(commonPayload.kind, 'json');
 if (commonPayload.kind !== 'json') throw new Error('Expected JSON report payload.');
 assert.equal(
@@ -552,6 +564,11 @@ if (pythonCheck.status !== 0) {
     }
     const uncertaintyFile = structuredClone(file);
     uncertaintyFile.name = '活塞振动法 - 不确定度教学示例';
+    uncertaintyFile.pistonOscillationFreeSession.experimentGroup = lockPistonOscillationFreeExperimentGroup(
+      uncertaintyFile.pistonOscillationFreeSession.experimentGroup,
+      { ...createPistonOscillationRealParameterDraft('air'), sampleRateHz: 1000, triggerThresholdKpa: 120 },
+      'formal-acquisition-started', 1_725_079_700_001,
+    );
     let processing = uncertaintyFile.pistonOscillationFreeSession.dataProcessing!;
     const newCourse = createPistonUncertaintyCourse();
     const sampleKnowns = normalizePistonPrecisionKnowns(processing.calculationSession!.knowns);
@@ -594,18 +611,57 @@ if (pythonCheck.status !== 0) {
     const uncertaintyPayload = createPistonOscillationReportExportPayload(uncertaintyFile, 'zh-CN');
     if (uncertaintyPayload.kind !== 'json') throw new Error('Expected uncertainty JSON report payload.');
     assert.equal(uncertaintyPayload.data.uncertaintyReport?.phases.length, 3);
-    assert.equal(uncertaintyPayload.data.uncertaintyReport?.phases.flatMap(phase => phase.items).length, 10);
+    assert.equal(uncertaintyPayload.data.uncertaintyReport?.phases.flatMap(phase => phase.items).length, 12);
     assert.equal(uncertaintyPayload.data.uncertaintyReport?.analysis.values.pressure, 100);
+    const fitStatisticItems = uncertaintyPayload.data.uncertaintyReport!.phases[0]!.items.slice(0, 2);
+    assert.deepEqual(fitStatisticItems.map(item => item.id), ['meanX', 'sxx']);
+    assert.deepEqual(fitStatisticItems.map(item => item.unit), ['s²', 's⁴']);
+    for (const item of fitStatisticItems) {
+      assert.equal(Number(item.answer.draft), item.working, 'exported accepted statistics must be the downstream operands');
+      assert.equal(Number(item.reference), item.working);
+      assert.notEqual(item.answer.status, 'unresolved');
+    }
     const uncertaintyInput = join(temporaryRoot, 'uncertainty.json');
     const uncertaintyOutput = join(temporaryRoot, 'uncertainty');
     writeFileSync(uncertaintyInput, JSON.stringify(uncertaintyPayload), 'utf8');
-    const uncertaintyResult = spawnSync('python', [exporter, '--input', uncertaintyInput, '--out', uncertaintyOutput, '--formats', 'report'], { cwd: root, encoding: 'utf8', timeout: 120_000 });
+    if (process.env.HSL_PISTON_QA_PAYLOAD_PATH) writeFileSync(process.env.HSL_PISTON_QA_PAYLOAD_PATH, JSON.stringify(uncertaintyPayload), 'utf8');
+    const uncertaintyResult = spawnSync(exportCommand, [...exportPrefix, '--input', uncertaintyInput, '--out', uncertaintyOutput, '--formats', 'report'], { cwd: root, encoding: 'utf8', timeout: 120_000, windowsHide: true });
     assert.equal(uncertaintyResult.status, 0, uncertaintyResult.stderr || uncertaintyResult.stdout);
+    for (const format of ['figures', 'csv', 'report,figures,csv,metadata']) {
+      const matrixOut = join(temporaryRoot, `piston-${format.replaceAll(',', '-')}`);
+      const exported = spawnSync(exportCommand, [...exportPrefix, '--input', uncertaintyInput, '--out', matrixOut, '--formats', format],
+        { cwd: root, encoding: 'utf8', timeout: 120_000, windowsHide: true });
+      assert.equal(exported.status, 0, exported.stderr || exported.stdout);
+      const manifest = JSON.parse(exported.stdout);
+      assert.ok(manifest.files.length > 0);
+      assert.ok(manifest.files.every((name: string) => existsSync(name)));
+      if (format === 'figures') {
+        assert.equal(manifest.files.length, 2);
+        assert.ok(manifest.files.every((name: string) => name.endsWith('.png')));
+        assert.equal(existsSync(join(matrixOut, 'report.pdf')), false);
+      } else {
+        const csv = readFileSync(join(matrixOut, 'data', 'piston-uncertainty.csv'), 'utf8');
+        assert.equal(csv.trim().split(/\r?\n/).length, 13, 'all twelve checked uncertainty exercises must be exported');
+        for (const item of fitStatisticItems) assert.ok(csv.includes(item.reference), 'CSV uses the displayed, checked statistic');
+        assert.ok(csv.includes('reportCombined'));
+        const knownCsv = readFileSync(join(matrixOut, 'data', 'piston-knowns.csv'), 'utf8');
+        assert.ok(knownCsv.includes(`movingMassKg,${sampleKnowns.movingMassKg},kg`));
+        assert.ok(knownCsv.includes(`pressurePa,${sampleKnowns.pressurePa},Pa`));
+        const uncertaintyKnownCsv = readFileSync(join(matrixOut, 'data', 'piston-uncertainty-knowns.csv'), 'utf8');
+        for (const row of uncertaintyPayload.data.uncertaintyReport!.parameterRows) {
+          assert.ok(uncertaintyKnownCsv.includes(row[0]));
+          assert.ok(uncertaintyKnownCsv.includes(row[1]));
+        }
+        assert.equal(readFileSync(join(matrixOut, 'data', 'piston-run-01-pressure.csv'), 'utf8').trim().split(/\r?\n/).length, 702);
+        if (format === 'csv') assert.ok(manifest.files.every((name: string) => name.endsWith('.csv')));
+      }
+    }
     const uncertaintyText = join(temporaryRoot, 'uncertainty.txt');
     const uncertaintyExtract = spawnSync('pdftotext', [join(uncertaintyOutput, 'report.pdf'), uncertaintyText], { encoding: 'utf8' });
     if (uncertaintyExtract.status === 0) {
       const contents = readFileSync(uncertaintyText, 'utf8');
-      for (const phrase of ['不确定度教学与计算', '误差限换算与传播', '合成标准不确定度', '扩展不确定度']) assert.ok(contents.includes(phrase), phrase);
+      for (const phrase of ['不确定度教学与计算', '周期平方的平均值', '离差平方和', '误差限换算与传播', '合成标准不确定度', '规范报告']) assert.ok(contents.includes(phrase), phrase);
+      assert.doesNotMatch(contents, /扩展不确定度|k\s*=\s*2/);
       assert.doesNotMatch(contents, /�/u);
       assert.ok(contents.includes('0.0003464'));
       assert.doesNotMatch(contents, /标尺比例|时基比例|校准残余|显示量化|逐点依据|√12/);

@@ -1,7 +1,10 @@
+import { getHeatCapacityFreePublicZero } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
 import {
   calculateHeatCapacityGroupReference,
   type HeatCapacityCalculationGroupReference,
 } from '../../domain/heatCapacity/heatCapacityCalculationModel.ts';
+import { evaluateHeatCapacityUncertaintyEligibility } from '../../domain/heatCapacity/heatCapacityUncertaintyEligibility.ts';
+import { resolveHeatCapacityFreeGasTypeFromGamma } from '../../domain/heatCapacity/heatCapacityGasTheory.ts';
 import {
   completeHeatCapacityCalculationWorkflow,
   continueHeatCapacityCalculationAnswer,
@@ -89,15 +92,15 @@ const createHeatCapacityCalculationReferenceFromFreeTrial = (
   batch: HeatCapacityFreeBatchState,
 ): HeatCapacityCalculationGroupReference | null => {
   const snapshot = batch.frozenConfigSnapshot;
-  const u0 = trial.u0 ?? trial.automaticU0;
+  const u0 = getHeatCapacityFreePublicZero(trial);
   if (
     !snapshot ||
     !trial.u1 ||
     !trial.u2 ||
-    (!u0 && trial.correctedSignals?.u0Source !== 'assumed-zero')
+    !u0
   ) return null;
   return calculateHeatCapacityGroupReference({
-    u0Mv: u0?.displayPressureMv ?? 0,
+    u0Mv: u0.displayPressureMv,
     u1Mv: trial.u1.displayPressureMv,
     u2Mv: trial.u2.displayPressureMv,
     atmosphericPressureKPa: snapshot.environment.ambientPressureKPa,
@@ -148,6 +151,11 @@ const createFreeHeatCapacityCalculationSession = (
   if (groups.length !== batch.targetGroupCount) return null;
   return createHeatCapacityCalculationWorkflowSession({
     mode: 'free',
+    uncertaintyEligibility: evaluateHeatCapacityUncertaintyEligibility(
+      file.heatCapacityFreeParameterScheme,
+      resolveHeatCapacityFreeGasTypeFromGamma(batch.frozenConfigSnapshot.physics.gamma),
+      batch.frozenConfigSnapshot,
+    ),
     groups,
     theoreticalGamma: batch.frozenConfigSnapshot.physics.gamma,
     presentation: 'interactive',

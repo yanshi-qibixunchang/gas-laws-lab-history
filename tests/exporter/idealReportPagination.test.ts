@@ -39,10 +39,12 @@ with tempfile.TemporaryDirectory(prefix='hsl-ideal-pagination-') as temporary:
         pages.clear()
         build_story(data, [{'png': image}], [], root, deps)
         assert (root / 'report.pdf').read_bytes().startswith(b'%PDF')
-        assert max(page for page, text in pages) == 1, (relation, pages)
-        assert (1, 'Conclusion') in pages
-        assert any(page == 1 and 'current automated verdict is verified' in text for page, text in pages)
-print('P-T and P-N conclusions remain with the figure on one A4 page.')
+        figure_page = next(page for page, text in pages if text == '图 1 实验结果图')
+        conclusion_page = next(page for page, text in pages if text == '3 结果说明')
+        assert conclusion_page == figure_page, (relation, pages)
+        assert max(page for page, text in pages) == conclusion_page, (relation, pages)
+        assert any(page == conclusion_page and '自动验证结果：通过' in text for page, text in pages)
+print('P-T and P-N conclusions remain with the figure under the unified Chinese report layout.')
 `], { cwd: fileURLToPath(new URL('../../', import.meta.url)), encoding: 'utf8', timeout: 60_000, windowsHide: true });
 assert.equal(result.status, 0, result.stderr || result.stdout);
 console.log(result.stdout.trim());

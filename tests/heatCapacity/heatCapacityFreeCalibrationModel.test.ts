@@ -43,12 +43,12 @@ const captured = captureAutomaticU0IfReady(zeroed, {
   zeroEventId: 'zero-1',
   pressureStable: true,
   temperatureStable: true,
-  displayPressureMv: 0.02,
-  displayTemperatureMv: 1499.05,
+  displayPressureMv: 0,
+  displayTemperatureMv: 1499,
 });
 assert.deepEqual(captured.automaticU0, {
-  displayPressureMv: 0.02,
-  displayTemperatureMv: 1499.05,
+  displayPressureMv: 0,
+  displayTemperatureMv: 1499,
   calibrationVersion: 1,
   zeroEventId: 'zero-1',
   atS: 6,

@@ -1,3 +1,5 @@
+import { getHeatCapacityFreePublicZero } from '../../domain/heatCapacity/heatCapacityFreeTrialModel.ts';
+import { evaluateHeatCapacityUncertaintyEligibility, reconcileHeatCapacityCalculationUncertainty } from '../../domain/heatCapacity/heatCapacityUncertaintyEligibility.ts';
 import {
   normalizeFreeEnvironmentDisturbanceConfig,
 } from '../../domain/heatCapacity/heatCapacityFreeEnvironmentDisturbanceModel.ts';
@@ -27,6 +29,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityFreeTraceModel.ts';
 import {
   HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION,
+  type HeatCapacityCalculationWorkflowSession,
 } from '../../domain/heatCapacity/heatCapacityCalculationWorkflowModel.ts';
 import {
   normalizeHeatCapacityFreeGasType,
@@ -516,12 +519,15 @@ const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
   u0: HeatCapacityFreeTrial['u0'],
   u1: HeatCapacityFreeTrial['u1'],
   u2: HeatCapacityFreeTrial['u2'],
+  automaticU0: HeatCapacityFreeTrial['automaticU0'],
 ): HeatCapacityFreeTrial['correctedSignals'] => {
   if (!isHeatCapacityRestoreRecord(value) || u1 === null || u2 === null) return null;
   const preheatBiasGamma = heatCapacityRestoreNullableNumber(value.preheatBiasGamma);
   const atmosphericPressureKPa = heatCapacityRestoreNullableNumber(value.atmosphericPressureKPa) ?? 101.3;
   const pressureSensitivityMvPerKPa = heatCapacityRestoreNullableNumber(value.pressureSensitivityMvPerKPa) ?? 20;
-  const effectiveU0DisplayMv = u0?.displayPressureMv ?? 0;
+  const zero = getHeatCapacityFreePublicZero({ u0, automaticU0 });
+  if (!zero) return null;
+  const effectiveU0DisplayMv = zero.displayPressureMv;
   const corrected = getFreeCorrectedSignals({
     U0DisplayMv: effectiveU0DisplayMv,
     U1DisplayMv: u1.displayPressureMv,
@@ -541,7 +547,7 @@ const normalizeHeatCapacityFreeRestoreCorrectedSignals = (
     U2DisplayMv: u2.displayPressureMv,
     U1CorrectedMv: Number(corrected.U1CorrectedMv.toFixed(6)),
     U2CorrectedMv: Number(corrected.U2CorrectedMv.toFixed(6)),
-    u0Source: u0 === null ? 'assumed-zero' : 'recorded',
+    u0Source: u0 === null ? 'automatic' : 'recorded',
     formulaGamma,
     preheatBiasGamma: normalizedPreheatBiasGamma,
     gamma: Number((formulaGamma + normalizedPreheatBiasGamma).toFixed(6)),
@@ -611,8 +617,10 @@ export const normalizeHeatCapacityFreeRestoreTrial = (
     )
     ? normalizedStandardReferenceSnapshot
     : null;
+  const automaticU0 = isHeatCapacityRestoreRecord(value.automaticU0)
+    ? value.automaticU0 as HeatCapacityFreeTrial['automaticU0'] : null;
   const correctedSignals = u1 !== null && u2 !== null
-    ? normalizeHeatCapacityFreeRestoreCorrectedSignals(value.correctedSignals, u0, u1, u2)
+    ? normalizeHeatCapacityFreeRestoreCorrectedSignals(value.correctedSignals, u0, u1, u2, automaticU0)
     : null;
   const restoredConfigSnapshot = normalizeHeatCapacityFreeRestoreConfigSnapshot(value.configSnapshot);
   const configSnapshot = restoredConfigSnapshot ?? standardReferenceSnapshot?.configSnapshot ?? (
@@ -660,7 +668,7 @@ export const normalizeHeatCapacityFreeRestoreTrial = (
     correctedSignals,
     configSnapshot,
     standardReferenceSnapshot,
-    completedAtMs: standardReferenceSnapshot === null
+    completedAtMs: standardReferenceSnapshot === null || correctedSignals === null
       ? null
       : heatCapacityRestoreNullableNumber(value.completedAtMs),
   };
@@ -1559,6 +1567,14 @@ export const isAllowedHeatCapacityFreeDomainAggregateCacheRepair = (
     if ((candidate.trials as unknown[]).some((trial) => trial === null)) {
       return false;
     }
+    if (isHeatCapacityRestoreRecord(candidate.batch) && isHeatCapacityRestoreRecord(candidate.batch.calculationSession)) {
+      const previous = candidate.batch.calculationSession;
+      if (previous.version !== HEAT_CAPACITY_CALCULATION_WORKFLOW_VERSION) return false;
+      candidate.batch.calculationSession = reconcileHeatCapacityCalculationUncertainty(
+        previous as unknown as HeatCapacityCalculationWorkflowSession,
+        normalized.scheme, normalized.gasType, normalized.batch.frozenConfigSnapshot,
+      );
+    }
     return areHeatCapacityPersistenceValuesEqual(candidate, normalizedRecord);
   } catch {
     return false;
@@ -2180,6 +2196,7 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomainResult = (
         {
           mode: 'free',
           groups: calculationGroups,
+          uncertaintyEligibility: evaluateHeatCapacityUncertaintyEligibility(scheme, gasType, normalizedBatchSnapshot),
           theoreticalGamma: normalizedBatchSnapshot.physics.gamma,
           presentation: 'interactive',
         },
@@ -2234,12 +2251,15 @@ export const normalizeHeatCapacityFreeRestoreExperimentDomainResult = (
       )
     ),
   );
+  const calculationScopeRepaired = normalizedCalculationSession !== null
+    && normalizedBatchBase.calculationSession !== null
+    && !areHeatCapacityPersistenceValuesEqual(normalizedBatchBase.calculationSession, normalizedCalculationSession);
   return {
     ok: true,
     status: aggregatePlan.status === 'migrated' ||
       traceStoreResult.status === 'migrated'
       ? 'migrated'
-      : correctedSignalCacheRepaired
+      : correctedSignalCacheRepaired || calculationScopeRepaired
         ? 'repaired-cache'
       : 'exact',
     sourceVersion: aggregatePlan.sourceVersion,

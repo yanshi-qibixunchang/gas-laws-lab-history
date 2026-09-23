@@ -1,3 +1,4 @@
+import { evaluateHeatCapacityUncertaintyEligibility } from '../../domain/heatCapacity/heatCapacityUncertaintyEligibility.ts';
 import {
   normalizeHeatCapacityTeachingProfile,
 } from '../../domain/heatCapacity/heatCapacityTeachingProfile.ts';
@@ -491,6 +492,9 @@ export const normalizeHeatCapacitySessionRuntimeStateResult = (
             {
               mode: 'free',
               groups: freeCalculationGroups,
+              uncertaintyEligibility: evaluateHeatCapacityUncertaintyEligibility(
+                activeFreeDomainBase.scheme, activeFreeDomainBase.gasType, activeFreeDomainBase.batch.frozenConfigSnapshot,
+              ),
               theoreticalGamma:
                 activeFreeDomainBase.batch.frozenConfigSnapshot.physics.gamma,
               presentation: 'interactive',

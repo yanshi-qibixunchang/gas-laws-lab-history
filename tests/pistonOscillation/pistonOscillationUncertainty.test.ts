@@ -4,6 +4,7 @@ import { calculatePistonUncertainty, createPistonUncertaintyCourse, createPiston
 
 import { evaluatePistonPrecisionChain, planPistonPrecision } from '../../src/domain/pistonOscillation/pistonOscillationPrecisionModel.ts';
 import { buildPistonUncertaintyPresentation } from '../../src/domain/pistonOscillation/pistonOscillationUncertaintyPresentation.ts';
+import { roundSignificantFiguresHalfEven, roundMeanSignificantFiguresHalfEven } from '../../src/domain/calculation/decimalHalfEven.ts';
 
 const knowns: PistonOscillationCalculationKnownsSnapshot = { schemaVersion: 2, modelVersion: 'display-rounded-piston-slope-calculation-v3', gasType: 'air', gasMaterialModelVersion: 'test', gasMaterialId: 'test', movingMassKg: 0.0485, cylinderDiameterM: 0.0325, pressurePa: 101000, referenceGamma: 1.4 };
 const profile = createPistonUncertaintyProfile();
@@ -60,6 +61,10 @@ const analysis = calculatePistonUncertainty(knowns, teachingFit, teachingRuns, p
 assert.ok(analysis);
 assert.equal(analysis.issue, null);
 assert.deepEqual(analysis.values, planned.chain.values);
+assert.equal(analysis.values.reportCombined, roundSignificantFiguresHalfEven(analysis.values.combined, 2));
+assert.ok(!('expanded' in analysis.values) && !('coverage' in profile));
+assert.equal(validatePistonUncertaintyAnswer('reportCombined', pistonUncertaintyReference('reportCombined', analysis), analysis), null);
+assert.equal(validatePistonUncertaintyAnswer('reportCombined', String(roundSignificantFiguresHalfEven(2 * analysis.values.combined, 2)), analysis), 'numeric-wrong');
 assert.equal(calculatePistonUncertainty(knowns, teachingFit, [], profile)!.issue, 'invalid-data');
 assert.equal(calculatePistonUncertainty(knowns, teachingFit, teachingRuns.map(r => ({ ...r, sampleRateHz: 2 })), profile)!.issue, 'time-resolution');
 const massReference = pistonUncertaintyReference('mass', analysis);
@@ -69,7 +74,19 @@ assert.equal(validatePistonUncertaintyAnswer('mass', '0.00036', analysis), 'nume
 assert.equal(validatePistonUncertaintyAnswer('mass', '', analysis), 'empty');
 assert.equal(validatePistonUncertaintyAnswer('mass', 'NaN', analysis), 'invalid');
 let course = createPistonUncertaintyCourse();
-assert.equal(Object.keys(course.answers).length, 10);
+assert.equal(Object.keys(course.answers).length, 12);
+assert.deepEqual(PISTON_UNCERTAINTY_FIELDS.A, ['meanX', 'sxx', 'residual', 'slopeA', 'gammaA']);
+assert.equal(analysis.values.meanX, 0.00135, 'mean of 0.0004, 0.0009, 0.0016, 0.0025 s²');
+assert.equal(analysis.values.sxx, 0.00000249, 'sum of their squared deviations about 0.00135 s²');
+assert.notEqual(analysis.values.meanX, 0.035 ** 2, 'mean(T²) differs from mean(T)²');
+assert.equal(analysis.values.meanX, roundMeanSignificantFiguresHalfEven(
+  analysis.rows.map(row => row.x), analysis.precisionPlan.digits.meanX));
+assert.equal(analysis.values.sxx, roundSignificantFiguresHalfEven(
+  analysis.rows.reduce((sum, row) => sum + (row.x - analysis.values.meanX) ** 2, 0), analysis.precisionPlan.digits.sxx));
+assert.equal(analysis.values.slopeA, roundSignificantFiguresHalfEven(
+  analysis.values.residual / Math.sqrt(analysis.values.sxx), analysis.precisionPlan.digits.slopeA));
+assert.equal(buildPistonUncertaintyPresentation(course, analysis, 'zh-CN').parameterRows[3][1], '—');
+assert.equal(buildPistonUncertaintyPresentation(course, analysis, 'zh-CN').parameterRows[5][1], '—');
 assert.deepEqual(PISTON_UNCERTAINTY_FIELDS.B, ['mass', 'diameter', 'gammaB']);
 assert.equal(pistonSlopeBAvailable(course), false);
 assert.equal(buildPistonUncertaintyPresentation(course, analysis, 'zh-CN').parameterRows[3][3], '—');
@@ -77,18 +94,32 @@ for (const language of ['zh-CN', 'en']) {
   const copy = buildPistonUncertaintyPresentation(course, analysis, language);
   assert.equal(copy.parameterRows[1][1], '100');
   assert.ok(copy.parameterRows.every(row => row.length === 4));
+  assert.ok(copy.parameterRows.every(row => row[0] !== 'k' && row[2] !== 'k'));
+  assert.doesNotMatch(JSON.stringify(copy), /扩展不确定度|expanded uncertainty|k = 2|Uγ/);
   assert.doesNotMatch(JSON.stringify(copy.lessons), /√12|Hᵢ|Kᵢ|校准残余|显示量化|重叠|overlap|quantization/);
 }
 const oldCourse = { ...course, version: 'piston-free-uncertainty-v1' };
 assert.equal(normalizePistonUncertaintyCourse(oldCourse, analysis).resetNotice, true);
+assert.equal(normalizePistonUncertaintyCourse({ ...course, version: 'piston-free-uncertainty-v2' }, analysis).resetNotice, true);
 course.fingerprint = analysis.fingerprint;
 assert.equal(transitionPistonUncertainty(course, analysis, { kind: 'check', field: 'residual' }, 1), course, 'reading required');
+const beforeMean = transitionPistonUncertainty(course, analysis, { kind: 'read', phase: 'A' }, 2);
+assert.equal(transitionPistonUncertainty(beforeMean, analysis, { kind: 'edit', field: 'sxx', value: '1' }, 3), beforeMean,
+  'Sxx cannot be attempted before the mean is checked');
+assert.equal(validatePistonUncertaintyAnswer('meanX', pistonUncertaintyReference('meanX', analysis) + '0', analysis), 'precision-wrong');
 for (const phase of PISTON_UNCERTAINTY_PHASES) {
   course = transitionPistonUncertainty(course, analysis, { kind: 'read', phase }, 2);
   for (const field of PISTON_UNCERTAINTY_FIELDS[phase]) {
     course = transitionPistonUncertainty(course, analysis, { kind: 'edit', field, value: pistonUncertaintyReference(field, analysis) }, 3);
     course = transitionPistonUncertainty(course, analysis, { kind: 'check', field }, 4);
     assert.equal(course.answers[field].status, 'correct');
+    if (field === 'meanX' || field === 'sxx') {
+      const view = buildPistonUncertaintyPresentation(course, analysis, 'zh-CN');
+      assert.equal(view.parameterRows[field === 'meanX' ? 5 : 3][1], course.answers[field].draft);
+      assert.deepEqual(normalizePistonUncertaintyCourse(JSON.parse(JSON.stringify(course)), analysis), course,
+        'partial progress resumes after each new exercise');
+      assert.equal(pistonUncertaintyComplete(course), false);
+    }
     if (field === 'slopeA') {
       assert.equal(pistonSlopeBAvailable(course), true);
       assert.equal(buildPistonUncertaintyPresentation(course, analysis, 'zh-CN').parameterRows[3][3], pistonUncertaintyReference('slopeB', analysis));
@@ -96,6 +127,14 @@ for (const phase of PISTON_UNCERTAINTY_PHASES) {
   }
 }
 assert.ok(pistonUncertaintyComplete(course));
+const missingStatistic = structuredClone(course) as any;
+delete missingStatistic.answers.meanX;
+delete missingStatistic.answers.sxx;
+assert.equal(pistonUncertaintyComplete(missingStatistic), false);
+const missingRestored = normalizePistonUncertaintyCourse(missingStatistic, analysis);
+assert.equal(missingRestored.resetNotice, true);
+assert.equal(missingRestored.answers.meanX.status, 'unresolved');
+assert.equal(missingRestored.answers.slopeA.status, 'unresolved');
 assert.deepEqual(normalizePistonUncertaintyCourse(JSON.parse(JSON.stringify(course)), analysis), course);
 const changed = calculatePistonUncertainty({ ...knowns, pressurePa: knowns.pressurePa + 100 }, teachingFit, teachingRuns, profile);
 const reset = normalizePistonUncertaintyCourse(course, changed);
@@ -107,4 +146,26 @@ const restored = normalizePistonUncertaintyCourse(tampered, analysis);
 assert.equal(restored.answers.mass.status, 'unresolved');
 assert.equal(restored.answers.combined.status, 'unresolved');
 assert.ok(!pistonUncertaintyComplete(restored));
+// Retry/reveal follows the same locked-feedback cycle as the earlier exercises.
+let retryCourse = createPistonUncertaintyCourse();
+retryCourse.fingerprint = analysis.fingerprint;
+retryCourse = transitionPistonUncertainty(retryCourse, analysis, { kind: 'read', phase: 'A' }, 10);
+const retryField = PISTON_UNCERTAINTY_FIELDS.A[0];
+assert.equal(transitionPistonUncertainty(retryCourse, analysis, { kind: 'reveal', field: retryField }, 11), retryCourse);
+retryCourse = transitionPistonUncertainty(retryCourse, analysis, { kind: 'edit', field: retryField, value: '999' }, 12);
+retryCourse = transitionPistonUncertainty(retryCourse, analysis, { kind: 'check', field: retryField }, 13);
+assert.ok(retryCourse.answers[retryField].feedback);
+assert.equal(transitionPistonUncertainty(retryCourse, analysis, { kind: 'edit', field: retryField, value: '100' }, 14), retryCourse);
+assert.equal(transitionPistonUncertainty(retryCourse, analysis, { kind: 'check', field: retryField }, 14), retryCourse);
+retryCourse = transitionPistonUncertainty(retryCourse, analysis, { kind: 'continue', field: retryField }, 15);
+assert.equal(retryCourse.answers[retryField].feedback, null);
+assert.equal(retryCourse.answers[retryField].draft, '999');
+retryCourse = normalizePistonUncertaintyCourse(JSON.parse(JSON.stringify(retryCourse)), analysis);
+assert.equal(retryCourse.answers[retryField].feedback, null, 'save/restore must not re-lock an answer after Continue');
+retryCourse = transitionPistonUncertainty(retryCourse, analysis, { kind: 'check', field: retryField }, 16);
+retryCourse = transitionPistonUncertainty(retryCourse, analysis, { kind: 'reveal', field: retryField }, 17);
+assert.equal(retryCourse.answers[retryField].status, 'revealed');
+assert.equal(retryCourse.answers[retryField].draft, pistonUncertaintyReference(retryField, analysis));
+assert.equal(retryCourse.answers[retryField].feedback, null);
+assert.equal(transitionPistonUncertainty(retryCourse, analysis, { kind: 'continue', field: retryField }, 18), retryCourse);
 console.log('pistonOscillationUncertainty tests passed');

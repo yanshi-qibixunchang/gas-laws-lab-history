@@ -3,6 +3,112 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.4.3",
+      "date": "2026-09-24",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.4.3",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.3/heat-capacity-lab-setup-6.4.3.exe"
+      },
+      "summary": {
+        "zh-CN": "6.4.3 完善两类比热容比实验的自由模式不确定度教学，统一计算、显示与核验；修复绝热第三次实验记录和计算衔接、活塞曲线边界及答题反馈，并统一四类实验的中文报告和图表导出。旧原始记录保留，不兼容的计算进度会明确提示重算。",
+        "zh-TW": "6.4.3 完善兩類比熱容比實驗自由模式的不確定度教學，統一計算、顯示與核驗；修正絕熱第三次實驗記錄與計算銜接、活塞曲線邊界及答題回饋，並統一四類實驗的中文報告與圖表匯出。保留原始記錄，不相容的計算進度會明確提示重算。",
+        "en": "Version 6.4.3 completes Free-mode uncertainty teaching for both heat-capacity experiments with consistent displayed values and exact answer checks. It repairs third-trial recording and calculation handoff, piston plot boundaries and answer feedback, and unifies Chinese reports and figure exports across all four experiments. Raw records are retained; incompatible calculations explicitly require recomputation."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "计算教学与记录衔接",
+            "zh-TW": "計算教學與記錄銜接",
+            "en": "Calculation teaching and recording"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-ab-uncertainty",
+              "importance": "high",
+              "title": {
+                "zh-CN": "绝热法 A、B 类及合成标准不确定度",
+                "zh-TW": "絕熱法 A、B 類及合成標準不確定度",
+                "en": "Adiabatic Type A, Type B and combined uncertainty"
+              },
+              "body": {
+                "zh-CN": "三次公开电压读数依次用于修正、压强、γ、平均值和 A 类评定。给定电压标准不确定度 0.1 mV 经公开系数 C 传播，与 A 类合成；最终报告平均值及合成标准不确定度，不添加扩展倍数。查看单次 γ 答案后停留当前次，手动进入下一次计算。",
+                "zh-TW": "三次公開電壓讀數依序用於修正、壓強、γ、平均值與 A 類評定。給定電壓標準不確定度 0.1 mV 經公開係數 C 傳播後與 A 類合成；報告平均值及合成標準不確定度，不加擴展倍數。查看單次 γ 答案後手動進入下一次計算。",
+                "en": "Three public voltage records feed correction, pressure, gamma, mean and Type A evaluation. The given 0.1 mV voltage standard uncertainty is propagated using a disclosed coefficient C and combined with Type A. Reports use combined standard uncertainty without an expansion factor. Revealed trial answers remain visible until manual navigation."
+              }
+            },
+            {
+              "scope": "piston-uncertainty-statistics",
+              "importance": "high",
+              "title": {
+                "zh-CN": "活塞法逐步不确定度计算",
+                "zh-TW": "活塞法逐步不確定度計算",
+                "en": "Stepwise piston uncertainty calculations"
+              },
+              "body": {
+                "zh-CN": "新增 T² 平均值与 Sxx 计算题，依次解锁拟合 A 类、仪器 B 类、合成与最终修约。保留质量和直径误差限除以 √3 的训练，系统公开复杂传播量，统一公式、输入精度和错误重试反馈。",
+                "zh-TW": "新增 T² 平均值與 Sxx 計算題，依序解鎖擬合 A 類、儀器 B 類、合成與最終修約。保留質量與直徑誤差限除以 √3 的訓練，公開複雜傳播量，統一公式、輸入精度與錯誤重試回饋。",
+                "en": "Adds mean T-squared and Sxx exercises before fit Type A, instrument Type B, combination and final rounding. Retains error-limit divided by square-root-three exercises for mass and diameter, discloses system propagation terms, and aligns formulas, precision and retry feedback."
+              }
+            },
+            {
+              "scope": "experiment-recording-and-progress",
+              "importance": "high",
+              "title": {
+                "zh-CN": "实验完成、进度与曲线显示修复",
+                "zh-TW": "實驗完成、進度與曲線顯示修正",
+                "en": "Recording completion, progress and chart fixes"
+              },
+              "body": {
+                "zh-CN": "修复绝热第三次实验保存、过程回顾和计算弹窗之间的衔接，统一手动及自动零点记录。活塞采集曲线限制在绘图区内，两个实验的组数及下一组按钮统一上下排列。",
+                "zh-TW": "修正絕熱第三次實驗儲存、過程回顧與計算視窗的銜接，統一手動及自動零點記錄。活塞採集曲線限制於繪圖區，兩個實驗的組數與下一組按鈕統一上下排列。",
+                "en": "Repairs the adiabatic third-trial save, process review and calculation handoff, with consistent manual and automatic zero records. Clips piston acquisition curves to the plot area and aligns experiment counters and next-group buttons vertically."
+              }
+            }
+          ]
+        },
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "导出与版本兼容",
+            "zh-TW": "匯出與版本相容",
+            "en": "Exports and compatibility"
+          },
+          "items": [
+            {
+              "scope": "four-experiment-report-export",
+              "importance": "high",
+              "title": {
+                "zh-CN": "四类实验统一中文报告和图表",
+                "zh-TW": "四類實驗統一中文報告與圖表",
+                "en": "Consistent reports and figures for four experiments"
+              },
+              "body": {
+                "zh-CN": "统一报告标题、表格、字体和字号；图表采用全框线、向内刻度、统一配色与清晰图例。核对完整报告、图像和 CSV 表格三种导出路径，及时释放标准模拟和理想气体的导出绘图对象。",
+                "zh-TW": "統一報告標題、表格、字型與字級；圖表採全框線、向內刻度、統一配色與清晰圖例。核對完整報告、圖像及 CSV 三種匯出，及時釋放標準模擬與理想氣體的繪圖物件。",
+                "en": "Unifies Chinese report headings, table alignment, typography and font sizes, with fully boxed axes, inward ticks, consistent colors and clear legends. Covers report, figure and CSV export paths and releases standard and ideal-gas plot canvases after export."
+              }
+            },
+            {
+              "scope": "desktop-update-v6-4-3",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保存恢复与 6.4.3 桌面更新",
+                "zh-TW": "儲存還原與 6.4.3 桌面更新",
+                "en": "Save restoration and the 6.4.3 desktop update"
+              },
+              "body": {
+                "zh-CN": "保存恢复按当前课程重新核验依赖顺序，缺少新题或使用旧规则的进度明确提示重算，保留原始实验记录。安装包、自动更新元数据和差分文件使用同一版本，保留现有软件身份与资料目录。",
+                "zh-TW": "儲存還原依目前課程重新核驗相依順序，缺少新題或沿用舊規則的進度明確提示重算，保留原始實驗記錄。安裝程式、自動更新中繼資料與差分檔案使用同一版本，保留既有軟體身分與資料目錄。",
+                "en": "Restoration revalidates course dependencies and explicitly requests recomputation for missing exercises or obsolete rules while retaining raw records. Installer, update metadata and blockmap share one version, preserving application identity and the user-data location."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.4.2",
       "date": "2026-09-20",
       "channel": "stable",
@@ -1326,8 +1432,8 @@
             "en": "Strict Guide sequencing and state consistency"
           },
           "items": [
-        {
-          "scope": "piston-oscillation-guide-gating",
+            {
+              "scope": "piston-oscillation-guide-gating",
               "importance": "high",
               "title": {
                 "zh-CN": "阻止越步操作改变实验物理状态",
@@ -1337,24 +1443,24 @@
               "body": {
                 "zh-CN": "引导模式现在只接受当前步骤要求的操作。用户点击其他控件时仍能看到真实的按压或旋转反馈，但电源、螺钉、软管、平台和采集状态不会改变，并显示“请先完成当前引导步骤。”",
                 "zh-TW": "引導模式現在只接受目前步驟要求的操作。使用者點擊其他控制項時仍能看到真實的按壓或旋轉回饋，但電源、螺釘、軟管、平臺和採集狀態不會改變，並顯示「請先完成目前引導步驟。」",
-            "en": "Guide now accepts only the action required by the current step. Other controls still acknowledge the press or gesture visually, but power, screw, hose, platform, and acquisition state do not change, and the learner is prompted to finish the current guided step."
-          }
-        },
-        {
-          "scope": "desktop-upgrade-piston-workspace",
-          "importance": "high",
-          "title": {
-            "zh-CN": "保留 5.3.1 活塞振动工作区文件",
-            "zh-TW": "保留 5.3.1 活塞振動工作區檔案",
-            "en": "Preserved piston workspaces created by 5.3.1"
-          },
-          "body": {
-            "zh-CN": "修复 5.3.1 活塞振动文件因缺少后续新增的演示会话字段而在升级时被安全隔离的问题。6.1.1 会补入默认演示与引导会话，同时保留原文件身份、名称和工作区位置。",
-            "zh-TW": "修復 5.3.1 活塞振動檔案因缺少後續新增的演示會話欄位而在升級時被安全隔離的問題。6.1.1 會補入預設演示與引導會話，同時保留原檔案身分、名稱和工作區位置。",
-            "en": "Fixed upgrade-time isolation of piston-oscillation files whose 5.3.1 records predated the Demo-session field. Version 6.1.1 supplies default Demo and Guide sessions while preserving the original identity, name, and workspace placement."
-          }
-        }
-      ]
+                "en": "Guide now accepts only the action required by the current step. Other controls still acknowledge the press or gesture visually, but power, screw, hose, platform, and acquisition state do not change, and the learner is prompted to finish the current guided step."
+              }
+            },
+            {
+              "scope": "desktop-upgrade-piston-workspace",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保留 5.3.1 活塞振动工作区文件",
+                "zh-TW": "保留 5.3.1 活塞振動工作區檔案",
+                "en": "Preserved piston workspaces created by 5.3.1"
+              },
+              "body": {
+                "zh-CN": "修复 5.3.1 活塞振动文件因缺少后续新增的演示会话字段而在升级时被安全隔离的问题。6.1.1 会补入默认演示与引导会话，同时保留原文件身份、名称和工作区位置。",
+                "zh-TW": "修復 5.3.1 活塞振動檔案因缺少後續新增的演示會話欄位而在升級時被安全隔離的問題。6.1.1 會補入預設演示與引導會話，同時保留原檔案身分、名稱和工作區位置。",
+                "en": "Fixed upgrade-time isolation of piston-oscillation files whose 5.3.1 records predated the Demo-session field. Version 6.1.1 supplies default Demo and Guide sessions while preserving the original identity, name, and workspace placement."
+              }
+            }
+          ]
         },
         {
           "type": "security",

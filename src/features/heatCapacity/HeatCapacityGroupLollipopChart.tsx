@@ -2,6 +2,7 @@ import type {
   HeatCapacityFreeGroupLollipopChartModel,
 } from '../../domain/heatCapacity/heatCapacityFreeGroupChartModel.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
+import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
 
 interface HeatCapacityGroupLollipopChartProps {
   model: HeatCapacityFreeGroupLollipopChartModel;
@@ -59,6 +60,8 @@ export const HeatCapacityGroupLollipopChart = ({
   const copy = COPY[language] ?? COPY['zh-CN'];
   const uncertainty = model.typeAStandardUncertainty ?? 0;
   const mean = model.meanGamma ?? model.theoreticalGamma;
+  const gammaLabel = (value: number) => model.publicTeachingValues ? formatSignificantFiguresHalfEven(value, 4) : value.toFixed(4);
+  const uncertaintyLabel = model.publicTeachingValues ? uncertainty === 0 ? '0' : formatSignificantFiguresHalfEven(uncertainty, 3) : uncertainty.toFixed(4);
   const values = [
     ...model.points.map((point) => point.gamma),
     model.theoreticalGamma,
@@ -91,13 +94,13 @@ export const HeatCapacityGroupLollipopChart = ({
         <span className="studio-heat-group-chart-legend-item studio-heat-group-chart-legend-mean">
           <i aria-hidden="true" />
           {copy.mean}
-          <b>{mean.toFixed(4)}</b>
+          <b>{gammaLabel(mean)}</b>
         </span>
-        {uncertainty > 0 ? (
+        {uncertainty > 0 || (model.publicTeachingValues && model.typeAStandardUncertainty === 0) ? (
           <span className="studio-heat-group-chart-legend-item studio-heat-group-chart-legend-uncertainty">
             <i aria-hidden="true" />
             {copy.ua}
-            <b>±{uncertainty.toFixed(4)}</b>
+            <b>±{uncertaintyLabel}</b>
           </span>
         ) : null}
       </div>
@@ -105,7 +108,7 @@ export const HeatCapacityGroupLollipopChart = ({
         className="studio-heat-group-chart-svg studio-heat-group-lollipop-svg"
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         role="img"
-        aria-label={`${copy.mean}: ${mean.toFixed(4)}; ${copy.theory}: ${model.theoreticalGamma.toFixed(4)}`}
+        aria-label={`${copy.mean}: ${gammaLabel(mean)}; ${copy.theory}: ${model.theoreticalGamma.toFixed(4)}`}
       >
         <rect
           x={PLOT_LEFT}
@@ -146,7 +149,7 @@ export const HeatCapacityGroupLollipopChart = ({
           y2={y(mean)}
           className="studio-heat-chart-mean"
         >
-          <title>{`${copy.mean}: ${mean.toFixed(4)}`}</title>
+          <title>{`${copy.mean}: ${gammaLabel(mean)}`}</title>
         </line>
         {model.points.map((point, index) => (
           <g key={point.trialId}>
@@ -163,7 +166,7 @@ export const HeatCapacityGroupLollipopChart = ({
               r={5.5}
               className={`studio-heat-chart-dot studio-heat-chart-dot-${model.scheme}`}
             >
-              <title>{`${copy.experiment} ${point.experimentNumber}: γ = ${point.gamma.toFixed(4)}`}</title>
+              <title>{`${copy.experiment} ${point.experimentNumber}: γ = ${gammaLabel(point.gamma)}`}</title>
             </circle>
           </g>
         ))}

@@ -159,7 +159,11 @@ export const heatCapacityRealtimeCopies = {
     freeRecordSuccessLog: {
       u0: '自由模式已记录 U₀ 显示值。',
       u1: '自由模式已记录 U₁ 显示值。',
-      u2: '自由模式已记录 U₂ 显示值。',
+      u2: '自由模式已记录 U₂ 显示值。请关闭仪器电源，保存本次实验；完成全部次数后将打开计算。',
+    },
+    freeRecordedTrialIssues: {
+      'missing-zero': 'U₂ 已记录，但本次缺少 U₀ 记录，尚不能完成保存和计算。请重新开始本次实验并记录 U₀；已完成的其他实验保留。',
+      'invalid-data': 'U₂ 已记录，但读数不满足 U₁ > U₂ > U₀，尚不能完成保存和计算。请核对读数后重新记录，或重新开始本次实验；已完成的其他实验保留。',
     },
     freeModeActiveLog: (name: string) => `${name}：自由模式已启用。`,
     freeRecordRejectMessages: {
@@ -432,7 +436,11 @@ export const heatCapacityRealtimeCopies = {
     freeRecordSuccessLog: {
       u0: '自由模式已記錄 U₀ 顯示值。',
       u1: '自由模式已記錄 U₁ 顯示值。',
-      u2: '自由模式已記錄 U₂ 顯示值。',
+      u2: '自由模式已記錄 U₂ 顯示值。請關閉儀器電源，儲存本次實驗；完成全部次數後將開啟計算。',
+    },
+    freeRecordedTrialIssues: {
+      'missing-zero': 'U₂ 已記錄，但本次缺少 U₀ 記錄，尚不能完成儲存和計算。請重新開始本次實驗並記錄 U₀；已完成的其他實驗保留。',
+      'invalid-data': 'U₂ 已記錄，但讀數不滿足 U₁ > U₂ > U₀，尚不能完成儲存和計算。請核對讀數後重新記錄，或重新開始本次實驗；已完成的其他實驗保留。',
     },
     freeModeActiveLog: (name: string) => `${name}：自由模式已啟用。`,
     freeRecordRejectMessages: {
@@ -705,7 +713,11 @@ export const heatCapacityRealtimeCopies = {
     freeRecordSuccessLog: {
       u0: 'Free Mode recorded the U₀ display value.',
       u1: 'Free Mode recorded the U₁ display value.',
-      u2: 'Free Mode recorded the U₂ display value.',
+      u2: 'Free Mode recorded the U₂ display value. Turn off instrument power to save this trial; calculation opens after all trials are complete.',
+    },
+    freeRecordedTrialIssues: {
+      'missing-zero': 'U₂ was recorded, but U₀ is missing. This trial cannot be completed for calculation. Restart this trial and record U₀; earlier completed trials are preserved.',
+      'invalid-data': 'U₂ was recorded, but the readings do not satisfy U₁ > U₂ > U₀. Check and re-record the readings, or restart this trial; earlier completed trials are preserved.',
     },
     freeModeActiveLog: (name: string) => `${name}: Free Mode active.`,
     freeRecordRejectMessages: {

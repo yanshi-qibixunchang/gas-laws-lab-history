@@ -43,8 +43,10 @@ import {
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import './PistonOscillationCalculationWindow.css';
 import { calculatePistonUncertainty } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import { PistonCalculationAnswerField } from './PistonCalculationAnswerField.tsx';
 import { PistonOscillationUncertainty, buildPistonUncertaintyKnownData } from './PistonOscillationUncertainty.tsx';
 import { pistonUncertaintyComplete } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import { getUncertaintyTeachingNotice } from '../../domain/calculation/uncertaintyTeachingEligibility.ts';
 
 export interface PistonOscillationCalculationWindowProps {
   open: boolean;
@@ -290,133 +292,18 @@ const PistonOscillationCalculationField = ({
   onAction: () => void;
   onDraftEdited: () => void;
 }) => {
-  const resolved = answer.status !== 'unresolved';
-  const hasFeedback = answer.feedback !== null;
   const precision = getPistonCalculationSpec(fieldId, answer).precision;
-  const statusText = answer.status === 'correct'
-    ? copy.correct
-    : answer.status === 'revealed'
-      ? copy.revealed
-      : getFeedbackText(answer, copy);
-  const inputId = `piston-calculation-${fieldId}`;
-  const dispatch = (
-    event: PistonOscillationUntimedCalculationEvent,
-  ) => onCalculationEvent({ ...event, nowMs: Date.now() } as PistonOscillationCalculationEvent);
-
-  return (
-    <article
-      className={`studio-piston-calculation-step ${
-        active ? 'studio-piston-calculation-step-active' : ''
-      } ${answer.status === 'correct' ? 'studio-piston-calculation-step-success' : ''} ${
-        hasFeedback || answer.status === 'revealed'
-          ? 'studio-piston-calculation-step-danger'
-          : ''
-      }`}
-      data-piston-calculation-step={fieldId}
-      data-answer-status={answer.status}
-    >
-      <header><strong>{copy.stepTitle[fieldId]}</strong></header>
-      <div className="studio-piston-calculation-step-main">
-        <div className="studio-piston-calculation-answer-field">
-          <div className="studio-piston-calculation-formula-line">
-            <label htmlFor={inputId}>
-              <span className="studio-piston-calculation-formula">
-                {getFormula(fieldId, referenceGamma)}
-              </span>
-              <input
-                id={inputId}
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                spellCheck={false}
-                value={answer.draftRaw}
-                disabled={!active || resolved || hasFeedback}
-                aria-invalid={hasFeedback}
-                aria-describedby={`${inputId}-precision ${inputId}-feedback`}
-                onChange={(event) => {
-                  onDraftEdited();
-                  dispatch({
-                    type: 'editCalculationAnswer',
-                    field: fieldId,
-                    value: event.currentTarget.value,
-                  });
-                }}
-                onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter'
-                    && active
-                    && !resolved
-                    && !hasFeedback
-                    && actionLabel !== null
-                    && !actionDisabled
-                  ) {
-                    event.preventDefault();
-                    onAction();
-                  }
-                }}
-              />
-              {getAnswerUnit(fieldId) ? (
-                <span className="studio-piston-calculation-unit">{getAnswerUnit(fieldId)}</span>
-              ) : null}
-            </label>
-            <span id={`${inputId}-precision`} className="studio-piston-calculation-precision">
-              {copy.precisionSignificant(precision.digits)}
-            </span>
-          </div>
-          <div
-            id={`${inputId}-feedback`}
-            className="studio-piston-calculation-feedback"
-            aria-live="polite"
-          >
-            <span className="studio-piston-calculation-status">{statusText || '\u00A0'}</span>
-            <span className={`studio-piston-calculation-reference ${
-              resolved ? '' : 'studio-piston-calculation-reference-placeholder'
-            }`}>
-              {resolved && answer.expectedValue !== null
-                ? `${copy.reference}${formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue, answer)}`
-                : `${copy.reference}\u00A0`}
-            </span>
-            {hasFeedback ? (
-              <span className="studio-piston-calculation-error-actions">
-                <button type="button" onClick={() => {
-                  if (batchMode) {
-                    dispatch({ type: 'continueCalculationBatch' });
-                  } else {
-                    dispatch({ type: 'continueCalculationAnswer', field: fieldId });
-                  }
-                }}>
-                  {copy.continueAnswer}
-                </button>
-                <button
-                  type="button"
-                  className="studio-piston-calculation-reveal"
-                  onClick={() => dispatch({
-                    type: 'revealCalculationAnswer',
-                    field: fieldId,
-                  })}
-                >
-                  {copy.revealAnswer}
-                </button>
-              </span>
-            ) : <span className="studio-piston-calculation-actions-placeholder" aria-hidden="true" />}
-          </div>
-        </div>
-        {actionLabel !== null ? (
-          <button
-            type="button"
-            className={`studio-piston-calculation-check ${
-              active ? '' : 'studio-piston-calculation-check-hidden'
-            }`}
-            disabled={!active || hasFeedback || resolved || actionDisabled}
-            tabIndex={active ? 0 : -1}
-            onClick={onAction}
-          >
-            {actionLabel}
-          </button>
-        ) : null}
-      </div>
-    </article>
-  );
+  const dispatch = (event: PistonOscillationUntimedCalculationEvent) =>
+    onCalculationEvent({ ...event, nowMs: Date.now() } as PistonOscillationCalculationEvent);
+  return <PistonCalculationAnswerField fieldId={fieldId} inputId={`piston-calculation-${fieldId}`}
+    title={copy.stepTitle[fieldId]} formula={getFormula(fieldId, referenceGamma)}
+    unit={getAnswerUnit(fieldId)} precision={copy.precisionSignificant(precision.digits)}
+    value={answer.draftRaw} status={answer.status} feedback={answer.feedback ? getFeedbackText(answer, copy) : null}
+    reference={answer.expectedValue === null ? '' : formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue, answer)}
+    active={active} actionLabel={actionLabel} actionDisabled={actionDisabled} copy={copy}
+    onDraftChange={value => { onDraftEdited(); dispatch({ type: 'editCalculationAnswer', field: fieldId, value }); }}
+    onContinue={() => dispatch(batchMode ? { type: 'continueCalculationBatch' } : { type: 'continueCalculationAnswer', field: fieldId })}
+    onReveal={() => dispatch({ type: 'revealCalculationAnswer', field: fieldId })} onCheck={onAction} />;
 };
 
 const PistonOscillationFitChart = ({
@@ -808,9 +695,16 @@ export const PistonOscillationCalculationWindow = ({
           ? language === 'en'
             ? 'Use each checked result in the next step. Keep the stated significant figures, using ties-to-even rounding; round γ for the final report after evaluating uncertainty.'
             : '各步结果直接用于后续计算；按题目要求保留有效数字，采用五成双修约。完成不确定度计算后，再修约最终报告的 γ。'
-          : copy.tolerance}
+          : processing.precisionVersion
+            ? language === 'en'
+              ? 'Use each checked result in the next step. Keep the stated significant figures, using ties-to-even rounding.'
+              : '各步结果直接用于后续计算；按题目要求保留有效数字，采用五成双修约。'
+            : copy.tolerance}
       </div>
       <div className="studio-piston-calculation-body" data-scroll-on-overflow="true">
+        {getUncertaintyTeachingNotice(processing.uncertaintyEligibility, language) && (
+          <p role="note">{getUncertaintyTeachingNotice(processing.uncertaintyEligibility, language)}</p>
+        )}
         <section className="studio-piston-calculation-known-panel" aria-labelledby={knownTitleId}>
           <header><strong id={knownTitleId}>{copy.knownTitle}</strong></header>
           <CalculationKnownGrid

@@ -77,8 +77,8 @@ assert.match(componentSource, /onClick=\{\(\) => onSelectGroup\(index\)\}/, 'gro
 assert.match(componentSource, /onClick=\{onSelectAggregate\}/, 'the aggregate tab should be selectable');
 assert.match(
   componentSource,
-  /disabled=\{session\.status === 'in-progress' && !session\.aggregateSelected\}/,
-  'the aggregate tab should remain locked until the workflow reaches it',
+  /disabled=\{session\.status === 'in-progress' && !session\.groups\.every/,
+  'the aggregate tab should unlock when all trial answers are resolved and stay available while reviewing a prior trial',
 );
 
 assert.match(styleSource, /grid-template-columns:\s*repeat\(4,\s*minmax\(0,\s*1fr\)\)/, 'known values should use four equal strips');
@@ -142,7 +142,7 @@ assert.match(
 );
 
 assert.match(componentSource, /continueAnswer:\s*'继续作答'/, 'wrong answers should offer a concise retry action');
-assert.match(componentSource, /revealAnswer:\s*'查看并继续'/, 'wrong answers should offer a concise reveal action');
+assert.match(componentSource, /revealAnswer:\s*'查看答案'/, 'revealing an answer should not imply changing the experiment page');
 assert.match(
   styleSource,
   /\.studio-heat-calculation-field-feedback\s*\{[\s\S]*min-height:[\s\S]*grid-template-columns:/,

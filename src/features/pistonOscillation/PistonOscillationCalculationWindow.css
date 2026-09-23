@@ -379,6 +379,12 @@
   scrollbar-width: thin;
 }
 
+/* Leave room for MathML fraction/radical ink without a vertical scrollbar. */
+.studio-piston-calculation-formula-line label:has(math) {
+  padding-block: 4px;
+  overflow-y: hidden;
+}
+
 .studio-piston-calculation-formula {
   flex: 0 0 auto;
   font-family: "Cambria Math", "Times New Roman", serif;

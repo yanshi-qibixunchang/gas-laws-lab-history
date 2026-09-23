@@ -8,7 +8,7 @@ import { prepareNextHeatCapacityFreeExperimentWorkbenchState } from './workbench
 import { applyHeatCapacityGuideRecordWorkbenchState, setHeatCapacityGuideEquilibriumSpeedMultiplier, setHeatCapacityGuidePumpValveOpen, setHeatCapacityGuideStopcockOpen } from './workbenchHeatCapacityGuideControlState.ts';
 import { completeHeatCapacityFreePreheatWorkbenchState, completeHeatCapacityGuidePreheatWorkbenchState, startHeatCapacityGuideWorkbenchState } from './workbenchHeatCapacityTeachingLifecycleState.ts';
 import { powerHeatCapacityWorkbenchFile, registerHeatCapacityPumpStroke, setHeatCapacityScriptedStopcockOpen, stepHeatCapacityWorkbenchFile } from './workbenchHeatCapacityRuntimeCoordinator.ts';
-import { applyHeatCapacityFreeRecordWorkbenchState } from './workbenchHeatCapacityFreeRecordState.ts';
+import { applyHeatCapacityFreeRecordWorkbenchState, getHeatCapacityFreeRecordedTrialIssue } from './workbenchHeatCapacityFreeRecordState.ts';
 import { setHeatCapacityFreeEquilibriumSpeedMultiplier, setHeatCapacityFreePumpValveOpen, setHeatCapacityFreeStopcockOpen } from './workbenchHeatCapacityFreeRuntimeCoordinator.ts';
 import { shouldPromptHeatCapacityFreePowerOffBeforeNextGroup } from './workbenchHeatCapacityFreeParameterState.ts';
 import { getHeatCapacityFreeBatchProgress } from './workbenchHeatCapacityFreeExperimentGroupState.ts';
@@ -261,8 +261,11 @@ export const useWorkbenchHeatInstrument = (ports: useWorkbenchHeatInstrumentPort
       kind,
       now,
     );
+    const recordedIssue = attempt.accepted && kind === 'u2'
+      ? getHeatCapacityFreeRecordedTrialIssue(attempt.file) : null;
     const message = attempt.accepted
-      ? heatCapacityRealtimeCopy.freeRecordSuccessLog[kind]
+      ? recordedIssue ? heatCapacityRealtimeCopy.freeRecordedTrialIssues[recordedIssue]
+        : heatCapacityRealtimeCopy.freeRecordSuccessLog[kind]
       : getHeatCapacityFreeRecordRejectMessage(attempt.reason as HeatCapacityFreeRecordRejectReason, heatCapacityRealtimeCopy);
     collapseHeatCapacityFreeParameterSidebarForExperimentAction();
     updateFileById(currentFile.id, (file) => (
@@ -277,10 +280,12 @@ export const useWorkbenchHeatInstrument = (ports: useWorkbenchHeatInstrumentPort
     if (attempt.accepted) {
       markHeatCapacityFocusSessionNonReversible();
       clearGuideHeatCapacityGuidance();
-      showGuideHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', 'success');
+      showGuideHeatCapacityGuidance(message, kind === 'u0' ? 'recordU0' : kind === 'u1' ? 'recordU1' : 'recordU2', recordedIssue ? 'warning' : 'success');
       pushLog(
-        (language) => getHeatCapacityRealtimeCopy(language).freeRecordSuccessLog[kind],
-        'success',
+        (language) => recordedIssue
+          ? getHeatCapacityRealtimeCopy(language).freeRecordedTrialIssues[recordedIssue]
+          : getHeatCapacityRealtimeCopy(language).freeRecordSuccessLog[kind],
+        recordedIssue ? 'warning' : 'success',
       );
       return;
     }

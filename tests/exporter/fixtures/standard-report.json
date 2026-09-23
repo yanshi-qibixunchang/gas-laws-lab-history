@@ -1,0 +1,1117 @@
+{
+  "kind": "json",
+  "mode": "report",
+  "filename": "HardSphereLab_StandardSimulationValidation_speed-distribution_N200_L15_r0p2_20240310-000000.json",
+  "data": {
+    "language": "en",
+    "labels": {
+      "language": "English",
+      "fileName": "File name",
+      "relation": "Relation",
+      "params": "Parameters",
+      "summary": "Summary",
+      "verification": "Verification",
+      "points": "Points",
+      "figureSpecs": "Figures",
+      "finalChartData": "Final chart data"
+    },
+    "fileName": "Standard Simulation Validation",
+    "params": {
+      "L": 15,
+      "N": 200,
+      "r": 0.2,
+      "m": 1,
+      "k": 1,
+      "dt": 0.01,
+      "nu": 1,
+      "equilibriumTime": 10,
+      "statsDuration": 60
+    },
+    "summary": {
+      "ready": true,
+      "fileName": "Standard Simulation Validation",
+      "runState": "finished",
+      "finalTime": 70,
+      "temperature": 1.004,
+      "pressure": 0.059,
+      "meanSpeed": 1.58,
+      "rmsSpeed": 1.74,
+      "speedSampleCount": 5552,
+      "energySampleCount": 6885,
+      "tempHistoryCount": 80,
+      "speedBinCount": 24,
+      "energyBinCount": 24,
+      "energyLogCount": 24,
+      "energyDriftPercent": 0.09665948440266448,
+      "temperatureErrorMeanAbs": 1.2286052325997385
+    },
+    "finalChartData": {
+      "speed": [
+        {
+          "binStart": 0,
+          "binEnd": 0.16,
+          "count": 12,
+          "probability": 0.00985986938231203,
+          "theoretical": 0.00985986938231203
+        },
+        {
+          "binStart": 0.16,
+          "binEnd": 0.32,
+          "count": 106,
+          "probability": 0.0881674837858563,
+          "theoretical": 0.08452585793640484
+        },
+        {
+          "binStart": 0.32,
+          "binEnd": 0.48,
+          "count": 269,
+          "probability": 0.22443927692115023,
+          "theoretical": 0.21302909362379865
+        },
+        {
+          "binStart": 0.48,
+          "binEnd": 0.64,
+          "count": 443,
+          "probability": 0.36932872591709964,
+          "theoretical": 0.360846701806064
+        },
+        {
+          "binStart": 0.64,
+          "binEnd": 0.8,
+          "count": 575,
+          "probability": 0.4790870779366608,
+          "theoretical": 0.49103827404545414
+        },
+        {
+          "binStart": 0.8,
+          "binEnd": 0.9600000000000001,
+          "count": 653,
+          "probability": 0.5442452823702458,
+          "theoretical": 0.5751687447611465
+        },
+        {
+          "binStart": 0.96,
+          "binEnd": 1.1199999999999999,
+          "count": 689,
+          "probability": 0.5744999099959774,
+          "theoretical": 0.6000011886034025
+        },
+        {
+          "binStart": 1.12,
+          "binEnd": 1.28,
+          "count": 683,
+          "probability": 0.5688277479964409,
+          "theoretical": 0.5683022022793619
+        },
+        {
+          "binStart": 1.28,
+          "binEnd": 1.44,
+          "count": 619,
+          "probability": 0.5162470622324284,
+          "theoretical": 0.49465453479390387
+        },
+        {
+          "binStart": 1.44,
+          "binEnd": 1.5999999999999999,
+          "count": 504,
+          "probability": 0.42011172497460886,
+          "theoretical": 0.398836229252477
+        },
+        {
+          "binStart": 1.6,
+          "binEnd": 1.76,
+          "count": 368,
+          "probability": 0.3063509208143194,
+          "theoretical": 0.29956091826138626
+        },
+        {
+          "binStart": 1.76,
+          "binEnd": 1.92,
+          "count": 246,
+          "probability": 0.20514865024234763,
+          "theoretical": 0.21044437220840742
+        },
+        {
+          "binStart": 1.92,
+          "binEnd": 2.08,
+          "count": 157,
+          "probability": 0.13121577900080847,
+          "theoretical": 0.13869878550822673
+        },
+        {
+          "binStart": 2.08,
+          "binEnd": 2.24,
+          "count": 99,
+          "probability": 0.08235951851013298,
+          "theoretical": 0.0859621130543869
+        },
+        {
+          "binStart": 2.24,
+          "binEnd": 2.4000000000000004,
+          "count": 60,
+          "probability": 0.050285267475689774,
+          "theoretical": 0.05019244820759721
+        },
+        {
+          "binStart": 2.4,
+          "binEnd": 2.56,
+          "count": 35,
+          "probability": 0.028872978882656553,
+          "theoretical": 0.027650597310011495
+        },
+        {
+          "binStart": 2.56,
+          "binEnd": 2.72,
+          "count": 18,
+          "probability": 0.015152974566093099,
+          "theoretical": 0.014388770043292445
+        },
+        {
+          "binStart": 2.72,
+          "binEnd": 2.8800000000000003,
+          "count": 9,
+          "probability": 0.007234310907157964,
+          "theoretical": 0.007079823969103828
+        },
+        {
+          "binStart": 2.88,
+          "binEnd": 3.04,
+          "count": 4,
+          "probability": 0.003210870262007866,
+          "theoretical": 0.003296524549173108
+        },
+        {
+          "binStart": 3.04,
+          "binEnd": 3.2,
+          "count": 2,
+          "probability": 0.001374861317227425,
+          "theoretical": 0.001453531646730357
+        },
+        {
+          "binStart": 3.2,
+          "binEnd": 3.3600000000000003,
+          "count": 1,
+          "probability": 0.0005821864580198001,
+          "theoretical": 0.0006072692900916194
+        },
+        {
+          "binStart": 3.36,
+          "binEnd": 3.52,
+          "count": 0,
+          "probability": 0.00024118344852797278,
+          "theoretical": 0.00024051643684157295
+        },
+        {
+          "binStart": 3.52,
+          "binEnd": 3.68,
+          "count": 0,
+          "probability": 0.00009438788892926097,
+          "theoretical": 0.00009034477455840632
+        },
+        {
+          "binStart": 3.68,
+          "binEnd": 3.8400000000000003,
+          "count": 0,
+          "probability": 0.000033899386053113605,
+          "theoretical": 0.000032197325938027616
+        }
+      ],
+      "energy": [
+        {
+          "binStart": 0,
+          "binEnd": 0.12,
+          "count": 256,
+          "probability": 0.28445675670637766,
+          "theoretical": 0.2722074226855289
+        },
+        {
+          "binStart": 0.12,
+          "binEnd": 0.24,
+          "count": 389,
+          "probability": 0.4325549433441586,
+          "theoretical": 0.41816266327331836
+        },
+        {
+          "binStart": 0.24,
+          "binEnd": 0.36,
+          "count": 434,
+          "probability": 0.48246227687624976,
+          "theoretical": 0.4788001635642961
+        },
+        {
+          "binStart": 0.36,
+          "binEnd": 0.48,
+          "count": 442,
+          "probability": 0.4910467451655607,
+          "theoretical": 0.5024617077803175
+        },
+        {
+          "binStart": 0.48,
+          "binEnd": 0.6,
+          "count": 435,
+          "probability": 0.4838870527725734,
+          "theoretical": 0.5053122968524782
+        },
+        {
+          "binStart": 0.6,
+          "binEnd": 0.72,
+          "count": 427,
+          "probability": 0.4745930836258069,
+          "theoretical": 0.4954725707259536
+        },
+        {
+          "binStart": 0.72,
+          "binEnd": 0.84,
+          "count": 420,
+          "probability": 0.46718732486321773,
+          "theoretical": 0.4777268080411197
+        },
+        {
+          "binStart": 0.84,
+          "binEnd": 0.96,
+          "count": 413,
+          "probability": 0.4589528540978306,
+          "theoretical": 0.45513289791418443
+        },
+        {
+          "binStart": 0.96,
+          "binEnd": 1.08,
+          "count": 400,
+          "probability": 0.4447339702185491,
+          "theoretical": 0.42973598472511315
+        },
+        {
+          "binStart": 1.08,
+          "binEnd": 1.2000000000000002,
+          "count": 379,
+          "probability": 0.4210681287639905,
+          "theoretical": 0.40293846124565263
+        },
+        {
+          "binStart": 1.2,
+          "binEnd": 1.3199999999999998,
+          "count": 350,
+          "probability": 0.38845929877383334,
+          "theoretical": 0.37571300897352716
+        },
+        {
+          "binStart": 1.3199999999999998,
+          "binEnd": 1.44,
+          "count": 316,
+          "probability": 0.3511416074996958,
+          "theoretical": 0.3487347020361896
+        },
+        {
+          "binStart": 1.44,
+          "binEnd": 1.56,
+          "count": 283,
+          "probability": 0.3149320562707513,
+          "theoretical": 0.3224674727675965
+        },
+        {
+          "binStart": 1.56,
+          "binEnd": 1.6800000000000002,
+          "count": 256,
+          "probability": 0.28454721694066293,
+          "theoretical": 0.2972230277216823
+        },
+        {
+          "binStart": 1.68,
+          "binEnd": 1.7999999999999998,
+          "count": 236,
+          "probability": 0.26176347182580006,
+          "theoretical": 0.2732022255990689
+        },
+        {
+          "binStart": 1.7999999999999998,
+          "binEnd": 1.92,
+          "count": 221,
+          "probability": 0.24516378999403066,
+          "theoretical": 0.25052481094836293
+        },
+        {
+          "binStart": 1.92,
+          "binEnd": 2.04,
+          "count": 208,
+          "probability": 0.2313454122846505,
+          "theoretical": 0.22925115282695374
+        },
+        {
+          "binStart": 2.04,
+          "binEnd": 2.16,
+          "count": 195,
+          "probability": 0.21680542576375686,
+          "theoretical": 0.20939834394318793
+        },
+        {
+          "binStart": 2.16,
+          "binEnd": 2.2800000000000002,
+          "count": 180,
+          "probability": 0.1995402264868124,
+          "theoretical": 0.1909522344584703
+        },
+        {
+          "binStart": 2.28,
+          "binEnd": 2.4,
+          "count": 162,
+          "probability": 0.17968808113253595,
+          "theoretical": 0.17387648349059898
+        },
+        {
+          "binStart": 2.4,
+          "binEnd": 2.52,
+          "count": 143,
+          "probability": 0.15909232813270016,
+          "theoretical": 0.15811939187218094
+        },
+        {
+          "binStart": 2.52,
+          "binEnd": 2.64,
+          "count": 126,
+          "probability": 0.14017058554936118,
+          "theoretical": 0.14361906564640597
+        },
+        {
+          "binStart": 2.6399999999999997,
+          "binEnd": 2.76,
+          "count": 112,
+          "probability": 0.1247193596052021,
+          "theoretical": 0.13030731261956666
+        },
+        {
+          "binStart": 2.76,
+          "binEnd": 2.88,
+          "count": 102,
+          "probability": 0.11320074431003804,
+          "theoretical": 0.118112570846967
+        }
+      ],
+      "energyLog": [
+        {
+          "energy": 0.06,
+          "logProb": -1.2571740344856708,
+          "theoreticalLog": -1.301190919902445
+        },
+        {
+          "energy": 0.18,
+          "logProb": -0.8380459240447802,
+          "theoreticalLog": -0.8718847755683901
+        },
+        {
+          "energy": 0.3,
+          "logProb": -0.7288525438994152,
+          "theoreticalLog": -0.7364719636853946
+        },
+        {
+          "energy": 0.42,
+          "logProb": -0.7112159517160513,
+          "theoreticalLog": -0.6882358453747882
+        },
+        {
+          "energy": 0.54,
+          "logProb": -0.7259037615388008,
+          "theoreticalLog": -0.6825786312343353
+        },
+        {
+          "energy": 0.6599999999999999,
+          "logProb": -0.7452975081464873,
+          "theoreticalLog": -0.7022432835032595
+        },
+        {
+          "energy": 0.78,
+          "logProb": -0.7610249778378193,
+          "theoreticalLog": -0.7387162411716767
+        },
+        {
+          "energy": 0.8999999999999999,
+          "logProb": -0.7788077885808868,
+          "theoreticalLog": -0.7871658193513397
+        },
+        {
+          "energy": 1.02,
+          "logProb": -0.8102789953149612,
+          "theoreticalLog": -0.8445842478743366
+        },
+        {
+          "energy": 1.1400000000000001,
+          "logProb": -0.8649606323494444,
+          "theoreticalLog": -0.9089714303192248
+        },
+        {
+          "energy": 1.2599999999999998,
+          "logProb": -0.9455668797235952,
+          "theoreticalLog": -0.9789297010407332
+        },
+        {
+          "energy": 1.38,
+          "logProb": -1.0465656967063013,
+          "theoreticalLog": -1.05344381193787
+        },
+        {
+          "energy": 1.5,
+          "logProb": -1.1553983578004492,
+          "theoreticalLog": -1.1317530074683446
+        },
+        {
+          "energy": 1.62,
+          "logProb": -1.25685607454431,
+          "theoreticalLog": -1.2132724869002804
+        },
+        {
+          "energy": 1.7399999999999998,
+          "logProb": -1.340313962262528,
+          "theoreticalLog": -1.2975430049092076
+        },
+        {
+          "energy": 1.8599999999999999,
+          "logProb": -1.405828761216557,
+          "theoreticalLog": -1.3841973176598716
+        },
+        {
+          "energy": 1.98,
+          "logProb": -1.4638433940196094,
+          "theoreticalLog": -1.4729371391692045
+        },
+        {
+          "energy": 2.1,
+          "logProb": -1.5287549831442113,
+          "theoreticalLog": -1.563516889157738
+        },
+        {
+          "energy": 2.22,
+          "logProb": -1.6117394264527554,
+          "theoreticalLog": -1.6557319635803327
+        },
+        {
+          "energy": 2.34,
+          "logProb": -1.7165328138668015,
+          "theoreticalLog": -1.7494100968376214
+        },
+        {
+          "energy": 2.46,
+          "logProb": -1.83827056521147,
+          "theoreticalLog": -1.844404886550291
+        },
+        {
+          "energy": 2.58,
+          "logProb": -1.964895129893044,
+          "theoreticalLog": -1.9405908620556638
+        },
+        {
+          "energy": 2.6999999999999997,
+          "logProb": -2.08168918890582,
+          "theoreticalLog": -2.037859675017285
+        },
+        {
+          "energy": 2.82,
+          "logProb": -2.1785925380576563,
+          "theoreticalLog": -2.1361171190474155
+        }
+      ],
+      "tempHistory": [
+        {
+          "time": 0,
+          "temperature": 1.06,
+          "targetTemperature": 1,
+          "error": 6.000000000000005,
+          "totalEnergy": 300
+        },
+        {
+          "time": 0.75,
+          "temperature": 1.0559412466222056,
+          "targetTemperature": 1,
+          "error": 5.5941246622205565,
+          "totalEnergy": 300.03980891997844
+        },
+        {
+          "time": 1.5,
+          "temperature": 1.0487564377363419,
+          "targetTemperature": 1,
+          "error": 4.875643773634186,
+          "totalEnergy": 300.07913921020963
+        },
+        {
+          "time": 2.25,
+          "temperature": 1.0391171131980703,
+          "targetTemperature": 1,
+          "error": 3.911711319807032,
+          "totalEnergy": 300.1175181438786
+        },
+        {
+          "time": 3,
+          "temperature": 1.027795438874966,
+          "targetTemperature": 1,
+          "error": 2.779543887496594,
+          "totalEnergy": 300.15448472723494
+        },
+        {
+          "time": 3.75,
+          "temperature": 1.0156094590389717,
+          "targetTemperature": 1,
+          "error": 1.5609459038971707,
+          "totalEnergy": 300.18959538502014
+        },
+        {
+          "time": 4.5,
+          "temperature": 1.0033695920292776,
+          "targetTemperature": 1,
+          "error": 0.3369592029277557,
+          "totalEnergy": 300.2224294310744
+        },
+        {
+          "time": 5.25,
+          "temperature": 0.9918295544287853,
+          "targetTemperature": 1,
+          "error": -0.8170445571214713,
+          "totalEnergy": 300.2525942566514
+        },
+        {
+          "time": 6,
+          "temperature": 0.9816443919062313,
+          "targetTemperature": 1,
+          "error": -1.8355608093768683,
+          "totalEnergy": 300.27973017245523
+        },
+        {
+          "time": 6.75,
+          "temperature": 0.9733376612849747,
+          "targetTemperature": 1,
+          "error": -2.6662338715025324,
+          "totalEnergy": 300.30351484468275
+        },
+        {
+          "time": 7.5,
+          "temperature": 0.9672790964835747,
+          "targetTemperature": 1,
+          "error": -3.2720903516425315,
+          "totalEnergy": 300.3236672703605
+        },
+        {
+          "time": 8.25,
+          "temperature": 0.963673350138567,
+          "targetTemperature": 1,
+          "error": -3.632664986143297,
+          "totalEnergy": 300.3399512429496
+        },
+        {
+          "time": 9,
+          "temperature": 0.9625596804856559,
+          "targetTemperature": 1,
+          "error": -3.7440319514344123,
+          "totalEnergy": 300.35217826547716
+        },
+        {
+          "time": 9.75,
+          "temperature": 0.9638217923036176,
+          "targetTemperature": 1,
+          "error": -3.617820769638236,
+          "totalEnergy": 300.3602098752661
+        },
+        {
+          "time": 10.5,
+          "temperature": 0.9672064773391249,
+          "targetTemperature": 1,
+          "error": -3.2793522660875096,
+          "totalEnergy": 300.36395935159294
+        },
+        {
+          "time": 11.25,
+          "temperature": 0.9723492609291248,
+          "targetTemperature": 1,
+          "error": -2.765073907087523,
+          "totalEnergy": 300.3633927852131
+        },
+        {
+          "time": 12,
+          "temperature": 0.9788049651605422,
+          "targetTemperature": 1,
+          "error": -2.119503483945784,
+          "totalEnergy": 300.35852949656305
+        },
+        {
+          "time": 12.75,
+          "temperature": 0.9860809524713133,
+          "targetTemperature": 1,
+          "error": -1.3919047528686668,
+          "totalEnergy": 300.3494417974815
+        },
+        {
+          "time": 13.5,
+          "temperature": 0.9936708149701904,
+          "targetTemperature": 1,
+          "error": -0.6329185029809614,
+          "totalEnergy": 300.33625409938895
+        },
+        {
+          "time": 14.25,
+          "temperature": 1.0010864129076646,
+          "targetTemperature": 1,
+          "error": 0.10864129076646467,
+          "totalEnergy": 300.3191413789238
+        },
+        {
+          "time": 15,
+          "temperature": 1.00788642207717,
+          "targetTemperature": 1,
+          "error": 0.7886422077169941,
+          "totalEnergy": 300.29832701995804
+        },
+        {
+          "time": 15.75,
+          "temperature": 1.0136999000116935,
+          "targetTemperature": 1,
+          "error": 1.3699900011693522,
+          "totalEnergy": 300.27408005860843
+        },
+        {
+          "time": 16.5,
+          "temperature": 1.0182437962819186,
+          "targetTemperature": 1,
+          "error": 1.8243796281918634,
+          "totalEnergy": 300.246711865218
+        },
+        {
+          "time": 17.25,
+          "temperature": 1.0213337827122833,
+          "targetTemperature": 1,
+          "error": 2.1333782712283256,
+          "totalEnergy": 300.2165723042314
+        },
+        {
+          "time": 18,
+          "temperature": 1.0228882347193433,
+          "targetTemperature": 1,
+          "error": 2.2888234719343314,
+          "totalEnergy": 300.18404541932256
+        },
+        {
+          "time": 18.75,
+          "temperature": 1.022925626987604,
+          "targetTemperature": 1,
+          "error": 2.292562698760392,
+          "totalEnergy": 300.14954469699035
+        },
+        {
+          "time": 19.5,
+          "temperature": 1.0215559906004663,
+          "targetTemperature": 1,
+          "error": 2.1555990600466313,
+          "totalEnergy": 300.1135079670372
+        },
+        {
+          "time": 20.25,
+          "temperature": 1.0189673945848945,
+          "targetTemperature": 1,
+          "error": 1.8967394584894492,
+          "totalEnergy": 300.07639200282097
+        },
+        {
+          "time": 21,
+          "temperature": 1.0154086483008644,
+          "targetTemperature": 1,
+          "error": 1.5408648300864414,
+          "totalEnergy": 300.03866688787747
+        },
+        {
+          "time": 21.75,
+          "temperature": 1.0111695640082528,
+          "targetTemperature": 1,
+          "error": 1.1169564008252753,
+          "totalEnergy": 300.0008102183879
+        },
+        {
+          "time": 22.5,
+          "temperature": 1.006560169227184,
+          "targetTemperature": 1,
+          "error": 0.6560169227183943,
+          "totalEnergy": 299.96330121299354
+        },
+        {
+          "time": 23.25,
+          "temperature": 1.0018902199503308,
+          "targetTemperature": 1,
+          "error": 0.18902199503307848,
+          "totalEnergy": 299.92661480260034
+        },
+        {
+          "time": 24,
+          "temperature": 0.9974502473067095,
+          "targetTemperature": 1,
+          "error": -0.2549752693290497,
+          "totalEnergy": 299.89121577306395
+        },
+        {
+          "time": 24.75,
+          "temperature": 0.9934951850878871,
+          "targetTemperature": 1,
+          "error": -0.6504814912112855,
+          "totalEnergy": 299.8575530329941
+        },
+        {
+          "time": 25.5,
+          "temperature": 0.9902313899131403,
+          "targetTemperature": 1,
+          "error": -0.9768610086859697,
+          "totalEnergy": 299.826054077372
+        },
+        {
+          "time": 26.25,
+          "temperature": 0.9878075978982159,
+          "targetTemperature": 1,
+          "error": -1.2192402101784072,
+          "totalEnergy": 299.79711971526257
+        },
+        {
+          "time": 27,
+          "temperature": 0.9863100803030981,
+          "targetTemperature": 1,
+          "error": -1.368991969690192,
+          "totalEnergy": 299.77111912664225
+        },
+        {
+          "time": 27.75,
+          "temperature": 0.9857619840013229,
+          "targetTemperature": 1,
+          "error": -1.4238015998677134,
+          "totalEnergy": 299.7483853093094
+        },
+        {
+          "time": 28.5,
+          "temperature": 0.9861265873293065,
+          "targetTemperature": 1,
+          "error": -1.387341267069353,
+          "totalEnergy": 299.72921097202806
+        },
+        {
+          "time": 29.25,
+          "temperature": 0.9873139819950983,
+          "targetTemperature": 1,
+          "error": -1.2686018004901656,
+          "totalEnergy": 299.71384492455525
+        },
+        {
+          "time": 30,
+          "temperature": 0.9891905180988073,
+          "targetTemperature": 1,
+          "error": -1.0809481901192686,
+          "totalEnergy": 299.70248900907495
+        },
+        {
+          "time": 30.75,
+          "temperature": 0.9915902291523983,
+          "targetTemperature": 1,
+          "error": -0.840977084760175,
+          "totalEnergy": 299.6952956108818
+        },
+        {
+          "time": 31.5,
+          "temperature": 0.9943273906867288,
+          "targetTemperature": 1,
+          "error": -0.5672609313271182,
+          "totalEnergy": 299.6923657790157
+        },
+        {
+          "time": 32.25,
+          "temperature": 0.997209359265676,
+          "targetTemperature": 1,
+          "error": -0.27906407343240014,
+          "totalEnergy": 299.6937479800261
+        },
+        {
+          "time": 33,
+          "temperature": 1.0000488847200066,
+          "targetTemperature": 1,
+          "error": 0.004888472000663668,
+          "totalEnergy": 299.69943750023435
+        },
+        {
+          "time": 33.75,
+          "temperature": 1.0026751804437226,
+          "targetTemperature": 1,
+          "error": 0.26751804437226134,
+          "totalEnergy": 299.70937650386793
+        },
+        {
+          "time": 34.5,
+          "temperature": 1.0049431656173067,
+          "targetTemperature": 1,
+          "error": 0.49431656173066774,
+          "totalEnergy": 299.7234547463475
+        },
+        {
+          "time": 35.25,
+          "temperature": 1.0067404485938398,
+          "targetTemperature": 1,
+          "error": 0.6740448593839821,
+          "totalEnergy": 299.7415109339321
+        },
+        {
+          "time": 36,
+          "temperature": 1.0079917909375007,
+          "targetTemperature": 1,
+          "error": 0.7991790937500687,
+          "totalEnergy": 299.76333471295135
+        },
+        {
+          "time": 36.75,
+          "temperature": 1.0086609652091094,
+          "targetTemperature": 1,
+          "error": 0.8660965209109417,
+          "totalEnergy": 299.7886692640943
+        },
+        {
+          "time": 37.5,
+          "temperature": 1.008750085668199,
+          "targetTemperature": 1,
+          "error": 0.8750085668199015,
+          "totalEnergy": 299.8172144697574
+        },
+        {
+          "time": 38.25,
+          "temperature": 1.008296639990561,
+          "targetTemperature": 1,
+          "error": 0.8296639990561072,
+          "totalEnergy": 299.8486306153895
+        },
+        {
+          "time": 39,
+          "temperature": 1.007368574031383,
+          "targetTemperature": 1,
+          "error": 0.7368574031382913,
+          "totalEnergy": 299.88254257918595
+        },
+        {
+          "time": 39.75,
+          "temperature": 1.0060578748566853,
+          "targetTemperature": 1,
+          "error": 0.6057874856685297,
+          "totalEnergy": 299.91854445845934
+        },
+        {
+          "time": 40.5,
+          "temperature": 1.0044731562873213,
+          "targetTemperature": 1,
+          "error": 0.4473156287321256,
+          "totalEnergy": 299.95620457563035
+        },
+        {
+          "time": 41.25,
+          "temperature": 1.0027317749650473,
+          "targetTemperature": 1,
+          "error": 0.27317749650472845,
+          "totalEnergy": 299.99507080210003
+        },
+        {
+          "time": 42,
+          "temperature": 1.0009519946137921,
+          "targetTemperature": 1,
+          "error": 0.09519946137921398,
+          "totalEnergy": 300.0346761343439
+        },
+        {
+          "time": 42.75,
+          "temperature": 0.9992456748891952,
+          "targetTemperature": 1,
+          "error": -0.07543251108047544,
+          "totalEnergy": 300.07454445345877
+        },
+        {
+          "time": 43.5,
+          "temperature": 0.9977118938053231,
+          "targetTemperature": 1,
+          "error": -0.22881061946768977,
+          "totalEnergy": 300.11419639712875
+        },
+        {
+          "time": 44.25,
+          "temperature": 0.9964318252621072,
+          "targetTemperature": 1,
+          "error": -0.35681747378928375,
+          "totalEnergy": 300.15315527159265
+        },
+        {
+          "time": 45,
+          "temperature": 0.9954650925132849,
+          "targetTemperature": 1,
+          "error": -0.4534907486715145,
+          "totalEnergy": 300.19095293069995
+        },
+        {
+          "time": 45.75,
+          "temperature": 0.9948477116583098,
+          "targetTemperature": 1,
+          "error": -0.5152288341690237,
+          "totalEnergy": 300.22713554954925
+        },
+        {
+          "time": 46.5,
+          "temperature": 0.9945916334015681,
+          "targetTemperature": 1,
+          "error": -0.5408366598431913,
+          "totalEnergy": 300.2612692215033
+        },
+        {
+          "time": 47.25,
+          "temperature": 0.9946857928134752,
+          "targetTemperature": 1,
+          "error": -0.5314207186524755,
+          "totalEnergy": 300.29294530955156
+        },
+        {
+          "time": 48,
+          "temperature": 0.9950984911417478,
+          "targetTemperature": 1,
+          "error": -0.4901508858252246,
+          "totalEnergy": 300.3217854860241
+        },
+        {
+          "time": 48.75,
+          "temperature": 0.9957808651565494,
+          "targetTemperature": 1,
+          "error": -0.42191348434506004,
+          "totalEnergy": 300.3474463984999
+        },
+        {
+          "time": 49.5,
+          "temperature": 0.9966711510023685,
+          "targetTemperature": 1,
+          "error": -0.33288489976315283,
+          "totalEnergy": 300.36962390436656
+        },
+        {
+          "time": 50.25,
+          "temperature": 0.9976994225590926,
+          "targetTemperature": 1,
+          "error": -0.2300577440907392,
+          "totalEnergy": 300.38805682180595
+        },
+        {
+          "time": 51,
+          "temperature": 0.9987924789419749,
+          "targetTemperature": 1,
+          "error": -0.12075210580251294,
+          "totalEnergy": 300.40253015094487
+        },
+        {
+          "time": 51.75,
+          "temperature": 0.9998785707250665,
+          "targetTemperature": 1,
+          "error": -0.012142927493352662,
+          "totalEnergy": 300.41287772544524
+        },
+        {
+          "time": 52.5,
+          "temperature": 1.0008916873341651,
+          "targetTemperature": 1,
+          "error": 0.08916873341651144,
+          "totalEnergy": 300.41898426183036
+        },
+        {
+          "time": 53.25,
+          "temperature": 1.001775175484744,
+          "targetTemperature": 1,
+          "error": 0.17751754847439294,
+          "totalEnergy": 300.4207867812742
+        },
+        {
+          "time": 54,
+          "temperature": 1.0024845165539031,
+          "targetTemperature": 1,
+          "error": 0.24845165539031377,
+          "totalEnergy": 300.4182753863182
+        },
+        {
+          "time": 54.75,
+          "temperature": 1.0029891550359953,
+          "targetTemperature": 1,
+          "error": 0.29891550359952834,
+          "totalEnergy": 300.41149338293627
+        },
+        {
+          "time": 55.5,
+          "temperature": 1.0032733363405306,
+          "targetTemperature": 1,
+          "error": 0.32733363405306193,
+          "totalEnergy": 300.40053674644344
+        },
+        {
+          "time": 56.25,
+          "temperature": 1.0033359759620757,
+          "targetTemperature": 1,
+          "error": 0.3335975962075688,
+          "totalEnergy": 300.38555293783315
+        },
+        {
+          "time": 57,
+          "temperature": 1.0031896397520375,
+          "targetTemperature": 1,
+          "error": 0.3189639752037454,
+          "totalEnergy": 300.36673908514416
+        },
+        {
+          "time": 57.75,
+          "temperature": 1.0028587635666553,
+          "targetTemperature": 1,
+          "error": 0.28587635666552647,
+          "totalEnergy": 300.3443395522832
+        },
+        {
+          "time": 58.5,
+          "temperature": 1.0023772776586177,
+          "targetTemperature": 1,
+          "error": 0.2377277658617727,
+          "totalEnergy": 300.31864292528957
+        },
+        {
+          "time": 59.25,
+          "temperature": 1.001785825397243,
+          "targetTemperature": 1,
+          "error": 0.1785825397242924,
+          "totalEnergy": 300.289978453208
+        }
+      ]
+    },
+    "figureSpecs": [
+      {
+        "id": "speed-distribution",
+        "title": "Speed distribution",
+        "figureCode": "speed-distribution",
+        "status": "ready",
+        "dataCount": 5552,
+        "recommendedFilename": "HardSphereLab_StandardSimulationValidation_speed-distribution_N200_L15_r0p2_20240310-000000.pdf"
+      },
+      {
+        "id": "energy-distribution",
+        "title": "Energy distribution",
+        "figureCode": "energy-distribution",
+        "status": "ready",
+        "dataCount": 6885,
+        "recommendedFilename": "HardSphereLab_StandardSimulationValidation_energy-distribution_N200_L15_r0p2_20240310-000000.pdf"
+      },
+      {
+        "id": "semilog-energy",
+        "title": "Semilog energy distribution",
+        "figureCode": "semilog-energy",
+        "status": "ready",
+        "dataCount": 24,
+        "recommendedFilename": "HardSphereLab_StandardSimulationValidation_semilog-energy_N200_L15_r0p2_20240310-000000.pdf"
+      },
+      {
+        "id": "temperature-error",
+        "title": "Temperature error history",
+        "figureCode": "temperature-error",
+        "status": "ready",
+        "dataCount": 80,
+        "recommendedFilename": "HardSphereLab_StandardSimulationValidation_temperature-error_N200_L15_r0p2_20240310-000000.pdf"
+      },
+      {
+        "id": "total-energy",
+        "title": "Total energy history",
+        "figureCode": "total-energy",
+        "status": "ready",
+        "dataCount": 80,
+        "recommendedFilename": "HardSphereLab_StandardSimulationValidation_total-energy_N200_L15_r0p2_20240310-000000.pdf"
+      }
+    ]
+  }
+}

@@ -75,7 +75,7 @@ group = selectCurrentHeatCapacityFreeExperimentGroup(collection)!;
 const stagedChart = createHeatCapacityFreeGroupLollipopChartModel(group);
 assert.equal(stagedChart.status, 'in-progress');
 assert.equal(stagedChart.points.length, 3);
-assert.notEqual(stagedChart.typeAStandardUncertainty, null);
+assert.equal(stagedChart.typeAStandardUncertainty, null, 'ideal groups show basic results without uncertainty');
 assert.equal(createHeatCapacityFreeAllGroupsOverviewModel(collection).points[0]?.completed, false);
 
 const fourTrials = createTrials(group.id, 4);
