@@ -61,4 +61,24 @@ for (const mode of ['figuresZip', 'tablesCsv', 'report'] as const) {
 {
  const h = harness(); h.fail(); await h.run().handleExportAction('report'); assert.match(h.events[3], /disk unavailable/); assert.equal(h.events.at(-1), 'busy:false');
 }
+for (const mode of ['report', 'figuresZip', 'tablesCsv', 'completeBundle'] as const) {
+ const h = harness();
+ h.ports.window = {} as Window;
+ h.ports.exportEnvironmentStatus = 'unavailable';
+ h.ports.onBrowserExportUnavailable = () => h.events.push('browser-download-prompt');
+ await h.run().handleExportAction(mode);
+ assert.deepEqual(h.events, ['browser-download-prompt']);
+ assert.deepEqual(h.payloads, [], 'browser export must not start a desktop task');
+ h.events.length = 0;
+ h.ports.resultSummary.ready = false;
+ await h.run().handleExportAction(mode);
+ assert.equal(h.events.includes('browser-download-prompt'), false, 'keep the existing missing-data guard');
+}
+{
+ const h = harness();
+ h.ports.onBrowserExportUnavailable = () => h.events.push('browser-download-prompt');
+ await h.run().handleExportAction('report');
+ assert.equal(h.events.includes('browser-download-prompt'), false, 'desktop export keeps its native bridge');
+ assert.equal(h.payloads.length, 1);
+}
 console.log('workbenchExportActions tests passed');

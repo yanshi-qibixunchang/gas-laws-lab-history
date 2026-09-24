@@ -1,4 +1,6 @@
 import type React from 'react';
+import { Download } from 'lucide-react';
+import { browserEditionCopies } from './workbenchBrowserEdition.ts';
 import {
   WorkbenchTopCommands,
 } from './WorkbenchTopCommands.tsx';
@@ -43,6 +45,7 @@ export interface WorkbenchMenuBarProps {
   openUserGuide: () => void;
   openAboutWindow: () => void;
   closeDesktopWindow: () => void;
+  onDownloadDesktop?: () => void;
 }
 
 export const WorkbenchMenuBar = ({
@@ -79,6 +82,7 @@ export const WorkbenchMenuBar = ({
   openUserGuide,
   openAboutWindow,
   closeDesktopWindow,
+  onDownloadDesktop,
 }: WorkbenchMenuBarProps) => {
   return <header className="studio-menu">
           <div className="studio-titlebar-brand" aria-label={workbenchCopy.about.subtitle}>
@@ -130,6 +134,13 @@ export const WorkbenchMenuBar = ({
             onOpenAbout={openAboutWindow}
           />
           <div className="studio-titlebar-drag-fill" aria-hidden="true" />
+          {onDownloadDesktop && (
+            <button type="button" className="studio-command-button studio-browser-download"
+              data-browser-desktop-download="true" onClick={onDownloadDesktop}>
+              <Download size={16} aria-hidden="true" />
+              <span>{browserEditionCopies[settingsLanguagePreference].button}</span>
+            </button>
+          )}
           <WorkbenchWindowControls
             language={settingsLanguagePreference}
             onClose={closeDesktopWindow}

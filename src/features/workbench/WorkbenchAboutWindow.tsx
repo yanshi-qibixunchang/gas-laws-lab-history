@@ -28,6 +28,7 @@ interface WorkbenchAboutWindowProps {
   onCheckUpdates: () => void;
   onCheckEnvironment: () => void;
   onOpenBuildNotice: () => void;
+  browserCopy?: { edition: string; button: string; exportLabel: string; desktopOnly: string };
 }
 
 export const WorkbenchAboutWindow = ({
@@ -44,6 +45,7 @@ export const WorkbenchAboutWindow = ({
   onCheckUpdates,
   onCheckEnvironment,
   onOpenBuildNotice,
+  browserCopy,
 }: WorkbenchAboutWindowProps) => {
   if (!open) return null;
 
@@ -66,23 +68,23 @@ export const WorkbenchAboutWindow = ({
           <section className="studio-about-card">
             <div className="studio-about-row">
               <span className="studio-about-label">{copy.currentVersion}</span>
-              <span className="studio-about-value"><strong>{appVersion}</strong></span>
+              <span className="studio-about-value"><strong>{appVersion}{browserCopy ? ` · ${browserCopy.edition}` : ''}</strong></span>
             </div>
             <button type="button" className="studio-about-row studio-about-action-row" onClick={onCheckUpdates}>
-              <span className="studio-about-label">{copy.checkUpdates}</span>
+              <span className="studio-about-label">{browserCopy?.button ?? copy.checkUpdates}</span>
               <span className="studio-about-value">
-                <span>{updateChecking ? copy.checking : updateStatusLabel}</span>
+                <span>{browserCopy ? 'Windows' : updateChecking ? copy.checking : updateStatusLabel}</span>
                 <span className="studio-about-action-icon" aria-hidden="true">
                   {updateChecking ? <Loader2 size={15} /> : <ChevronRight size={17} />}
                 </span>
               </span>
             </button>
             <button type="button" className="studio-about-row studio-about-action-row" onClick={onCheckEnvironment}>
-              <span className="studio-about-label">{copy.localDataExportEnvironment}</span>
+              <span className="studio-about-label">{browserCopy?.exportLabel ?? copy.localDataExportEnvironment}</span>
               <span className="studio-about-value">
                 <span className="studio-about-status">
-                  <i className={`studio-about-status-dot ${environmentAvailable ? 'studio-about-status-dot-ready' : ''}`} />
-                  <span>{environmentStatusLabel}</span>
+                  {!browserCopy && <i className={`studio-about-status-dot ${environmentAvailable ? 'studio-about-status-dot-ready' : ''}`} />}
+                  <span>{browserCopy?.desktopOnly ?? environmentStatusLabel}</span>
                 </span>
                 <span className="studio-about-action-icon" aria-hidden="true">
                   {environmentChecking ? <Loader2 size={15} /> : <ChevronRight size={17} />}

@@ -209,6 +209,24 @@
   min-width: 20px;
 }
 
+.studio-browser-download {
+  flex: 0 0 auto;
+  margin-right: 8px;
+  border-color: var(--studio-border);
+  color: var(--studio-accent-strong);
+  background: var(--studio-surface-2);
+  white-space: nowrap;
+}
+
+.studio-browser-download:hover {
+  border-color: var(--studio-accent-strong);
+}
+
+.studio-browser-download:focus-visible {
+  outline: 2px solid var(--studio-accent-strong);
+  outline-offset: 2px;
+}
+
 .studio-window-controls {
   display: flex;
   flex: 0 0 auto;

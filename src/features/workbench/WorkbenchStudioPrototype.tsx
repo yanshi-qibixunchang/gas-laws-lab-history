@@ -88,6 +88,8 @@ import { createWorkbenchExperimentRunActions } from './workbenchExperimentRunAct
 import { useWorkbenchHardSphereRuntimeInitialization } from './useWorkbenchHardSphereRuntimeInitialization.ts';
 import { useWorkbenchAuxiliaryWindows } from './useWorkbenchAuxiliaryWindows.ts';
 import { WorkbenchMenuBar } from './WorkbenchMenuBar.tsx';
+import { useWorkbenchBrowserTools } from './useWorkbenchBrowserTools.ts';
+import { BROWSER_DESKTOP_RELEASE, browserEditionCopies, createBrowserDownloadPrompt, isBrowserEdition } from './workbenchBrowserEdition.ts';
 import { WorkbenchPanelContent } from './WorkbenchPanelContent.tsx';
 import { WorkbenchRealtimeBoundary } from './WorkbenchRealtimeBoundary.tsx';
 import { WorkbenchCurrentParameters } from './WorkbenchCurrentParameters.tsx';
@@ -362,6 +364,15 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     confirmConfirmation: confirmPromptConfirmation,
   } = usePromptConfirmation();
 
+  const browserEdition = isBrowserEdition(window);
+  const browserCopy = browserEditionCopies[settingsLanguagePreference];
+  const openBrowserDownload = (reason: 'download' | 'export' = 'download') => {
+    setOpenTopMenu(null);
+    requestPromptConfirmation(createBrowserDownloadPrompt(settingsLanguagePreference, reason, () => {
+      window.open(BROWSER_DESKTOP_RELEASE.installerUrl, '_blank', 'noopener,noreferrer');
+    }));
+  };
+
   const onboardingReducedMotion = useReducedMotionPreference();
 
   const workbenchCopy = workbenchCopies[settingsLanguagePreference];
@@ -394,6 +405,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const emptyWorkbenchFile = useMemo(() => createDefaultStandardFile(0), []);
   const isWorkbenchEmpty = files.length === 0;
   const activeFile = files.find((file) => file.id === activeFileId) ?? emptyWorkbenchFile;
+  useWorkbenchBrowserTools(browserEdition, isWorkbenchEmpty ? null : {
+    name: activeFile.name, kind: activeFile.kind, panel: selectedPanel,
+  });
   const isHeatCapacityModalLocked = () => activeHeatCapacityModalLocked;
 
   const heatCapacityController = useWorkbenchHeatCapacityController({
@@ -864,6 +878,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const idealPointCount = idealAnalysis?.sortedPoints.length ?? 0;
   const { exportInProgress, heatCapacityReportExportOpen, heatCapacityReportSelectedGroupIds, isExportModeDataReady, handleExportAction, openHeatCapacityReportExport, confirmHeatCapacityReportExport, closeHeatCapacityReportExport, selectHeatCapacityReportGroups } = useWorkbenchExportController({
     activeFile, idealPointCount, resultSummary, settingsLanguagePreference, workbenchCopy, exportEnvironmentStatus, guardWorkbenchTutorialAction, pushLog,
+    onBrowserExportUnavailable: browserEdition ? () => openBrowserDownload('export') : undefined,
   });
 
   useWorkbenchConsoleScroll({ consoleTab, displayedLogs, logs, consoleBodyRef, skipInitialConsoleScrollRef });
@@ -1889,7 +1904,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     />
   );
 
-  const exportCopy = workbenchCopy.exportEnvironment[exportEnvironmentStatus];
+  const exportCopy = browserEdition
+    ? { label: browserCopy.desktopOnly, detail: browserCopy.exportBody }
+    : workbenchCopy.exportEnvironment[exportEnvironmentStatus];
 
   const renderResultsPanel = () => (
     <WorkbenchStandardResultsWindow
@@ -2357,10 +2374,12 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       openUserGuide={openUserGuide}
       openAboutWindow={openAboutWindow}
       closeDesktopWindow={closeDesktopWindow}
+      onDownloadDesktop={browserEdition ? () => openBrowserDownload() : undefined}
     />
         <WorkbenchAboutWindow
           open={aboutWindowOpen}
           copy={workbenchCopy.about}
+          browserCopy={browserEdition ? browserCopy : undefined}
           appVersion={WORKBENCH_APP_VERSION}
           updateChecking={aboutUpdateChecking}
           updateStatusLabel={getAboutUpdateStatusLabel(updaterState, workbenchCopy.about, hasDesktopUpdaterBridge())}
@@ -2369,8 +2388,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           environmentStatusLabel={getAboutEnvironmentStatusLabel(exportEnvironmentStatus, workbenchCopy)}
           sessionCacheSummary={sessionCacheSummary}
           onClose={closeAboutWindow}
-          onCheckUpdates={runAboutUpdateCheck}
-          onCheckEnvironment={runAboutEnvironmentCheck}
+          onCheckUpdates={browserEdition ? () => openBrowserDownload() : runAboutUpdateCheck}
+          onCheckEnvironment={browserEdition ? () => openBrowserDownload('export') : runAboutEnvironmentCheck}
           onOpenBuildNotice={openBuildNoticeWindow}
         />
         <WorkbenchBuildNoticeWindow

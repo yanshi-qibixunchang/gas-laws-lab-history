@@ -29,7 +29,8 @@ assert.match(buildNoticeSource, /onOpenLegalFile: \(materialId: WorkbenchLegalMa
 assert.doesNotMatch(buildNoticeSource, /window\.hardSphereLabLegal/, 'build notice view should not call the desktop legal bridge directly');
 assert.match(buildNoticeSource, /from '\.\/workbenchBuildNoticeContract\.ts';/, 'build notice view should depend on the shared contract instead of owning data types');
 
-assert.match(workbenchSource, /onCheckUpdates=\{runAboutUpdateCheck\}/, 'workbench should connect about update behavior');
+assert.match(workbenchSource, /onCheckUpdates=\{browserEdition \? \(\) => openBrowserDownload\(\) : runAboutUpdateCheck\}/, 'web downloads and desktop update checks should use their respective entry points');
+assert.match(workbenchSource, /onCheckEnvironment=\{browserEdition \? \(\) => openBrowserDownload\('export'\) : runAboutEnvironmentCheck\}/, 'web export guidance must preserve desktop environment checks');
 assert.match(workbenchSource, /onOpenLegalFile=\{openBuildNoticeLegalFile\}/, 'workbench should connect legal file behavior');
 assert.doesNotMatch(workbenchSource, /const renderAboutWindow|const renderBuildNoticeWindow/, 'workbench should not retain auxiliary-window JSX renderers');
 

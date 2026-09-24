@@ -1,6 +1,7 @@
 import { type WorkbenchLocalizedConsoleMessage, type WorkbenchConsoleMessageInput, materializeWorkbenchConsoleMessage } from './workbenchConsoleLocalization.ts';
 import { type WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
 import { workbenchCopies } from './workbenchStudioCopy.ts';
+import { browserEditionCopies, isBrowserEdition } from './workbenchBrowserEdition.ts';
 
 export type LogKind = 'info' | 'warning' | 'success' | 'error';
 
@@ -26,9 +27,14 @@ export const createConsoleLog = (
   ...materializeWorkbenchConsoleMessage(input, language),
 });
 
-export const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => [
+export const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => {
+  const browser = typeof window !== 'undefined' && isBrowserEdition(window);
+  return [
   createConsoleLog(1, 'info', (nextLanguage) => workbenchCopies[nextLanguage].logs.initialized, language),
   createConsoleLog(2, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.defaultLayout, language),
   createConsoleLog(3, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.standardConnected, language),
-  createConsoleLog(4, 'warning', (nextLanguage) => workbenchCopies[nextLanguage].logs.exportBridgeRequired, language),
-];
+  createConsoleLog(4, browser ? 'info' : 'warning', (nextLanguage) => browser
+    ? browserEditionCopies[nextLanguage].exportBody
+    : workbenchCopies[nextLanguage].logs.exportBridgeRequired, language),
+  ];
+};

@@ -9,6 +9,11 @@ export const useWorkbenchExportController = (ports: Omit<WorkbenchExportActionPo
   const { isExportModeDataReady, handleExportAction } = createWorkbenchExportActions({ ...ports, setExportInProgress, window });
   const openHeatCapacityReportExport = () => {
   if (activeFile.kind !== 'heatCapacity') return;
+  if (!ports.guardWorkbenchTutorialAction('export-file')) return;
+  if (!window.hardSphereLabExporter && ports.onBrowserExportUnavailable) {
+    ports.onBrowserExportUnavailable();
+    return;
+  }
   setHeatCapacityReportSelectedGroupIds(getDefaultHeatCapacityReportGroupIds(activeFile));
   setHeatCapacityReportExportOpen(true);
 };

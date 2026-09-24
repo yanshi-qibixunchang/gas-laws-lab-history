@@ -19,8 +19,9 @@ export interface WorkbenchExportActionPorts {
   pushLog: WorkbenchLogWriter;
   setExportInProgress: (active: boolean) => void;
   window: Window;
+  onBrowserExportUnavailable?: () => void;
 }
-export const createWorkbenchExportActions = ({ activeFile, idealPointCount, resultSummary, settingsLanguagePreference, workbenchCopy, exportEnvironmentStatus, guardWorkbenchTutorialAction, pushLog, setExportInProgress, window }: WorkbenchExportActionPorts) => {
+export const createWorkbenchExportActions = ({ activeFile, idealPointCount, resultSummary, settingsLanguagePreference, workbenchCopy, exportEnvironmentStatus, guardWorkbenchTutorialAction, pushLog, setExportInProgress, window, onBrowserExportUnavailable }: WorkbenchExportActionPorts) => {
   const exportAvailable = isExportEnvironmentAvailableStatus(exportEnvironmentStatus);
   const isExportModeDataReady = (mode: WorkbenchExportMode) => (
     activeFile.kind === 'heatCapacity'
@@ -88,6 +89,11 @@ export const createWorkbenchExportActions = ({ activeFile, idealPointCount, resu
       return;
     }
   
+    if (!window.hardSphereLabExporter && onBrowserExportUnavailable) {
+      onBrowserExportUnavailable();
+      return;
+    }
+
     const payload = createWorkbenchExportPayload(
       activeFile,
       mode,

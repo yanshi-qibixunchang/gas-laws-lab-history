@@ -3,6 +3,88 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.4.4",
+      "date": "2026-09-24",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.4.4",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.4/heat-capacity-lab-setup-6.4.4.exe"
+      },
+      "summary": {
+        "zh-CN": "6.4.4 专门完善网页版使用体验：增加桌面版下载入口，明确报告、图像和表格导出需使用桌面版，统一三语环境提示，并提供可选的只读实验信息接口。桌面实验模型、计算公式和存档格式沿用 6.4.3。",
+        "zh-TW": "6.4.4 專門完善網頁版使用體驗：增加桌面版下載入口，明確報告、圖像和表格匯出需使用桌面版，統一三語環境提示，並提供可選的唯讀實驗資訊介面。桌面實驗模型、計算公式及存檔格式沿用 6.4.3。",
+        "en": "Version 6.4.4 improves the web experience with desktop download entries, clear desktop requirements for report, figure and table export, consistent messages in three languages, and an optional read-only experiment information tool. Desktop experiment models, calculations and storage formats follow 6.4.3."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "网页版适配与桌面兼容",
+            "zh-TW": "網頁版適配與桌面相容",
+            "en": "Web adaptation and desktop compatibility"
+          },
+          "items": [
+            {
+              "scope": "browser-desktop-download",
+              "importance": "high",
+              "title": {
+                "zh-CN": "网页版桌面下载入口",
+                "zh-TW": "網頁版桌面下載入口",
+                "en": "Desktop download entry on the web"
+              },
+              "body": {
+                "zh-CN": "网页版标题栏和关于窗口增加 Windows 桌面版下载入口，确认后打开 6.4.4 安装包；说明网页版与桌面版分别保存进度，下载不会自动迁移实验。",
+                "zh-TW": "網頁版標題列和關於視窗增加 Windows 桌面版下載入口，確認後開啟 6.4.4 安裝程式；說明網頁版與桌面版分別儲存進度，下載不會自動遷移實驗。",
+                "en": "Adds Windows desktop download entries to the web title bar and About window. Confirmation opens the 6.4.4 installer and explains that web and desktop progress are stored separately and are not transferred by downloading."
+              }
+            },
+            {
+              "scope": "browser-export-boundary",
+              "importance": "high",
+              "title": {
+                "zh-CN": "网页版导出提示与环境说明",
+                "zh-TW": "網頁版匯出提示與環境說明",
+                "en": "Web export availability and environment messages"
+              },
+              "body": {
+                "zh-CN": "网页版导出报告、图像和表格时明确提示使用桌面版；关于窗口、导出状态和初始日志使用一致的三语说明。保留数据就绪检查，并在打开绝热法报告选择窗口前检查引导限制。",
+                "zh-TW": "網頁版匯出報告、圖像和表格時明確提示使用桌面版；關於視窗、匯出狀態和初始記錄使用一致的三語說明。保留資料就緒檢查，並在開啟絕熱法報告選擇視窗前檢查引導限制。",
+                "en": "Web report, figure and table export explains that the desktop app is required. About, export status and initial logs use consistent text in all three languages. Existing data-readiness checks remain, and tutorial access is checked before opening the adiabatic report-selection dialog."
+              }
+            },
+            {
+              "scope": "browser-readonly-experiment",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "浏览器只读实验信息",
+                "zh-TW": "瀏覽器唯讀實驗資訊",
+                "en": "Read-only experiment information in supported browsers"
+              },
+              "body": {
+                "zh-CN": "支持相关接口的浏览器可读取界面已显示的当前实验名称、类型和所选面板。接口不提供答案或隐藏模拟值，不启动实验、不修改学习进度；不支持该接口的浏览器仍可正常使用。",
+                "zh-TW": "支援相關介面的瀏覽器可讀取畫面已顯示的目前實驗名稱、類型及所選面板。介面不提供答案或隱藏模擬值，不啟動實驗、不修改學習進度；不支援此介面的瀏覽器仍可正常使用。",
+                "en": "Browsers supporting the optional interface can read the experiment name, type and selected panel already shown in the UI. The read-only tool exposes no answers or hidden simulation values, starts no experiment and changes no learning progress. Other browsers continue to work normally."
+              }
+            },
+            {
+              "scope": "desktop-update-v6-4-4",
+              "importance": "high",
+              "title": {
+                "zh-CN": "6.4.4 桌面更新与兼容",
+                "zh-TW": "6.4.4 桌面更新與相容",
+                "en": "Desktop update 6.4.4 and compatibility"
+              },
+              "body": {
+                "zh-CN": "同步 Windows 安装包、差分文件和更新元数据。桌面版保留本地导出、检查更新、软件身份和资料目录；实验模型、计算公式及存档格式沿用 6.4.3。",
+                "zh-TW": "同步 Windows 安裝程式、差分檔案與更新中繼資料。桌面版保留本機匯出、檢查更新、軟體身分及資料目錄；實驗模型、計算公式與存檔格式沿用 6.4.3。",
+                "en": "Publishes matching Windows installer, blockmap and update metadata. The desktop app retains local export, update checks, application identity and its data directory. Experiment models, calculation formulas and storage formats follow 6.4.3."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.4.3",
       "date": "2026-09-24",
       "channel": "stable",

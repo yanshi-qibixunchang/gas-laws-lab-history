@@ -9,8 +9,8 @@
   "inventoryPolicyFingerprint": "7e1cd1d74dfbb30254d35adeeadcf3b42924d9d66484380202659276ce9df7ac",
   "executable": {
     "fileName": "hsl-exporter.exe",
-    "sizeBytes": 46119140,
-    "sha256": "87e48de5f0748aa7c3b8aa68632b098bc70267f8d219834d1c74988f8c5253d3"
+    "sizeBytes": 46119168,
+    "sha256": "a497be840a9d8947c719d5be903bd79e5e0810b4b5b4c33f2a6ccba9c895b0ff"
   },
   "legalInventoryFingerprint": "da6c8edc986f716ac690201c137ab4711c967207513218121ffafe6b25aee2f7",
   "archiveFingerprint": "8d2fbe8bfef412fcbe3183f659ba77d5bbacfdb44be1d2548f306bfe41ada27b",
