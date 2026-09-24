@@ -4,7 +4,7 @@
 
 气律实验室是面向 Windows 的工程软件工作台，用于硬球分子动力学模拟、理想气体关系研究，以及绝热膨胀法和活塞振动法空气比热容比实验。
 
-当前源码对应桌面版本 `v6.4.4`，本版重点为网页版适配。发布与验证状态见 [6.4.4 发行记录](docs/releases/v6.4.4.md)。`main` 可以包含正式标签之后的验证文档回执。
+当前源码对应桌面版本 `v6.4.4`，本版重点为网页版适配。6.4.4 已正式发布，干净 Windows 从 6.4.3 覆盖升级及重启恢复通过。详情见 [6.4.4 发行记录](docs/releases/v6.4.4.md)。`main` 可以包含正式标签之后的验证文档回执。
 
 - 公开下载与更新元数据：[gas-laws-lab-release](https://github.com/yanshi-qibixunchang/gas-laws-lab-release)
 - 安全与漏洞报告规则：[SECURITY.md](./SECURITY.md)
