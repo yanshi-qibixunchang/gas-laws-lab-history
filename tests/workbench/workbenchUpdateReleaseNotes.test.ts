@@ -76,10 +76,10 @@ assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
 assert.equal(packageJson.version, '6.4.3', 'desktop update should use the authorized next patch version');
-assert.match(readme, /latest published desktop release is `v6\.4\.2`/, 'English README should name the verified public release');
-assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.4\.2`/, 'Simplified Chinese README should name the verified public release');
-assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.4\.2`/, 'Traditional Chinese README should name the verified public release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.4\.2。/, 'the reviewed build notice should name the current project version');
+assert.match(readme, /latest published desktop release is `v6\.4\.3`/, 'English README should name the verified public release');
+assert.match(readmeZhCn, /当前已公开发布的桌面稳定版是 `v6\.4\.3`/, 'Simplified Chinese README should name the verified public release');
+assert.match(readmeZhTw, /目前已公開發佈的桌面穩定版是 `v6\.4\.3`/, 'Traditional Chinese README should name the verified public release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.4\.3。/, 'the reviewed build notice should name the current project version');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
