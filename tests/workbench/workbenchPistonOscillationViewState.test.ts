@@ -66,7 +66,7 @@ const completedProcessing = {
   status: 'completed' as const,
   calculationSession: { ...calculation, status: 'completed' as const },
 };
-const plan = createPistonOscillationFreeExperimentPlan([80, 70, 60]);
+const plan = createPistonOscillationFreeExperimentPlan([75, 70, 60]);
 const reacquisition: PistonOscillationFreeSession['reacquisition'] = {
   schemaVersion: 1,
   targetId: 'target-2',

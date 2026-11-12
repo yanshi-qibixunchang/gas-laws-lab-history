@@ -235,6 +235,16 @@
   margin-left: auto;
 }
 
+.studio-workbench.app-window-controls {
+  position: absolute;
+  inset: 0 0 auto auto;
+  z-index: 110000;
+  display: flex;
+  width: auto;
+  height: 36px;
+  background: var(--studio-surface-2);
+}
+
 .studio-window-control-button {
   display: inline-grid;
   width: 46px;
@@ -4216,7 +4226,7 @@
   background: var(--studio-bg);
 }
 
-.studio-workspace-shell-empty {
+.studio-workspace-shell.studio-workspace-shell-empty {
   grid-template-columns: minmax(0, 1fr);
 }
 
@@ -4273,6 +4283,7 @@
   display: grid;
   width: min(620px, 100%);
   gap: 12px;
+  container-type: inline-size;
 }
 
 .studio-empty-kicker {
@@ -4306,6 +4317,17 @@
 
 .studio-empty-actions button {
   white-space: nowrap;
+}
+
+@container (max-width: 566px) {
+  .studio-empty-actions {
+    width: 100%;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .studio-empty-actions button {
+    white-space: normal;
+  }
 }
 
 .studio-live-workspace {
@@ -9389,6 +9411,10 @@
 
 .studio-heat-advanced-grid-item {
   min-width: 0;
+}
+
+[data-piston-oscillation-advanced-group] .studio-heat-free-param-name {
+  white-space: normal;
 }
 
 .studio-heat-advanced-grid .studio-heat-free-input-cell {

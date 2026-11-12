@@ -104,6 +104,7 @@ declare global {
 
   interface DesktopWindowState {
     maximized: boolean;
+    minimized: boolean;
     fullscreen: boolean;
   }
 

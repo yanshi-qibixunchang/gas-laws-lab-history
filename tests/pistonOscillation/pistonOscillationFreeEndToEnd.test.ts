@@ -120,8 +120,8 @@ const createCapturedMeasurement = (
     sampleRateHz: observations.sampleRateHz,
     triggerThresholdKpa: 120,
     recordedDurationS: observations.samples.at(-1)!.timeS,
-    recordingPath: 'immediate',
-    releaseOffsetS: 0,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples: observations.samples,
     pressOperationEvidence,
     sensorObservationSnapshot: createPistonOscillationSensorObservationSnapshot({
@@ -129,7 +129,7 @@ const createCapturedMeasurement = (
       triggerSourceSampleIndex: 0,
       observationSeries: observations,
     }),
-    physicsSnapshot: createPistonOscillationPhysicsSnapshot(trajectory, null),
+    physicsSnapshot: createPistonOscillationPhysicsSnapshot(trajectory, 0),
   });
   return { measurement, trajectory };
 };
@@ -299,7 +299,7 @@ const createCollectedSession = (
   return { session, records, maximumSpeedsMPerS };
 };
 
-const detailed = createCollectedSession([80, 70, 60], []);
+const detailed = createCollectedSession([75, 70, 60], []);
 assert.ok(
   detailed.maximumSpeedsMPerS[2]! > 2,
   'a reachable 14 mm third-run press must keep its physical rebound peak above 2 m/s',
@@ -460,9 +460,9 @@ assert.equal(reset.savedMeasurements.length, 0);
 assert.equal(reset.dataProcessing, null);
 
 for (const scenario of [
-  { heights: [80, 65, 50, 30], custom: [65] },
-  { heights: [80, 70, 55, 40, 30], custom: [55] },
-  { heights: [80, 70, 65, 50, 40, 30], custom: [65] },
+  { heights: [75, 65, 50, 30], custom: [65] },
+  { heights: [75, 70, 55, 40, 30], custom: [55] },
+  { heights: [75, 70, 65, 50, 40, 30], custom: [65] },
 ] as const) {
   const collected = createCollectedSession(scenario.heights, scenario.custom);
   let session = collected.session;

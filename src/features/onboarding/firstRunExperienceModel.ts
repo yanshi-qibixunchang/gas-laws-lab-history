@@ -1,6 +1,5 @@
 import {
   createDefaultAppExperienceProfile,
-  EXPERIMENT_LEARNING_ORDER,
   type AppExperienceProfile,
   type ExperienceNeedState,
 } from '../learning/experimentLearningModel.ts';
@@ -73,7 +72,7 @@ export const createCommittedFirstRunProfile = ({
     throw new Error('Every experiment familiarity question must be answered.');
   }
   const base = baseProfile ?? createDefaultAppExperienceProfile();
-  const committedProfile: AppExperienceProfile = {
+  return {
     ...base,
     firstRunCompleted: true,
     acceptedLegalVersion: legalVersion,
@@ -89,12 +88,8 @@ export const createCommittedFirstRunProfile = ({
       pistonOscillation: draft.pistonOscillation === 'needs-guidance' ? 'demo' : 'unlocked',
     },
     activeTutorialExperiment: null,
-  };
-  return {
-    ...committedProfile,
-    activeTutorialExperiment: EXPERIMENT_LEARNING_ORDER.find((experiment) => (
-      committedProfile.needs[experiment] === 'needs-guidance'
-    )) ?? null,
+    workspaceTourStep: draft.heatCapacity === 'needs-guidance'
+      && draft.pistonOscillation === 'needs-guidance' ? 'top' : 'not-needed',
   };
 };
 

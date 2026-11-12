@@ -1,3 +1,8 @@
+import {
+  isPistonRecordingDurationS,
+  PISTON_DEFAULT_RECORDING_DURATION_S,
+  PISTON_RECORDING_DURATION_RANGE_S,
+} from '../../domain/pistonOscillation/pistonOscillationRecordingSettings.ts';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Wrench } from 'lucide-react';
@@ -27,10 +32,8 @@ import {
 
 type PistonOscillationParameterMode = 'explore' | 'demo' | 'guide' | 'free';
 
-type NumericParameterKey = Exclude<keyof PistonOscillationFreeParameterDraft,
-  | 'sensorFluctuationEnabled'
-  | 'tailIrregularityEnabled'
->;
+type NumericParameterKey = keyof PistonOscillationFreeParameterDraft
+  & keyof typeof parameterEffects.en;
 
 interface NumericParameterDefinition {
   key: NumericParameterKey;
@@ -38,7 +41,7 @@ interface NumericParameterDefinition {
   unit: string;
   minimum: number;
   maximum: number;
-  precision: number;
+  precision?: number;
   integer?: boolean;
   nullable?: boolean;
 }
@@ -50,8 +53,9 @@ const text = {
     ambientTemperature: '环境温度',
     sampleRate: '采样频率',
     trigger: '下降触发阈值',
-    sensorFluctuation: '传感器波动',
-    tailIrregularity: '尾段不规则',
+    duration: '记录时间',
+    observationDisturbance: '观测扰动',
+    partiallyOn: '部分开启',
     operationVisualization: '键鼠操作可视化',
     on: '开',
     off: '关',
@@ -63,9 +67,9 @@ const text = {
     gasType: '气体类型',
     air: '空气',
     helium: '氦气',
-    schemeHelp: '真实方案保留实验损失与观测误差；理想方案使用系统内置条件，但仍由用户操作和处理数据。',
-    gasHelp: '气体类型决定材料快照和理论比热容比。',
-    idealReadonly: '理想实验过程仅允许选择气体；其余参数由系统内置档案统一管理，不参与评分。',
+    schemeHelp: '真实实验条件保留仪器损耗和读数误差。理想实验过程使用内置理想设置。',
+    gasHelp: '选择空气或氦气。不同气体的理论比热容比不同。',
+    idealReadonly: '理想实验过程可选择气体并调整触发阈值和记录时间，物理参数使用内置预设。',
     profilePending: '当前条件已保存，但完整物理参数档案尚未接入，暂不能开始正式采集。',
     freeOnly: '当前参数仅可在自由模式中打开和调整。',
     locked: '当前实验已留下不可逆记录；完整重置或新建文件后可重新设置参数。',
@@ -82,22 +86,20 @@ const text = {
     thermal: '热过程与等效损耗',
     sensor: '传感器观测',
     release: '双手松开不对称',
-    tail: '尾段不规则',
     invalid: '请输入允许范围内的数值',
-    relationInvalid: '饱和时间差必须大于中性时间差',
     plan: '当前高度方案',
     notConfigured: '尚未配置',
   },
   'zh-TW': {
     section: '自由模式參數', ambientPressure: '環境壓強', ambientTemperature: '環境溫度',
-    sampleRate: '取樣頻率', trigger: '下降觸發閾值', sensorFluctuation: '感測器波動',
-    tailIrregularity: '尾段不規則', operationVisualization: '鍵鼠操作視覺化', on: '開', off: '關',
+    sampleRate: '取樣頻率', trigger: '下降觸發閾值', duration: '記錄時間', observationDisturbance: '觀測擾動',
+    partiallyOn: '部分開啟', operationVisualization: '鍵鼠操作視覺化', on: '開', off: '關',
     advanced: '進階設定', restore: '恢復預設參數', locked: '目前實驗已留下不可逆記錄；完整重設或建立新檔案後可重新設定參數。',
     scheme: '實驗方案', real: '真實實驗條件', ideal: '理想實驗過程',
     gasType: '氣體類型', air: '空氣', helium: '氦氣',
-    schemeHelp: '真實方案保留實驗損失與觀測誤差；理想方案使用系統內建條件，但仍由使用者操作和處理資料。',
-    gasHelp: '氣體類型決定材料快照和理論比熱容比。',
-    idealReadonly: '理想實驗過程僅允許選擇氣體；其餘參數由系統內建檔案統一管理，不參與評分。',
+    schemeHelp: '真實實驗條件保留儀器損耗和讀數誤差。理想實驗過程使用內建理想設定。',
+    gasHelp: '選擇空氣或氦氣。不同氣體的理論比熱容比不同。',
+    idealReadonly: '理想實驗過程可選擇氣體並調整觸發閾值和記錄時間，物理參數使用內建預設。',
     profilePending: '目前條件已儲存，但完整物理參數檔案尚未接入，暫不能開始正式採集。',
     freeOnly: '目前參數僅可在自由模式中開啟和調整。',
     editable: '開始正式採集或發生不可逆操作後，整套參數將鎖定。', advancedTitle: '活塞振動法進階設定',
@@ -105,26 +107,26 @@ const text = {
     riskBody: '進階參數會影響目前實驗檔案的物理過程、感測器讀數和採集結果。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
     restoreTitle: '恢復活塞振動法預設參數？', restoreBody: '所有自由模式普通與進階參數將恢復為目前氣體的預設值，鍵鼠操作視覺化將關閉。',
     restoreConfirm: '恢復預設值', thermal: '熱過程與等效損耗',
-    sensor: '感測器觀測', release: '雙手鬆開不對稱', tail: '尾段不規則', invalid: '請輸入允許範圍內的數值',
-    relationInvalid: '飽和時間差必須大於中性時間差', plan: '目前高度方案', notConfigured: '尚未設定',
+    sensor: '感測器觀測', release: '雙手鬆開不對稱', invalid: '請輸入允許範圍內的數值',
+    plan: '目前高度方案', notConfigured: '尚未設定',
   },
   en: {
     section: 'Free-mode parameters', ambientPressure: 'Ambient pressure', ambientTemperature: 'Ambient temperature',
-    sampleRate: 'Sample rate', trigger: 'Falling trigger', sensorFluctuation: 'Sensor fluctuation',
-    tailIrregularity: 'Tail irregularity', operationVisualization: 'Input visualization', on: 'On', off: 'Off', freeOnly: 'Current parameters are available only in Free mode.',
+    sampleRate: 'Sample rate', trigger: 'Falling trigger', duration: 'Recording duration', observationDisturbance: 'Observation disturbances',
+    partiallyOn: 'Partly on', operationVisualization: 'Input visualization', on: 'On', off: 'Off', freeOnly: 'Current parameters are available only in Free mode.',
     advanced: 'Advanced settings', restore: 'Restore defaults', locked: 'This experiment contains an irreversible record. Fully reset it or create a new file to change parameters.',
     scheme: 'Experiment scheme', real: 'Real conditions', ideal: 'Ideal process',
     gasType: 'Gas type', air: 'Air', helium: 'Helium',
-    schemeHelp: 'Real conditions retain experimental loss and observation error. The Ideal process uses a built-in condition profile while the user still performs the experiment and processes the data.',
-    gasHelp: 'The gas type determines the material snapshot and theoretical heat-capacity ratio.',
-    idealReadonly: 'The Ideal process allows gas selection only. All other parameters use the built-in profile and are not scored.',
+    schemeHelp: 'Real conditions retain instrument losses and reading errors. The Ideal process uses built-in ideal settings.',
+    gasHelp: 'Choose air or helium. Each gas has a different theoretical heat-capacity ratio.',
+    idealReadonly: 'In the Ideal process, you can choose the gas and adjust the trigger threshold and recording duration. Physical parameters use the built-in profile.',
     profilePending: 'This condition is saved, but its complete physical profile is not connected yet, so formal acquisition is temporarily unavailable.',
     editable: 'The complete profile freezes when formal acquisition starts or another irreversible operation occurs.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
     riskTitle: 'Confirm advanced-parameter editing', riskBody: 'Advanced parameters affect this file’s physical process, sensor readings, and acquisition results. After confirmation, this file will not show the warning again.',
     restoreTitle: 'Restore piston-oscillation defaults?', restoreBody: 'All basic and advanced Free parameters will be restored for the selected gas, and input visualization will be turned off.',
     restoreConfirm: 'Restore defaults', thermal: 'Thermal process and equivalent loss',
-    sensor: 'Sensor observation', release: 'Two-hand release asymmetry', tail: 'Tail irregularity', invalid: 'Enter a value within the allowed range',
-    relationInvalid: 'The saturation gap must be greater than the neutral gap', plan: 'Current height plan', notConfigured: 'Not configured',
+    sensor: 'Sensor observation', release: 'Two-hand release asymmetry', invalid: 'Enter a value within the allowed range',
+    plan: 'Current height plan', notConfigured: 'Not configured',
   },
 } satisfies Record<PistonOscillationLanguage, Record<string, string>>;
 
@@ -141,78 +143,54 @@ export const getPistonOscillationParameterLockMessage = (
 
 const parameterEffects = {
   'zh-CN': {
-    ambientPressureKpa: '决定气体平衡压强，并进入最终比热比计算。',
-    ambientTemperatureK: '决定初始热力学状态和按压、回弹过程中的温度响应。',
-    sampleRateHz: '决定每秒写入的正式样本数；同时与实时数据区保持同步。',
-    triggerThresholdKpa: '决定下降穿越哪一条压强线后开始形成正式曲线；同时与实时数据区保持同步。',
-    sensorFluctuationEnabled: '控制连续传感器波动、游走和漂移是否进入观测数据。',
-    tailIrregularityEnabled: '控制振动尾段是否出现可重复但每次实验自然不同的不规则形态。',
-    operationVisualizationEnabled: '仅改变键盘和鼠标操作提示，不改变实验数据。',
-    equivalentLinearLossNsPerM: '统一作用于虚拟手按压和松手后的自由振动，决定等效能量损耗。',
-    thermalRelaxationTimeS: '控制气体温度向环境状态恢复的快慢。',
-    heatFlowLagTimeS: '控制热交换建立的短时滞后。',
-    sensorResponseTimeS: '控制传感器读数跟随真实压强的响应速度。',
-    fastFluctuationStandardDeviationPa: '控制高频、小尺度连续波动的强度。',
-    slowFluctuationStandardDeviationPa: '控制低频、较缓慢波动的强度。',
-    driftWanderAmplitudePa: '控制传感器基线缓慢游走的幅度。',
-    driftRatePaPerS: '控制传感器基线随时间产生的定向漂移。',
-    releaseNeutralGapS: '小于此时间差时，双手松开近似视为同步。',
-    releaseSaturationGapS: '达到此时间差后，松手不对称造成的附加损耗不再继续增加。',
-    releaseMaximumExtraLossNsPerM: '控制双手明显不同步时可能产生的最大附加损耗。',
-    releaseAlignmentTimePeriods: '控制松手不对称影响衰减回固有状态所需的周期数。',
-    tailOnsetCycles: '决定从第几个振动周期开始逐渐出现尾段不规则。',
-    tailIntensity: '统一缩放尾段时移和局部肩部扰动的强度。',
+    ambientPressureKpa: '设置实验所在环境的大气压。',
+    ambientTemperatureK: '设置实验开始时的环境温度。',
+    observationDisturbance: '开启后，记录的压强曲线会出现波动、基线漂移和尾段不规则。关闭后，传感器响应时间仍然生效。',
+    sampleRateHz: '每秒记录多少个压强样本。采样间隔越长，越难精确定位峰谷时刻。',
+    triggerThresholdKpa: '压强从高向低越过这个值时，开始正式记录。',
+    recordingDurationS: '从下降触发开始计时。达到设定时长后自动停止记录。',
+    operationVisualizationEnabled: '显示空格键和鼠标左键的操作提示。',
+    equivalentLinearLossNsPerM: '模拟活塞运动时持续受到的阻力。数值越大，松手后的振幅衰减越快。即使两手同时松开，这项也会生效。',
+    thermalRelaxationTimeS: '以活塞位于 50 mm 为基准。固定活塞、忽略热流滞后时，每过这么久，气体与室温的温差就剩下原来的约 37%。数值越大，气体回到室温越慢。',
+    heatFlowLagTimeS: '用来近似缸壁附近的温度分布对传热的影响。气体平均温度变了，模型中的实际传热速率会逐步调整。数值越大，传热速率跟上温差变化就越慢。',
+    sensorResponseTimeS: '设置仪器跟上真实压强变化的快慢。数值越大，记录的峰谷越圆，出现得越晚。',
+    releaseGapOverrideMs: '两只手松开相差的时间。留空时，软件使用空格键和鼠标左键实际松开的时间差。输入一个数值，可以比较不同时间差造成的附加阻尼。',
+    releaseMaximumExtraLossNsPerM: '决定两手松开不同步时，活塞刚开始振动最多会受到多大的额外阻力。数值越大，同样的松手时间差带来的附加阻尼就越强。',
     plan: '显示本实验文件已选定的各次平衡高度，只读且不在此处修改。',
   },
   'zh-TW': {
-    ambientPressureKpa: '決定氣體平衡壓強，並進入最終比熱比計算。',
-    ambientTemperatureK: '決定初始熱力學狀態和按壓、回彈過程中的溫度響應。',
-    sampleRateHz: '決定每秒寫入的正式樣本數；同時與即時資料區保持同步。',
-    triggerThresholdKpa: '決定下降穿越哪一條壓強線後開始形成正式曲線；同時與即時資料區保持同步。',
-    sensorFluctuationEnabled: '控制連續感測器波動、遊走和漂移是否進入觀測資料。',
-    tailIrregularityEnabled: '控制振動尾段是否出現可重複但每次實驗自然不同的不規則形態。',
-    operationVisualizationEnabled: '僅改變鍵盤和滑鼠操作提示，不改變實驗資料。',
-    equivalentLinearLossNsPerM: '統一作用於虛擬手按壓和鬆手後的自由振動，決定等效能量損耗。',
-    thermalRelaxationTimeS: '控制氣體溫度向環境狀態恢復的快慢。',
-    heatFlowLagTimeS: '控制熱交換建立的短時遲滯。',
-    sensorResponseTimeS: '控制感測器讀數跟隨真實壓強的響應速度。',
-    fastFluctuationStandardDeviationPa: '控制高頻、小尺度連續波動的強度。',
-    slowFluctuationStandardDeviationPa: '控制低頻、較緩慢波動的強度。',
-    driftWanderAmplitudePa: '控制感測器基線緩慢遊走的幅度。',
-    driftRatePaPerS: '控制感測器基線隨時間產生的定向漂移。',
-    releaseNeutralGapS: '小於此時間差時，雙手鬆開近似視為同步。',
-    releaseSaturationGapS: '達到此時間差後，鬆手不對稱造成的附加損耗不再繼續增加。',
-    releaseMaximumExtraLossNsPerM: '控制雙手明顯不同步時可能產生的最大附加損耗。',
-    releaseAlignmentTimePeriods: '控制鬆手不對稱影響衰減回固有狀態所需的週期數。',
-    tailOnsetCycles: '決定從第幾個振動週期開始逐漸出現尾段不規則。',
-    tailIntensity: '統一縮放尾段時移和局部肩部擾動的強度。',
+    ambientPressureKpa: '設定實驗所在環境的大氣壓。',
+    ambientTemperatureK: '設定實驗開始時的環境溫度。',
+    observationDisturbance: '開啟後，記錄的壓強曲線會出現波動、基線漂移和尾段不規則。關閉後，感測器響應時間仍然生效。',
+    sampleRateHz: '每秒記錄多少個壓強樣本。取樣間隔越長，越難精確定位峰谷時刻。',
+    triggerThresholdKpa: '壓強從高向低越過這個值時，開始正式記錄。',
+    recordingDurationS: '從下降觸發開始計時。達到設定時間後自動停止記錄。',
+    operationVisualizationEnabled: '顯示空白鍵和滑鼠左鍵的操作提示。',
+    equivalentLinearLossNsPerM: '模擬活塞運動時持續受到的阻力。數值越大，鬆手後的振幅衰減越快。即使兩手同時鬆開，這項也會生效。',
+    thermalRelaxationTimeS: '以活塞位於 50 mm 為基準。固定活塞、忽略熱流遲滯時，每過這麼久，氣體與室溫的溫差就剩下原來的約 37%。數值越大，氣體回到室溫越慢。',
+    heatFlowLagTimeS: '用來近似缸壁附近的溫度分布對傳熱的影響。氣體平均溫度變了，模型中的實際傳熱速率會逐步調整。數值越大，傳熱速率跟上溫差變化就越慢。',
+    sensorResponseTimeS: '設定儀器跟上真實壓強變化的快慢。數值越大，記錄的峰谷越圓，出現得越晚。',
+    releaseGapOverrideMs: '兩隻手鬆開相差的時間。留空時，軟體使用空白鍵和滑鼠左鍵實際鬆開的時間差。輸入一個數值，可以比較不同時間差造成的附加阻尼。',
+    releaseMaximumExtraLossNsPerM: '決定兩手鬆開不同步時，活塞剛開始振動最多會受到多大的額外阻力。數值越大，同樣的鬆手時間差帶來的附加阻尼就越強。',
     plan: '顯示本實驗檔案已選定的各次平衡高度，唯讀且不在此處修改。',
   },
   en: {
-    ambientPressureKpa: 'Sets the gas equilibrium pressure used by the final heat-capacity-ratio calculation.',
-    ambientTemperatureK: 'Sets the initial thermodynamic state and the temperature response during pressing and rebound.',
-    sampleRateHz: 'Sets the formal samples written per second and stays synchronized with Realtime Data.',
-    triggerThresholdKpa: 'Sets the falling pressure crossing that begins the formal curve and stays synchronized with Realtime Data.',
-    sensorFluctuationEnabled: 'Controls whether continuous fluctuation, wander, and drift enter observed data.',
-    tailIrregularityEnabled: 'Controls whether late cycles contain naturally varying irregular structure.',
-    operationVisualizationEnabled: 'Changes keyboard and mouse cues only; experiment data are unaffected.',
-    equivalentLinearLossNsPerM: 'Applies to virtual-hand pressing and free vibration as the shared equivalent energy loss.',
-    thermalRelaxationTimeS: 'Controls how quickly gas temperature relaxes toward the environment.',
-    heatFlowLagTimeS: 'Controls the short delay while heat exchange is established.',
-    sensorResponseTimeS: 'Controls how quickly sensor output follows physical pressure.',
-    fastFluctuationStandardDeviationPa: 'Controls high-frequency, small-scale continuous fluctuation.',
-    slowFluctuationStandardDeviationPa: 'Controls lower-frequency, slowly varying fluctuation.',
-    driftWanderAmplitudePa: 'Controls slow baseline wander amplitude.',
-    driftRatePaPerS: 'Controls directional baseline drift over time.',
-    releaseNeutralGapS: 'Release gaps below this value are treated as approximately synchronized.',
-    releaseSaturationGapS: 'Additional release-asymmetry loss stops increasing at this gap.',
-    releaseMaximumExtraLossNsPerM: 'Sets the maximum added loss caused by strongly asynchronous release.',
-    releaseAlignmentTimePeriods: 'Sets how many periods the release-asymmetry effect takes to decay.',
-    tailOnsetCycles: 'Sets the cycle from which late irregularity begins to appear.',
-    tailIntensity: 'Scales late-cycle timing shifts and local shoulder disturbances together.',
+    ambientPressureKpa: 'Sets the atmospheric pressure in the experiment environment.',
+    ambientTemperatureK: 'Sets the ambient temperature at the start of the experiment.',
+    observationDisturbance: 'When on, the recorded pressure curve shows fluctuations, baseline drift, and irregularities in the later cycles. The sensor response time still applies when this is off.',
+    sampleRateHz: 'Sets how many pressure samples are recorded per second. Longer sampling intervals make the timing of peaks and troughs harder to pinpoint.',
+    triggerThresholdKpa: 'Recording begins when pressure falls through this threshold.',
+    recordingDurationS: 'Recording stops automatically after this much time has elapsed since the falling trigger.',
+    operationVisualizationEnabled: 'Shows cues for the spacebar and left mouse button.',
+    equivalentLinearLossNsPerM: 'Models the resistance acting on the piston as it moves. Higher values make the oscillations decay faster after release. This damping also applies when both hands release together.',
+    thermalRelaxationTimeS: 'Uses a piston height of 50 mm as the reference. With the piston fixed and heat-flow lag ignored, the temperature difference between the gas and the room falls to about 37% of its previous value after each interval of this length. Higher values make the gas return to room temperature more slowly.',
+    heatFlowLagTimeS: 'Approximates how the temperature distribution near the cylinder wall affects heat transfer. When the average gas temperature changes, the modeled heat transfer rate adjusts gradually. Higher values make that rate respond more slowly to changes in the temperature difference.',
+    sensorResponseTimeS: 'Sets how quickly the sensor follows the actual pressure. Higher values make the recorded peaks and troughs rounder and later.',
+    releaseGapOverrideMs: 'The time between releasing the two hands. Leave blank to use the actual time between releasing the spacebar and the left mouse button. Enter a value to compare the additional damping from different gaps.',
+    releaseMaximumExtraLossNsPerM: 'Sets the maximum additional resistance at the start of oscillation when the hands release at different times. For the same release gap, higher values produce more additional damping.',
     plan: 'Shows the selected equilibrium heights for this file; it is read-only here.',
   },
-} satisfies Record<PistonOscillationLanguage, Record<string, string>>;
+} as const;
 
 const basicDefinitions: NumericParameterDefinition[] = [
   {
@@ -235,50 +213,58 @@ const basicDefinitions: NumericParameterDefinition[] = [
     unit: 'kPa', minimum: PISTON_OSCILLATION_FREE_PARAMETER_RANGES.triggerThresholdKpa.minimum,
     maximum: PISTON_OSCILLATION_FREE_PARAMETER_RANGES.triggerThresholdKpa.maximum, precision: 1, nullable: true,
   },
+  {
+    key: 'recordingDurationS', label: { 'zh-CN': text['zh-CN'].duration, 'zh-TW': text['zh-TW'].duration, en: text.en.duration },
+    unit: 's', minimum: PISTON_RECORDING_DURATION_RANGE_S.minimum,
+    maximum: PISTON_RECORDING_DURATION_RANGE_S.maximum, precision: 3,
+  },
 ];
 
+const isEditableIdealAcquisitionSetting = (key: NumericParameterDefinition['key']) => (
+  key === 'triggerThresholdKpa' || key === 'recordingDurationS'
+);
+
 const advancedGroups: Array<{
-  titleKey: 'thermal' | 'sensor' | 'release' | 'tail';
+  titleKey: 'thermal' | 'sensor' | 'release';
   definitions: NumericParameterDefinition[];
 }> = [
   {
     titleKey: 'thermal',
     definitions: [
-      { key: 'equivalentLinearLossNsPerM', label: { 'zh-CN': '等效线性损耗', 'zh-TW': '等效線性損耗', en: 'Equivalent linear loss' }, unit: 'N·s/m', minimum: 0, maximum: 10, precision: 3 },
-      { key: 'thermalRelaxationTimeS', label: { 'zh-CN': '参考高度热弛豫', 'zh-TW': '參考高度熱弛豫', en: 'Reference thermal relaxation' }, unit: 's', minimum: 0.001, maximum: 5, precision: 4 },
-      { key: 'heatFlowLagTimeS', label: { 'zh-CN': '热流建立滞后', 'zh-TW': '熱流建立遲滯', en: 'Heat-flow lag' }, unit: 's', minimum: 0.0005, maximum: 0.05, precision: 4 },
+      { key: 'equivalentLinearLossNsPerM', label: { 'zh-CN': '活塞基础阻尼', 'zh-TW': '活塞基礎阻尼', en: 'Baseline piston damping' }, unit: 'N·s/m', minimum: 0, maximum: 10, precision: 3 },
+      { key: 'thermalRelaxationTimeS', label: { 'zh-CN': '气体温差衰减时间', 'zh-TW': '氣體溫差衰減時間', en: 'Gas temperature difference decay time' }, unit: 's', minimum: 0.001, maximum: 5, precision: 4 },
+      { key: 'heatFlowLagTimeS', label: { 'zh-CN': '近壁传热响应时间', 'zh-TW': '近壁傳熱響應時間', en: 'Near-wall heat transfer response time' }, unit: 's', minimum: 0.0005, maximum: 0.05, precision: 4 },
     ],
   },
   {
     titleKey: 'sensor',
     definitions: [
       { key: 'sensorResponseTimeS', label: { 'zh-CN': '传感器响应时间', 'zh-TW': '感測器響應時間', en: 'Sensor response time' }, unit: 's', minimum: 0.0001, maximum: 1, precision: 4 },
-      { key: 'fastFluctuationStandardDeviationPa', label: { 'zh-CN': '快速波动标准差', 'zh-TW': '快速波動標準差', en: 'Fast fluctuation SD' }, unit: 'Pa', minimum: 0, maximum: 1_000, precision: 1 },
-      { key: 'slowFluctuationStandardDeviationPa', label: { 'zh-CN': '慢速波动标准差', 'zh-TW': '慢速波動標準差', en: 'Slow fluctuation SD' }, unit: 'Pa', minimum: 0, maximum: 1_000, precision: 1 },
-      { key: 'driftWanderAmplitudePa', label: { 'zh-CN': '漂移游走幅度', 'zh-TW': '漂移遊走幅度', en: 'Drift wander amplitude' }, unit: 'Pa', minimum: 0, maximum: 1_000, precision: 1 },
-      { key: 'driftRatePaPerS', label: { 'zh-CN': '漂移速率', 'zh-TW': '漂移速率', en: 'Drift rate' }, unit: 'Pa/s', minimum: -100, maximum: 100, precision: 2 },
     ],
   },
   {
     titleKey: 'release',
     definitions: [
-      { key: 'releaseNeutralGapS', label: { 'zh-CN': '中性松手时间差', 'zh-TW': '中性鬆手時間差', en: 'Neutral release gap' }, unit: 's', minimum: 0, maximum: 10, precision: 3 },
-      { key: 'releaseSaturationGapS', label: { 'zh-CN': '饱和松手时间差', 'zh-TW': '飽和鬆手時間差', en: 'Saturation release gap' }, unit: 's', minimum: 0, maximum: 10, precision: 3 },
-      { key: 'releaseMaximumExtraLossNsPerM', label: { 'zh-CN': '最大附加损耗', 'zh-TW': '最大附加損耗', en: 'Maximum extra loss' }, unit: 'N·s/m', minimum: 0, maximum: 100, precision: 2 },
-      { key: 'releaseAlignmentTimePeriods', label: { 'zh-CN': '对中衰减周期', 'zh-TW': '對中衰減週期', en: 'Alignment decay' }, unit: 'T', minimum: 0.05, maximum: 10, precision: 2 },
-    ],
-  },
-  {
-    titleKey: 'tail',
-    definitions: [
-      { key: 'tailOnsetCycles', label: { 'zh-CN': '尾段起始周期', 'zh-TW': '尾段起始週期', en: 'Tail onset' }, unit: 'T', minimum: 0, maximum: 20, precision: 2 },
-      { key: 'tailIntensity', label: { 'zh-CN': '尾段综合强度', 'zh-TW': '尾段綜合強度', en: 'Aggregate tail intensity' }, unit: '×', minimum: 0, maximum: 3, precision: 2 },
+      {
+        key: 'releaseGapOverrideMs',
+        label: { 'zh-CN': '松手时间差', 'zh-TW': '鬆手時間差', en: 'Release-time gap' },
+        unit: 'ms',
+        ...PISTON_OSCILLATION_FREE_PARAMETER_RANGES.releaseGapOverrideMs,
+        nullable: true,
+      },
+      {
+        key: 'releaseMaximumExtraLossNsPerM',
+        label: { 'zh-CN': '松手附加阻尼系数', 'zh-TW': '鬆手附加阻尼係數', en: 'Additional release damping coefficient' },
+        unit: 'N·s/m',
+        ...PISTON_OSCILLATION_FREE_PARAMETER_RANGES.releaseMaximumExtraLossNsPerM,
+        precision: 2,
+      },
     ],
   },
 ];
 
-const formatValue = (value: number | null, precision: number) => (
-  value === null ? '' : Number(value.toFixed(precision)).toString()
+const formatValue = (value: number | null | undefined, precision?: number) => (
+  value == null ? '' : (precision === undefined ? value : Number(value.toFixed(precision))).toString()
 );
 
 const parseDefinitionValue = (
@@ -286,12 +272,13 @@ const parseDefinitionValue = (
   definition: NumericParameterDefinition,
 ) => {
   const trimmed = raw.trim();
-  if (trimmed.length === 0 && definition.nullable) return null;
+  if (trimmed.length === 0) return definition.nullable ? null : undefined;
   const value = Number(trimmed);
   if (!Number.isFinite(value)
     || value < definition.minimum
     || value > definition.maximum
-    || (definition.integer && !Number.isSafeInteger(value))) return undefined;
+    || (definition.integer && !Number.isSafeInteger(value))
+    || (definition.key === 'recordingDurationS' && !isPistonRecordingDurationS(value))) return undefined;
   return value;
 };
 
@@ -327,7 +314,10 @@ export const PistonOscillationParameterPanel = ({
   const copy = text[language];
   const effects = parameterEffects[language];
   const parameters = useMemo(
-    () => getPistonOscillationFreeEffectiveParameters(session),
+    () => ({
+      recordingDurationS: PISTON_DEFAULT_RECORDING_DURATION_S,
+      ...getPistonOscillationFreeEffectiveParameters(session),
+    }),
     [session.experimentGroup, session.parameterDraft],
   );
   const freeMode = mode === 'free';
@@ -335,6 +325,9 @@ export const PistonOscillationParameterPanel = ({
     || isPistonOscillationFreeExperimentLocked(session);
   const idealReadonly = freeMode && session.experimentGroup.scheme === 'ideal';
   const physicsLocked = conditionLocked || idealReadonly;
+  const isNumberRowLocked = (key: NumericParameterDefinition['key']) => (
+    conditionLocked || (idealReadonly && !isEditableIdealAcquisitionSetting(key))
+  );
   const profileImplemented = isPistonOscillationFreeExperimentProfileImplemented(
     session.experimentGroup,
   );
@@ -366,7 +359,7 @@ export const PistonOscillationParameterPanel = ({
   useEffect(() => {
     setBasicDrafts(Object.fromEntries(basic.map((definition) => [
       definition.key,
-      formatValue(parameters[definition.key] as number | null, definition.precision),
+      formatValue(parameters[definition.key], definition.precision),
     ])));
     setBasicErrors({});
   }, [basic, parameters]);
@@ -376,7 +369,7 @@ export const PistonOscillationParameterPanel = ({
     const definitions = advancedGroups.flatMap((group) => group.definitions);
     setAdvancedDrafts(Object.fromEntries(definitions.map((definition) => [
       definition.key,
-      formatValue(parameters[definition.key] as number, definition.precision),
+      formatValue(parameters[definition.key], definition.precision),
     ])));
     setAdvancedErrors({});
   }, [advancedOpen, parameters]);
@@ -399,16 +392,16 @@ export const PistonOscillationParameterPanel = ({
   }, [freeMode]);
 
   const commitBasic = (definition: NumericParameterDefinition) => {
-    if (physicsLocked) return;
+    if (isNumberRowLocked(definition.key)) return;
     const raw = basicDrafts[definition.key]
-      ?? formatValue(parameters[definition.key] as number | null, definition.precision);
+      ?? formatValue(parameters[definition.key], definition.precision);
     const parsed = parseDefinitionValue(raw, definition);
     if (parsed === undefined) {
       setBasicErrors((current) => ({ ...current, [definition.key]: copy.invalid }));
       setBasicDrafts((current) => ({
         ...current,
         [definition.key]: formatValue(
-          parameters[definition.key] as number | null,
+          parameters[definition.key],
           definition.precision,
         ),
       }));
@@ -430,19 +423,15 @@ export const PistonOscillationParameterPanel = ({
     const next = { ...parameters };
     const errors: Record<string, string> = {};
     for (const definition of advancedGroups.flatMap((group) => group.definitions)) {
-      const parsed = parseDefinitionValue(
-        advancedDrafts[definition.key]
-          ?? formatValue(parameters[definition.key] as number, definition.precision),
-        definition,
-      );
-      if (parsed === undefined || parsed === null) {
+      const current = formatValue(parameters[definition.key], definition.precision);
+      const raw = advancedDrafts[definition.key] ?? current;
+      if (raw === current) continue;
+      const parsed = parseDefinitionValue(raw, definition);
+      if (parsed === undefined) {
         errors[definition.key] = copy.invalid;
       } else {
-        (next[definition.key] as number) = parsed;
+        (next[definition.key] as number | null) = parsed;
       }
-    }
-    if (next.releaseSaturationGapS <= next.releaseNeutralGapS) {
-      errors.releaseSaturationGapS = copy.relationInvalid;
     }
     if (Object.keys(errors).length > 0) {
       setAdvancedErrors(errors);
@@ -480,14 +469,15 @@ export const PistonOscillationParameterPanel = ({
     const errors = scope === 'basic' ? basicErrors : advancedErrors;
     const setDrafts = scope === 'basic' ? setBasicDrafts : setAdvancedDrafts;
     const value = drafts[definition.key]
-      ?? formatValue(parameters[definition.key] as number | null, definition.precision);
+      ?? formatValue(parameters[definition.key], definition.precision);
     const error = errors[definition.key];
+    const rowLocked = isNumberRowLocked(definition.key);
     return (
       <div
         key={definition.key}
-        className={`studio-heat-free-param-row ${physicsLocked ? 'studio-heat-free-param-row-locked' : ''} ${error ? 'studio-heat-free-param-row-error' : ''}`}
+        className={`studio-heat-free-param-row ${rowLocked ? 'studio-heat-free-param-row-locked' : ''} ${error ? 'studio-heat-free-param-row-error' : ''}`}
         data-piston-oscillation-param-id={definition.key}
-        title={physicsLocked ? physicsLockMessage : undefined}
+        title={rowLocked ? physicsLockMessage : undefined}
       >
         {renderParameterLabel(
           definition.key,
@@ -499,7 +489,8 @@ export const PistonOscillationParameterPanel = ({
             <input
               type="text"
               inputMode={definition.integer ? 'numeric' : 'decimal'}
-              disabled={physicsLocked}
+              aria-label={definition.label[language]}
+              disabled={rowLocked}
               value={value}
               aria-invalid={error ? true : undefined}
               onChange={(event) => {
@@ -530,7 +521,7 @@ export const PistonOscillationParameterPanel = ({
                   setBasicDrafts((current) => ({
                     ...current,
                     [definition.key]: formatValue(
-                      parameters[definition.key] as number | null,
+                      parameters[definition.key],
                       definition.precision,
                     ),
                   }));
@@ -548,7 +539,7 @@ export const PistonOscillationParameterPanel = ({
 
   const renderCheckbox = (
     label: string,
-    checked: boolean,
+    checked: boolean | 'mixed',
     disabled: boolean,
     onChange: (checked: boolean) => void,
     id: string,
@@ -562,11 +553,15 @@ export const PistonOscillationParameterPanel = ({
       <label className="studio-heat-free-check-control">
         <input
           type="checkbox"
-          checked={checked}
+          aria-label={label}
+          checked={checked === true}
+          ref={(input) => {
+            if (input) input.indeterminate = checked === 'mixed';
+          }}
           disabled={disabled}
           onChange={(event) => onChange(event.target.checked)}
         />
-        <span>{checked ? copy.on : copy.off}</span>
+        <span>{checked === 'mixed' ? copy.partiallyOn : checked ? copy.on : copy.off}</span>
       </label>
     </div>
   );
@@ -665,29 +660,22 @@ export const PistonOscillationParameterPanel = ({
             {copy.profilePending}
           </div>
         ) : null}
-        {basic.map((definition) => renderNumberRow(definition, 'basic'))}
+        {basic.slice(0, 2).map((definition) => renderNumberRow(definition, 'basic'))}
         {renderCheckbox(
-          copy.sensorFluctuation,
-          parameters.sensorFluctuationEnabled,
+          copy.observationDisturbance,
+          parameters.sensorFluctuationEnabled === parameters.tailIrregularityEnabled
+            ? parameters.sensorFluctuationEnabled
+            : 'mixed',
           physicsLocked,
           (enabled) => onParameterDraftChange({
             ...parameters,
             sensorFluctuationEnabled: enabled,
-          }),
-          'sensorFluctuationEnabled',
-          effects.sensorFluctuationEnabled,
-        )}
-        {renderCheckbox(
-          copy.tailIrregularity,
-          parameters.tailIrregularityEnabled,
-          physicsLocked,
-          (enabled) => onParameterDraftChange({
-            ...parameters,
             tailIrregularityEnabled: enabled,
           }),
-          'tailIrregularityEnabled',
-          effects.tailIrregularityEnabled,
+          'observationDisturbance',
+          effects.observationDisturbance,
         )}
+        {basic.slice(2).map((definition) => renderNumberRow(definition, 'basic'))}
         {renderCheckbox(
           copy.operationVisualization,
           operationVisualizationEnabled,

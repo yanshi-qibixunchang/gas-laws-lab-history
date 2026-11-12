@@ -3,6 +3,7 @@ import type {
 } from './pistonOscillationFreeExperimentGroupModel.ts';
 import {
   getPistonOscillationFreePhysicsConfig,
+  isPistonOscillationFreeTriggerThresholdKpa,
   getPistonOscillationFreeReleaseAsymmetryConfig,
   getPistonOscillationFreeSensorConfig,
   getPistonOscillationFreeTailConfig,
@@ -22,9 +23,17 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
         group.gasMaterialSnapshot.adiabaticIndex,
       )
     : null;
-  const parameters = group.parameterSnapshot?.parameters
-    ?? idealProfile?.parameters
-    ?? parameterDraft;
+  const parameters = group.parameterSnapshot?.parameters ?? (idealProfile
+    ? {
+        ...idealProfile.parameters,
+        triggerThresholdKpa: isPistonOscillationFreeTriggerThresholdKpa(
+          parameterDraft.triggerThresholdKpa,
+          idealProfile.parameters.ambientPressureKpa,
+        ) ? parameterDraft.triggerThresholdKpa : idealProfile.parameters.triggerThresholdKpa,
+        ...(parameterDraft.recordingDurationS === undefined
+          ? {} : { recordingDurationS: parameterDraft.recordingDurationS }),
+      }
+    : parameterDraft);
   const basePhysicsConfig = idealProfile?.physicsConfig
     ?? getPistonOscillationFreePhysicsConfig(parameters);
   return {

@@ -4,7 +4,7 @@ import { createDefaultHeatCapacityFile } from '../../src/features/workbench/work
 import { createDefaultHeatCapacityPistonOscillationFile } from '../../src/features/workbench/workbenchPistonOscillationState.ts';
 import { createDefaultWorkbenchLayoutDefaults } from '../../src/features/workbench/workbenchLayoutCompatibility.ts';
 import { createWorkbenchHeatCapacityRefreshSession } from '../../src/features/workbench/workbenchHeatCapacityRefreshSession.ts';
-import { resolveWorkbenchInitialSession, selectWorkbenchInitialRefreshSession, type WorkbenchInitialSession } from '../../src/features/workbench/workbenchInitialSession.ts';
+import { createWorkbenchTourHomeSession, resolveWorkbenchInitialSession, selectWorkbenchInitialRefreshSession, type WorkbenchInitialSession } from '../../src/features/workbench/workbenchInitialSession.ts';
 import { normalizeWorkbenchInitialFiles } from '../../src/features/workbench/workbenchInitialFilePresentation.ts';
 import { EXPERIMENT_TUTORIAL_FILE_IDS } from '../../src/features/learning/workbenchTutorialCoordinator.ts';
 import type { WorkbenchFileState } from '../../src/features/workbench/workbenchFileUnion.ts';
@@ -24,6 +24,16 @@ const makeInput = () => ({
   const input = makeInput();
   input.readLayoutDefaults = () => { throw Error('ordinary path must not reload defaults'); };
   assert.equal(resolveWorkbenchInitialSession(input), ordinary, 'ordinary startup preserves the session and all file references');
+}
+{
+  const open = { ...piston, runState: 'running' as const, lastOpenedAt: 500 };
+  const cached = { ...standard, lastOpenedAt: 100 };
+  const existing = { files: [open], activeFileId: open.id, selectedPanel: 'realtime' as const };
+  const home = createWorkbenchTourHomeSession(existing, [cached], 1_000);
+  assert.deepEqual(home.session, { files: [], activeFileId: '', selectedPanel: 'preview' });
+  assert.deepEqual(home.closedFiles, [{ ...open, runState: 'paused', updatedAt: 1_000 }, cached]);
+  assert.equal(existing.files[0].runState, 'running', 'tour exit does not mutate the original file');
+  assert.equal(home.closedFiles[1], cached, 'previously cached files remain available from the homepage');
 }
 for (const experiment of ['heatCapacity', 'pistonOscillation'] as const) {
   let reads = 0;

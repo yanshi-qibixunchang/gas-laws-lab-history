@@ -302,8 +302,6 @@ const expectedGuideScrewModes = [
   ['acquisitionReady', 'protectLoose'],
   ['waitingTrigger', 'protectLoose'],
   ['recording', 'protectLoose'],
-  ['pauseAvailable', 'protectLoose'],
-  ['curveFrozen', 'protectLoose'],
   ['awaitingSaveOrRedo', 'protectLoose'],
   ['firstHeightAdjustment', null],
   ['crossRunDisconnect', null],
@@ -1076,7 +1074,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /const releaseInput = \{[\s\S]*releaseAsymmetry: \{[\s\S]*signedReleaseGapS: pressOperationEvidence\.signedReleaseGapS[\s\S]*simulatePistonOscillationIdealAdiabaticRelease\([\s\S]*releaseInput[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*\.\.\.releaseInput/,
+  /const releaseInput = \{[\s\S]*releaseAsymmetry: \{[\s\S]*signedReleaseGapS: pressOperationEvidence\.releaseGapOverrideS\s*\?\? pressOperationEvidence\.signedReleaseGapS[\s\S]*simulatePistonOscillationIdealAdiabaticRelease\([\s\S]*releaseInput[\s\S]*simulatePistonOscillationThermalRelease\(\{[\s\S]*\.\.\.releaseInput/,
   'the captured two-hand release gap must drive the current release-asymmetry model',
 );
 assert.match(

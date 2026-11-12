@@ -163,7 +163,7 @@ import { createStandardPanels, createIdealPanels, createHeatCapacityPanels, crea
 import { LOCKED_PANEL_KEYS } from './workbenchPanelAvailability.ts';
 import { getLocalizedWorkbenchEditLabel } from './workbenchEditLabelLocalization.ts';
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 
@@ -202,7 +202,13 @@ import { isIdealResultWindowKey, normalizeStandardResultsLayout } from './workbe
 
 import { getIdealGasAnalysis, type IdealGasAnalysis } from '../../domain/idealGas/idealGasExperiment';
 
-import { loadWorkbenchGeneralSettings, type WorkbenchGeneralSettings } from './workbenchGeneralSettings.ts';
+import { loadWorkbenchGeneralSettings, type WorkbenchGeneralSettings, type WorkbenchLanguagePreference, type WorkbenchResolvedTheme } from './workbenchGeneralSettings.ts';
+import { getPendingExperimentTutorialForNewFile, type AppExperienceProfile } from '../learning/experimentLearningModel.ts';
+import { WorkspaceTour } from '../onboarding/WorkspaceTour.tsx';
+import { isWorkspaceTourFileStep, WORKSPACE_TOUR_FILE_ID, WORKSPACE_TOUR_HEIGHTS_MM, type WorkspaceTourStep } from '../onboarding/workspaceTourModel.ts';
+import { createDefaultPistonOscillationFreeSession } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
+import { startPistonOscillationFreeWorkbenchState, transitionPistonOscillationFreeWorkbenchState } from './workbenchPistonOscillationState.ts';
+import type { WorkbenchFileKind } from './workbenchFileKind.ts';
 import { workbenchCopies } from './workbenchStudioCopy.ts';
 import { workbenchPromptCopies } from './workbenchPromptCopies.ts';
 
@@ -251,12 +257,23 @@ const clamp = (value: number, min: number, max: number) => Math.min(max, Math.ma
 interface WorkbenchStudioPrototypeProps {
   initialGeneralSettings?: WorkbenchGeneralSettings;
   initialTutorialEntryKind?: 'start' | 'resume';
+  workspaceTourStep?: WorkspaceTourStep;
+  workspaceTourReady?: boolean;
+  onWorkspaceTourProfileChange?: (profile: AppExperienceProfile) => void;
+  onWindowAppearanceChange?: (language: WorkbenchLanguagePreference, theme: WorkbenchResolvedTheme) => void;
+  registerDesktopWindowClose?: (close: () => void) => () => void;
 }
 
 const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   initialGeneralSettings: initialGeneralSettingsOverride,
   initialTutorialEntryKind = 'resume',
+  workspaceTourStep,
+  workspaceTourReady = true,
+  onWorkspaceTourProfileChange,
+  onWindowAppearanceChange,
+  registerDesktopWindowClose,
 }) => {
+  const workspaceTourOnly = isWorkspaceTourFileStep(workspaceTourStep);
   const { settings: audioSettings, updateSettings: updateAudioSettings } = useAudioEngine();
   const {
     initialExperienceProfileLoad,
@@ -268,7 +285,10 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     initialOrdinaryClosedFiles,
     initialSession,
     initialHeatCapacityRefreshSession,
-  } = useWorkbenchInitialWorkspace();
+    initialTourHome,
+  } = useWorkbenchInitialWorkspace(workspaceTourOnly
+    ? initialGeneralSettingsOverride?.language ?? 'zh-CN'
+    : undefined, workspaceTourStep === 'create');
   const {
     experienceProfile,
     setExperienceProfile,
@@ -304,16 +324,22 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   const initialHeatCapacityRefreshDrafts = initialHeatCapacityRefreshSession?.ui.drafts ?? {};
   const initialHeatCapacityRefreshLayout = initialHeatCapacityRefreshSession?.ui.layout ?? {};
 
-  const { workbenchLayoutDefaults, setWorkbenchLayoutDefaults, openTopMenu, setOpenTopMenu, topMenuLeft, leftCollapsed, setLeftCollapsed, parametersCollapsed, setParametersCollapsed, leftSidebarWidth, setLeftSidebarWidth, parameterSidebarWidth, setParameterSidebarWidth, isCanvasFocused, setIsCanvasFocused, liveWorkspaceResizing, setLiveWorkspaceResizing, topCommandsRef, topMenuRef, workbenchBodyRef, workspaceShellRef, shellRef, liveWorkspaceRef, sidebarResizeGhostRef, parameterSidebarResizeGhostRef, liveWorkspaceResizeGhostRef, consoleResizeGhostRef, resizeGhostFrameRef, consoleResizeRef, centerWorkspaceRef, fileTabsRef, idealResultWindowRegionRef, toggleTopCommandMenu } = useWorkbenchLayoutState({ initialHeatCapacityRefreshLayout, initialHeatCapacityRefreshWindows });
+  const { workbenchLayoutDefaults, setWorkbenchLayoutDefaults, openTopMenu, setOpenTopMenu, topMenuLeft, leftCollapsed, setLeftCollapsed, parametersCollapsed, setParametersCollapsed, leftSidebarWidth, setLeftSidebarWidth, parameterSidebarWidth, setParameterSidebarWidth, isCanvasFocused, setIsCanvasFocused, liveWorkspaceResizing, setLiveWorkspaceResizing, topCommandsRef, topMenuRef, workbenchBodyRef, workspaceShellRef, shellRef, liveWorkspaceRef, sidebarResizeGhostRef, parameterSidebarResizeGhostRef, liveWorkspaceResizeGhostRef, consoleResizeGhostRef, resizeGhostFrameRef, consoleResizeRef, centerWorkspaceRef, fileTabsRef, idealResultWindowRegionRef, toggleTopCommandMenu } = useWorkbenchLayoutState({
+    initialHeatCapacityRefreshLayout,
+    initialHeatCapacityRefreshWindows,
+    initialWorkbenchSidebarRefreshState: workspaceTourOnly || initialTourHome
+      ? { schemaVersion: 1, leftCollapsed: false, parametersCollapsed: true }
+      : undefined,
+  });
   const { files, setFiles, closedFiles, setClosedFiles, activeFileId, setActiveFileId, selectedPanel, setSelectedPanel, filesRef, closedFilesRef, issuedWorkbenchFileIdsRef, activeFileIdRef, selectedPanelRef, workspacePersistenceLocationRef } = useWorkbenchWorkspaceCollectionState({ initialSession, initialHeatCapacityRefreshSession, getInitialClosedFiles: () => (
-    initialTutorialReconstruction
+    workspaceTourOnly || initialTutorialReconstruction
       ? []
       : initialTutorialHandoffRecovery
         ? [...initialOrdinarySession.files, ...initialOrdinaryClosedFiles].filter((file) => (
             initialTutorialHandoff.status !== 'loaded' ||
             file.id !== initialTutorialHandoff.marker.targetFileId
           ))
-        : initialOrdinaryClosedFiles
+        : initialTourHome?.closedFiles ?? initialOrdinaryClosedFiles
   ) });
 
   const initialGeneralSettings = useMemo(
@@ -392,7 +418,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     (file) => file.id === initialSession.activeFileId,
   );
 
-  useWorkbenchSidebarRefreshPersistence(leftCollapsed, parametersCollapsed);
+  useWorkbenchSidebarRefreshPersistence(leftCollapsed, parametersCollapsed, !workspaceTourOnly);
 
   const { pendingRemovePointId, setPendingRemovePointId, pendingClearRelationKey, setPendingClearRelationKey, samplingPresetMenuOpen, setSamplingPresetMenuOpen, idealAdvancedSettingsOpen, setIdealAdvancedSettingsOpen, idealAdvancedSettingsBodyVisible, setIdealAdvancedSettingsBodyVisible, parameterInputDrafts, setParameterInputDrafts, parameterErrors, setParameterErrors, scanInputDraft, setScanInputDraft, scanInputFocused, setScanInputFocused, scanInputError, setScanInputError, scanInputToast, setScanInputToast, scanSliderThumbHover, setScanSliderThumbHover, scanSliderDragging, setScanSliderDragging, scanInputRef, lastScanInputErrorRef, samplingPresetSelectRef, currentParametersBodyRef, idealAdvancedSettingsBodyRef, idealAdvancedSettingsPreviousScrollTopRef, idealAdvancedScrollFrameRef } = useWorkbenchParameterInteractionState();
 
@@ -701,8 +727,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     ui: { liveWorkspaceRef, requestPromptConfirmation, setLeftCollapsed, setParametersCollapsed, setSelectedPanel, showParameterSidebarBlockReason: (...args) => showParameterSidebarBlockReason(...args) },
     tutorial: { activeTutorialExperiment, experienceProfileRef },
   });
-  const { pistonModeControl, pistonOscillationReleaseEventsByFileId, pistonOscillationPressStartEventsByFileId, pistonOscillationMeasurementCyclesByFileId, pistonOscillationGuidePulseElapsedMs, pistonOscillationGuideFeedback, pistonOscillationGuideLessonDialog, pistonOscillationGuideLessonOutgoingView, pistonOscillationGuideCompletionToast, pistonOscillationGuideStrongMaskLayout, pistonOscillationGuidePistonStable, pistonOscillationGuideResetFeedback, pistonOscillationGuideChecklistViewedIndex, pistonOscillationDemoPlayback, pistonOscillationCalculationReviewOpen, pistonOscillationDataProcessingReviewOpen, pistonOscillationProcessReviewOpen, activePistonOscillationEffectiveConfig, activePistonOscillationPhysicsConfig, activePistonOscillationThermalConfig, activePistonOscillationReleaseAsymmetryConfig, activePistonOscillationParameterSignature, activePistonOscillationDemoPlaybackPhase, activePistonOscillationGuideSession, activePistonOscillationFreeSession, activePistonOscillationFreeSelected, pistonOscillationFreeSetupOpen, pistonOscillationCompletedDataProcessingReview, activePistonOscillationDataProcessing, activePistonOscillationProcessReview, activePistonOscillationExpandedRealtime, pistonOscillationCalculationWindowOpen, activePistonOscillationGuideSelected, activePistonOscillationParameterMode, activePistonOscillationParameterSidebarAvailable, activePistonOscillationPowerOn, activePistonOscillationGuideTimeFrozen, activePistonOscillationGuideInstrumentRestoreState, activePistonOscillationGuideSnapTargetHeightMm, pistonOscillationCopy, pistonGuidePulseActive, pistonGuideVisualCue, pistonGuideScrewInteractionMode, pistonGuideAcquisitionCue, pistonGuideRequestedFocusMode, pistonGuideExpectedStrongTargetId, pistonGuideStrongTargetContext, pistonOscillationGuideStrongReminderActive, pistonGuideStrongTargetId, pistonGuideStrongReminderText, getPistonOscillationGuideLessonView,  } = pistonController.view;
-  const { pistonOscillationGuideLessonDialogRef, pistonOscillationGuideChecklistTrackRef, pistonOscillationGuideChecklistVisualOffsetRef, pistonOscillationDemoPlaybackChannel, pistonOscillationLivePressureChannel, pistonOscillationAcquisitionPanelRef, pistonOscillationContentRenderRecoveryHostRef } = pistonController.bindings;
+  const { pistonModeControl, pistonOscillationReleaseEventsByFileId, pistonOscillationPressStartEventsByFileId, pistonOscillationMeasurementCyclesByFileId, pistonOscillationGuidePulseElapsedMs, pistonOscillationGuideFeedback, pistonOscillationGuideLessonDialog, pistonOscillationGuideLessonOutgoingView, pistonOscillationGuideCompletionToast, pistonOscillationGuideStrongMaskLayout, pistonOscillationGuideResetFeedback, pistonOscillationGuideChecklistViewedIndex, pistonOscillationDemoPlayback, pistonOscillationCalculationReviewOpen, pistonOscillationDataProcessingReviewOpen, pistonOscillationProcessReviewOpen, activePistonOscillationEffectiveConfig, activePistonOscillationPhysicsConfig, activePistonOscillationThermalConfig, activePistonOscillationReleaseAsymmetryConfig, activePistonOscillationParameterSignature, activePistonOscillationDemoPlaybackPhase, activePistonOscillationGuideSession, activePistonOscillationFreeSession, activePistonOscillationFreeSelected, pistonOscillationFreeSetupOpen, pistonOscillationCompletedDataProcessingReview, activePistonOscillationDataProcessing, activePistonOscillationProcessReview, activePistonOscillationExpandedRealtime, pistonOscillationCalculationWindowOpen, activePistonOscillationGuideSelected, activePistonOscillationParameterMode, activePistonOscillationParameterSidebarAvailable, activePistonOscillationPowerOn, activePistonOscillationGuideTimeFrozen, activePistonOscillationGuideInstrumentRestoreState, activePistonOscillationGuideSnapTargetHeightMm, pistonOscillationCopy, pistonGuidePulseActive, pistonGuideVisualCue, pistonGuideScrewInteractionMode, pistonGuideAcquisitionCue, pistonGuideRequestedFocusMode, pistonGuideExpectedStrongTargetId, pistonGuideStrongTargetContext, pistonOscillationGuideStrongReminderActive, pistonGuideStrongTargetId, pistonGuideStrongReminderText, getPistonOscillationGuideLessonView,  } = pistonController.view;
+  const { pistonOscillationGuideLessonDialogRef, pistonOscillationGuideChecklistTrackRef, pistonOscillationGuideChecklistVisualOffsetRef, pistonOscillationDemoPlaybackChannel, pistonOscillationLivePressureChannel, pistonOscillationContentRenderRecoveryHostRef } = pistonController.bindings;
   const { restorePistonOscillationFreeParameters, cancelPistonOscillationFreeSetup, requestPistonOscillationFreeSetup, changePistonOscillationPeriodSelectionMode, clearPistonOscillationTutorialPlayback, clearPistonOscillationReviewWindows, handlePistonOscillationReleaseEvent, handlePistonOscillationPressStartEvent, handlePistonOscillationFreeOperationObserved, editPistonOscillationGuideParameter, commitPistonOscillationGuideParameter, commitPistonOscillationFreeAcquisitionSetting, changePistonOscillationFreeCandidate, startPistonOscillationFreeAcquisition, savePistonOscillationFreeMeasurement, retainPistonOscillationRun, handlePistonOscillationPowerToggle, activatePistonOscillationFreeMode, deletePistonOscillationFreeMeasurement, requestPistonOscillationFreeReset, handlePistonOscillationFreeInstrumentSnapshot, handlePistonOscillationGuideActionAttempt, handlePistonOscillationGuideScrewDirectionFeedback, handlePistonOscillationGuideHeightConfirmed, handlePistonOscillationGuideSupportLoss, handlePistonOscillationGuideHeightResetComplete, closePistonOscillationGuideLessonDialog, openPistonOscillationGuideLessonIntro, advancePistonOscillationGuideLessonDialog, handlePistonOscillationGuideLessonDialogKeyDown, handlePistonOscillationGuideInstrumentSnapshot, handlePistonOscillationGuideAcquisitionEvent, handlePistonOscillationProcessingEvent, handlePistonOscillationFreeUnusableMeasurement, completeAndExitPistonOscillationCalculation, closePistonOscillationCalculationReview, openPistonOscillationDataProcessingReview, openPistonOscillationCalculationReview, closePistonOscillationDataProcessingReview, openPistonOscillationProcessReview, closePistonOscillationProcessReview, returnToPistonOscillationInstrumentAfterDisplayError, handlePistonOscillationGuideProcessingInteractionStart, handlePistonOscillationGuideInvalidPeriodSelection, togglePistonOscillationOperationVisualization, setPistonOscillationOperationVisualization, updatePistonOscillationFreeParameterDraft, setPistonOscillationFreeExperimentScheme, setPistonOscillationFreeGasType, acknowledgePistonOscillationAdvancedParametersRisk, showPistonOscillationParameterLockHint, handlePistonOscillationGuideChecklistWheel, handlePistonOscillationGuideChecklistKeyDown, activatePistonOscillationTutorialMode,  } = pistonController.commands;
 
   const { activeHeatCapacityMaterialsWindowOpen, activeExperimentMaterialsPanelKeys } = useWorkbenchTeachingPanelProjection({ activeFile, selectedPanel, setSelectedPanel, setLeftCollapsed });
@@ -710,6 +736,43 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   useWorkbenchHeatFreeWorkspaceEffects(heatCapacityController.effects.freeWorkspace);
 
   const effectiveParametersCollapsed = parametersCollapsed;
+
+  useLayoutEffect(() => {
+    if (!workspaceTourOnly || !shellRef.current) return undefined;
+    const shell = shellRef.current;
+    shell.inert = true;
+    return () => { shell.inert = false; };
+  }, [shellRef, workspaceTourOnly]);
+
+  useLayoutEffect(() => {
+    if (!workspaceTourOnly) return;
+    const file = filesRef.current[0];
+    if (file?.kind !== 'heatCapacityPistonOscillation' || file.id !== WORKSPACE_TOUR_FILE_ID) return;
+    if (workspaceTourStep === 'parameters') {
+      if (file.pistonOscillationFreeSession.status !== 'active') {
+        const nowMs = Date.now();
+        const started = startPistonOscillationFreeWorkbenchState(file, nowMs);
+        const next = transitionPistonOscillationFreeWorkbenchState(started, {
+          type: 'setPlan', targetHeightsMm: WORKSPACE_TOUR_HEIGHTS_MM, nowMs,
+        });
+        filesRef.current = [next];
+        setFiles([next]);
+      }
+    } else {
+      setParametersCollapsed(true);
+      if (file.pistonOscillationFreeSession.status === 'active') {
+        const next = { ...file, pistonOscillationFreeSession: createDefaultPistonOscillationFreeSession() };
+        filesRef.current = [next];
+        setFiles([next]);
+      }
+    }
+  }, [filesRef, setFiles, setParametersCollapsed, workspaceTourOnly, workspaceTourStep]);
+
+  useLayoutEffect(() => {
+    if (workspaceTourStep === 'parameters' && activePistonOscillationParameterSidebarAvailable) {
+      setParametersCollapsed(false);
+    }
+  }, [activePistonOscillationParameterSidebarAvailable, setParametersCollapsed, workspaceTourStep]);
 
   const openableClosedFiles = closedFiles.filter((file) => !files.some((openFile) => openFile.id === file.id));
   const standardPanels = useMemo(() => createStandardPanels(workbenchCopy), [workbenchCopy]);
@@ -963,6 +1026,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   });
 
   const { clearHeatCapacitySemanticCheckpointTimers, flushWorkspaceAfterRunStateCommit } = useWorkbenchWorkspacePersistence({
+ transient: workspaceTourOnly,
  snapshot: {
     readTutorialWorkspace: () => tutorialActiveRef.current ? tutorialOrdinaryWorkspaceRef.current : null,
     readFiles: () => filesRef.current,
@@ -1226,6 +1290,35 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   });
 
   const { openNewWorkbenchWindow, closeDesktopWindow, openUserGuide } = createWorkbenchDesktopNavigationActions({ window, guardWorkbenchTutorialAction, setOpenTopMenu, getFreshWorkbenchWindowUrl, tutorialActiveRef, settingsLanguagePreference, requestPromptConfirmation });
+  const closeDesktopWindowRef = useRef(closeDesktopWindow);
+  closeDesktopWindowRef.current = closeDesktopWindow;
+  useEffect(() => registerDesktopWindowClose?.(() => closeDesktopWindowRef.current()), [registerDesktopWindowClose]);
+
+  const changeWorkspaceTourStep = (step: WorkspaceTourStep) => {
+    const profile = { ...experienceProfileRef.current, workspaceTourStep: step };
+    if (!commitExperienceProfile(profile)) return false;
+    onWorkspaceTourProfileChange?.(experienceProfileRef.current);
+    return true;
+  };
+  const finishWorkspaceTourCreationHint = () => workspaceTourStep !== 'create'
+    || changeWorkspaceTourStep('finished');
+  const pendingLearningStartRef = useRef(false);
+  const createExperiment = (kind: WorkbenchFileKind) => {
+    if (workspaceTourOnly || pendingLearningStartRef.current) return;
+    if (!finishWorkspaceTourCreationHint()) return;
+    const experiment = getPendingExperimentTutorialForNewFile(experienceProfileRef.current, kind);
+    if (!experiment) {
+      createFile(kind);
+      return;
+    }
+    setOpenTopMenu(null);
+    pendingLearningStartRef.current = true;
+    void startExperimentLearningTutorial(experiment, experienceProfileRef.current, 'file-creation')
+      .finally(() => { pendingLearningStartRef.current = false; });
+  };
+  const openExperiment = (fileId: string) => {
+    if (!workspaceTourOnly && finishWorkspaceTourCreationHint()) openClosedWorkbenchFile(fileId);
+  };
 
   const getLocalizedTreeState = (state: 'locked' | 'shown' | 'open' | 'active' | 'off') => workbenchCopy.files[state];
 
@@ -1777,7 +1870,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       pistonOscillationMeasurementCyclesByFileId={pistonOscillationMeasurementCyclesByFileId}
       activePistonOscillationDemoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
       pistonOscillationDemoPlaybackChannel={pistonOscillationDemoPlaybackChannel}
-      activePistonOscillationGuideTimeFrozen={activePistonOscillationGuideTimeFrozen}
+      activePistonOscillationGuideTimeFrozen={workspaceTourOnly || activePistonOscillationGuideTimeFrozen}
       pistonOscillationGuideLessonDialog={pistonOscillationGuideLessonDialog}
       pistonOscillationFreeSetupOpen={pistonOscillationFreeSetupOpen}
       pistonGuideVisualCue={pistonGuideVisualCue}
@@ -1857,7 +1950,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       pistonOscillationCompletedDataProcessingReview={pistonOscillationCompletedDataProcessingReview}
       openPistonOscillationCalculationReview={openPistonOscillationCalculationReview}
       closePistonOscillationDataProcessingReview={closePistonOscillationDataProcessingReview}
-      pistonOscillationAcquisitionPanelRef={pistonOscillationAcquisitionPanelRef}
       activePistonOscillationGuideSession={activePistonOscillationGuideSession}
       activePistonOscillationFreeSession={activePistonOscillationFreeSession}
       activePistonOscillationPowerOn={activePistonOscillationPowerOn}
@@ -1867,7 +1959,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       activePistonOscillationDemoPlaybackPhase={activePistonOscillationDemoPlaybackPhase}
       pistonOscillationDemoPlaybackChannel={pistonOscillationDemoPlaybackChannel}
       activePistonOscillationGuideSelected={activePistonOscillationGuideSelected}
-      pistonOscillationGuidePistonStable={pistonOscillationGuidePistonStable}
       activePistonOscillationGuideTimeFrozen={activePistonOscillationGuideTimeFrozen}
       pistonOscillationGuideLessonDialog={pistonOscillationGuideLessonDialog}
       pistonGuideAcquisitionCue={pistonGuideAcquisitionCue}
@@ -2131,6 +2222,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         : workbenchLayoutDefaults.heatCapacityPistonOscillation;
   const topMenuLayoutSummary = `${Math.round(activeLayoutDefaults.resultsHeightRatio * 100)}% / ${Math.round(activeLayoutDefaults.liveWorkspaceSplitRatio * 100)}%`;
   const resolvedWorkbenchTheme = settingsThemePreference === 'system' ? systemWorkbenchTheme : settingsThemePreference;
+  useEffect(() => {
+    onWindowAppearanceChange?.(settingsLanguagePreference, resolvedWorkbenchTheme);
+  }, [onWindowAppearanceChange, resolvedWorkbenchTheme, settingsLanguagePreference]);
   const promptFeedbackCopy = PROMPT_FEEDBACK_COPY[settingsLanguagePreference];
   const promptToastMessages: PromptToastMessage[] = [];
   if (scanInputToast) {
@@ -2182,6 +2276,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     <div
       className={`studio-workbench studio-theme-${resolvedWorkbenchTheme}`}
       data-workbench-language={settingsLanguagePreference}
+      data-workspace-tour-home={workspaceTourReady && workspaceTourStep === 'create' && isWorkbenchEmpty
+        ? 'true'
+        : undefined}
       data-experiment-tutorial-active={tutorialActive ? 'true' : 'false'}
       data-experiment-tutorial-id={tutorialActive ? activeTutorialExperiment ?? undefined : undefined}
       data-experiment-tutorial-milestone={
@@ -2358,8 +2455,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       topMenuLayoutSummary={topMenuLayoutSummary}
       toggleTopCommandMenu={toggleTopCommandMenu}
       openNewWorkbenchWindow={openNewWorkbenchWindow}
-      createFile={createFile}
-      openClosedWorkbenchFile={openClosedWorkbenchFile}
+      createFile={createExperiment}
+      openClosedWorkbenchFile={openExperiment}
       undoLastEdit={undoLastEdit}
       redoLastEdit={redoLastEdit}
       clearEditHistory={clearEditHistory}
@@ -2373,7 +2470,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       saveCurrentWorkbenchLayoutAsDefault={saveCurrentWorkbenchLayoutAsDefault}
       openUserGuide={openUserGuide}
       openAboutWindow={openAboutWindow}
-      closeDesktopWindow={closeDesktopWindow}
       onDownloadDesktop={browserEdition ? () => openBrowserDownload() : undefined}
     />
         <WorkbenchAboutWindow
@@ -2592,8 +2688,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       openableClosedFiles={openableClosedFiles}
       settingsLanguagePreference={settingsLanguagePreference}
       workbenchCopy={workbenchCopy}
-      createFile={createFile}
-      openClosedWorkbenchFile={openClosedWorkbenchFile}
+      createFile={createExperiment}
+      openClosedWorkbenchFile={openExperiment}
       liveWorkspaceResizing={liveWorkspaceResizing}
       liveWorkspaceStyle={liveWorkspaceStyle}
       liveWorkspaceRef={liveWorkspaceRef}
@@ -2617,7 +2713,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       renderHeatCapacityMaterialsWindow={renderHeatCapacityMaterialsWindow}
     />
 
-              {!isWorkbenchEmpty ? (
+              {!isWorkbenchEmpty && (!workspaceTourOnly || !effectiveParametersCollapsed) ? (
               <WorkbenchCurrentParameters
       currentParameterControlsLocked={currentParameterControlsLocked}
       workbenchCopy={workbenchCopy}
@@ -2682,6 +2778,16 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       consoleSummary={consoleSummary}
     />
       </div>
+      {workspaceTourReady && (workspaceTourOnly || workspaceTourStep === 'create')
+        && (workspaceTourStep !== 'parameters'
+          || (activePistonOscillationParameterSidebarAvailable && !effectiveParametersCollapsed)) ? (
+          <WorkspaceTour
+            key={workspaceTourStep}
+            step={workspaceTourStep}
+            language={settingsLanguagePreference}
+            onStep={changeWorkspaceTourStep}
+          />
+        ) : null}
     </div>
   );
 };

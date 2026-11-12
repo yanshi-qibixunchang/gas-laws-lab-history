@@ -80,8 +80,6 @@ export const getPistonOscillationGuideScrewInteractionMode = (
     case 'acquisitionReady':
     case 'waitingTrigger':
     case 'recording':
-    case 'pauseAvailable':
-    case 'curveFrozen':
     case 'awaitingSaveOrRedo':
       return 'protectLoose';
     case 'screwLock':

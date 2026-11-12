@@ -26,7 +26,6 @@ export {
 } from './pistonOscillationGuideScrewInteraction.ts';
 export {
   PistonOscillationAcquisitionPanel,
-  type PistonOscillationAcquisitionPanelHandle,
   type PistonOscillationAcquisitionPanelProps,
   type PistonOscillationGuideAcquisitionCue,
   type PistonOscillationGuideAcquisitionEvent,

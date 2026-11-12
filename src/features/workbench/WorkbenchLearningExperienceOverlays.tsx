@@ -29,6 +29,7 @@ export const WorkbenchLearningExperienceOverlays = ({ productIntroReplayPhase, l
           <div className="first-run-experience first-run-replay-overlay" data-learning-overlay="reselect-needs">
             <LearningNeedsPage
               copy={firstRunCopies[settingsLanguagePreference]}
+              reselect
               answers={learningNeedsDraft}
               onAnswerChange={updateLearningNeedsAnswer}
               onPrevious={closeLearningExperienceOverlay}

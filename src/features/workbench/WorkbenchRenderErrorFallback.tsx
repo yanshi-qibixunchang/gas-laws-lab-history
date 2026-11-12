@@ -4,7 +4,6 @@ import type {
   WorkbenchResolvedTheme,
 } from './workbenchGeneralSettings.ts';
 import { getWorkbenchAppBrandName } from './workbenchBrand.ts';
-import { WorkbenchWindowControls } from './WorkbenchWindowControls.tsx';
 
 const RENDER_ERROR_COPY: Record<WorkbenchLanguagePreference, {
   eyebrow: string;
@@ -121,7 +120,6 @@ export const WorkbenchOuterRenderErrorFallback = ({
             <span>{getWorkbenchAppBrandName(language)}</span>
           </div>
           <div className="studio-titlebar-drag-fill" aria-hidden="true" />
-          <WorkbenchWindowControls language={language} />
         </header>
         <main className="studio-render-error-outer-body">
           <section className="studio-render-error" role="alert">

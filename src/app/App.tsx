@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import WorkbenchStudioPrototype from '../features/workbench/WorkbenchStudioPrototype';
 import {
   getSystemWorkbenchTheme,
   loadWorkbenchGeneralSettingsWithStatus,
   persistWorkbenchGeneralSettings,
   type WorkbenchGeneralSettings,
+  type WorkbenchLanguagePreference,
+  type WorkbenchResolvedTheme,
 } from '../features/workbench/workbenchGeneralSettings.ts';
 import { AudioProvider } from '../audio/react/AudioProvider.tsx';
 import {
@@ -26,7 +28,9 @@ import {
   type FirstRunEntryMode,
 } from '../features/onboarding/firstRunExperienceModel.ts';
 import { commitFirstRunExperienceProfile } from '../features/onboarding/firstRunExperienceStore.ts';
-import { createDefaultAppExperienceProfile } from '../features/learning/experimentLearningModel.ts';
+import { createDefaultAppExperienceProfile, type AppExperienceProfile } from '../features/learning/experimentLearningModel.ts';
+import { isWorkspaceTourFileStep } from '../features/onboarding/workspaceTourModel.ts';
+import { hasDesktopWindowControlBridge, WorkbenchWindowControls } from '../features/workbench/WorkbenchWindowControls.tsx';
 import {
   APP_EXPERIENCE_PROFILE_STORAGE_KEY,
   loadAppExperienceProfile,
@@ -68,7 +72,23 @@ function App() {
   const [entryMode, setEntryMode] = useState<FirstRunEntryMode>(() => (
     resolveFirstRunEntryMode(initialExperienceProfileLoad)
   ));
-  const [tutorialEntryKind, setTutorialEntryKind] = useState<'start' | 'resume'>('resume');
+  const [windowAppearance, setWindowAppearance] = useState<{
+    language: WorkbenchLanguagePreference;
+    theme: WorkbenchResolvedTheme;
+  } | null>(null);
+  const workbenchCloseRef = useRef<(() => void) | null>(null);
+  const registerWorkbenchClose = useCallback((close: () => void) => {
+    workbenchCloseRef.current = close;
+    return () => {
+      if (workbenchCloseRef.current === close) workbenchCloseRef.current = null;
+    };
+  }, []);
+  const updateWindowAppearance = useCallback((language: WorkbenchLanguagePreference, theme: WorkbenchResolvedTheme) => {
+    setWindowAppearance({ language, theme });
+  }, []);
+  const updateWorkspaceTourProfile = useCallback((profile: AppExperienceProfile) => {
+    setExperienceProfileLoad({ status: 'loaded', profile, persisted: true });
+  }, []);
   const initialFirstRunLanguage = useMemo(() => resolveInitialFirstRunLanguage({
     persistedLanguage: initialGeneralSettingsLoad.persisted
       ? initialGeneralSettingsLoad.settings.language
@@ -107,7 +127,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (entryMode === 'workbench') return undefined;
+    if (entryMode === 'workbench' && persistenceBootstrap) return undefined;
     const desktopWindowBridge = window.hardSphereLabWindow;
     const unsubscribe = desktopWindowBridge?.onPrepareExit?.((request) => {
       void desktopWindowBridge.reportPersistenceResult({
@@ -116,7 +136,7 @@ function App() {
       });
     });
     return () => unsubscribe?.();
-  }, [entryMode]);
+  }, [entryMode, persistenceBootstrap]);
 
   useEffect(() => {
     return subscribeWorkbenchPersistenceInitialization(setPersistenceInitializationStage);
@@ -187,14 +207,6 @@ function App() {
         profile: committed.profile,
         persisted: true,
       };
-      setTutorialEntryKind(
-        entryMode === 'full' && (
-          draft?.heatCapacity === 'needs-guidance' ||
-          draft?.pistonOscillation === 'needs-guidance'
-        )
-          ? 'start'
-          : 'resume',
-      );
       setExperienceProfileLoad(nextLoad);
       setEntryMode('workbench');
       return null;
@@ -228,6 +240,17 @@ function App() {
   const resolvedWorkbenchTheme = generalSettings.theme === 'system'
     ? getSystemWorkbenchTheme()
     : generalSettings.theme;
+  const workspaceTourStep = experienceProfileLoad.profile.workspaceTourStep;
+  const workspaceTourOnly = isWorkspaceTourFileStep(workspaceTourStep);
+  const closeDesktopWindow = () => {
+    if (entryMode !== 'workbench') {
+      void exitBeforeConsent();
+    } else if (workbenchCloseRef.current) {
+      workbenchCloseRef.current();
+    } else {
+      void window.hardSphereLabWindow?.close();
+    }
+  };
 
   return (
     <PromptTooltipProvider>
@@ -252,8 +275,13 @@ function App() {
                 >
                   <DevelopmentRenderFault target="workbench" />
                   <WorkbenchStudioPrototype
+                    key={workspaceTourOnly ? 'workspace-tour' : 'workbench'}
                     initialGeneralSettings={generalSettings}
-                    initialTutorialEntryKind={tutorialEntryKind}
+                    workspaceTourStep={workspaceTourStep}
+                    workspaceTourReady={startupDismissed}
+                    onWorkspaceTourProfileChange={updateWorkspaceTourProfile}
+                    onWindowAppearanceChange={updateWindowAppearance}
+                    registerDesktopWindowClose={registerWorkbenchClose}
                   />
                 </RecoverableRenderErrorBoundary>
               ) : (
@@ -266,6 +294,7 @@ function App() {
                   themePreference={generalSettings.theme}
                   onAccept={acceptFirstRunExperience}
                   onExit={exitBeforeConsent}
+                  onWindowAppearanceChange={updateWindowAppearance}
                 />
               )
             ) : null}
@@ -282,6 +311,19 @@ function App() {
                 onContinueSafely={continueStartupSafely}
                 onComplete={completeStartup}
               />
+            ) : null}
+            {hasDesktopWindowControlBridge() ? (
+              <div
+                className={`studio-workbench studio-theme-${windowAppearance?.theme ?? resolvedWorkbenchTheme} app-window-controls`}
+                data-app-window-controls="true"
+              >
+                <WorkbenchWindowControls
+                  language={windowAppearance?.language ?? (entryMode === 'full'
+                    ? initialFirstRunLanguage
+                    : generalSettings.language)}
+                  onClose={closeDesktopWindow}
+                />
+              </div>
             ) : null}
           </div>
         </WorkbenchAspectFrame>

@@ -12,7 +12,7 @@ import { getPistonOscillationShellCopy } from "../pistonOscillation/pistonOscill
 import type { PistonOscillationGuideAcquisitionCue } from "../pistonOscillation/PistonOscillationAcquisitionPanel.tsx";
 import type { PistonOscillationGuideInstrumentSnapshot, PistonOscillationGuideScrewDirectionFeedback, PistonOscillationGuideSupportLossEvent, PistonOscillationGuideVisualCue } from "../pistonOscillation/PistonOscillationInteractionWorkspace.tsx";
 import type { PistonOscillationGuideAction, PistonOscillationGuideActionContext, PistonOscillationGuideEvent, PistonOscillationGuideGuardResult } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
-import { getPistonOscillationGuideActionGuard, PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
+import { getPistonOscillationGuideActionGuard, getPistonOscillationGuideTargetHeightMm } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 
 import { GUIDE_HEAT_CAPACITY_GUIDANCE_PULSE_INTERVAL_MS, PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRM_PULSE_DELAY_MS, PISTON_OSCILLATION_GUIDE_STRONG_REMINDER_DELAY_MS, PISTON_OSCILLATION_GUIDE_CLOCK_INTERVAL_MS, PISTON_OSCILLATION_GUIDE_ORDINARY_REMINDER_DURATION_MS } from './workbenchTeachingUiTiming.ts';
 
@@ -73,8 +73,6 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
   const [pistonOscillationGuideHoseState, setPistonOscillationGuideHoseState] =
     useState<PistonOscillationGuideInstrumentSnapshot['hoseState'] | null>(null);
 
-  const [pistonOscillationGuidePistonStable, setPistonOscillationGuidePistonStable] =
-    useState(false);
 
   const [pistonOscillationGuideResetFeedback, setPistonOscillationGuideResetFeedback] =
     useState(false);
@@ -159,9 +157,7 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
       activePistonOscillationGuideSession.step === 'firstHeightAdjustment'
       || activePistonOscillationGuideSession.step === 'nextHeightAdjustment'
     )
-      ? PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
-        activePistonOscillationGuideSession.measurementIndex
-      ]
+      ? getPistonOscillationGuideTargetHeightMm(activePistonOscillationGuideSession)
       : activePistonOscillationFreeSelected
         && activePistonOscillationEffectiveConfig?.heightSnapEnabled
         ? activePistonOscillationFreeSession?.experimentPlan
@@ -334,11 +330,9 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
           ? 'redo'
         : pistonGuideStep === 'acquisitionReady'
           ? 'start'
-          : pistonGuideStep === 'pauseAvailable'
-            ? 'pause'
-            : pistonGuideStep === 'awaitingSaveOrRedo'
-              ? 'save'
-              : null;
+          : pistonGuideStep === 'awaitingSaveOrRedo'
+            ? 'save'
+            : null;
 
   const pistonGuideRequestedFocusMode =
     activePistonOscillationGuideSession?.status === 'active'
@@ -486,6 +480,7 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
           activePistonOscillationGuideSession.step,
           activePistonOscillationGuideSession.measurementIndex,
           pistonGuideExpectedStrongTargetId,
+          getPistonOscillationGuideTargetHeightMm(activePistonOscillationGuideSession),
         )
     : '';
 
@@ -659,7 +654,7 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
 
     if (isPistonOscillationGuideStrongReminderActive()) return guard;
 
-    const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex];
+    const targetHeightMm = getPistonOscillationGuideTargetHeightMm(session);
     const message = getPistonOscillationGuideGuardFeedbackText(
       pistonOscillationCopy,
       action,
@@ -767,7 +762,6 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
     const previousSnapshot = pistonOscillationGuideInstrumentSnapshotRef.current;
     const previousHeightAdjustmentStage = previousSnapshot?.heightAdjustmentStage;
     pistonOscillationGuideInstrumentSnapshotRef.current = snapshot;
-    setPistonOscillationGuidePistonStable(snapshot.pistonPhase === 'idle');
     if (previousHeightAdjustmentStage !== snapshot.heightAdjustmentStage) {
       setPistonOscillationGuideHeightAdjustmentStage(snapshot.heightAdjustmentStage);
     }
@@ -791,7 +785,7 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
       Math.abs(snapshot.equilibriumHeightMm - heightMm) <= 0.25
     );
     const currentTargetHeightMm =
-      PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[currentSession.measurementIndex];
+      getPistonOscillationGuideTargetHeightMm(currentSession);
     const targetHeightReady = (
       currentStep === 'firstHeightAdjustment'
       || currentStep === 'nextHeightAdjustment'
@@ -892,5 +886,5 @@ export const useWorkbenchPistonGuideRuntime = (ports: useWorkbenchPistonGuideRun
     }
   }, []);
 
-  return { pistonOscillationGuidePulseElapsedMs, setPistonOscillationGuidePulseElapsedMs, setPistonOscillationGuideStrongReminderClockContext, pistonOscillationGuideStrongMaskLayout, pistonOscillationGuidePistonStable, pistonOscillationGuideResetFeedback, setPistonOscillationGuideResetFeedback, pistonOscillationGuideResetFeedbackTimerRef, pistonOscillationGuideStrongReminderTimerRef, pistonOscillationGuidePressureRangeLessonTimerRef, pistonOscillationGuidePressureIssueRef, pistonOscillationGuidePressureMissCountRef, pistonOscillationGuideStrongTargetContextRef, pistonOscillationGuideResumeStrongReminderAfterLessonRef, setPistonOscillationGuidePressureIssue, setPistonOscillationGuideStrongReminderActive, activePistonOscillationGuideTimeFrozen, activePistonOscillationGuideInstrumentRestoreState, activePistonOscillationGuideSnapTargetHeightMm, pistonOscillationCopy, pistonGuidePulseActive, pistonGuideVisualCue, pistonGuideScrewInteractionMode, pistonGuideAcquisitionCue, pistonGuideRequestedFocusMode, pistonGuideExpectedStrongTargetId, pistonGuideStrongTargetContext, pistonOscillationGuideStrongReminderActive, pistonGuideStrongTargetId, pistonGuideStrongReminderText, applyPistonOscillationGuideEvents, handlePistonOscillationPowerToggle, handlePistonOscillationGuideActionAttempt, handlePistonOscillationGuideScrewDirectionFeedback, handlePistonOscillationGuideHeightConfirmed, handlePistonOscillationGuideSupportLoss, handlePistonOscillationGuideHeightResetComplete, handlePistonOscillationGuideInstrumentSnapshot, changePistonOscillationPeriodSelectionMode };
+  return { pistonOscillationGuidePulseElapsedMs, setPistonOscillationGuidePulseElapsedMs, setPistonOscillationGuideStrongReminderClockContext, pistonOscillationGuideStrongMaskLayout, pistonOscillationGuideResetFeedback, setPistonOscillationGuideResetFeedback, pistonOscillationGuideResetFeedbackTimerRef, pistonOscillationGuideStrongReminderTimerRef, pistonOscillationGuidePressureRangeLessonTimerRef, pistonOscillationGuidePressureIssueRef, pistonOscillationGuidePressureMissCountRef, pistonOscillationGuideStrongTargetContextRef, pistonOscillationGuideResumeStrongReminderAfterLessonRef, setPistonOscillationGuidePressureIssue, setPistonOscillationGuideStrongReminderActive, activePistonOscillationGuideTimeFrozen, activePistonOscillationGuideInstrumentRestoreState, activePistonOscillationGuideSnapTargetHeightMm, pistonOscillationCopy, pistonGuidePulseActive, pistonGuideVisualCue, pistonGuideScrewInteractionMode, pistonGuideAcquisitionCue, pistonGuideRequestedFocusMode, pistonGuideExpectedStrongTargetId, pistonGuideStrongTargetContext, pistonOscillationGuideStrongReminderActive, pistonGuideStrongTargetId, pistonGuideStrongReminderText, applyPistonOscillationGuideEvents, handlePistonOscillationPowerToggle, handlePistonOscillationGuideActionAttempt, handlePistonOscillationGuideScrewDirectionFeedback, handlePistonOscillationGuideHeightConfirmed, handlePistonOscillationGuideSupportLoss, handlePistonOscillationGuideHeightResetComplete, handlePistonOscillationGuideInstrumentSnapshot, changePistonOscillationPeriodSelectionMode };
 };

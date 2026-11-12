@@ -54,7 +54,7 @@ assert.doesNotMatch(
 
 assert.match(
   source,
-  /!isWorkbenchEmpty \? \([\s\S]*?<WorkbenchCurrentParameters/,
+  /!isWorkbenchEmpty && \(!workspaceTourOnly \|\| !effectiveParametersCollapsed\) \? \([\s\S]*?<WorkbenchCurrentParameters/,
   "Current Parameters panel should only render after a study file exists",
 );
 

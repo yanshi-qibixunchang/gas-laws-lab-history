@@ -18,7 +18,7 @@ import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 import type { WorkbenchPanelKey } from './workbenchFileState.ts';
 import type { WorkbenchPersistenceReason } from './workbenchPersistenceScheduler.ts';
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
-import type { PistonOscillationAcquisitionPanelHandle, PistonOscillationPressStartEvent, PistonOscillationReleaseEvent } from "../pistonOscillation/PistonOscillationAcquisitionPanel.tsx";
+import type { PistonOscillationPressStartEvent, PistonOscillationReleaseEvent } from "../pistonOscillation/PistonOscillationAcquisitionPanel.tsx";
 import type { AppExperienceProfile, ExperimentLearningId } from '../learning/experimentLearningModel.ts';
 import type { WorkbenchEditScope, WorkbenchEditSnapshot } from './workbenchEditSnapshot.ts';
 export interface WorkbenchPistonControllerOptions {
@@ -137,14 +137,12 @@ export const useWorkbenchPistonController = (options: WorkbenchPistonControllerO
         clearPistonOscillationReviewWindows,
     } = useWorkbenchPistonProcessingView({ activeFile, pistonOscillationDemoPlayback, pistonOscillationPowerOnByFileId });
     const { activePistonOscillationEffectiveConfig, activePistonOscillationPhysicsConfig, activePistonOscillationThermalConfig, activePistonOscillationReleaseAsymmetryConfig, activePistonOscillationParameterSignature, pistonOscillationLivePressureChannel } = useWorkbenchPistonChannels({ activeFile });
-    const pistonOscillationAcquisitionPanelRef = useRef<PistonOscillationAcquisitionPanelHandle | null>(null);
     const pistonOscillationContentRenderRecoveryHostRef = useRef<HTMLDivElement | null>(null);
     const {
         pistonOscillationGuidePulseElapsedMs,
         setPistonOscillationGuidePulseElapsedMs,
         setPistonOscillationGuideStrongReminderClockContext,
         pistonOscillationGuideStrongMaskLayout,
-        pistonOscillationGuidePistonStable,
         pistonOscillationGuideResetFeedback,
         setPistonOscillationGuideResetFeedback,
         pistonOscillationGuideResetFeedbackTimerRef,
@@ -223,7 +221,6 @@ export const useWorkbenchPistonController = (options: WorkbenchPistonControllerO
         setPistonOscillationFreeSetupRequestedFileId,
         setLeftCollapsed,
         setParametersCollapsed,
-        pistonOscillationAcquisitionPanelRef,
         updateFileById: (...args) => updateFileById(...args),
         settingsLanguagePreference,
         requestPromptConfirmation: (...args) => requestPromptConfirmation(...args),
@@ -376,7 +373,6 @@ export const useWorkbenchPistonController = (options: WorkbenchPistonControllerO
         pistonOscillationGuideLessonOutgoingView,
         pistonOscillationGuideCompletionToast,
         pistonOscillationGuideStrongMaskLayout,
-        pistonOscillationGuidePistonStable,
         pistonOscillationGuideResetFeedback,
         pistonOscillationGuideChecklistViewedIndex,
         pistonOscillationDemoPlayback,
@@ -424,7 +420,6 @@ export const useWorkbenchPistonController = (options: WorkbenchPistonControllerO
         pistonOscillationGuideChecklistVisualOffsetRef,
         pistonOscillationDemoPlaybackChannel,
         pistonOscillationLivePressureChannel,
-        pistonOscillationAcquisitionPanelRef,
         pistonOscillationContentRenderRecoveryHostRef,
     },
         commands: {

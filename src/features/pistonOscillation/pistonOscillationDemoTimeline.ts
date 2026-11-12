@@ -54,7 +54,6 @@ export type PistonOscillationDemoControl =
   | 'hose'
   | 'hoseSnap'
   | 'start'
-  | 'stop'
   | 'retain'
   | null;
 export type PistonOscillationDemoPlatformAction = 'adjustHeight' | 'press' | null;
@@ -70,7 +69,6 @@ export type PistonOscillationDemoStepKind =
   | 'restoreFreeMotion'
   | 'startAcquisition'
   | 'recordOscillation'
-  | 'stopAcquisition'
   | 'saveRun'
   | 'powerOff';
 
@@ -239,10 +237,6 @@ interface DemoMetaCopy {
   recordTarget: string;
   recordCriterion: string;
   recordNote: string;
-  stopDescription: string;
-  stopTarget: string;
-  stopCriterion: string;
-  stopNote: string;
   saveDescription: string;
   saveTarget: (run: number) => string;
   saveCriterion: string;
@@ -301,20 +295,16 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     startCriterion: '状态为“等待触发”',
     startNote: '触发前压力不写入正式曲线。',
     recordTitle: (run) => `第 ${run} 次：按压、释放并记录`,
-    recordDescription: '双手下压至 120–130 kPa 后同时松开，记录 0.500 s。',
+    recordDescription: '双手下压至 120–130 kPa 后同时松开。记录满 0.500 s 自动停止。',
     recordTarget: '记录压力振动',
     recordCriterion: '完成下降触发与 0.500 s 记录',
     recordNote: '双手同时松开后开始振动。',
-    stopDescription: '记录满 0.500 s，待活塞停止后点击暂停。',
-    stopTarget: '冻结当前曲线',
-    stopCriterion: '状态为“已停止 · 曲线冻结”',
-    stopNote: '冻结后检查曲线。',
     saveDescription: '检查曲线后点击保存。',
     saveTarget: (run) => `保存第 ${run} 条正式曲线`,
     saveCriterion: '显示保存确认',
     saveNote: (run) => run < 3 ? '保存后进入下一次高度调节。' : '第三条曲线保存后，完成仪器关机。',
     completedTitle: '活塞振动法演示完成',
-    completedDescription: '80、70、60 mm 三次仪器操作与压力曲线采集均已演示完成，数据采集系统已自动关机。',
+    completedDescription: '75、65、55 mm 三次仪器操作与压力曲线采集均已演示完成，数据采集系统已自动关机。',
     completedTarget: '完成三组实验实操演示',
     completedCriterion: '三条正式曲线均已依次保存，数据采集系统已经关闭',
     completedNote: '演示模式以自动关机结束；周期框选、拟合与计算由引导模式继续完成。',
@@ -365,20 +355,16 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     startCriterion: '狀態為「等待觸發」',
     startNote: '觸發前壓力不寫入正式曲線。',
     recordTitle: (run) => `第 ${run} 次：按壓、釋放並記錄`,
-    recordDescription: '雙手下壓至 120–130 kPa 後同時鬆開，記錄 0.500 s。',
+    recordDescription: '雙手下壓至 120–130 kPa 後同時鬆開。記錄滿 0.500 s 自動停止。',
     recordTarget: '記錄壓力振動',
     recordCriterion: '完成下降觸發與 0.500 s 記錄',
     recordNote: '雙手同時鬆開後開始振動。',
-    stopDescription: '記錄滿 0.500 s，待活塞停止後點擊暫停。',
-    stopTarget: '凍結目前曲線',
-    stopCriterion: '狀態為「已停止 · 曲線凍結」',
-    stopNote: '凍結後檢查曲線。',
     saveDescription: '檢查曲線後點擊儲存。',
     saveTarget: (run) => `儲存第 ${run} 條正式曲線`,
     saveCriterion: '顯示儲存確認',
     saveNote: (run) => run < 3 ? '儲存後進入下一次高度調節。' : '第三條曲線儲存後，完成儀器關機。',
     completedTitle: '活塞振動法演示完成',
-    completedDescription: '80、70、60 mm 三次儀器操作與壓力曲線採集均已演示完成，資料採集系統已自動關機。',
+    completedDescription: '75、65、55 mm 三次儀器操作與壓力曲線採集均已演示完成，資料採集系統已自動關機。',
     completedTarget: '完成三組實驗實操演示',
     completedCriterion: '三條正式曲線均已依序儲存，資料採集系統已經關閉',
     completedNote: '演示模式以自動關機結束；週期框選、擬合與計算由引導模式繼續完成。',
@@ -429,20 +415,16 @@ const META_COPY: Record<PistonOscillationLanguage, DemoMetaCopy> = {
     startCriterion: 'The state is “Waiting for trigger”',
     startNote: 'Pre-trigger pressure is not stored in the formal curve.',
     recordTitle: (run) => `Run ${run}: press, release, and record`,
-    recordDescription: 'Press to 120–130 kPa, release both hands, and record for 0.500 s.',
+    recordDescription: 'Press to 120–130 kPa, and release both hands. Recording stops automatically after 0.500 s.',
     recordTarget: 'Record the pressure oscillation',
     recordCriterion: 'The trigger fires and 0.500 s is recorded',
     recordNote: 'Oscillation begins after both hands release.',
-    stopDescription: 'After 0.500 s, wait for the piston to stop and select Pause.',
-    stopTarget: 'Freeze the current curve',
-    stopCriterion: 'The state is “Stopped · Curve frozen”',
-    stopNote: 'Inspect the curve after freezing it.',
     saveDescription: 'Inspect the curve, then select Save.',
     saveTarget: (run) => `Save formal curve ${run}`,
     saveCriterion: 'A save confirmation appears',
     saveNote: (run) => run < 3 ? 'The next height adjustment begins after saving.' : 'Shut down the instrument after saving the third curve.',
     completedTitle: 'Piston-oscillation demonstration complete',
-    completedDescription: 'All three instrument-operation and pressure-acquisition runs at 80, 70, and 60 mm are complete, and the data-acquisition system has shut down automatically.',
+    completedDescription: 'All three instrument-operation and pressure-acquisition runs at 75, 65, and 55 mm are complete, and the data-acquisition system has shut down automatically.',
     completedTarget: 'Complete all three practical demonstration runs',
     completedCriterion: 'All three formal curves were saved in sequence and the data-acquisition system is off',
     completedNote: 'Demo mode ends with automatic shutdown; Guide mode continues with period selection, fitting, and calculation.',
@@ -510,9 +492,6 @@ const createRunSteps = (measurementIndex: number): StepDefinition[] => [
   ] },
   { kind: 'recordOscillation', measurementIndex, focusMode: 'pistonFocus', segments: [
     orient('pistonFocus', 'screwOperationView'), highlight('platform'), action('platform', 3_300),
-  ] },
-  { kind: 'stopAcquisition', measurementIndex, focusMode: 'pistonFocus', segments: [
-    orient('pistonFocus', 'screwOperationView'), highlight('stop'), action('stop', 1_000),
   ] },
   { kind: 'saveRun', measurementIndex, focusMode: 'pistonFocus', segments: [
     orient('pistonFocus', 'screwOperationView'), highlight('retain'), action('retain', 1_050),
@@ -722,7 +701,6 @@ const getStepCopy = (language: PistonOscillationLanguage, window: PistonOscillat
     case 'restoreFreeMotion': return { title: guide.loosenScrewTitle, description: meta.freeDescription, target: meta.freeTarget, criterion: meta.freeCriterion, note: meta.freeNote };
     case 'startAcquisition': return { title: guide.startAcquisitionTitle, description: meta.startDescription, target: meta.startTarget, criterion: meta.startCriterion, note: meta.startNote };
     case 'recordOscillation': return { title: meta.recordTitle(run), description: meta.recordDescription, target: meta.recordTarget, criterion: meta.recordCriterion, note: meta.recordNote };
-    case 'stopAcquisition': return { title: guide.pauseRecordingTitle, description: meta.stopDescription, target: meta.stopTarget, criterion: meta.stopCriterion, note: meta.stopNote };
     case 'saveRun': return { title: guide.saveCurveTitle(run), description: meta.saveDescription, target: meta.saveTarget(run), criterion: meta.saveCriterion, note: meta.saveNote(run) };
     case 'powerOff': return { title: guide.powerOffTitle, description: meta.powerOffDescription, target: meta.powerOffTarget, criterion: meta.powerOffCriterion, note: meta.powerOffNote };
   }
@@ -886,14 +864,12 @@ const getScrewProgress = (elapsedMs: number) => {
 const getRunTiming = (index: number) => {
   const start = getActionWindow(index, 'startAcquisition', 'start');
   const oscillation = getActionWindow(index, 'recordOscillation', 'platform');
-  const stop = getActionWindow(index, 'stopAcquisition', 'stop');
   const retain = getActionWindow(index, 'saveRun', 'retain');
   return {
     acquisitionStartAtMs: start.startsAtMs + 525,
     pressStartMs: oscillation.startsAtMs,
     pressEndMs: oscillation.startsAtMs + 1_100,
     releaseAtMs: oscillation.startsAtMs + 1_500,
-    acquisitionStopAtMs: stop.startsAtMs + 500,
     retainAtMs: retain.startsAtMs + 450,
   };
 };
@@ -948,7 +924,6 @@ const getDemoMouseAction = (
     case 'disconnect':
     case 'reconnectHose':
     case 'startAcquisition':
-    case 'stopAcquisition':
     case 'saveRun':
       return 'click';
     case 'recordOscillation':
@@ -1008,7 +983,7 @@ export const getPistonOscillationDemoFrame = (
   );
   const acquisitionPhase: PistonOscillationDemoAcquisitionPhase = elapsedMs < runTiming.acquisitionStartAtMs
     ? 'idle' : elapsedMs < runTiming.releaseAtMs + triggerTimeS * 1000
-      ? 'armed' : elapsedMs < runTiming.acquisitionStopAtMs ? 'recording' : 'stopped';
+      ? 'armed' : formalElapsedSeconds < PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS ? 'recording' : 'stopped';
   const platformAction: PistonOscillationDemoPlatformAction = activeControl !== 'platform' ? null
     : currentWindow.kind === 'adjustHeight' ? 'adjustHeight'
       : currentWindow.kind === 'recordOscillation' ? 'press' : null;

@@ -20,7 +20,6 @@ import {
   PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
   PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
   createPistonOscillationEquilibriumState,
-  createPistonOscillationLoadedEquilibriumState,
   normalizePistonOscillationPhysicsConfig,
   normalizePistonOscillationThermodynamicState,
   type PistonOscillationEquilibriumState,
@@ -29,9 +28,6 @@ import {
   type PistonOscillationThermodynamicState,
   type PistonOscillationTrajectory,
 } from './pistonOscillationPhysicsEngine.ts';
-import {
-  advancePistonOscillationPrescribedThermodynamicState,
-} from './pistonOscillationThermalPhysicsModel.ts';
 import {
   PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
   PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX,
@@ -802,65 +798,6 @@ export const createPistonOscillationPhysicsSnapshot = (
   };
 };
 
-export const createPistonOscillationIncompletePhysicsSnapshot = (options: {
-  lockedHeightMm: number;
-  sampleRateHz: number;
-  thermodynamicState: PistonOscillationThermodynamicState;
-  linearDampingNsPerM?: number;
-  physicsConfig?: Partial<PistonOscillationPhysicsConfig>;
-}): PistonOscillationPhysicsSnapshot => {
-  const config = normalizePistonOscillationPhysicsConfig({
-    ...options.physicsConfig,
-    sensorSampleRateHz: options.sampleRateHz,
-    linearDampingNsPerM: options.linearDampingNsPerM
-      ?? options.physicsConfig?.linearDampingNsPerM,
-  });
-  const equilibrium = createPistonOscillationLoadedEquilibriumState(
-    options.lockedHeightMm,
-    config,
-  );
-  const normalizedThermodynamicState = normalizePistonOscillationThermodynamicState(
-    options.thermodynamicState,
-    config,
-  );
-  if (!normalizedThermodynamicState) {
-    throw new RangeError('The incomplete capture thermodynamic state is invalid.');
-  }
-  const thermodynamicState = normalizedThermodynamicState.modelVersion
-      === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
-    && normalizedThermodynamicState.thermal.enabled
-    ? normalizedThermodynamicState
-    : advancePistonOscillationPrescribedThermodynamicState({
-        referenceState: normalizedThermodynamicState,
-        pistonHeightMm: normalizedThermodynamicState.pistonHeightM * 1_000,
-        elapsedS: 0,
-        physicsConfig: config,
-      });
-  const equivalentLoss = createPistonOscillationEquivalentLossSnapshot(
-    config.linearDampingNsPerM,
-  );
-  return {
-    modelVersion: thermodynamicState.modelVersion,
-    provenance: 'captured',
-    captureKind: 'incomplete-press',
-    gasMaterial: createPistonOscillationGasMaterialSnapshot(),
-    equivalentLoss,
-    config,
-    equilibrium,
-    initialDisplacementM:
-      thermodynamicState.pistonHeightM - equilibrium.equilibriumHeightM,
-    initialVelocityMPerS: thermodynamicState.velocityMPerS,
-    integrationSubstepsPerSample: 1,
-    triggerTimeS: null,
-    initialThermodynamicState: clonePistonOscillationThermodynamicState(
-      thermodynamicState,
-    ),
-    thermalModel: thermodynamicState.thermal.enabled
-      ? { ...thermodynamicState.thermal }
-      : null,
-  };
-};
-
 export const createPistonOscillationSensorObservationSnapshot = (options: {
   sampleRateHz: number;
   triggerSourceSampleIndex: number | null;
@@ -1053,8 +990,8 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   sampleRateHz: number;
   triggerThresholdKpa: number;
   recordedDurationS: number;
-  recordingPath: PistonOscillationAcquisitionSettingsSnapshot['recordingPath'];
-  releaseOffsetS: number | null;
+  recordingPath: 'falling-trigger';
+  releaseOffsetS: null;
   samples: PistonOscillationRawSample[];
   pressOperationEvidence: PistonOscillationPressOperationEvidence;
   sensorObservationSnapshot: PistonOscillationSensorObservationSnapshot;
@@ -1073,22 +1010,8 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
   if (!Number.isFinite(options.recordedDurationS) || options.recordedDurationS < 0) {
     throw new RangeError('recordedDurationS must be finite and non-negative.');
   }
-  const recordingPath = options.recordingPath;
-  const releaseOffsetS = options.releaseOffsetS;
-  if (
-    (recordingPath !== 'falling-trigger' && recordingPath !== 'immediate')
-    || (
-      releaseOffsetS !== null
-      && (!Number.isFinite(releaseOffsetS) || releaseOffsetS < 0)
-    )
-    || (recordingPath === 'falling-trigger' && releaseOffsetS !== null)
-    || (
-      recordingPath === 'immediate'
-      && releaseOffsetS !== null
-      && releaseOffsetS > options.recordedDurationS
-    )
-  ) {
-    throw new RangeError('The acquisition recording path is invalid.');
+  if (options.recordingPath !== 'falling-trigger' || options.releaseOffsetS !== null) {
+    throw new RangeError('New measurements require a falling trigger.');
   }
   const rawIntervalCount = options.recordedDurationS * options.sampleRateHz;
   const intervalCount = Math.round(rawIntervalCount);
@@ -1211,31 +1134,12 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
     || options.pressOperationEvidence.modelVersion
       !== PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION
     || pressOperationEvidence.provenance !== 'captured'
-    || pressOperationEvidence.completion === 'legacy-unknown'
+    || pressOperationEvidence.completion !== 'released'
     || options.physicsSnapshot.provenance !== 'captured'
-    || options.physicsSnapshot.captureKind === 'legacy-imported'
+    || options.physicsSnapshot.captureKind !== 'released'
     || options.physicsSnapshot.modelVersion !== (idealExperiment
       ? PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
       : PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION)
-    || (
-      pressOperationEvidence.completion === 'released'
-      && options.physicsSnapshot.captureKind !== 'released'
-    )
-    || (
-      pressOperationEvidence.completion === 'not-released'
-      && options.physicsSnapshot.captureKind !== 'incomplete-press'
-    )
-    || (recordingPath === 'falling-trigger' && pressOperationEvidence.completion !== 'released')
-    || (
-      recordingPath === 'immediate'
-      && pressOperationEvidence.completion === 'released'
-      && releaseOffsetS === null
-    )
-    || (
-      recordingPath === 'immediate'
-      && pressOperationEvidence.completion === 'not-released'
-      && releaseOffsetS !== null
-    )
   ) {
     throw new RangeError('pressOperationEvidence is invalid.');
   }
@@ -1251,8 +1155,8 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
       sampleRateHz: options.sampleRateHz,
       triggerThresholdKpa: options.triggerThresholdKpa,
       recordedDurationS,
-      recordingPath,
-      releaseOffsetS,
+      recordingPath: 'falling-trigger',
+      releaseOffsetS: null,
     },
     samples,
     pressOperationEvidence: clonePistonOscillationPressOperationEvidence(

@@ -100,8 +100,8 @@ assert.equal(configured.sampleRateInput, '1000');
 assert.equal(configured.triggerInput, '120');
 assert.equal(configured.virtualKeyboardVisible, false);
 
-assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 31);
-assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 265_050);
+assert.equal(PISTON_OSCILLATION_DEMO_STEP_WINDOWS.length, 28);
+assert.equal(PISTON_OSCILLATION_DEMO_DURATION_MS, 241_200);
 assert.equal(PISTON_OSCILLATION_DEMO_HEIGHT_ACTION_MS, 4_200 * 0.5);
 assert.equal(PISTON_OSCILLATION_DEMO_RECONNECT_HOSE_ACTION_MS, 2_100 * 0.5);
 assert.equal(PISTON_OSCILLATION_DEMO_DISCONNECT_HOSE_ACTION_MS, 2_050 * 0.5);
@@ -111,19 +111,19 @@ assert.deepEqual(
     'powerOn',
     'settings',
     'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
-    'recordOscillation', 'stopAcquisition', 'saveRun',
+    'recordOscillation', 'saveRun',
     'settle', 'disconnect',
     'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
-    'recordOscillation', 'stopAcquisition', 'saveRun',
+    'recordOscillation', 'saveRun',
     'settle', 'disconnect',
     'adjustHeight', 'secureHeight', 'reconnectHose', 'restoreFreeMotion', 'startAcquisition',
-    'recordOscillation', 'stopAcquisition', 'saveRun',
+    'recordOscillation', 'saveRun',
     'powerOff',
   ],
 );
 assert.deepEqual(
   PISTON_OSCILLATION_DEMO_STEP_WINDOWS.map(({ measurementIndex }) => measurementIndex),
-  [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
+  [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2],
 );
 
 for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
@@ -145,7 +145,7 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
 }
 
 for (const measurementIndex of [0, 1, 2]) {
-  const targetHeightMm = [80, 70, 60][measurementIndex];
+  const targetHeightMm = [75, 65, 55][measurementIndex];
   const heightAction = action(measurementIndex, 'adjustHeight', 'platform');
   assert.equal(
     heightAction.endsAtMs - heightAction.startsAtMs,
@@ -266,8 +266,7 @@ for (const measurementIndex of [0, 1, 2]) {
   assert.ok(recording.formalElapsedSeconds > 0);
   assert.equal(recording.operationCue, null);
 
-  const stopAction = action(measurementIndex, 'stopAcquisition', 'stop');
-  const stopped = getPistonOscillationDemoFrame(stopAction.endsAtMs);
+  const stopped = getPistonOscillationDemoFrame(recordAction.endsAtMs);
   assert.equal(stopped.acquisitionPhase, 'stopped');
   assert.equal(stopped.formalElapsedSeconds, PISTON_OSCILLATION_DEMO_CAPTURE_SECONDS);
 
@@ -321,7 +320,7 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
 const trajectories = [0, 1, 2].map(getPistonOscillationDemoTrajectory);
 assert.deepEqual(
   trajectories.map((trajectory) => trajectory.equilibrium.equilibriumHeightM * 1_000),
-  [80, 70, 60].map((heightMm) => (
+  [75, 65, 55].map((heightMm) => (
     createPistonOscillationLoadedEquilibriumState(heightMm).equilibriumHeightM * 1_000
   )),
 );

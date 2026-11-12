@@ -87,7 +87,7 @@ export const createWorkbenchPistonAcquisitionProcessingActions = (ports: createW
         : null;
       const rejectionMatchesStep = event.reason === 'underpressure'
         ? rejectionStep === 'waitingTrigger'
-        : rejectionStep === 'recording' || rejectionStep === 'pauseAvailable';
+        : rejectionStep === 'recording';
       if (
         !liveFile
         || liveFile.kind !== 'heatCapacityPistonOscillation'
@@ -202,6 +202,7 @@ export const createWorkbenchPistonAcquisitionProcessingActions = (ports: createW
 
     if (
       event.type === 'redoOverpressureAttempt'
+      || event.type === 'redoAcquisition'
       || event.type === 'restoreInterruptedAcquisition'
     ) {
       setPistonOscillationGuidePressureIssue(null);

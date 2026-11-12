@@ -34,7 +34,8 @@ assert.match(appSource, /resolveFirstRunEntryMode\(initialExperienceProfileLoad\
 assert.match(appSource, /entryMode === 'workbench'/);
 assert.match(appSource, /<FirstRunExperience/);
 assert.match(appSource, /commitFirstRunExperienceProfile\(nextProfile\)/);
-assert.match(appSource, /initialTutorialEntryKind=\{tutorialEntryKind\}/);
+assert.match(appSource, /workspaceTourStep=\{workspaceTourStep\}/);
+assert.match(appSource, /onWorkspaceTourProfileChange=\{updateWorkspaceTourProfile\}/);
 
 assert.match(experienceSource, /page === 'language'/);
 assert.match(experienceSource, /page === 'welcome'/);

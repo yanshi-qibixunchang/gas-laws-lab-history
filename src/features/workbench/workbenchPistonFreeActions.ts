@@ -22,7 +22,6 @@ export interface createWorkbenchPistonFreeActionsPorts {
   setPistonOscillationFreeSetupRequestedFileId: React.Dispatch<React.SetStateAction<string | null>>;
   setLeftCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
   setParametersCollapsed: React.Dispatch<React.SetStateAction<boolean>>;
-  pistonOscillationAcquisitionPanelRef: React.MutableRefObject<import("../pistonOscillation/PistonOscillationAcquisitionPanel.tsx").PistonOscillationAcquisitionPanelHandle | null>;
   updateFileById: (fileId: string, updater: (file: import("./workbenchFileUnion.ts").WorkbenchFileState) => import("./workbenchFileUnion.ts").WorkbenchFileState) => void;
   settingsLanguagePreference: "zh-CN" | "zh-TW" | "en";
   requestPromptConfirmation: (request: import("../../components/prompts/PromptConfirmDialog.tsx").PromptConfirmationRequest) => void;
@@ -34,7 +33,7 @@ export interface createWorkbenchPistonFreeActionsPorts {
 }
 
 export const createWorkbenchPistonFreeActions = (ports: createWorkbenchPistonFreeActionsPorts) => {
-  const { desktopExitQuiescedRef, activeFileIdRef, filesRef, clearPistonOscillationGuideCompletionToast, setFiles, scheduleWorkspacePersistenceRef, flushWorkspacePersistenceRef, pistonOscillationDemoPlaybackChannel, setPistonOscillationDemoPlayback, setPistonOscillationPowerOnByFileId, setPistonOscillationMeasurementCyclesByFileId, setPistonOscillationFreeSetupRequestedFileId, setLeftCollapsed, setParametersCollapsed, pistonOscillationAcquisitionPanelRef, updateFileById, settingsLanguagePreference, requestPromptConfirmation, pushUndoSnapshot, createEditSnapshot, pistonOscillationLivePressureChannel, updateRuntimeFileById, experienceProfileRef } = ports;
+  const { desktopExitQuiescedRef, activeFileIdRef, filesRef, clearPistonOscillationGuideCompletionToast, setFiles, scheduleWorkspacePersistenceRef, flushWorkspacePersistenceRef, pistonOscillationDemoPlaybackChannel, setPistonOscillationDemoPlayback, setPistonOscillationPowerOnByFileId, setPistonOscillationMeasurementCyclesByFileId, setPistonOscillationFreeSetupRequestedFileId, setLeftCollapsed, setParametersCollapsed, updateFileById, settingsLanguagePreference, requestPromptConfirmation, pushUndoSnapshot, createEditSnapshot, pistonOscillationLivePressureChannel, updateRuntimeFileById, experienceProfileRef } = ports;
   const activatePistonOscillationFreeMode = (
     targetHeightsMm: readonly number[] | null,
     customHeightCandidatesMm: readonly number[] = [],
@@ -100,22 +99,9 @@ export const createWorkbenchPistonFreeActions = (ports: createWorkbenchPistonFre
   const pausePistonOscillationFreeMode = () => {
     const fileId = activeFileIdRef.current;
     const nowMs = Date.now();
-    const acquisitionCandidate = pistonOscillationAcquisitionPanelRef.current
-      ?.pauseAndCaptureFreeRun() ?? null;
-    updateFileById(fileId, (file) => {
-      if (file.kind !== 'heatCapacityPistonOscillation') return file;
-      const withFrozenAcquisition = acquisitionCandidate
-        ? transitionPistonOscillationFreeWorkbenchState(file, {
-            type: 'freezeAcquisition',
-            measurement: acquisitionCandidate,
-            nowMs,
-          })
-        : file;
-      return transitionPistonOscillationFreeWorkbenchState(withFrozenAcquisition, {
-        type: 'pause',
-        nowMs,
-      });
-    });
+    updateFileById(fileId, (file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, { type: 'pause', nowMs })
+      : file);
     setPistonOscillationPowerOnByFileId((current) => ({
       ...current,
       [fileId]: false,

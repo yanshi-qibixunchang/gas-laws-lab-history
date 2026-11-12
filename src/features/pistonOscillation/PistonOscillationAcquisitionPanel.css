@@ -209,7 +209,7 @@
 
 .piston-acquisition-settings {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -232,7 +232,8 @@
 }
 
 .piston-acquisition-settings input {
-  width: 78px;
+  width: 68px;
+  min-width: 0;
   height: 26px;
   border: 1px solid var(--piston-acquisition-border-strong);
   border-radius: 3px;

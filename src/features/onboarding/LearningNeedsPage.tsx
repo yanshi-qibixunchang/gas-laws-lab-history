@@ -8,6 +8,7 @@ import type { FirstRunCopy } from './firstRunCopy.ts';
 
 interface LearningNeedsPageProps {
   copy: FirstRunCopy;
+  reselect?: boolean;
   answers: Record<ExperimentLearningId, ExperimentFamiliarityAnswer | null>;
   onAnswerChange: (
     experiment: ExperimentLearningId,
@@ -19,6 +20,7 @@ interface LearningNeedsPageProps {
 
 export const LearningNeedsPage = ({
   copy,
+  reselect = false,
   answers,
   onAnswerChange,
   onPrevious,
@@ -30,7 +32,7 @@ export const LearningNeedsPage = ({
     hint: string;
   }> = [
     { value: 'known', label: copy.needs.known, hint: copy.needs.knownHint },
-    { value: 'needs-guidance', label: copy.needs.guidance, hint: copy.needs.guidanceHint },
+    { value: 'needs-guidance', label: copy.needs.guidance, hint: reselect ? copy.needs.reselectGuidanceHint : copy.needs.guidanceHint },
   ];
 
   return (
@@ -38,7 +40,7 @@ export const LearningNeedsPage = ({
       <section className="first-run-page-heading first-run-needs-heading">
         <span>{copy.needs.step}</span>
         <h1>{copy.needs.title}</h1>
-        <p>{copy.needs.body}</p>
+        <p>{reselect ? copy.needs.reselectBody : copy.needs.body}</p>
       </section>
       <div className="first-run-needs-experiments">
         {EXPERIMENT_LEARNING_ORDER.map((experiment) => (

@@ -142,7 +142,9 @@ for (const [filename, sourceCommit, sourceVersion] of fixtureSources) {
       assert.deepEqual(newEvidence, oldEvidence);
       assertMeasurementPreserved(recordOf(oldMeasurement), newMeasurement);
     }
-    for (const key of Object.keys(sourceAuthority).filter((key) => key !== 'freeSession')) {
+    for (const key of Object.keys(sourceAuthority).filter((key) => (
+      key !== 'freeSession' && key !== 'pistonGuideSessionProjectionVersion'
+    ))) {
       assert.deepEqual(decoded.value.fields.authoritative[key], sourceAuthority[key], `preserve authority ${key}`);
     }
     const oldProcessing = sourceFree.dataProcessing as PistonOscillationDataProcessingSession | null;

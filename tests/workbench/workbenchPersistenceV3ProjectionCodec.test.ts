@@ -2199,9 +2199,9 @@ const createPersistencePistonMeasurement = (
   });
 };
 const pistonGuideMeasurements = [
-  createPersistencePistonMeasurement(0, 80, 40),
-  createPersistencePistonMeasurement(1, 70, 36),
-  createPersistencePistonMeasurement(2, 60, 32),
+  createPersistencePistonMeasurement(0, 75, 40),
+  createPersistencePistonMeasurement(1, 65, 36),
+  createPersistencePistonMeasurement(2, 55, 32),
 ];
 
 const completePersistencePistonProcessing = () => {
@@ -2577,9 +2577,9 @@ assert.deepEqual(
     }),
   ),
   [
-    { targetHeightMm: 80, sampleCount: 2_001 },
-    { targetHeightMm: 70, sampleCount: 2_001 },
-    { targetHeightMm: 60, sampleCount: 2_001 },
+    { targetHeightMm: 75, sampleCount: 2_001 },
+    { targetHeightMm: 65, sampleCount: 2_001 },
+    { targetHeightMm: 55, sampleCount: 2_001 },
   ],
   'the persisted measurement contract must remain independent of the physics producer',
 );
@@ -2652,6 +2652,36 @@ if (migratedVersion531File.value.kind !== 'heatCapacityPistonOscillation') {
 assert.equal(migratedVersion531File.value.name, pistonGuideFile.name);
 assert.equal(migratedVersion531File.value.pistonOscillationDemoSession.status, 'idle');
 assert.equal(migratedVersion531File.value.pistonOscillationGuideSession.status, 'idle');
+
+const versionThreePistonGuideRecord = structuredClone(pistonGuideEncoded.value);
+const versionThreeAuthority = versionThreePistonGuideRecord.projection.fields.authoritative;
+versionThreeAuthority.pistonGuideSessionProjectionVersion = 3;
+const versionThreeGuide = versionThreeAuthority.guideSession as Record<string, unknown>;
+delete versionThreeGuide.heightPlan;
+const frozenLegacyMeasurement = createPersistencePistonMeasurement(0, 80, 40);
+frozenLegacyMeasurement.acquisitionSettings.triggerThresholdKpa = 120;
+Object.assign(versionThreeGuide, {
+  step: 'pauseAvailable',
+  powerOn: true,
+  measurementIndex: 0,
+  acquisitionCandidate: frozenLegacyMeasurement,
+  savedMeasurements: [],
+  dataProcessing: null,
+});
+const migratedVersionThreeGuide = decodeWorkbenchPersistenceV3FileRecord(versionThreePistonGuideRecord, 451);
+if (!migratedVersionThreeGuide.ok) throw new Error(migratedVersionThreeGuide.diagnostics[0].message);
+assert.equal(migratedVersionThreeGuide.status, 'migrated');
+const restoredVersionThreeGuide = reprojectWorkbenchPersistenceV3File(migratedVersionThreeGuide.value, 451);
+assert.ok(restoredVersionThreeGuide.ok && restoredVersionThreeGuide.value.kind === 'heatCapacityPistonOscillation');
+assert.equal(restoredVersionThreeGuide.value.pistonOscillationGuideSession.step, 'awaitingSaveOrRedo');
+assert.deepEqual(
+  restoredVersionThreeGuide.value.pistonOscillationGuideSession.acquisitionCandidate?.samples,
+  frozenLegacyMeasurement.samples,
+);
+assert.equal(
+  restoredVersionThreeGuide.value.pistonOscillationGuideSession.acquisitionCandidate?.targetHeightMm,
+  80,
+);
 
 const versionTwoPistonGuideRecord = structuredClone(pistonGuideEncoded.value);
 versionTwoPistonGuideRecord.projection.fields.authoritative

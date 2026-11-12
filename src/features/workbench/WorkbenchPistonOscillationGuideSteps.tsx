@@ -1,6 +1,6 @@
 import {
   type PistonOscillationGuideStep,
-  PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
+  getPistonOscillationGuideTargetHeightMm,
   PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
@@ -62,14 +62,13 @@ export const WorkbenchPistonOscillationGuideSteps = ({
       { id: `acquisitionReady-${measurementNumber}`, steps: ['acquisitionReady'], title: pistonOscillationCopy.guide.startAcquisitionTitle, detail: pistonOscillationCopy.guide.startAcquisitionDetail },
       { id: `waitingTrigger-${measurementNumber}`, steps: ['waitingTrigger'], title: pistonOscillationCopy.guide.releasePistonTitle, detail: pistonOscillationCopy.guide.releasePistonDetail },
       { id: `recording-${measurementNumber}`, steps: ['recording'], title: pistonOscillationCopy.guide.recordingTitle, detail: pistonOscillationCopy.guide.recordingDetail },
-      { id: `pauseRecording-${measurementNumber}`, steps: ['pauseAvailable', 'curveFrozen'], title: pistonOscillationCopy.guide.pauseRecordingTitle, detail: pistonOscillationCopy.guide.pauseRecordingDetail },
       { id: `saveCurve-${measurementNumber}`, steps: ['awaitingSaveOrRedo'], title: pistonOscillationCopy.guide.saveCurveTitle(measurementNumber), detail: pistonOscillationCopy.guide.saveCurveDetail(measurementNumber) },
     ];
     const createFollowingMeasurementPage = (
       measurementIndex: 1 | 2,
     ): readonly GuidePanelStep[] => {
       const measurementNumber = measurementIndex + 1;
-      const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
+      const targetHeightMm = getPistonOscillationGuideTargetHeightMm(guideSession, measurementIndex);
       return [
         { id: `crossRunDisconnect-${measurementNumber}`, steps: ['crossRunDisconnect'], title: pistonOscillationCopy.guide.crossRunDisconnectTitle, detail: pistonOscillationCopy.guide.crossRunDisconnectDetail },
         { id: `nextHeightAdjustment-${measurementNumber}`, steps: ['nextHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(targetHeightMm), detail: pistonOscillationCopy.guide.adjustHeightDetail(targetHeightMm) },
@@ -80,7 +79,7 @@ export const WorkbenchPistonOscillationGuideSteps = ({
       [
         { id: 'powerOn-1', steps: ['powerOn'], title: pistonOscillationCopy.guide.powerOnTitle, detail: pistonOscillationCopy.guide.powerOnDetail },
         { id: 'parameterSetup-1', steps: ['parameterSetup'], title: pistonOscillationCopy.guide.parameterSetupTitle, detail: pistonOscillationCopy.guide.parameterSetupDetail },
-        { id: 'firstHeightAdjustment-1', steps: ['firstHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]), detail: pistonOscillationCopy.guide.adjustHeightDetail(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[0]) },
+        { id: 'firstHeightAdjustment-1', steps: ['firstHeightAdjustment'], title: pistonOscillationCopy.guide.adjustHeightTitle(getPistonOscillationGuideTargetHeightMm(guideSession, 0)), detail: pistonOscillationCopy.guide.adjustHeightDetail(getPistonOscillationGuideTargetHeightMm(guideSession, 0)) },
         ...createAcquisitionSteps(1),
       ],
       createFollowingMeasurementPage(1),

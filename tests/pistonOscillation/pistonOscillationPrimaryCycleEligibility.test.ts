@@ -2,14 +2,11 @@ import assert from 'node:assert/strict';
 import {
   analyzePistonOscillationPrimaryCycleEligibility,
   createPistonOscillationFreePeriodSelection,
-  createPistonOscillationIncompletePhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
   type PistonOscillationRawMeasurementRecord,
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
-import {
-  createPistonOscillationIncompletePressOperationEvidence,
-} from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
+import { restoreHistoricalImmediateRecord } from './helpers/pistonOscillationHistoricalRecordFixtures.ts';
 import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
@@ -19,17 +16,12 @@ const SAMPLE_RATE_HZ = 1_000;
 const createRecord = (
   recordId: string,
   samples: readonly PistonOscillationRawSample[],
-  options: {
-    recordingPath?: 'falling-trigger' | 'immediate';
-    releaseOffsetS?: number | null;
-  } = {},
 ): PistonOscillationRawMeasurementRecord => {
   const artifacts = createPistonOscillationCurrentRecordTestArtifacts({
     lockedHeightMm: 80,
     sampleRateHz: SAMPLE_RATE_HZ,
     samples: [...samples],
   });
-  const recordingPath = options.recordingPath ?? 'falling-trigger';
   return createPistonOscillationRawMeasurementRecord({
     recordId,
     capturedAtMs: 1_000,
@@ -39,10 +31,8 @@ const createRecord = (
     sampleRateHz: SAMPLE_RATE_HZ,
     triggerThresholdKpa: 120,
     recordedDurationS: samples.at(-1)?.timeS ?? 0,
-    recordingPath,
-    releaseOffsetS: recordingPath === 'immediate'
-      ? options.releaseOffsetS ?? null
-      : null,
+    recordingPath: 'falling-trigger',
+    releaseOffsetS: null,
     samples: [...samples],
     pressOperationEvidence: artifacts.pressOperationEvidence,
     sensorObservationSnapshot: artifacts.sensorObservationSnapshot,
@@ -123,35 +113,11 @@ assert.equal(quantizationOnlyReport.status, 'unusable');
 assert.equal(quantizationOnlyReport.reason, 'insufficient-primary-excursion');
 
 const unreleasedSamples = createWave(161, (sampleIndex) => 101.4 + sampleIndex / 100);
-const unreleasedArtifacts = createPistonOscillationCurrentRecordTestArtifacts({
-  lockedHeightMm: 80,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  samples: unreleasedSamples,
-});
-const incompletePhysicsSnapshot = createPistonOscillationIncompletePhysicsSnapshot({
-  lockedHeightMm: 80,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  thermodynamicState: unreleasedArtifacts.physicsSnapshot.initialThermodynamicState!,
-});
-const unreleasedRecord = createPistonOscillationRawMeasurementRecord({
-  recordId: 'eligibility-unreleased',
-  capturedAtMs: 1_000,
-  measurementIndex: 0,
-  targetHeightMm: 80,
-  confirmedHeightMm: incompletePhysicsSnapshot.equilibrium.equilibriumHeightM * 1_000,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  triggerThresholdKpa: 120,
-  recordedDurationS: unreleasedSamples.at(-1)!.timeS,
-  recordingPath: 'immediate',
-  releaseOffsetS: null,
-  samples: unreleasedSamples,
-  pressOperationEvidence: createPistonOscillationIncompletePressOperationEvidence({
-    trace: [],
-    capturedUntilMs: 1_000,
-  }),
-  sensorObservationSnapshot: unreleasedArtifacts.sensorObservationSnapshot,
-  physicsSnapshot: incompletePhysicsSnapshot,
-});
+const unreleasedRecord = restoreHistoricalImmediateRecord(
+  createRecord('eligibility-unreleased', unreleasedSamples),
+  null,
+);
+assert.ok(unreleasedRecord);
 const unreleasedReport = analyzePistonOscillationPrimaryCycleEligibility(unreleasedRecord);
 assert.equal(unreleasedReport.status, 'unusable');
 assert.equal(unreleasedReport.reason, 'release-not-observed');

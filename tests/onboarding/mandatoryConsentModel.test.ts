@@ -7,6 +7,8 @@ import {
   isMandatoryConsentScrollComplete,
 } from '../../src/features/onboarding/mandatoryConsentModel.ts';
 
+assert.equal(MANDATORY_CONSENT_READING_MS, 5_000);
+
 assert.equal(accumulateVisibleReadingTime({
   elapsedMs: 2_000,
   intervalStartMs: 100,
@@ -20,7 +22,7 @@ assert.equal(accumulateVisibleReadingTime({
   visible: false,
 }), 2_000);
 assert.equal(accumulateVisibleReadingTime({
-  elapsedMs: 14_900,
+  elapsedMs: 4_900,
   intervalStartMs: 100,
   intervalEndMs: 1_100,
   visible: true,
@@ -37,19 +39,19 @@ assert.equal(isMandatoryConsentScrollComplete({
   scrollHeight: 1_000,
 }), false);
 assert.equal(isMandatoryConsentReady({
-  elapsedVisibleMs: 15_000,
+  elapsedVisibleMs: 5_000,
   scrolledToBottom: false,
 }), false);
 assert.equal(isMandatoryConsentReady({
-  elapsedVisibleMs: 14_999,
+  elapsedVisibleMs: 4_999,
   scrolledToBottom: true,
 }), false);
 assert.equal(isMandatoryConsentReady({
-  elapsedVisibleMs: 15_000,
+  elapsedVisibleMs: 5_000,
   scrolledToBottom: true,
 }), true);
-assert.equal(getMandatoryConsentRemainingSeconds(1), 15);
-assert.equal(getMandatoryConsentRemainingSeconds(14_001), 1);
-assert.equal(getMandatoryConsentRemainingSeconds(15_000), 0);
+assert.equal(getMandatoryConsentRemainingSeconds(1), 5);
+assert.equal(getMandatoryConsentRemainingSeconds(4_001), 1);
+assert.equal(getMandatoryConsentRemainingSeconds(5_000), 0);
 
 console.log('mandatoryConsentModel tests passed');

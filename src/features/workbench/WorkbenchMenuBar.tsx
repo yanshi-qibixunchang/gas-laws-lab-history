@@ -7,9 +7,6 @@ import {
 import {
   getWorkbenchFileKindLabel,
 } from './workbenchFilePresentation.ts';
-import {
-  WorkbenchWindowControls,
-} from './WorkbenchWindowControls.tsx';
 
 export interface WorkbenchMenuBarProps {
   workbenchCopy: import('./workbenchStudioCopy.ts').WorkbenchCopy;
@@ -44,7 +41,6 @@ export interface WorkbenchMenuBarProps {
   saveCurrentWorkbenchLayoutAsDefault: () => void;
   openUserGuide: () => void;
   openAboutWindow: () => void;
-  closeDesktopWindow: () => void;
   onDownloadDesktop?: () => void;
 }
 
@@ -81,7 +77,6 @@ export const WorkbenchMenuBar = ({
   saveCurrentWorkbenchLayoutAsDefault,
   openUserGuide,
   openAboutWindow,
-  closeDesktopWindow,
   onDownloadDesktop,
 }: WorkbenchMenuBarProps) => {
   return <header className="studio-menu">
@@ -141,9 +136,5 @@ export const WorkbenchMenuBar = ({
               <span>{browserEditionCopies[settingsLanguagePreference].button}</span>
             </button>
           )}
-          <WorkbenchWindowControls
-            language={settingsLanguagePreference}
-            onClose={closeDesktopWindow}
-          />
         </header>;
 };

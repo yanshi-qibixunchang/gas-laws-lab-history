@@ -7,7 +7,6 @@ import {
   continuePistonOscillationCalculationAnswer,
   continuePistonOscillationPeriodAnswer,
   createPistonOscillationDataProcessingSession,
-  createPistonOscillationIncompletePhysicsSnapshot,
   createPistonOscillationPeriodSelection,
   createPistonOscillationRawMeasurementRecord,
   findPistonOscillationExtrema,
@@ -38,7 +37,6 @@ import {
 import {
   PISTON_OSCILLATION_LEGACY_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
   PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
-  type PistonOscillationThermodynamicState,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 type MutableFiniteThermalSnapshot = {
   modelVersion: string;
@@ -69,9 +67,7 @@ import {
   PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_KIND,
   PISTON_OSCILLATION_LEGACY_RELEASE_REVIEW_LOSS_MODEL_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationEquivalentLossModel.ts';
-import {
-  createPistonOscillationIncompletePressOperationEvidence,
-} from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
+import { restoreHistoricalImmediateRecord } from './helpers/pistonOscillationHistoricalRecordFixtures.ts';
 import {
   createPistonOscillationExperimentContextSnapshot,
 } from '../../src/domain/pistonOscillation/pistonOscillationExperimentContextModel.ts';
@@ -1111,93 +1107,20 @@ assert.equal(
   PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION,
 );
 
-const releasedImmediatePhysics = {
-  ...records[0].physicsSnapshot,
-  triggerTimeS: null,
-};
-const immediateRecord = createPistonOscillationRawMeasurementRecord({
-  recordId: 'immediate-recording',
-  capturedAtMs: 0,
-  measurementIndex: 0,
-  targetHeightMm: 80,
-  confirmedHeightMm: records[0].confirmedHeightMm,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  triggerThresholdKpa: 100,
-  recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
-  recordingPath: 'immediate',
-  releaseOffsetS: 0.02,
-  samples: records[0].samples,
-  pressOperationEvidence: records[0].pressOperationEvidence,
-  sensorObservationSnapshot: records[0].sensorObservationSnapshot,
-  physicsSnapshot: releasedImmediatePhysics,
-});
+const immediateRecord = restoreHistoricalImmediateRecord(records[0], 0.02);
+assert.ok(immediateRecord);
 assert.equal(immediateRecord.acquisitionSettings.recordingPath, 'immediate');
 assert.equal(immediateRecord.acquisitionSettings.releaseOffsetS, 0.02);
 assert.equal(immediateRecord.physicsSnapshot.triggerTimeS, null);
-const incompleteThermodynamicState = records[0].physicsSnapshot
-  .initialThermodynamicState as PistonOscillationThermodynamicState;
-const incompletePhysicsSnapshot = createPistonOscillationIncompletePhysicsSnapshot({
-  lockedHeightMm: 80,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  thermodynamicState: incompleteThermodynamicState,
-});
-assert.equal(
-  incompletePhysicsSnapshot.config.linearDampingNsPerM,
-  PISTON_OSCILLATION_LEGACY_LINEAR_LOSS_NS_PER_M,
-  'compatibility callers without an explicit loss must retain the historical default',
-);
-const currentIncompletePhysicsSnapshot = createPistonOscillationIncompletePhysicsSnapshot({
-  lockedHeightMm: 80,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  thermodynamicState: incompleteThermodynamicState,
-  linearDampingNsPerM:
-    PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
-});
-assert.equal(
-  currentIncompletePhysicsSnapshot.config.linearDampingNsPerM,
-  PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
-  'new incomplete press captures must record the formal current loss',
-);
-const incompletePressOperationEvidence =
-  createPistonOscillationIncompletePressOperationEvidence({
-    trace: [],
-    capturedUntilMs: 0,
-  });
-const unfinishedImmediateRecord = createPistonOscillationRawMeasurementRecord({
-  recordId: 'unfinished-immediate-recording',
-  capturedAtMs: 0,
-  measurementIndex: 0,
-  targetHeightMm: 80,
-  confirmedHeightMm: incompletePhysicsSnapshot.equilibrium.equilibriumHeightM * 1_000,
-  sampleRateHz: SAMPLE_RATE_HZ,
-  triggerThresholdKpa: 100,
-  recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
-  recordingPath: 'immediate',
-  releaseOffsetS: null,
-  samples: records[0].samples,
-  pressOperationEvidence: incompletePressOperationEvidence,
-  sensorObservationSnapshot: records[0].sensorObservationSnapshot,
-  physicsSnapshot: incompletePhysicsSnapshot,
-});
+assert.deepEqual(immediateRecord.samples, records[0].samples);
+const unfinishedImmediateRecord = restoreHistoricalImmediateRecord(records[0], null);
+assert.ok(unfinishedImmediateRecord);
 assert.equal(unfinishedImmediateRecord.acquisitionSettings.releaseOffsetS, null);
-assert.throws(
-  () => createPistonOscillationRawMeasurementRecord({
-    recordId: 'invalid-immediate-release',
-    capturedAtMs: 0,
-    measurementIndex: 0,
-    targetHeightMm: 80,
-    confirmedHeightMm: records[0].confirmedHeightMm,
-    sampleRateHz: SAMPLE_RATE_HZ,
-    triggerThresholdKpa: 100,
-    recordedDurationS: records[0].acquisitionSettings.recordedDurationS,
-    recordingPath: 'immediate',
-    releaseOffsetS: records[0].acquisitionSettings.recordedDurationS + 0.001,
-    samples: records[0].samples,
-    pressOperationEvidence: records[0].pressOperationEvidence,
-    sensorObservationSnapshot: records[0].sensorObservationSnapshot,
-    physicsSnapshot: releasedImmediatePhysics,
-  }),
-  /recording path/,
+assert.equal(unfinishedImmediateRecord.physicsSnapshot.captureKind, 'incomplete-press');
+assert.equal(unfinishedImmediateRecord.pressOperationEvidence.completion, 'not-released');
+assert.equal(
+  restoreHistoricalImmediateRecord(records[0], records[0].acquisitionSettings.recordedDurationS + 0.001),
+  null,
 );
 
 const materiallessHistoricalRecord = structuredClone(records[0]) as unknown as Record<string, unknown>;

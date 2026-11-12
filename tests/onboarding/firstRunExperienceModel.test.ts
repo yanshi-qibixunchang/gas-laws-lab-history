@@ -13,6 +13,11 @@ import {
 import {
   createDefaultAppExperienceProfile,
   createLegacyUnlockedExperienceProfile,
+  completeExperimentTutorialProfile,
+  getPendingExperimentTutorialForNewFile,
+  parseAppExperienceProfile,
+  startExperimentTutorialProfile,
+  unlockExperimentGuideProfile,
 } from '../../src/features/learning/experimentLearningModel.ts';
 import type { ExperienceProfileLoadResult } from '../../src/features/learning/experimentLearningStore.ts';
 
@@ -61,6 +66,7 @@ assert.equal(familiarProfile.needs.heatCapacity, 'known');
 assert.equal(familiarProfile.learning.heatCapacity, 'unlocked');
 assert.equal(familiarProfile.learning.pistonOscillation, 'unlocked');
 assert.equal(familiarProfile.activeTutorialExperiment, null);
+assert.equal(familiarProfile.workspaceTourStep, 'not-needed');
 
 const guidedProfile = createCommittedFirstRunProfile({
   draft: {
@@ -71,7 +77,8 @@ const guidedProfile = createCommittedFirstRunProfile({
 });
 assert.equal(guidedProfile.needs.heatCapacity, 'needs-guidance');
 assert.equal(guidedProfile.learning.heatCapacity, 'demo');
-assert.equal(guidedProfile.activeTutorialExperiment, 'heatCapacity');
+assert.equal(guidedProfile.activeTutorialExperiment, null);
+assert.equal(guidedProfile.workspaceTourStep, 'top');
 assert.equal(guidedProfile.learning.pistonOscillation, 'demo');
 assert.throws(() => createCommittedFirstRunProfile({
   draft: { language: 'zh-CN', heatCapacity: null, pistonOscillation: 'known' },
@@ -84,6 +91,35 @@ const pistonOnlyGuidedProfile = createCommittedFirstRunProfile({
     pistonOscillation: 'needs-guidance',
   },
 });
-assert.equal(pistonOnlyGuidedProfile.activeTutorialExperiment, 'pistonOscillation');
+assert.equal(pistonOnlyGuidedProfile.activeTutorialExperiment, null);
+assert.equal(pistonOnlyGuidedProfile.workspaceTourStep, 'not-needed');
+const heatOnlyGuidedProfile = createCommittedFirstRunProfile({
+  draft: { language: 'zh-CN', heatCapacity: 'needs-guidance', pistonOscillation: 'known' },
+});
+assert.equal(heatOnlyGuidedProfile.activeTutorialExperiment, null);
+assert.equal(heatOnlyGuidedProfile.workspaceTourStep, 'not-needed');
+assert.equal(getPendingExperimentTutorialForNewFile(heatOnlyGuidedProfile, 'heatCapacity'), 'heatCapacity');
+assert.equal(getPendingExperimentTutorialForNewFile(heatOnlyGuidedProfile, 'heatCapacityPistonOscillation'), null);
+assert.equal(getPendingExperimentTutorialForNewFile(pistonOnlyGuidedProfile, 'heatCapacity'), null);
+assert.equal(getPendingExperimentTutorialForNewFile(pistonOnlyGuidedProfile, 'heatCapacityPistonOscillation'), 'pistonOscillation');
+assert.equal(getPendingExperimentTutorialForNewFile(guidedProfile, 'standard'), null);
+
+const finishedTour = { ...guidedProfile, workspaceTourStep: 'finished' as const };
+const selectedPiston = startExperimentTutorialProfile(finishedTour, 'pistonOscillation', 'file-creation');
+assert.deepEqual(parseAppExperienceProfile(selectedPiston), { ok: true, value: selectedPiston });
+const pistonGuide = unlockExperimentGuideProfile(selectedPiston, 'pistonOscillation');
+assert.ok(pistonGuide);
+const completedPiston = completeExperimentTutorialProfile(pistonGuide, 'pistonOscillation');
+assert.ok(completedPiston);
+assert.equal(completedPiston.activeTutorialExperiment, null);
+assert.equal(completedPiston.tutorialStartSource, undefined);
+assert.equal(completedPiston.learning.pistonOscillation, 'unlocked');
+assert.equal(completedPiston.learning.heatCapacity, 'demo');
+assert.equal(getPendingExperimentTutorialForNewFile(completedPiston, 'heatCapacity'), 'heatCapacity');
+assert.equal(getPendingExperimentTutorialForNewFile(completedPiston, 'heatCapacityPistonOscillation'), null);
+
+const oldProfile = createLegacyUnlockedExperienceProfile();
+assert.deepEqual(parseAppExperienceProfile(oldProfile), { ok: true, value: oldProfile });
+assert.equal(oldProfile.workspaceTourStep, undefined);
 
 console.log('firstRunExperienceModel tests passed');

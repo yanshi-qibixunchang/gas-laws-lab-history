@@ -37,7 +37,6 @@ export interface WorkbenchPistonOscillationRealtimeProps {
   pistonOscillationCompletedDataProcessingReview: boolean;
   openPistonOscillationCalculationReview: () => void;
   closePistonOscillationDataProcessingReview: () => void;
-  pistonOscillationAcquisitionPanelRef: React.MutableRefObject<import('../pistonOscillation/PistonOscillationAcquisitionPanel.tsx').PistonOscillationAcquisitionPanelHandle>;
   activePistonOscillationGuideSession: import('../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts').PistonOscillationGuideSession;
   activePistonOscillationFreeSession: import('../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts').PistonOscillationFreeSession;
   activePistonOscillationPowerOn: boolean;
@@ -47,7 +46,6 @@ export interface WorkbenchPistonOscillationRealtimeProps {
   activePistonOscillationDemoPlaybackPhase: import('../pistonOscillation/pistonOscillationDemoPlaybackChannel.ts').PistonOscillationDemoPlaybackPhase;
   pistonOscillationDemoPlaybackChannel: import('../pistonOscillation/pistonOscillationDemoPlaybackChannel.ts').PistonOscillationDemoPlaybackChannel;
   activePistonOscillationGuideSelected: boolean;
-  pistonOscillationGuidePistonStable: boolean;
   activePistonOscillationGuideTimeFrozen: boolean;
   pistonOscillationGuideLessonDialog: import('./workbenchPistonGuidePresentation.ts').PistonOscillationGuideLessonDialogState;
   pistonGuideAcquisitionCue: import('../pistonOscillation/PistonOscillationAcquisitionPanel.tsx').PistonOscillationGuideAcquisitionCue;
@@ -55,7 +53,7 @@ export interface WorkbenchPistonOscillationRealtimeProps {
   handlePistonOscillationGuideActionAttempt: (action: import('../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts').PistonOscillationGuideAction, context: import('../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts').PistonOscillationGuideActionContext) => import('../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts').PistonOscillationGuideGuardResult;
   editPistonOscillationGuideParameter: (field: import('../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts').PistonOscillationGuideParameterField, value: string) => void;
   commitPistonOscillationGuideParameter: (field: import('../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts').PistonOscillationGuideParameterField) => void;
-  commitPistonOscillationFreeAcquisitionSetting: (field: "sampleRateHz" | "triggerThresholdKpa", value: number) => void;
+  commitPistonOscillationFreeAcquisitionSetting: (field: import("../../domain/pistonOscillation/pistonOscillationRecordingSettings.ts").PistonOscillationAcquisitionSetting, value: number) => void;
   changePistonOscillationFreeCandidate: (candidate: import('../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts').PistonOscillationRawMeasurementRecord) => void;
   startPistonOscillationFreeAcquisition: () => void;
   savePistonOscillationFreeMeasurement: (measurement: import('../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts').PistonOscillationRawMeasurementRecord) => void;
@@ -83,7 +81,6 @@ export const WorkbenchPistonOscillationRealtime = ({
   pistonOscillationCompletedDataProcessingReview,
   openPistonOscillationCalculationReview,
   closePistonOscillationDataProcessingReview,
-  pistonOscillationAcquisitionPanelRef,
   activePistonOscillationGuideSession,
   activePistonOscillationFreeSession,
   activePistonOscillationPowerOn,
@@ -93,7 +90,6 @@ export const WorkbenchPistonOscillationRealtime = ({
   activePistonOscillationDemoPlaybackPhase,
   pistonOscillationDemoPlaybackChannel,
   activePistonOscillationGuideSelected,
-  pistonOscillationGuidePistonStable,
   activePistonOscillationGuideTimeFrozen,
   pistonOscillationGuideLessonDialog,
   pistonGuideAcquisitionCue,
@@ -222,7 +218,6 @@ export const WorkbenchPistonOscillationRealtime = ({
           </RecoverableRenderErrorBoundary>
         ) : (
           <PistonOscillationAcquisitionPanel
-          ref={pistonOscillationAcquisitionPanelRef}
           key={`${activeFile.id}:${
             activePistonOscillationGuideSession?.startedAtMs ?? 'standalone'
           }:${activePistonOscillationGuideSession?.measurementIndex ?? 'free'}:${
@@ -251,7 +246,6 @@ export const WorkbenchPistonOscillationRealtime = ({
               ? activeFile.pistonOscillationFreeSession
               : undefined
           }
-          guidePauseReady={pistonOscillationGuidePistonStable}
           guidePaused={
             activePistonOscillationGuideTimeFrozen
             || pistonOscillationGuideLessonDialog !== null

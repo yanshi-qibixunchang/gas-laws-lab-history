@@ -192,6 +192,7 @@ const runUpdaterStage = (stage, taskFactory) => {
 
 const getDesktopWindowState = (window) => ({
   maximized: Boolean(window && !window.isDestroyed() && window.isMaximized()),
+  minimized: Boolean(window && !window.isDestroyed() && window.isMinimized()),
   fullscreen: Boolean(window && !window.isDestroyed() && window.isFullScreen()),
 });
 
@@ -236,6 +237,8 @@ const bindDesktopWindowFrameBehavior = (mainWindow) => {
   };
 
   mainWindow.on('resize', enforceAspectRatio);
+  mainWindow.on('minimize', () => broadcastDesktopWindowState(mainWindow));
+  mainWindow.on('restore', () => broadcastDesktopWindowState(mainWindow));
   mainWindow.on('maximize', () => {
     broadcastDesktopWindowState(mainWindow);
   });

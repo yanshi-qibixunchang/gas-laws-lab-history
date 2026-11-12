@@ -126,31 +126,32 @@ assert.equal(baseline.experimentGroup.lock, null);
 assert.equal(getPistonOscillationFreeCurrentTargetHeightMm(baseline), null);
 assert.equal(isPistonOscillationFreePlanComplete(baseline), false);
 
-assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 60]), true);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 60, 30]), true);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70]), false);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 60, 50, 40, 30, 20]), false);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([60, 70, 80]), true);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 70]), false);
-assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 65, 29]), true);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([75, 70, 60]), true);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([80, 70, 60]), false);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([75, 60, 30]), true);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([75, 70]), false);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([75, 70, 60, 50, 40, 30, 20]), false);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([60, 70, 75]), true);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([75, 70, 70]), false);
+assert.equal(isValidPistonOscillationFreeExperimentPlan([75, 65, 29]), true);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(0), false);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(9), false);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(10), true);
-assert.equal(isValidPistonOscillationFreeCustomHeightMm(80), true);
-assert.equal(isValidPistonOscillationFreeCustomHeightMm(80.5), false);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(75), true);
+assert.equal(isValidPistonOscillationFreeCustomHeightMm(76), false);
 assert.equal(isValidPistonOscillationFreeCustomHeightMm(-1), false);
-assert.throws(() => createPistonOscillationFreeExperimentPlan([80, 70]));
+assert.throws(() => createPistonOscillationFreeExperimentPlan([75, 70]));
 
-const customPlan = createPistonOscillationFreeExperimentPlan([29, 80, 65], {
+const customPlan = createPistonOscillationFreeExperimentPlan([29, 75, 65], {
   planId: 'custom-plan',
   customHeightCandidatesMm: [65, 29, 12],
 });
-assert.deepEqual(customPlan.targetHeightsMm, [80, 65, 29]);
+assert.deepEqual(customPlan.targetHeightsMm, [75, 65, 29]);
 assert.deepEqual(customPlan.customHeightCandidatesMm, [65, 29, 12]);
 assert.deepEqual(
   customPlan.targets.map(({ heightMm, source }) => ({ heightMm, source })),
   [
-    { heightMm: 80, source: 'system' },
+    { heightMm: 75, source: 'system' },
     { heightMm: 65, source: 'custom' },
     { heightMm: 29, source: 'custom' },
   ],
@@ -182,7 +183,7 @@ const idealAirEffectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
   idealAirSelection.parameterDraft,
 );
 assert.equal(idealAirEffectiveConfig.parameters.sampleRateHz, 1_000);
-assert.equal(idealAirEffectiveConfig.parameters.triggerThresholdKpa, 105);
+assert.equal(idealAirEffectiveConfig.parameters.triggerThresholdKpa, 120);
 assert.equal(idealAirEffectiveConfig.physicsConfig.linearDampingNsPerM, 0);
 assert.equal(idealAirEffectiveConfig.adiabaticProcess, true);
 assert.equal(idealAirEffectiveConfig.exactSensorObservation, true);
@@ -190,7 +191,24 @@ assert.equal(idealAirEffectiveConfig.tailIrregularityEnabled, false);
 assert.equal(idealAirEffectiveConfig.heightSnapEnabled, true);
 assert.equal(idealAirEffectiveConfig.scoringEligible, false);
 assert.equal(idealAirSelection.sampleRateHz, 1_000);
-assert.equal(idealAirSelection.triggerThresholdKpa, 105);
+assert.equal(idealAirSelection.triggerThresholdKpa, 120);
+const idealWithCustomAcquisition = transitionPistonOscillationFreeSession(
+  transitionPistonOscillationFreeSession(idealAirSelection, {
+    type: 'setAcquisitionSetting', field: 'triggerThresholdKpa', value: 118, nowMs: 101.1,
+  }),
+  { type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 0.125, nowMs: 101.2 },
+);
+const restoredIdealAcquisition = normalizePistonOscillationFreeSession(idealWithCustomAcquisition);
+assert.equal(restoredIdealAcquisition.triggerThresholdKpa, 118);
+assert.equal(restoredIdealAcquisition.parameterDraft.recordingDurationS, 0.125);
+assert.equal(transitionPistonOscillationFreeSession(restoredIdealAcquisition, {
+  type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 2.01, nowMs: 101.3,
+}), restoredIdealAcquisition);
+const legacyHeightPlan = normalizePistonOscillationFreeSession({
+  ...active,
+  experimentPlan: { targetHeightsMm: [80, 70, 60] },
+});
+assert.deepEqual(legacyHeightPlan.experimentPlan?.targetHeightsMm, [80, 70, 60]);
 assert.equal(idealAirSelection.audit.at(-1)?.type, 'experiment-scheme-changed');
 assert.equal(
   transitionPistonOscillationFreeSession(idealAirSelection, {
@@ -389,10 +407,10 @@ assert.equal(
 
 const configured = transitionPistonOscillationFreeSession(active, {
   type: 'setPlan',
-  targetHeightsMm: [80, 60, 30],
+  targetHeightsMm: [75, 60, 30],
   nowMs: 110,
 });
-assert.deepEqual(configured.experimentPlan.targetHeightsMm, [80, 60, 30]);
+assert.deepEqual(configured.experimentPlan.targetHeightsMm, [75, 60, 30]);
 assert.equal(configured.audit.at(-1)?.type, 'plan-updated');
 
 const withSampleRate = transitionPistonOscillationFreeSession(configured, {
@@ -670,7 +688,7 @@ assert.equal(reset.status, 'active');
 assert.equal(reset.startedAtMs, 200);
 assert.equal(reset.experimentPlan, null);
 assert.equal(reset.sampleRateHz, null);
-assert.equal(reset.triggerThresholdKpa, null);
+assert.equal(reset.triggerThresholdKpa, 120);
 assert.equal(reset.experimentGroup.lock, null);
 assert.notEqual(reset.experimentGroup.groupId, resumed.experimentGroup.groupId);
 assert.equal(reset.advancedParametersRiskAcknowledged, false);
@@ -683,7 +701,7 @@ let collection = transitionPistonOscillationFreeSession(baseline, {
 });
 collection = transitionPistonOscillationFreeSession(collection, {
   type: 'setPlan',
-  targetHeightsMm: [80, 70, 60],
+  targetHeightsMm: [75, 70, 60],
   nowMs: 301,
 });
 collection = transitionPistonOscillationFreeSession(collection, {
@@ -698,7 +716,7 @@ collection = transitionPistonOscillationFreeSession(collection, {
   value: 120,
   nowMs: 303,
 });
-const firstCandidate = createMeasurement(0, 80, 310);
+const firstCandidate = createMeasurement(0, 75, 310);
 const mismatchedContextCandidate: PistonOscillationRawMeasurementRecord = {
   ...firstCandidate,
   experimentContext: {
@@ -767,7 +785,7 @@ collection = transitionPistonOscillationFreeSession(collection, {
 assert.equal(collection.acquisitionCandidate, null);
 assert.equal(collection.excludedAttempts.length, 1);
 assert.equal(collection.excludedAttempts[0]?.reason, 'redo');
-const firstRetry = createMeasurement(0, 80, 335);
+const firstRetry = createMeasurement(0, 75, 335);
 collection = transitionPistonOscillationFreeSession(collection, {
   type: 'freezeAcquisition',
   measurement: firstRetry,
@@ -810,7 +828,7 @@ const unlockedAfterWholeReset = transitionPistonOscillationFreeSession(collectio
 assert.equal(unlockedAfterWholeReset.experimentGroup.lock, null);
 assert.equal(unlockedAfterWholeReset.experimentGroup.parameterSnapshot, null);
 assert.equal(unlockedAfterWholeReset.parameterDraft.sampleRateHz, null);
-assert.equal(unlockedAfterWholeReset.parameterDraft.triggerThresholdKpa, null);
+assert.equal(unlockedAfterWholeReset.parameterDraft.triggerThresholdKpa, 120);
 assert.equal(unlockedAfterWholeReset.savedMeasurements.length, 0);
 
 for (const [measurementIndex, targetHeightMm] of [[1, 70], [2, 60]] as const) {
@@ -945,7 +963,7 @@ let reacquisition = transitionPistonOscillationFreeSession(baseline, {
 });
 reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
   type: 'setPlan',
-  targetHeightsMm: [80, 70, 60],
+  targetHeightsMm: [75, 70, 60],
   nowMs: 501,
 });
 reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
@@ -966,7 +984,7 @@ reacquisition = transitionPistonOscillationFreeSession(reacquisition, {
   nowMs: 504,
 });
 for (const measurement of [
-  createMeasurement(0, 80, 510),
+  createMeasurement(0, 75, 510),
   createUnusableMeasurement(1, 70, 511),
   createMeasurement(2, 60, 512),
 ]) {

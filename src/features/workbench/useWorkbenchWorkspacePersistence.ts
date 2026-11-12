@@ -4,6 +4,7 @@ import { createWorkbenchLifecycleCheckpointActions, type WorkbenchLifecycleCheck
 import type { useWorkbenchWorkspacePersistenceResources } from './useWorkbenchWorkspacePersistenceResources.ts';
 type Resources = ReturnType<typeof useWorkbenchWorkspacePersistenceResources>;
 export const useWorkbenchWorkspacePersistence = (ports: {
+ transient?: boolean;
  snapshot: WorkbenchWorkspaceSnapshotPorts;
  readScheduler: Parameters<typeof createWorkbenchWorkspacePersistenceRequests>[0]['readScheduler'];
  semantic: WorkbenchSemanticCheckpointPorts;
@@ -19,8 +20,8 @@ export const useWorkbenchWorkspacePersistence = (ports: {
  heatCapacityRefreshPersistRef.current = persistCurrentHeatCapacityRefreshSession;
  const createWorkspacePersistenceSnapshot = createWorkbenchWorkspaceSnapshotCapture(ports.snapshot);
  const workspacePersistenceRequests = createWorkbenchWorkspacePersistenceRequests({ capture: createWorkspacePersistenceSnapshot, readScheduler: ports.readScheduler });
- scheduleWorkspacePersistenceRef.current = workspacePersistenceRequests.schedule;
- flushWorkspacePersistenceRef.current = workspacePersistenceRequests.flush;
+ scheduleWorkspacePersistenceRef.current = ports.transient ? () => false : workspacePersistenceRequests.schedule;
+ flushWorkspacePersistenceRef.current = ports.transient ? async () => true : workspacePersistenceRequests.flush;
  const semantic = createWorkbenchSemanticCheckpointActions(ports.semantic);
  scheduleHeatCapacitySemanticSceneCheckpointRef.current = semantic.scheduleHeatCapacitySemanticSceneCheckpoint;
  const lifecycle = createWorkbenchLifecycleCheckpointActions({ ...ports.lifecycle, clearHeatCapacitySemanticCheckpointTimers: semantic.clearHeatCapacitySemanticCheckpointTimers });

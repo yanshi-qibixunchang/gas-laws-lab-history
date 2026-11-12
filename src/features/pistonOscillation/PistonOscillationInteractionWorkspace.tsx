@@ -1331,6 +1331,7 @@ export interface PistonOscillationInteractionWorkspaceProps {
   thermalConfig?: Partial<PistonOscillationThermalModelConfig>;
   adiabaticProcess?: boolean;
   releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
+  releaseGapOverrideMs?: number | null;
   initialMode?: PistonOscillationFocusMode;
   cameraPreset?: WorkbenchPistonOscillationCameraPreset;
   sceneTheme?: 'light' | 'dark';
@@ -1390,6 +1391,7 @@ export const PistonOscillationInteractionWorkspace = ({
   thermalConfig: providedThermalConfig,
   adiabaticProcess = false,
   releaseAsymmetryConfig: providedReleaseAsymmetryConfig,
+  releaseGapOverrideMs = null,
   initialMode = 'pistonFocus',
   cameraPreset = 'overview',
   sceneTheme = 'light',
@@ -3175,6 +3177,9 @@ export const PistonOscillationInteractionWorkspace = ({
         releaseThermodynamicState: thermodynamicStateRef.current,
         releaseVelocityMPerS: thermodynamicStateRef.current.velocityMPerS,
       });
+      if (releaseGapOverrideMs !== null) {
+        pressOperationEvidence.releaseGapOverrideS = releaseGapOverrideMs / 1_000;
+      }
       endPressTrace();
       pressTraceRef.current = [];
       setReleaseGapMs(
@@ -3189,7 +3194,8 @@ export const PistonOscillationInteractionWorkspace = ({
         initialVelocityMmPerS:
           (pressOperationEvidence.releaseVelocityMPerS ?? 0) * 1_000,
         releaseAsymmetry: {
-          signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
+          signedReleaseGapS: pressOperationEvidence.releaseGapOverrideS
+            ?? pressOperationEvidence.signedReleaseGapS,
         },
         releaseAsymmetryConfig,
       };
@@ -3210,6 +3216,9 @@ export const PistonOscillationInteractionWorkspace = ({
         operation: 'releasePiston',
         payload: {
           signedReleaseGapS: pressOperationEvidence.signedReleaseGapS,
+          ...(pressOperationEvidence.releaseGapOverrideS === undefined
+            ? {}
+            : { releaseGapOverrideS: pressOperationEvidence.releaseGapOverrideS }),
           releaseOrder: pressOperationEvidence.releaseOrder,
           pressDurationS: pressOperationEvidence.pressDurationS,
           initialDisplacementMm,
@@ -3243,6 +3252,7 @@ export const PistonOscillationInteractionWorkspace = ({
     physicsConfig,
     recoverPistonMotionFailure,
     releaseAsymmetryConfig,
+    releaseGapOverrideMs,
     sensorSampleRateHz,
     setPistonOffset,
     setReleaseControlLock,

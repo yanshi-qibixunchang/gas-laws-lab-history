@@ -17,16 +17,16 @@ import {
 assert.equal(PISTON_MODEL_VERTICAL_AXIS, 'world_Y');
 assert.equal(PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM, 0);
 assert.equal(PISTON_EQUILIBRIUM_HEIGHT_MIN_MM, 0);
-assert.equal(PISTON_EQUILIBRIUM_HEIGHT_MAX_MM, 80);
+assert.equal(PISTON_EQUILIBRIUM_HEIGHT_MAX_MM, 75);
 assert.equal(PISTON_EXPERIMENT_HEIGHT_MIN_MM, 30);
-assert.deepEqual(PISTON_EXPERIMENT_HEIGHTS_MM, [80, 70, 60, 50, 40, 30]);
+assert.deepEqual(PISTON_EXPERIMENT_HEIGHTS_MM, [75, 70, 60, 50, 40, 30]);
 assert.equal(PISTON_LOCKING_SCREW_LOCK_THRESHOLD, 0.6);
 assert.equal(PISTON_UNSUPPORTED_DROP_ACCELERATION_MM_PER_S2, 420);
 
 assert.equal(clampPistonEquilibriumHeightMm(-5), 0);
 assert.equal(clampPistonEquilibriumHeightMm(15), 15);
 assert.equal(clampPistonEquilibriumHeightMm(42.5), 42.5);
-assert.equal(clampPistonEquilibriumHeightMm(86), 80);
+assert.equal(clampPistonEquilibriumHeightMm(86), 75);
 
 assert.equal(getPistonLockingScrewClampState(0), 'loose');
 assert.equal(getPistonLockingScrewClampState(0.5999), 'loose');
@@ -41,10 +41,10 @@ assert.equal(getPistonUnsupportedDropAccelerationScale(1), 0);
 const scaleCalibrationWorldY = 0.5;
 assert.equal(
   getPistonAssemblyTargetWorldY(scaleCalibrationWorldY, {
-    equilibriumHeightMm: 80,
+    equilibriumHeightMm: 75,
     oscillationOffsetMm: 0,
   }),
-  0.495,
+  0.490,
 );
 assert.equal(
   getPistonAssemblyTargetWorldY(scaleCalibrationWorldY, {
@@ -55,10 +55,14 @@ assert.equal(
 );
 assert.equal(
   getPistonAssemblyTargetWorldY(scaleCalibrationWorldY, {
-    equilibriumHeightMm: 80,
+    equilibriumHeightMm: 75,
     oscillationOffsetMm: -4,
   }),
-  0.491,
+  0.486,
 );
+
+assert.equal(getPistonAssemblyTargetWorldY(scaleCalibrationWorldY, {
+  equilibriumHeightMm: 74, oscillationOffsetMm: 5,
+}), 0.490);
 
 console.log('pistonOscillationModelMotion tests passed');

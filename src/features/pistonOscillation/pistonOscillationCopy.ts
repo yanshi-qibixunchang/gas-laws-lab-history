@@ -135,6 +135,11 @@ export interface PistonOscillationShellCopy {
     absolutePressure: string;
     formalSamples: string;
     recordingTime: string;
+    recordingDuration: string;
+    recordingDurationRangeWarning: string;
+    recordingTooShort: string;
+    recordingUnavailable: string;
+    legacyHeightUnavailable: string;
     pointsUnit: string;
     pressureAxis: string;
     timeAxis: string;
@@ -144,7 +149,6 @@ export interface PistonOscillationShellCopy {
     waitingTrigger: string;
     emptyCurve: string;
     start: string;
-    pause: string;
     redo: string;
     save: string;
     actionsAria: string;
@@ -191,8 +195,6 @@ export interface PistonOscillationShellCopy {
     releasePistonDetail: string;
     recordingTitle: string;
     recordingDetail: string;
-    pauseRecordingTitle: string;
-    pauseRecordingDetail: string;
     saveCurveTitle: (measurementNumber: number) => string;
     saveCurveDetail: (measurementNumber: number) => string;
     crossRunDisconnectTitle: string;
@@ -476,6 +478,11 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       },
       sampleRate: '采样频率',
       triggerThreshold: '下降触发阈值',
+      recordingDuration: '记录时间',
+      recordingDurationRangeWarning: '请输入 0.1–2 秒的记录时间，最多保留三位小数。',
+      recordingTooShort: '当前采样频率在设定时间内无法记录两个样本。请增加记录时间或采样频率。',
+      recordingUnavailable: '本次有效采样不足，请重做。',
+      legacyHeightUnavailable: '旧计划的目标高度超过 75 mm。请新建 10–75 mm 的实验计划。',
       absolutePressure: '当前绝对压强',
       formalSamples: '正式样本',
       recordingTime: '记录时间',
@@ -488,13 +495,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       waitingTrigger: '等待压力由高向低越过阈值',
       emptyCurve: '开始采集并操作活塞后显示正式曲线',
       start: '开始采集',
-      pause: '暂停采集',
       redo: '重做本次',
       save: '保存本次',
       actionsAria: '本次压力采集操作',
       curveAria: '当前测量的绝对压力时间曲线',
       preTriggerNote: '触发前高压段仅用于监视，不写入本次测量。',
-      immediateRecordingNote: '开始记录时已达到监测条件，本次会保留按压、停留和松手后的完整曲线。',
+      immediateRecordingNote: '此历史记录从点击开始时采集，包含松手前的样本。',
       sampleRateRangeWarning: '请输入 1 至 1000 Hz 的整数采样频率。',
       triggerThresholdRangeWarning: '请输入当前环境压强对应范围内的有效监测值：',
       acquisitionParametersRequired: '请先输入有效的采样频率和监测值，再开始采集。',
@@ -534,15 +540,13 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       releasePistonTitle: '双手下压并同时释放',
       releasePistonDetail: '双击顶部平台进入聚焦；让左手（Space）与右手（鼠标左键）全部就位，双手下压顶部平台，再同时松开双手。',
       recordingTitle: '记录压力振荡曲线',
-      recordingDetail: '压力向下跨过 120 kPa 后自动触发，继续记录至 0.500 s。',
-      pauseRecordingTitle: '等待活塞稳定并暂停采集',
-      pauseRecordingDetail: '记录时间达到 0.500 s 后，等待活塞完全停止振动，再点击暂停，冻结本次曲线。',
+      recordingDetail: '压强回落穿过 120 kPa 时开始记录，达到 0.500 s 后自动停止并冻结曲线。',
       saveCurveTitle: (measurementNumber) => `保存第 ${measurementNumber} 次测量`,
       saveCurveDetail: (measurementNumber) => `检查曲线后点击保存，将它记入第 ${measurementNumber} 次测量。`,
       crossRunDisconnectTitle: '托住平台并断开软管',
       crossRunDisconnectDetail: '保持左手（Space）托住顶部平台，用右手（鼠标左键）拖出白色接头，使气缸与大气连通。',
       completedTitle: '数据处理与计算已完成',
-      completedDetail: '80、70、60 mm 三次测量、周期预处理、线性拟合与结果计算均已完成，全部过程和结果已保存。引导模式使用三组不同高度的数据，帮助你以最简流程体验一次完整拟合；在正式实验或自由模式中，建议采集更多不同高度的数据点，以减小随机波动和个别异常数据对拟合的影响，提高斜率、截距及最终计算结果的稳定性和可信度。',
+      completedDetail: '三个高度的三次测量、周期预处理、线性拟合与结果计算均已完成，全部过程和结果已保存。引导模式使用三组不同高度的数据，帮助你以最简流程体验一次完整拟合；在正式实验或自由模式中，建议采集更多不同高度的数据点，以减小随机波动和个别异常数据对拟合的影响，提高斜率、截距及最终计算结果的稳定性和可信度。',
       completionToastKicker: '系统',
       completionToast: '引导模式已结束',
       sampleRateInvalid: '采样频率应设置为 1000 Hz。',
@@ -825,6 +829,11 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       },
       sampleRate: '採樣頻率',
       triggerThreshold: '下降觸發閾值',
+      recordingDuration: '記錄時間',
+      recordingDurationRangeWarning: '請輸入 0.1–2 秒的記錄時間，最多保留三位小數。',
+      recordingTooShort: '目前取樣頻率在設定時間內無法記錄兩個樣本。請增加記錄時間或取樣頻率。',
+      recordingUnavailable: '本次有效取樣不足，請重做。',
+      legacyHeightUnavailable: '舊計畫的目標高度超過 75 mm。請新建 10–75 mm 的實驗計畫。',
       absolutePressure: '目前絕對壓強',
       formalSamples: '正式樣本',
       recordingTime: '記錄時間',
@@ -837,13 +846,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       waitingTrigger: '等待壓力由高向低越過閾值',
       emptyCurve: '開始採集並操作活塞後顯示正式曲線',
       start: '開始採集',
-      pause: '暫停採集',
       redo: '重做本次',
       save: '儲存本次',
       actionsAria: '本次壓力採集操作',
       curveAria: '目前測量的絕對壓力時間曲線',
       preTriggerNote: '觸發前高壓段僅用於監視，不寫入本次測量。',
-      immediateRecordingNote: '開始記錄時已達到監測條件，本次會保留按壓、停留和鬆手後的完整曲線。',
+      immediateRecordingNote: '此歷史記錄從點擊開始時採集，包含鬆手前的樣本。',
       sampleRateRangeWarning: '請輸入 1 至 1000 Hz 的整數採樣頻率。',
       triggerThresholdRangeWarning: '請輸入目前環境壓強對應範圍內的有效監測值：',
       acquisitionParametersRequired: '請先輸入有效的採樣頻率和監測值，再開始採集。',
@@ -883,15 +891,13 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       releasePistonTitle: '雙手下壓並同時釋放',
       releasePistonDetail: '雙擊頂部平台進入聚焦；讓左手（Space）與右手（滑鼠左鍵）全部就位，雙手下壓頂部平台，再同時鬆開雙手。',
       recordingTitle: '記錄壓力振盪曲線',
-      recordingDetail: '壓力向下跨越 120 kPa 後自動觸發，繼續記錄至 0.500 s。',
-      pauseRecordingTitle: '等待活塞穩定並暫停採集',
-      pauseRecordingDetail: '記錄時間達到 0.500 s 後，等待活塞完全停止振動，再點擊暫停，凍結本次曲線。',
+      recordingDetail: '壓強回落穿過 120 kPa 時開始記錄，達到 0.500 s 後自動停止並凍結曲線。',
       saveCurveTitle: (measurementNumber) => `儲存第 ${measurementNumber} 次測量`,
       saveCurveDetail: (measurementNumber) => `檢查曲線後點擊儲存，將它記入第 ${measurementNumber} 次測量。`,
       crossRunDisconnectTitle: '托住平台並斷開軟管',
       crossRunDisconnectDetail: '保持左手（Space）托住頂部平台，用右手（滑鼠左鍵）拖出白色接頭，使氣缸與大氣連通。',
       completedTitle: '資料處理與計算已完成',
-      completedDetail: '80、70、60 mm 三次測量、週期預處理、線性擬合與結果計算均已完成，全部過程與結果已儲存。引導模式使用三組不同高度的資料，協助你以最簡流程體驗一次完整擬合；在正式實驗或自由模式中，建議採集更多不同高度的資料點，以減小隨機波動和個別異常資料對擬合的影響，提高斜率、截距及最終計算結果的穩定性和可信度。',
+      completedDetail: '三個高度的三次測量、週期預處理、線性擬合與結果計算均已完成，全部過程與結果已儲存。引導模式使用三組不同高度的資料，協助你以最簡流程體驗一次完整擬合；在正式實驗或自由模式中，建議採集更多不同高度的資料點，以減小隨機波動和個別異常資料對擬合的影響，提高斜率、截距及最終計算結果的穩定性和可信度。',
       completionToastKicker: '系統',
       completionToast: '引導模式已結束',
       sampleRateInvalid: '採樣頻率應設定為 1000 Hz。',
@@ -1174,6 +1180,11 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       },
       sampleRate: 'Sample rate',
       triggerThreshold: 'Falling-edge threshold',
+      recordingDuration: 'Recording duration',
+      recordingDurationRangeWarning: 'Enter a recording duration of 0.1–2 s with up to three decimal places.',
+      recordingTooShort: 'This duration and sample rate produce fewer than two samples. Increase the duration or sample rate.',
+      recordingUnavailable: 'There were too few valid samples. Repeat the measurement.',
+      legacyHeightUnavailable: 'The legacy target exceeds 75 mm. Create an experiment plan with heights from 10 to 75 mm.',
       absolutePressure: 'Current absolute pressure',
       formalSamples: 'Recorded samples',
       recordingTime: 'Recording time',
@@ -1186,13 +1197,12 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       waitingTrigger: 'Waiting for pressure to cross the threshold downward',
       emptyCurve: 'Start acquisition and operate the piston to display the curve',
       start: 'Start acquisition',
-      pause: 'Pause acquisition',
       redo: 'Redo measurement',
       save: 'Save measurement',
       actionsAria: 'Current pressure acquisition controls',
       curveAria: 'Absolute pressure curve for the current measurement',
       preTriggerNote: 'The high-pressure segment before triggering is monitored but not recorded.',
-      immediateRecordingNote: 'The monitoring condition was already met at start, so pressing, holding, and the curve after release are all retained.',
+      immediateRecordingNote: 'This historical recording started when Start was selected and includes samples before release.',
       sampleRateRangeWarning: 'Enter an integer sample rate from 1 to 1000 Hz.',
       triggerThresholdRangeWarning: 'Enter a valid monitoring value for the current ambient pressure:',
       acquisitionParametersRequired: 'Enter a valid sample rate and monitoring value before starting acquisition.',
@@ -1232,15 +1242,13 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       releasePistonTitle: 'Press with both hands and release together',
       releasePistonDetail: 'Double-click the top platform to enter focus mode. Put the left hand (Space) and right hand (left mouse button) in place, press the top platform with both hands, then release both hands at the same time.',
       recordingTitle: 'Record the pressure oscillation curve',
-      recordingDetail: 'Recording triggers when pressure crosses 120 kPa downward; continue to 0.500 s.',
-      pauseRecordingTitle: 'Let the piston settle and pause acquisition',
-      pauseRecordingDetail: 'After 0.500 s of recording, wait until the piston stops oscillating, then select Pause to freeze the current curve.',
+      recordingDetail: 'Recording starts when pressure falls through 120 kPa and automatically stops after 0.500 s.',
       saveCurveTitle: (measurementNumber) => `Save measurement ${measurementNumber}`,
       saveCurveDetail: (measurementNumber) => `Check the frozen curve, then select Save to store it as measurement ${measurementNumber}.`,
       crossRunDisconnectTitle: 'Support the platform and disconnect the hose',
       crossRunDisconnectDetail: 'Keep the left hand (Space) supporting the top platform and use the right hand (left mouse button) to pull out the white connector so the cylinder is open to the atmosphere.',
       completedTitle: 'Data processing and calculations complete',
-      completedDetail: 'The measurements at 80, 70, and 60 mm, period preprocessing, linear fit, and result calculations are complete, and the full process and results have been saved. Guided mode uses three different heights to demonstrate a complete fit with the simplest workflow. In a formal experiment or Free mode, collect more data points at different heights to reduce the influence of random variation and isolated outliers, and to improve the stability and credibility of the fitted slope, intercept, and final result.',
+      completedDetail: 'The three measurements, period preprocessing, linear fit, and result calculations are complete, and the full process and results have been saved. Guided mode uses three different heights to demonstrate a complete fit with the simplest workflow. In a formal experiment or Free mode, collect more data points at different heights to reduce the influence of random variation and isolated outliers, and to improve the stability and credibility of the fitted slope, intercept, and final result.',
       completionToastKicker: 'SYSTEM',
       completionToast: 'Guided mode has ended',
       sampleRateInvalid: 'Set the sample rate to 1000 Hz.',

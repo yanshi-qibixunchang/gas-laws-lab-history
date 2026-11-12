@@ -124,6 +124,10 @@ export const WorkbenchPistonOscillationPreview = ({
               releaseAsymmetryConfig={
                 activePistonOscillationReleaseAsymmetryConfig
               }
+              releaseGapOverrideMs={activePistonOscillationFreeSelected
+                && activePistonOscillationEffectiveConfig?.scheme === 'real'
+                ? activePistonOscillationEffectiveConfig.parameters.releaseGapOverrideMs
+                : null}
               sceneTheme={resolvedWorkbenchTheme}
               cameraPreset={activeFile.previewCameraPreset}
               operationVisualizationEnabled={

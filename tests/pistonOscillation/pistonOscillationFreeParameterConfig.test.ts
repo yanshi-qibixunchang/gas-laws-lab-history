@@ -24,6 +24,9 @@ assert.equal(defaults.sampleRateHz, null);
 assert.equal(defaults.triggerThresholdKpa, null);
 assert.equal(defaults.sensorFluctuationEnabled, true);
 assert.equal(defaults.tailIrregularityEnabled, true);
+assert.equal(defaults.sensorResponseTimeS, 0.003);
+assert.equal(Object.hasOwn(defaults, 'releaseGapOverrideMs'), false);
+assert.equal(defaults.releaseMaximumExtraLossNsPerM, 3);
 assert.equal(
   defaults.equivalentLinearLossNsPerM,
   PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M,
@@ -117,6 +120,30 @@ assert.equal(rejected.ambientPressureKpa, customized.ambientPressureKpa);
 assert.equal(rejected.sampleRateHz, customized.sampleRateHz);
 assert.equal(rejected.triggerThresholdKpa, customized.triggerThresholdKpa);
 assert.equal(rejected.releaseSaturationGapS, customized.releaseSaturationGapS);
+
+const legacyMixedObservations = normalizePistonOscillationFreeParameterDraft({
+  ...customized,
+  sensorFluctuationEnabled: false,
+});
+assert.equal(Object.hasOwn(legacyMixedObservations, 'releaseGapOverrideMs'), false);
+assert.equal(legacyMixedObservations.sensorFluctuationEnabled, false);
+assert.equal(legacyMixedObservations.tailIrregularityEnabled, true);
+assert.deepEqual(getPistonOscillationFreeReleaseAsymmetryConfig(legacyMixedObservations), release);
+
+for (const releaseGapOverrideMs of [0, 105, 10_000]) {
+  const parameters = { ...legacyMixedObservations, releaseGapOverrideMs };
+  const snapshot = createPistonOscillationFreeParameterSnapshot(parameters, 1_000);
+  assert.deepEqual(normalizePistonOscillationFreeParameterSnapshot(snapshot)?.parameters, parameters);
+  const cleared = normalizePistonOscillationFreeParameterDraft(
+    { releaseGapOverrideMs: null },
+    parameters,
+  );
+  assert.equal(Object.hasOwn(cleared, 'releaseGapOverrideMs'), false);
+}
+for (const releaseGapOverrideMs of [-1, Infinity, 10_001, '105']) {
+  const invalid = normalizePistonOscillationFreeParameterDraft({ releaseGapOverrideMs });
+  assert.equal(Object.hasOwn(invalid, 'releaseGapOverrideMs'), false);
+}
 
 const legacyAbsoluteSnapshot = createPistonOscillationFreeParameterSnapshot({
   ...defaults,

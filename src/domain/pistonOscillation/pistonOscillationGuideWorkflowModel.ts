@@ -1,3 +1,5 @@
+import { PISTON_DEFAULT_RECORDING_DURATION_S, PISTON_DEFAULT_TRIGGER_KPA } from './pistonOscillationRecordingSettings.ts';
+import { PISTON_TEACHING_HEIGHTS_MM } from './pistonOscillationHeightLimits.ts';
 import {
   PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   advancePistonOscillationPeriodRun,
@@ -32,12 +34,12 @@ import {
 
 export const PISTON_OSCILLATION_GUIDE_SESSION_SCHEMA_VERSION = 9 as const;
 
-export const PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM = [80, 70, 60] as const;
+export const PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM = PISTON_TEACHING_HEIGHTS_MM;
 export const PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS = 3 as const;
 export const PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ = 1000 as const;
-export const PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA = 120 as const;
+export const PISTON_OSCILLATION_GUIDE_TRIGGER_THRESHOLD_KPA = PISTON_DEFAULT_TRIGGER_KPA;
 export const PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA = 130 as const;
-export const PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S = 0.5 as const;
+export const PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S = PISTON_DEFAULT_RECORDING_DURATION_S;
 export const PISTON_OSCILLATION_GUIDE_HEIGHT_CONFIRMATION_TOLERANCE_MM = 0.25 as const;
 
 const PISTON_OSCILLATION_GUIDE_HEIGHT_COMPARISON_EPSILON_MM = 1e-9;
@@ -55,8 +57,6 @@ export type PistonOscillationGuideStep =
   | 'acquisitionReady'
   | 'waitingTrigger'
   | 'recording'
-  | 'pauseAvailable'
-  | 'curveFrozen'
   | 'awaitingSaveOrRedo'
   | 'crossRunDisconnect'
   | 'nextHeightAdjustment'
@@ -88,7 +88,7 @@ export type PistonOscillationGuideHeightResetReason =
 export interface PistonOscillationGuideHeightReset {
   reason: PistonOscillationGuideHeightResetReason;
   phase: 'resetting' | 'explaining';
-  targetHeightMm: (typeof PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM)[number];
+  targetHeightMm: number;
   startedHeightMm: number;
 }
 
@@ -103,6 +103,7 @@ export interface PistonOscillationGuideSession {
   startedAtMs: number | null;
   updatedAtMs: number | null;
   measurementIndex: PistonOscillationGuideMeasurementIndex;
+  heightPlan?: 'current' | 'legacy';
   step: PistonOscillationGuideStep;
   powerOn: boolean;
   parameterDrafts: Record<PistonOscillationGuideParameterField, string>;
@@ -155,9 +156,7 @@ export type PistonOscillationGuideEvent =
       samples: PistonOscillationGuideCurvePoint[];
       candidate?: PistonOscillationGuideSavedMeasurement;
     } & PistonOscillationGuideTimedEvent)
-  | ({ type: 'pauseRecording' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'discardAcquisitionAttempt' } & PistonOscillationGuideTimedEvent)
-  | ({ type: 'curveFreezeComplete' } & PistonOscillationGuideTimedEvent)
   | ({ type: 'saveMeasurement' } & PistonOscillationGuideTimedEvent)
   | ({
       type: 'beginHeightReset';
@@ -229,7 +228,6 @@ export type PistonOscillationGuideAction =
   | 'disconnectHose'
   | 'reconnectHose'
   | 'startAcquisition'
-  | 'pauseAcquisition'
   | 'saveMeasurement';
 
 export interface PistonOscillationGuideActionContext {
@@ -306,6 +304,7 @@ PistonOscillationGuideSession => ({
 const createFreshActiveSession = (nowMs: number): PistonOscillationGuideSession => ({
   ...createDefaultPistonOscillationGuideSession(),
   status: 'active',
+  heightPlan: 'current',
   startedAtMs: nowMs,
   updatedAtMs: nowMs,
 });
@@ -408,17 +407,31 @@ const measurementSetupHeightMatchesTarget = (
   );
 };
 
+const LEGACY_GUIDE_HEIGHTS_MM = [80, 70, 60] as const;
+
+export const getPistonOscillationGuideTargetHeightMm = (
+  session: PistonOscillationGuideSession,
+  index = session.measurementIndex,
+): number => {
+  if (session.heightPlan !== 'legacy') return PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index];
+  if (index !== 0) return LEGACY_GUIDE_HEIGHTS_MM[index];
+  const hasLegacyFirstMeasurement = session.savedMeasurements.some(
+    (measurement) => measurement.measurementIndex === 0 && measurement.targetHeightMm === 80,
+  ) || (
+    session.acquisitionCandidate?.measurementIndex === 0
+    && session.acquisitionCandidate.targetHeightMm === 80
+  );
+  return hasLegacyFirstMeasurement ? 80 : PISTON_TEACHING_HEIGHTS_MM[0];
+};
+
 const measurementMatchesRun = (
   measurementIndex: PistonOscillationGuideMeasurementIndex,
   measurement: PistonOscillationGuideSavedMeasurement,
+  targetHeightMm: number,
 ) => (
   measurement.measurementIndex === measurementIndex
-  && measurement.targetHeightMm
-    === PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex]
-  && measurementSetupHeightMatchesTarget(
-    measurement,
-    PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex],
-  )
+  && measurement.targetHeightMm === targetHeightMm
+  && measurementSetupHeightMatchesTarget(measurement, targetHeightMm)
   && measurement.acquisitionSettings.sampleRateHz
     === PISTON_OSCILLATION_GUIDE_SAMPLE_RATE_HZ
   && measurement.acquisitionSettings.triggerThresholdKpa
@@ -428,7 +441,11 @@ const measurementMatchesRun = (
 const measurementMatchesCurrentRun = (
   session: PistonOscillationGuideSession,
   measurement: PistonOscillationGuideSavedMeasurement,
-) => measurementMatchesRun(session.measurementIndex, measurement);
+) => measurementMatchesRun(
+  session.measurementIndex,
+  measurement,
+  getPistonOscillationGuideTargetHeightMm(session),
+);
 
 export const getPistonOscillationGuideHeightAdjustmentStep = (
   measurementIndex: PistonOscillationGuideMeasurementIndex,
@@ -475,13 +492,9 @@ const eventMatchesStep = (
     case 'releasePiston':
       return session.step === 'waitingTrigger';
     case 'updateRecording':
-      return session.step === 'recording' || session.step === 'pauseAvailable';
-    case 'pauseRecording':
-      return session.step === 'recording' || session.step === 'pauseAvailable';
+      return session.step === 'recording';
     case 'discardAcquisitionAttempt':
-      return session.step === 'recording' || session.step === 'pauseAvailable';
-    case 'curveFreezeComplete':
-      return session.step === 'curveFrozen';
+      return session.step === 'recording' || session.step === 'awaitingSaveOrRedo';
     case 'saveMeasurement':
       return session.step === 'awaitingSaveOrRedo';
     case 'beginHeightReset':
@@ -543,7 +556,7 @@ export const getPistonOscillationGuideActionGuard = (
 
   if (action === 'confirmHeight') {
     if (!isHeightAdjustmentStep(session.step)) return rejectGuard('wrongStep');
-    const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex];
+    const targetHeightMm = getPistonOscillationGuideTargetHeightMm(session);
     if (
       typeof context.heightMm !== 'number'
       || !Number.isFinite(context.heightMm)
@@ -601,10 +614,6 @@ export const getPistonOscillationGuideActionGuard = (
         : rejectGuard('wrongStep');
     case 'startAcquisition':
       return session.step === 'acquisitionReady'
-        ? ALLOWED_GUARD
-        : rejectGuard('wrongStep');
-    case 'pauseAcquisition':
-      return session.step === 'pauseAvailable'
         ? ALLOWED_GUARD
         : rejectGuard('wrongStep');
     case 'saveMeasurement':
@@ -673,7 +682,7 @@ export const getPistonOscillationGuideEventGuard = (
     event.type === 'confirmHeight'
     && !isConfirmedHeightForTarget(
       event.heightMm,
-      PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex],
+      getPistonOscillationGuideTargetHeightMm(session),
     )
   ) return rejectGuard('wrongTargetHeight');
 
@@ -761,18 +770,6 @@ export const getPistonOscillationGuideEventGuard = (
       && event.recordedDurationS
         < session.acquisitionCandidate.acquisitionSettings.recordedDurationS
     ) return rejectGuard('invalidRecordingSnapshot');
-  }
-
-  if (event.type === 'pauseRecording') {
-    if (session.acquisitionCandidate === null) return rejectGuard('candidateMissing');
-    if (!measurementMatchesCurrentRun(session, session.acquisitionCandidate)) {
-      return rejectGuard('candidateMismatch');
-    }
-    if (
-      session.acquisitionCandidate.acquisitionSettings.recordedDurationS
-        < PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
-      || session.acquisitionCandidate.samples.length < 2
-    ) return rejectGuard('recordingTooShort');
   }
 
   if (event.type === 'saveMeasurement') {
@@ -923,7 +920,7 @@ export const transitionPistonOscillationGuideSession = (
       return {
         ...session,
         step: event.recordedDurationS >= PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
-          ? 'pauseAvailable'
+          ? 'awaitingSaveOrRedo'
           : 'recording',
         updatedAtMs: event.nowMs,
         acquisitionCandidate: {
@@ -936,15 +933,12 @@ export const transitionPistonOscillationGuideSession = (
         },
       };
     }
-    case 'pauseRecording':
-      return advance('curveFrozen');
     case 'discardAcquisitionAttempt':
       return {
-        ...advance('waitingTrigger'),
+        ...advance(getPistonOscillationGuideTargetHeightMm(session) > PISTON_TEACHING_HEIGHTS_MM[0]
+          ? 'firstHeightAdjustment' : 'waitingTrigger'),
         acquisitionCandidate: null,
       };
-    case 'curveFreezeComplete':
-      return advance('awaitingSaveOrRedo');
     case 'saveMeasurement': {
       const savedMeasurement = {
         ...cloneMeasurement(session.acquisitionCandidate!),
@@ -1161,7 +1155,7 @@ export const transitionPistonOscillationGuideSession = (
         updatedAtMs: event.nowMs,
       };
     case 'beginHeightReset': {
-      const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[session.measurementIndex];
+      const targetHeightMm = getPistonOscillationGuideTargetHeightMm(session);
       return {
         ...session,
         step: getPistonOscillationGuideHeightAdjustmentStep(session.measurementIndex),
@@ -1213,8 +1207,6 @@ const GUIDE_STEPS: readonly PistonOscillationGuideStep[] = [
   'acquisitionReady',
   'waitingTrigger',
   'recording',
-  'pauseAvailable',
-  'curveFrozen',
   'awaitingSaveOrRedo',
   'crossRunDisconnect',
   'nextHeightAdjustment',
@@ -1227,15 +1219,13 @@ const GUIDE_STEPS: readonly PistonOscillationGuideStep[] = [
 
 const guideStepRequiresAcquisitionCandidate = (
   step: PistonOscillationGuideStep,
-) => step === 'pauseAvailable'
-  || step === 'curveFrozen'
-  || step === 'awaitingSaveOrRedo';
+) => step === 'awaitingSaveOrRedo';
 
 const acquisitionCandidateCanResume = (
   measurementIndex: PistonOscillationGuideMeasurementIndex,
   candidate: PistonOscillationGuideSavedMeasurement | null,
 ) => candidate !== null
-  && measurementMatchesRun(measurementIndex, candidate)
+  && measurementMatchesRun(measurementIndex, candidate, candidate.targetHeightMm)
   && candidate.acquisitionSettings.recordedDurationS
     >= PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S
   && candidate.samples.length >= 2
@@ -1246,24 +1236,28 @@ const acquisitionCandidateCanResume = (
 
 const normalizeMeasurement = (
   value: unknown,
+  legacyHeightPlan: boolean,
 ): PistonOscillationGuideSavedMeasurement | null => {
   if (!isPlainRecord(value) || !isMeasurementIndex(value.measurementIndex)) return null;
-  const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[value.measurementIndex];
+  const acceptedHeights: readonly number[] = legacyHeightPlan && value.measurementIndex === 0
+    ? [LEGACY_GUIDE_HEIGHTS_MM[0], PISTON_TEACHING_HEIGHTS_MM[0]]
+    : [(legacyHeightPlan ? LEGACY_GUIDE_HEIGHTS_MM : PISTON_TEACHING_HEIGHTS_MM)[value.measurementIndex]];
   const normalized = normalizePistonOscillationRawMeasurementRecord(
     value,
     value.measurementIndex,
   );
   if (
     !normalized
-    || normalized.targetHeightMm !== targetHeightMm
-    || !measurementSetupHeightMatchesTarget(normalized, targetHeightMm)
+    || !acceptedHeights.includes(normalized.targetHeightMm)
+    || !measurementSetupHeightMatchesTarget(normalized, normalized.targetHeightMm)
   ) return null;
   return normalized;
 };
 
 const normalizeHeightReset = (
   value: unknown,
-  measurementIndex: PistonOscillationGuideMeasurementIndex,
+  targetHeightMm: number,
+  legacyFirstHeight: boolean,
 ): PistonOscillationGuideHeightReset | null => {
   if (!isPlainRecord(value)) return null;
   const reason = value.reason === 'supportLost'
@@ -1275,9 +1269,8 @@ const normalizeHeightReset = (
     ? value.phase
     : null;
   if (phase === null) return null;
-  const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
   if (
-    value.targetHeightMm !== targetHeightMm
+    (value.targetHeightMm !== targetHeightMm && !(legacyFirstHeight && value.targetHeightMm === 80))
     || !isFiniteNonNegativeNumber(value.startedHeightMm)
   ) return null;
   return {
@@ -1305,7 +1298,11 @@ export const normalizePistonOscillationGuideSession = (
     : 0;
   // Legacy persisted aliases are accepted only at this normalization boundary;
   // neither value is part of the current Guide step model or visible checklist.
-  const normalizedStep = value.step === 'baselineStabilizing'
+  const legacyHeightPlan = value.heightPlan === 'legacy'
+    || (value.heightPlan !== 'current' && persistedStatus !== 'idle');
+  const normalizedStep = value.step === 'pauseAvailable' || value.step === 'curveFrozen'
+    ? 'awaitingSaveOrRedo' as const
+    : value.step === 'baselineStabilizing'
     ? 'acquisitionReady' as const
     : value.step === 'crossRunStabilizing'
       ? 'crossRunDisconnect' as const
@@ -1324,7 +1321,7 @@ export const normalizePistonOscillationGuideSession = (
   const parametersLocked = value.parametersLocked === true
     && sampleRateStatus === 'valid'
     && triggerThresholdStatus === 'valid';
-  const persistedAcquisitionCandidate = normalizeMeasurement(value.acquisitionCandidate);
+  const persistedAcquisitionCandidate = normalizeMeasurement(value.acquisitionCandidate, legacyHeightPlan);
   const resumableAcquisitionCandidate = guideStepRequiresAcquisitionCandidate(normalizedStep)
     && acquisitionCandidateCanResume(
       normalizedMeasurementIndex,
@@ -1337,16 +1334,17 @@ export const normalizePistonOscillationGuideSession = (
   ) && resumableAcquisitionCandidate === null;
   const resumableStep = acquisitionCandidateRecoveryRequired
     ? 'waitingTrigger' as const
-    : normalizedStep === 'curveFrozen'
-      ? 'awaitingSaveOrRedo' as const
-      : normalizedStep;
+    : normalizedStep;
   const heightReset = normalizeHeightReset(
     value.heightReset,
-    normalizedMeasurementIndex,
+    normalizedMeasurementIndex === 0
+      ? PISTON_TEACHING_HEIGHTS_MM[0]
+      : (legacyHeightPlan ? LEGACY_GUIDE_HEIGHTS_MM : PISTON_TEACHING_HEIGHTS_MM)[normalizedMeasurementIndex],
+    legacyHeightPlan && normalizedMeasurementIndex === 0,
   );
   const savedMeasurements = Array.isArray(value.savedMeasurements)
     ? value.savedMeasurements
-      .map(normalizeMeasurement)
+      .map((measurement) => normalizeMeasurement(measurement, legacyHeightPlan))
       .filter((measurement): measurement is PistonOscillationGuideSavedMeasurement => (
         measurement !== null
       ))
@@ -1391,8 +1389,17 @@ export const normalizePistonOscillationGuideSession = (
       : dataProcessing
         ? 'periodProcessing' as const
         : null;
+  const needsNewFirstHeight = legacyHeightPlan
+    && normalizedMeasurementIndex === 0
+    && resumableAcquisitionCandidate === null
+    && value.heightPlan !== 'legacy'
+    && (
+      resumableStep === 'screwLock' || resumableStep === 'hoseReconnect'
+      || resumableStep === 'screwLoosen' || resumableStep === 'acquisitionReady'
+      || resumableStep === 'waitingTrigger' || resumableStep === 'recording'
+    );
   const resolvedStep = processingStep ?? (
-    parametersLocked && resumableStep === 'parameterSetup'
+    needsNewFirstHeight || (parametersLocked && resumableStep === 'parameterSetup')
       ? 'firstHeightAdjustment' as const
       : resumableStep
   );
@@ -1409,6 +1416,7 @@ export const normalizePistonOscillationGuideSession = (
       ? value.updatedAtMs
       : null,
     measurementIndex: normalizedMeasurementIndex,
+    ...(persistedStatus === 'idle' ? {} : { heightPlan: legacyHeightPlan ? 'legacy' as const : 'current' as const }),
     step: resolvedStep,
     powerOn: normalizedPowerOn,
     parameterDrafts: {

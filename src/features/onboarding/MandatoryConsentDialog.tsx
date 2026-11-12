@@ -51,24 +51,42 @@ export const MandatoryConsentDialog = ({
   useEffect(() => {
     let lastTimestamp = performance.now();
     let visible = document.visibilityState === 'visible';
+    let minimized = false;
+    let mounted = true;
+    let receivedWindowState = false;
     const commitInterval = (now: number) => {
+      const intervalStartMs = lastTimestamp;
+      const reading = visible && !minimized;
+      lastTimestamp = now;
       setElapsedVisibleMs((current) => accumulateVisibleReadingTime({
         elapsedMs: current,
-        intervalStartMs: lastTimestamp,
+        intervalStartMs,
         intervalEndMs: now,
-        visible,
+        visible: reading,
       }));
-      lastTimestamp = now;
     };
     const intervalId = window.setInterval(() => commitInterval(performance.now()), 250);
     const handleVisibilityChange = () => {
       const now = performance.now();
       commitInterval(now);
       visible = document.visibilityState === 'visible';
-      lastTimestamp = now;
     };
+    const desktop = window.hardSphereLabWindow;
+    const updateMinimized = (nextMinimized: boolean) => {
+      commitInterval(performance.now());
+      minimized = nextMinimized;
+    };
+    const unsubscribe = desktop?.onState?.((state) => {
+      receivedWindowState = true;
+      updateMinimized(state.minimized);
+    });
+    void desktop?.getState?.().then((state) => {
+      if (mounted && !receivedWindowState) updateMinimized(state.minimized);
+    }).catch(() => undefined);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     return () => {
+      mounted = false;
+      unsubscribe?.();
       window.clearInterval(intervalId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };

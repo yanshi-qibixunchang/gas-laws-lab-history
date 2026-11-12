@@ -36,10 +36,11 @@ assert.match(
   'the outer boundary must remain above the whole workbench body',
 );
 assert.match(
-  fallbackSource,
-  /data-workbench-outer-render-error="true"[\s\S]*<WorkbenchWindowControls language=\{language\} \/>/,
-  'the outer fallback must preserve the shared real desktop controls',
+  appSource,
+  /<\/RecoverableRenderErrorBoundary>[\s\S]*data-app-window-controls="true"[\s\S]*<WorkbenchWindowControls/,
+  'the shared desktop controls must stay mounted outside the workbench error boundary',
 );
+assert.doesNotMatch(fallbackSource, /<WorkbenchWindowControls/);
 assert.match(
   fallbackSource,
   /onPrepareExit[\s\S]*reportPersistenceResult[\s\S]*saved: true/,

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { historicalUnreleasedPressEvidence } from './helpers/pistonOscillationHistoricalRecordFixtures.ts';
 import {
   createPistonOscillationIdealAdiabaticLoadedGasState,
   createPistonOscillationLoadedEquilibriumState,
@@ -6,8 +7,8 @@ import {
 import {
   PISTON_OSCILLATION_PRESS_INTERACTION_MODEL_VERSION,
   appendPistonOscillationPressTracePoint,
-  createPistonOscillationIncompletePressOperationEvidence,
   createPistonOscillationPressOperationEvidence,
+  normalizePistonOscillationPressOperationEvidence,
   type PistonOscillationPressTracePoint,
 } from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
 import {
@@ -45,6 +46,15 @@ assert.equal(
 );
 assert.equal(movingRelease.releaseOrder, 'space-first');
 assert.equal(movingRelease.signedReleaseGapS, -0.02);
+assert.deepEqual(normalizePistonOscillationPressOperationEvidence(movingRelease), movingRelease);
+for (const releaseGapOverrideS of [0, 0.105]) {
+  const overridden = { ...movingRelease, releaseGapOverrideS };
+  assert.deepEqual(normalizePistonOscillationPressOperationEvidence(overridden), overridden);
+}
+assert.equal(normalizePistonOscillationPressOperationEvidence({
+  ...movingRelease,
+  releaseGapOverrideS: -0.01,
+}), null);
 assert.ok(Math.abs((movingRelease.releaseVelocityMPerS ?? 0) + 0.04) < 1e-12);
 assert.ok(Math.abs((movingRelease.averageDownwardSpeedMPerS ?? 0) - 0.04) < 1e-12);
 assert.ok(Math.abs((movingRelease.peakDownwardSpeedMPerS ?? 0) - 0.04) < 1e-12);
@@ -80,10 +90,12 @@ const exactVelocityRelease = createPistonOscillationPressOperationEvidence({
 assert.equal(exactVelocityRelease.releaseVelocityMPerS, -0.0125);
 assert.equal(exactVelocityRelease.releaseState?.velocityMPerS, -0.0125);
 
-const incomplete = createPistonOscillationIncompletePressOperationEvidence({
-  trace,
-  capturedUntilMs: 1_600,
+const incomplete = normalizePistonOscillationPressOperationEvidence({
+  ...historicalUnreleasedPressEvidence(exactVelocityRelease),
+  pressDurationS: 0.6,
+  holdDurationS: 0.4,
 });
+assert.ok(incomplete);
 assert.equal(incomplete.completion, 'not-released');
 assert.equal(incomplete.releaseState, null);
 assert.equal(incomplete.releaseVelocityMPerS, null);

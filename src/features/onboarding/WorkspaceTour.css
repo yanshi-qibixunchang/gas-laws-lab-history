@@ -1,0 +1,100 @@
+.workspace-tour-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 90000;
+  pointer-events: none;
+}
+
+[data-workspace-tour-home='true'] .studio-empty-actions {
+  outline: 2px solid var(--studio-accent-strong);
+  outline-offset: 5px;
+  border-radius: 4px;
+}
+
+.workspace-tour-bubble {
+  position: absolute;
+  width: min(360px, calc(100% - 24px));
+  padding: 18px;
+  border: 1px solid #4a5662;
+  border-radius: 9px;
+  background: #222a33;
+  color: #f5f7fa;
+  box-shadow: 0 10px 30px #0005;
+  pointer-events: auto;
+}
+
+.workspace-tour-bubble h2 {
+  margin: 0 30px 8px 0;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.workspace-tour-bubble p {
+  margin: 0 0 16px;
+  color: #d3dbe3;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.workspace-tour-arrow {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  background: inherit;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+[data-workspace-tour-side='below'] .workspace-tour-arrow { top: 0; }
+[data-workspace-tour-side='above'] .workspace-tour-arrow { top: 100%; }
+[data-workspace-tour-side='right'] .workspace-tour-arrow { left: 0; }
+[data-workspace-tour-side='left'] .workspace-tour-arrow { left: 100%; }
+
+.workspace-tour-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.workspace-tour-bubble button {
+  border: 1px solid #536373;
+  border-radius: 5px;
+  padding: 7px 14px;
+  background: #313e4b;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+
+.workspace-tour-bubble button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.workspace-tour-bubble button:focus-visible {
+  outline: 2px solid #a6e3ff;
+  outline-offset: 2px;
+}
+
+.workspace-tour-bubble .workspace-tour-next {
+  background: #3578a1;
+  border-color: #6198bb;
+}
+
+.workspace-tour-bubble .workspace-tour-close {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-color: transparent;
+  background: transparent;
+}
+
+.workspace-tour-bubble button:not(:disabled):hover {
+  filter: brightness(1.15);
+}

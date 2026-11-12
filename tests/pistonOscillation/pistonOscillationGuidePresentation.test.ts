@@ -81,8 +81,6 @@ for (const step of [
   'acquisitionReady',
   'waitingTrigger',
   'recording',
-  'pauseAvailable',
-  'curveFrozen',
   'awaitingSaveOrRedo',
   'nextHeightAdjustment',
 ] satisfies PistonOscillationGuideStep[]) {
@@ -114,7 +112,6 @@ assert.equal(
   'hoseDisconnect',
 );
 assert.equal(getPistonOscillationGuideStrongTargetId('acquisitionReady', 'readingHeight'), 'primary');
-assert.equal(getPistonOscillationGuideStrongTargetId('pauseAvailable', 'readingHeight'), 'primary');
 assert.equal(getPistonOscillationGuideStrongTargetId('awaitingSaveOrRedo', 'readingHeight'), 'save');
 assert.equal(getPistonOscillationGuideStrongTargetId('recording', 'readingHeight'), null);
 assert.equal(getPistonOscillationGuideStrongContextKind('platform'), 'scaleMirror');
@@ -171,11 +168,11 @@ assert.deepEqual(
   }),
   {
     hoseState: 'connected',
-    equilibriumHeightMm: 80,
+    equilibriumHeightMm: 75,
     lockingScrewProgress: 0,
     powerOn: false,
   },
-  'refreshing Run 2 disconnect should restore the connected hose and saved 80 mm checkpoint',
+  'refreshing Run 2 disconnect should restore the connected hose and saved 75 mm checkpoint',
 );
 assert.deepEqual(
   getPistonOscillationGuideInstrumentRestoreState({
@@ -199,7 +196,7 @@ assert.deepEqual(
   }),
   {
     hoseState: 'disconnected',
-    equilibriumHeightMm: 70,
+    equilibriumHeightMm: 65,
     lockingScrewProgress: 1,
     powerOn: false,
   },

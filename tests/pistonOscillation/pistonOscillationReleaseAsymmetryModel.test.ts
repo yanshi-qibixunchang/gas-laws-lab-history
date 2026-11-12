@@ -57,6 +57,12 @@ for (const gapS of [0.15, -0.25]) {
 }
 
 const naturalPeriodS = 0.04;
+const midpointProfile = createPistonOscillationReleaseAsymmetryProfile({
+  signedReleaseGapS: 0.105,
+}, naturalPeriodS);
+assert.ok(Math.abs(
+  getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM(midpointProfile, 0) - 1.5,
+) < 1e-12);
 const severeProfile = createPistonOscillationReleaseAsymmetryProfile({
   signedReleaseGapS: -0.15,
 }, naturalPeriodS);

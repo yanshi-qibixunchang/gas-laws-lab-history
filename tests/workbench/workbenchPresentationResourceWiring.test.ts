@@ -22,7 +22,7 @@ assert.match(call('useWorkbenchConsoleScroll').getText(ast), /consoleBodyRef, sk
 assert.match(read('useWorkbenchConsoleScroll.ts'), /if \(skipInitialConsoleScrollRef\.current\) return;[\s\S]*body\.scrollTop = body\.scrollHeight;[\s\S]*\[consoleTab, displayedLogs\.length, logs\.length\]/);
 assert.match(read('useWorkbenchFileTreeProjection.ts'), /\[activeFileId, files, selectedFileId\]/);
 assert.match(read('useWorkbenchFileTreeProjection.ts'), /renamingFileIdRef\.current = renamingFileId;[\s\S]*\[renamingFileId\]/);
-assert.match(read('useWorkbenchSidebarRefreshPersistence.ts'), /useLayoutEffect\([\s\S]*\[leftCollapsed, parametersCollapsed\]/);
+assert.match(read('useWorkbenchSidebarRefreshPersistence.ts'), /useLayoutEffect\([\s\S]*if \(!enabled\) return;[\s\S]*\[leftCollapsed, parametersCollapsed, enabled\]/);
 assert.match(read('useWorkbenchIdealInputEffects.ts'), /\[activeFile\.kind, activeIdealRelation, activeFile\.params, scanInputFocused\]/);
 assert.match(read('useWorkbenchIdealInputEffects.ts'), /window\.clearTimeout\(timeoutId\)/);
 assert.match(read('useWorkbenchEditKeyboard.ts'), /createWorkbenchEditKeyboardHandler\(\{ \.\.\.ports, isEditableTarget: isEditableElement, getActiveElement: \(\) => document\.activeElement \}\)/);

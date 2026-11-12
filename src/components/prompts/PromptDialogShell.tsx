@@ -178,6 +178,7 @@ export const PromptDialogShell = ({
     const keepFocusInside = (event: FocusEvent) => {
       if (!trapFocus || getTopPromptShell()?.id !== shellId) return;
       if (event.target instanceof Node && internalDialogRef.current?.contains(event.target)) return;
+      if (event.target instanceof Element && event.target.closest('[data-app-window-controls]')) return;
       focusPreferred();
     };
     document.addEventListener('focusin', keepFocusInside);

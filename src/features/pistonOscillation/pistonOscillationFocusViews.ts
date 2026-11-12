@@ -1,3 +1,4 @@
+import { PISTON_EQUILIBRIUM_HEIGHT_MAX_MM } from './pistonOscillationModelMotion.ts';
 export type PistonOscillationFocusViewId =
   | 'pistonFocus'
   | 'hoseFocus'
@@ -113,7 +114,7 @@ export const getPistonHeightAdjustmentCameraDefinition = (
   heightMm: number,
 ): PistonOscillationFocusCameraDefinition => {
   const heightDeltaM = (
-    Math.min(80, Math.max(0, heightMm))
+    Math.min(PISTON_EQUILIBRIUM_HEIGHT_MAX_MM, Math.max(0, heightMm))
     - PISTON_OSCILLATION_HEIGHT_ADJUSTMENT_REFERENCE_MM
   ) / 1000;
   const suggested = PISTON_OSCILLATION_HEIGHT_ADJUSTMENT_SUGGESTED_CAMERA;
@@ -135,5 +136,5 @@ export const getPistonHeightAdjustmentCameraDefinition = (
 
 export const getPistonScaleReadingCenterHeightMm = (heightMm: number) => {
   const minimumCenterHeightMm = 6;
-  return Math.min(80, Math.max(minimumCenterHeightMm, heightMm));
+  return Math.min(PISTON_EQUILIBRIUM_HEIGHT_MAX_MM, Math.max(minimumCenterHeightMm, heightMm));
 };

@@ -20,7 +20,7 @@ const expectedGuideCopy = {
     loosenScrewDetail: '软管接通后，双击顶部平台进入聚焦，再在左上操作镜中逆时针旋松侧面锁紧螺钉，使活塞在密封状态下自由运动。',
     releasePistonDetail: '双击顶部平台进入聚焦；让左手（Space）与右手（鼠标左键）全部就位，双手下压顶部平台，再同时松开双手。',
     completedTitle: '数据处理与计算已完成',
-    completedDetail: '80、70、60 mm 三次测量、周期预处理、线性拟合与结果计算均已完成，全部过程和结果已保存。引导模式使用三组不同高度的数据，帮助你以最简流程体验一次完整拟合；在正式实验或自由模式中，建议采集更多不同高度的数据点，以减小随机波动和个别异常数据对拟合的影响，提高斜率、截距及最终计算结果的稳定性和可信度。',
+    completedDetail: '三个高度的三次测量、周期预处理、线性拟合与结果计算均已完成，全部过程和结果已保存。引导模式使用三组不同高度的数据，帮助你以最简流程体验一次完整拟合；在正式实验或自由模式中，建议采集更多不同高度的数据点，以减小随机波动和个别异常数据对拟合的影响，提高斜率、截距及最终计算结果的稳定性和可信度。',
     completionToastKicker: '系统',
     completionToast: '引导模式已结束',
   },
@@ -30,7 +30,7 @@ const expectedGuideCopy = {
     loosenScrewDetail: '軟管接通後，雙擊頂部平台進入聚焦，再在左上操作鏡中逆時針旋鬆側面鎖緊螺釘，使活塞在密封狀態下自由運動。',
     releasePistonDetail: '雙擊頂部平台進入聚焦；讓左手（Space）與右手（滑鼠左鍵）全部就位，雙手下壓頂部平台，再同時鬆開雙手。',
     completedTitle: '資料處理與計算已完成',
-    completedDetail: '80、70、60 mm 三次測量、週期預處理、線性擬合與結果計算均已完成，全部過程與結果已儲存。引導模式使用三組不同高度的資料，協助你以最簡流程體驗一次完整擬合；在正式實驗或自由模式中，建議採集更多不同高度的資料點，以減小隨機波動和個別異常資料對擬合的影響，提高斜率、截距及最終計算結果的穩定性和可信度。',
+    completedDetail: '三個高度的三次測量、週期預處理、線性擬合與結果計算均已完成，全部過程與結果已儲存。引導模式使用三組不同高度的資料，協助你以最簡流程體驗一次完整擬合；在正式實驗或自由模式中，建議採集更多不同高度的資料點，以減小隨機波動和個別異常資料對擬合的影響，提高斜率、截距及最終計算結果的穩定性和可信度。',
     completionToastKicker: '系統',
     completionToast: '引導模式已結束',
   },
@@ -40,7 +40,7 @@ const expectedGuideCopy = {
     loosenScrewDetail: 'After reconnecting the hose, double-click the top platform to enter focus mode. Then turn the side locking screw counterclockwise in the upper-left operation mirror so the piston can move freely in the sealed system.',
     releasePistonDetail: 'Double-click the top platform to enter focus mode. Put the left hand (Space) and right hand (left mouse button) in place, press the top platform with both hands, then release both hands at the same time.',
     completedTitle: 'Data processing and calculations complete',
-    completedDetail: 'The measurements at 80, 70, and 60 mm, period preprocessing, linear fit, and result calculations are complete, and the full process and results have been saved. Guided mode uses three different heights to demonstrate a complete fit with the simplest workflow. In a formal experiment or Free mode, collect more data points at different heights to reduce the influence of random variation and isolated outliers, and to improve the stability and credibility of the fitted slope, intercept, and final result.',
+    completedDetail: 'The three measurements, period preprocessing, linear fit, and result calculations are complete, and the full process and results have been saved. Guided mode uses three different heights to demonstrate a complete fit with the simplest workflow. In a formal experiment or Free mode, collect more data points at different heights to reduce the influence of random variation and isolated outliers, and to improve the stability and credibility of the fitted slope, intercept, and final result.',
     completionToastKicker: 'SYSTEM',
     completionToast: 'Guided mode has ended',
   },
@@ -155,7 +155,6 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     'startAcquisitionTitle',
     'releasePistonTitle',
     'recordingTitle',
-    'pauseRecordingTitle',
     'crossRunDisconnectTitle',
     'completedTitle',
   ] as const) {
@@ -165,7 +164,8 @@ for (const language of PISTON_OSCILLATION_LANGUAGES) {
     assert.match(copy.guide.saveCurveTitle(measurementNumber), new RegExp(`${measurementNumber}`));
     assert.match(copy.guide.saveCurveDetail(measurementNumber), new RegExp(`${measurementNumber}`));
   }
-  assert.match(copy.guide.completedDetail, /80[\s\S]*70[\s\S]*60/);
+  assert.match(copy.guide.recordingDetail, /120 kPa.*0\.500 s/);
+  assert.ok(copy.acquisition.recordingDuration.length > 0);
   for (const value of [
     copy.guide.pressureTooLowFeedback,
     copy.guide.pressureTooHighFeedback,

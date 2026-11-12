@@ -15,7 +15,7 @@ import {
 } from '../../src/features/pistonOscillation/pistonOscillationFreeAcquisitionModel.ts';
 
 assert.equal(PISTON_ACQUISITION_DEFAULT_SAMPLE_RATE_HZ, 1000);
-assert.equal(PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA, 105);
+assert.equal(PISTON_ACQUISITION_DEFAULT_TRIGGER_KPA, 120);
 assert.equal(PISTON_ACQUISITION_BASELINE_PRESSURE_KPA, 101.325);
 assert.equal(PISTON_ACQUISITION_FREE_MAX_MEASUREMENTS, 6);
 assert.equal(getPistonAcquisitionFormalSampleCount(0, 1000), 0);
@@ -155,31 +155,15 @@ assert.match(
   'the powered-off status should occupy and center itself within the complete realtime content area',
 );
 assert.match(panelSource, /copy\.preTriggerNote/);
-assert.match(
-  panelSource,
-  /const startsImmediately = freeSelected[\s\S]*currentObservation\.absolutePressureKpa > configuredTriggerKpa[\s\S]*setCycleStartMs\(startsImmediately \? recordingStartedAtMs : null\)[\s\S]*updatePhase\(startsImmediately \? 'recording' : 'armed'\)/,
-  'a Free run whose monitor threshold is already met must record from the Start click',
-);
+assert.doesNotMatch(panelSource, /startsImmediately|recordingPath: 'immediate'|handleStop/);
 assert.match(
   panelSource,
   /guideActive[\s\S]*type: 'startAcquisition'[\s\S]*\) !== true[\s\S]*if \(freeSelected\) onFreeAcquisitionStarted\?\.\(\);[\s\S]*const recordingStartedAtMs = performance\.now\(\)/,
   'a valid Free Start click must freeze experiment conditions before acquisition state begins changing',
 );
-assert.match(
-  panelSource,
-  /createPistonOscillationContinuousRecordingSamples[\s\S]*releaseSegments: freeReleaseSegmentsRef\.current[\s\S]*pressStartedAtMs: freePressStartedAtMsRef\.current[\s\S]*liveObservations: freeLiveObservationsRef\.current[\s\S]*recordingPath: 'immediate'/,
-  'Free recording must combine live press intervals with every released oscillation segment',
-);
-assert.match(
-  panelSource,
-  /createPistonOscillationContinuousObservationSeries\(\{[\s\S]*samples,[\s\S]*releaseSegments: freeReleaseSegmentsRef\.current,[\s\S]*pressStartedAtMs: freePressStartedAtMsRef\.current,[\s\S]*liveObservations: freeLiveObservationsRef\.current/,
-  'an immediate recording stopped before release must still preserve dynamic-sensor provenance',
-);
-assert.match(
-  panelSource,
-  /snapshotLockedHeightMm[\s\S]*try \{[\s\S]*createPistonOscillationIncompletePhysicsSnapshot[\s\S]*\} catch \{[\s\S]*return null;/,
-  'an acquisition at the rigid lower stop must remain visible but must not become a fabricated savable oscillation record',
-);
+assert.match(panelSource, /createPistonOscillationContinuousRecordingSamples[\s\S]*releaseSegments:[\s\S]*pressStartedAtMs:[\s\S]*liveObservations:/);
+
+
 assert.doesNotMatch(panelSource, />Run 1\/7</);
 assert.match(panelSource, /phaseRef\.current === 'armed'[\s\S]*updatePhase\('recording'\)/);
 assert.match(
@@ -192,11 +176,7 @@ assert.match(
   /cycleStartMs === null[\s\S]*rebaseDisplayClock\(releaseEvent\.startedAtMs, true\)[\s\S]*createPistonOscillationDynamicSensorObservationSeries[\s\S]*publishDisplayClock\(performance\.now\(\)\)/,
   'release calculation time must become display lag instead of an immediate post-trigger curve jump',
 );
-assert.match(
-  panelSource,
-  /displayNowMs[\s\S]*- displayClockLagMs[\s\S]*- PISTON_OSCILLATION_ACQUISITION_PRESENTATION_DELAY_MS[\s\S]*const getCurrentRecordingElapsedSeconds = \(\) => formalElapsedSeconds/,
-  'both the visible curve and Pause action must use the same fixed-delay, lag-compensated acquisition time',
-);
+assert.match(panelSource, /const localFormalElapsedSeconds[\s\S]*Math\.min\(\s*recordingDurationS,/);
 assert.match(
   panelSource,
   /guideStep === 'waitingTrigger'[\s\S]*phaseRef\.current === 'idle'[\s\S]*handledReleaseEventIdRef\.current = releaseEvent\?\.id \?\? null[\s\S]*updatePhase\('armed'\)/,
@@ -207,21 +187,13 @@ assert.match(
   /guideStep === 'recording'[\s\S]*guideSession\.acquisitionCandidate === null[\s\S]*phaseRef\.current === 'idle'[\s\S]*const recoveryAccepted = onGuideAcquisitionEvent\?\.\(\{[\s\S]*type: 'restoreInterruptedAcquisition'[\s\S]*\}\) === true;[\s\S]*if \(!recoveryAccepted\) return;[\s\S]*updatePhase\('armed'\)/,
   'an interrupted partial recording must return to a clean armed attempt instead of deadlocking',
 );
-assert.match(
-  panelSource,
-  /restoredGuidePauseCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*effectivePhase = demoFrame\?\.acquisitionPhase[\s\S]*restoredGuidePauseCandidate[\s\S]*\? 'recording'[\s\S]*candidate = restoredGuidePauseCandidate[\s\S]*\?\? buildGuideCandidate[\s\S]*guideSession\?\.step === 'pauseAvailable'[\s\S]*guideSession\.acquisitionCandidate/,
-  'a complete persisted candidate must restore its curve and remain pausable after remount',
-);
+assert.match(panelSource, /const restoredGuideCandidate[\s\S]*guideSession\?\.step === 'awaitingSaveOrRedo'[\s\S]*restoredMeasurement \? 'stopped'/);
 assert.match(
   panelSource,
   /handledReleaseEventIdRef = useRef<number \| null>\(releaseEvent\?\.id \?\? null\)[\s\S]*handledReleaseEventIdRef\.current === releaseEvent\.id[\s\S]*handledReleaseEventIdRef\.current = releaseEvent\.id[\s\S]*const handleStart = \(\) => \{[\s\S]*handledReleaseEventIdRef\.current = releaseEvent\?\.id \?\? null/,
   'arming a new run must ignore the retained release event and wait for a later two-hand release',
 );
-assert.match(
-  panelSource,
-  /handleStop[\s\S]*getCurrentRecordingElapsedSeconds\(\)[\s\S]*displayedObservationSamples\.at\(-1\)\?\.timeS[\s\S]*setStopElapsedSeconds\(pauseElapsedSeconds\);[\s\S]*updatePhase\('stopped'\);[\s\S]*buildFreeCandidate\(pauseElapsedSeconds\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*setStopElapsedSeconds\([\s\S]*effectiveCandidate\.acquisitionSettings\.recordedDurationS/,
-  'Free Pause must freeze the exact visible sample frontier even if record packaging is rejected',
-);
+assert.match(panelSource, /formalElapsedSeconds < recordingDurationS[\s\S]*setStopElapsedSeconds\(recordingDurationS\)[\s\S]*updatePhase\('stopped'\)[\s\S]*buildFreeCandidate\(recordingDurationS\)[\s\S]*onFreeCandidateChange\?\.\(candidate\)/);
 assert.match(
   panelSource,
   /const singleReleaseRecording = releaseSegments\.length === 1[\s\S]*pressStartedAtMs\.length === 0[\s\S]*liveObservations\.length === 0;[\s\S]*createPistonOscillationRecordedObservationSamples\([\s\S]*activeObservationSeries,[\s\S]*triggerSourceSampleIndex,[\s\S]*const snapshotObservationSeries = singleReleaseRecording[\s\S]*\? activeObservationSeries/,
@@ -247,11 +219,7 @@ assert.match(
   /const localPresentationElapsedSinceReleaseSeconds[\s\S]*const localElapsedSinceReleaseSeconds[\s\S]*triggerSeconds \+ getPistonOscillationAcquisitionDisplayedFormalElapsedSeconds\([\s\S]*localPresentationElapsedSinceReleaseSeconds - triggerSeconds[\s\S]*const localFormalElapsedSeconds/,
   'manual acquisition must slow the initial visible post-trigger window without rescaling stored sample time',
 );
-assert.match(
-  panelSource,
-  /createPistonOscillationIncompletePhysicsSnapshot\(\{[\s\S]*thermodynamicState: freeSession\.instrumentState\.thermodynamicState,[\s\S]*linearDampingNsPerM:[\s\S]*PISTON_OSCILLATION_CURRENT_LINEAR_LOSS_NS_PER_M/,
-  'new immediate-path press captures must explicitly record the formal 1.1 loss',
-);
+
 assert.doesNotMatch(
   panelSource,
   /getPistonAcquisitionPresetPressureKpa|findPistonAcquisitionFallingTriggerSeconds/,
@@ -297,7 +265,7 @@ assert.match(panelStyles, /piston-acquisition-pressure-indicator\.is-valid/);
 assert.match(panelStyles, /piston-acquisition-pressure-indicator\.is-over/);
 assert.match(
   panelSource,
-  /const handleGuideOverpressureRedo = \(\) => \{[\s\S]*type: 'redoOverpressureAttempt'[\s\S]*\) !== true[\s\S]*updatePhase\('armed'\)[\s\S]*data-piston-guide-target="redo"[\s\S]*guideCue === 'redo'[\s\S]*guidePressureIssue === 'overpressure'[\s\S]*handleGuideOverpressureRedo\(\)/,
+  /const handleGuideRedo = \(\) => \{[\s\S]*'redoOverpressureAttempt'[\s\S]*\) !== true[\s\S]*updatePhase\('armed'\)[\s\S]*data-piston-guide-target="redo"[\s\S]*guideCue === 'redo'[\s\S]*guideRedoAllowed[\s\S]*handleGuideRedo\(\)/,
   'an overpressure attempt must unlock and pulse the dedicated Redo control before re-arming acquisition',
 );
 assert.match(
@@ -354,7 +322,7 @@ assert.doesNotMatch(
 );
 assert.match(
   panelSource,
-  /const handleStart = \(\) => \{[\s\S]*guideActive[\s\S]*type: 'startAcquisition'[\s\S]*\) !== true[\s\S]*const recordingStartedAtMs = performance\.now\(\)[\s\S]*updatePhase\(startsImmediately \? 'recording' : 'armed'\)/,
+  /const handleStart = \(\) => \{[\s\S]*guideActive[\s\S]*type: 'startAcquisition'[\s\S]*\) !== true[\s\S]*const recordingStartedAtMs = performance\.now\(\)[\s\S]*updatePhase\('armed'\)/,
   'Guide Start must receive parent acceptance before the panel arms locally',
 );
 assert.match(
@@ -362,11 +330,7 @@ assert.match(
   /phaseRef\.current === 'armed'[\s\S]*if \(guideActive\) \{[\s\S]*type: 'triggered'[\s\S]*\) === true[\s\S]*guideTriggeredNotifiedRef\.current = true;[\s\S]*updatePhase\('recording'\)/,
   'the trigger must receive parent acceptance before the panel records or latches its notification',
 );
-assert.match(
-  panelSource,
-  /const handleStop = \(\) => \{[\s\S]*const requestedPauseElapsedSeconds = getCurrentRecordingElapsedSeconds\(\)[\s\S]*buildGuideCandidate\(pauseElapsedSeconds\)[\s\S]*if \(!effectiveCandidate\) return;[\s\S]*const pauseAccepted = onGuideAcquisitionEvent\?\.\(\{[\s\S]*type: 'curvePaused',[\s\S]*candidate,[\s\S]*\}\) === true;[\s\S]*if \(!pauseAccepted\) return;[\s\S]*updatePhase\('stopped'\)/,
-  'Guide Pause should freeze locally only after publishing a valid candidate and receiving parent acceptance',
-);
+assert.match(panelSource, /type: 'recordingReady',\s*candidate,[\s\S]*if \(!recordingAccepted\) return;\s*updatePhase\('stopped'\)/);
 assert.match(
   panelSource,
   /onGuideAcquisitionEvent\?: \(event: PistonOscillationGuideAcquisitionEvent\) => boolean;/,
@@ -513,7 +477,7 @@ assert.match(
 assert.match(
   panelSource,
   /aria-label=\{primaryLabel\}[\s\S]*aria-label=\{copy\.redo\}[\s\S]*aria-label=\{copy\.save\}/,
-  'start and pause should share the first slot before redo and save',
+  'start should occupy the first slot before redo and save',
 );
 assert.match(panelStyles, /\.piston-acquisition-settings label\s*\{[\s\S]*display:\s*flex;[\s\S]*align-items:\s*center;/);
 assert.match(
@@ -569,26 +533,14 @@ assert.equal(
   3,
   'all three acquisition controls should render an independent press-feedback layer',
 );
-assert.match(
-  panelSource,
-  /const guidePrimaryControl = guideSelected[\s\S]*getPistonOscillationGuidePrimaryControlState\(\{[\s\S]*status: guideSession\.status,[\s\S]*step: guideSession\.step,[\s\S]*pauseReady: guidePauseReady,[\s\S]*candidateAvailable: guideSession\.acquisitionCandidate !== null,[\s\S]*const guidePrimaryAction = guidePrimaryControl\?\.action \?\? null;[\s\S]*const primaryShowsPause = guideSelected[\s\S]*guidePrimaryControl\?\.showsPause === true[\s\S]*const primaryLabel = primaryShowsPause \? copy\.pause : copy\.start/,
-  'Guide primary presentation and action must derive from the canonical Guide step',
-);
+assert.match(panelSource, /getPistonOscillationGuidePrimaryControlState\(\{ status: guideSession\.status, step: guideSession\.step \}\)[\s\S]*const primaryLabel = copy\.start/);
 assert.match(
   panelSource,
   /const guidePrimaryAllowed = !guideSelected \|\| guidePrimaryControl\?\.allowed === true;[\s\S]*const primaryDisabled = Boolean\([\s\S]*!guidePrimaryAllowed[\s\S]*const guideSaveAllowed = Boolean\([\s\S]*guideSession\.step === 'awaitingSaveOrRedo'/,
   'completion must lock both the primary acquisition action and Save',
 );
-assert.match(
-  panelSource,
-  /aria-label=\{primaryLabel\}[\s\S]*title=\{primaryLabel\}[\s\S]*if \(primaryDisabled\) return;[\s\S]*attemptGuideAction\(guidePrimaryAction, 'primary'\)[\s\S]*guidePrimaryAction === 'pauseAcquisition' \? handleStop : handleStart[\s\S]*disabled=\{primaryDisabled\}[\s\S]*aria-disabled=\{primaryDisabled\}[\s\S]*primaryShowsPause \? \(/,
-  'the Guide primary label, action, native disabled state, accessibility state, and icon must stay aligned',
-);
-assert.match(
-  panelSource,
-  /guideCue === 'start' \|\| guideCue === 'pause'[\s\S]*\? 'is-guide-highlighted'[\s\S]*data-piston-guide-target="primary"[\s\S]*guideCue === 'save' \? 'is-guide-highlighted'[\s\S]*data-piston-guide-target="save"/,
-  'Guide cues must highlight the exact primary or Save button rather than the entire action strip',
-);
+assert.match(panelSource, /attemptGuideAction\('startAcquisition', 'primary'\)[\s\S]*handleStart\(\);[\s\S]*disabled=\{primaryDisabled\}[\s\S]*<Play/);
+assert.match(panelSource, /guideCue === 'start'[\s\S]*data-piston-guide-target="primary"[\s\S]*guideCue === 'save'[\s\S]*data-piston-guide-target="save"/);
 assert.match(
   chartControlsStyles,
   /\.piston-chart-action-strip button\.is-guide-highlighted\s*\{[\s\S]*isolation:\s*isolate;[\s\S]*overflow:\s*hidden;[\s\S]*background:\s*#117db8;[\s\S]*color:\s*#fff;[\s\S]*opacity:\s*1;[\s\S]*piston-chart-action-guide-fill-pulse/,

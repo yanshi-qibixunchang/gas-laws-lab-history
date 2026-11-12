@@ -83,9 +83,8 @@ const baselineHash = createHash('sha256')
 
 assert.equal(
   baselineHash,
-  // Baseline updated after piston sessions and raw records gained versioned
-  // experiment-context metadata; legacy records still migrate by inference.
-  'b4473dd464e1f3a23f83a7f3aeab3a6577cb98f6e24f18e44ec80ac1edc1f9a8',
+  // Guide authority v4 adds the height-plan marker and automatic freeze migration.
+  '76a3bde4a6c09a2af003011d2c5365eff1f3c84e397900d4972de0e5ab2b59bf',
   'legacy migration output changed; review the compatibility support matrix and bump its baseline deliberately',
 );
 

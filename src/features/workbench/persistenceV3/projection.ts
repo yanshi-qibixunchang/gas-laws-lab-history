@@ -32,6 +32,7 @@ import {
 } from '../../../domain/pistonOscillation/pistonOscillationDemoSessionModel.ts';
 import {
   normalizePistonOscillationFreeSession,
+  PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION,
 } from '../../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import type {
   PistonOscillationCalculationAnswerState,
@@ -127,7 +128,7 @@ import {
 
 export const WORKBENCH_PERSISTENCE_V3_FILE_PROJECTION_VERSION = 1 as const;
 
-export const PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION = 3 as const;
+export const PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION = 4 as const;
 export const PISTON_OSCILLATION_GUIDE_DERIVED_CACHE_VERSION = 1 as const;
 
 export interface WorkbenchPersistenceV3ClassifiedFields {
@@ -436,6 +437,7 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
         sourceProjectionVersion !== undefined
         && sourceProjectionVersion !== 1
         && sourceProjectionVersion !== 2
+        && sourceProjectionVersion !== 3
         && sourceProjectionVersion !== PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
       ) ||
       canonicalAuthority.pistonGuideSessionProjectionVersion !==
@@ -453,6 +455,66 @@ export const isWorkbenchPersistenceV3AuthoritativeMigrationAllowed = (
       }
       migratedAuthority.pistonGuideSessionProjectionVersion =
         PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION;
+      if (sourceProjectionVersion === 3) {
+        const migratedSessions = repairPistonOscillationModeSessionExclusivity(
+          normalizePistonOscillationGuideSession(sourceAuthority.guideSession),
+          normalizePistonOscillationFreeSession(sourceAuthority.freeSession),
+        );
+        const previousGuide = canonicalClone(sourceAuthority.guideSession);
+        const migratedGuide = createPistonOscillationGuideSessionAuthority(migratedSessions.guideSession);
+        if (!isPlainRecord(previousGuide)) return false;
+        if (previousGuide.heightPlan === undefined && migratedGuide.heightPlan === 'legacy') {
+          previousGuide.heightPlan = 'legacy';
+        }
+        if (
+          previousGuide.step === 'pauseAvailable'
+          || previousGuide.step === 'curveFrozen'
+          || (previousGuide.heightPlan === 'legacy'
+            && previousGuide.measurementIndex === 0
+            && migratedGuide.step === 'firstHeightAdjustment')
+        ) {
+          previousGuide.step = migratedGuide.step;
+        }
+        if (
+          previousGuide.heightPlan === 'legacy'
+          && previousGuide.measurementIndex === 0
+          && isPlainRecord(previousGuide.heightReset)
+          && previousGuide.heightReset.targetHeightMm === 80
+          && migratedGuide.heightReset?.targetHeightMm === 75
+        ) {
+          previousGuide.heightReset.targetHeightMm = 75;
+        }
+        if (!areCanonicalValuesEqual(previousGuide, migratedGuide)) return false;
+        migratedAuthority.guideSession = canonicalClone(migratedGuide);
+        const sourceFree = sourceAuthority.freeSession;
+        const migratedFree = migratedSessions.freeSession;
+        if (
+          !areCanonicalValuesEqual(sourceFree, migratedFree)
+          && !isAllowedPistonFreeSessionMigration(sourceFree, migratedFree)
+        ) {
+          // Only the former default threshold may change in an unlocked session.
+          // All existing measurement evidence must still compare exactly.
+          const candidate = canonicalClone(sourceFree);
+          if (
+            !isPlainRecord(candidate)
+            || candidate.schemaVersion !== PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION
+            || !isPlainRecord(candidate.parameterDraft)
+            || !isPlainRecord(candidate.experimentGroup)
+            || candidate.experimentGroup.parameterSnapshot !== null
+            || !(
+              (candidate.triggerThresholdKpa === null && candidate.parameterDraft.triggerThresholdKpa === null)
+              || (candidate.experimentGroup.scheme === 'ideal' && candidate.triggerThresholdKpa === 105)
+            )
+          ) return false;
+          candidate.triggerThresholdKpa = migratedFree.triggerThresholdKpa;
+          if (candidate.parameterDraft.triggerThresholdKpa === null) {
+            candidate.parameterDraft.triggerThresholdKpa = migratedFree.parameterDraft.triggerThresholdKpa;
+          }
+          if (!areCanonicalValuesEqual(candidate, migratedFree)) return false;
+        }
+        migratedAuthority.freeSession = canonicalClone(migratedFree);
+        return areCanonicalValuesEqual(migratedAuthority, canonicalAuthority);
+      }
       if (
         migratedAuthority.lessonIntroAutoShown === undefined &&
         canonicalAuthority.lessonIntroAutoShown === false
@@ -3315,6 +3377,7 @@ export const reprojectWorkbenchPersistenceV3File = (
           guideProjectionVersion !== undefined &&
           guideProjectionVersion !== 1 &&
           guideProjectionVersion !== 2 &&
+          guideProjectionVersion !== 3 &&
           guideProjectionVersion !==
             PISTON_OSCILLATION_GUIDE_AUTHORITY_PROJECTION_VERSION
         ) {

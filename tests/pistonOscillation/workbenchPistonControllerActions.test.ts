@@ -145,14 +145,13 @@ try {
     let updated = file;
     const ports = {
       activeFileIdRef: { current: file.id },
-      pistonOscillationAcquisitionPanelRef: { current: { pauseAndCaptureFreeRun: () => { order.push('capture'); return null; } } },
       updateFileById: (_id: string, updater: (file: WorkbenchFileState) => WorkbenchFileState) => { order.push('update'); updated = updater(updated) as typeof file; },
       setPistonOscillationPowerOnByFileId: () => { order.push('power'); },
       setLeftCollapsed: () => { order.push('sidebar'); },
     } as unknown as createWorkbenchPistonFreeActionsPorts;
     createWorkbenchPistonFreeActions(ports).pausePistonOscillationFreeMode();
     assert.equal(updated.pistonOscillationFreeSession.status, 'paused');
-    assert.deepEqual(order, ['capture', 'update', 'power', 'sidebar'], 'free pause captures the visible acquisition before changing its runtime and UI');
+    assert.deepEqual(order, ['update', 'power', 'sidebar'], 'leaving Free mode does not save a partial recording');
   }
 } finally {
   Object.defineProperty(globalThis, 'window', { configurable: true, value: originalWindow });

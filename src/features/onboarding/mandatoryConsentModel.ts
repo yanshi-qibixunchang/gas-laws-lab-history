@@ -1,4 +1,4 @@
-export const MANDATORY_CONSENT_READING_MS = 15_000;
+export const MANDATORY_CONSENT_READING_MS = 5_000;
 
 export const accumulateVisibleReadingTime = ({
   elapsedMs,

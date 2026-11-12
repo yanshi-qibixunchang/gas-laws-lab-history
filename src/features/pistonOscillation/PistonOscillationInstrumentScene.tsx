@@ -81,6 +81,7 @@ export interface PistonOscillationInstrumentSceneProps {
   thermalConfig?: Partial<PistonOscillationThermalModelConfig>;
   adiabaticProcess?: boolean;
   releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
+  releaseGapOverrideMs?: number | null;
   sceneTheme: 'light' | 'dark';
   cameraPreset: WorkbenchPistonOscillationCameraPreset;
   className?: string;
@@ -136,6 +137,7 @@ export const PistonOscillationInstrumentScene = ({
   thermalConfig,
   adiabaticProcess,
   releaseAsymmetryConfig,
+  releaseGapOverrideMs,
   sceneTheme,
   cameraPreset,
   className = '',
@@ -214,6 +216,7 @@ export const PistonOscillationInstrumentScene = ({
           thermalConfig={thermalConfig}
           adiabaticProcess={adiabaticProcess}
           releaseAsymmetryConfig={releaseAsymmetryConfig}
+          releaseGapOverrideMs={releaseGapOverrideMs}
           initialMode={guideInitialInstrumentState?.focusMode ?? 'overview'}
           cameraPreset={cameraPreset}
           sceneTheme={sceneTheme}

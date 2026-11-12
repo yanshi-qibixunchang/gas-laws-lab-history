@@ -1,4 +1,7 @@
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
+import { MANDATORY_CONSENT_READING_MS } from './mandatoryConsentModel.ts';
+
+const readingSeconds = MANDATORY_CONSENT_READING_MS / 1_000;
 
 export interface FirstRunProductCardCopy {
   eyebrow: string;
@@ -8,13 +11,6 @@ export interface FirstRunProductCardCopy {
 }
 
 export interface FirstRunCopy {
-  windowControls: {
-    controls: string;
-    minimize: string;
-    maximize: string;
-    restore: string;
-    close: string;
-  };
   common: {
     previous: string;
     next: string;
@@ -47,6 +43,7 @@ export interface FirstRunCopy {
     step: string;
     title: string;
     body: string;
+    reselectBody: string;
     experimentNames: {
       heatCapacity: string;
       pistonOscillation: string;
@@ -55,6 +52,7 @@ export interface FirstRunCopy {
     knownHint: string;
     guidance: string;
     guidanceHint: string;
+    reselectGuidanceHint: string;
     required: string;
   };
   consent: {
@@ -84,13 +82,6 @@ export interface FirstRunCopy {
 
 export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> = {
   'zh-CN': {
-    windowControls: {
-      controls: '窗口控制',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '还原',
-      close: '关闭软件',
-    },
     common: { previous: '上一步', next: '下一步', finish: '完成' },
     language: {
       step: '首次设置 · 1 / 3',
@@ -141,7 +132,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     needs: {
       step: '使用确认 · 3 / 3',
       title: '请选择每个实验所需的学习方式',
-      body: '请分别确认您能否独立完成模式选择、仪器操作、数据记录与结果处理。需要引导的实验将按下列顺序逐一学习。',
+      body: '请分别确认您能否独立完成模式选择、仪器操作、数据记录与结果处理。两项都需要引导时，软件会先介绍工作台。',
+      reselectBody: '请分别确认您能否独立完成模式选择、仪器操作、数据记录与结果处理。需要引导的实验将按下列顺序逐一学习。',
       experimentNames: {
         heatCapacity: '绝热膨胀法测空气比热容比',
         pistonOscillation: '活塞振动法测气体比热容比',
@@ -149,7 +141,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       known: '是，我已了解',
       knownHint: '进入软件后直接开放演示、引导和自由实验。',
       guidance: '否，我需要引导',
-      guidanceHint: '完成设置后进入演示与引导逐步解锁流程。',
+      guidanceHint: '新建该实验时，从演示开始，完成引导后解锁自由模式。',
+      reselectGuidanceHint: '确认后进入演示与引导逐步解锁流程。',
       required: '请为两个实验分别选择一项后继续。',
     },
     consent: {
@@ -164,7 +157,7 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       previewUnavailable: '当前环境无法在窗口内预览该材料，请使用打开入口查看。',
       scrollComplete: '已阅读至文档底部',
       scrollPending: '请将主文档滚动至底部',
-      timeComplete: '已完成 15 秒阅读时间',
+      timeComplete: `已完成 ${readingSeconds} 秒阅读时间`,
       timePending: (seconds) => `阅读时间还需 ${seconds} 秒`,
       disagree: '不同意并退出',
       agree: '我已阅读并知悉',
@@ -177,13 +170,6 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     },
   },
   'zh-TW': {
-    windowControls: {
-      controls: '視窗控制',
-      minimize: '最小化',
-      maximize: '最大化',
-      restore: '還原',
-      close: '關閉軟體',
-    },
     common: { previous: '上一步', next: '下一步', finish: '完成' },
     language: {
       step: '首次設定 · 1 / 3',
@@ -219,7 +205,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     needs: {
       step: '使用確認 · 3 / 3',
       title: '請選擇每個實驗所需的學習方式',
-      body: '請分別確認您能否獨立完成模式選擇、儀器操作、資料記錄與結果處理。需要引導的實驗將按下列順序逐一學習。',
+      body: '請分別確認您能否獨立完成模式選擇、儀器操作、資料記錄與結果處理。兩項都需要引導時，軟體會先介紹工作台。',
+      reselectBody: '請分別確認您能否獨立完成模式選擇、儀器操作、資料記錄與結果處理。需要引導的實驗將按下列順序逐一學習。',
       experimentNames: {
         heatCapacity: '絕熱膨脹法測空氣比熱容比',
         pistonOscillation: '活塞振動法測氣體比熱容比',
@@ -227,7 +214,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       known: '是，我已了解',
       knownHint: '進入軟體後直接開放示範、引導與自由實驗。',
       guidance: '否，我需要引導',
-      guidanceHint: '完成設定後進入示範與引導逐步解鎖流程。',
+      guidanceHint: '建立該實驗時，從示範開始，完成引導後解鎖自由模式。',
+      reselectGuidanceHint: '確認後進入示範與引導逐步解鎖流程。',
       required: '請為兩個實驗分別選擇一項後繼續。',
     },
     consent: {
@@ -242,7 +230,7 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       previewUnavailable: '目前環境無法在視窗內預覽此材料，請使用開啟入口查看。',
       scrollComplete: '已閱讀至文件底部',
       scrollPending: '請將主文件捲動至底部',
-      timeComplete: '已完成 15 秒閱讀時間',
+      timeComplete: `已完成 ${readingSeconds} 秒閱讀時間`,
       timePending: (seconds) => `閱讀時間還需 ${seconds} 秒`,
       disagree: '不同意並退出',
       agree: '我已閱讀並知悉',
@@ -255,13 +243,6 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     },
   },
   en: {
-    windowControls: {
-      controls: 'Window controls',
-      minimize: 'Minimize',
-      maximize: 'Maximize',
-      restore: 'Restore',
-      close: 'Close the app',
-    },
     common: { previous: 'Back', next: 'Next', finish: 'Finish' },
     language: {
       step: 'First setup · 1 / 3',
@@ -297,7 +278,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
     needs: {
       step: 'Familiarity · 3 / 3',
       title: 'Choose the learning path for each experiment',
-      body: 'For each experiment, decide whether you can independently select modes, operate the apparatus, record data, and process results. Guided experiments will run in the order below.',
+      body: 'For each experiment, decide whether you can independently select modes, operate the apparatus, record data, and process results. If you need guidance for both, you will start with a workspace tour.',
+      reselectBody: 'For each experiment, decide whether you can independently select modes, operate the apparatus, record data, and process results. Guided experiments will run in the order below.',
       experimentNames: {
         heatCapacity: 'Adiabatic-expansion heat-capacity ratio',
         pistonOscillation: 'Piston-oscillation heat-capacity ratio',
@@ -305,7 +287,8 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       known: 'Yes, I understand',
       knownHint: 'Demo, Guide, and Free experiment modes will be available immediately.',
       guidance: 'No, I need guidance',
-      guidanceHint: 'The staged Demo and Guide learning flow will begin after setup.',
+      guidanceHint: 'When you create this experiment, start with Demo and complete Guide to unlock Free mode.',
+      reselectGuidanceHint: 'The staged Demo and Guide learning flow will begin after confirmation.',
       required: 'Choose one option for each experiment to continue.',
     },
     consent: {
@@ -320,7 +303,7 @@ export const firstRunCopies: Record<WorkbenchLanguagePreference, FirstRunCopy> =
       previewUnavailable: 'This material cannot be previewed in the current environment. Use the open action to view it.',
       scrollComplete: 'Main notice read to the end',
       scrollPending: 'Scroll the main notice to the end',
-      timeComplete: '15-second reading time completed',
+      timeComplete: `${readingSeconds}-second reading time completed`,
       timePending: (seconds) => `${seconds} seconds of reading time remaining`,
       disagree: 'Disagree and exit',
       agree: 'I have read and understand',

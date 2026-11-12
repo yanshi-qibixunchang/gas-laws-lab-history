@@ -90,8 +90,8 @@ assert.match(
 );
 assert.match(
   dialogSource,
-  /customHint:[\s\S]*10 至 80 mm 整数候选[\s\S]*addCustomHeight[\s\S]*isValidPistonOscillationFreeCustomHeightMm/,
-  'custom candidates should accept only whole-number heights from 0 to 80 mm',
+  /customHint:[\s\S]*10 至 75 mm 整数候选[\s\S]*addCustomHeight[\s\S]*isValidPistonOscillationFreeCustomHeightMm/,
+  'custom candidates should accept only whole-number heights from 10 to 75 mm',
 );
 assert.match(
   dialogSource,

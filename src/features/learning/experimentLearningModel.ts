@@ -1,4 +1,6 @@
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
+import type { WorkbenchFileKind } from '../workbench/workbenchFileKind.ts';
+import { isWorkspaceTourStep, type WorkspaceTourStep } from '../onboarding/workspaceTourModel.ts';
 
 export const APP_EXPERIENCE_PROFILE_SCHEMA_VERSION = 1 as const;
 
@@ -23,6 +25,8 @@ export interface AppExperienceProfile {
   };
   learning: Record<ExperimentLearningId, ExperimentLearningMilestone>;
   activeTutorialExperiment: ExperimentLearningId | null;
+  workspaceTourStep?: WorkspaceTourStep;
+  tutorialStartSource?: 'file-creation';
 }
 
 export type ExperienceProfileParseResult =
@@ -109,6 +113,8 @@ export const parseAppExperienceProfile = (value: unknown): ExperienceProfilePars
     'needs',
     'learning',
     'activeTutorialExperiment',
+    ...('workspaceTourStep' in value ? ['workspaceTourStep'] : []),
+    ...('tutorialStartSource' in value ? ['tutorialStartSource'] : []),
   ])) {
     return { ok: false, reason: 'Experience profile fields do not match schema version 1.' };
   }
@@ -117,6 +123,14 @@ export const parseAppExperienceProfile = (value: unknown): ExperienceProfilePars
   }
   if (typeof value.firstRunCompleted !== 'boolean') {
     return { ok: false, reason: 'firstRunCompleted must be boolean.' };
+  }
+  if ('workspaceTourStep' in value && !isWorkspaceTourStep(value.workspaceTourStep)) {
+    return { ok: false, reason: 'workspaceTourStep is invalid.' };
+  }
+  if ('tutorialStartSource' in value && (
+    value.tutorialStartSource !== 'file-creation' || value.activeTutorialExperiment === null
+  )) {
+    return { ok: false, reason: 'tutorialStartSource is invalid.' };
   }
   if (!(value.acceptedLegalVersion === null || typeof value.acceptedLegalVersion === 'string')) {
     return { ok: false, reason: 'acceptedLegalVersion must be text or null.' };
@@ -183,18 +197,37 @@ export const getNextPendingTutorialExperiment = (
 export const startExperimentTutorialProfile = (
   current: AppExperienceProfile,
   experiment: ExperimentLearningId,
-): AppExperienceProfile => ({
-  ...current,
-  needs: {
-    ...current.needs,
-    [experiment]: 'needs-guidance',
-  },
-  learning: {
-    ...current.learning,
-    [experiment]: 'demo',
-  },
-  activeTutorialExperiment: experiment,
-});
+  source?: AppExperienceProfile['tutorialStartSource'],
+): AppExperienceProfile => {
+  const { tutorialStartSource: _previousSource, ...profile } = current;
+  return {
+    ...profile,
+    needs: {
+      ...profile.needs,
+      [experiment]: 'needs-guidance',
+    },
+    learning: {
+      ...profile.learning,
+      [experiment]: 'demo',
+    },
+    activeTutorialExperiment: experiment,
+    ...(source ? { tutorialStartSource: source } : {}),
+  };
+};
+
+export const getPendingExperimentTutorialForNewFile = (
+  profile: AppExperienceProfile,
+  kind: WorkbenchFileKind,
+): ExperimentLearningId | null => {
+  const experiment = kind === 'heatCapacity' ? 'heatCapacity'
+    : kind === 'heatCapacityPistonOscillation' ? 'pistonOscillation' : null;
+  return experiment !== null && profile.workspaceTourStep !== undefined
+    && !isExperimentTutorialActive(profile)
+    && profile.needs[experiment] === 'needs-guidance'
+    && profile.learning[experiment] !== 'unlocked'
+    ? experiment
+    : null;
+};
 
 export const unlockExperimentGuideProfile = (
   current: AppExperienceProfile,
@@ -232,8 +265,9 @@ export const skipExperimentTutorialProfile = (
     current.activeTutorialExperiment !== experiment ||
     current.learning[experiment] === 'unlocked'
   ) return null;
+  const { tutorialStartSource, ...profile } = current;
   const completedProfile: AppExperienceProfile = {
-    ...current,
+    ...profile,
     needs: {
       ...current.needs,
       [experiment]: 'known',
@@ -246,7 +280,9 @@ export const skipExperimentTutorialProfile = (
   };
   return {
     ...completedProfile,
-    activeTutorialExperiment: getNextPendingTutorialExperiment(completedProfile, experiment),
+    activeTutorialExperiment: tutorialStartSource === 'file-creation'
+      ? null
+      : getNextPendingTutorialExperiment(completedProfile, experiment),
   };
 };
 

@@ -1,3 +1,4 @@
+import { PISTON_DEFAULT_TRIGGER_KPA } from './pistonOscillationRecordingSettings.ts';
 import {
   createDefaultPistonOscillationFreeParameterDraft,
   normalizePistonOscillationFreeParameterDraft,
@@ -13,7 +14,7 @@ export const PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION =
   'piston-oscillation-ideal-parameter-profile-v1' as const;
 
 export const PISTON_OSCILLATION_IDEAL_SAMPLE_RATE_HZ = 1_000 as const;
-export const PISTON_OSCILLATION_IDEAL_TRIGGER_THRESHOLD_KPA = 105 as const;
+export const PISTON_OSCILLATION_IDEAL_TRIGGER_THRESHOLD_KPA = PISTON_DEFAULT_TRIGGER_KPA;
 
 export interface PistonOscillationIdealParameterProfile {
   version: typeof PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION;

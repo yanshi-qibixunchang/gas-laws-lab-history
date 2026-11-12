@@ -40,7 +40,7 @@ assert.ok(promptCopySource.includes('closeRunningExperiment: (fileName: string) 
 assert.match(initialWorkspaceSource,
   /const \[initialOrdinaryClosedFiles\] = useState\(\(\) => \{[\s\S]*loadClosedWorkbenchFiles\(\)\.map[\s\S]*prepareHeatCapacityFileForExploreOnOpen/,
   'startup loads cached closed files and normalizes heat-capacity files to Explore');
-assert.match(source, /useWorkbenchInitialWorkspace\(\);[\s\S]*useWorkbenchWorkspaceCollectionState\(\{ initialSession, initialHeatCapacityRefreshSession, getInitialClosedFiles:/,
+assert.match(source, /useWorkbenchInitialWorkspace\(workspaceTourOnly[\s\S]*useWorkbenchWorkspaceCollectionState\(\{ initialSession, initialHeatCapacityRefreshSession, getInitialClosedFiles:/,
   'the current closed collection is initialized from the dedicated startup owner');
 assert.match(source, /createWorkbenchFileCollectionActions\(\{/,
   'the workspace uses the dedicated collection commit lanes');
@@ -196,8 +196,8 @@ assertCollectionCommitPrecedesFlush(
 const workspaceSnapshotSource = readFileSync(new URL('../../src/features/workbench/workbenchWorkspacePersistenceActions.ts', import.meta.url), 'utf8');
 assert.match(source, /useWorkbenchWorkspacePersistence\(\{[\s\S]*readCapturedAtMs: \(\) => desktopExitQuiescedAtMsRef\.current \?\? Date\.now\(\)/,
   'the capture adapter must retain the desktop exit clock anchor');
-assert.match(archUseWorkbenchWorkspacePersistenceSource, /scheduleWorkspacePersistenceRef\.current = workspacePersistenceRequests\.schedule;[\s\S]*flushWorkspacePersistenceRef\.current = workspacePersistenceRequests\.flush;/,
-  'the main workspace must use the dedicated persistence requests');
+assert.match(archUseWorkbenchWorkspacePersistenceSource, /scheduleWorkspacePersistenceRef\.current = ports\.transient \? \(\) => false : workspacePersistenceRequests\.schedule;[\s\S]*flushWorkspacePersistenceRef\.current = ports\.transient \? async \(\) => true : workspacePersistenceRequests\.flush;/,
+  'the main workspace uses its persistence requests and the transient tour skips file writes');
 assert.match(workspaceSnapshotSource,
   /resolveWorkbenchActiveModeCheckpointOverride\([\s\S]*const refreshSession =[\s\S]*checkpointOverride\.provided \? null : ports\.buildRefreshSession\(snapshotCapturedAtMs\)[\s\S]*checkpointOverride\.provided[\s\S]*\? checkpointOverride\.checkpoint[\s\S]*: ports\.buildModeCheckpoint\(activePersistenceFile, snapshotCapturedAtMs\)/,
   'capture must distinguish absent and explicit-null target checkpoints');

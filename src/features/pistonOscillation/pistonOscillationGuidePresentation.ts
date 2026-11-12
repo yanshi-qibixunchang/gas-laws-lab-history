@@ -4,7 +4,7 @@ import type {
   PistonOscillationGuideStep,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
-  PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
+  getPistonOscillationGuideTargetHeightMm,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import type {
   PistonOscillationThermodynamicState,
@@ -68,12 +68,10 @@ export const getPistonOscillationGuideInstrumentRestoreState = (
     };
   }
 
-  const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
-    session.measurementIndex
-  ];
-  const previousTargetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[
-    Math.max(0, session.measurementIndex - 1) as 0 | 1 | 2
-  ];
+  const targetHeightMm = getPistonOscillationGuideTargetHeightMm(session);
+  const previousTargetHeightMm = getPistonOscillationGuideTargetHeightMm(
+    session, Math.max(0, session.measurementIndex - 1) as 0 | 1 | 2,
+  );
 
   switch (session.step) {
     case 'powerOn':
@@ -188,7 +186,6 @@ export const getPistonOscillationGuideStrongTargetId = (
     case 'crossRunDisconnect':
       return 'hoseDisconnect';
     case 'acquisitionReady':
-    case 'pauseAvailable':
       return 'primary';
     case 'awaitingSaveOrRedo':
       return 'save';

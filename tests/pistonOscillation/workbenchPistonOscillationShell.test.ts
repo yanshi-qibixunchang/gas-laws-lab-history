@@ -209,7 +209,11 @@ assert.match(
   /storedSplitRatio === WORKBENCH_HEAT_CAPACITY_SPLIT_DEFAULT_RATIO[\s\S]*defaults\.heatCapacityPistonOscillation\.liveWorkspaceSplitRatio[\s\S]*: storedSplitRatio/,
   'the former heat-capacity split should migrate to the piston-specific default',
 );
-assert.match(workbenchViewShellSource, /!isWorkbenchEmpty \? \(/, 'Piston should use the same reopenable right sidebar shell with its dedicated parameter panel');
+assert.match(
+  workbenchViewShellSource,
+  /!isWorkbenchEmpty && \(!workspaceTourOnly \|\| !effectiveParametersCollapsed\) \? \([\s\S]*?<WorkbenchCurrentParameters/,
+  'the tour should mount the same parameter sidebar only when it expands',
+);
 assert.match(contractWorkbenchCurrentParametersSource, /<aside[\s\S]*activeFile\.kind === 'heatCapacityPistonOscillation'[\s\S]*<PistonOscillationParameterPanel/, 'Piston should use the same reopenable right sidebar shell with its dedicated parameter panel');
 assert.doesNotMatch(
   workbenchSource,
@@ -253,12 +257,12 @@ assert.match(
 );
 assert.match(
   acquisitionSource,
-  /value=\{demoFrame\?\.sampleRateInput\s*\?\?\s*\(guideSelected \? guideSession\.parameterDrafts\.sampleRateHz : sampleRateDraft\)\}/,
+  /value=\{restoredMeasurement\?\.acquisitionSettings\.sampleRateHz \?\? demoFrame\?\.sampleRateInput\s*\?\?\s*\(guideSelected \? guideSession\.parameterDrafts\.sampleRateHz : sampleRateDraft\)\}/,
   'the Demo and Guide sample-rate field must remain sourced from its own teaching workflow',
 );
 assert.match(
   acquisitionSource,
-  /value=\{demoFrame\?\.triggerInput\s*\?\?\s*\(guideSelected \? guideSession\.parameterDrafts\.triggerThresholdKpa : triggerDraft\)\}/,
+  /value=\{restoredMeasurement\?\.acquisitionSettings\.triggerThresholdKpa \?\? demoFrame\?\.triggerInput\s*\?\?\s*\(guideSelected \? guideSession\.parameterDrafts\.triggerThresholdKpa : triggerDraft\)\}/,
   'the Demo and Guide trigger field must remain sourced from its own teaching workflow',
 );
 
@@ -335,7 +339,7 @@ assert.match(contractWorkbenchPistonModeActionsSource, /const startGuide = \(\) 
 const pistonGuidePanelSource = workbenchPistonOscillationGuideStepsSource;
 assert.match(
   pistonGuidePanelSource,
-  /\{ id: 'firstHeightAdjustment-1', steps: \['firstHeightAdjustment'\],[\s\S]*adjustHeightTitle\(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM\[0\]\)[\s\S]*adjustHeightDetail\(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM\[0\]\)/,
+  /\{ id: 'firstHeightAdjustment-1', steps: \['firstHeightAdjustment'\],[\s\S]*adjustHeightTitle\(getPistonOscillationGuideTargetHeightMm\(guideSession, 0\)\)[\s\S]*adjustHeightDetail\(getPistonOscillationGuideTargetHeightMm\(guideSession, 0\)\)/,
   'entering piston focus and aligning the first target height must be one real operation step',
 );
 assert.doesNotMatch(
@@ -386,11 +390,10 @@ assert.doesNotMatch(
 );
 assert.match(
   guideWorkflowSource,
-  /const normalizedStep = value\.step === 'baselineStabilizing'[\s\S]*\? 'acquisitionReady' as const[\s\S]*value\.step === 'crossRunStabilizing'[\s\S]*\? 'crossRunDisconnect' as const/,
+  /const normalizedStep = [\s\S]*?value\.step === 'baselineStabilizing'[\s\S]*\? 'acquisitionReady' as const[\s\S]*value\.step === 'crossRunStabilizing'[\s\S]*\? 'crossRunDisconnect' as const/,
   'persisted legacy baseline steps should migrate directly onto their current visible operation steps',
 );
-assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /setPistonOscillationGuidePistonStable\(snapshot\.pistonPhase === 'idle'\)/, 'Pause must remain locked until the physical piston has settled');
-assert.match(contractWorkbenchPistonOscillationRealtimeSource, /<PistonOscillationAcquisitionPanel[\s\S]*guidePauseReady=\{pistonOscillationGuidePistonStable\}/, 'Pause must remain locked until the physical piston has settled');
+assert.doesNotMatch(contractWorkbenchPistonOscillationRealtimeSource, /guidePauseReady/);
 assert.match(acquisitionBridgeSource, /case 'restoreInterruptedAcquisition':[\s\S]*type: 'discardAcquisitionAttempt'/, 'refresh recovery must realign the workflow and clear a stale blocking reminder');
 assert.match(contractWorkbenchPistonAcquisitionProcessingActionsSource, /event\.type === 'restoreInterruptedAcquisition'[\s\S]*setPistonOscillationGuideStrongReminderActive\(false\)[\s\S]*pistonOscillationGuideStrongReminderTimerRef\.current = null/, 'refresh recovery must realign the workflow and clear a stale blocking reminder');
 const crossRunPhysicalOrder = [
@@ -413,7 +416,7 @@ assert.doesNotMatch(
 );
 assert.match(
   followingPageFactorySource,
-  /targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM\[measurementIndex\][\s\S]*adjustHeightTitle\(targetHeightMm\)[\s\S]*\.\.\.createAcquisitionSteps\(measurementNumber\)/,
+  /targetHeightMm = getPistonOscillationGuideTargetHeightMm\(guideSession, measurementIndex\)[\s\S]*adjustHeightTitle\(targetHeightMm\)[\s\S]*\.\.\.createAcquisitionSteps\(measurementNumber\)/,
   'each following page should use its own target height before repeating acquisition',
 );
 assert.match(
@@ -606,8 +609,8 @@ assert.doesNotMatch(
   /guidePulseElapsedSeconds=\{pistonGuidePulseWithinCycleMs \/ 1_000\}/,
   'Guide shell animation should advance inside the demand-rendered scene rather than forcing full Workbench rerenders',
 );
-assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /activePistonOscillationGuideSnapTargetHeightMm =[\s\S]*status === 'active'[\s\S]*firstHeightAdjustment[\s\S]*nextHeightAdjustment[\s\S]*PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM/, 'only active Guide height steps should pass an 80, 70, or 60 mm magnetic target into the instrument');
-assert.match(contractWorkbenchPistonOscillationPreviewSource, /guideSnapTargetHeightMm=\{activePistonOscillationGuideSnapTargetHeightMm\}/, 'only active Guide height steps should pass an 80, 70, or 60 mm magnetic target into the instrument');
+assert.match(contractUseWorkbenchPistonGuideRuntimeSource, /activePistonOscillationGuideSnapTargetHeightMm =[\s\S]*status === 'active'[\s\S]*firstHeightAdjustment[\s\S]*nextHeightAdjustment[\s\S]*getPistonOscillationGuideTargetHeightMm/, 'only active Guide height steps should pass their current magnetic target into the instrument');
+assert.match(contractWorkbenchPistonOscillationPreviewSource, /guideSnapTargetHeightMm=\{activePistonOscillationGuideSnapTargetHeightMm\}/, 'only active Guide height steps should pass their current magnetic target into the instrument');
 assert.match(
   instrumentSceneSource,
   /guidePaused\?: boolean;[\s\S]*guideTimeFrozen\?: boolean;[\s\S]*guideScrewInteractionMode\?: PistonOscillationGuideScrewInteractionMode \| null;[\s\S]*guideSnapTargetHeightMm\?: number \| null;[\s\S]*guideInitialInstrumentState\?: PistonOscillationGuideInstrumentRestoreState \| null;[\s\S]*guideHeightReset\?: PistonOscillationGuideHeightResetRequest \| null;[\s\S]*onGuideScrewDirectionFeedback\?:[\s\S]*onGuideSupportLoss\?:[\s\S]*<PistonOscillationInteractionWorkspace[\s\S]*guidePaused=\{guidePaused\}[\s\S]*guideTimeFrozen=\{guideTimeFrozen\}[\s\S]*guideScrewInteractionMode=\{guideScrewInteractionMode\}[\s\S]*guideSnapTargetHeightMm=\{guideSnapTargetHeightMm\}[\s\S]*guideInitialInstrumentState=\{guideInitialInstrumentState\}[\s\S]*guideHeightReset=\{guideHeightReset\}[\s\S]*onGuideScrewDirectionFeedback=\{onGuideScrewDirectionFeedback\}[\s\S]*onGuideSupportLoss=\{onGuideSupportLoss\}[\s\S]*onGuideHeightResetComplete=\{onGuideHeightResetComplete\}/,
@@ -686,8 +689,8 @@ assert.match(
 );
 assert.match(
   acquisitionBridgeSource,
-  /case 'curvePaused':[\s\S]*session\.step !== 'pauseAvailable'[\s\S]*type: 'updateRecording'[\s\S]*type: 'pauseRecording'[\s\S]*type: 'curveFreezeComplete'/,
-  'Guide Pause must calculate update, pause, and freeze as one accepted acquisition transition',
+  /case 'recordingReady':[\s\S]*session\.step !== 'recording'[\s\S]*type: 'updateRecording'[\s\S]*candidate: event\.candidate/,
+  'Guide auto-stop must publish the complete recording in one accepted transition',
 );
 assert.match(
   runtimeWorkbenchPistonAcquisitionProcessingActionsSource,

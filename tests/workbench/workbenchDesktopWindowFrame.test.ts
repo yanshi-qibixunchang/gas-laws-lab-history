@@ -29,6 +29,7 @@ const electronTypesSource = readFileSync(new URL('../../electron.d.ts', import.m
 const workbenchSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');
 const heatCapacityUiCheckpointSource = readFileSync(new URL('../../src/features/workbench/workbenchHeatCapacityUiCheckpoint.ts', import.meta.url), 'utf8');
 const windowControlsSource = readFileSync(new URL('../../src/features/workbench/WorkbenchWindowControls.tsx', import.meta.url), 'utf8');
+const appSource = readFileSync(new URL('../../src/app/App.tsx', import.meta.url), 'utf8');
 const workbenchCssSource = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.css', import.meta.url), 'utf8');
 
 const getRuleBody = (selector: string) => {
@@ -368,10 +369,11 @@ assert.match(
 );
 
 assert.match(
-  workbenchMenuBarSource,
-  /<WorkbenchWindowControls[\s\S]*language=\{settingsLanguagePreference\}[\s\S]*onClose=\{closeDesktopWindow\}/,
-  'the normal workbench should use the shared real window-control component',
+  appSource,
+  /data-app-window-controls="true"[\s\S]*<WorkbenchWindowControls[\s\S]*onClose=\{closeDesktopWindow\}/,
+  'the app shell should own the window controls across startup and workbench screens',
 );
+assert.doesNotMatch(workbenchMenuBarSource, /<WorkbenchWindowControls/);
 
 assert.match(
   getRuleBody('.studio-menu'),

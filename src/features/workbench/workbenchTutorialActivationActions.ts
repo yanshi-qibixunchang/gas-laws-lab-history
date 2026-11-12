@@ -150,6 +150,7 @@ export const createWorkbenchTutorialActivationActions = ({
   const startExperimentLearningTutorial = async (
     experiment: ExperimentLearningId,
     sourceProfile: AppExperienceProfile = experienceProfileRef.current,
+    source?: AppExperienceProfile['tutorialStartSource'],
   ) => {
     if (tutorialActiveRef.current) return;
     const saved = await flushWorkspacePersistenceRef.current();
@@ -160,7 +161,7 @@ export const createWorkbenchTutorialActivationActions = ({
           : settingsLanguagePreference === 'zh-TW'
             ? '目前工作區無法安全儲存，學習進度尚未變更。'
             : '当前工作区无法安全保存，学习进度尚未变更。',
-        retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile); },
+        retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile, source); },
       });
       return;
     }
@@ -178,7 +179,7 @@ export const createWorkbenchTutorialActivationActions = ({
     } catch (cause) {
       setTutorialOperationError({
         message: cause instanceof Error ? cause.message : String(cause),
-        retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile); },
+        retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile, source); },
       });
       return;
     }
@@ -194,7 +195,7 @@ export const createWorkbenchTutorialActivationActions = ({
         releaseExperimentTutorialOwnership(EXPERIMENT_TUTORIAL_INSTANCE_ID, window.localStorage);
         setTutorialOperationError({
           message: activationResult.message ?? 'Desktop tutorial lock could not be acquired.',
-          retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile); },
+          retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile, source); },
         });
         return;
       }
@@ -224,15 +225,15 @@ export const createWorkbenchTutorialActivationActions = ({
       releaseExperimentTutorialOwnership(EXPERIMENT_TUTORIAL_INSTANCE_ID, window.localStorage);
       setTutorialOperationError({
         message: cause instanceof Error ? cause.message : String(cause),
-        retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile); },
+        retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile, source); },
       });
       return;
     }
 
-    const nextProfile = startExperimentTutorialProfile(sourceProfile, experiment);
+    const nextProfile = startExperimentTutorialProfile(sourceProfile, experiment, source);
     if (!commitExperienceProfile(nextProfile)) {
       setTutorialOperationError((current) => current
-        ? { ...current, retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile); } }
+        ? { ...current, retry: () => { void startExperimentLearningTutorial(experiment, sourceProfile, source); } }
         : current);
       void window.hardSphereLabTutorial?.deactivate?.();
       releaseExperimentTutorialOwnership(EXPERIMENT_TUTORIAL_INSTANCE_ID, window.localStorage);

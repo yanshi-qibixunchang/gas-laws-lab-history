@@ -37,9 +37,9 @@ export const getPistonOscillationGuideReminderText = (
   step: PistonOscillationGuideStep,
   measurementIndex: 0 | 1 | 2,
   targetId?: PistonOscillationGuideStrongTargetId | null,
+  targetHeightMm = Number(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex]),
 ): string => {
   const measurementNumber = measurementIndex + 1;
-  const targetHeightMm = PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[measurementIndex];
   if (targetId === 'powerButton' && step !== 'powerOn' && step !== 'powerOff') {
     return copy.guide.powerRequiredReminder;
   }
@@ -54,8 +54,6 @@ export const getPistonOscillationGuideReminderText = (
     case 'acquisitionReady': return copy.guide.startAcquisitionDetail;
     case 'waitingTrigger': return copy.guide.releasePistonDetail;
     case 'recording': return copy.guide.recordingDetail;
-    case 'pauseAvailable':
-    case 'curveFrozen': return copy.guide.pauseRecordingDetail;
     case 'awaitingSaveOrRedo': return copy.guide.saveCurveDetail(measurementNumber);
     case 'crossRunDisconnect': return copy.guide.crossRunDisconnectDetail;
     case 'periodProcessing':

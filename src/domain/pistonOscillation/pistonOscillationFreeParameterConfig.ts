@@ -1,3 +1,4 @@
+import { isPistonRecordingDurationS } from './pistonOscillationRecordingSettings.ts';
 import type {
   PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
@@ -42,6 +43,7 @@ export interface PistonOscillationFreeParameterDraft {
   ambientTemperatureK: number;
   sampleRateHz: number | null;
   triggerThresholdKpa: number | null;
+  recordingDurationS?: number;
   sensorFluctuationEnabled: boolean;
   tailIrregularityEnabled: boolean;
   equivalentLinearLossNsPerM: number;
@@ -52,6 +54,7 @@ export interface PistonOscillationFreeParameterDraft {
   slowFluctuationStandardDeviationPa: number;
   driftWanderAmplitudePa: number;
   driftRatePaPerS: number;
+  releaseGapOverrideMs?: number | null;
   releaseNeutralGapS: number;
   releaseSaturationGapS: number;
   releaseMaximumExtraLossNsPerM: number;
@@ -66,6 +69,8 @@ export interface PistonOscillationFreeParameterSnapshot {
   parameters: PistonOscillationFreeParameterDraft;
 }
 
+const releaseGapRangeS = { minimum: 0, maximum: 10 };
+
 export const PISTON_OSCILLATION_FREE_PARAMETER_RANGES = Object.freeze({
   ambientPressureKpa: { minimum: 20, maximum: 200 },
   ambientTemperatureK: { minimum: 150, maximum: 400 },
@@ -78,7 +83,11 @@ export const PISTON_OSCILLATION_FREE_PARAMETER_RANGES = Object.freeze({
   fluctuationStandardDeviationPa: { minimum: 0, maximum: 1_000 },
   driftWanderAmplitudePa: { minimum: 0, maximum: 1_000 },
   driftRatePaPerS: { minimum: -100, maximum: 100 },
-  releaseGapS: { minimum: 0, maximum: 10 },
+  releaseGapS: releaseGapRangeS,
+  releaseGapOverrideMs: {
+    minimum: releaseGapRangeS.minimum * 1_000,
+    maximum: releaseGapRangeS.maximum * 1_000,
+  },
   releaseMaximumExtraLossNsPerM: { minimum: 0, maximum: 100 },
   releaseAlignmentTimePeriods: { minimum: 0.05, maximum: 10 },
   tailOnsetCycles: { minimum: 0, maximum: 20 },
@@ -267,7 +276,18 @@ export const normalizePistonOscillationFreeParameterDraft = (
     Math.max(Number.MIN_VALUE, releaseNeutralGapS + 1e-6),
     ranges.releaseGapS.maximum,
   );
+  const releaseGapOverrideMs = isFiniteInRange(
+    valueRecord.releaseGapOverrideMs,
+    ranges.releaseGapOverrideMs.minimum,
+    ranges.releaseGapOverrideMs.maximum,
+  )
+    ? valueRecord.releaseGapOverrideMs
+    : valueRecord.releaseGapOverrideMs === null ? undefined : fallbackInput.releaseGapOverrideMs;
+  const recordingDurationS = isPistonRecordingDurationS(valueRecord.recordingDurationS)
+    ? valueRecord.recordingDurationS
+    : fallbackInput.recordingDurationS;
   return {
+    ...(recordingDurationS === undefined ? {} : { recordingDurationS }),
     ambientPressureKpa,
     ambientTemperatureK: readNumber(
       valueRecord.ambientTemperatureK,
@@ -336,6 +356,7 @@ export const normalizePistonOscillationFreeParameterDraft = (
       ranges.driftRatePaPerS.minimum,
       ranges.driftRatePaPerS.maximum,
     ),
+    ...(releaseGapOverrideMs == null ? {} : { releaseGapOverrideMs }),
     releaseNeutralGapS,
     releaseSaturationGapS,
     releaseMaximumExtraLossNsPerM: readNumber(

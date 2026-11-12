@@ -15,13 +15,10 @@ export type PistonOscillationGuideAcquisitionEvent =
     }
   | { type: 'pressureAttemptAccepted'; peakPressureKpa: number }
   | { type: 'redoOverpressureAttempt' }
+  | { type: 'redoAcquisition' }
   | { type: 'triggered' }
   | {
       type: 'recordingReady';
-      candidate: PistonOscillationGuideSavedMeasurement;
-    }
-  | {
-      type: 'curvePaused';
       candidate: PistonOscillationGuideSavedMeasurement;
     }
   | { type: 'saveMeasurement' };
@@ -59,7 +56,10 @@ export const transitionPistonOscillationGuideAcquisitionSession = (
       if (session.step !== 'recording' || session.acquisitionCandidate !== null) return null;
       return applyRequiredGuideEvents(session, [{ type: 'discardAcquisitionAttempt', nowMs }]);
     case 'redoOverpressureAttempt':
-      if (session.step !== 'recording' && session.step !== 'pauseAvailable') return null;
+      if (session.step !== 'recording') return null;
+      return applyRequiredGuideEvents(session, [{ type: 'discardAcquisitionAttempt', nowMs }]);
+    case 'redoAcquisition':
+      if (session.step !== 'awaitingSaveOrRedo') return null;
       return applyRequiredGuideEvents(session, [{ type: 'discardAcquisitionAttempt', nowMs }]);
     case 'triggered':
       if (session.step !== 'waitingTrigger') return null;
@@ -77,19 +77,6 @@ export const transitionPistonOscillationGuideAcquisitionSession = (
         candidate: event.candidate,
         nowMs,
       }]);
-    case 'curvePaused':
-      if (session.step !== 'pauseAvailable') return null;
-      return applyRequiredGuideEvents(session, [
-        {
-          type: 'updateRecording',
-          recordedDurationS: event.candidate.acquisitionSettings.recordedDurationS,
-          samples: event.candidate.samples,
-          candidate: event.candidate,
-          nowMs,
-        },
-        { type: 'pauseRecording', nowMs },
-        { type: 'curveFreezeComplete', nowMs },
-      ]);
     case 'saveMeasurement':
       if (session.step !== 'awaitingSaveOrRedo') return null;
       return applyRequiredGuideEvents(session, [{ type: 'saveMeasurement', nowMs }]);

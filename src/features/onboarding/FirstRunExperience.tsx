@@ -1,9 +1,9 @@
-import { X } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { getWorkbenchAppBrandName } from '../workbench/workbenchBrand.ts';
 import {
   getSystemWorkbenchTheme,
   type WorkbenchLanguagePreference,
+  type WorkbenchResolvedTheme,
   type WorkbenchThemePreference,
 } from '../workbench/workbenchGeneralSettings.ts';
 import { FirstRunLanguagePage } from './FirstRunLanguagePage.tsx';
@@ -25,6 +25,7 @@ interface FirstRunExperienceProps {
   themePreference: WorkbenchThemePreference;
   onAccept: (draft: FirstRunDraft | null) => Promise<string | null>;
   onExit: () => Promise<void> | void;
+  onWindowAppearanceChange?: (language: WorkbenchLanguagePreference, theme: WorkbenchResolvedTheme) => void;
 }
 
 type FirstRunPage = 'language' | 'welcome' | 'product' | 'needs';
@@ -35,6 +36,7 @@ export const FirstRunExperience = ({
   themePreference,
   onAccept,
   onExit,
+  onWindowAppearanceChange,
 }: FirstRunExperienceProps) => {
   const [language, setLanguage] = useState(initialLanguage);
   const [answers, setAnswers] = useState<Record<'heatCapacity' | 'pistonOscillation', ExperimentFamiliarityAnswer | null>>({
@@ -45,12 +47,10 @@ export const FirstRunExperience = ({
   const [consentOpen, setConsentOpen] = useState(mode === 'legal-only');
   const [welcomePlayed, setWelcomePlayed] = useState(false);
   const [rejected, setRejected] = useState(false);
-  const [desktopWindowMaximized, setDesktopWindowMaximized] = useState(false);
   const [systemTheme, setSystemTheme] = useState(getSystemWorkbenchTheme);
   const reducedMotion = useReducedMotionPreference();
   const copy = firstRunCopies[language];
   const resolvedTheme = themePreference === 'system' ? systemTheme : themePreference;
-  const desktopWindowBridge = typeof window === 'undefined' ? undefined : window.hardSphereLabWindow;
 
   useEffect(() => {
     document.documentElement.lang = language;
@@ -71,18 +71,8 @@ export const FirstRunExperience = ({
   }, [themePreference]);
 
   useEffect(() => {
-    let mounted = true;
-    void desktopWindowBridge?.getState?.().then((state) => {
-      if (mounted) setDesktopWindowMaximized(Boolean(state.maximized));
-    }).catch(() => undefined);
-    const unsubscribe = desktopWindowBridge?.onState?.((state) => {
-      setDesktopWindowMaximized(Boolean(state.maximized));
-    });
-    return () => {
-      mounted = false;
-      unsubscribe?.();
-    };
-  }, [desktopWindowBridge]);
+    onWindowAppearanceChange?.(language, resolvedTheme);
+  }, [language, onWindowAppearanceChange, resolvedTheme]);
 
   const shellClassName = useMemo(() => [
     'studio-workbench',
@@ -158,37 +148,6 @@ export const FirstRunExperience = ({
       <div className="first-run-shell">
         <header className="studio-menu first-run-titlebar">
           <div className="studio-titlebar-drag-fill" aria-hidden="true" />
-          {desktopWindowBridge ? (
-            <div className="studio-window-controls" aria-label={copy.windowControls.controls}>
-              <button
-                type="button"
-                className="studio-window-control-button"
-                aria-label={copy.windowControls.minimize}
-                onClick={() => { void desktopWindowBridge.minimize(); }}
-              >
-                <span className="studio-window-control-glyph studio-window-control-glyph-minimize" aria-hidden="true" />
-              </button>
-              <button
-                type="button"
-                className="studio-window-control-button"
-                aria-label={desktopWindowMaximized ? copy.windowControls.restore : copy.windowControls.maximize}
-                onClick={() => { void desktopWindowBridge.toggleMaximize(); }}
-              >
-                <span
-                  className={`studio-window-control-glyph ${desktopWindowMaximized ? 'studio-window-control-glyph-restore' : 'studio-window-control-glyph-maximize'}`}
-                  aria-hidden="true"
-                />
-              </button>
-              <button
-                type="button"
-                className="studio-window-control-button studio-window-control-close"
-                aria-label={copy.windowControls.close}
-                onClick={() => { void exit(); }}
-              >
-                <X size={15} strokeWidth={2.2} />
-              </button>
-            </div>
-          ) : null}
         </header>
         <div className="first-run-content">{mainContent}</div>
       </div>

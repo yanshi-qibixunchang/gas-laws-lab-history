@@ -9,12 +9,30 @@ import { createDefaultHeatCapacityFile } from './workbenchHeatCapacityFileFactor
 import { createDefaultHeatCapacityPistonOscillationFile } from './workbenchPistonOscillationState.ts';
 import { getNextWorkbenchFileDisplayIndex } from './workbenchFileIdentity.ts';
 import { enterHeatCapacityExploreModeWorkbenchState } from './workbenchHeatCapacityModeSession.ts';
+import { createWorkbenchFileClosePlan } from './workbenchFileLifecycleCoordinator.ts';
 
 export interface WorkbenchInitialSession {
   files: WorkbenchFileState[];
   activeFileId: string;
   selectedPanel: WorkbenchPanelKey;
 }
+
+export const createWorkbenchTourHomeSession = (
+  session: WorkbenchInitialSession,
+  closedFiles: WorkbenchFileState[],
+  now = Date.now(),
+) => {
+  let cachedFiles = closedFiles;
+  for (const file of session.files) {
+    const plan = createWorkbenchFileClosePlan([file], cachedFiles, session.activeFileId, file.id, now);
+    if (plan.kind === 'ready') cachedFiles = plan.nextClosedFiles;
+  }
+  return {
+    session: { files: [], activeFileId: '', selectedPanel: 'preview' } satisfies WorkbenchInitialSession,
+    closedFiles: [...cachedFiles].sort((a, b) => b.lastOpenedAt - a.lastOpenedAt),
+  };
+};
+
 export const resolveWorkbenchInitialSession = ({
   initialTutorialReconstruction, initialActiveTutorialExperiment, initialTutorialHandoffRecovery,
   initialTutorialHandoff, initialOrdinarySession, initialOrdinaryClosedFiles, readLayoutDefaults,

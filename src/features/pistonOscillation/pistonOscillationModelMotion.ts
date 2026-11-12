@@ -1,11 +1,13 @@
+import { PISTON_FREE_SYSTEM_HEIGHTS_MM, PISTON_MAX_TRAVEL_HEIGHT_MM } from '../../domain/pistonOscillation/pistonOscillationHeightLimits.ts';
+
 export const PISTON_MODEL_VERTICAL_AXIS = 'world_Y' as const;
 export const PISTON_SCALE_CALIBRATION_HEIGHT_MM = 85;
 export const PISTON_EQUILIBRIUM_HEIGHT_MIN_MM = 0;
-export const PISTON_EQUILIBRIUM_HEIGHT_MAX_MM = 80;
+export const PISTON_EQUILIBRIUM_HEIGHT_MAX_MM = PISTON_MAX_TRAVEL_HEIGHT_MM;
 export const PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM = 0;
 export const PISTON_EXPERIMENT_HEIGHT_MIN_MM = 30;
 export const PISTON_EQUILIBRIUM_HEIGHT_REVIEW_STEP_MM = 0.5;
-export const PISTON_EXPERIMENT_HEIGHTS_MM = [80, 70, 60, 50, 40, 30] as const;
+export const PISTON_EXPERIMENT_HEIGHTS_MM = PISTON_FREE_SYSTEM_HEIGHTS_MM;
 export const PISTON_LOCKING_SCREW_LOCK_THRESHOLD = 0.6;
 export const PISTON_UNSUPPORTED_DROP_ACCELERATION_MM_PER_S2 = 420;
 
@@ -42,7 +44,6 @@ export const getPistonAssemblyTargetWorldY = (
   input: PistonVerticalMotionInput,
 ) => assemblyWorldYAtScaleCalibration
   + (
-    clampPistonEquilibriumHeightMm(input.equilibriumHeightMm)
+    clampPistonEquilibriumHeightMm(input.equilibriumHeightMm + input.oscillationOffsetMm)
     - PISTON_SCALE_CALIBRATION_HEIGHT_MM
-    + input.oscillationOffsetMm
   ) / 1000;
