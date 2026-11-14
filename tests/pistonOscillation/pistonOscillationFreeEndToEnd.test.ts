@@ -5,6 +5,7 @@ import { InMemoryWorkbenchPersistenceV3GenerationStore } from '../../src/feature
 import { commitWorkbenchPersistenceV3ProductionSnapshot, restoreWorkbenchPersistenceV3ProductionWorkspace } from '../../src/features/workbench/persistenceV3/productionFacade.ts';
 import { createDefaultHeatCapacityPistonOscillationFile } from '../../src/features/workbench/workbenchState.ts';
 import { isPistonOscillationReportReady, createPistonOscillationReportExportPayload } from '../../src/features/workbench/workbenchPistonOscillationExport.ts';
+import { getPistonOscillationMaterialsPanelOrder } from '../../src/features/workbench/workbenchHeatCapacityTabRegistry.ts';
 import {
   createPistonOscillationPhysicsSnapshot,
   createPistonOscillationRawMeasurementRecord,
@@ -24,6 +25,7 @@ import {
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
   createPistonOscillationLoadedEquilibriumState,
+  getPistonOscillationSmallSignalFrequencyFromLockedHeightHz,
   getPistonOscillationSettlingStateAtProgress,
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
@@ -36,6 +38,12 @@ import {
 import {
   createPistonOscillationDynamicSensorObservationSeries,
 } from '../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
+import { applyPistonOscillationTailIrregularityObservation } from '../../src/domain/pistonOscillation/pistonOscillationTailIrregularityObservationModel.ts';
+import { resolvePistonOscillationFreeEffectiveConfig } from '../../src/domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
+import {
+  PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  createPistonOscillationRealParameterDraft,
+} from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 
 type UntimedFreeEvent = PistonOscillationFreeEvent extends infer Event
   ? Event extends { nowMs: number }
@@ -53,20 +61,25 @@ const send = (
 } as PistonOscillationFreeEvent);
 
 const createCapturedMeasurement = (
+  session: PistonOscillationFreeSession,
   measurementIndex: number,
   targetHeightMm: number,
 ) => {
   const sampleRateHz = 1_000;
+  const { physicsConfig, thermalConfig, sensorConfig, tailConfig, tailIrregularityEnabled } = resolvePistonOscillationFreeEffectiveConfig(
+    session.experimentGroup,
+    session.parameterDraft,
+  );
   const pressDisplacementMm = measurementIndex === 2 ? 14 : 12;
   const pressVelocityMmPerS = -pressDisplacementMm / 0.08;
   const equilibrium = createPistonOscillationLoadedEquilibriumState(
     targetHeightMm,
-    { sensorSampleRateHz: sampleRateHz },
+    physicsConfig,
   );
   let releaseState = getPistonOscillationSettlingStateAtProgress(
     targetHeightMm,
     1,
-    { sensorSampleRateHz: sampleRateHz },
+    physicsConfig,
   );
   const pressPhysicalSamples = [{ pressurePa: releaseState.pressurePa }];
   for (let sampleIndex = 1; sampleIndex <= 80; sampleIndex += 1) {
@@ -76,13 +89,15 @@ const createCapturedMeasurement = (
         - pressDisplacementMm * sampleIndex / 80,
       elapsedS: 1 / sampleRateHz,
       velocityMmPerS: pressVelocityMmPerS,
-      physicsConfig: { sensorSampleRateHz: sampleRateHz },
+      physicsConfig,
+      thermalConfig,
     });
     pressPhysicalSamples.push({ pressurePa: releaseState.pressurePa });
   }
   const pressObservations = createPistonOscillationDynamicSensorObservationSeries(
     pressPhysicalSamples,
     sampleRateHz,
+    { config: sensorConfig },
   );
   const trajectory = simulatePistonOscillationThermalRelease({
     lockedHeightMm: targetHeightMm,
@@ -90,18 +105,30 @@ const createCapturedMeasurement = (
     initialVelocityMmPerS: pressVelocityMmPerS,
     referenceThermodynamicState: releaseState,
   }, {
-    sensorSampleRateHz: sampleRateHz,
+    ...physicsConfig,
     trajectoryDurationS: 0.5,
-  });
-  const observations = createPistonOscillationDynamicSensorObservationSeries(
+  }, thermalConfig);
+  const baseObservations = createPistonOscillationDynamicSensorObservationSeries(
     trajectory.samples,
     trajectory.sampleRateHz,
     {
+      config: sensorConfig,
       initialState: pressObservations.finalDynamicState,
       initialObservedPressureKpa:
         pressObservations.samples.at(-1)!.absolutePressureKpa,
     },
   );
+  const observations = tailIrregularityEnabled
+    ? applyPistonOscillationTailIrregularityObservation({
+        observationSeries: baseObservations,
+        expectedPeriodS: 1 / getPistonOscillationSmallSignalFrequencyFromLockedHeightHz(targetHeightMm, physicsConfig),
+        config: tailConfig,
+      }).observationSeries
+    : baseObservations;
+  if (tailIrregularityEnabled) {
+    assert.deepEqual(observations.samples.slice(0, 60), baseObservations.samples.slice(0, 60));
+    assert.notDeepEqual(observations.samples, baseObservations.samples);
+  }
   const pressOperationEvidence = createPistonOscillationPressOperationEvidence({
     trace: [],
     releasedAtMs: clockMs,
@@ -256,8 +283,9 @@ const completeFitAndCalculation = (session: PistonOscillationFreeSession) => {
 const createCollectedSession = (
   targetHeightsMm: readonly number[],
   customHeightCandidatesMm: readonly number[],
+  initial = createDefaultPistonOscillationFreeSession(),
 ) => {
-  let session = send(createDefaultPistonOscillationFreeSession(), { type: 'start' });
+  let session = send(initial, { type: 'start' });
   session = send(session, {
     type: 'setPlan',
     targetHeightsMm,
@@ -279,6 +307,7 @@ const createCollectedSession = (
   for (const [measurementIndex, targetHeightMm] of session.experimentPlan!
     .targetHeightsMm.entries()) {
     const { measurement, trajectory } = createCapturedMeasurement(
+      session,
       measurementIndex,
       targetHeightMm,
     );
@@ -299,12 +328,21 @@ const createCollectedSession = (
   return { session, records, maximumSpeedsMPerS };
 };
 
-const detailed = createCollectedSession([75, 70, 60], []);
+const previousProfile = PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION;
+const previousSession = createDefaultPistonOscillationFreeSession();
+const detailed = createCollectedSession([75, 70, 60], [], {
+  ...previousSession,
+  parameterDraft: createPistonOscillationRealParameterDraft('air', previousProfile),
+  experimentGroup: { ...previousSession.experimentGroup, parameterProfileVersion: previousProfile },
+});
 assert.ok(
   detailed.maximumSpeedsMPerS[2]! > 2,
   'a reachable 14 mm third-run press must keep its physical rebound peak above 2 m/s',
 );
 assert.ok(detailed.records.every((record) => record.samples.length === 501));
+assert.ok(detailed.records.every((record) => record.physicsSnapshot.thermalModel?.volumeExponent === 0.8));
+assert.equal(normalizePistonOscillationFreeSession(detailed.session).experimentGroup.parameterSnapshot
+  ?.parameters.thermalVolumeExponent, 0.8);
 
 let detailedSession = detailed.session;
 const firstExtrema = findPistonOscillationPrimaryExtrema(detailed.records[0]!);
@@ -412,7 +450,13 @@ for (const [index, run] of restoredGuards.runs.entries()) {
   assert.equal(run.answers.t1.status, awaitingGuards.dataProcessing!.runs[index].answers.t1.status);
 }
 const uncertaintyStore = new InMemoryWorkbenchPersistenceV3GenerationStore();
-const uncertaintyFile = { ...createDefaultHeatCapacityPistonOscillationFile(1), pistonOscillationFreeSession: detailedSession };
+const previousSystemPlan = structuredClone(detailedSession.experimentPlan!);
+previousSystemPlan.targets.find((target) => target.heightMm === 75)!.source = 'system';
+previousSystemPlan.customHeightCandidatesMm = previousSystemPlan.customHeightCandidatesMm.filter((height) => height !== 75);
+const uncertaintyFile = {
+  ...createDefaultHeatCapacityPistonOscillationFile(1),
+  pistonOscillationFreeSession: { ...detailedSession, experimentPlan: previousSystemPlan },
+};
 await commitWorkbenchPersistenceV3ProductionSnapshot({
   store: uncertaintyStore, namespace: 'piston-uncertainty-course', generationId: 'uncertainty-generation', capturedAtMs: 5000,
   snapshot: { files: [uncertaintyFile], closedFiles: [], activeFileId: uncertaintyFile.id, selectedPanel: 'preview' },
@@ -421,8 +465,13 @@ const uncertaintyWorkspace = await restoreWorkbenchPersistenceV3ProductionWorksp
 const restoredUncertaintyFile = uncertaintyWorkspace?.files[0];
 assert.equal(restoredUncertaintyFile?.kind, 'heatCapacityPistonOscillation');
 if (restoredUncertaintyFile?.kind === 'heatCapacityPistonOscillation') {
+  assert.deepEqual(restoredUncertaintyFile.pistonOscillationFreeSession.experimentPlan, previousSystemPlan);
+  assert.deepEqual(restoredUncertaintyFile.pistonOscillationFreeSession.experimentGroup, detailedSession.experimentGroup);
+  assert.deepEqual(restoredUncertaintyFile.pistonOscillationFreeSession.savedMeasurements, detailedSession.savedMeasurements);
   assert.deepEqual(restoredUncertaintyFile.pistonOscillationFreeSession.dataProcessing?.calculationSession?.uncertainty,
     detailedSession.dataProcessing?.calculationSession?.uncertainty, 'production persistence must retain the complete uncertainty course');
+  assert.deepEqual(getPistonOscillationMaterialsPanelOrder(restoredUncertaintyFile), ['heatCapacityGuide', 'heatCapacityReview']);
+  assert.equal(isPistonOscillationReportReady(restoredUncertaintyFile), true);
 }
 
 detailedSession = send(detailedSession, { type: 'pause' });
@@ -460,11 +509,15 @@ assert.equal(reset.savedMeasurements.length, 0);
 assert.equal(reset.dataProcessing, null);
 
 for (const scenario of [
-  { heights: [75, 65, 50, 30], custom: [65] },
-  { heights: [75, 70, 55, 40, 30], custom: [55] },
-  { heights: [75, 70, 65, 50, 40, 30], custom: [65] },
+  { heights: [75, 65, 50, 30], custom: [75, 65] },
+  { heights: [75, 70, 55, 40, 30], custom: [75, 55] },
+  { heights: [75, 70, 65, 50, 40, 30], custom: [75, 65] },
 ] as const) {
   const collected = createCollectedSession(scenario.heights, scenario.custom);
+  for (const record of collected.records) {
+    assert.equal(record.physicsSnapshot.thermalModel?.volumeExponent, 1);
+    assert.equal(record.sensorObservationSnapshot.dynamicConfig?.responseTimeConstantS, 0.0025);
+  }
   let session = collected.session;
   for (let runIndex = 0; runIndex < scenario.heights.length; runIndex += 1) {
     session = resolveRunByReveal(session, collected.records, runIndex);

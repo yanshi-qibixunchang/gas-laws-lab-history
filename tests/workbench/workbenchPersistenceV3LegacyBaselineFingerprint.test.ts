@@ -15,13 +15,25 @@ import {
 import {
   createLegacyWorkbenchFileEnvelopeFixture,
 } from './helpers/legacyWorkbenchSourceFixture.ts';
+import { createDefaultPistonOscillationFreeParameterDraft } from '../../src/domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
+import { PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 
 const FIXED_TIME_MS = 1_721_000_000_000;
+const pistonFile = createDefaultHeatCapacityPistonOscillationFile(4);
+const pistonSession = pistonFile.pistonOscillationFreeSession;
+pistonFile.pistonOscillationFreeSession = {
+  ...pistonSession,
+  parameterDraft: createDefaultPistonOscillationFreeParameterDraft(),
+  experimentGroup: {
+    ...pistonSession.experimentGroup,
+    parameterProfileVersion: PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  },
+};
 const files = [
   createDefaultStandardFile(1),
   createDefaultIdealFile(2),
   createDefaultHeatCapacityFile(3),
-  createDefaultHeatCapacityPistonOscillationFile(4),
+  pistonFile,
 ].map((file, index): WorkbenchFileState => ({
   ...file,
   createdAt: FIXED_TIME_MS + index,

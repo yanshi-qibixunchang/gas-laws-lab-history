@@ -13,11 +13,11 @@ import {
   measurePistonOscillationModel,
 } from './PistonOscillationInstrumentModel.tsx';
 import { PISTON_MODEL_HIT_TARGETS } from './pistonOscillationModelHitTargets.ts';
+import { movePistonOscillationObjectWorldY } from './pistonOscillationInstrumentGeometry.ts';
 import {
   PISTON_MODEL_VERTICAL_AXIS,
   PISTON_SCALE_CALIBRATION_HEIGHT_MM,
   getPistonAssemblyTargetWorldY,
-  PISTON_EQUILIBRIUM_HEIGHT_MAX_MM,
 } from './pistonOscillationModelMotion.ts';
 
 export const PISTON_OSCILLATION_LOCKING_SCREW_TURNS = 3;
@@ -837,31 +837,12 @@ const applyScaleReadingVisualEnhancement = (
   });
 };
 
-const alignCylinderTopToPistonLimit = (root: THREE.Object3D) => {
-  const piston = getRequiredPistonOscillationObject(root, 'Piston_Graphite');
-  const cylinder = getRequiredPistonOscillationObject(root, 'Cylinder_Pyrex');
-  const upperRing = getRequiredPistonOscillationObject(root, 'Cylinder_UpperGuideRing');
-  root.updateWorldMatrix(true, true);
-  const pistonTopAtLimit = new THREE.Box3().setFromObject(piston).max.y
-    + (PISTON_EQUILIBRIUM_HEIGHT_MAX_MM - PISTON_SCALE_CALIBRATION_HEIGHT_MM) / 1_000;
-  const cylinderBounds = new THREE.Box3().setFromObject(cylinder);
-  const cylinderBase = cylinderBounds.min.y;
-  const heightRatio = (pistonTopAtLimit - cylinderBase) / (cylinderBounds.max.y - cylinderBase);
-  const cylinderY = cylinder.getWorldPosition(new THREE.Vector3()).y;
-  cylinder.scale.y *= heightRatio;
-  moveObjectWorldY(root, cylinder, cylinderBase + (cylinderY - cylinderBase) * heightRatio);
-  const ringBottom = new THREE.Box3().setFromObject(upperRing).min.y;
-  const ringY = upperRing.getWorldPosition(new THREE.Vector3()).y;
-  moveObjectWorldY(root, upperRing, ringY + pistonTopAtLimit - ringBottom);
-};
-
 const createInteractiveModelInstance = (
   sourceScene: THREE.Object3D,
   scaleReadingVisualEnhancement: boolean,
 ): InteractiveModelInstance => {
   const base = createPistonOscillationModelInstance(sourceScene);
   const { root, ownedMaterials } = base;
-  alignCylinderTopToPistonLimit(root);
   const ownedGeometries = new Set<THREE.BufferGeometry>();
   if (scaleReadingVisualEnhancement) {
     applyScaleReadingVisualEnhancement(root, ownedMaterials, ownedGeometries);
@@ -1178,23 +1159,6 @@ const createInteractiveModelInstance = (
   };
 };
 
-const moveObjectWorldY = (
-  root: THREE.Object3D,
-  object: THREE.Object3D,
-  targetWorldY: number,
-) => {
-  root.updateWorldMatrix(true, true);
-  const worldPosition = object.getWorldPosition(new THREE.Vector3());
-  const parent = object.parent;
-  if (!parent) return;
-  parent.updateWorldMatrix(true, false);
-  const targetLocalPosition = parent.worldToLocal(
-    worldPosition.clone().setY(targetWorldY),
-  );
-  object.position.copy(targetLocalPosition);
-  object.updateWorldMatrix(true, true);
-};
-
 const isObjectOrDescendantOf = (
   object: THREE.Object3D,
   ancestor: THREE.Object3D,
@@ -1321,7 +1285,7 @@ export const PistonOscillationInteractiveModel = ({
         oscillationOffsetMm: pistonOscillationOffsetMm,
       },
     );
-    moveObjectWorldY(model.root, model.pistonAssembly, targetWorldY);
+    movePistonOscillationObjectWorldY(model.pistonAssembly, targetWorldY);
     syncBoxHitTarget(
       model.root,
       model.massPlatform,

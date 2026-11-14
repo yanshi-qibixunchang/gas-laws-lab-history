@@ -15,13 +15,23 @@ import {
   type PistonOscillationExperimentScheme,
 } from './pistonOscillationExperimentContextModel.ts';
 import {
+  PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
   createPistonOscillationIdealParameterDraft,
 } from './pistonOscillationIdealParameterProfile.ts';
 import {
   PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_PREVIOUS_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V4,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V5,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
   applyPistonOscillationRealGasProfile,
   getPistonOscillationRealParameterProfileVersion,
 } from './pistonOscillationRealParameterProfile.ts';
@@ -97,7 +107,8 @@ export const getPistonOscillationParameterProfileVersion = (
   scheme: PistonOscillationExperimentScheme,
   gasType: PistonOscillationGasMaterialSnapshot['gasType'],
 ) => scheme === 'ideal'
-  ? PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
+  ? gasType === 'air' ? PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION
+    : PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
   : getPistonOscillationRealParameterProfileVersion(gasType);
 
 export const createPistonOscillationFreeExperimentGroup = (options: {
@@ -120,7 +131,9 @@ export const createPistonOscillationFreeExperimentGroup = (options: {
     scheme,
     gasMaterialSnapshot,
     parameterProfileVersion: options.parameterProfileVersion?.trim()
-      || getPistonOscillationParameterProfileVersion(scheme, gasMaterialSnapshot.gasType),
+      || (options.provenance === 'legacy-inferred' && scheme === 'real' && gasMaterialSnapshot.gasType === 'air'
+        ? PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION
+        : getPistonOscillationParameterProfileVersion(scheme, gasMaterialSnapshot.gasType)),
     parameterSnapshot: null,
     lock: null,
   };
@@ -139,15 +152,13 @@ export const createPistonOscillationFreeExperimentContextSnapshot = (
 export const selectPistonOscillationFreeExperimentScheme = (
   group: PistonOscillationFreeExperimentGroup,
   scheme: PistonOscillationExperimentScheme,
+  parameterProfileVersion: string = getPistonOscillationParameterProfileVersion(scheme, group.gasMaterialSnapshot.gasType),
 ): PistonOscillationFreeExperimentGroup => {
   if (group.lock !== null || group.scheme === scheme) return group;
   return {
     ...group,
     scheme,
-    parameterProfileVersion: getPistonOscillationParameterProfileVersion(
-      scheme,
-      group.gasMaterialSnapshot.gasType,
-    ),
+    parameterProfileVersion,
   };
 };
 
@@ -167,11 +178,23 @@ export const selectPistonOscillationFreeGasType = (
 };
 
 export const isPistonOscillationFreeExperimentProfileImplemented = (
-  group: PistonOscillationFreeExperimentGroup,
+  group: Pick<PistonOscillationFreeExperimentGroup, 'scheme' | 'gasMaterialSnapshot' | 'parameterProfileVersion'>,
 ) => group.parameterProfileVersion === getPistonOscillationParameterProfileVersion(
   group.scheme,
   group.gasMaterialSnapshot.gasType,
-);
+) || (group.scheme === 'real' && group.gasMaterialSnapshot.gasType === 'air'
+  && (group.parameterProfileVersion === PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION
+    || group.parameterProfileVersion === PISTON_OSCILLATION_PREVIOUS_REAL_AIR_PARAMETER_PROFILE_VERSION
+    || group.parameterProfileVersion === PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V4
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V5
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8))
+  || (group.scheme === 'ideal' && group.gasMaterialSnapshot.gasType === 'air'
+    && group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION)
+  || (group.scheme === 'real' && group.gasMaterialSnapshot.gasType === 'helium'
+    && group.parameterProfileVersion === PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION);
 
 export const lockPistonOscillationFreeExperimentGroup = (
   group: PistonOscillationFreeExperimentGroup,
@@ -238,10 +261,11 @@ export const normalizePistonOscillationFreeExperimentGroup = (
     && isPistonOscillationLegacyPendingRealHeliumExperimentGroup(persisted);
   const validCurrentGroup = validGroupIdentity
     && (
-      persisted.parameterProfileVersion === getPistonOscillationParameterProfileVersion(
-        persisted.scheme as PistonOscillationExperimentScheme,
-        (persistedGasMaterial as PistonOscillationGasMaterialSnapshot).gasType,
-      )
+      isPistonOscillationFreeExperimentProfileImplemented({
+        scheme: persisted.scheme as PistonOscillationExperimentScheme,
+        gasMaterialSnapshot: persistedGasMaterial as PistonOscillationGasMaterialSnapshot,
+        parameterProfileVersion: persisted.parameterProfileVersion as string,
+      })
       || legacyPendingRealHelium
     );
   const group = validCurrentGroup
@@ -288,9 +312,10 @@ export const normalizePistonOscillationFreeExperimentGroup = (
   return {
     ...group,
     parameterSnapshot: group.scheme === 'ideal'
-      ? createPistonOscillationFreeParameterSnapshot(
-          createPistonOscillationIdealParameterDraft(),
-          lockedAtMs,
+      ? (group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION
+          ? persistedParameterSnapshot : null)
+        ?? createPistonOscillationFreeParameterSnapshot(
+          createPistonOscillationIdealParameterDraft(group.parameterProfileVersion), lockedAtMs,
         )
       : legacyPendingRealHelium && persistedParameterSnapshot
         ? createPistonOscillationFreeParameterSnapshot(

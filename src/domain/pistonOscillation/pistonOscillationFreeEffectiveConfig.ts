@@ -21,6 +21,7 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
   const idealProfile = group.scheme === 'ideal'
     ? createPistonOscillationIdealParameterProfile(
         group.gasMaterialSnapshot.adiabaticIndex,
+        group.parameterProfileVersion,
       )
     : null;
   const parameters = group.parameterSnapshot?.parameters ?? (idealProfile
@@ -53,7 +54,8 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
     adiabaticProcess: group.scheme === 'ideal',
     exactSensorObservation: group.scheme === 'ideal',
     tailIrregularityEnabled: group.scheme === 'real'
-      && parameters.tailIrregularityEnabled,
+      && parameters.tailIrregularityEnabled
+      && parameters.tailIntensity > 0,
     heightSnapEnabled: group.scheme === 'ideal',
     scoringEligible: group.scheme === 'real',
   } as const;

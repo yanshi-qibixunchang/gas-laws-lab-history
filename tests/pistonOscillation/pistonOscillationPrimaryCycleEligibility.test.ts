@@ -7,6 +7,8 @@ import {
   type PistonOscillationRawSample,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
 import { restoreHistoricalImmediateRecord } from './helpers/pistonOscillationHistoricalRecordFixtures.ts';
+import { createPistonOscillationExperimentContextSnapshot } from '../../src/domain/pistonOscillation/pistonOscillationExperimentContextModel.ts';
+import { PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
@@ -111,6 +113,26 @@ const quantizationOnlyReport = analyzePistonOscillationPrimaryCycleEligibility(
 );
 assert.equal(quantizationOnlyReport.status, 'unusable');
 assert.equal(quantizationOnlyReport.reason, 'insufficient-primary-excursion');
+
+const calibratedAirContext = createPistonOscillationExperimentContextSnapshot({
+  groupId: 'calibrated-air',
+  scheme: 'real',
+  parameterProfileVersion: PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
+});
+const decayingRecord = createRecord('eligibility-regular-tail', createWave(501, (index) => (
+  101.4 + 8 * Math.exp(-index / 98) * Math.cos(2 * Math.PI * index / 40)
+)));
+const originalTail = analyzePistonOscillationPrimaryCycleEligibility(decayingRecord);
+const calibratedTail = analyzePistonOscillationPrimaryCycleEligibility({
+  ...decayingRecord,
+  experimentContext: calibratedAirContext,
+});
+assert.ok(calibratedTail.primaryPeriodCount > originalTail.primaryPeriodCount);
+assert.deepEqual(calibratedTail.primaryExtrema.slice(0, 5), originalTail.primaryExtrema.slice(0, 5));
+assert.equal(analyzePistonOscillationPrimaryCycleEligibility({
+  ...quantizationOnlyRecord,
+  experimentContext: calibratedAirContext,
+}).status, 'unusable');
 
 const unreleasedSamples = createWave(161, (sampleIndex) => 101.4 + sampleIndex / 100);
 const unreleasedRecord = restoreHistoricalImmediateRecord(

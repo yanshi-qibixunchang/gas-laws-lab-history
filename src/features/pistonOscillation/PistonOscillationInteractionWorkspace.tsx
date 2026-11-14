@@ -82,6 +82,7 @@ import type {
   PistonOscillationLivePhysicalState,
 } from './pistonOscillationLivePressureChannel.ts';
 import { PISTON_MODEL_HIT_TARGETS } from './pistonOscillationModelHitTargets.ts';
+import { getPistonOscillationFrameTopOffsetY } from './pistonOscillationInstrumentGeometry.ts';
 import {
   PISTON_EQUILIBRIUM_HEIGHT_DEFAULT_MM,
   PISTON_EQUILIBRIUM_HEIGHT_MIN_MM,
@@ -96,6 +97,8 @@ import {
   PISTON_OSCILLATION_CONFIRMED_OVERVIEW_CAMERA,
   PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA,
   getPistonHeightAdjustmentCameraDefinition,
+  getPistonScaleReadingCameraCenterY,
+  translatePistonOscillationFocusCameraY,
   type PistonOscillationFocusCameraDefinition,
 } from './pistonOscillationFocusViews.ts';
 import {
@@ -409,31 +412,25 @@ const MainCameraRig = ({
   return null;
 };
 
-const FixedCameraRig = ({
+const ScrewOperationCameraRig = ({
   pose,
   controlsRef,
 }: {
-  pose: PistonOscillationFocusPose;
-  controlsRef?: React.MutableRefObject<OrbitControlsImpl | null>;
+  pose: PistonOscillationFocusCameraDefinition;
+  controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
 }) => {
   const camera = useThree((state) => state.camera);
-  const invalidate = useThree((state) => state.invalidate);
+  const scene = useThree((state) => state.scene);
+  const appliedCameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
-  useLayoutEffect(() => {
-    if (!(camera instanceof THREE.PerspectiveCamera)) return;
-    const controls = controlsRef?.current;
-    if (controls) applyPose(camera, controls, pose);
-    else {
-      camera.position.set(...pose.position);
-      camera.fov = pose.fov;
-      camera.zoom = pose.zoom;
-      camera.near = pose.near;
-      camera.far = pose.far;
-      camera.lookAt(new THREE.Vector3(...pose.target));
-      camera.updateProjectionMatrix();
-    }
-    invalidate();
-  }, [camera, controlsRef, invalidate, pose]);
+  useFrame(() => {
+    if (!(camera instanceof THREE.PerspectiveCamera) || appliedCameraRef.current === camera) return;
+    const controls = controlsRef.current;
+    const frameTopOffsetY = getPistonOscillationFrameTopOffsetY(scene);
+    if (!controls || frameTopOffsetY === undefined) return;
+    applyPose(camera, controls, translatePistonOscillationFocusCameraY(pose, frameTopOffsetY));
+    appliedCameraRef.current = camera;
+  });
 
   return null;
 };
@@ -470,23 +467,21 @@ const HeightFollowingCameraRig = ({
 };
 
 const ScaleReadingCameraRig = ({
-  heightMm: _heightMm,
+  modelRef,
   controlsRef,
 }: {
-  heightMm: number;
+  modelRef: React.RefObject<THREE.Group | null>;
   controlsRef: React.MutableRefObject<OrbitControlsImpl | null>;
 }) => {
   const camera = useThree((state) => state.camera);
-  const scene = useThree((state) => state.scene);
   const size = useThree((state) => state.size);
   const invalidate = useThree((state) => state.invalidate);
-  const appliedRef = useRef(false);
   const lastCenterWorldYRef = useRef<number | null>(null);
 
   useLayoutEffect(() => {
     if (!(camera instanceof THREE.OrthographicCamera)) return;
     const controls = controlsRef.current;
-    if (!controls || appliedRef.current) return;
+    if (!controls) return;
     const initialPose = PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA;
     camera.position.set(...initialPose.position);
     camera.zoom = initialPose.zoom * (size.height / initialPose.viewport.height);
@@ -495,29 +490,23 @@ const ScaleReadingCameraRig = ({
     camera.updateProjectionMatrix();
     controls.target.set(...initialPose.target);
     controls.update();
-    appliedRef.current = true;
+    lastCenterWorldYRef.current = null;
     invalidate();
   }, [camera, controlsRef, invalidate, size.height]);
 
   useFrame(() => {
     if (!(camera instanceof THREE.OrthographicCamera)) return;
     const controls = controlsRef.current;
-    const graphitePiston = scene.getObjectByName('Piston_Graphite');
-    const glassCylinder = scene.getObjectByName('Cylinder_Pyrex');
+    const graphitePiston = modelRef.current?.getObjectByName('Piston_Graphite');
+    const glassCylinder = modelRef.current?.getObjectByName('Cylinder_Pyrex');
     if (!controls || !graphitePiston || !glassCylinder) return;
     const pistonBounds = new THREE.Box3().setFromObject(graphitePiston, true);
     const cylinderBounds = new THREE.Box3().setFromObject(glassCylinder, true);
     if (pistonBounds.isEmpty() || cylinderBounds.isEmpty()) return;
     const visibleHalfHeightM = (camera.top - camera.bottom) / (camera.zoom * 2);
-    const minimumCenterWorldY = cylinderBounds.min.y + visibleHalfHeightM;
-    const maximumCenterWorldY = cylinderBounds.max.y - visibleHalfHeightM;
-    const centerWorldY = minimumCenterWorldY <= maximumCenterWorldY
-      ? THREE.MathUtils.clamp(
-        pistonBounds.min.y,
-        minimumCenterWorldY,
-        maximumCenterWorldY,
-      )
-      : pistonBounds.min.y;
+    const centerWorldY = getPistonScaleReadingCameraCenterY(
+      pistonBounds.min.y, cylinderBounds.min.y, cylinderBounds.max.y, visibleHalfHeightM,
+    );
     if (
       lastCenterWorldYRef.current !== null
       && Math.abs(centerWorldY - lastCenterWorldYRef.current) < 1e-7
@@ -1448,6 +1437,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const guideInteractionPaused = guidePaused || guideTimeFrozen;
   const controlsRef = useRef<OrbitControlsImpl | null>(null);
   const mirrorControlsRef = useRef<OrbitControlsImpl | null>(null);
+  const scaleReadingModelRef = useRef<THREE.Group | null>(null);
   const handledOverviewRevisionRef = useRef(overviewRevision);
   const handledMeasurementCycleRevisionRef = useRef(measurementCycleRevision);
   const handledGuideSessionRevisionRef = useRef(guideSessionRevision);
@@ -4077,7 +4067,7 @@ export const PistonOscillationInteractionWorkspace = ({
                 onBoundsReady={() => undefined}
               />
             </group>
-            <group visible={scaleReadingOperationMirrorActive}>
+            <group ref={scaleReadingModelRef} visible={scaleReadingOperationMirrorActive}>
               <PistonOscillationSceneModel
                 hoseState={hoseState}
                 pistonEquilibriumHeightMm={pistonEquilibriumHeightMm}
@@ -4125,11 +4115,11 @@ export const PistonOscillationInteractionWorkspace = ({
             />
             {scaleReadingOperationMirrorActive ? (
               <ScaleReadingCameraRig
-                heightMm={pistonEquilibriumHeightMm}
+                modelRef={scaleReadingModelRef}
                 controlsRef={mirrorControlsRef}
               />
             ) : (
-              <FixedCameraRig
+              <ScrewOperationCameraRig
                 pose={operationMirrorScrewPose}
                 controlsRef={mirrorControlsRef}
               />

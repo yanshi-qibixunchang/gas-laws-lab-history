@@ -664,7 +664,8 @@ const displayMassKg = Number(formatDecimalPlacesHalfEven(knowns.movingMassKg, 4)
 const displayDiameterM = Number(
   formatDecimalPlacesHalfEven(knowns.cylinderDiameterM * 1_000, 1),
 ) / 1_000;
-const displayPressurePa = Number(formatSignificantFiguresHalfEven(knowns.pressurePa, 3));
+const displayPressurePa = knowns.pressurePa;
+assert.equal(displayPressurePa, 101_900);
 const displaySlopeMPerS2 = Number(formatSignificantFiguresHalfEven(
   calculationProcessing.linearFitResult.slopeMPerS2,
   5,

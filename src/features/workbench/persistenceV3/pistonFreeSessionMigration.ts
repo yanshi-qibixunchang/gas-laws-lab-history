@@ -8,6 +8,7 @@ import {
   normalizePistonOscillationDataProcessingSession,
   createPistonOscillationScoringPolicySnapshot,
   PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
+  PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION,
   PISTON_OSCILLATION_LINEAR_FIT_ALGORITHM_VERSION,
   PISTON_OSCILLATION_DATA_PROCESSING_SCHEMA_VERSION,
   PISTON_OSCILLATION_PRIMARY_CYCLE_ELIGIBILITY_ALGORITHM_VERSION,
@@ -20,8 +21,8 @@ import { cleanPistonUncertaintySnapshot, LEGACY_PISTON_PRESSURE_METADATA } from 
 import { PISTON_UNCERTAINTY_VERSION, PISTON_LEGACY_UNCERTAINTY_VERSION, PISTON_EXPANDED_UNCERTAINTY_VERSION, PISTON_STANDARD_UNCERTAINTY_VERSION, createPistonUncertaintyProfile } from '../../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
+  isPistonOscillationFreeExperimentProfileImplemented,
   normalizePistonOscillationFreeExperimentGroup,
-  PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
   type PistonOscillationFreeExperimentGroup,
 } from '../../../domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
@@ -375,8 +376,9 @@ const migrateProcessing = (
     delete knowns.airMaterialModelVersion;
     delete knowns.airMaterialId;
   }
-  knowns.modelVersion = PISTON_OSCILLATION_CALCULATION_MODEL_VERSION;
-  const reset = createPistonOscillationCalculationSession(measurements, value.updatedAtMs);
+  knowns.modelVersion = PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION;
+  const reset = createPistonOscillationCalculationSession(measurements, value.updatedAtMs,
+    false, false, PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION);
   if (!equal(knowns, reset.knowns)) return false;
   // Only these named obsolete downstream algorithms may be invalidated.
   // Raw observations, endpoint/period answers, audit and every other field
@@ -404,16 +406,18 @@ const upgradeTeaching = (candidate: JsonRecord) => {
     || !finite(candidate.updatedAtMs)) return false;
   const processing = candidate.dataProcessing as JsonRecord;
   const isStandardCourse = processing.uncertaintyCourseVersion === PISTON_STANDARD_UNCERTAINTY_VERSION;
-  const allowed = ['schemaVersion', 'precisionVersion', 'precisionNotice', 'uncertaintyCourseVersion', 'uncertaintyEligibility',
+  const allowed = ['schemaVersion', 'calculationModelVersion', 'precisionVersion', 'precisionNotice', 'uncertaintyCourseVersion', 'uncertaintyEligibility',
     'processingPolicy', 'scoringPolicy', 'status', 'activeRunIndex', 'runs', 'linearFitResult',
     'calculationSession', 'audit', 'startedAtMs', 'updatedAtMs'];
   if (Object.keys(processing).some(key => !allowed.includes(key))
     || !Array.isArray(processing.runs) || !Array.isArray(processing.audit)
     || !finite(processing.startedAtMs) || !finite(processing.updatedAtMs)
     || !['period-processing', 'calculation-ready', 'completed'].includes(processing.status as string)) return false;
+  const calculationModelVersion = processing.calculationModelVersion === PISTON_OSCILLATION_CALCULATION_MODEL_VERSION
+    ? PISTON_OSCILLATION_CALCULATION_MODEL_VERSION : PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION;
   const fresh = createPistonOscillationDataProcessingSession(
     candidate.savedMeasurements as PistonOscillationRawMeasurementRecord[], candidate.updatedAtMs,
-    { answerValidationMode: 'batch', includeUncertainty: true });
+    { answerValidationMode: 'batch', includeUncertainty: true, calculationModelVersion });
   if (!equal(processing.processingPolicy, fresh.processingPolicy)
     || !equal(processing.scoringPolicy, fresh.scoringPolicy)
     || processing.runs.length !== fresh.runs.length
@@ -439,7 +443,8 @@ const upgradeTeaching = (candidate: JsonRecord) => {
       || Object.keys(calculation).some(key => !['schemaVersion', 'status', 'knowns', 'selectedRunIndices',
         'activeFieldId', 'visibleFieldIds', 'answers', 'batchAttempts', 'startedAtMs', 'completedAtMs', 'uncertainty'].includes(key))) return false;
     const expectedKnowns = createPistonOscillationCalculationSession(
-      candidate.savedMeasurements as PistonOscillationRawMeasurementRecord[], candidate.updatedAtMs, true).knowns;
+      candidate.savedMeasurements as PistonOscillationRawMeasurementRecord[], candidate.updatedAtMs,
+      true, true, calculationModelVersion).knowns;
     if (calculation.schemaVersion !== 2 || !equal(calculation.knowns, expectedKnowns)
       || !['selecting-points', 'calculating', 'ready-to-exit', 'completed'].includes(calculation.status as string)
       || !exactKeys(calculation.answers, calculationFields)
@@ -533,9 +538,11 @@ const upgradeProcessingPrecision = (candidate: JsonRecord) => {
     }
   }
   if (!equal(legacy, normalized)) return false;
+  const calculationModelVersion = legacy.calculationModelVersion === PISTON_OSCILLATION_CALCULATION_MODEL_VERSION
+    ? PISTON_OSCILLATION_CALCULATION_MODEL_VERSION : PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION;
   candidate.dataProcessing = {
     ...createPistonOscillationDataProcessingSession(saved, candidate.updatedAtMs,
-      { answerValidationMode: 'batch', includeUncertainty: true }),
+      { answerValidationMode: 'batch', includeUncertainty: true, calculationModelVersion }),
     precisionNotice: 'upgraded',
   };
   return true;
@@ -648,7 +655,7 @@ export const isAllowedPistonFreeSessionMigration = (source: unknown, canonical: 
       group = candidate.experimentGroup as unknown as PistonOscillationFreeExperimentGroup;
     }
     if (group.scheme !== 'real' || group.gasMaterialSnapshot.gasType !== 'air'
-      || group.parameterProfileVersion !== PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION) return false;
+      || !isPistonOscillationFreeExperimentProfileImplemented(group)) return false;
     for (const measurement of measurements) {
       (measurement as JsonRecord).experimentContext = createPistonOscillationFreeExperimentContextSnapshot(group, 'legacy-inferred');
     }

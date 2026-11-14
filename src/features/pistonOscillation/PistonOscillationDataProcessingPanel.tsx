@@ -427,11 +427,14 @@ export const PistonOscillationDataProcessingPanel = ({
   const [keyboardCursorSampleIndex, setKeyboardCursorSampleIndex] = useState<number | null>(null);
   const [keyboardAnchorSampleIndex, setKeyboardAnchorSampleIndex] = useState<number | null>(null);
   const [keyboardAnnouncement, setKeyboardAnnouncement] = useState('');
-  const [reviewRunIndex, setReviewRunIndex] = useState(0);
+  const [reviewRunIndex, setReviewRunIndex] = useState<number | null>(null);
   const [batchFormatInvalid, setBatchFormatInvalid] = useState(false);
+  const calculationReady = processing?.status === 'calculation-ready';
+  const pendingFreeCalculation = freeProcessingActive && calculationReady;
+  const canBrowseRuns = reviewMode || pendingFreeCalculation;
   const runIndex = processing
-    ? reviewMode
-      ? clamp(reviewRunIndex, 0, Math.max(0, processing.runs.length - 1))
+    ? canBrowseRuns
+      ? clamp(reviewRunIndex ?? (reviewMode ? 0 : processing.activeRunIndex), 0, processing.runs.length - 1)
       : processing.activeRunIndex
     : 0;
   const run = processing?.runs[runIndex] ?? null;
@@ -450,7 +453,7 @@ export const PistonOscillationDataProcessingPanel = ({
 
   useEffect(() => {
     if (
-      reviewMode
+      canBrowseRuns
       || !freeProcessingActive
       || !record
       || primaryCycleEligibility?.status !== 'unusable'
@@ -463,7 +466,7 @@ export const PistonOscillationDataProcessingPanel = ({
     freeProcessingActive,
     primaryCycleEligibility?.status,
     record?.recordId,
-    reviewMode,
+    canBrowseRuns,
     runIndex,
   ]);
 
@@ -523,13 +526,13 @@ export const PistonOscillationDataProcessingPanel = ({
   }, [chartMode, onSelectionModeChange]);
 
   useEffect(() => {
-    if (!reviewMode) return;
-    setReviewRunIndex(0);
+    setReviewRunIndex(null);
+    if (!canBrowseRuns) return;
     setChartMode('pan');
     setChartDrag(null);
     setKeyboardCursorSampleIndex(null);
     setKeyboardAnchorSampleIndex(null);
-  }, [guideSession.startedAtMs, reviewMode]);
+  }, [guideSession.startedAtMs, processing?.startedAtMs, canBrowseRuns, reviewMode]);
 
   useEffect(() => {
     if (!pulseActive) return undefined;
@@ -886,7 +889,6 @@ export const PistonOscillationDataProcessingPanel = ({
       || (pulseTarget === 'periodTool' && chartMode === 'selection')
     );
   const isLastRun = runIndex === processing.runs.length - 1;
-  const calculationReady = processing.status === 'calculation-ready';
 
   const dispatch = (event: PistonOscillationProcessingEventWithoutTimestamp) => {
     onProcessingEvent({ ...event, nowMs: Date.now() } as PistonOscillationProcessingEvent);
@@ -1217,10 +1219,10 @@ export const PistonOscillationDataProcessingPanel = ({
             <button
               type="button"
               key={candidate.rawMeasurementRecordId}
-              className={`is-${state} ${reviewMode && index === runIndex ? 'is-viewing' : ''}`}
-              disabled={!reviewMode && index !== runIndex}
+              className={`is-${state} ${canBrowseRuns && index === runIndex ? 'is-viewing' : ''}`}
+              disabled={!canBrowseRuns && index !== runIndex}
               aria-current={index === runIndex ? 'step' : undefined}
-              onClick={reviewMode ? () => setReviewRunIndex(index) : undefined}
+              onClick={canBrowseRuns ? () => setReviewRunIndex(index) : undefined}
             >
               <span>{copy.runLabel(index + 1)}</span>
               <strong>{candidate.targetHeightMm} mm</strong>
@@ -1916,6 +1918,10 @@ export const PistonOscillationDataProcessingPanel = ({
             disabled={!freeProcessingActive || runIndex === 0}
             aria-disabled={!freeProcessingActive || runIndex === 0}
             onClick={() => {
+              if (pendingFreeCalculation) {
+                setReviewRunIndex(runIndex - 1);
+                return;
+              }
               onInteractionStart?.();
               dispatch({ type: 'reopenPreviousPeriodRun' });
             }}
@@ -1930,7 +1936,12 @@ export const PistonOscillationDataProcessingPanel = ({
                 ? <span>{copy.navigationUnlocked}</span>
                 : <span>{copy.navigationLocked}</span>}
           </div>
-          {freeProcessingActive && isLastRun ? null : (
+          {pendingFreeCalculation ? (
+            <button type="button" className="is-primary" onClick={onOpenCalculationReview}>
+              {copy.resumeCalculation}
+              <ChevronRight size={15} aria-hidden="true" />
+            </button>
+          ) : freeProcessingActive && isLastRun ? null : (
             <button
             ref={nextRunButtonRef}
             type="button"

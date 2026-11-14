@@ -390,8 +390,8 @@ const mismatchFit = processFreeRecordsThroughFit(
 );
 assert.deepEqual(
   mismatchFit.points.map((point) => point.heightMm),
-  [80, 70, 60],
-  'Free processing must fit planned heights while preserving actual heights in raw physics',
+  [79.50, 69.56, 59.62],
+  'Free processing must fit the planned loaded heights while preserving actual heights in raw physics',
 );
 const idealMismatchRecords = createScenarioRecords(
   'ideal-height-processing-evidence',

@@ -285,6 +285,7 @@ export interface PistonOscillationShellCopy {
     reviewBatchAttemptSummary: (attempts: number) => string;
     closeReview: string;
     viewFitAndCalculation: string;
+    resumeCalculation: string;
     correctRecorded: string;
     correct: string;
     revealedRecorded: string;
@@ -635,6 +636,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       reviewBatchAttemptSummary: (attempts) => `统一校验记录：正式提交 ${attempts} 次`,
       closeReview: '关闭回顾',
       viewFitAndCalculation: '查看拟合与计算',
+      resumeCalculation: '继续计算',
       correctRecorded: '正确，计算值已被记录。',
       correct: '正确。',
       revealedRecorded: '已显示正确值，计算值已被记录。',
@@ -986,6 +988,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       reviewBatchAttemptSummary: (attempts) => `統一校驗記錄：正式提交 ${attempts} 次`,
       closeReview: '關閉回顧',
       viewFitAndCalculation: '查看擬合與計算',
+      resumeCalculation: '繼續計算',
       correctRecorded: '正確，計算值已被記錄。',
       correct: '正確。',
       revealedRecorded: '已顯示正確值，計算值已被記錄。',
@@ -1337,6 +1340,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       reviewBatchAttemptSummary: (attempts) => `Unified validation record: ${attempts} formal submissions`,
       closeReview: 'Close review',
       viewFitAndCalculation: 'View fit and calculations',
+      resumeCalculation: 'Resume calculations',
       correctRecorded: 'Correct. The calculated value has been recorded.',
       correct: 'Correct.',
       revealedRecorded: 'The correct value is shown and has been recorded.',

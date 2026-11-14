@@ -74,6 +74,7 @@ import type {
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
+  canEditPistonOscillationFreeSampleRate,
   canRunPistonOscillationFreeExperiment,
   getPistonOscillationFreeCurrentTargetHeightMm,
   isPistonOscillationFreeExperimentLocked,
@@ -518,8 +519,9 @@ export const PistonOscillationAcquisitionPanel = ({
   const freeParametersLocked = freeSession
     ? isPistonOscillationFreeExperimentLocked(freeSession)
     : false;
-  const freeSampleRateReadonly = freeParametersLocked
-    || freeSession?.experimentGroup.scheme === 'ideal';
+  const freeSampleRateReadonly = freeSession
+    ? !canEditPistonOscillationFreeSampleRate(freeSession)
+    : false;
   const recordingDurationS = effectiveFreeParameterDraft?.recordingDurationS
     ?? PISTON_DEFAULT_RECORDING_DURATION_S;
   const [durationDraft, setDurationDraft] = useState(String(recordingDurationS));
@@ -2023,8 +2025,8 @@ export const PistonOscillationAcquisitionPanel = ({
   const commitFreeParameter = (
     field: 'sampleRateHz' | 'triggerThresholdKpa',
   ): boolean => {
-    if (!freeSelected || acquisitionActive || freeParametersLocked
-      || (field === 'sampleRateHz' && freeSampleRateReadonly)) return false;
+    if (!freeSelected || acquisitionActive
+      || (field === 'sampleRateHz' ? freeSampleRateReadonly : freeParametersLocked)) return false;
     const draft = field === 'sampleRateHz' ? sampleRateDraft : triggerDraft;
     const value = field === 'sampleRateHz'
       ? parsePistonOscillationFreeSampleRate(draft)

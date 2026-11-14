@@ -17,6 +17,12 @@ import {
 import {
   createPistonOscillationDynamicSensorObservationSeries,
 } from '../../../src/domain/pistonOscillation/pistonOscillationSensorObservationModel.ts';
+import {
+  getPistonOscillationFreePhysicsConfig,
+  getPistonOscillationFreeSensorConfig,
+  getPistonOscillationFreeThermalConfig,
+  type PistonOscillationFreeParameterDraft,
+} from '../../../src/domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 
 /**
  * Builds strict current-model metadata around deliberately synthetic observed
@@ -28,15 +34,21 @@ export const createPistonOscillationCurrentRecordTestArtifacts = (options: {
   sampleRateHz: number;
   samples: readonly PistonOscillationRawSample[];
   triggerSourceSampleIndex?: number | null;
+  parameters?: PistonOscillationFreeParameterDraft;
 }) => {
+  const physicsConfig = {
+    ...(options.parameters ? getPistonOscillationFreePhysicsConfig(options.parameters) : {}),
+    sensorSampleRateHz: options.sampleRateHz,
+  };
+  const thermalConfig = options.parameters && getPistonOscillationFreeThermalConfig(options.parameters);
   const equilibrium = createPistonOscillationLoadedEquilibriumState(
     options.lockedHeightMm,
-    { sensorSampleRateHz: options.sampleRateHz },
+    physicsConfig,
   );
   const settledState = getPistonOscillationSettlingStateAtProgress(
     options.lockedHeightMm,
     1,
-    { sensorSampleRateHz: options.sampleRateHz },
+    physicsConfig,
   );
   const releaseHeightMm = Math.max(
     0,
@@ -46,7 +58,8 @@ export const createPistonOscillationCurrentRecordTestArtifacts = (options: {
     referenceState: settledState,
     pistonHeightMm: releaseHeightMm,
     elapsedS: 0.2,
-    physicsConfig: { sensorSampleRateHz: options.sampleRateHz },
+    physicsConfig,
+    thermalConfig,
   });
   const trajectory = simulatePistonOscillationThermalRelease({
     lockedHeightMm: options.lockedHeightMm,
@@ -54,14 +67,15 @@ export const createPistonOscillationCurrentRecordTestArtifacts = (options: {
       (releaseState.pistonHeightM - equilibrium.equilibriumHeightM) * 1_000,
     referenceThermodynamicState: releaseState,
   }, {
-    sensorSampleRateHz: options.sampleRateHz,
+    ...physicsConfig,
     trajectoryDurationS: 0.1,
-  });
+  }, thermalConfig);
   const generatedSeries = createPistonOscillationDynamicSensorObservationSeries(
     options.samples.map((sample) => ({
       pressurePa: sample.absolutePressureKpa * 1_000,
     })),
     options.sampleRateHz,
+    { config: options.parameters && getPistonOscillationFreeSensorConfig(options.parameters) },
   );
   const observationSeries = {
     ...generatedSeries,

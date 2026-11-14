@@ -190,7 +190,7 @@ assert.doesNotMatch(
 );
 assert.match(
   workspaceSource,
-  /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop=\{getPistonOscillationOperationMirrorFrameLoop\(\s*operationMirrorMode,\s*operationMirrorInitialFrameReady,[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
+  /className="piston-focus-interaction-operation-mirror-canvas"[\s\S]*frameloop=\{getPistonOscillationOperationMirrorFrameLoop\(\s*operationMirrorMode,\s*operationMirrorInitialFrameReady,[\s\S]*<group visible=\{screwOperationMirrorActive\}>[\s\S]*operationMirrorView="screwOperationView"[\s\S]*<group ref=\{scaleReadingModelRef\} visible=\{scaleReadingOperationMirrorActive\}>[\s\S]*scaleReadingVisualEnhancement[\s\S]*operationMirrorView="scaleReadingView"[\s\S]*<PerspectiveCamera[\s\S]*makeDefault=\{screwOperationMirrorActive\}[\s\S]*<OrthographicCamera[\s\S]*makeDefault=\{scaleReadingOperationMirrorActive\}/,
   'one resident Canvas must pause hidden rendering while retaining both preloaded models and cameras',
 );
 const screwModelGroup = workspaceSource.match(

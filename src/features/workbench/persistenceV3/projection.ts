@@ -332,6 +332,7 @@ const createPistonOscillationDataProcessingAuthority = (
   session: PistonOscillationDataProcessingSession,
 ) => ({
   schemaVersion: session.schemaVersion,
+  ...(session.calculationModelVersion ? { calculationModelVersion: session.calculationModelVersion } : {}),
   processingPolicy: session.processingPolicy,
   ...(session.precisionVersion ? { precisionVersion: session.precisionVersion, precisionNotice: session.precisionNotice } : {}),
   ...(session.uncertaintyCourseVersion ? { uncertaintyCourseVersion: session.uncertaintyCourseVersion } : {}),

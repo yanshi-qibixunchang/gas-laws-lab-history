@@ -16,6 +16,7 @@ import {
 } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import {
+  PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
   getPistonCalculationSpec,
   formatPistonOscillationCalculationAnswer,
   getInvalidPistonOscillationCalculationBatchFields,
@@ -212,10 +213,20 @@ const buildKnownConstantRows = (
   const calculationSession = processing.calculationSession;
   if (!calculationSession) return [];
   const { knowns } = calculationSession;
+  const usesLoadedPressure = knowns.modelVersion === PISTON_OSCILLATION_CALCULATION_MODEL_VERSION;
+  const loadedPressureLabel = {
+    'zh-CN': '缸内平衡压强 P（Pa）',
+    'zh-TW': '缸內平衡壓強 P（Pa）',
+    en: 'Cylinder equilibrium pressure P (Pa)',
+  }[language];
   const constants: CalculationKnownDatum[] = [
     { key: 'mass', label: 'm（kg）', value: formatDecimalPlacesHalfEven(knowns.movingMassKg, 4) },
     { key: 'diameter', label: 'd（mm）', value: formatDecimalPlacesHalfEven(knowns.cylinderDiameterM * 1000, 1) },
-    { key: 'pressure', label: 'P（Pa）', value: processing.precisionVersion ? `${knowns.pressurePa}` : formatKnownPressure(knowns.pressurePa) },
+    {
+      key: 'pressure',
+      label: usesLoadedPressure ? loadedPressureLabel : 'P（Pa）',
+      value: usesLoadedPressure || processing.precisionVersion ? String(knowns.pressurePa) : formatKnownPressure(knowns.pressurePa),
+    },
   ];
   if (!calculationSession.uncertainty) return [constants];
   return splitCalculationKnownDataRows([
@@ -672,13 +683,17 @@ export const PistonOscillationCalculationWindow = ({
       role="dialog"
       ariaDescribedBy={noteId}
       closeLabel={copy.close}
-      dismiss={{ closeButton: canDismiss, escape: canDismiss, backdrop: canDismiss }}
+      dismiss={{
+        closeButton: canDismiss,
+        escape: calculationSession.status === 'completed',
+        backdrop: calculationSession.status === 'completed',
+      }}
       onRequestClose={handleDismiss}
-      initialFocusSelector={
-        '[data-piston-fit-run-index]:not([tabindex="-1"]), ' +
-        '.studio-piston-calculation-step-active input:not(:disabled), ' +
-        '.studio-piston-calculation-exit'
-      }
+      initialFocusSelector={selectingPoints
+        ? '[data-piston-fit-run-index]:not([tabindex="-1"])'
+        : calculationSession.status === 'calculating' && calculationSession.activeFieldId
+          ? `#piston-calculation-${calculationSession.activeFieldId}:not(:disabled)`
+          : '.studio-piston-calculation-exit'}
       focusKey={`${calculationSession.status}:${calculationSession.activeFieldId ?? 'none'}:${selectedRunIndices.join('-')}`}
       dialogRef={dialogRef}
       overlayClassName="studio-settings-overlay studio-piston-calculation-overlay"

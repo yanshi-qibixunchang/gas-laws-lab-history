@@ -10,6 +10,7 @@ import { buildOperationSweep, renderOperationSweepReport } from '../../scripts/a
 import {
   createPistonOscillationPeriodSelection, normalizePistonOscillationRawMeasurementRecord,
 } from '../../src/domain/pistonOscillation/pistonOscillationDataProcessingModel.ts';
+import { createPistonOscillationLoadedEquilibriumState } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 
 const operations = createSweepOperations();
 assert.equal(operations.length, 72);
@@ -87,11 +88,13 @@ assert.ok(fit);
 assert.equal(fit.points.length, 6);
 for (const [index, point] of fit.points.entries()) {
   assert.equal(point.periodSquaredS2, complete[index]!.run!.result!.periodSquaredS2);
-  assert.equal(point.heightM, OPERATION_SWEEP_PROTOCOL.heightsMm[index]! / 1000);
+  const equilibrium = createPistonOscillationLoadedEquilibriumState(OPERATION_SWEEP_PROTOCOL.heightsMm[index]!);
+  assert.ok(Math.abs(point.heightM - Number(equilibrium.equilibriumHeightM.toPrecision(4))) < 1e-12);
 }
 // Independent displayed-operand calculation, using this deterministic fixture's
 // non-midpoint values. This is not an acceptance band around theoretical gamma.
-const expectedGamma = Number((4 * Math.PI ** 2 * 0.0485 * Number(fit.slope) / (0.0008296 * 101000)).toPrecision(4));
+assert.equal(fit.knowns.pressurePa, 101_900);
+const expectedGamma = Number((4 * Math.PI ** 2 * 0.0485 * Number(fit.slope) / (0.0008296 * 101900)).toPrecision(4));
 assert.equal(fit.areaM2, 0.0008296);
 assert.equal(fit.gamma, expectedGamma);
 assert.equal(fit.relativeErrorPercent, Number((Math.abs(expectedGamma - 1.4) / 1.4 * 100).toPrecision(3)));

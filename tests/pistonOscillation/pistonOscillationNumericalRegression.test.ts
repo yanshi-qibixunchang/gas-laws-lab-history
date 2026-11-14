@@ -53,7 +53,7 @@ assert.equal(
 );
 assert.equal(
   PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
-  'display-rounded-piston-slope-calculation-v3',
+  'loaded-equilibrium-piston-slope-calculation-v4',
 );
 assert.equal(DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.movingMassKg, 0.0485);
 assert.equal(

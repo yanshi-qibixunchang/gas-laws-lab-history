@@ -48,6 +48,7 @@ export interface PistonOscillationFreeParameterDraft {
   tailIrregularityEnabled: boolean;
   equivalentLinearLossNsPerM: number;
   thermalRelaxationTimeS: number;
+  thermalVolumeExponent?: number;
   heatFlowLagTimeS: number;
   sensorResponseTimeS: number;
   fastFluctuationStandardDeviationPa: number;
@@ -78,6 +79,7 @@ export const PISTON_OSCILLATION_FREE_PARAMETER_RANGES = Object.freeze({
   triggerThresholdKpa: { minimum: 96, maximum: 130 },
   equivalentLinearLossNsPerM: { minimum: 0, maximum: 10 },
   thermalRelaxationTimeS: { minimum: 0.001, maximum: 5 },
+  thermalVolumeExponent: { minimum: 0, maximum: 3 },
   heatFlowLagTimeS: { minimum: 0.0005, maximum: 0.05 },
   sensorResponseTimeS: { minimum: 0.0001, maximum: 1 },
   fluctuationStandardDeviationPa: { minimum: 0, maximum: 1_000 },
@@ -286,8 +288,14 @@ export const normalizePistonOscillationFreeParameterDraft = (
   const recordingDurationS = isPistonRecordingDurationS(valueRecord.recordingDurationS)
     ? valueRecord.recordingDurationS
     : fallbackInput.recordingDurationS;
+  const thermalVolumeExponent = isFiniteInRange(
+    valueRecord.thermalVolumeExponent,
+    ranges.thermalVolumeExponent.minimum,
+    ranges.thermalVolumeExponent.maximum,
+  ) ? valueRecord.thermalVolumeExponent : fallbackInput.thermalVolumeExponent;
   return {
     ...(recordingDurationS === undefined ? {} : { recordingDurationS }),
+    ...(thermalVolumeExponent === undefined ? {} : { thermalVolumeExponent }),
     ambientPressureKpa,
     ambientTemperatureK: readNumber(
       valueRecord.ambientTemperatureK,
@@ -423,6 +431,7 @@ export const getPistonOscillationFreeThermalConfig = (
   draft: PistonOscillationFreeParameterDraft,
 ): PistonOscillationThermalModelConfig => normalizePistonOscillationThermalModelConfig({
   relaxationTimeAtReferenceHeightS: draft.thermalRelaxationTimeS,
+  volumeExponent: draft.thermalVolumeExponent,
   heatTransferLagTimeS: draft.heatFlowLagTimeS,
 });
 
@@ -491,6 +500,9 @@ export const createPistonOscillationFreeParameterDraftFromMeasurement = (
     equivalentLinearLossNsPerM: config.linearDampingNsPerM,
     thermalRelaxationTimeS:
       thermal?.relaxationTimeAtReferenceHeightS ?? defaults.thermalRelaxationTimeS,
+    ...(thermal && thermal.volumeExponent !== DEFAULT_PISTON_OSCILLATION_THERMAL_MODEL_CONFIG.volumeExponent
+      ? { thermalVolumeExponent: thermal.volumeExponent }
+      : {}),
     heatFlowLagTimeS: thermal?.enabled && 'heatTransferLagTimeS' in thermal
       ? thermal.heatTransferLagTimeS
       : defaults.heatFlowLagTimeS,
@@ -540,6 +552,10 @@ export const doesPistonOscillationMeasurementMatchFreeParameters = (
         && measurement.sensorObservationSnapshot.pressureResolutionKpa === null
         && measurement.sensorObservationSnapshot.pressureQuantization === 'none'
       : Boolean(thermal)
+        && numbersAgree(
+          thermal?.volumeExponent ?? Number.NaN,
+          draft.thermalVolumeExponent ?? DEFAULT_PISTON_OSCILLATION_THERMAL_MODEL_CONFIG.volumeExponent,
+        )
         && numbersAgree(
           thermal?.relaxationTimeAtReferenceHeightS ?? Number.NaN,
           draft.thermalRelaxationTimeS,

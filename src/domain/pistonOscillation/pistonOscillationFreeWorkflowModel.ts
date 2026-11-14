@@ -47,6 +47,7 @@ import {
   createPistonOscillationFreeExperimentContextSnapshot,
   createPistonOscillationFreeExperimentGroup,
   doPistonOscillationGasMaterialSnapshotsAgree,
+  getPistonOscillationParameterProfileVersion,
   isPistonOscillationLegacyPendingRealHeliumExperimentGroup,
   isPistonOscillationFreeExperimentProfileImplemented,
   lockPistonOscillationFreeExperimentGroup,
@@ -92,6 +93,8 @@ import {
 import {
   applyPistonOscillationRealGasProfile,
   createPistonOscillationRealParameterDraft,
+  inferPistonOscillationRealAirProfileVersion,
+  inferPistonOscillationRealHeliumProfileVersion,
 } from './pistonOscillationRealParameterProfile.ts';
 
 export const PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION = 10 as const;
@@ -460,18 +463,21 @@ const buildExperimentPlan = (
   const planId = typeof options.planId === 'string' && options.planId.trim().length > 0
     ? options.planId.trim()
     : `piston-free-plan:${sortedTargetHeightsMm.join('-')}`;
-  const targets = sortedTargetHeightsMm.map<PistonOscillationFreePlanTarget>((heightMm) => ({
-    schemaVersion: PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION,
-    targetId: createPlanTargetId(planId, heightMm),
-    heightMm,
-    source: options.persistedTargets?.some((target) => (
-      isPlainRecord(target) && target.heightMm === heightMm && target.source === 'custom'
-    ))
-      ? 'custom'
-      : isSystemFreeTargetHeightMm(heightMm) || heightMm === PISTON_FREE_LEGACY_MAX_TARGET_HEIGHT_MM
-        ? 'system'
-        : 'custom',
-  }));
+  const targets = sortedTargetHeightsMm.map<PistonOscillationFreePlanTarget>((heightMm) => {
+    const persistedTarget = options.persistedTargets?.find((target) => (
+      isPlainRecord(target) && target.heightMm === heightMm
+    ));
+    const persistedSource = isPlainRecord(persistedTarget) ? persistedTarget.source : null;
+    const systemHeight = isSystemFreeTargetHeightMm(heightMm)
+      || heightMm === PISTON_FREE_LEGACY_MAX_TARGET_HEIGHT_MM
+      || (heightMm === PISTON_MAX_TRAVEL_HEIGHT_MM && persistedSource === 'system');
+    return {
+      schemaVersion: PISTON_OSCILLATION_FREE_TARGET_SCHEMA_VERSION,
+      targetId: createPlanTargetId(planId, heightMm),
+      heightMm,
+      source: systemHeight && persistedSource !== 'custom' ? 'system' : 'custom',
+    };
+  });
   const customTargets = targets.filter((target) => target.source === 'custom');
   const customHeightCandidatesMm = [...new Set([
     ...(options.customHeightCandidatesMm ?? []).filter((heightMm) => (
@@ -547,7 +553,7 @@ export const createDefaultPistonOscillationFreeInstrumentState = (
 
 export const createDefaultPistonOscillationFreeSession = ():
 PistonOscillationFreeSession => {
-  const parameterDraft = createDefaultPistonOscillationFreeParameterDraft();
+  const parameterDraft = createPistonOscillationRealParameterDraft();
   return ({
   schemaVersion: PISTON_OSCILLATION_FREE_SESSION_SCHEMA_VERSION,
   status: 'idle',
@@ -623,7 +629,7 @@ const createFreshActiveSession = (
   } = {},
 ): PistonOscillationFreeSession => {
   const parameterDraft = withDefaultTriggerThreshold(normalizePistonOscillationFreeParameterDraft(
-    options.retainedParameterDraft ?? createDefaultPistonOscillationFreeParameterDraft(),
+    options.retainedParameterDraft ?? createPistonOscillationRealParameterDraft(),
   ));
   const retainedGroup = options.retainedExperimentGroup;
   const experimentGroup = createPistonOscillationFreeExperimentGroup({
@@ -663,6 +669,24 @@ const createFreshActiveSession = (
 export const isPistonOscillationFreeExperimentLocked = (
   session: PistonOscillationFreeSession,
 ) => session.experimentGroup.lock !== null;
+
+export const canEditPistonOscillationFreeSampleRate = (
+  session: PistonOscillationFreeSession,
+) => {
+  const { lock, parameterSnapshot, scheme } = session.experimentGroup;
+  if (scheme !== 'real') return false;
+  if (lock === null) return true;
+
+  // An impact during setup can freeze the experiment before a rate is entered.
+  return lock.reason === 'bottom-impact'
+    && parameterSnapshot?.parameters.sampleRateHz === null
+    && session.acquisitionCandidate === null
+    && session.savedMeasurements.length === 0
+    && session.excludedAttempts.length === 0
+    && !session.audit.some(({ operation }) => (
+      operation === 'startAcquisition' || operation === 'redoAcquisition'
+    ));
+};
 
 export const getPistonOscillationFreeEffectiveParameters = (
   session: PistonOscillationFreeSession,
@@ -845,9 +869,12 @@ export const transitionPistonOscillationFreeSession = (
       session.status !== 'active'
       || isPistonOscillationFreeExperimentLocked(session)
     ) return session;
+    const inferRealProfile = session.experimentGroup.gasMaterialSnapshot.gasType === 'air'
+      ? inferPistonOscillationRealAirProfileVersion : inferPistonOscillationRealHeliumProfileVersion;
     const experimentGroup = selectPistonOscillationFreeExperimentScheme(
       session.experimentGroup,
       event.scheme,
+      event.scheme === 'real' ? inferRealProfile(session.parameterDraft) : undefined,
     );
     if (experimentGroup === session.experimentGroup) return session;
     const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
@@ -883,9 +910,16 @@ export const transitionPistonOscillationFreeSession = (
       event.gasType,
     );
     if (experimentGroup === session.experimentGroup) return session;
+    const previousGroup = session.experimentGroup;
     const parameterDraft = applyPistonOscillationRealGasProfile(
       session.parameterDraft,
       event.gasType,
+      createPistonOscillationRealParameterDraft(
+        previousGroup.gasMaterialSnapshot.gasType,
+        previousGroup.scheme === 'real'
+          ? previousGroup.parameterProfileVersion
+          : inferPistonOscillationRealAirProfileVersion(session.parameterDraft),
+      ).sensorResponseTimeS,
     );
     const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
       experimentGroup,
@@ -988,6 +1022,7 @@ export const transitionPistonOscillationFreeSession = (
       'ambientPressureKpa',
       'ambientTemperatureK',
       'thermalRelaxationTimeS',
+      'thermalVolumeExponent',
       'heatFlowLagTimeS',
     ].some((key) => (
       parameterDraft[key as keyof PistonOscillationFreeParameterDraft]
@@ -1021,15 +1056,19 @@ export const transitionPistonOscillationFreeSession = (
       isPistonOscillationFreeExperimentLocked(session)
       || session.experimentGroup.scheme === 'ideal'
     ) return session;
-    const parameterDraft = withDefaultTriggerThreshold(createPistonOscillationRealParameterDraft(
-      session.experimentGroup.gasMaterialSnapshot.gasType,
-    ));
+    const { gasType } = session.experimentGroup.gasMaterialSnapshot;
+    const parameterDraft = withDefaultTriggerThreshold(createPistonOscillationRealParameterDraft(gasType));
+    const experimentGroup = {
+      ...session.experimentGroup,
+      parameterProfileVersion: getPistonOscillationParameterProfileVersion('real', gasType),
+    };
     const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
-      session.experimentGroup,
+      experimentGroup,
       parameterDraft,
     );
     const next = {
       ...session,
+      experimentGroup,
       parameterDraft,
       sampleRateHz: parameterDraft.sampleRateHz,
       triggerThresholdKpa: parameterDraft.triggerThresholdKpa,
@@ -1055,10 +1094,10 @@ export const transitionPistonOscillationFreeSession = (
   }
 
   if (event.type === 'setAcquisitionSetting') {
-    if (
-      isPistonOscillationFreeExperimentLocked(session)
-      || (session.experimentGroup.scheme === 'ideal' && event.field === 'sampleRateHz')
-    ) return session;
+    const settingSampleRate = event.field === 'sampleRateHz';
+    if (settingSampleRate
+      ? !canEditPistonOscillationFreeSampleRate(session)
+      : isPistonOscillationFreeExperimentLocked(session)) return session;
     const parameters = getPistonOscillationFreeEffectiveParameters(session);
     const valueValid = event.field === 'sampleRateHz'
       ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
@@ -1067,9 +1106,20 @@ export const transitionPistonOscillationFreeSession = (
         : isPistonOscillationFreeTriggerThresholdKpa(event.value, parameters.ambientPressureKpa);
     if (!valueValid || parameters[event.field] === event.value) return session;
     const parameterDraft = { ...session.parameterDraft, [event.field]: event.value };
+    const { experimentGroup } = session;
+    const parameterSnapshot = experimentGroup.parameterSnapshot;
     const next = {
       ...session,
-      sampleRateHz: event.field === 'sampleRateHz' ? event.value : session.sampleRateHz,
+      experimentGroup: settingSampleRate && parameterSnapshot
+        ? {
+            ...experimentGroup,
+            parameterSnapshot: {
+              ...parameterSnapshot,
+              parameters: { ...parameterSnapshot.parameters, sampleRateHz: event.value },
+            },
+          }
+        : experimentGroup,
+      sampleRateHz: settingSampleRate ? event.value : session.sampleRateHz,
       triggerThresholdKpa: event.field === 'triggerThresholdKpa' ? event.value : session.triggerThresholdKpa,
       parameterDraft,
       updatedAtMs: event.nowMs,

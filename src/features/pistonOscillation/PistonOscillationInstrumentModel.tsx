@@ -2,6 +2,12 @@ import { useEffect, useLayoutEffect, useMemo } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import type { PistonOscillationModelBounds } from './pistonOscillationCameraViews.ts';
+import {
+  alignPistonOscillationCylinderAndFrame,
+  getRequiredPistonOscillationObject,
+} from './pistonOscillationInstrumentGeometry.ts';
+
+export { getRequiredPistonOscillationObject } from './pistonOscillationInstrumentGeometry.ts';
 
 export const PISTON_OSCILLATION_GLB_PATH =
   `${import.meta.env.BASE_URL}models/piston-oscillation/piston-oscillation.glb`;
@@ -9,6 +15,7 @@ export const PISTON_OSCILLATION_GLB_PATH =
 export const PISTON_OSCILLATION_REQUIRED_NODE_NAMES = [
   'PistonOscillationInstrument_ROOT',
   'Cylinder_Pyrex',
+  'Cylinder_UpperGuideRing',
   'PistonAssembly_MOV',
   'Piston_Graphite',
   'PistonRod',
@@ -17,6 +24,14 @@ export const PISTON_OSCILLATION_REQUIRED_NODE_NAMES = [
   'ScaleTicks_0_to_85mm',
   'ScaleLabel_80',
   'ProtectiveFrame_BackSolidInsert',
+  'ProtectiveFrame_BackPanel',
+  'ProtectiveFrame_BottomSlab',
+  'ProtectiveFrame_FrontPanel',
+  'ProtectiveFrame_LeftPanel',
+  'ProtectiveFrame_RightPanel',
+  'ProtectiveFrame_TopBack',
+  'ProtectiveFrame_TopSlab',
+  'PistonLockingScrew_STATIC',
   'PistonLockingScrew_MovingPart',
   'PistonLockingScrew_KnurledKnob',
   'PressureSensor_ROOT',
@@ -36,17 +51,6 @@ export const PISTON_OSCILLATION_REQUIRED_NODE_NAMES = [
 
 export const clearPistonOscillationInstrumentModelCache = () => {
   useGLTF.clear(PISTON_OSCILLATION_GLB_PATH);
-};
-
-export const getRequiredPistonOscillationObject = (
-  root: THREE.Object3D,
-  nodeName: string,
-) => {
-  const object = root.getObjectByName(nodeName);
-  if (!object) {
-    throw new Error(`Piston-oscillation model is missing node: ${nodeName}`);
-  }
-  return object;
 };
 
 export const measurePistonOscillationModel = (
@@ -125,7 +129,7 @@ export const createPistonOscillationModelInstance = (
 
   getRequiredPistonOscillationObject(root, 'Hose_Main_Connected').visible = true;
   getRequiredPistonOscillationObject(root, 'Hose_Main_DisconnectedAssembly').visible = false;
-  root.updateWorldMatrix(true, true);
+  alignPistonOscillationCylinderAndFrame(root);
   return { root, ownedMaterials };
 };
 

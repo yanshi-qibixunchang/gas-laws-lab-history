@@ -11,9 +11,12 @@ export const evaluatePistonUncertaintyEligibility = (group: PistonOscillationFre
   if (!isUncertaintyTeachingEnvironment(parameters.ambientTemperatureK, parameters.ambientPressureKpa)) {
     return uncertaintyTeachingEligibility('environment');
   }
+  const expected = createPistonOscillationRealParameterDraft(
+    group.gasMaterialSnapshot.gasType,
+    group.parameterProfileVersion,
+  );
   const { ambientTemperatureK: _temperature, ambientPressureKpa: _pressure,
-    sampleRateHz: _rate, triggerThresholdKpa: _trigger, ...fixed } =
-    createPistonOscillationRealParameterDraft(group.gasMaterialSnapshot.gasType);
+    sampleRateHz: _rate, triggerThresholdKpa: _trigger, ...fixed } = expected;
   if (!matchesTeachingSettings(parameters, fixed)) return uncertaintyTeachingEligibility('instrument-model');
   if (!Number.isSafeInteger(parameters.sampleRateHz) || parameters.sampleRateHz! < 1
     || parameters.sampleRateHz! > 1000

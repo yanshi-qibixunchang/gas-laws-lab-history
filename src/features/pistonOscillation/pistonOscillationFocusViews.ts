@@ -117,21 +117,33 @@ export const getPistonHeightAdjustmentCameraDefinition = (
     Math.min(PISTON_EQUILIBRIUM_HEIGHT_MAX_MM, Math.max(0, heightMm))
     - PISTON_OSCILLATION_HEIGHT_ADJUSTMENT_REFERENCE_MM
   ) / 1000;
-  const suggested = PISTON_OSCILLATION_HEIGHT_ADJUSTMENT_SUGGESTED_CAMERA;
-  return {
-    ...suggested,
-    viewport: { ...suggested.viewport },
-    position: [
-      suggested.position[0],
-      suggested.position[1] + heightDeltaM,
-      suggested.position[2],
-    ],
-    target: [
-      suggested.target[0],
-      suggested.target[1] + heightDeltaM,
-      suggested.target[2],
-    ],
-  };
+  return translatePistonOscillationFocusCameraY(
+    PISTON_OSCILLATION_HEIGHT_ADJUSTMENT_SUGGESTED_CAMERA,
+    heightDeltaM,
+  );
+};
+
+export const translatePistonOscillationFocusCameraY = (
+  pose: PistonOscillationFocusCameraDefinition,
+  offsetY: number,
+): PistonOscillationFocusCameraDefinition => ({
+  ...pose,
+  viewport: { ...pose.viewport },
+  position: [pose.position[0], pose.position[1] + offsetY, pose.position[2]],
+  target: [pose.target[0], pose.target[1] + offsetY, pose.target[2]],
+});
+
+export const getPistonScaleReadingCameraCenterY = (
+  pistonLowerY: number,
+  cylinderBottomY: number,
+  cylinderTopY: number,
+  visibleHalfHeightM: number,
+) => {
+  const minimumCenterY = cylinderBottomY + visibleHalfHeightM;
+  const maximumCenterY = cylinderTopY - visibleHalfHeightM;
+  return minimumCenterY <= maximumCenterY
+    ? Math.min(maximumCenterY, Math.max(minimumCenterY, pistonLowerY))
+    : pistonLowerY;
 };
 
 export const getPistonScaleReadingCenterHeightMm = (heightMm: number) => {

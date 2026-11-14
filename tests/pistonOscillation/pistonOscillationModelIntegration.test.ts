@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { Box3, OrthographicCamera, PerspectiveCamera, Texture, Vector3 } from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import {
   WORKBENCH_PISTON_OSCILLATION_CAMERA_PRESETS,
 } from '../../src/features/workbench/workbenchState.ts';
@@ -8,6 +10,19 @@ import {
   PISTON_OSCILLATION_CAMERA_VIEW_SCHEMES,
   createPistonOscillationCameraPose,
 } from '../../src/features/pistonOscillation/pistonOscillationCameraViews.ts';
+import {
+  alignPistonOscillationCylinderAndFrame,
+  getPistonOscillationFrameTopOffsetY,
+  getRequiredPistonOscillationObject,
+  movePistonOscillationObjectWorldY,
+} from '../../src/features/pistonOscillation/pistonOscillationInstrumentGeometry.ts';
+import {
+  PISTON_OSCILLATION_CONFIRMED_FOCUS_CAMERAS,
+  PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA,
+  getPistonScaleReadingCameraCenterY,
+  translatePistonOscillationFocusCameraY,
+} from '../../src/features/pistonOscillation/pistonOscillationFocusViews.ts';
+import { getPistonAssemblyTargetWorldY } from '../../src/features/pistonOscillation/pistonOscillationModelMotion.ts';
 
 const modelPath = new URL(
   '../../public/models/piston-oscillation/piston-oscillation.glb',
@@ -77,6 +92,74 @@ const gltf = JSON.parse(
 assert.equal(gltf.asset?.version, '2.0');
 assert.equal(gltf.asset?.generator, 'Khronos glTF Blender I/O v5.1.19');
 assert.equal(gltf.animations?.length ?? 0, 0, 'the canonical model must not carry a fixed source animation');
+
+// Stub texture loading so Node can measure the bundled mesh vertices without a browser.
+const geometryLoader = new GLTFLoader().register(() => ({
+  name: 'geometry-test-texture',
+  loadTexture: () => Promise.resolve(new Texture()),
+}));
+const { scene: instrument } = await geometryLoader.parseAsync(Uint8Array.from(binary).buffer, '');
+const part = (name: string) => getRequiredPistonOscillationObject(instrument, name);
+const box = (name: string) => new Box3().setFromObject(part(name), true);
+const near = (actual: number, expected: number) => assert.ok(Math.abs(actual - expected) < 1e-6,
+  `Expected ${actual} to match ${expected}`);
+const originalScale = box('ScaleTicks_0_to_85mm');
+const originalBase = box('ProtectiveFrame_BottomSlab');
+const originalCylinderBottom = box('Cylinder_Pyrex').min.y;
+const originalScrew = box('PistonLockingScrew_KnurledKnob').getCenter(new Vector3());
+alignPistonOscillationCylinderAndFrame(instrument);
+const cylinder = box('Cylinder_Pyrex');
+const ring = box('Cylinder_UpperGuideRing');
+const slab = box('ProtectiveFrame_TopSlab');
+near(cylinder.min.y, originalCylinderBottom);
+near(cylinder.max.y, ring.min.y);
+near(ring.max.y, slab.min.y);
+near(box('ProtectiveFrame_LeftPanel').max.y, slab.min.y);
+near(box('ProtectiveFrame_BackPanel').max.y, slab.min.y);
+assert.deepEqual(box('ScaleTicks_0_to_85mm'), originalScale);
+assert.deepEqual(box('ProtectiveFrame_BottomSlab'), originalBase);
+
+const assembly = part('PistonAssembly_MOV');
+const calibrationY = assembly.getWorldPosition(new Vector3()).y;
+const readingPose = PISTON_OSCILLATION_SCALE_READING_SUGGESTED_CAMERA;
+const { width, height } = readingPose.viewport;
+const reading = new OrthographicCamera(-width / 2, width / 2, height / 2, -height / 2);
+reading.zoom = readingPose.zoom;
+reading.updateProjectionMatrix();
+for (const [requestedHeight, offset] of [[0, 0], [40, 0], [75, 0], [75, 8]]) {
+  movePistonOscillationObjectWorldY(assembly, getPistonAssemblyTargetWorldY(calibrationY, {
+    equilibriumHeightMm: requestedHeight,
+    oscillationOffsetMm: offset,
+  }));
+  const graphite = box('Piston_Graphite');
+  if (requestedHeight === 75) near(graphite.max.y, cylinder.max.y);
+  const lowerEdge = graphite.getCenter(new Vector3()).setY(graphite.min.y);
+  const centerY = getPistonScaleReadingCameraCenterY(
+    lowerEdge.y, cylinder.min.y, cylinder.max.y, height / (reading.zoom * 2),
+  );
+  reading.position.set(readingPose.position[0], centerY, readingPose.position[2]);
+  reading.lookAt(readingPose.target[0], centerY, readingPose.target[2]);
+  reading.updateMatrixWorld(true);
+  assert.ok(Math.abs(lowerEdge.project(reading).y) < 1, 'the reading mirror must show the piston edge');
+  if (requestedHeight === 75) {
+    assert.ok(Math.abs(originalScale.max.clone().project(reading).y) < 1, 'the 85 mm mark must remain in view');
+  }
+}
+
+const screwOffset = getPistonOscillationFrameTopOffsetY(instrument);
+assert.ok(screwOffset !== undefined && screwOffset < 0);
+const screwPose = PISTON_OSCILLATION_CONFIRMED_FOCUS_CAMERAS.screwOperationView;
+const projectScrew = (pose: typeof screwPose, point: Vector3) => {
+  const camera = new PerspectiveCamera(pose.fov, pose.viewport.width / pose.viewport.height);
+  camera.position.set(...pose.position);
+  camera.lookAt(...pose.target);
+  camera.updateMatrixWorld(true);
+  return point.clone().project(camera);
+};
+const newScrew = box('PistonLockingScrew_KnurledKnob').getCenter(new Vector3());
+near(newScrew.y - originalScrew.y, screwOffset);
+assert.ok(projectScrew(translatePistonOscillationFocusCameraY(screwPose, screwOffset), newScrew)
+  .distanceTo(projectScrew(screwPose, originalScrew)) < 1e-6, 'the side mirror must track the moved screw');
 
 const requiredNodeNames = [
   'PistonOscillationInstrument_ROOT',
@@ -188,7 +271,7 @@ assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_TRAVEL_M 
 assert.match(interactiveModelSource, /PISTON_OSCILLATION_LOCKING_SCREW_GESTURE_TURNS = 3/);
 assert.match(
   interactiveModelSource,
-  /moveObjectWorldY\(model\.root, model\.pistonAssembly, targetWorldY\);[\s\S]*?equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*?oscillationOffsetMm: pistonOscillationOffsetMm,[\s\S]*?invalidate\(\);[\s\S]*?\[invalidate, model, pistonEquilibriumHeightMm, pistonOscillationOffsetMm\]/,
+  /movePistonOscillationObjectWorldY\(model\.pistonAssembly, targetWorldY\);[\s\S]*?equilibriumHeightMm: pistonEquilibriumHeightMm,[\s\S]*?oscillationOffsetMm: pistonOscillationOffsetMm,[\s\S]*?invalidate\(\);[\s\S]*?\[invalidate, model, pistonEquilibriumHeightMm, pistonOscillationOffsetMm\]/,
   'imperative piston motion must invalidate the demand-rendered canvas for every settling frame',
 );
 assert.match(

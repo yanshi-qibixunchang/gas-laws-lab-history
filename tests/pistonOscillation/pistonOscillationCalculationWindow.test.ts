@@ -44,13 +44,13 @@ const workbenchSource = readSource(
 assert.match(componentSource, /<PromptDialogShell[\s\S]*variant="task"[\s\S]*role="dialog"/);
 assert.match(
   componentSource,
-  /dismiss=\{\{ closeButton: canDismiss, escape: canDismiss, backdrop: canDismiss \}\}/,
-  'the fit/calculation workflow must lock every ambient close channel until answers are complete',
+  /dismiss=\{\{\s*closeButton: canDismiss,\s*escape: calculationSession\.status === 'completed',\s*backdrop: calculationSession\.status === 'completed',\s*\}\}/,
+  'Escape and backdrop clicks must close only completed reviews',
 );
 assert.match(
   componentSource,
-  /calculationSession\.status === 'ready-to-exit'[\s\S]*calculationSession\.status === 'completed'/,
-  'only ready or completed sessions may be dismissed',
+  /const canDismiss = Boolean\(calculationSession\.uncertainty\) \|\| calculationSession\.status === 'ready-to-exit'\s*\|\| calculationSession\.status === 'completed'/,
+  'explicit close remains available for saving uncertainty progress and leaving completed sessions',
 );
 
 assert.match(
@@ -60,7 +60,7 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /const buildKnownConstantRows =[\s\S]*label: 'm（kg）'[\s\S]*label: 'd（mm）'[\s\S]*label: 'P（Pa）'/,
+  /const buildKnownConstantRows =[\s\S]*缸内平衡压强 P（Pa）[\s\S]*label: 'm（kg）'[\s\S]*label: 'd（mm）'/,
   'the fixed constants should live in their own non-interactive known-values grid',
 );
 assert.match(
@@ -156,7 +156,7 @@ assert.match(modelSource, /visibleFieldIds: PistonOscillationCalculationFieldId\
 assert.match(modelSource, /batchAttempts: PistonOscillationCalculationBatchAttemptSnapshot\[\]/);
 assert.match(modelSource, /attemptedAtMs:\s*number \| null;[\s\S]*draftRaw:\s*string \| null;[\s\S]*resolution:\s*PistonOscillationAnswerResolution/);
 assert.match(modelSource, /display-rounded-ordinary-least-squares-v3/);
-assert.match(modelSource, /display-rounded-piston-slope-calculation-v3/);
+assert.match(modelSource, /loaded-equilibrium-piston-slope-calculation-v4/);
 assert.match(componentSource, /const fitHeightMm = run\.fitHeightMm/);
 assert.match(
   componentSource,
@@ -165,7 +165,7 @@ assert.match(
 );
 assert.match(
   modelSource,
-  /const firstConfig = records\[0\]\?\.physicsSnapshot\.config;[\s\S]*records\.some\(\(record\) => \([\s\S]*record\.physicsSnapshot\.config\.ambientPressurePa,[\s\S]*firstConfig\.ambientPressurePa[\s\S]*throw new RangeError\('All fitted runs must use the same saved apparatus parameters\.'\)[\s\S]*pressurePa: firstConfig\?\.ambientPressurePa[\s\S]*\?\? PISTON_OSCILLATION_REFERENCE_PRESSURE_PA/,
+  /const firstPhysics = records\[0\]\?\.physicsSnapshot;[\s\S]*records\.some\(\(record\) => \([\s\S]*record\.physicsSnapshot\.config\.ambientPressurePa,[\s\S]*firstConfig\.ambientPressurePa[\s\S]*throw new RangeError\('All fitted runs must use the same saved apparatus parameters\.'\)[\s\S]*firstPhysics\?\.equilibrium\.equilibriumPressurePa/,
   'calculation knowns must use the pressure frozen in the records and reject mixed apparatus profiles',
 );
 assert.match(modelSource, /status:\s*'selecting-points' \| 'calculating' \| 'ready-to-exit' \| 'completed'/);

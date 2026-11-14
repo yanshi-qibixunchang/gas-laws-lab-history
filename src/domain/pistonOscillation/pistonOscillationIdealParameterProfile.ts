@@ -12,12 +12,18 @@ import {
 
 export const PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION =
   'piston-oscillation-ideal-parameter-profile-v1' as const;
+export const PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION =
+  'piston-oscillation-ideal-air-parameter-profile-v2' as const;
+
+type PistonOscillationIdealParameterProfileVersion =
+  | typeof PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
+  | typeof PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION;
 
 export const PISTON_OSCILLATION_IDEAL_SAMPLE_RATE_HZ = 1_000 as const;
 export const PISTON_OSCILLATION_IDEAL_TRIGGER_THRESHOLD_KPA = PISTON_DEFAULT_TRIGGER_KPA;
 
 export interface PistonOscillationIdealParameterProfile {
-  version: typeof PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION;
+  version: PistonOscillationIdealParameterProfileVersion;
   parameters: PistonOscillationFreeParameterDraft;
   physicsConfig: PistonOscillationPhysicsConfig;
   heightPolicy: 'plan-target-magnetic-snap-with-physical-final-coordinate';
@@ -27,7 +33,9 @@ export interface PistonOscillationIdealParameterProfile {
   scoringEligible: false;
 }
 
-export const createPistonOscillationIdealParameterDraft = () => {
+export const createPistonOscillationIdealParameterDraft = (
+  version: string = PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+) => {
   const defaults = createDefaultPistonOscillationFreeParameterDraft();
   return normalizePistonOscillationFreeParameterDraft({
     ...defaults,
@@ -37,6 +45,8 @@ export const createPistonOscillationIdealParameterDraft = () => {
       DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG.ambientTemperatureK,
     sampleRateHz: PISTON_OSCILLATION_IDEAL_SAMPLE_RATE_HZ,
     triggerThresholdKpa: PISTON_OSCILLATION_IDEAL_TRIGGER_THRESHOLD_KPA,
+    ...(version === PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION
+      ? { recordingDurationS: 1 } : {}),
     sensorFluctuationEnabled: false,
     tailIrregularityEnabled: false,
     equivalentLinearLossNsPerM: 0,
@@ -50,10 +60,13 @@ export const createPistonOscillationIdealParameterDraft = () => {
 
 export const createPistonOscillationIdealParameterProfile = (
   gamma: number,
+  profileVersion: string = PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
 ): PistonOscillationIdealParameterProfile => {
-  const parameters = createPistonOscillationIdealParameterDraft();
+  const version = profileVersion === PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION
+    ? profileVersion : PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION;
+  const parameters = createPistonOscillationIdealParameterDraft(version);
   return {
-    version: PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+    version,
     parameters,
     physicsConfig: normalizePistonOscillationPhysicsConfig({
       ...DEFAULT_PISTON_OSCILLATION_PHYSICS_CONFIG,

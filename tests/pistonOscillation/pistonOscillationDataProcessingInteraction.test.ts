@@ -44,6 +44,11 @@ const pointerMoveStart = panelSource.indexOf('const handlePointerMove');
 const pointerMoveEnd = panelSource.indexOf('const finishPointerInteraction', pointerMoveStart);
 const pointerMoveSource = panelSource.slice(pointerMoveStart, pointerMoveEnd);
 
+assert.match(panelSource, /if \(pendingFreeCalculation\) \{\s*setReviewRunIndex\(runIndex - 1\);\s*return;/,
+  'navigating earlier curves during a saved calculation must preserve the calculation state');
+assert.match(panelSource, /pendingFreeCalculation \? \(\s*<button[^>]+onClick=\{onOpenCalculationReview\}[^>]*>\s*\{copy\.resumeCalculation\}/,
+  'a paused calculation must be directly resumable from the period panel');
+
 assert.match(
   pointerMoveSource,
   /const position = getPointerPosition\(event\);[\s\S]*const currentX = clamp\(position\.x,[\s\S]*setChartDrag\(\(current\) =>[\s\S]*currentX/,

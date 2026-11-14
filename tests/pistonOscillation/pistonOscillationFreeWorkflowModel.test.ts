@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import {
+  canEditPistonOscillationFreeSampleRate,
   canRunPistonOscillationFreeExperiment,
   createDefaultPistonOscillationFreeSession,
   createPistonOscillationFreeExperimentPlan,
@@ -20,6 +21,7 @@ import {
 import {
   resolvePistonOscillationFreeEffectiveConfig,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
+import { PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationIdealParameterProfile.ts';
 import {
   createPistonOscillationRawMeasurementRecord,
   type PistonOscillationRawMeasurementRecord,
@@ -32,8 +34,13 @@ import {
 } from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 import {
   PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V4,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+  PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  createPistonOscillationRealParameterDraft,
 } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
+import { createDefaultPistonOscillationFreeParameterDraft } from '../../src/domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 import {
   createPistonOscillationCurrentRecordTestArtifacts,
 } from './helpers/pistonOscillationCurrentRecordTestFactory.ts';
@@ -61,6 +68,7 @@ const createMeasurement = (
     lockedHeightMm: targetHeightMm,
     sampleRateHz,
     samples,
+    parameters: createPistonOscillationRealParameterDraft('air'),
   });
   return createPistonOscillationRawMeasurementRecord({
     recordId: `free-${measurementIndex}-${capturedAtMs}`,
@@ -95,6 +103,7 @@ const createUnusableMeasurement = (
     lockedHeightMm: targetHeightMm,
     sampleRateHz,
     samples,
+    parameters: createPistonOscillationRealParameterDraft('air'),
   });
   return createPistonOscillationRawMeasurementRecord({
     recordId: `free-unusable-${measurementIndex}-${capturedAtMs}`,
@@ -147,11 +156,11 @@ const customPlan = createPistonOscillationFreeExperimentPlan([29, 75, 65], {
   customHeightCandidatesMm: [65, 29, 12],
 });
 assert.deepEqual(customPlan.targetHeightsMm, [75, 65, 29]);
-assert.deepEqual(customPlan.customHeightCandidatesMm, [65, 29, 12]);
+assert.deepEqual(customPlan.customHeightCandidatesMm, [75, 65, 29, 12]);
 assert.deepEqual(
   customPlan.targets.map(({ heightMm, source }) => ({ heightMm, source })),
   [
-    { heightMm: 75, source: 'system' },
+    { heightMm: 75, source: 'custom' },
     { heightMm: 65, source: 'custom' },
     { heightMm: 29, source: 'custom' },
   ],
@@ -175,7 +184,7 @@ const idealAirSelection = transitionPistonOscillationFreeSession(active, {
 assert.equal(idealAirSelection.experimentGroup.scheme, 'ideal');
 assert.equal(
   idealAirSelection.experimentGroup.parameterProfileVersion,
-  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION,
 );
 assert.equal(canRunPistonOscillationFreeExperiment(idealAirSelection), true);
 const idealAirEffectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
@@ -184,6 +193,7 @@ const idealAirEffectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
 );
 assert.equal(idealAirEffectiveConfig.parameters.sampleRateHz, 1_000);
 assert.equal(idealAirEffectiveConfig.parameters.triggerThresholdKpa, 120);
+assert.equal(idealAirEffectiveConfig.parameters.recordingDurationS, 1);
 assert.equal(idealAirEffectiveConfig.physicsConfig.linearDampingNsPerM, 0);
 assert.equal(idealAirEffectiveConfig.adiabaticProcess, true);
 assert.equal(idealAirEffectiveConfig.exactSensorObservation, true);
@@ -201,6 +211,12 @@ const idealWithCustomAcquisition = transitionPistonOscillationFreeSession(
 const restoredIdealAcquisition = normalizePistonOscillationFreeSession(idealWithCustomAcquisition);
 assert.equal(restoredIdealAcquisition.triggerThresholdKpa, 118);
 assert.equal(restoredIdealAcquisition.parameterDraft.recordingDurationS, 0.125);
+const lockedIdealAcquisition = transitionPistonOscillationFreeSession(restoredIdealAcquisition, {
+  type: 'observeOperation', operation: 'startAcquisition', nowMs: 101.25,
+});
+const reloadedIdealAcquisition = normalizePistonOscillationFreeSession(lockedIdealAcquisition);
+assert.equal(reloadedIdealAcquisition.experimentGroup.parameterSnapshot?.parameters.recordingDurationS, 0.125);
+assert.equal(reloadedIdealAcquisition.triggerThresholdKpa, 118);
 assert.equal(transitionPistonOscillationFreeSession(restoredIdealAcquisition, {
   type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 2.01, nowMs: 101.3,
 }), restoredIdealAcquisition);
@@ -270,6 +286,9 @@ const idealHeliumSelection = transitionPistonOscillationFreeSession(idealAirSele
 });
 assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.gasType, 'helium');
 assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.adiabaticIndex, 5 / 3);
+assert.equal(resolvePistonOscillationFreeEffectiveConfig(
+  idealHeliumSelection.experimentGroup, idealHeliumSelection.parameterDraft,
+).parameters.recordingDurationS, undefined);
 assert.equal(canRunPistonOscillationFreeExperiment(idealHeliumSelection), true);
 assert.equal(
   idealHeliumSelection.parameterDraft.thermalRelaxationTimeS,
@@ -364,7 +383,64 @@ assert.equal(
   PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
 );
 assert.equal(canRunPistonOscillationFreeExperiment(realAirSelection), true);
-assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.05);
+assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.012);
+assert.equal(realAirSelection.parameterDraft.sensorResponseTimeS, 0.0025);
+const priorAirProfile = PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION;
+const priorAir = normalizePistonOscillationFreeSession({
+  ...realAirSelection,
+  parameterDraft: createPistonOscillationRealParameterDraft('air', priorAirProfile),
+  experimentGroup: { ...realAirSelection.experimentGroup, parameterProfileVersion: priorAirProfile },
+});
+assert.equal(priorAir.parameterDraft.sensorResponseTimeS, 0.0055);
+const priorAirAfterSchemeChange = transitionPistonOscillationFreeSession(
+  transitionPistonOscillationFreeSession(priorAir, {
+    type: 'setExperimentScheme', scheme: 'ideal', nowMs: 106.01,
+  }),
+  { type: 'setExperimentScheme', scheme: 'real', nowMs: 106.02 },
+);
+assert.equal(priorAirAfterSchemeChange.experimentGroup.parameterProfileVersion, priorAirProfile);
+assert.deepEqual(priorAirAfterSchemeChange.parameterDraft, priorAir.parameterDraft);
+const previousObservationProfile = PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V4;
+const previousObservationDraft = createPistonOscillationRealParameterDraft('air', previousObservationProfile);
+const previousObservationSession = normalizePistonOscillationFreeSession({
+  ...realAirSelection,
+  parameterDraft: previousObservationDraft,
+  experimentGroup: {
+    ...realAirSelection.experimentGroup,
+    parameterProfileVersion: previousObservationProfile,
+  },
+});
+assert.equal(previousObservationSession.experimentGroup.parameterProfileVersion, previousObservationProfile);
+assert.equal(previousObservationSession.parameterDraft.tailIntensity, 0);
+assert.equal(resolvePistonOscillationFreeEffectiveConfig(
+  previousObservationSession.experimentGroup, previousObservationSession.parameterDraft,
+).tailIrregularityEnabled, false);
+assert.equal(resolvePistonOscillationFreeEffectiveConfig(
+  realAirSelection.experimentGroup, realAirSelection.parameterDraft,
+).tailIrregularityEnabled, true);
+const legacyAir = normalizePistonOscillationFreeSession({
+  ...realAirSelection,
+  parameterDraft: createDefaultPistonOscillationFreeParameterDraft(),
+  experimentGroup: {
+    ...realAirSelection.experimentGroup,
+    parameterProfileVersion: PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  },
+});
+assert.equal(legacyAir.parameterDraft.thermalRelaxationTimeS, 0.05);
+assert.equal(legacyAir.parameterDraft.thermalVolumeExponent, undefined);
+const legacyAirAfterSchemeChange = transitionPistonOscillationFreeSession(
+  transitionPistonOscillationFreeSession(legacyAir, {
+    type: 'setExperimentScheme', scheme: 'ideal', nowMs: 106.1,
+  }),
+  { type: 'setExperimentScheme', scheme: 'real', nowMs: 106.2 },
+);
+assert.equal(legacyAirAfterSchemeChange.experimentGroup.parameterProfileVersion,
+  PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION);
+const upgradedAir = transitionPistonOscillationFreeSession(legacyAirAfterSchemeChange, {
+  type: 'restoreDefaultParameters', nowMs: 106.3,
+});
+assert.equal(upgradedAir.experimentGroup.parameterProfileVersion, PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION);
+assert.equal(upgradedAir.parameterDraft.thermalVolumeExponent, 1);
 assert.equal(
   normalizePistonOscillationFreeSession(
     JSON.parse(JSON.stringify(idealHeliumSelection)),
@@ -582,6 +658,42 @@ const lockedByBottomImpact = transitionPistonOscillationFreeSession(withPower, {
   nowMs: 133,
 });
 assert.equal(lockedByBottomImpact.experimentGroup.lock?.reason, 'bottom-impact');
+assert.equal(canEditPistonOscillationFreeSampleRate(lockedByBottomImpact), false);
+
+const impactBeforeSettingSampleRate = transitionPistonOscillationFreeSession(configured, {
+  type: 'observeOperation',
+  operation: 'bottomImpact',
+  nowMs: 134,
+});
+const restoredImpactBeforeSettingSampleRate = normalizePistonOscillationFreeSession(
+  JSON.parse(JSON.stringify(impactBeforeSettingSampleRate)),
+);
+assert.equal(canEditPistonOscillationFreeSampleRate(restoredImpactBeforeSettingSampleRate), true);
+const setMissingSampleRate = {
+  type: 'setAcquisitionSetting', field: 'sampleRateHz', value: 800, nowMs: 134.1,
+} as const;
+const filledSampleRateAfterImpact = transitionPistonOscillationFreeSession(
+  restoredImpactBeforeSettingSampleRate,
+  setMissingSampleRate,
+);
+assert.deepEqual(filledSampleRateAfterImpact.experimentGroup.lock,
+  restoredImpactBeforeSettingSampleRate.experimentGroup.lock);
+assert.deepEqual(filledSampleRateAfterImpact.experimentGroup.parameterSnapshot?.parameters, {
+  ...restoredImpactBeforeSettingSampleRate.experimentGroup.parameterSnapshot?.parameters,
+  sampleRateHz: 800,
+});
+const restoredFilledSampleRate = normalizePistonOscillationFreeSession(
+  JSON.parse(JSON.stringify(filledSampleRateAfterImpact)),
+);
+assert.equal(restoredFilledSampleRate.sampleRateHz, 800);
+assert.equal(canEditPistonOscillationFreeSampleRate(restoredFilledSampleRate), false);
+const previouslyStartedAfterImpact = transitionPistonOscillationFreeSession(
+  restoredImpactBeforeSettingSampleRate,
+  { type: 'observeOperation', operation: 'startAcquisition', nowMs: 134.2 },
+);
+assert.equal(transitionPistonOscillationFreeSession(previouslyStartedAfterImpact, {
+  ...setMissingSampleRate, nowMs: 134.3,
+}), previouslyStartedAfterImpact);
 
 const withInstrumentState = transitionPistonOscillationFreeSession(withOperation, {
   type: 'setInstrumentState',
