@@ -14,7 +14,7 @@ interface PromptTooltipProviderProps {
 }
 
 interface ActivePromptTooltip {
-  target: HTMLElement;
+  target: Element;
   text: string;
 }
 
@@ -29,11 +29,16 @@ const tooltipSelector = '[data-prompt-tooltip]';
 
 const getTooltipTarget = (source: EventTarget | null) => {
   if (!(source instanceof Element)) return null;
-  const target = source.closest<HTMLElement>(tooltipSelector);
+  const target = source.closest(tooltipSelector);
   if (!target) return null;
-  const text = target.dataset.promptTooltip?.trim();
+  const text = target.getAttribute('data-prompt-tooltip')?.trim();
   return text ? { target, text } : null;
 };
+
+const hasTooltipFocus = (target: Element) => (
+  target.contains(document.activeElement)
+  && (!target.hasAttribute('data-prompt-tooltip-focus-visible') || target.matches(':focus-visible'))
+);
 
 const promoteNativeTitle = (element: Element) => {
   if (!(element instanceof HTMLElement)) return;
@@ -54,7 +59,7 @@ export const PromptTooltipProvider = ({ children }: PromptTooltipProviderProps) 
   const generatedId = useId();
   const tooltipId = `${generatedId}-prompt-tooltip`;
   const tooltipRef = useRef<HTMLDivElement | null>(null);
-  const hoverTargetRef = useRef<HTMLElement | null>(null);
+  const hoverTargetRef = useRef<Element | null>(null);
   const showTimerRef = useRef<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
   const [activeTooltip, setActiveTooltip] = useState<ActivePromptTooltip | null>(null);
@@ -127,16 +132,22 @@ export const PromptTooltipProvider = ({ children }: PromptTooltipProviderProps) 
       if (!current) return;
       if (event.relatedTarget instanceof Node && current.target.contains(event.relatedTarget)) return;
       if (hoverTargetRef.current === current.target) hoverTargetRef.current = null;
-      if (current.target.contains(document.activeElement)) return;
-      hideTooltip();
+      if (hasTooltipFocus(current.target)) return;
+      if (current.target.hasAttribute('data-prompt-tooltip-focus-visible')) {
+        clearShowTimer();
+        clearHideTimer();
+        setActiveTooltip(null);
+      } else {
+        hideTooltip();
+      }
     };
     const handleFocusIn = (event: FocusEvent) => {
       const next = getTooltipTarget(event.target);
-      if (!next) return;
+      if (!next || !hasTooltipFocus(next.target)) return;
       scheduleTooltip(
         next,
         PROMPT_TOOLTIP_DELAY_MS.focus,
-        () => next.target.contains(document.activeElement),
+        () => hasTooltipFocus(next.target),
       );
     };
     const handleFocusOut = (event: FocusEvent) => {

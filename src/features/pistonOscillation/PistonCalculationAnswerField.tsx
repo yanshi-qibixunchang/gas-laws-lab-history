@@ -48,7 +48,7 @@ export const PistonCalculationAnswerField = ({
             {resolved ? `${copy.reference}${reference}` : `${copy.reference}\u00A0`}
           </span>
           {hasFeedback ? <span className="studio-piston-calculation-error-actions">
-            <button type="button" onClick={onContinue}>{copy.continueAnswer}</button>
+            <button type="button" data-calculation-retry onClick={onContinue}>{copy.continueAnswer}</button>
             <button type="button" className="studio-piston-calculation-reveal" onClick={onReveal}>{copy.revealAnswer}</button>
           </span> : <span className="studio-piston-calculation-actions-placeholder" aria-hidden="true" />}
         </div>

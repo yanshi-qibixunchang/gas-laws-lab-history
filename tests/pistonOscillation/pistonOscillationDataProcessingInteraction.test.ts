@@ -106,8 +106,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /answerFocusProgressRef[\s\S]*periodInputRef\.current\?\.focus\(\)[\s\S]*nextRunButtonRef\.current\?\.focus\(\)/,
-  'successful endpoint and period submissions must move keyboard focus to the newly unlocked action',
+  /answerFocusProgressRef[\s\S]*fieldControl\(retry, 'input:not\(:disabled\)'\)[\s\S]*nextRunButtonRef\.current[\s\S]*fieldControl\('period', 'input:not\(:disabled\)'\)[\s\S]*focusCalculationControl\(target\)/,
+  'period entry, retries and completion must focus and reveal the corresponding control',
 );
 assert.match(
   panelSource,

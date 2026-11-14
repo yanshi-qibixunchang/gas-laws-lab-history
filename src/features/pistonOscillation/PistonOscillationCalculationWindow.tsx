@@ -15,6 +15,7 @@ import {
   type CalculationKnownDatum,
 } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
+import { focusCalculationControl } from '../../components/calculation/focusCalculationControl.ts';
 import {
   PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
   getPistonCalculationSpec,
@@ -43,10 +44,14 @@ import {
 } from './pistonOscillationCalculationCopy.ts';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import './PistonOscillationCalculationWindow.css';
-import { calculatePistonUncertainty } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
+import {
+  activePistonUncertaintyPhase,
+  calculatePistonUncertainty,
+  PISTON_UNCERTAINTY_FIELDS,
+  pistonUncertaintyComplete,
+} from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import { PistonCalculationAnswerField } from './PistonCalculationAnswerField.tsx';
 import { PistonOscillationUncertainty, buildPistonUncertaintyKnownData } from './PistonOscillationUncertainty.tsx';
-import { pistonUncertaintyComplete } from '../../domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 import { getUncertaintyTeachingNotice } from '../../domain/calculation/uncertaintyTeachingEligibility.ts';
 
 export interface PistonOscillationCalculationWindowProps {
@@ -290,6 +295,7 @@ const PistonOscillationCalculationField = ({
   onCalculationEvent,
   onAction,
   onDraftEdited,
+  onRetry,
 }: {
   fieldId: PistonOscillationCalculationFieldId;
   answer: PistonOscillationCalculationAnswerState;
@@ -302,6 +308,7 @@ const PistonOscillationCalculationField = ({
   onCalculationEvent: (event: PistonOscillationCalculationEvent) => void;
   onAction: () => void;
   onDraftEdited: () => void;
+  onRetry: (field: PistonOscillationCalculationFieldId) => void;
 }) => {
   const precision = getPistonCalculationSpec(fieldId, answer).precision;
   const dispatch = (event: PistonOscillationUntimedCalculationEvent) =>
@@ -313,7 +320,10 @@ const PistonOscillationCalculationField = ({
     reference={answer.expectedValue === null ? '' : formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue, answer)}
     active={active} actionLabel={actionLabel} actionDisabled={actionDisabled} copy={copy}
     onDraftChange={value => { onDraftEdited(); dispatch({ type: 'editCalculationAnswer', field: fieldId, value }); }}
-    onContinue={() => dispatch(batchMode ? { type: 'continueCalculationBatch' } : { type: 'continueCalculationAnswer', field: fieldId })}
+    onContinue={() => {
+      onRetry(fieldId);
+      dispatch(batchMode ? { type: 'continueCalculationBatch' } : { type: 'continueCalculationAnswer', field: fieldId });
+    }}
     onReveal={() => dispatch({ type: 'revealCalculationAnswer', field: fieldId })} onCheck={onAction} />;
 };
 
@@ -487,6 +497,7 @@ export const PistonOscillationCalculationWindow = ({
   const [interactionRevision, setInteractionRevision] = useState(0);
   const [pulseTarget, setPulseTarget] = useState<'rows' | 'confirm' | null>(null);
   const [batchFormatInvalid, setBatchFormatInvalid] = useState(false);
+  const retryField = useRef<PistonOscillationCalculationFieldId | null>(null);
   const batchMode = processing?.processingPolicy.answerValidationMode === 'batch';
   const selectedRunIndices = calculationSession?.selectedRunIndices ?? [];
   const selectedRunSet = useMemo(
@@ -658,7 +669,38 @@ export const PistonOscillationCalculationWindow = ({
       ? calculationSession.visibleFieldIds
       : CALCULATION_FIELD_ORDER.slice(0, Math.max(1, activeFieldIndex + 1))
     : [];
+  const course = calculationSession.uncertainty;
+  const phase = course ? activePistonUncertaintyPhase(course) : null;
+  const unreadPhase = Boolean(course && phase && !course.readPhases.includes(phase));
+  const uncertaintyField = course && phase
+    ? PISTON_UNCERTAINTY_FIELDS[phase].find(id => course.answers[id].status === 'unresolved')
+    : undefined;
+  const uncertaintyFeedback = Boolean(course && uncertaintyField && course.answers[uncertaintyField].feedback);
+  const basicFeedback = visibleFieldIds.filter(id => calculationSession.answers[id].feedback !== null);
+  const editable = (id: PistonOscillationCalculationFieldId) =>
+    visibleFieldIds.includes(id) && calculationSession.answers[id].status === 'unresolved';
+  const preferredField = batchMode && retryField.current && editable(retryField.current) ? retryField.current
+    : calculationSession.activeFieldId && editable(calculationSession.activeFieldId) ? calculationSession.activeFieldId
+      : visibleFieldIds.find(editable);
+  let focusSelector = '.studio-piston-calculation-exit';
+  if (selectingPoints) {
+    focusSelector = '[data-piston-fit-run-index]:not([tabindex="-1"])';
+  } else if (calculationSession.status === 'calculating') {
+    if (basicFeedback.length) {
+      focusSelector = `[data-piston-calculation-step="${basicFeedback[0]}"] [data-calculation-retry]`;
+    } else if (preferredField) {
+      focusSelector = `#piston-calculation-${preferredField}:not(:disabled)`;
+    } else {
+      focusSelector = '.studio-piston-calculation-batch-retry:not(:disabled)';
+    }
+  } else if (course && calculationSession.status === 'ready-to-exit') {
+    if (unreadPhase) focusSelector = '[data-uncertainty-start]';
+    else if (uncertaintyFeedback) focusSelector = '[data-uncertainty-current="true"] [data-calculation-retry]';
+    else if (uncertaintyField) focusSelector = `#piston-uncertainty-${uncertaintyField}:not(:disabled)`;
+    else focusSelector = '.piston-uncertainty-result';
+  }
   const submitCalculationBatch = () => {
+    retryField.current = null;
     if (getInvalidPistonOscillationCalculationBatchFields(calculationSession).length > 0) {
       setBatchFormatInvalid(true);
       return;
@@ -689,12 +731,9 @@ export const PistonOscillationCalculationWindow = ({
         backdrop: calculationSession.status === 'completed',
       }}
       onRequestClose={handleDismiss}
-      initialFocusSelector={selectingPoints
-        ? '[data-piston-fit-run-index]:not([tabindex="-1"])'
-        : calculationSession.status === 'calculating' && calculationSession.activeFieldId
-          ? `#piston-calculation-${calculationSession.activeFieldId}:not(:disabled)`
-          : '.studio-piston-calculation-exit'}
-      focusKey={`${calculationSession.status}:${calculationSession.activeFieldId ?? 'none'}:${selectedRunIndices.join('-')}`}
+      initialFocusSelector={focusSelector}
+      focusControl={focusCalculationControl}
+      focusKey={`${focusSelector}:${phase ?? ''}:${basicFeedback.join(',')}`}
       dialogRef={dialogRef}
       overlayClassName="studio-settings-overlay studio-piston-calculation-overlay"
       dialogClassName="studio-settings-window studio-piston-calculation-window"
@@ -810,10 +849,14 @@ export const PistonOscillationCalculationWindow = ({
                   ? finalCalculationField
                     ? submitCalculationBatch
                     : () => {
+                        retryField.current = null;
                         setBatchFormatInvalid(false);
                         dispatch({ type: 'revealNextCalculationField', field: fieldId });
                       }
-                  : () => dispatch({ type: 'submitCalculationField', field: fieldId });
+                  : () => {
+                      retryField.current = null;
+                      dispatch({ type: 'submitCalculationField', field: fieldId });
+                    };
                 return (
                   <PistonOscillationCalculationField
                     key={fieldId}
@@ -828,6 +871,7 @@ export const PistonOscillationCalculationWindow = ({
                     onCalculationEvent={onCalculationEvent}
                     onAction={onAction}
                     onDraftEdited={() => setBatchFormatInvalid(false)}
+                    onRetry={id => { retryField.current = id; }}
                   />
                 );
               })}

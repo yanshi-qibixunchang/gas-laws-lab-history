@@ -39,6 +39,7 @@ interface PromptDialogShellProps {
   onDialogKeyDown?: (event: ReactKeyboardEvent<HTMLElement>) => void;
   initialFocusRef?: { current: HTMLElement | null };
   initialFocusSelector?: string;
+  focusControl?: (element: HTMLElement) => void;
   focusKey?: string | number | boolean | null;
   focusOnOpen?: boolean;
   restoreFocus?: boolean;
@@ -109,6 +110,7 @@ export const PromptDialogShell = ({
   onDialogKeyDown,
   initialFocusRef,
   initialFocusSelector,
+  focusControl,
   focusKey = null,
   focusOnOpen = true,
   restoreFocus = true,
@@ -159,8 +161,9 @@ export const PromptDialogShell = ({
       ?? dialog.querySelector<HTMLElement>('[data-prompt-initial-focus="true"]')
       ?? getFocusableElements()[0]
       ?? dialog;
-    requested.focus();
-  }, [getFocusableElements]);
+    if (focusControl) focusControl(requested);
+    else requested.focus();
+  }, [focusControl, getFocusableElements]);
 
   useEffect(() => {
     returnFocusRef.current = (returnFocusSelector

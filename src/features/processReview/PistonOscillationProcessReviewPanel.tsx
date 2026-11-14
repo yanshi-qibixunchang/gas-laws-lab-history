@@ -8,6 +8,7 @@ import type {
 import {
   ExperimentProcessReviewPanel,
 } from './ExperimentProcessReviewPanel.tsx';
+import type { ExperimentProcessReviewScoreDetail } from './ExperimentProcessReviewPanel.tsx';
 import {
   selectPistonOscillationProcessReviewModels,
 } from './pistonOscillationProcessReviewModel.ts';
@@ -16,6 +17,15 @@ interface PistonOscillationProcessReviewPanelProps {
   session: PistonOscillationFreeSession;
   language: PistonOscillationLanguage;
 }
+
+const formatScoreCopy = <T extends Pick<ExperimentProcessReviewScoreDetail,
+  'evidence' | 'consequence' | 'suggestion'
+>>(entry: T): T => ({
+  ...entry,
+  evidence: entry.evidence.replace(/[。.]$/u, ''),
+  consequence: entry.consequence.replace(/[。.]$/u, ''),
+  suggestion: entry.suggestion.replace(/[。.]$/u, ''),
+});
 
 export const PistonOscillationProcessReviewPanel: React.FC<
   PistonOscillationProcessReviewPanelProps
@@ -41,7 +51,13 @@ export const PistonOscillationProcessReviewPanel: React.FC<
 
   return (
     <ExperimentProcessReviewPanel
-      model={selectedModel}
+      model={{
+        ...selectedModel,
+        scoreRows: selectedModel.scoreRows.map((row) => ({
+          ...formatScoreCopy(row),
+          details: row.details?.map(formatScoreCopy),
+        })),
+      }}
       language={language}
       onSelectedOptionChange={setSelectedOptionId}
     />

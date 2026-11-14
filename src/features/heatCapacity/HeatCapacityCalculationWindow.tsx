@@ -11,6 +11,7 @@ import {
   type CalculationKnownDatum,
 } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
+import { focusCalculationControl } from '../../components/calculation/focusCalculationControl.ts';
 import {
   getHeatCapacityCalculationWorkflowField,
   getHeatCapacityCalculationNextPage,
@@ -539,7 +540,7 @@ const HeatCapacityCalculationField = ({
         </span>
         {field.feedback !== null ? (
           <span className="studio-heat-calculation-error-actions">
-            <button type="button" onClick={() => onContinueAnswer(field.id)}>
+            <button type="button" data-calculation-retry onClick={() => onContinueAnswer(field.id)}>
               {copy.continueAnswer}
             </button>
             <button
@@ -675,6 +676,7 @@ export const HeatCapacityCalculationWindow = ({
 }: HeatCapacityCalculationWindowProps) => {
   const generatedId = useId();
   const stepsRef = useRef<HTMLDivElement>(null);
+  const retryField = useRef<{ stepId: string | null; fieldId: string } | null>(null);
   const nextPage = open && session ? getHeatCapacityCalculationNextPage(session) : null;
   useEffect(() => {
     if (nextPage !== null || session?.status === 'ready-to-exit') {
@@ -718,6 +720,25 @@ export const HeatCapacityCalculationWindow = ({
     '--studio-heat-calculation-value-width': `${longestValueLength + 1}ch`,
   } as CSSProperties;
   const visibleSteps = getHeatCapacityCalculationWorkflowVisibleSteps(session);
+  const activeStep = session.presentation === 'interactive' && session.status === 'in-progress'
+    ? visibleSteps.find(step => step.id === session.activeStepId)
+    : undefined;
+  const activeFields = activeStep?.fieldIds.map(id => getHeatCapacityCalculationWorkflowField(session, id));
+  const retry = retryField.current;
+  const retryAnswer = retry && retry.stepId === activeStep?.id
+    ? activeFields?.find(field => field?.id === retry.fieldId && field.feedback === null
+        && field.answer.status === 'unresolved')
+    : undefined;
+  const feedbackFields = activeFields?.filter(field => field?.feedback) ?? [];
+  const editableField = activeFields?.find(field => field?.answer.status === 'unresolved' && field.feedback === null);
+  const focusField = retryAnswer ?? feedbackFields[0] ?? editableField;
+  const focusSelector = focusField
+    ? `[data-heat-capacity-calculation-field="${focusField.id}"] ${focusField.feedback ? '[data-calculation-retry]' : 'input:not(:disabled)'}`
+    : '.studio-heat-calculation-exit';
+  const focusKey = [
+    session.activeStepId, session.status, session.presentation, session.selectedGroupIndex,
+    session.aggregateSelected, focusSelector, ...feedbackFields.map(field => field!.id),
+  ].join(':');
 
   return (
     <PromptDialogShell
@@ -730,12 +751,9 @@ export const HeatCapacityCalculationWindow = ({
       closeLabel={copy.close}
       dismiss={{ closeButton: canDismiss, escape: canDismiss, backdrop: canDismiss }}
       onRequestClose={handleDismiss}
-      initialFocusSelector={
-        '.studio-heat-calculation-step-active input:not(:disabled), ' +
-        '.studio-heat-calculation-step-active button:not(:disabled), ' +
-        '.studio-heat-calculation-exit, .studio-settings-close'
-      }
-      focusKey={`${session.activeStepId}:${session.status}:${session.presentation}:${session.selectedGroupIndex}:${session.aggregateSelected}`}
+      initialFocusSelector={focusSelector}
+      focusControl={focusCalculationControl}
+      focusKey={focusKey}
       overlayClassName="studio-settings-overlay studio-heat-calculation-overlay"
       dialogClassName="studio-settings-window studio-heat-calculation-window"
       headerClassName="studio-settings-header studio-heat-calculation-header"
@@ -830,9 +848,18 @@ export const HeatCapacityCalculationWindow = ({
               step={step}
               language={language}
               onDraftChange={onDraftChange}
-              onSubmitStep={onSubmitStep}
-              onContinueAnswer={onContinueAnswer}
-              onRevealAnswer={onRevealAnswer}
+              onSubmitStep={stepId => {
+                retryField.current = null;
+                onSubmitStep(stepId);
+              }}
+              onContinueAnswer={fieldId => {
+                retryField.current = { stepId: session.activeStepId, fieldId };
+                onContinueAnswer(fieldId);
+              }}
+              onRevealAnswer={fieldId => {
+                retryField.current = null;
+                onRevealAnswer(fieldId);
+              }}
             />
           ))}
         </div>

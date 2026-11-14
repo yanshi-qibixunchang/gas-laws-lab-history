@@ -7,8 +7,8 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
-  type Ref,
 } from 'react';
+import { focusCalculationControl } from '../../components/calculation/focusCalculationControl.ts';
 import {
   Check,
   ChevronLeft,
@@ -277,7 +277,6 @@ const PistonOscillationPeriodAnswerField = ({
   language,
   disabled,
   pulse,
-  inputRef,
   onDraftChange,
   onContinue,
   onReveal,
@@ -292,7 +291,6 @@ const PistonOscillationPeriodAnswerField = ({
   language: PistonOscillationLanguage;
   disabled: boolean;
   pulse: boolean;
-  inputRef?: Ref<HTMLInputElement>;
   onDraftChange: (value: string) => void;
   onContinue: () => void;
   onReveal: () => void;
@@ -329,7 +327,6 @@ const PistonOscillationPeriodAnswerField = ({
         <span>{label}</span>
         <div className="piston-period-answer-input-wrap">
           <input
-            ref={inputRef}
             type="text"
             inputMode="decimal"
             autoComplete="off"
@@ -366,7 +363,7 @@ const PistonOscillationPeriodAnswerField = ({
         </span>
         {outcome ? (
           <div>
-            <button type="button" onClick={onContinue}>{copy.continueAnswer}</button>
+            <button type="button" data-calculation-retry onClick={onContinue}>{copy.continueAnswer}</button>
             <button type="button" className="is-reveal" onClick={onReveal}>
               {copy.revealAnswer}
             </button>
@@ -407,18 +404,10 @@ export const PistonOscillationDataProcessingPanel = ({
   const chartViewportRef = useRef<HTMLDivElement | null>(null);
   const chartHorizontalScrollRef = useRef<HTMLDivElement | null>(null);
   const chartSvgRef = useRef<SVGSVGElement | null>(null);
-  const periodInputRef = useRef<HTMLInputElement | null>(null);
   const nextRunButtonRef = useRef<HTMLButtonElement | null>(null);
   const onUnusableMeasurementRef = useRef(onUnusableMeasurement);
-  const answerFocusProgressRef = useRef<{
-    runKey: string | null;
-    periodEntryVisible: boolean;
-    resultReady: boolean;
-  }>({
-    runKey: null,
-    periodEntryVisible: false,
-    resultReady: false,
-  });
+  const pendingRetry = useRef<PistonOscillationPeriodAnswerField | null>(null);
+  const answerFocusProgressRef = useRef<{ runKey: string | null; signature: string }>({ runKey: null, signature: '' });
   const [chartWidth, setChartWidth] = useState(CHART_DEFAULT_WIDTH);
   const [viewDomain, setViewDomain] = useState<TimeDomain | null>(null);
   const [pressureViewDomain, setPressureViewDomain] = useState<PressureDomain | null>(null);
@@ -470,26 +459,41 @@ export const PistonOscillationDataProcessingPanel = ({
     runIndex,
   ]);
 
+  const runKey = run?.rawMeasurementRecordId ?? null;
+  const periodAnswers = run?.answers;
+  const periodFields = ['t1', 't2', 'period'] as const;
+  const periodFeedback = periodFields.find(field => periodAnswers?.[field].feedback);
+  const periodAvailable = periodAnswers?.period.expectedValue != null && (freeProcessingActive
+    || (periodAnswers.t1.status !== 'unresolved' && periodAnswers.t2.status !== 'unresolved'));
+  const resultReady = Boolean(run?.result);
+  const periodStatusSignature = periodFields.map(field => {
+    const answer = periodAnswers?.[field];
+    return `${answer?.status ?? ''}:${answer?.feedback !== null}`;
+  }).join(',');
+  const answerFocusSignature = `${periodAvailable}:${resultReady}:${periodStatusSignature}`;
   useEffect(() => {
-    const runKey = run?.rawMeasurementRecordId ?? null;
-    const periodEntryVisible = Boolean(run && run.answers.period.expectedValue !== null);
-    const resultReady = run?.result !== null && run?.result !== undefined;
     const previous = answerFocusProgressRef.current;
-    answerFocusProgressRef.current = { runKey, periodEntryVisible, resultReady };
-    if (reviewMode || runKey === null || previous.runKey !== runKey) return;
-    if (!previous.periodEntryVisible && periodEntryVisible && !resultReady) {
-      window.requestAnimationFrame(() => periodInputRef.current?.focus());
-      return;
+    answerFocusProgressRef.current = { runKey, signature: answerFocusSignature };
+    if (reviewMode || runKey === null || previous.runKey !== runKey) {
+      pendingRetry.current = null;
+      return undefined;
     }
-    if (!previous.resultReady && resultReady) {
-      window.requestAnimationFrame(() => nextRunButtonRef.current?.focus());
-    }
-  }, [
-    reviewMode,
-    run?.rawMeasurementRecordId,
-    run?.answers.period.expectedValue,
-    run?.result,
-  ]);
+    if (previous.signature === answerFocusSignature) return undefined;
+    const retry = pendingRetry.current;
+    pendingRetry.current = null;
+    const frame = window.requestAnimationFrame(() => {
+      const panel = processingPanelRef.current;
+      const fieldControl = (field: PistonOscillationPeriodAnswerField, selector: string) =>
+        panel?.querySelector<HTMLElement>(`[data-piston-period-answer-field="${field}"] ${selector}`);
+      const target = (retry ? fieldControl(retry, 'input:not(:disabled)') : null)
+        ?? (resultReady ? nextRunButtonRef.current : periodFeedback
+          ? fieldControl(periodFeedback, '[data-calculation-retry]')
+          : periodAvailable ? fieldControl('period', 'input:not(:disabled)') : null)
+        ?? panel?.querySelector<HTMLElement>('[data-piston-period-answer-field] input:not(:disabled)');
+      if (target) focusCalculationControl(target);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [answerFocusSignature, periodAvailable, periodFeedback, resultReady, reviewMode, runKey]);
 
   useLayoutEffect(() => {
     const element = chartViewportRef.current;
@@ -899,6 +903,12 @@ export const PistonOscillationDataProcessingPanel = ({
   ) => {
     setBatchFormatInvalid(false);
     dispatch({ type: 'editPeriodAnswer', runIndex, field, value });
+  };
+  const continuePeriodAnswer = (field: PistonOscillationPeriodAnswerField) => {
+    pendingRetry.current = field;
+    dispatch(freeProcessingActive
+      ? { type: 'continuePeriodBatch', runIndex }
+      : { type: 'continuePeriodAnswer', runIndex, field });
   };
   const revealFreePeriodEntry = () => {
     if (
@@ -1669,7 +1679,7 @@ export const PistonOscillationDataProcessingPanel = ({
                       disabled={run.result !== null}
                       pulse={endpointPulse}
                       onDraftChange={(value) => editPeriodDraft('t1', value)}
-                      onContinue={() => dispatch({ type: 'continuePeriodBatch', runIndex })}
+                      onContinue={() => continuePeriodAnswer('t1')}
                       onReveal={() => dispatch({
                         type: 'revealPeriodAnswer', runIndex, field: 't1',
                       })}
@@ -1685,7 +1695,7 @@ export const PistonOscillationDataProcessingPanel = ({
                       disabled={run.result !== null}
                       pulse={endpointPulse}
                       onDraftChange={(value) => editPeriodDraft('t2', value)}
-                      onContinue={() => dispatch({ type: 'continuePeriodBatch', runIndex })}
+                      onContinue={() => continuePeriodAnswer('t2')}
                       onReveal={() => dispatch({
                         type: 'revealPeriodAnswer', runIndex, field: 't2',
                       })}
@@ -1739,9 +1749,8 @@ export const PistonOscillationDataProcessingPanel = ({
                         language={language}
                         disabled={run.result !== null}
                         pulse={periodPulse}
-                        inputRef={periodInputRef}
                         onDraftChange={(value) => editPeriodDraft('period', value)}
-                        onContinue={() => dispatch({ type: 'continuePeriodBatch', runIndex })}
+                        onContinue={() => continuePeriodAnswer('period')}
                         onReveal={() => dispatch({
                           type: 'revealPeriodAnswer', runIndex, field: 'period',
                         })}
@@ -1793,9 +1802,7 @@ export const PistonOscillationDataProcessingPanel = ({
                       disabled={endpointsResolved}
                       pulse={endpointPulse}
                       onDraftChange={(value) => editPeriodDraft('t1', value)}
-                      onContinue={() => dispatch({
-                        type: 'continuePeriodAnswer', runIndex, field: 't1',
-                      })}
+                      onContinue={() => continuePeriodAnswer('t1')}
                       onReveal={() => dispatch({
                         type: 'revealPeriodAnswer', runIndex, field: 't1',
                       })}
@@ -1811,9 +1818,7 @@ export const PistonOscillationDataProcessingPanel = ({
                       disabled={endpointsResolved}
                       pulse={endpointPulse}
                       onDraftChange={(value) => editPeriodDraft('t2', value)}
-                      onContinue={() => dispatch({
-                        type: 'continuePeriodAnswer', runIndex, field: 't2',
-                      })}
+                      onContinue={() => continuePeriodAnswer('t2')}
                       onReveal={() => dispatch({
                         type: 'revealPeriodAnswer', runIndex, field: 't2',
                       })}
@@ -1862,11 +1867,8 @@ export const PistonOscillationDataProcessingPanel = ({
                         language={language}
                         disabled={!endpointsResolved}
                         pulse={periodPulse}
-                        inputRef={periodInputRef}
                         onDraftChange={(value) => editPeriodDraft('period', value)}
-                        onContinue={() => dispatch({
-                          type: 'continuePeriodAnswer', runIndex, field: 'period',
-                        })}
+                        onContinue={() => continuePeriodAnswer('period')}
                         onReveal={() => dispatch({
                           type: 'revealPeriodAnswer', runIndex, field: 'period',
                         })}

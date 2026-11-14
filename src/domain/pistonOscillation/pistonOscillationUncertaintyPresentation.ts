@@ -25,33 +25,30 @@ export const buildPistonUncertaintyPresentation = (course: PistonUncertaintyCour
     A: {
       title: t('A 类：由拟合数据评定', 'Type A: evaluate from the fit'),
       lines: [
-        t('本实验拟合 h = aT² + b（a 对应上图的 s）。根据各点偏离拟合直线的程度，先计算斜率的 A 类不确定度，再传播到 γ。', 'Fit h = aT² + b (a is s in the chart). Use the scatter about the fitted line to evaluate the slope uncertainty, then propagate it to γ.'),
-        t('先求各次 T² 的平均值 T²̄，再将各次 T² 与平均值之差平方求和，得到 Sxx。它表示横坐标的分散程度，用于计算斜率的不确定度。', 'First calculate the mean of T², then sum the squared differences from this mean to obtain Sxx. It describes the spread of the horizontal coordinates and is used to calculate the slope uncertainty.'),
-        t('T²̄ 是“周期平方的平均值”，不是“平均周期的平方”。', 'This is the mean of the squared periods, not the square of the mean period.'),
-        t('n 为拟合点数，Q 为残差平方和，由系统给出。', 'n is the number of fitted points; Q is the residual sum of squares, supplied by the system.'),
+        t('先将各组周期平方 Tᵢ² 求和，再除以拟合点数 n，得到周期平方的平均值 T²̄。用各组周期平方减去这个平均值，将差值逐一平方后相加，得到周期平方的离差平方和 Sxx。', 'Add the squared periods Tᵢ² and divide by the number of fitted points n to get the mean squared period T²̄. Subtract this mean from each squared period, square the differences, and add them to get the sum of squared deviations Sxx.'),
+        t('根据测量点与拟合直线的高度差，计算斜率 a 的 A 类不确定度，再用它计算比热容比 γ 的 A 类不确定度。残差平方和 Q 由软件给出。', 'Use the height differences between the measured points and the fitted line to calculate the Type A uncertainty of slope a. Use that result to calculate the Type A uncertainty of the heat-capacity ratio γ. The software provides the residual sum of squares Q.'),
       ],
       why: [{ title: t('为什么是 n−2？', 'Why n−2?'), body: t('拟合直线需要确定斜率和截距两个参数，因此剩余自由度为 n−2。', 'The fit estimates two parameters, the slope and intercept, leaving n−2 degrees of freedom.') }],
     },
     B: {
-      title: t('B 类：误差限换算与传播', 'Type B: error limits and propagation'),
+      title: t('B 类：由仪器和读数误差评定', 'Type B: evaluate from instrument and reading errors'),
       lines: [
-        t('质量和直径的 Δ 表示误差范围的半宽。本题按均匀分布计算：标准不确定度为 Δ/√3。', 'For mass and diameter, Δ is the half-width of the error interval. Under the specified uniform distribution, the standard uncertainty is Δ/√3.'),
-        t('压强的 u仪器(P) 已是标准不确定度，直接使用。斜率的 uB(a) 由系统根据本次数据评定，见上方表格。', 'The given uinstrument(P) is already a standard uncertainty and is used directly. The system evaluates uB(a) from this data set and displays it in the table above.'),
-        t('传播公式的四项依次对应斜率、质量、直径和压强。直径项的系数 2 来自 γ 与 d 的平方成反比；其余各项的幂次绝对值为 1。', 'The four propagation terms represent slope, mass, diameter and pressure. The factor 2 for diameter comes from the inverse-square dependence on d; the other exponent magnitudes are 1.'),
+        t('将质量误差限 Δm 和气缸内径误差限 Δd 分别除以 √3，得到质量和气缸内径的标准不确定度。压强的标准不确定度 u仪器(P) 直接使用仪器给定值。斜率的 B 类不确定度 uB(a) 由软件给出。', 'Divide the mass error limit Δm and the cylinder inner diameter error limit Δd by √3 to get their standard uncertainties. Use the instrument’s specified standard pressure uncertainty uinstrument(P). The software provides the Type B uncertainty of the slope uB(a).'),
+        t('用斜率、质量、气缸内径和压强这四项的相对不确定度，计算比热容比的 B 类不确定度 uB(γ)。直径这一项乘以 2，因为比热容比与气缸内径的平方成反比。', 'Use the relative uncertainties in slope, mass, cylinder inner diameter, and pressure to calculate the Type B uncertainty of the heat-capacity ratio uB(γ). Multiply the diameter term by 2 because the heat-capacity ratio is inversely proportional to the square of the cylinder’s inner diameter.'),
       ],
       why: [],
     },
     C: {
       title: t('合成与结果表达', 'Combine and report the result'),
       lines: [
-        t('将 γ 的 A 类和 B 类标准不确定度合成，得到 uc(γ)，再计算相对标准不确定度 ur。', 'Combine the Type A and Type B standard uncertainties of γ to obtain uc(γ), then calculate the relative standard uncertainty ur.'),
-        t('报告中的 uc(γ) 保留 2 位有效数字，最终 γ 的末位与其对齐，以 γ ± uc(γ) 表达结果。', 'Round uc(γ) to 2 significant figures for the report, align the last digit of γ with it, and report γ ± uc(γ).'),
+        t('将比热容比的 A 类和 B 类标准不确定度合成，得到合成标准不确定度 uc(γ)。再计算它占比热容比绝对值的百分比，得到相对标准不确定度 ur。', 'Combine the Type A and Type B standard uncertainties of the heat-capacity ratio to get the combined standard uncertainty uc(γ). Express it as a percentage of the magnitude of the heat-capacity ratio to get the relative standard uncertainty ur.'),
+        t('报告中的合成标准不确定度保留 2 位有效数字，比热容比的末位与它对齐。', 'Report the combined standard uncertainty to 2 significant figures and round the heat-capacity ratio to the same decimal place.'),
       ],
       why: [],
     },
   };
   const fields: Record<PistonUncertaintyExerciseField, { label: string; unit: string; formula: string; inputs: string }> = {
-    meanX: { label: t('周期平方的平均值 T²̄', 'Mean squared period'), unit: 's²', formula: 'T²̄ = (T₁² + ⋯ + Tₙ²) / n', inputs: `T² (s²): ${analysis ? analysis.rows.map(row => number(row.x)).join(', ') : '—'}; n = ${analysis?.n ?? '—'}` },
+    meanX: { label: t('周期平方的平均值 T²̄', 'Mean squared period'), unit: 's²', formula: 'T²̄ = (∑ᵢ₌₁ⁿ Tᵢ²) / n', inputs: `T² (s²): ${analysis ? analysis.rows.map(row => number(row.x)).join(', ') : '—'}; n = ${analysis?.n ?? '—'}` },
     sxx: { label: t('T² 离差平方和 Sxx', 'Sum of squared T² deviations Sxx'), unit: 's⁴', formula: 'Sxx = Σ(Tᵢ² − T²̄)²', inputs: `T² (s²): ${analysis ? analysis.rows.map(row => number(row.x)).join(', ') : '—'}; T²̄ = ${resolved('meanX')} s²` },
     residual: { label: t('残差标准差 sr', 'Residual standard deviation sr'), unit: 'm', formula: 'sr = √[Q / (n−2)]', inputs: `Q = ${analysis ? number(analysis.q) : '—'} m²; n = ${analysis?.n ?? '—'}` },
     slopeA: { label: t('斜率的 A 类 uA(a)', 'Slope Type A uA(a)'), unit: 'm/s²', formula: 'uA(a) = sr / √Sxx', inputs: `sr = ${v('residual')} m; Sxx = ${resolved('sxx')} s⁴` },

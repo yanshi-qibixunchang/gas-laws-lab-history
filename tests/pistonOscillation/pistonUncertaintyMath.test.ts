@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { loadWorkbenchView } from '../workbench/helpers/loadWorkbenchView.ts';
+import { buildPistonUncertaintyPresentation } from '../../src/domain/pistonOscillation/pistonOscillationUncertaintyPresentation.ts';
+import { createPistonUncertaintyCourse } from '../../src/domain/pistonOscillation/pistonOscillationUncertaintyModel.ts';
 
 const { PistonMathNumber, PistonRichText, PistonUncertaintyFormula } = loadWorkbenchView<typeof import('../../src/features/pistonOscillation/PistonUncertaintyMath.tsx')>(
   new URL('../../src/features/pistonOscillation/PistonUncertaintyMath.tsx', import.meta.url),
@@ -33,12 +35,28 @@ const meanSquaredMarkup = '<mover><msup><mi>T</mi><mn>2</mn></msup><mo>¯</mo></
 for (const field of ['meanX', 'sxx'] as const) {
   const markup = renderToStaticMarkup(createElement(PistonUncertaintyFormula, { field, language: 'zh-CN', label: '' }));
   assert.ok(markup.includes(meanSquaredMarkup), 'the bar must cover T squared, not just T');
-  assert.match(markup, /<munderover><mo>∑<\/mo>.*<mi>i<\/mi>.*<mn>1<\/mn>.*<mi>n<\/mi><\/munderover>/);
+  assert.match(markup, /<munderover><mo>∑<\/mo>.*<mi>i<\/mi>.*<mn>1<\/mn>.*<mi>n<\/mi><\/mrow><\/munderover>/);
   assert.match(markup, /<msup><msub><mi>T<\/mi><mi>i<\/mi><\/msub><mn>2<\/mn><\/msup>/);
+  assert.match(markup, /tabindex="0" data-prompt-tooltip="第 i 组振动周期的平方"/);
+  assert.doesNotMatch(markup, /<a\b|href=/);
 }
+assert.match(propagation, /data-prompt-tooltip="气缸内径"/);
 for (const field of ['reportCombined', 'result'] as const) {
   const markup = renderToStaticMarkup(createElement(PistonUncertaintyFormula, { field, language: 'zh-CN', label: '' }));
   assert.match(markup, /<msub><mi>u<\/mi><mtext>c<\/mtext><\/msub>/);
   assert.doesNotMatch(markup, /<mi>[Uk]<\/mi>/);
   if (field === 'result') assert.match(markup, /<mo>±<\/mo>/);
+}
+
+const lessonView = buildPistonUncertaintyPresentation(createPistonUncertaintyCourse(), null, 'zh-CN');
+const expectedHintCounts = { A: 2, B: 3, C: 1 };
+for (const phase of ['A', 'B', 'C'] as const) {
+  const body = lessonView.lessons[phase].lines.join('\n');
+  const markup = renderToStaticMarkup(createElement(PistonRichText, { text: body, withSymbolHints: true }));
+  const plainMarkup = renderToStaticMarkup(createElement(PistonRichText, { text: body }));
+  assert.equal((markup.match(/data-prompt-tooltip="/g) ?? []).length, expectedHintCounts[phase]);
+  assert.doesNotMatch(plainMarkup, /data-prompt-tooltip/);
+  if (phase === 'A') {
+    assert.match(markup, /各组周期平方 <math[^>]*><msup><msub><mi>T<\/mi><mi>i<\/mi><\/msub><mn>2<\/mn>/);
+  }
 }

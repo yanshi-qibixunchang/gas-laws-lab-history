@@ -565,6 +565,7 @@
 
 .studio-piston-calculation-ready {
   border: 1px solid color-mix(in srgb, var(--studio-success) 52%, var(--studio-border));
+  border-radius: 6px;
   background: color-mix(in srgb, var(--studio-success-soft) 82%, var(--studio-surface));
   color: var(--studio-success);
   padding: 10px 12px;
