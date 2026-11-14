@@ -207,6 +207,10 @@
     0 5px 12px color-mix(in srgb, var(--studio-accent) 7%, transparent);
 }
 
+.studio-heat-calculation-step-danger {
+  border-color: color-mix(in srgb, var(--studio-danger) 62%, var(--studio-border));
+}
+
 .studio-heat-calculation-step-header {
   justify-content: space-between;
   display: flex;
@@ -216,14 +220,36 @@
 
 .studio-heat-calculation-math {
   font-size: 1em;
-  font-family: var(--app-font-formula, "Cambria Math", math);
+  font-family: "Cambria Math", "Times New Roman", serif;
+  font-weight: 400;
+}
+.studio-heat-calculation-math mtext {
+  font-family: var(--app-font-ui);
+  font-size: 0.9em;
 }
 .studio-heat-calculation-explanation {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: var(--studio-surface-2);
   font-size: 12px;
   line-height: 1.6;
   color: var(--studio-text);
 }
-.studio-heat-calculation-explanation p { margin: 4px 0 8px; }
+.studio-heat-calculation-explanation p { margin: 6px 0; }
+.studio-heat-calculation-explanation summary {
+  padding: 6px 0;
+  color: var(--studio-accent-strong);
+  cursor: pointer;
+}
+.studio-heat-calculation-result {
+  border: 1px solid var(--studio-accent-border);
+  border-radius: 6px;
+  background: var(--studio-accent-softer);
+  color: var(--studio-text);
+  padding: 14px;
+  font-size: 14px;
+}
 .studio-heat-calculation-restart {
   font: inherit;
   font-size: 11px;
@@ -286,12 +312,13 @@
 }
 
 .studio-heat-calculation-formula-line label {
-  padding-block: 2px;
+  padding-block: 4px;
   display: flex;
   min-width: 0;
   align-items: center;
   gap: 8px;
   overflow-x: auto;
+  overflow-y: hidden;
   color: var(--studio-text);
   scrollbar-width: thin;
 }

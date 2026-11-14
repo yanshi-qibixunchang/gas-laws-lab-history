@@ -20,24 +20,31 @@ const square = (value: ReactNode) => node('msup', value, n(2));
 const p = (i: number) => sub('P', n(i));
 const u = (i: number, prime = false) => prime ? node('msup', sub('U', n(i)), op('′')) : sub('U', n(i));
 const ln = (a: ReactNode) => r(v('ln'), par(a));
+const sum = (value: ReactNode, count: number) => r(
+  node('munderover', op('∑'), r(v('i'), op('='), n(1)), n(count)),
+  value,
+);
 const math = (children: ReactNode, label?: string) => el('math', {
   xmlns: 'http://www.w3.org/1998/Math/MathML', display: 'inline',
   className: 'studio-heat-calculation-math', ...(label ? { 'aria-label': label } : {}),
 }, children);
 
-export const HeatCapacityCalculationMath = ({ kind, fieldId, count, usePublicQ, label }: {
-  kind: HeatCapacityCalculationStepKind; fieldId: string; count: number; usePublicQ: boolean; label: string;
+export const HeatCapacityCalculationMath = ({ kind, fieldId, count, referenceIndex, label }: {
+  kind: HeatCapacityCalculationStepKind; fieldId: string; count: number; referenceIndex: 'ref' | '0'; label: string;
 }) => {
   const i = fieldId.endsWith('u1Prime') || fieldId.endsWith('p1') ? 1 : 2;
-  const ref = sub('γ', node('mtext', 'ref'));
+  const ref = sub('γ', referenceIndex === '0' ? n(0) : node('mtext', 'ref'));
+  const squaredDeviations = referenceIndex === 'ref'
+    ? v('Q')
+    : sum(square(par(r(sub('γ', v('i')), op('−'), mean))), count);
   let formula: ReactNode;
   switch (kind) {
     case 'correctedVoltages': formula = r(u(i, true), op('='), u(i), op('−'), u(0)); break;
     case 'absolutePressures': formula = r(p(i), op('='), p(0), op('+'), frac(u(i, true), v('S'))); break;
     case 'groupGamma': formula = r(v('γ'), op('='), frac(ln(frac(p(1), p(0))), ln(frac(p(1), p(2))))); break;
-    case 'meanGamma': formula = r(mean, op('='), frac(r(...Array.from({ length: count }, (_, j) => r(j ? op('+') : null, sub('γ', n(j + 1))))), n(count))); break;
-    case 'sampleStandardDeviation': formula = r(v('s'), op('='), root(frac(usePublicQ ? v('Q') : r(op('∑'), node('msup', par(r(sub('γ', v('i')), op('−'), mean)), n(2))), r(n(count), op('−'), n(1))))); break;
-    case 'typeAStandardUncertainty': formula = r(ua, op('='), frac(v('s'), root(n(count)))); break;
+    case 'meanGamma': formula = r(mean, op('='), frac(sum(sub('γ', v('i')), count), n(count))); break;
+    case 'sampleStandardDeviation': formula = r(v('s'), op('='), root(frac(squaredDeviations, r(n(count), op('−'), n(1))))); break;
+    case 'typeAStandardUncertainty': formula = r(ua, op('='), frac(r(v('s'), par(v('γ'))), root(n(count)))); break;
     case 'typeBStandardUncertainty': formula = r(ub, op('='), v('C'), op('×'), instrumentVoltage); break;
     case 'combinedStandardUncertainty': formula = r(uc, op('='), root(r(square(par(ua)), op('+'), square(par(ub))))); break;
     case 'finalReport': formula = fieldId.endsWith('reportMeanGamma') ? mean : uc; break;
@@ -47,8 +54,7 @@ export const HeatCapacityCalculationMath = ({ kind, fieldId, count, usePublicQ, 
 };
 
 export const HeatCapacityQDefinition = ({ value }: { value: string }) => math(r(
-  v('Q'), op('='), node('munderover', op('∑'), r(v('i'), op('='), n(1)), n(3)),
-  node('msup', par(r(sub('γ', v('i')), op('−'), mean)), n(2)), op('='), n(value),
+  v('Q'), op('='), sum(square(par(r(sub('γ', v('i')), op('−'), mean))), 3), op('='), n(value),
 ), 'Q = Σ(γᵢ − γ̄)²');
 
 export const HeatCapacityFinalResult = ({ average, uncertainty }: { average: string; uncertainty: string }) => math(r(

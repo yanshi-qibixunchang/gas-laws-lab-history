@@ -660,7 +660,7 @@ if (pythonCheck.status !== 0) {
     const uncertaintyExtract = spawnSync('pdftotext', [join(uncertaintyOutput, 'report.pdf'), uncertaintyText], { encoding: 'utf8' });
     if (uncertaintyExtract.status === 0) {
       const contents = readFileSync(uncertaintyText, 'utf8');
-      for (const phrase of ['不确定度教学与计算', '周期平方的平均值', '离差平方和', '误差限换算与传播', '合成标准不确定度', '规范报告']) assert.ok(contents.includes(phrase), phrase);
+      for (const phrase of ['不确定度教学与计算', '周期平方的平均值', '离差平方和', '由仪器和读数误差评定', '合成标准不确定度', '规范报告']) assert.ok(contents.includes(phrase), phrase);
       assert.doesNotMatch(contents, /扩展不确定度|k\s*=\s*2/);
       assert.doesNotMatch(contents, /�/u);
       assert.ok(contents.includes('0.0003464'));

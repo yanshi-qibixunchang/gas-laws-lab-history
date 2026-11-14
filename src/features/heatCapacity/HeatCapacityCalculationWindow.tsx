@@ -410,6 +410,7 @@ const getStepFormula = (
   kind: HeatCapacityCalculationStepKind,
   field: HeatCapacityCalculationWorkflowField,
   groupCount: number,
+  sequentialRule: boolean,
 ) => {
   if (kind === 'correctedVoltages') {
     return field.id.endsWith(':u1Prime')
@@ -423,8 +424,10 @@ const getStepFormula = (
   }
   if (kind === 'groupGamma') return 'γ = ln(P₁ / P₀) / ln(P₁ / P₂) =';
   if (kind === 'guideRelativeError') return 'Eᵣ = |γ − γ₀| / γ₀ × 100% =';
-  if (kind === 'meanGamma') return `γ̄ = (γ₁ + ⋯ + γ${groupCount}) / ${groupCount} =`;
-  if (kind === 'sampleStandardDeviation') return 's = √[Q / (n − 1)] =';
+  if (kind === 'meanGamma') return `γ̄ = [∑ (i = 1…${groupCount}) γᵢ] / ${groupCount} =`;
+  if (kind === 'sampleStandardDeviation') return sequentialRule
+    ? 's = √[Q / (n − 1)] ='
+    : `s = √{[∑ (i = 1…${groupCount}) (γᵢ − γ̄)²] / (${groupCount} − 1)} =`;
   if (kind === 'finalReport') return field.answerKind === 'reportMeanGamma' ? 'γ̄ =' : 'uc(γ̄) =';
   if (kind === 'typeAStandardUncertainty') return 'uA(γ̄) = s(γ) / √n =';
   if (kind === 'typeBStandardUncertainty') return 'uB(γ̄) = C × u仪器(U) =';
@@ -587,14 +590,16 @@ const HeatCapacityCalculationStep = ({
   );
   const hasPendingFeedback = fields.some((field) => field.feedback !== null);
   const hasUnresolvedField = fields.some((field) => field.answer.status === 'unresolved');
+  const hasError = hasPendingFeedback || fields.some((field) => field.answer.status === 'revealed');
   const canSubmit = active && hasUnresolvedField && !hasPendingFeedback;
   const systemReadOnly = session.presentation !== 'interactive';
+  const sequentialRule = isHeatCapacitySequentialAnswerRule(session.answerRule);
 
   return (
     <article
       className={`studio-heat-calculation-step ${
         active ? 'studio-heat-calculation-step-active' : ''
-      }`}
+      } ${hasError ? 'studio-heat-calculation-step-danger' : ''}`}
       data-heat-capacity-calculation-step={step.kind}
     >
       <header className="studio-heat-calculation-step-header">
@@ -629,9 +634,14 @@ const HeatCapacityCalculationStep = ({
               key={field.id}
               field={field}
               answerRule={session.answerRule}
-              formula={isHeatCapacitySequentialAnswerRule(session.answerRule)
-                ? <HeatCapacityCalculationMath kind={step.kind} fieldId={field.id} count={session.groups.length} usePublicQ label={getStepFormula(step.kind, field, session.groups.length).replaceAll('γ₀', 'γref')} />
-                : getStepFormula(step.kind, field, session.groups.length)}
+              formula={<HeatCapacityCalculationMath
+                kind={step.kind}
+                fieldId={field.id}
+                count={session.groups.length}
+                referenceIndex={sequentialRule ? 'ref' : '0'}
+                label={getStepFormula(step.kind, field, session.groups.length, sequentialRule)
+                  .replaceAll('γ₀', sequentialRule ? 'γref' : 'γ₀')}
+              />}
               language={language}
               interactive={active}
               systemReadOnly={systemReadOnly}
@@ -653,10 +663,11 @@ const HeatCapacityCalculationStep = ({
           {copy.confirm}
         </button>
       </div>
-      {step.kind === 'finalReport' && <div className="studio-heat-calculation-explanation">
-        {fields.every(field => field.answer.status !== 'unresolved') && <HeatCapacityFinalResult average={formatReference(fields[0]!, session.answerRule)} uncertainty={formatReference(fields[1]!, session.answerRule)} />}
-        <p>{language === 'en' ? 'This result reports the combined standard uncertainty from repeat measurements and the specified voltage instrument effect.' : '本结果报告重复测量 A 类与给定电压仪器 B 类合成的标准不确定度。'}</p>
-      </div>}
+      {step.kind === 'finalReport' && fields.length === 2 && !hasUnresolvedField && (
+        <div className="studio-heat-calculation-result" role="status">
+          <HeatCapacityFinalResult average={formatReference(fields[0]!, session.answerRule)} uncertainty={formatReference(fields[1]!, session.answerRule)} />
+        </div>
+      )}
     </article>
   );
 };
