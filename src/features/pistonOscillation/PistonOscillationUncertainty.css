@@ -18,16 +18,6 @@
 .piston-uncertainty-lesson math { font-size: 14px; math-style: normal; }
 .piston-uncertainty-formula { padding: 12px 0; font-size: 14px; font-family: "Cambria Math", "Times New Roman", serif; overflow-x: auto; scrollbar-width: thin; }
 .piston-uncertainty-formula > math { width: max-content; }
-.piston-uncertainty-symbol {
-  color: var(--studio-text);
-  border-bottom: 1px dotted var(--studio-accent-strong);
-  cursor: help;
-}
-.piston-uncertainty-symbol:hover { border-bottom-style: solid; }
-.piston-uncertainty-symbol:focus-visible {
-  outline: 1px solid var(--studio-accent-strong);
-  outline-offset: 1px;
-}
 .piston-uncertainty-basis { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
 .piston-uncertainty-inputs { font-family: var(--app-font-ui); font-size: 12px; overflow-wrap: anywhere; color: var(--studio-muted); font-variant-numeric: tabular-nums; }
 .piston-uncertainty-inputs math { white-space: nowrap; }

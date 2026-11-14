@@ -102,7 +102,7 @@ const lessonSymbolHints: Readonly<Record<string, readonly [string, string, strin
 };
 
 const symbolWithHint = (value: ReactNode, label: string) => createElement('mrow', {
-  className: 'piston-uncertainty-symbol',
+  className: 'calculation-symbol-hint',
   tabIndex: 0,
   'data-prompt-tooltip': label,
   'data-prompt-tooltip-focus-visible': '',

@@ -30,7 +30,7 @@ import {
 } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
 import './HeatCapacityCalculationWindow.css';
-import { HeatCapacityCalculationMath, HeatCapacityQDefinition, HeatCapacityFinalResult, HeatCapacityPropagationDefinition } from './HeatCapacityCalculationMath.tsx';
+import { HeatCapacityCalculationMath, HeatCapacityCalculationSymbol, HeatCapacityQDefinition, HeatCapacityFinalResult, HeatCapacityPropagationDefinition } from './HeatCapacityCalculationMath.tsx';
 import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
 import { getUncertaintyTeachingNotice } from '../../domain/calculation/uncertaintyTeachingEligibility.ts';
 
@@ -257,6 +257,7 @@ const getTheoryKnownDatum = (session: HeatCapacityCalculationWorkflowSession): H
 
 const buildGuideKnownData = (
   session: HeatCapacityCalculationWorkflowSession,
+  language: WorkbenchLanguagePreference,
 ): HeatCapacityKnownDatum[] => {
   const group = session.groups[0];
   if (!group) return [];
@@ -283,7 +284,7 @@ const buildGuideKnownData = (
     },
     {
       key: 's',
-      label: 'S（mV/kPa）',
+      label: <span><HeatCapacityCalculationSymbol symbol="S" language={language} />（mV/kPa）</span>,
       value: formatSensitivity(getPressureSensitivity(group.reference)),
     },
     getTheoryKnownDatum(session),
@@ -293,6 +294,7 @@ const buildGuideKnownData = (
 const buildGroupKnownData = (
   session: HeatCapacityCalculationWorkflowSession,
   groupIndex: number,
+  language: WorkbenchLanguagePreference,
 ): HeatCapacityKnownDatum[] => {
   const group = session.groups[groupIndex];
   if (!group) return [];
@@ -304,7 +306,7 @@ const buildGroupKnownData = (
     { key: 'p0', label: 'P₀（kPa）', value: isHeatCapacitySequentialAnswerRule(session.answerRule) ? formatPublicPressure(reference.p0KPa) : formatFixed(reference.p0KPa, 3) },
     {
       key: 's',
-      label: 'S（mV/kPa）',
+      label: <span><HeatCapacityCalculationSymbol symbol="S" language={language} />（mV/kPa）</span>,
       value: formatSensitivity(getPressureSensitivity(reference)),
     },
     {
@@ -344,6 +346,7 @@ const formatQ = (session: HeatCapacityCalculationWorkflowSession) => {
 
 const buildAggregateKnownData = (
   session: HeatCapacityCalculationWorkflowSession,
+  language: WorkbenchLanguagePreference,
 ): HeatCapacityKnownDatum[] => {
   const gammaData = session.groups.map((group, index) => ({
     key: `gamma-${group.trialId}`,
@@ -356,10 +359,10 @@ const buildAggregateKnownData = (
     ...gammaData,
     { key: 'n', label: 'n', value: String(session.groups.length) },
     ...(aggregate.reference.voltageInstrumentStandardUncertaintyMv !== undefined ? [
-      { key: 'voltageInstrumentStandardUncertaintyMv', label: <span>u<sub>仪器</sub>(U)（mV）</span>, value: String(aggregate.reference.voltageInstrumentStandardUncertaintyMv) },
-      { key: 'propagationCoefficient', label: <span>C（mV<sup>−1</sup>）</span>, value: formatSignificantFiguresHalfEven(aggregate.reference.propagationCoefficient!, 4) },
+      { key: 'voltageInstrumentStandardUncertaintyMv', label: <span><HeatCapacityCalculationSymbol symbol="instrumentVoltage" language={language} />（mV）</span>, value: String(aggregate.reference.voltageInstrumentStandardUncertaintyMv) },
+      { key: 'propagationCoefficient', label: <span><HeatCapacityCalculationSymbol symbol="C" language={language} />（mV<sup>−1</sup>）</span>, value: formatSignificantFiguresHalfEven(aggregate.reference.propagationCoefficient!, 4) },
     ] : []),
-    ...(session.aggregate.fields.some(field => field.answerKind === 'sampleStandardDeviation') && isHeatCapacitySequentialAnswerRule(session.answerRule) ? [{ key: 'Q', label: 'Q', value: getResolvedValue(findFieldByEnding(aggregate.fields, ':meanGamma'), session.answerRule) ? formatQ(session) : '' }] : []),
+    ...(session.aggregate.fields.some(field => field.answerKind === 'sampleStandardDeviation') && isHeatCapacitySequentialAnswerRule(session.answerRule) ? [{ key: 'Q', label: <HeatCapacityCalculationSymbol symbol="Q" language={language} />, value: getResolvedValue(findFieldByEnding(aggregate.fields, ':meanGamma'), session.answerRule) ? formatQ(session) : '' }] : []),
     {
       key: 'meanGamma',
       label: 'γ̄',
@@ -608,7 +611,8 @@ const HeatCapacityCalculationStep = ({
       </header>
       {step.kind === 'sampleStandardDeviation' && isHeatCapacitySequentialAnswerRule(session.answerRule) && <div className="studio-heat-calculation-explanation">
         <p>{language === 'en' ? 'The three results may differ. The standard deviation describes their spread; the Type A standard uncertainty of the mean assesses the effect of repeat measurements on the mean.' : '三次实验结果可能存在一定分散。标准差描述各次结果的离散程度，平均值的 A 类标准不确定度用于评定重复测量对平均值的影响。'}</p>
-        <HeatCapacityQDefinition value={formatQ(session)} />
+        <p>{language === 'en' ? 'Sum of squared deviations ' : '比热容比的离差平方和 '}<HeatCapacityCalculationSymbol symbol="Q" language={language} /></p>
+        <HeatCapacityQDefinition value={formatQ(session)} count={session.groups.length} language={language} />
       </div>}
       {step.kind === 'typeAStandardUncertainty' && isHeatCapacitySequentialAnswerRule(session.answerRule) && <details className="studio-heat-calculation-explanation">
         <summary>{language === 'en' ? 'Why divide by √n?' : '为什么除以 √n？'}</summary>
@@ -616,10 +620,16 @@ const HeatCapacityCalculationStep = ({
       </details>}
       {step.kind === 'finalReport' && <p className="studio-heat-calculation-explanation">{language === 'en' ? 'Round the combined standard uncertainty to two significant figures and align the mean to its decimal place.' : '合成标准不确定度保留两位有效数字，平均值的小数末位与其对齐。'}</p>}
       {step.kind === 'typeBStandardUncertainty' && <div className="studio-heat-calculation-explanation">
-        <p>{language === 'en' ? 'The given voltage instrument standard uncertainty is 0.1 mV. Multiply it by the public coefficient C to obtain the Type B standard uncertainty of the mean.' : '给定电压仪器标准不确定度为 0.1 mV，乘以表中的传播系数 C，得到平均 γ 的 B 类标准不确定度。'}</p>
-        <details><summary>{language === 'en' ? 'Where does C come from?' : 'C 从哪里来？'}</summary>
+        <p>
+          {language === 'en' ? 'Multiply the voltage instrument standard uncertainty ' : '将电压仪器标准不确定度 '}
+          <HeatCapacityCalculationSymbol symbol="instrumentVoltage" language={language} />
+          {language === 'en' ? ' by the combined coefficient ' : ' 乘以综合系数 '}
+          <HeatCapacityCalculationSymbol symbol="C" language={language} />
+          {language === 'en' ? ' to obtain the Type B standard uncertainty of the mean heat-capacity ratio.' : '，得到平均比热容比的 B 类标准不确定度。'}
+        </p>
+        <details><summary>{language === 'en' ? 'How is the combined coefficient calculated?' : '综合系数是怎么计算的？'}</summary>
           <p>{language === 'en' ? 'The system calculates how U₀, U₁ and U₂ affect the mean using this group’s public data. Their sensitivity coefficients are c₀, c₁ and c₂. C combines these contributions; no derivative calculation is required.' : '系统根据本组公开数据计算 U₀、U₁、U₂ 对平均 γ 的影响，分别得到系数 c₀、c₁、c₂，再合成为 C。无需手算偏导数。'}</p>
-          <HeatCapacityPropagationDefinition />
+          <HeatCapacityPropagationDefinition language={language} />
         </details>
       </div>}
       <div className="studio-heat-calculation-step-main">
@@ -639,6 +649,7 @@ const HeatCapacityCalculationStep = ({
                 fieldId={field.id}
                 count={session.groups.length}
                 referenceIndex={sequentialRule ? 'ref' : '0'}
+                language={language}
                 label={getStepFormula(step.kind, field, session.groups.length, sequentialRule)
                   .replaceAll('γ₀', sequentialRule ? 'γref' : 'γ₀')}
               />}
@@ -715,10 +726,10 @@ export const HeatCapacityCalculationWindow = ({
 
   const selectedGroupIndex = session.selectedGroupIndex ?? session.activeGroupIndex;
   const knownData = session.mode === 'guide'
-    ? buildGuideKnownData(session)
+    ? buildGuideKnownData(session, language)
     : session.aggregateSelected
-      ? buildAggregateKnownData(session)
-      : buildGroupKnownData(session, selectedGroupIndex);
+      ? buildAggregateKnownData(session, language)
+      : buildGroupKnownData(session, selectedGroupIndex, language);
   const knownRows = splitCalculationKnownDataRows(knownData);
   const knownTitle = session.mode === 'guide'
     ? copy.knownGuide
