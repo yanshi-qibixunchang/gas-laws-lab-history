@@ -21,10 +21,10 @@
     "legal:check": "node scripts/generateLegalNotices.cjs --check",
     "release:verify-assets": "node scripts/verifyReleaseAssets.cjs",
     "build": "node scripts/verifyAppIconResources.cjs && node scripts/generateLegalNotices.cjs && vite build && node scripts/checkBuildOutput.cjs",
-    "desktop:dev": "npm run build && electron .",
+    "desktop:dev": "install-electron && npm run build && electron .",
     "desktop:build": "npm run build",
-    "desktop:installer": "npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs nsis && node scripts/writeReleaseMetadata.cjs && npm run release:verify-assets",
-    "desktop:portable": "npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs portable",
+    "desktop:installer": "install-electron && npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs nsis && node scripts/writeReleaseMetadata.cjs && npm run release:verify-assets",
+    "desktop:portable": "install-electron && npm run exporter:bundle && npm run exporter:check && npm run build && set CSC_IDENTITY_AUTO_DISCOVERY=false&& node scripts/runElectronBuilder.cjs portable",
     "exporter:bundle": "node scripts/bundleExporter.cjs",
     "exporter:check": "node scripts/checkBundledExporter.cjs",
     "test": "node scripts/runTests.cjs",
@@ -134,13 +134,16 @@
     "@types/three": "0.182.0",
     "@vitejs/plugin-react": "^6.0.2",
     "autoprefixer": "^10.4.18",
-    "electron": "^41.10.7",
-    "electron-builder": "^26.15.3",
+    "electron": "^43.8.10",
+    "electron-builder": "^26.18.1",
     "electron-winstaller": "^5.4.4",
     "js-yaml": "^4.3.2",
     "postcss": "^8.5.26",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.2.2",
-    "vite": "^8.1.4"
+    "vite": "^8.1.6"
+  },
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "11.0.8"
   }
 }

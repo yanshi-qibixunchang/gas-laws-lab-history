@@ -296,8 +296,8 @@
   "sourceFiles": [
     {
       "path": "package.json",
-      "sha256": "485295f2d40e980ccb339e88a09fe4f99ef289959aa0073aaca3f7f630675225",
-      "bytes": 4654
+      "sha256": "6951063fa3805c4c1906a1ab9cf0e8dfc2c5a2a178da0675977d0b8b1b6491e5",
+      "bytes": 4778
     },
     {
       "path": "scripts/research-report/generate-evidence.ts",
