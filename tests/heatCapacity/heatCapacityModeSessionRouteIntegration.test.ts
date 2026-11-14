@@ -11,6 +11,7 @@ import {
   HEAT_CAPACITY_STANDARD_PUMP_STROKE_INTERVAL_S,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
 import { selectHeatCapacityFreeProcessReview } from '../../src/domain/heatCapacity/heatCapacityFreeProcessReviewModel.ts';
+import { getHeatCapacityFreeGasTypeGamma } from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
 import type { HeatCapacityMode } from '../../src/domain/heatCapacity/heatCapacityModeTypes.ts';
 import {
   captureHeatCapacityModeRuntimeSnapshot,
@@ -28,6 +29,7 @@ import {
   type WorkbenchHeatCapacityRefreshSession,
 } from '../../src/features/workbench/workbenchHeatCapacityRefreshSession.ts';
 import {
+  applyHeatCapacityFreeParameterDraftWorkbenchState,
   applyHeatCapacityFreeRecordWorkbenchState,
   applyHeatCapacityGuideRecordWorkbenchState,
   captureHeatCapacityWorkbenchSample,
@@ -42,7 +44,9 @@ import {
   powerHeatCapacityWorkbenchFile,
   prepareHeatCapacityAutoDemoStart,
   registerHeatCapacityPumpStroke,
+  selectHeatCapacityFreeAppliedParameterDraft,
   setHeatCapacityFreeEquilibriumSpeedMultiplier,
+  setHeatCapacityFreeParameterSchemeWorkbenchState,
   setHeatCapacityFreePumpValveOpen,
   setHeatCapacityFreeStopcockOpen,
   setHeatCapacityGuideEquilibriumSpeedMultiplier,
@@ -962,6 +966,29 @@ u2DomainRoutes.forEach((route, routeIndex) => {
     speedMultiplier: HEAT_CAPACITY_AUTO_DEMO_WAIT_SPEED_MULTIPLIER,
     phase: 'active',
   });
+}
+
+{
+  const clock = { nowMs: 1_000 };
+  let file = setHeatCapacityFreeParameterSchemeWorkbenchState(
+    createDefaultHeatCapacityFile(1),
+    'ideal',
+    nextTime(clock, 1),
+  );
+  file = applyHeatCapacityFreeParameterDraftWorkbenchState(file, {
+    ...selectHeatCapacityFreeAppliedParameterDraft(file),
+    gasType: 'helium',
+  }, nextTime(clock, 1));
+  file = configureHeatCapacityFreeBatchWorkbenchState(file, 3, nextTime(clock, 1));
+  const completed = completeFreeFromBreakpoint(advanceFreeToPumpReady(file, clock), 'pump-ready', clock);
+  const trial = completed.heatCapacityFreeRunWorkspace.trials.at(-1);
+  const gamma = trial?.correctedSignals?.gamma;
+  const scale = getHeatCapacityFreeGasTypeGamma('helium') / getHeatCapacityFreeGasTypeGamma('air');
+  assert.equal(trial?.parameterScheme, 'ideal');
+  assert.ok(
+    gamma != null && gamma >= 1.390 * scale && gamma <= 1.410 * scale,
+    `the recorded ideal helium result should meet the scaled air range, got ${gamma}`,
+  );
 }
 
 console.log(

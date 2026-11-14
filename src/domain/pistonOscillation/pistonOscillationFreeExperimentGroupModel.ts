@@ -1,5 +1,6 @@
 import {
   createPistonOscillationFreeParameterSnapshot,
+  isPistonOscillationFreeTriggerThresholdKpa,
   normalizePistonOscillationFreeParameterSnapshot,
   type PistonOscillationFreeParameterDraft,
   type PistonOscillationFreeParameterSnapshot,
@@ -31,8 +32,12 @@ import {
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V3,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5,
   PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
   applyPistonOscillationRealGasProfile,
+  getPistonOscillationStoredRealParameterBaseline,
   getPistonOscillationRealParameterProfileVersion,
 } from './pistonOscillationRealParameterProfile.ts';
 
@@ -194,7 +199,10 @@ export const isPistonOscillationFreeExperimentProfileImplemented = (
   || (group.scheme === 'ideal' && group.gasMaterialSnapshot.gasType === 'air'
     && group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION)
   || (group.scheme === 'real' && group.gasMaterialSnapshot.gasType === 'helium'
-    && group.parameterProfileVersion === PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION);
+    && (group.parameterProfileVersion === PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V3
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5));
 
 export const lockPistonOscillationFreeExperimentGroup = (
   group: PistonOscillationFreeExperimentGroup,
@@ -276,7 +284,7 @@ export const normalizePistonOscillationFreeExperimentGroup = (
         scheme: persisted.scheme as PistonOscillationExperimentScheme,
         gasMaterialSnapshot: persistedGasMaterial as PistonOscillationGasMaterialSnapshot,
         parameterProfileVersion: legacyPendingRealHelium
-          ? PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION
+          ? PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION
           : persisted.parameterProfileVersion as string,
       })
     : createPistonOscillationFreeExperimentGroup({
@@ -309,19 +317,28 @@ export const normalizePistonOscillationFreeExperimentGroup = (
     ?? options.forceLockAtMs
     ?? options.fallbackCreatedAtMs
     ?? 0;
+  const idealParameters = group.scheme === 'ideal'
+    ? createPistonOscillationIdealParameterDraft(group.parameterProfileVersion)
+    : null;
+  const persistedTrigger = persistedParameterSnapshot?.parameters.triggerThresholdKpa ?? null;
   return {
     ...group,
-    parameterSnapshot: group.scheme === 'ideal'
-      ? (group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION
-          ? persistedParameterSnapshot : null)
-        ?? createPistonOscillationFreeParameterSnapshot(
-          createPistonOscillationIdealParameterDraft(group.parameterProfileVersion), lockedAtMs,
-        )
+    parameterSnapshot: idealParameters
+      ? createPistonOscillationFreeParameterSnapshot({
+          ...idealParameters,
+          triggerThresholdKpa: isPistonOscillationFreeTriggerThresholdKpa(
+            persistedTrigger, idealParameters.ambientPressureKpa,
+          ) ? persistedTrigger : idealParameters.triggerThresholdKpa,
+          recordingDurationS: persistedParameterSnapshot?.parameters.recordingDurationS
+            ?? idealParameters.recordingDurationS,
+        }, persistedParameterSnapshot?.frozenAtMs ?? lockedAtMs)
       : legacyPendingRealHelium && persistedParameterSnapshot
         ? createPistonOscillationFreeParameterSnapshot(
             applyPistonOscillationRealGasProfile(
               persistedParameterSnapshot.parameters,
               'helium',
+              undefined,
+              getPistonOscillationStoredRealParameterBaseline('helium', group.parameterProfileVersion),
             ),
             persistedParameterSnapshot.frozenAtMs,
           )

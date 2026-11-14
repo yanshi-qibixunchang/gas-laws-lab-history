@@ -588,8 +588,7 @@ const heliumU2TooEarly = heliumById.get('H-E2-u2-too-early');
 const heliumOpenVeryLong = heliumById.get('H-E4-open-2.5');
 const heliumU2TwelveMinute = heliumById.get('H-E6-u2-wait-12m');
 
-// The production numeric calibration is scoped to air (gammaTrue = 1.4).
-// Helium keeps only the ideal-core gammaTrue check plus relative error trends.
+// The ideal core and the effects of nonstandard operation have separate checks.
 assert.equal(
   heliumAbsoluteIdeal?.gamma !== null &&
     heliumAbsoluteIdeal?.gamma !== undefined &&
@@ -601,8 +600,9 @@ assert.equal(
   heliumBestRealisticSmoke?.gamma !== null &&
     heliumBestRealisticSmoke?.gamma !== undefined,
   true,
-  'helium best realistic smoke run should remain finite without inheriting the air calibration band',
+  'standard helium operation should produce a finite gamma',
 );
+
 assert.equal(
   heliumU1TooEarly?.gamma !== null &&
     heliumU1TooEarly?.gamma !== undefined &&

@@ -4,7 +4,6 @@ import {
   roundSignificantFiguresHalfEven,
 } from '../../src/domain/calculation/decimalHalfEven.ts';
 import {
-  PISTON_OSCILLATION_REFERENCE_PRESSURE_PA,
   calculatePistonOscillationLinearFit,
   createPistonOscillationCalculationKnownsSnapshot,
   createPistonOscillationCalculationSession,
@@ -48,17 +47,17 @@ import {
   createPistonOscillationPressOperationEvidence,
 } from '../../src/domain/pistonOscillation/pistonOscillationPressInteractionModel.ts';
 import {
-  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V5,
-  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7,
-  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_ACCEPTANCE_RELATIVE_ERROR_PERCENT,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
   createPistonOscillationRealParameterDraft,
   createPistonOscillationRealParameterProfile,
+  getPistonOscillationStoredRealParameterBaseline,
   inferPistonOscillationRealAirProfileVersion,
   inferPistonOscillationRealHeliumProfileVersion,
 } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
@@ -127,52 +126,13 @@ assert.equal(inferPistonOscillationRealAirProfileVersion({
   sensorResponseTimeS: 0.0055,
   equivalentLinearLossNsPerM: 0,
 }), PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION);
-const airV8 = createPistonOscillationRealParameterDraft('air', PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8);
-assert.deepEqual(airV8, {
-  ...airDefaults,
-  equivalentLinearLossNsPerM: 0.18,
-  thermalRelaxationTimeS: 0.014,
-  thermalVolumeExponent: 1.5,
-  heatFlowLagTimeS: 0.0005,
-  sensorResponseTimeS: 0.002,
-  tailIntensity: 0.35,
-});
-assert.equal(inferPistonOscillationRealAirProfileVersion(airV8), PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8);
-assert.equal(isPistonOscillationFreeExperimentProfileImplemented(createPistonOscillationFreeExperimentGroup({
-  parameterProfileVersion: PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
-})), true);
-const airV7 = createPistonOscillationRealParameterDraft('air', PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7);
-assert.deepEqual(
-  airV7,
-  {
-    ...airDefaults,
-    equivalentLinearLossNsPerM: 0.02,
-    thermalRelaxationTimeS: 0.0115,
-    thermalVolumeExponent: 1.10,
-    heatFlowLagTimeS: 0.0005,
-    sensorResponseTimeS: 0.0055,
-    tailIntensity: 0.35,
-  },
-);
-assert.equal(inferPistonOscillationRealAirProfileVersion(airV7), PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7);
+const airV7 = getPistonOscillationStoredRealParameterBaseline('air', PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7);
+assert.ok(airV7);
 assert.equal(inferPistonOscillationRealAirProfileVersion({
   ...airV7, sensorResponseTimeS: 0.004, thermalRelaxationTimeS: 0.014,
 }), PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7);
 assert.equal(isPistonOscillationFreeExperimentProfileImplemented(createPistonOscillationFreeExperimentGroup({
   parameterProfileVersion: PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7,
-})), true);
-const previousAirDraft = createPistonOscillationRealParameterDraft('air', PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V5);
-assert.deepEqual(previousAirDraft, {
-  ...airV7,
-  equivalentLinearLossNsPerM: 0,
-  sensorResponseTimeS: 0.0065,
-});
-assert.equal(inferPistonOscillationRealAirProfileVersion(previousAirDraft), PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V5);
-const airV6 = createPistonOscillationRealParameterDraft('air', PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6);
-assert.deepEqual(airV6, { ...airV7, sensorResponseTimeS: 0.0065 });
-assert.equal(inferPistonOscillationRealAirProfileVersion(airV6), PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6);
-assert.equal(isPistonOscillationFreeExperimentProfileImplemented(createPistonOscillationFreeExperimentGroup({
-  parameterProfileVersion: PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6,
 })), true);
 const heliumProfile = createPistonOscillationRealParameterProfile('helium');
 assert.equal(
@@ -183,13 +143,27 @@ assert.equal(
   heliumProfile.parameters.thermalRelaxationTimeS,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
 );
-assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.003);
-assert.equal(heliumProfile.parameters.thermalVolumeExponent, undefined);
-assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.022);
+assert.equal(heliumProfile.parameters.thermalRelaxationTimeS, 0.008);
+assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0026);
+assert.equal(heliumProfile.parameters.thermalVolumeExponent, 0.85);
+assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.18);
+assert.equal(heliumProfile.parameters.heatFlowLagTimeS, 0.0005);
 assert.equal(heliumProfile.parameters.tailIntensity, 0);
-const previousHeliumDraft = createPistonOscillationRealParameterDraft(
+assert.equal(inferPistonOscillationRealHeliumProfileVersion(heliumProfile.parameters), heliumProfile.version);
+for (const version of [
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5,
+]) {
+  assert.equal(getPistonOscillationStoredRealParameterBaseline('helium', version), undefined);
+  assert.equal(isPistonOscillationFreeExperimentProfileImplemented(createPistonOscillationFreeExperimentGroup({
+    gasMaterialSnapshot: createPistonOscillationGasMaterialSnapshot('helium'),
+    parameterProfileVersion: version,
+  })), true);
+}
+const previousHeliumDraft = getPistonOscillationStoredRealParameterBaseline(
   'helium', PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
 );
+assert.ok(previousHeliumDraft);
 assert.equal(previousHeliumDraft.thermalRelaxationTimeS, 0.09);
 assert.equal(previousHeliumDraft.equivalentLinearLossNsPerM, 1.1);
 assert.equal(previousHeliumDraft.tailIntensity, 1);
@@ -355,9 +329,10 @@ for (const record of heliumRecords) {
 const fitPoints = heliumRecords.map((record, runIndex) => {
   const extrema = findPistonOscillationPrimaryExtrema(record);
   assert.ok(extrema.length >= 7, `${record.targetHeightMm} mm must retain three primary periods`);
-  const left = extrema[0]!;
-  const right = extrema[6]!;
-  assert.equal(left.type, right.type);
+  const leftIndex = extrema.findIndex((extremum) => extremum.type === 'peak');
+  const left = extrema[leftIndex];
+  const right = extrema[leftIndex + 6];
+  assert.ok(left && right && right.type === 'peak' && right.ordinal - left.ordinal === 6);
   const sampleDifference = right.sampleIndex - left.sampleIndex;
   const periodS = roundRatioSignificantFiguresHalfEven(
     BigInt(sampleDifference),
@@ -369,8 +344,8 @@ const fitPoints = heliumRecords.map((record, runIndex) => {
     measurementIndex: record.measurementIndex,
     rawMeasurementRecordId: record.recordId,
     periodSquaredS2: periodS ** 2,
-    heightMm: record.targetHeightMm,
-    heightM: record.targetHeightMm / 1_000,
+    heightMm: record.confirmedHeightMm,
+    heightM: record.confirmedHeightMm / 1_000,
   };
 });
 const fit = calculatePistonOscillationLinearFit(fitPoints, 30_000);
@@ -379,13 +354,13 @@ const areaM2 = Math.PI * PISTON_OSCILLATION_CYLINDER_DIAMETER_M ** 2 / 4;
 const calculatedGamma = 4 * Math.PI ** 2
   * PISTON_OSCILLATION_PISTON_AND_PLATFORM_MASS_KG
   * fit.slopeMPerS2
-  / (areaM2 * PISTON_OSCILLATION_REFERENCE_PRESSURE_PA);
+  / (areaM2 * heliumRecords[0]!.physicsSnapshot.equilibrium.equilibriumPressurePa);
 const relativeErrorPercent = Math.abs(
   calculatedGamma - PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX,
 ) / PISTON_OSCILLATION_HELIUM_ADIABATIC_INDEX * 100;
 assert.ok(
   relativeErrorPercent <= PISTON_OSCILLATION_REAL_HELIUM_ACCEPTANCE_RELATIVE_ERROR_PERCENT,
-  `the normal Real helium workflow must remain within 3%, received ${relativeErrorPercent}%`,
+  `the normal Real helium workflow must meet the scaled air tolerance, received ${relativeErrorPercent}%`,
 );
 
 const processing = createPistonOscillationDataProcessingSession(

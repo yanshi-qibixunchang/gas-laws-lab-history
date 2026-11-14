@@ -418,18 +418,18 @@ assert.equal(heliumGasFile.theoreticalGamma, 5 / 3);
 assert.equal(heliumGasFile.heatCapacityFreeInstrumentConfig.physics.gamma, 5 / 3);
 assert.equal(
   selectHeatCapacityFreeAppliedParameterDraft(heliumGasFile).gasWallConductanceWPerK,
-  0.03,
-  'switching to helium should apply the tuned monatomic gas-wall conductance default',
+  0.033,
+  'switching to helium should apply the calibrated helium gas-wall conductance default',
 );
 assert.equal(
   heliumGasFile.heatCapacityFreeInstrumentConfig.physics.thermal.gasWallConductanceWPerK,
-  0.03,
-  'helium physics config should use the tuned monatomic gas-wall conductance',
+  0.033,
+  'helium physics config should use the calibrated helium gas-wall conductance',
 );
 assert.equal(
   selectHeatCapacityFreeAppliedParameterDraft(heliumGasFile).leakageRatePerS,
-  HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,
-  'switching to helium should apply the tuned monatomic leakage default',
+  0.000039,
+  'switching to helium should apply the calibrated helium leakage default',
 );
 assert.equal(
   heliumGasFile.heatCapacityFreeInstrumentConfig.physics.leakage.ratePerS,
@@ -515,7 +515,7 @@ assert.equal(resetGasTypeEdit.heatCapacityFreeRunWorkspace.trials.length, 0);
 assert.equal(selectHeatCapacityFreeGasType(resetGasTypeEdit), 'helium');
 assert.equal(selectHeatCapacityFreeAppliedParameterDraft(resetGasTypeEdit).gasType, 'helium');
 assert.equal(resetGasTypeEdit.theoreticalGamma, 5 / 3);
-assert.equal(selectHeatCapacityFreeAppliedParameterDraft(resetGasTypeEdit).gasWallConductanceWPerK, 0.03);
+assert.equal(selectHeatCapacityFreeAppliedParameterDraft(resetGasTypeEdit).gasWallConductanceWPerK, 0.033);
 assert.equal(
   selectHeatCapacityFreeAppliedParameterDraft(resetGasTypeEdit).leakageRatePerS,
   HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS.helium.leakageRatePerS,

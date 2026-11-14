@@ -36,9 +36,12 @@ import {
   PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V4,
+  PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
   PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
   createPistonOscillationRealParameterDraft,
+  getPistonOscillationStoredRealParameterBaseline,
 } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 import { createDefaultPistonOscillationFreeParameterDraft } from '../../src/domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 import {
@@ -290,6 +293,19 @@ assert.equal(resolvePistonOscillationFreeEffectiveConfig(
   idealHeliumSelection.experimentGroup, idealHeliumSelection.parameterDraft,
 ).parameters.recordingDurationS, undefined);
 assert.equal(canRunPistonOscillationFreeExperiment(idealHeliumSelection), true);
+const idealHeliumWithAcquisitionSettings = transitionPistonOscillationFreeSession(
+  transitionPistonOscillationFreeSession(idealHeliumSelection, {
+    type: 'setAcquisitionSetting', field: 'triggerThresholdKpa', value: 117, nowMs: 104.01,
+  }),
+  { type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 1, nowMs: 104.02 },
+);
+const lockedIdealHelium = transitionPistonOscillationFreeSession(idealHeliumWithAcquisitionSettings, {
+  type: 'observeOperation', operation: 'startAcquisition', nowMs: 104.03,
+});
+const reloadedIdealHelium = normalizePistonOscillationFreeSession(lockedIdealHelium);
+assert.equal(reloadedIdealHelium.triggerThresholdKpa, 117);
+assert.equal(reloadedIdealHelium.experimentGroup.parameterSnapshot?.parameters.recordingDurationS, 1);
+assert.equal(reloadedIdealHelium.experimentGroup.parameterSnapshot?.parameters.equivalentLinearLossNsPerM, 0);
 assert.equal(
   idealHeliumSelection.parameterDraft.thermalRelaxationTimeS,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
@@ -349,14 +365,29 @@ const migratedPendingRealHelium = normalizePistonOscillationFreeSession({
 });
 assert.equal(
   migratedPendingRealHelium.experimentGroup.parameterProfileVersion,
-  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
 );
 assert.equal(migratedPendingRealHelium.parameterDraft.ambientPressureKpa, 99);
 assert.equal(
   migratedPendingRealHelium.parameterDraft.thermalRelaxationTimeS,
-  PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
+  0.09,
   'a saved pre-implementation helium draft must adopt the apparatus-specific thermal preset',
 );
+const savedTrialHeliumDraft = {
+  ...realHeliumSelection.parameterDraft,
+  equivalentLinearLossNsPerM: 0.07,
+  sensorResponseTimeS: 0.0029,
+};
+const resumedTrialHelium = normalizePistonOscillationFreeSession(JSON.parse(JSON.stringify({
+  ...realHeliumSelection,
+  experimentGroup: {
+    ...realHeliumSelection.experimentGroup,
+    parameterProfileVersion: PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5,
+  },
+  parameterDraft: savedTrialHeliumDraft,
+})));
+assert.equal(resumedTrialHelium.experimentGroup.parameterProfileVersion, PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5);
+assert.deepEqual(resumedTrialHelium.parameterDraft, savedTrialHeliumDraft);
 const restoredLooseHeliumState = normalizePistonOscillationFreeSession({
   ...JSON.parse(JSON.stringify(realHeliumSelection)),
   instrumentState: {
@@ -385,10 +416,16 @@ assert.equal(
 assert.equal(canRunPistonOscillationFreeExperiment(realAirSelection), true);
 assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.012);
 assert.equal(realAirSelection.parameterDraft.sensorResponseTimeS, 0.0025);
+const idealHeliumToAir = transitionPistonOscillationFreeSession(idealHeliumSelection, {
+  type: 'setGasType', gasType: 'air', nowMs: 106.001,
+});
+assert.equal(idealHeliumToAir.parameterDraft.sensorResponseTimeS, 0.0025);
 const priorAirProfile = PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION;
+const priorAirDraft = getPistonOscillationStoredRealParameterBaseline('air', priorAirProfile);
+assert.ok(priorAirDraft);
 const priorAir = normalizePistonOscillationFreeSession({
   ...realAirSelection,
-  parameterDraft: createPistonOscillationRealParameterDraft('air', priorAirProfile),
+  parameterDraft: priorAirDraft,
   experimentGroup: { ...realAirSelection.experimentGroup, parameterProfileVersion: priorAirProfile },
 });
 assert.equal(priorAir.parameterDraft.sensorResponseTimeS, 0.0055);
@@ -401,7 +438,8 @@ const priorAirAfterSchemeChange = transitionPistonOscillationFreeSession(
 assert.equal(priorAirAfterSchemeChange.experimentGroup.parameterProfileVersion, priorAirProfile);
 assert.deepEqual(priorAirAfterSchemeChange.parameterDraft, priorAir.parameterDraft);
 const previousObservationProfile = PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V4;
-const previousObservationDraft = createPistonOscillationRealParameterDraft('air', previousObservationProfile);
+const previousObservationDraft = getPistonOscillationStoredRealParameterBaseline('air', previousObservationProfile);
+assert.ok(previousObservationDraft);
 const previousObservationSession = normalizePistonOscillationFreeSession({
   ...realAirSelection,
   parameterDraft: previousObservationDraft,

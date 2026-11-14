@@ -31,8 +31,9 @@ export const HEAT_CAPACITY_FREE_GAS_TYPE_MODEL_DEFAULTS: Record<
   },
   helium: {
     gamma: 5 / 3,
-    gasWallConductanceWPerK: 0.03,
-    leakageRatePerS: 0.000035,
+    // Effective teaching defaults matched to the scaled air baseline.
+    gasWallConductanceWPerK: 0.033,
+    leakageRatePerS: 0.000039,
   },
 };
 

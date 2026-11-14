@@ -93,6 +93,7 @@ import {
 import {
   applyPistonOscillationRealGasProfile,
   createPistonOscillationRealParameterDraft,
+  getPistonOscillationStoredRealParameterBaseline,
   inferPistonOscillationRealAirProfileVersion,
   inferPistonOscillationRealHeliumProfileVersion,
 } from './pistonOscillationRealParameterProfile.ts';
@@ -914,12 +915,14 @@ export const transitionPistonOscillationFreeSession = (
     const parameterDraft = applyPistonOscillationRealGasProfile(
       session.parameterDraft,
       event.gasType,
-      createPistonOscillationRealParameterDraft(
+      getPistonOscillationStoredRealParameterBaseline(
         previousGroup.gasMaterialSnapshot.gasType,
         previousGroup.scheme === 'real'
           ? previousGroup.parameterProfileVersion
-          : inferPistonOscillationRealAirProfileVersion(session.parameterDraft),
-      ).sensorResponseTimeS,
+          : (previousGroup.gasMaterialSnapshot.gasType === 'air'
+              ? inferPistonOscillationRealAirProfileVersion(session.parameterDraft)
+              : inferPistonOscillationRealHeliumProfileVersion(session.parameterDraft)),
+      )?.sensorResponseTimeS,
     );
     const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
       experimentGroup,
@@ -2368,6 +2371,8 @@ export const normalizePistonOscillationFreeSession = (
       ? applyPistonOscillationRealGasProfile(
           synchronizedParameterDraft,
           'helium',
+          undefined,
+          getPistonOscillationStoredRealParameterBaseline('helium', experimentGroup.parameterProfileVersion),
         )
       : status === 'idle' ? synchronizedParameterDraft : withDefaultTriggerThreshold(synchronizedParameterDraft));
   const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(

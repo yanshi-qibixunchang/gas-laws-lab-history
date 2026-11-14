@@ -1,7 +1,7 @@
 import { isUncertaintyTeachingEnvironment, matchesTeachingSettings, uncertaintyTeachingEligibility } from '../calculation/uncertaintyTeachingEligibility.ts';
 import type { PistonOscillationFreeExperimentGroup } from './pistonOscillationFreeExperimentGroupModel.ts';
 import { isPistonOscillationFreeTriggerThresholdKpa } from './pistonOscillationFreeParameterConfig.ts';
-import { createPistonOscillationRealParameterDraft } from './pistonOscillationRealParameterProfile.ts';
+import { getPistonOscillationStoredRealParameterBaseline } from './pistonOscillationRealParameterProfile.ts';
 
 /** Never infer eligibility from the current sidebar or a saved eligibility flag. */
 export const evaluatePistonUncertaintyEligibility = (group: PistonOscillationFreeExperimentGroup) => {
@@ -11,10 +11,11 @@ export const evaluatePistonUncertaintyEligibility = (group: PistonOscillationFre
   if (!isUncertaintyTeachingEnvironment(parameters.ambientTemperatureK, parameters.ambientPressureKpa)) {
     return uncertaintyTeachingEligibility('environment');
   }
-  const expected = createPistonOscillationRealParameterDraft(
+  const expected = getPistonOscillationStoredRealParameterBaseline(
     group.gasMaterialSnapshot.gasType,
     group.parameterProfileVersion,
   );
+  if (!expected) return uncertaintyTeachingEligibility('instrument-model');
   const { ambientTemperatureK: _temperature, ambientPressureKpa: _pressure,
     sampleRateHz: _rate, triggerThresholdKpa: _trigger, ...fixed } = expected;
   if (!matchesTeachingSettings(parameters, fixed)) return uncertaintyTeachingEligibility('instrument-model');

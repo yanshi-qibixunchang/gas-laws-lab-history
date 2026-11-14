@@ -42,7 +42,7 @@ import { applyPistonOscillationTailIrregularityObservation } from '../../src/dom
 import { resolvePistonOscillationFreeEffectiveConfig } from '../../src/domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
 import {
   PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
-  createPistonOscillationRealParameterDraft,
+  getPistonOscillationStoredRealParameterBaseline,
 } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 
 type UntimedFreeEvent = PistonOscillationFreeEvent extends infer Event
@@ -329,10 +329,12 @@ const createCollectedSession = (
 };
 
 const previousProfile = PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION;
+const previousDraft = getPistonOscillationStoredRealParameterBaseline('air', previousProfile);
+assert.ok(previousDraft);
 const previousSession = createDefaultPistonOscillationFreeSession();
 const detailed = createCollectedSession([75, 70, 60], [], {
   ...previousSession,
-  parameterDraft: createPistonOscillationRealParameterDraft('air', previousProfile),
+  parameterDraft: previousDraft,
   experimentGroup: { ...previousSession.experimentGroup, parameterProfileVersion: previousProfile },
 });
 assert.ok(

@@ -10,7 +10,10 @@ import {
   HEAT_CAPACITY_RELEASE_TIMING,
   HEAT_CAPACITY_STANDARD_OPERATION,
 } from '../../src/domain/heatCapacity/heatCapacityDefaultConfig.ts';
-import { getHeatCapacityFreeGasTypeModelDefaults } from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
+import {
+  getHeatCapacityFreeGasTypeGamma,
+  getHeatCapacityFreeGasTypeModelDefaults,
+} from '../../src/domain/heatCapacity/heatCapacityGasTheory.ts';
 
 type ScenarioInput = HeatCapacityFreeParameterAcceptanceScenarioInput;
 const AIR_MODEL_DEFAULTS = getHeatCapacityFreeGasTypeModelDefaults('air');
@@ -127,35 +130,25 @@ const assertMeanRange = (
   );
 };
 
-{
-  const absoluteIdeal = runSingle(baseScenario('absolute-ideal', {
-    pumpMode: 'instant-equivalent',
-    releaseMode: 'instant-adiabatic-to-ambient',
-    pumpTotalDurationS: 0,
-    leakageEnabled: false,
-    leakageRatePerS: 0,
-    pumpValveExchangeEnabled: false,
-    environmentDisturbanceEnabled: false,
-    instrumentNoiseEnabled: false,
-  }));
-  assertInRange(absoluteIdeal.gamma, 1.395, 1.405, 'absolute ideal gamma');
+const absoluteIdealScenario = baseScenario('absolute-ideal', {
+  pumpMode: 'instant-equivalent',
+  releaseMode: 'instant-adiabatic-to-ambient',
+  pumpTotalDurationS: 0,
+  leakageEnabled: false,
+  leakageRatePerS: 0,
+  pumpValveExchangeEnabled: false,
+  environmentDisturbanceEnabled: false,
+  instrumentNoiseEnabled: false,
+});
 
-  const idealExperiment = runSingle(baseScenario('ideal-experiment', {
-    leakageEnabled: false,
-    leakageRatePerS: 0,
-    pumpValveExchangeEnabled: false,
-    environmentDisturbanceEnabled: false,
-    instrumentNoiseEnabled: false,
-  }));
-  assertInRange(idealExperiment.gamma, 1.39, 1.41, 'ideal experiment gamma');
-}
-
-assertSlidingMeanRange(
-  runRepeated('best-realistic', baseScenario('best-realistic')),
-  1.37,
-  1.43,
-  'best realistic operation',
-);
+const idealExperimentScenario = baseScenario('ideal-experiment', {
+  leakageEnabled: false,
+  leakageRatePerS: 0,
+  pumpValveExchangeEnabled: false,
+  environmentDisturbanceEnabled: false,
+  instrumentNoiseEnabled: false,
+});
+assertInRange(runSingle(idealExperimentScenario).gamma, 1.39, 1.41, 'air historical ideal operation');
 
 const suitableScenarios = [
   ['low-extreme', baseScenario('low-extreme', {
@@ -195,12 +188,38 @@ const suitableScenarios = [
   })],
 ] as const;
 
-for (const [label, scenario] of suitableScenarios) {
-  assertMeanRange(
-    runRepeated(label, scenario),
-    1.34,
-    1.46,
-    `suitable operation ${label}`,
+for (const gasType of ['air', 'helium'] as const) {
+  const gamma = getHeatCapacityFreeGasTypeGamma(gasType);
+  const scale = gamma / getHeatCapacityFreeGasTypeGamma('air');
+  const forGas = (scenario: ScenarioInput): ScenarioInput => ({
+    ...scenario,
+    gasType,
+    leakageRatePerS: scenario.leakageEnabled
+      ? getHeatCapacityFreeGasTypeModelDefaults(gasType).leakageRatePerS
+      : 0,
+  });
+
+  assertInRange(runSingle(forGas(absoluteIdealScenario)).gamma, 1.395 * scale, 1.405 * scale, `${gasType} absolute ideal`);
+  const best = runRepeated('best-realistic', forGas(baseScenario('best-realistic')));
+  assertSlidingMeanRange(best, 1.37 * scale, 1.43 * scale, `${gasType} best realistic operation`);
+  for (const row of best) {
+    assertInRange(row.gamma, 1.37 * scale, 1.43 * scale, row.id);
+  }
+  for (const [label, scenario] of suitableScenarios) {
+    const rows = runRepeated(label, forGas(scenario));
+    assertMeanRange(rows, 1.34 * scale, 1.46 * scale, `${gasType} suitable operation ${label}`);
+    for (const row of rows) {
+      assertInRange(row.gamma, 1.34 * scale, 1.46 * scale, row.id);
+    }
+  }
+  const longRelease = runSingle(forGas(baseScenario('open-10s', {
+    openDurationS: 10,
+    instrumentNoiseEnabled: false,
+  })));
+  assert.ok(
+    longRelease.gamma !== null &&
+      Math.abs(longRelease.gamma - gamma) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.severe * scale,
+    `${gasType} extreme long-open diagnostic should exceed the scaled severe band, got ${longRelease.gamma}`,
   );
 }
 
@@ -352,17 +371,6 @@ assert.equal(
     Math.abs(openVeryLong.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.suitable,
   true,
   `the long-open diagnostic should exceed the suitable absolute-error band, got ${openVeryLong.gamma}`,
-);
-
-const openExtremeLong = runSingle(baseScenario('open-10s', {
-  openDurationS: 10,
-  instrumentNoiseEnabled: false,
-}));
-assert.equal(
-  openExtremeLong.gamma !== null &&
-    Math.abs(openExtremeLong.gamma - 1.4) > HEAT_CAPACITY_GAMMA_ABSOLUTE_ERROR_LIMITS.severe,
-  true,
-  `the extreme long-open diagnostic should exceed the severe absolute-error band, got ${openExtremeLong.gamma}`,
 );
 
 const u2TenMinutes = runSingle(baseScenario('u2-10min', {
