@@ -30,11 +30,11 @@ export const createConsoleLog = (
 export const createInitialLogs = (language: WorkbenchLanguagePreference): ConsoleLog[] => {
   const browser = typeof window !== 'undefined' && isBrowserEdition(window);
   return [
-  createConsoleLog(1, 'info', (nextLanguage) => workbenchCopies[nextLanguage].logs.initialized, language),
-  createConsoleLog(2, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.defaultLayout, language),
-  createConsoleLog(3, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.standardConnected, language),
-  createConsoleLog(4, browser ? 'info' : 'warning', (nextLanguage) => browser
-    ? browserEditionCopies[nextLanguage].exportBody
-    : workbenchCopies[nextLanguage].logs.exportBridgeRequired, language),
+    createConsoleLog(1, 'info', (nextLanguage) => workbenchCopies[nextLanguage].logs.initialized, language),
+    createConsoleLog(2, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.defaultLayout, language),
+    createConsoleLog(3, 'success', (nextLanguage) => workbenchCopies[nextLanguage].logs.standardConnected, language),
+    ...(browser ? [
+      createConsoleLog(4, 'info', (nextLanguage) => browserEditionCopies[nextLanguage].exportBody, language),
+    ] : []),
   ];
 };

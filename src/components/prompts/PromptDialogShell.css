@@ -96,6 +96,8 @@
   z-index: var(--prompt-layer-window);
   display: grid;
   place-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
   background: var(--prompt-overlay);
   padding: 24px;
   animation: promptDialogOverlayIn var(--prompt-motion-normal) var(--prompt-motion-ease) both;
@@ -113,8 +115,8 @@
   top: auto;
   left: auto;
   display: grid;
-  max-width: calc(100vw - 48px);
-  max-height: calc(100vh - 48px);
+  max-width: 100%;
+  max-height: 100%;
   overflow: hidden;
   border: 1px solid var(--prompt-border);
   border-radius: var(--prompt-dialog-radius-window);
@@ -254,8 +256,8 @@
   }
 
   .prompt-dialog-window.prompt-dialog-window[data-prompt-shell-window='true'] {
-    max-width: calc(100vw - 24px);
-    max-height: calc(100vh - 24px);
+    max-width: 100%;
+    max-height: 100%;
   }
 }
 

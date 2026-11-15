@@ -115,7 +115,7 @@ assert.equal(getWorkbenchParameterDisplayLabel(row, workbenchCopies['zh-CN']), w
 assert.equal(WORKBENCH_PARAMETER_DETAILS.N.symbol[0], 'N');
 assert.deepEqual(getLocalizedWorkbenchValidationErrors(['N must be greater than 0.', 'unrecognized'], 'zh-CN'), ['N 必须大于 0。', 'unrecognized']);
 const logs = createInitialLogs('en');
-assert.deepEqual(logs.map(log => log.kind), ['info', 'success', 'success', 'warning']);
+assert.deepEqual(logs.map(log => log.kind), ['info', 'success', 'success']);
 assert.equal(resolveWorkbenchConsoleMessage(logs[0], 'zh-CN'), workbenchCopies['zh-CN'].logs.initialized);
 
 const workbench = readFileSync(new URL('../../src/features/workbench/WorkbenchStudioPrototype.tsx', import.meta.url), 'utf8');

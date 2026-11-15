@@ -237,12 +237,6 @@ export const createWorkbenchHeatDemoRuntimeActions = (ports: createWorkbenchHeat
 
       if (action === 'completeTeachingMode') {
         const completedFile = completeHeatCapacityTeachingModeWorkbenchState(file, now);
-        window.setTimeout(() => {
-          pushLog(
-            (language) => getHeatCapacityRealtimeCopy(language).autoDemoImportedCompleteLog(completedFile.name),
-            'success',
-          );
-        }, 0);
         return {
           ...completedFile,
           heatCapacityMaterialsExpanded: true,
@@ -252,6 +246,15 @@ export const createWorkbenchHeatDemoRuntimeActions = (ports: createWorkbenchHeat
 
       return file;
     });
+    if (action === 'completeTeachingMode') {
+      const completedFile = filesRef.current.find((file) => file.id === fileId);
+      if (completedFile?.kind === 'heatCapacity') {
+        pushLog(
+          (language) => getHeatCapacityRealtimeCopy(language).autoDemoImportedCompleteLog(completedFile.name),
+          'success',
+        );
+      }
+    }
     return true;
   };
 

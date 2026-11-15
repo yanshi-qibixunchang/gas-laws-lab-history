@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.4.4', 'desktop update should use the authorized next patch version');
-assert.match(readme, /current source targets desktop release `v6\.4\.4`/, 'English README should name the current release source');
-assert.match(readmeZhCn, /当前源码对应桌面版本 `v6\.4\.4`/, 'Simplified Chinese README should name the current release source');
-assert.match(readmeZhTw, /目前原始碼對應桌面版本 `v6\.4\.4`/, 'Traditional Chinese README should name the current release source');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.4\.4。/, 'the reviewed build notice should name the current project version');
+assert.equal(packageJson.version, '6.5.0', 'desktop candidate should use the authorized version');
+assert.match(readme, /current source targets desktop release `v6\.5\.0`/, 'English README should name the current release source');
+assert.match(readmeZhCn, /当前源码对应桌面版本 `v6\.5\.0`/, 'Simplified Chinese README should name the current release source');
+assert.match(readmeZhTw, /目前原始碼對應桌面版本 `v6\.5\.0`/, 'Traditional Chinese README should name the current release source');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.5\.0（本地验收候选，尚未正式发布）。/, 'the reviewed build notice should distinguish the local candidate');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -98,10 +98,16 @@ assert.equal(
   `${packageJson.version} installer should be published in the public release repository`,
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
-for (const scope of ['browser-desktop-download', 'browser-export-boundary', 'desktop-update-v6-4-4']) {
-  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'), `6.4.4 release notes should explain ${scope}`);
+assert.equal(currentRelease.channel, 'local-candidate');
+for (const scope of ['heat-capacity-calibrated-gas-profiles', 'piston-internal-dissipation', 'calculation-focus-and-explanations', 'desktop-update-v6-5-0']) {
+  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'), `6.5.0 release notes should explain ${scope}`);
 }
-assert.ok(currentItems.some(item => item.scope === 'browser-readonly-experiment'));
+assert.ok(currentItems.some(item => item.scope === 'desktop-export-status'));
+const browserReleaseItems = findRelease('6.4.4')?.sections?.flatMap((section) => section.items ?? []) ?? [];
+for (const scope of ['browser-desktop-download', 'browser-export-boundary', 'desktop-update-v6-4-4']) {
+  assert.ok(browserReleaseItems.some(item => item.scope === scope && item.importance === 'high'), `6.4.4 release notes should explain ${scope}`);
+}
+assert.ok(browserReleaseItems.some(item => item.scope === 'browser-readonly-experiment'));
 const priorPatchItems = findRelease('6.4.3')?.sections?.flatMap(section => section.items ?? []) ?? [];
 for (const scope of ['heat-capacity-ab-uncertainty', 'piston-uncertainty-statistics', 'desktop-update-v6-4-3']) {
   assert.ok(priorPatchItems.some(item => item.scope === scope && item.importance === 'high'),
@@ -338,7 +344,7 @@ assert.equal(
 
 const firstRelease = releaseNotes.releases[0];
 assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions should not include a leading v');
-assert.equal(firstRelease.channel, 'stable', 'release notes should identify the stable channel');
+assert.equal(firstRelease.channel, 'local-candidate', '6.5.0 remains a local candidate until public release is approved');
 assert.match(
   firstRelease.download?.releasePage ?? '',
   /^https:\/\/github\.com\/yanshi-qibixunchang\/(?:hard-sphere-lab-1|gas-laws-lab-release)\/releases\/tag\/v\d+\.\d+\.\d+$/,

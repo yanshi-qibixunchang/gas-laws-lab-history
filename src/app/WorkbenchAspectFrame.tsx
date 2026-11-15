@@ -91,7 +91,7 @@ export const WorkbenchAspectFrame = ({
         inset: 0,
         display: 'grid',
         placeItems: 'center',
-        overflow: 'hidden',
+        overflow: 'clip',
         background: useFixedFrame ? '#11161b' : '#1a1f25',
       }}
     >
@@ -99,7 +99,7 @@ export const WorkbenchAspectFrame = ({
         style={{
           width: useFixedFrame ? scaledFrameWidth : '100vw',
           height: useFixedFrame ? scaledFrameHeight : '100vh',
-          overflow: 'hidden',
+          overflow: 'clip',
           background: '#1a1f25',
           outline: useFixedFrame ? '1px solid rgba(127, 139, 152, 0.38)' : 'none',
           boxShadow: useFixedFrame

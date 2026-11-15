@@ -3,6 +3,112 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.5.0",
+      "date": "2026-11-15",
+      "channel": "local-candidate",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.0",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.0/heat-capacity-lab-setup-6.5.0.exe"
+      },
+      "summary": {
+        "zh-CN": "6.5.0 本地验收候选：完善空气与氦气的理想、真实实验模型，加入活塞内部耗散与现场录音拟合音效，统一计算提示、焦点和窗口显示。保留旧实验的历史参数与数据。本轮仅用于本地覆盖升级和试用，尚未正式发布。",
+        "zh-TW": "6.5.0 本地驗收候選：完善空氣與氦氣的理想、真實實驗模型，加入活塞內部耗散與現場錄音擬合音效，統一計算提示、焦點與視窗顯示。保留舊實驗的歷史參數與資料。本輪僅供本地覆蓋升級與試用，尚未正式發佈。",
+        "en": "Local 6.5.0 acceptance candidate: refines ideal and realistic air/helium experiments, adds piston internal dissipation and recording-based sound, and aligns calculation help, focus and window layout. Historical experiment parameters and data are preserved. This build is for local upgrade testing and is not yet publicly released."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "实验模型与计算体验",
+            "zh-TW": "實驗模型與計算體驗",
+            "en": "Experiment models and calculation workflow"
+          },
+          "items": [
+            {
+              "scope": "heat-capacity-calibrated-gas-profiles",
+              "importance": "high",
+              "title": {
+                "zh-CN": "空气与氦气工况标定",
+                "zh-TW": "空氣與氦氣工況標定",
+                "en": "Calibrated air and helium conditions"
+              },
+              "body": {
+                "zh-CN": "两种比热容比实验分别采用已确认的空气、氦气理想与真实参数，按预先设定的工况区间验证；活塞计算采用缸内平衡压强。",
+                "zh-TW": "兩種比熱容比實驗分別採用已確認的空氣、氦氣理想與真實參數，依預先設定的工況區間驗證；活塞計算採用缸內平衡壓強。",
+                "en": "Both heat-capacity experiments use accepted ideal and realistic air/helium profiles checked against predefined conditions. Piston calculations use the loaded equilibrium gas pressure."
+              }
+            },
+            {
+              "scope": "piston-internal-dissipation",
+              "importance": "high",
+              "title": {
+                "zh-CN": "耗散、振动与声音",
+                "zh-TW": "耗散、振動與聲音",
+                "en": "Dissipation, oscillation and sound"
+              },
+              "body": {
+                "zh-CN": "理想活塞模型加入能量守恒的内部耗散，采集上限提高至 3 秒；真实模型保留已标定损耗。取消大松手时间差的损耗上限，保留正常操作容差。振动声音随事件持续时间变化，文献和音频来源已记录。",
+                "zh-TW": "理想活塞模型加入能量守恆的內部耗散，採集上限提高至 3 秒；真實模型保留已標定損耗。取消大鬆手時間差的損耗上限，保留正常操作容差。振動聲音隨事件持續時間變化，文獻及音訊來源已記錄。",
+                "en": "The ideal piston model includes energy-conserving internal dissipation with acquisition up to 3 seconds. Realistic profiles retain calibrated losses. Large release-time differences no longer saturate at the former cap; normal operation tolerance remains. Event sound duration follows motion, with literature and audio provenance recorded."
+              }
+            },
+            {
+              "scope": "calculation-focus-and-explanations",
+              "importance": "high",
+              "title": {
+                "zh-CN": "计算与不确定度交互",
+                "zh-TW": "計算與不確定度互動",
+                "en": "Calculation and uncertainty interaction"
+              },
+              "body": {
+                "zh-CN": "统一公式、变量全称和悬浮提示，简化最终结果框；继续下一项、正确作答或查看参考答案后自动聚焦并滚动到下一题，重做时返回当前题。修复缩放窗口中的外框滚动和弹窗越界。",
+                "zh-TW": "統一公式、變數全稱及懸浮提示，簡化最終結果框；繼續下一項、正確作答或查看參考答案後自動聚焦並捲動至下一題，重做時返回目前題目。修正縮放視窗中的外框捲動與彈窗越界。",
+                "en": "Aligns formulas, full variable names and hover help, with concise final results. Next-step, accepted-answer and reference-answer actions focus and reveal the next question; retry returns to the current input. Fixes outer-frame scrolling and clipped dialogs in scaled windows."
+              }
+            }
+          ]
+        },
+        {
+          "type": "fixed",
+          "title": {
+            "zh-CN": "桌面验收与旧数据兼容",
+            "zh-TW": "桌面驗收與舊資料相容",
+            "en": "Desktop validation and historical data"
+          },
+          "items": [
+            {
+              "scope": "desktop-export-status",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "导出环境提示",
+                "zh-TW": "匯出環境提示",
+                "en": "Export environment messages"
+              },
+              "body": {
+                "zh-CN": "桌面启动后按真实检测结果提示导出环境，避免提前显示缺少桌面支持的误报；消除演示结束时重复的完成消息。",
+                "zh-TW": "桌面啟動後依實際檢測結果提示匯出環境，避免提前顯示缺少桌面支援的誤報；消除演示結束時重複的完成訊息。",
+                "en": "Desktop startup reports the actual export environment instead of an unconditional missing-bridge warning. Removes duplicate demo-completion messages."
+              }
+            },
+            {
+              "scope": "desktop-update-v6-5-0",
+              "importance": "high",
+              "title": {
+                "zh-CN": "6.4.4 本地覆盖升级候选",
+                "zh-TW": "6.4.4 本地覆蓋升級候選",
+                "en": "Local upgrade candidate from 6.4.4"
+              },
+              "body": {
+                "zh-CN": "沿用应用标识和用户资料目录，保留旧实验快照与兼容读取。生成安装包、校验信息和更新资源供本地验收；公开正式版本及下载入口继续保持 6.4.4，待用户试用确认后发布。",
+                "zh-TW": "沿用應用識別與使用者資料目錄，保留舊實驗快照及相容讀取。產生安裝程式、校驗資訊和更新資源供本地驗收；公開正式版本及下載入口繼續維持 6.4.4，待使用者試用確認後發佈。",
+                "en": "Retains application identity, user-data location, historical snapshots and compatibility readers. Builds the installer, checksums and update assets for local acceptance. The public release and download entry remain at 6.4.4 pending user approval."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.4.4",
       "date": "2026-09-24",
       "channel": "stable",
