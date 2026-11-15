@@ -298,7 +298,14 @@ export class AudioEngine {
 
     let buffer: AudioBuffer;
     try {
-      buffer = await this.decodeAudio(file);
+      if (options.prepareBuffer && this.context) {
+        const buffers = await Promise.all(definition.files.map((path) => this.decodeAudio(path)));
+        if (!this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration)
+          || !this.isPlaybackEnabled() || this.destroyed || !this.context) return null;
+        buffer = options.prepareBuffer(this.context, buffers);
+      } else {
+        buffer = await this.decodeAudio(file);
+      }
     } catch (error) {
       if (
         !this.isPlaybackCurrent(playbackGeneration, group, groupPlaybackGeneration) ||

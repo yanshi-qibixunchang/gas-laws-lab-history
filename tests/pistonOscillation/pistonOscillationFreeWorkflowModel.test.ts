@@ -14,14 +14,13 @@ import {
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
   createPistonOscillationFreeExperimentContextSnapshot,
-  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeExperimentGroupModel.ts';
 import {
   resolvePistonOscillationFreeEffectiveConfig,
 } from '../../src/domain/pistonOscillation/pistonOscillationFreeEffectiveConfig.ts';
-import { PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationIdealParameterProfile.ts';
+import { PISTON_DISSIPATIVE_IDEAL_PROFILE_VERSION } from '../../src/domain/pistonOscillation/pistonOscillationIdealParameterProfile.ts';
 import {
   createPistonOscillationRawMeasurementRecord,
   type PistonOscillationRawMeasurementRecord,
@@ -187,7 +186,7 @@ const idealAirSelection = transitionPistonOscillationFreeSession(active, {
 assert.equal(idealAirSelection.experimentGroup.scheme, 'ideal');
 assert.equal(
   idealAirSelection.experimentGroup.parameterProfileVersion,
-  PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION,
+  PISTON_DISSIPATIVE_IDEAL_PROFILE_VERSION,
 );
 assert.equal(canRunPistonOscillationFreeExperiment(idealAirSelection), true);
 const idealAirEffectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
@@ -196,7 +195,7 @@ const idealAirEffectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
 );
 assert.equal(idealAirEffectiveConfig.parameters.sampleRateHz, 1_000);
 assert.equal(idealAirEffectiveConfig.parameters.triggerThresholdKpa, 120);
-assert.equal(idealAirEffectiveConfig.parameters.recordingDurationS, 1);
+assert.equal(idealAirEffectiveConfig.parameters.recordingDurationS, 1.2);
 assert.equal(idealAirEffectiveConfig.physicsConfig.linearDampingNsPerM, 0);
 assert.equal(idealAirEffectiveConfig.adiabaticProcess, true);
 assert.equal(idealAirEffectiveConfig.exactSensorObservation, true);
@@ -221,7 +220,7 @@ const reloadedIdealAcquisition = normalizePistonOscillationFreeSession(lockedIde
 assert.equal(reloadedIdealAcquisition.experimentGroup.parameterSnapshot?.parameters.recordingDurationS, 0.125);
 assert.equal(reloadedIdealAcquisition.triggerThresholdKpa, 118);
 assert.equal(transitionPistonOscillationFreeSession(restoredIdealAcquisition, {
-  type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 2.01, nowMs: 101.3,
+  type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 3.01, nowMs: 101.3,
 }), restoredIdealAcquisition);
 const legacyHeightPlan = normalizePistonOscillationFreeSession({
   ...active,
@@ -291,7 +290,7 @@ assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.gasType, '
 assert.equal(idealHeliumSelection.experimentGroup.gasMaterialSnapshot.adiabaticIndex, 5 / 3);
 assert.equal(resolvePistonOscillationFreeEffectiveConfig(
   idealHeliumSelection.experimentGroup, idealHeliumSelection.parameterDraft,
-).parameters.recordingDurationS, undefined);
+).parameters.recordingDurationS, 3);
 assert.equal(canRunPistonOscillationFreeExperiment(idealHeliumSelection), true);
 const idealHeliumWithAcquisitionSettings = transitionPistonOscillationFreeSession(
   transitionPistonOscillationFreeSession(idealHeliumSelection, {
@@ -319,7 +318,7 @@ assert.equal(
 );
 assert.equal(
   idealHeliumSelection.experimentGroup.parameterProfileVersion,
-  PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
+  PISTON_DISSIPATIVE_IDEAL_PROFILE_VERSION,
 );
 const realHeliumSelection = transitionPistonOscillationFreeSession(idealHeliumSelection, {
   type: 'setExperimentScheme',
@@ -414,12 +413,12 @@ assert.equal(
   PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
 );
 assert.equal(canRunPistonOscillationFreeExperiment(realAirSelection), true);
-assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.012);
-assert.equal(realAirSelection.parameterDraft.sensorResponseTimeS, 0.0025);
+assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.020);
+assert.equal(realAirSelection.parameterDraft.sensorResponseTimeS, 0.003);
 const idealHeliumToAir = transitionPistonOscillationFreeSession(idealHeliumSelection, {
   type: 'setGasType', gasType: 'air', nowMs: 106.001,
 });
-assert.equal(idealHeliumToAir.parameterDraft.sensorResponseTimeS, 0.0025);
+assert.equal(idealHeliumToAir.parameterDraft.sensorResponseTimeS, 0.003);
 const priorAirProfile = PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION;
 const priorAirDraft = getPistonOscillationStoredRealParameterBaseline('air', priorAirProfile);
 assert.ok(priorAirDraft);

@@ -155,7 +155,7 @@ const parameterEffects = {
     heatFlowLagTimeS: '用来近似缸壁附近的温度分布对传热的影响。气体平均温度变了，模型中的实际传热速率会逐步调整。数值越大，传热速率跟上温差变化就越慢。',
     sensorResponseTimeS: '设置仪器跟上真实压强变化的快慢。数值越大，记录的峰谷越圆，出现得越晚。',
     releaseGapOverrideMs: '两只手松开相差的时间。留空时，软件使用空格键和鼠标左键实际松开的时间差。输入一个数值，可以比较不同时间差造成的附加阻尼。',
-    releaseMaximumExtraLossNsPerM: '决定两手松开不同步时，活塞刚开始振动最多会受到多大的额外阻力。数值越大，同样的松手时间差带来的附加阻尼就越强。',
+    releaseMaximumExtraLossNsPerM: '设置两手松开不同步造成的附加阻力强度。数值越大，同样的松手时间差带来的附加阻尼就越强。',
     plan: '显示本实验文件已选定的各次平衡高度，只读且不在此处修改。',
   },
   'zh-TW': {
@@ -171,7 +171,7 @@ const parameterEffects = {
     heatFlowLagTimeS: '用來近似缸壁附近的溫度分布對傳熱的影響。氣體平均溫度變了，模型中的實際傳熱速率會逐步調整。數值越大，傳熱速率跟上溫差變化就越慢。',
     sensorResponseTimeS: '設定儀器跟上真實壓強變化的快慢。數值越大，記錄的峰谷越圓，出現得越晚。',
     releaseGapOverrideMs: '兩隻手鬆開相差的時間。留空時，軟體使用空白鍵和滑鼠左鍵實際鬆開的時間差。輸入一個數值，可以比較不同時間差造成的附加阻尼。',
-    releaseMaximumExtraLossNsPerM: '決定兩手鬆開不同步時，活塞剛開始振動最多會受到多大的額外阻力。數值越大，同樣的鬆手時間差帶來的附加阻尼就越強。',
+    releaseMaximumExtraLossNsPerM: '設定兩手鬆開不同步造成的附加阻力強度。數值越大，同樣的鬆手時間差帶來的附加阻尼就越強。',
     plan: '顯示本實驗檔案已選定的各次平衡高度，唯讀且不在此處修改。',
   },
   en: {
@@ -187,7 +187,7 @@ const parameterEffects = {
     heatFlowLagTimeS: 'Approximates how the temperature distribution near the cylinder wall affects heat transfer. When the average gas temperature changes, the modeled heat transfer rate adjusts gradually. Higher values make that rate respond more slowly to changes in the temperature difference.',
     sensorResponseTimeS: 'Sets how quickly the sensor follows the actual pressure. Higher values make the recorded peaks and troughs rounder and later.',
     releaseGapOverrideMs: 'The time between releasing the two hands. Leave blank to use the actual time between releasing the spacebar and the left mouse button. Enter a value to compare the additional damping from different gaps.',
-    releaseMaximumExtraLossNsPerM: 'Sets the maximum additional resistance at the start of oscillation when the hands release at different times. For the same release gap, higher values produce more additional damping.',
+    releaseMaximumExtraLossNsPerM: 'Sets the strength of the additional resistance when the hands release at different times. For the same release gap, higher values produce more additional damping.',
     plan: 'Shows the selected equilibrium heights for this file; it is read-only here.',
   },
 } as const;

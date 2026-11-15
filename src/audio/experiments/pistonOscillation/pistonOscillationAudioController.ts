@@ -5,8 +5,9 @@ import {
   PistonOscillationScrewGrainAccumulator,
   getPistonOscillationBottomImpactGain,
   getPistonOscillationMechanicalVariation,
-  getPistonOscillationVibrationVariation,
+  type PistonReboundSound,
 } from './pistonOscillationAudioPolicy.ts';
+import { renderPistonReboundRecording } from './pistonReboundRecording.ts';
 
 type PistonOscillationHoseConnectionState = 'connected' | 'disconnected';
 
@@ -30,6 +31,7 @@ export interface PistonOscillationAudioControllerState {
   demoHoseState: PistonOscillationHoseConnectionState | null;
   releasePulseId: number;
   demoReleaseKey: string | null;
+  releaseSound: PistonReboundSound | null;
   bottomImpactEvent: PistonOscillationBottomImpactAudioEvent | null;
 }
 
@@ -71,6 +73,7 @@ export const usePistonOscillationAudioController = (
 ) => {
   const { engine } = useAudioEngine();
   const previousRef = useRef<PreviousPistonOscillationAudioState | null>(null);
+  const pendingReleaseRef = useRef<object | null>(null);
   const screwAccumulatorRef = useRef(new PistonOscillationScrewGrainAccumulator());
   const restoreMutedRef = useRef(state.restoreMuted === true);
   const audioDisabledAfterFailureRef = useRef(false);
@@ -114,6 +117,7 @@ export const usePistonOscillationAudioController = (
     previousRef.current = nextPrevious;
     if (!previous) return;
     if (state.restoreMuted || previous.resetKey !== state.resetKey) {
+      pendingReleaseRef.current = null;
       screwAccumulatorRef.current.reset();
       engine.stopAll(0);
       return;
@@ -160,16 +164,26 @@ export const usePistonOscillationAudioController = (
       screwAccumulatorRef.current.reset();
     }
 
-    if (
+    const releaseSound = state.releaseSound;
+    if (releaseSound && (
       state.releasePulseId > previous.releasePulseId
       || (state.demoReleaseKey !== null && state.demoReleaseKey !== previous.demoReleaseKey)
-    ) {
-      guardAudioPromise(engine.playOneShot('pistonOscillation.piston.vibration', {
-        ...getPistonOscillationVibrationVariation(Math.random(), Math.random()),
+    )) {
+      const request = {};
+      pendingReleaseRef.current = request;
+      const playbackOptions = {
+        fileIndex: 0,
         replaceGroup: true,
         crossfadeMs: 16,
         fadeInMs: 3,
         maxStartDelayMs: 120,
+      };
+      guardAudioPromise(engine.playOneShot('pistonOscillation.piston.vibration', {
+        ...playbackOptions,
+        prepareBuffer: (context, recordings) => renderPistonReboundRecording(context, recordings, releaseSound),
+      }).catch(() => {
+        if (pendingReleaseRef.current !== request) return null;
+        return engine.playOneShot('pistonOscillation.piston.vibrationFallback', playbackOptions);
       }));
     }
 
@@ -201,12 +215,14 @@ export const usePistonOscillationAudioController = (
     state.lockingScrewAngleDeg,
     state.powerPressProgress,
     state.releasePulseId,
+    state.releaseSound,
     state.resetKey,
     state.restoreMuted,
     state.screwMotionActive,
   ]);
 
   useEffect(() => () => {
+    pendingReleaseRef.current = null;
     engine.stopAll(0);
     screwAccumulatorRef.current.reset();
   }, [engine]);

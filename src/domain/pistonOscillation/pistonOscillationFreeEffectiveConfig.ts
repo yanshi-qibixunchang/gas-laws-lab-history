@@ -13,6 +13,7 @@ import {
 import {
   createPistonOscillationIdealParameterProfile,
 } from './pistonOscillationIdealParameterProfile.ts';
+import { PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION } from './pistonOscillationRealParameterProfile.ts';
 
 export const resolvePistonOscillationFreeEffectiveConfig = (
   group: PistonOscillationFreeExperimentGroup,
@@ -34,7 +35,11 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
         ...(parameterDraft.recordingDurationS === undefined
           ? {} : { recordingDurationS: parameterDraft.recordingDurationS }),
       }
-    : parameterDraft);
+    : {
+        ...parameterDraft,
+        ...(group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+          && parameterDraft.recordingDurationS === undefined ? { recordingDurationS: 1.2 } : {}),
+      });
   const basePhysicsConfig = idealProfile?.physicsConfig
     ?? getPistonOscillationFreePhysicsConfig(parameters);
   return {

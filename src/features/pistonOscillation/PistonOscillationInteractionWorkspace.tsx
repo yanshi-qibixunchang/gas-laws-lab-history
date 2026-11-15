@@ -1,3 +1,4 @@
+import { getPistonOscillationDecayDurationS, PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION } from '../../domain/pistonOscillation/pistonOscillationInternalDissipation.ts';
 import {
   Suspense,
   useCallback,
@@ -19,6 +20,10 @@ import {
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import * as THREE from 'three';
 import { usePistonOscillationAudioController } from '../../audio/experiments/pistonOscillation/pistonOscillationAudioController.ts';
+import {
+  getPistonReboundSound,
+  type PistonReboundSound,
+} from '../../audio/experiments/pistonOscillation/pistonOscillationAudioPolicy.ts';
 import { PromptViewportFeedback } from '../../components/prompts/PromptViewportFeedback.tsx';
 import { PROMPT_FEEDBACK_COPY } from '../../components/prompts/promptFeedbackCopy.ts';
 import {
@@ -46,8 +51,9 @@ import {
   simulatePistonOscillationThermalRelease,
   type PistonOscillationThermalModelConfig,
 } from '../../domain/pistonOscillation/pistonOscillationThermalPhysicsModel.ts';
-import type {
-  PistonOscillationReleaseAsymmetryConfig,
+import {
+  getPistonOscillationReleaseAsymmetrySeverity,
+  type PistonOscillationReleaseAsymmetryConfig,
 } from '../../domain/pistonOscillation/pistonOscillationReleaseAsymmetryModel.ts';
 import {
   PISTON_OSCILLATION_VIRTUAL_HAND_DOWNWARD_COMMAND_HOLD_MS,
@@ -113,7 +119,7 @@ import type {
   PistonOscillationPressStartEvent,
   PistonOscillationReleaseEvent,
 } from './PistonOscillationAcquisitionPanel.tsx';
-import type { PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
+import { getPistonOscillationDemoTrajectory, type PistonOscillationDemoFrame } from './pistonOscillationDemoTimeline.ts';
 import {
   PistonOscillationOperationCueView,
   PistonOscillationOperationVisualizationToggle,
@@ -247,7 +253,6 @@ interface HoseHandleBounds {
 }
 
 const FOCUS_TRANSITION_DURATION_MS = 360;
-const PISTON_REBOUND_VISIBLE_DURATION_MS = 800;
 const PISTON_PHYSICS_PRESENTATION_INTERVAL_MS = 1_000 / 60;
 const PISTON_LIVE_PRESSURE_PRESENTATION_INTERVAL_MS = 1_000 / 30;
 const PISTON_LIVE_PRESENTATION_TOLERANCE_MS = 0.5;
@@ -1483,6 +1488,7 @@ export const PistonOscillationInteractionWorkspace = ({
   const [hoseAudioEvent, setHoseAudioEvent] =
     useState<PistonOscillationHoseAudioEvent | null>(null);
   const [releaseAudioPulseId, setReleaseAudioPulseId] = useState(0);
+  const [releaseSound, setReleaseSound] = useState<PistonReboundSound | null>(null);
   const [bottomImpactAudioEvent, setBottomImpactAudioEvent] =
     useState<PistonOscillationBottomImpactAudioEvent | null>(null);
   const [pistonPlatformPoint, setPistonPlatformPoint] = useState<
@@ -1801,6 +1807,10 @@ export const PistonOscillationInteractionWorkspace = ({
   const demoReleaseAudioKey = demoFrame && demoFrame.releaseElapsedSeconds !== null
     ? `measurement-${demoFrame.measurementIndex}`
     : null;
+  const demoReleaseMeasurement = demoReleaseAudioKey === null ? null : demoFrame?.measurementIndex ?? null;
+  const demoReleaseSound = useMemo(() => demoReleaseMeasurement === null
+    ? null
+    : getPistonReboundSound(getPistonOscillationDemoTrajectory(demoReleaseMeasurement), 0), [demoReleaseMeasurement]);
   usePistonOscillationAudioController({
     resetKey: `${guideSessionRevision}:${measurementCycleRevision}:${demoActive ? 'demo' : 'live'}`,
     restoreMuted: (guideInteractionPaused && guideHeightReset === null)
@@ -1815,6 +1825,7 @@ export const PistonOscillationInteractionWorkspace = ({
     demoHoseState: demoFrame?.hoseState ?? null,
     releasePulseId: releaseAudioPulseId,
     demoReleaseKey: demoReleaseAudioKey,
+    releaseSound: demoActive ? demoReleaseSound : releaseSound,
     bottomImpactEvent: bottomImpactAudioEvent,
   });
   const demoMainFocusTarget: PistonOscillationDemoFocusTarget =
@@ -1947,7 +1958,7 @@ export const PistonOscillationInteractionWorkspace = ({
       hoseDragging,
       nominalHeightMm: pistonNominalHeightMm,
       equilibriumHeightMm: pistonEquilibriumHeightMm,
-      pistonOffsetMm,
+      pistonOffsetMm: pistonOffsetMmRef.current,
       lockingScrewProgress,
       lockingScrewState: lockingScrewClampState,
       lockingScrewDragging: screwDragging,
@@ -3036,6 +3047,14 @@ export const PistonOscillationInteractionWorkspace = ({
       return;
     }
     setPistonPhase('rebounding');
+    const decayDurationS = getPistonOscillationDecayDurationS(
+      trajectory.samples, trajectory.equilibrium.equilibriumPressurePa,
+    );
+    // Continue into a quiet tail, retaining the heated gas's final position.
+    const visibleDurationMs = Math.min(
+      (trajectory.samples.at(-1)?.timeS ?? 0) * 1000,
+      Math.max(500, (decayDurationS + 0.5) * 1000),
+    );
     const accumulatedPauseMsAtStart = guideAccumulatedPauseMsRef.current;
     const animate = (nowMs: number) => {
       try {
@@ -3059,8 +3078,9 @@ export const PistonOscillationInteractionWorkspace = ({
         pistonOffsetMmRef.current = nextOffsetMm;
         setPistonOffsetMm(nextOffsetMm);
         if (
-          trajectory.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
-          && trajectory.thermalModel
+          (trajectory.modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
+          && trajectory.thermalModel)
+          || trajectory.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION
         ) {
           commitThermodynamicState(
             createPistonOscillationThermodynamicStateFromTrajectorySample(
@@ -3075,7 +3095,19 @@ export const PistonOscillationInteractionWorkspace = ({
             nowMs,
           );
         }
-        if (elapsedMs >= PISTON_REBOUND_VISIBLE_DURATION_MS) {
+        if (elapsedMs >= visibleDurationMs) {
+          if (trajectory.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION) {
+            const finalSample = trajectory.samples.at(-1)!;
+            pistonOffsetMmRef.current = finalSample.displacementM * 1000;
+            setPistonOffsetMm(pistonOffsetMmRef.current);
+            commitThermodynamicState(createPistonOscillationThermodynamicStateFromTrajectorySample(
+              trajectory, finalSample,
+            ));
+            setPistonPhase('idle');
+            reboundAnimationFrameRef.current = null;
+            completeReleaseMotion();
+            return;
+          }
           pistonOffsetMmRef.current = 0;
           setPistonOffsetMm(0);
           if (
@@ -3109,6 +3141,7 @@ export const PistonOscillationInteractionWorkspace = ({
     };
     reboundAnimationFrameRef.current = window.requestAnimationFrame(animate);
   }, [
+    adiabaticProcess,
     cancelPistonRebound,
     commitThermodynamicState,
     completeReleaseMotion,
@@ -3193,13 +3226,14 @@ export const PistonOscillationInteractionWorkspace = ({
         ...physicsConfig,
         sensorSampleRateHz,
       };
-      const trajectory = adiabaticProcess
+      const trajectory = adiabaticProcess && !effectivePhysicsConfig.internalDissipationMolarMassKgPerMol
         ? simulatePistonOscillationIdealAdiabaticRelease(
             releaseInput,
             effectivePhysicsConfig,
           )
         : simulatePistonOscillationThermalRelease({
             ...releaseInput,
+            adiabatic: adiabaticProcess,
             referenceThermodynamicState: thermodynamicStateRef.current,
           }, effectivePhysicsConfig, thermalConfig);
       onFreeOperationObserved?.({
@@ -3228,6 +3262,10 @@ export const PistonOscillationInteractionWorkspace = ({
         onReleaseEvent(releaseEvent);
       }
       startPistonRebound(trajectory, releaseStartedAtMs);
+      setReleaseSound(getPistonReboundSound(trajectory, getPistonOscillationReleaseAsymmetrySeverity(
+        releaseInput.releaseAsymmetry.signedReleaseGapS,
+        releaseAsymmetryConfig,
+      )));
       setReleaseAudioPulseId((pulseId) => pulseId + 1);
     } catch (cause) {
       recoverPistonMotionFailure(cause, 'release-calculation');

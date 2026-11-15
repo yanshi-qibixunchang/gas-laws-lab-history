@@ -16,9 +16,11 @@ import {
   type PistonOscillationExperimentScheme,
 } from './pistonOscillationExperimentContextModel.ts';
 import {
+  PISTON_DISSIPATIVE_IDEAL_PROFILE_VERSION,
+  PISTON_PREVIOUS_DISSIPATIVE_IDEAL_PROFILE_VERSION,
   PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION,
-  createPistonOscillationIdealParameterDraft,
+  createPistonOscillationIdealParameterProfile,
 } from './pistonOscillationIdealParameterProfile.ts';
 import {
   PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
@@ -30,6 +32,8 @@ import {
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V3,
@@ -112,8 +116,7 @@ export const getPistonOscillationParameterProfileVersion = (
   scheme: PistonOscillationExperimentScheme,
   gasType: PistonOscillationGasMaterialSnapshot['gasType'],
 ) => scheme === 'ideal'
-  ? gasType === 'air' ? PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION
-    : PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
+  ? PISTON_DISSIPATIVE_IDEAL_PROFILE_VERSION
   : getPistonOscillationRealParameterProfileVersion(gasType);
 
 export const createPistonOscillationFreeExperimentGroup = (options: {
@@ -195,14 +198,17 @@ export const isPistonOscillationFreeExperimentProfileImplemented = (
     || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V5
     || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6
     || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7
-    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8))
-  || (group.scheme === 'ideal' && group.gasMaterialSnapshot.gasType === 'air'
-    && group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION)
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9))
+  || (group.scheme === 'ideal' && (group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
+    || group.parameterProfileVersion === PISTON_PREVIOUS_DISSIPATIVE_IDEAL_PROFILE_VERSION
+    || group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION))
   || (group.scheme === 'real' && group.gasMaterialSnapshot.gasType === 'helium'
     && (group.parameterProfileVersion === PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION
       || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V3
       || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4
-      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5));
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6));
 
 export const lockPistonOscillationFreeExperimentGroup = (
   group: PistonOscillationFreeExperimentGroup,
@@ -318,7 +324,7 @@ export const normalizePistonOscillationFreeExperimentGroup = (
     ?? options.fallbackCreatedAtMs
     ?? 0;
   const idealParameters = group.scheme === 'ideal'
-    ? createPistonOscillationIdealParameterDraft(group.parameterProfileVersion)
+    ? createPistonOscillationIdealParameterProfile(group.gasMaterialSnapshot.adiabaticIndex, group.parameterProfileVersion).parameters
     : null;
   const persistedTrigger = persistedParameterSnapshot?.parameters.triggerThresholdKpa ?? null;
   return {

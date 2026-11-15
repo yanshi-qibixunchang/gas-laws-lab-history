@@ -101,18 +101,24 @@ assert.equal(audioCatalog['pistonOscillation.hose.connect'].files.length, 2);
 assert.equal(audioCatalog['pistonOscillation.hose.disconnect'].files.length, 2);
 assert.equal(audioCatalog['pistonOscillation.lockingScrew.turn'].files.length, 3);
 
-const derivedAssets = manifest.assets.filter((asset) => asset.kind === 'third-party-derived');
-assert.equal(derivedAssets.length, runtimeFiles.length);
+const recordedAssets = manifest.assets.filter((asset) => asset.kind === 'first-party-recorded');
+assert.deepEqual(recordedAssets.map((asset) => asset.durationS).sort(), [0.22, 0.46]);
+assert.ok(recordedAssets.every((asset) => asset.audioId === 'pistonOscillation.piston.vibration'));
+assert.equal(manifest.assets.length, runtimeFiles.length);
 assert.equal(manifest.assets.some((asset) => asset.kind === 'first-party-procedural'), false);
 assert.deepEqual(
-  [...new Set(derivedAssets.map((asset) => asset.audioId))].sort(),
+  [...new Set(manifest.assets.map((asset) => asset.audioId))].sort(),
   pistonCatalogEntries.map(([assetId]) => assetId).sort(),
 );
-for (const asset of derivedAssets) {
+for (const asset of manifest.assets) {
   assert.ok(asset.finalFileName);
   const filePath = join(runtimeRoot, asset.finalFileName);
   assert.ok(existsSync(filePath), `${asset.finalFileName} should exist`);
-  assert.ok(sourceById.has(asset.sourceAssetId ?? ''));
+  if (asset.kind === 'third-party-derived') {
+    assert.ok(sourceById.has(asset.sourceAssetId ?? ''));
+  } else {
+    assert.equal(asset.sourceAssetId, null);
+  }
   const fileBuffer = readFileSync(filePath);
   const hash = createHash('sha256').update(fileBuffer).digest('hex').toUpperCase();
   assert.equal(hash, asset.outputSha256, `${asset.finalFileName} hash should match`);

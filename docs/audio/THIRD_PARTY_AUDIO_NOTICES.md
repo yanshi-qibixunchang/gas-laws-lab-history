@@ -54,10 +54,12 @@ All piston-oscillation derivatives are mono, 48 kHz, 16-bit PCM WAV files under 
 
 | Source | Production files | Use |
 | --- | --- | --- |
-| `freesound.543637` | `piston-vibration.wav` | The user-approved short, high-rate vibration heard immediately after a valid two-hand release |
+| `freesound.543637` | `piston-vibration.wav` | Fallback sound if the field recordings cannot be played |
 | `freesound.452640` | `locking-screw-grain-01.wav` through `locking-screw-grain-03.wav` | Natural thread-friction grains selected by accumulated real gesture angle |
 | `freesound.840868` | `hose-connect-01.wav`, `hose-connect-02.wav`, `hose-disconnect-01.wav`, `hose-disconnect-02.wav` | Bayonet-style rotation/lock and release/separation gestures; lens-cap-only regions are excluded |
 | `freesound.828779` | `power-button-click-01.wav`, `power-button-click-02.wav` | Two complete retractable-ballpoint switch gestures used as natural variants |
 | `freesound.150501` | `piston-bottom-impact.wav` | Primary impact and short resonance; runtime gain follows uninterrupted unsupported drop distance |
 
 Per-file output hashes, source intervals, durations, filter settings, fades, and peak levels are recorded in [the piston-oscillation audio manifest](../../public/audio/experiments/piston-oscillation/manifest.json).
+
+The standard rebound effect uses the project's own synchronized and staggered release recordings, `piston-rebound-synchronized.wav` and `piston-rebound-staggered.wav`.

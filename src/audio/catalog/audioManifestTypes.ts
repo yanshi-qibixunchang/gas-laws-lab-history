@@ -14,7 +14,7 @@ interface ThirdPartyAudioSourceManifest {
 interface ProcessedAudioAssetManifest {
   audioId: string;
   finalFileName: string | null;
-  kind: 'third-party-derived' | 'first-party-procedural';
+  kind: 'third-party-derived' | 'first-party-procedural' | 'first-party-recorded';
   sourceAssetId: string | null;
   outputSha256: string | null;
   sampleRateHz: number | null;

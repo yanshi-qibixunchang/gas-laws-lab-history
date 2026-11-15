@@ -1,3 +1,4 @@
+import { PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION } from './pistonOscillationInternalDissipation.ts';
 import { cleanPistonUncertaintySnapshot } from './pistonUncertaintySnapshotMigration.ts';
 import {
   formatNumericAnswerReference,
@@ -765,10 +766,11 @@ export const createPistonOscillationPhysicsSnapshot = (
 ): PistonOscillationPhysicsSnapshot => {
   const finiteThermal = trajectory.modelVersion
     === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION;
+  const dissipativeIdeal = trajectory.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION;
   const idealAdiabatic = trajectory.modelVersion
     === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION;
   if (
-    (!finiteThermal && !idealAdiabatic)
+    (!finiteThermal && !idealAdiabatic && !dissipativeIdeal)
     || (
       finiteThermal
       && (
@@ -788,6 +790,11 @@ export const createPistonOscillationPhysicsSnapshot = (
   ) {
     throw new RangeError('Current measurements require a supported physical trajectory.');
   }
+  if (dissipativeIdeal && (
+    trajectory.initialThermodynamicState?.thermal.enabled !== false
+    || trajectory.thermalModel !== null
+    || !trajectory.config.internalDissipationMolarMassKgPerMol
+  )) throw new RangeError('Dissipative ideal trajectories require a sealed adiabatic state.');
   const gasType = trajectory.config.gamma
     === PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX
     ? 'air'
@@ -878,6 +885,11 @@ const physicsNumbersAgree = (first: number, second: number) => (
     <= Number.EPSILON * Math.max(1, Math.abs(first), Math.abs(second)) * 32
 );
 
+const isIdealPistonPhysicsModelVersion = (version: string) => (
+  version === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
+  || version === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION
+);
+
 const isFiniteThermalPhysicsModelVersion = (modelVersion: string) => (
   modelVersion === PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
   || modelVersion === PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION
@@ -926,6 +938,15 @@ const isValidPistonOscillationPhysicsSnapshot = (
             snapshot.initialThermodynamicState,
             normalizedConfig,
           );
+    if (snapshot.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION && (
+      normalizedInitialThermodynamicState?.modelVersion !== PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION
+      || normalizedInitialThermodynamicState.thermal.enabled
+      || snapshot.thermalModel != null
+      || snapshot.config.linearDampingNsPerM !== 0
+      || snapshot.config.internalDissipationMolarMassKgPerMol !== (
+        snapshot.gasMaterial.gasType === 'air' ? 0.02897 : 0.004002602
+      )
+    )) return false;
     if (isFiniteThermalPhysicsModelVersion(snapshot.modelVersion)) {
       if (
         !normalizedInitialThermodynamicState
@@ -980,8 +1001,8 @@ const isValidPistonOscillationPhysicsSnapshot = (
     ) return false;
     const configKeys = Object.keys(normalizedConfig) as Array<keyof PistonOscillationPhysicsConfig>;
     if (configKeys.some((key) => !physicsNumbersAgree(
-      normalizedConfig[key],
-      snapshot.config[key],
+      normalizedConfig[key]!,
+      snapshot.config[key]!,
     ))) return false;
     if (
       !Number.isFinite(snapshot.equilibrium.equilibriumHeightM)
@@ -1160,9 +1181,9 @@ export const createPistonOscillationRawMeasurementRecord = (options: {
     || pressOperationEvidence.completion !== 'released'
     || options.physicsSnapshot.provenance !== 'captured'
     || options.physicsSnapshot.captureKind !== 'released'
-    || options.physicsSnapshot.modelVersion !== (idealExperiment
-      ? PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
-      : PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION)
+    || (idealExperiment
+      ? !isIdealPistonPhysicsModelVersion(options.physicsSnapshot.modelVersion)
+      : options.physicsSnapshot.modelVersion !== PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION)
   ) {
     throw new RangeError('pressOperationEvidence is invalid.');
   }
@@ -1289,9 +1310,16 @@ const normalizePhysicsConfig = (
     'trajectoryDurationS',
   ] as const;
   if (keys.some((key) => !isFiniteNumber(value[key]))) return null;
-  return Object.fromEntries(
-    keys.map((key) => [key, value[key]]),
-  ) as unknown as PistonOscillationPhysicsConfig;
+  if (value.internalDissipationMolarMassKgPerMol !== undefined
+    && (!isFiniteNumber(value.internalDissipationMolarMassKgPerMol)
+      || value.internalDissipationMolarMassKgPerMol <= 0
+      || value.internalDissipationMolarMassKgPerMol > 0.2)) return null;
+  return {
+    ...Object.fromEntries(keys.map((key) => [key, value[key]])),
+    ...(value.internalDissipationMolarMassKgPerMol === undefined ? {} : {
+      internalDissipationMolarMassKgPerMol: value.internalDissipationMolarMassKgPerMol,
+    }),
+  } as unknown as PistonOscillationPhysicsConfig;
 };
 
 const normalizeEquilibrium = (
@@ -1850,8 +1878,7 @@ export const normalizePistonOscillationRawMeasurementRecord = (
     && (
       sensorObservationSnapshot.modelVersion
         === PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION
-      || physicsSnapshot.modelVersion
-        === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
+      || isIdealPistonPhysicsModelVersion(physicsSnapshot.modelVersion)
     )
   ) return null;
   if (!migrateLegacy && experimentContext !== null) {
@@ -1860,9 +1887,9 @@ export const normalizePistonOscillationRawMeasurementRecord = (
       sensorObservationSnapshot.modelVersion !== (idealExperiment
         ? PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION
         : PISTON_OSCILLATION_DYNAMIC_SENSOR_OBSERVATION_MODEL_VERSION)
-      || physicsSnapshot.modelVersion !== (idealExperiment
-        ? PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
-        : PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION)
+      || (idealExperiment
+        ? !isIdealPistonPhysicsModelVersion(physicsSnapshot.modelVersion)
+        : physicsSnapshot.modelVersion !== PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION)
     ) return null;
   }
   return {

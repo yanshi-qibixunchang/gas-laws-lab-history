@@ -42,11 +42,15 @@
 
 [10] MUNGAN C E. Entropic damping of the motion of a piston[J]. The Physics Teacher, 2017, 55(3): 180-183. DOI: 10.1119/1.4976666.
 
-本项目用途：用于区分机械摩擦与气体自身的不可逆耗散。该研究说明即使假设活塞无滑动摩擦、气体无普通黏性或湍流，运动活塞附近的动态压强和热力学过程仍可使振动衰减。因此压力包络不能全部归因于库仑摩擦。
+本项目用途：用于说明气体与外界换热产生的不可逆热力学衰减；这篇文章不是本次绝热动态压强阻力公式的来源。绝热缸内耗散见 [12]，不能把两种机制混用。
 
 [11] LIANG J W. Identifying Coulomb and viscous damping from free-vibration acceleration decrements[J]. Journal of Sound and Vibration, 2005, 282(3-5): 1208-1220. DOI: 10.1016/j.jsv.2004.04.034.
 
 本项目用途：作为混合耗散判据的依据。黏性阻尼表现为近似指数衰减，库仑摩擦表现为极值近似等量下降，并可能在小振幅阶段占主导；本项目据此先校准早期指数包络，再决定是否有证据加入独立干摩擦项。
+
+[12] MUNGAN C E. Damped oscillations of a frictionless piston in an adiabatic cylinder enclosing an ideal gas[J/OL]. European Journal of Physics, 2017, 38: 035102[2026-11-15]. DOI: 10.1088/1361-6404/aa6054. https://www.usna.edu/Users/physics/mungan/_files/documents/Publications/EJP22.pdf.
+
+本项目用途：新 Ideal 使用式 (3) 的缸内动态压强阻力，并把阻力功转回气体内能。原文假设与本机推广、[5] 的 60 mL 示例、PDF 版本边界见 [耗散来源存档](dissipation/README.md)。不将真实装置的总衰减常数当成纯缸内耗散系数。
 
 ## 建模使用说明
 

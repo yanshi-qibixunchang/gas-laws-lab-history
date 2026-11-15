@@ -1014,7 +1014,7 @@ assert.match(
 );
 assert.match(
   workspaceSource,
-  /elapsedMs >= PISTON_REBOUND_VISIBLE_DURATION_MS[\s\S]*setPistonPhase\('idle'\);[\s\S]*completeReleaseMotion\(\)/,
+  /elapsedMs >= visibleDurationMs[\s\S]*setPistonPhase\('idle'\);[\s\S]*completeReleaseMotion\(\)/,
   'the visible animation must mark physical release motion complete before control can unlock',
 );
 assert.match(

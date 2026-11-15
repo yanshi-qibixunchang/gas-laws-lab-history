@@ -184,7 +184,7 @@ export const buildNoticeSections: Record<WorkbenchLanguagePreference, WorkbenchB
       eyebrow: '音效',
       title: '音效素材与程序化音频',
       paragraphs: [
-        '热容比实验中的开关、阀门、旋钮、打气球和书写音效，以及活塞振动实验中的电源按钮、软管卡口、锁紧螺钉、活塞振动和触底碰撞音效，使用项目音频清单中记录的 CC0 素材，并在软件内进行裁切和处理。来源标题、作者、链接与许可信息可通过“音效素材与许可”入口查看。',
+        '热容比实验中的开关、阀门、旋钮、打气球和书写音效，以及活塞振动实验中的电源按钮、软管卡口、锁紧螺钉和触底碰撞音效，使用项目音频清单中记录的 CC0 素材，并在软件内进行裁切和处理。来源标题、作者、链接与许可信息可通过“音效素材与许可”入口查看。活塞回弹主音效使用本项目的现场录音。',
         '放气声由软件运行时使用噪声、滤波器与包络程序化生成，不包含外部录音样本，因此没有额外的第三方录音素材许可。',
       ],
     },
@@ -227,7 +227,7 @@ export const buildNoticeSections: Record<WorkbenchLanguagePreference, WorkbenchB
     { id: 'fontsResources', eyebrow: '字型', title: '字型與介面資源', paragraphs: ['軟體包含本機字型檔案，用於保證介面在離線環境和桌面環境中的顯示一致性。'], tables: [{ headers: ['字型', '授權'], rows: [['Noto Sans SC', 'SIL Open Font License 1.1'], ['Gas Laws Lab Serif（由 Noto Serif SC 產生的標題子集）', 'SIL Open Font License 1.1'], ['JetBrains Mono', 'SIL Open Font License 1.1']] }] },
     { id: 'iconResources', eyebrow: '圖示', title: '介面圖示', paragraphs: ['介面圖示主要來自 Lucide React，授權為 ISC。'] },
     { id: 'exporterComponents', eyebrow: '匯出', title: '匯出元件', paragraphs: ['軟體的部分報告匯出功能可能使用本機匯出元件。匯出元件可能包含 Python 執行時依賴和用於生成圖表、PDF 報告或資料檔案的第三方包。', '使用者可以透過「查看匯出元件授權」入口查看匯出元件及其依賴的授權材料。'] },
-    { id: 'audioMaterials', eyebrow: '音效', title: '音效素材與程式化音訊', paragraphs: ['熱容比實驗中的開關、閥門、旋鈕、打氣球和書寫音效，以及活塞振動實驗中的電源按鈕、軟管卡口、鎖緊螺釘、活塞振動和觸底碰撞音效，使用專案音訊清單記錄的 CC0 素材，並在軟體內進行裁切和處理。來源標題、作者、連結與授權資訊可透過「音效素材與授權」入口查看。', '放氣聲由軟體執行時使用雜訊、濾波器與包絡程式化生成，不包含外部錄音樣本，因此沒有額外的第三方錄音素材授權。'] },
+    { id: 'audioMaterials', eyebrow: '音效', title: '音效素材與程式化音訊', paragraphs: ['熱容比實驗中的開關、閥門、旋鈕、打氣球和書寫音效，以及活塞振動實驗中的電源按鈕、軟管卡口、鎖緊螺釘和觸底碰撞音效，使用專案音訊清單記錄的 CC0 素材，並在軟體內進行裁切和處理。來源標題、作者、連結與授權資訊可透過「音效素材與授權」入口查看。活塞回彈主音效使用本專案的現場錄音。', '放氣聲由軟體執行時使用雜訊、濾波器與包絡程式化生成，不包含外部錄音樣本，因此沒有額外的第三方錄音素材授權。'] },
     { id: 'usageBoundary', eyebrow: '邊界', title: '使用邊界', paragraphs: ['使用者可以在合法取得軟體後安裝和執行本軟體，並使用自己生成的實驗資料、報告、圖表和匯出檔案。', '未經權利人單獨授權，使用者不得刪除版權和授權說明、冒充軟體作者、重新銷售軟體整體、將軟體用於侵權用途，或以破壞更新、繞過保護、取得未授權資料為目的修改軟體。', '第三方元件的授權不限制使用者正常使用本軟體生成自己的實驗記錄和報告；但使用者在再分發軟體、修改軟體、二次打包或商業分發時，應重新核對全部第三方授權要求。'] },
     { id: 'userConfirmation', eyebrow: '確認', title: '使用者確認', paragraphs: ['使用者繼續安裝、執行或使用本軟體，即表示已經閱讀並理解本頁面關於本機權限、檔案存取、網路存取、第三方開源授權和軟體使用邊界的說明。', '如果使用者不同意本頁面內容，可以停止使用軟體，並根據需要刪除本機匯出檔案、瀏覽器網站資料、桌面應用程式資料和應用程式快取。'] },
   ],
@@ -244,8 +244,31 @@ export const buildNoticeSections: Record<WorkbenchLanguagePreference, WorkbenchB
     { id: 'fontsResources', eyebrow: 'Fonts', title: 'Fonts and Interface Resources', paragraphs: ['The software includes local font files to keep interface rendering consistent in offline and desktop environments.'], tables: [{ headers: ['Font', 'License'], rows: [['Noto Sans SC', 'SIL Open Font License 1.1'], ['Gas Laws Lab Serif (title subset derived from Noto Serif SC)', 'SIL Open Font License 1.1'], ['JetBrains Mono', 'SIL Open Font License 1.1']] }] },
     { id: 'iconResources', eyebrow: 'Icons', title: 'Interface Icons', paragraphs: ['Interface icons are mainly provided by Lucide React under the ISC license.'] },
     { id: 'exporterComponents', eyebrow: 'Export', title: 'Exporter Components', paragraphs: ['Some report export features may use a local exporter component. The exporter may include Python runtime dependencies and third-party packages used to generate figures, PDF reports, or data files.', 'Users can view exporter component and dependency license materials through the View exporter component licenses entry.'] },
-    { id: 'audioMaterials', eyebrow: 'Audio', title: 'Audio Materials and Procedural Sound', paragraphs: ['Switch, valve, knob, pump-bulb, and writing sounds in the heat-capacity experiment, plus power-button, hose-bayonet, locking-screw, piston-vibration, and bottom-impact sounds in the piston-oscillation experiment, use CC0 materials recorded in the project audio manifests and edited for use in the software. Original titles, authors, links, and licenses are available from Audio materials and licenses.', 'The release sound is generated at runtime from noise, filters, and envelopes. It contains no external recording samples and therefore has no additional third-party recording license.'] },
+    { id: 'audioMaterials', eyebrow: 'Audio', title: 'Audio Materials and Procedural Sound', paragraphs: ['Switch, valve, knob, pump-bulb, and writing sounds in the heat-capacity experiment, plus power-button, hose-bayonet, locking-screw, and bottom-impact sounds in the piston-oscillation experiment, use CC0 materials recorded in the project audio manifests and edited for use in the software. Original titles, authors, links, and licenses are available from Audio materials and licenses. The main piston rebound sound uses field recordings from this project.', 'The release sound is generated at runtime from noise, filters, and envelopes. It contains no external recording samples and therefore has no additional third-party recording license.'] },
     { id: 'usageBoundary', eyebrow: 'Boundary', title: 'Use Boundary', paragraphs: ['Users may install and run the software after obtaining it legally, and may use experiment data, reports, figures, and exported files generated by themselves.', 'Without separate authorization from the rights holder, users must not remove copyright or license notices, impersonate the software author, resell the software as a whole, use the software for infringing purposes, or modify the software to break updates, bypass protection, or obtain unauthorized data.', 'Third-party component licenses do not restrict normal use of this software to generate user experiment records and reports. Users who redistribute, modify, repackage, or commercially distribute the software should re-check all third-party license requirements.'] },
     { id: 'userConfirmation', eyebrow: 'Confirmation', title: 'User Confirmation', paragraphs: ['By continuing to install, run, or use this software, users confirm that they have read and understood this page regarding local permissions, file access, network access, third-party open-source licenses, and software use boundaries.', 'Users who do not agree with this page may stop using the software and remove local exported files, browser site data, desktop application data, and application cache as needed.'] },
   ],
 };
+
+// Scientific attribution is separate from software component licensing.
+for (const language of ['zh-CN', 'zh-TW', 'en'] as const) {
+  const english = language === 'en';
+  const traditional = language === 'zh-TW';
+  const section: WorkbenchBuildNoticeSection = {
+    id: 'pistonModelReferences',
+    eyebrow: english ? 'References' : '文献',
+    title: english ? 'Piston model references' : traditional ? '活塞模型參考文獻' : '活塞模型参考文献',
+    paragraphs: [
+      'Mungan, C. E. (2017). Damped oscillations of a frictionless piston in an adiabatic cylinder enclosing an ideal gas. European Journal of Physics, 38, 035102. DOI: 10.1088/1361-6404/aa6054.',
+      english ? 'Ideal uses gas-side dynamic-pressure drag from equation (3). Drag work heats the enclosed gas without external heat transfer. The coefficient is calculated from the gas and apparatus parameters; it is not a measured damping coefficient for this apparatus.'
+        : traditional ? 'Ideal 依據式 (3) 加入缸內動態壓強阻力，阻力功轉為氣體內能，與外界無熱交換。係數依氣體及儀器參數計算，不代表本機實測阻尼。'
+        : 'Ideal 依据式 (3) 加入缸内动态压强阻力，阻力功转为气体内能，与外界无热交换。系数依气体及仪器参数计算，不代表本机实测阻尼。',
+      'Shearwood, C. & Sloan, P. A. (2023). The Rüchardt experiment revisited: using simple theory, accurate measurement and python based data analysis. European Journal of Physics, 44, 035102. DOI: 10.1088/1361-6404/acc5c2. Author preprint: arXiv:2209.03323.',
+      english ? 'The 60 mL example reports amplitude e-folding times of about 0.5 s for air and 0.2 s for helium. These describe total decay in that apparatus, not pure adiabatic drag or stopping times. Real retains its calibrated aggregate loss and heat transfer; the Ideal drag is not added a second time. Papers remain copyrighted by their respective rights holders.'
+        : traditional ? '60 mL 示例中，空氣與氦氣的振幅衰減至 1/e 約需 0.5 s 與 0.2 s。這是該裝置的總衰減，不是純絕熱阻力或停止時間。Real 使用標定的綜合損耗與熱交換，未重複疊加 Ideal 的阻力。論文版權屬原權利人。'
+        : '60 mL 示例中，空气与氦气的振幅衰减至 1/e 约需 0.5 s 与 0.2 s。这是该装置的总衰减，不是纯绝热阻力或停止时间。Real 使用标定的综合损耗与热交换，未重复叠加 Ideal 的阻力。论文版权属原权利人。',
+    ],
+  };
+  const sections = buildNoticeSections[language];
+  sections.splice(sections.findIndex(item => item.id === 'usageBoundary'), 0, section);
+}

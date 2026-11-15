@@ -1,3 +1,4 @@
+import { PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION } from './pistonOscillationInternalDissipation.ts';
 import {
   PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
 } from './pistonOscillationGasMaterialModel.ts';
@@ -43,6 +44,7 @@ export interface PistonOscillationPhysicsConfig {
   movingMassKg: number;
   equivalentDeadVolumeHeightM: number;
   linearDampingNsPerM: number;
+  internalDissipationMolarMassKgPerMol?: number;
   sensorSampleRateHz: number;
   trajectoryDurationS: number;
 }
@@ -120,6 +122,7 @@ export type PistonOscillationThermalExtensionState =
 export interface PistonOscillationThermodynamicState {
   schemaVersion: typeof PISTON_OSCILLATION_THERMODYNAMIC_STATE_SCHEMA_VERSION;
   modelVersion:
+    | typeof PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION
     | typeof PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION
     | typeof PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
     | typeof PISTON_OSCILLATION_LEGACY_THERMAL_PHYSICS_MODEL_VERSION
@@ -275,6 +278,11 @@ export const normalizePistonOscillationPhysicsConfig = (
   }
   return {
     gamma,
+    ...(input.internalDissipationMolarMassKgPerMol === undefined ? {} : {
+      internalDissipationMolarMassKgPerMol: assertFiniteRange(
+        'internalDissipationMolarMassKgPerMol', input.internalDissipationMolarMassKgPerMol, 0, 0.2,
+      ),
+    }),
     ambientPressurePa: assertFiniteRange(
       'ambientPressurePa',
       input.ambientPressurePa ?? defaults.ambientPressurePa,
@@ -654,7 +662,8 @@ export const normalizePistonOscillationThermodynamicState = (
   const supportedModelAndThermal =
     (
       (
-        value.modelVersion === PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION
+        value.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION
+        || value.modelVersion === PISTON_OSCILLATION_BASE_STATE_MODEL_VERSION
         || value.modelVersion
           === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
       )

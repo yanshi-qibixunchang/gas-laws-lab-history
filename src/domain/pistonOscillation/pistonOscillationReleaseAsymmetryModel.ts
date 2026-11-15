@@ -1,9 +1,15 @@
 export const PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION =
   'piston-oscillation-release-asymmetry-v1' as const;
+export const PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION =
+  'piston-oscillation-release-asymmetry-v2' as const;
+export type PistonReleaseAsymmetryModelVersion =
+  | typeof PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION
+  | typeof PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION;
 
 export interface PistonOscillationReleaseAsymmetryConfig {
-  modelVersion: typeof PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION;
+  modelVersion: PistonReleaseAsymmetryModelVersion;
   neutralReleaseGapS: number;
+  /** Legacy storage name; in v2 this is a reference gap, not a cap. */
   saturatedReleaseGapS: number;
   peakExtraLinearLossNsPerM: number;
   alignmentTimePeriods: number;
@@ -58,7 +64,8 @@ export const normalizePistonOscillationReleaseAsymmetryConfig = (
     );
   }
   return {
-    modelVersion: PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION,
+    modelVersion: input.modelVersion === PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION
+      ? input.modelVersion : PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION,
     neutralReleaseGapS,
     saturatedReleaseGapS,
     peakExtraLinearLossNsPerM: assertFiniteRange(
@@ -85,7 +92,7 @@ export interface PistonOscillationReleaseAsymmetryInput {
 }
 
 export interface PistonOscillationReleaseAsymmetryProfile {
-  modelVersion: typeof PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION;
+  modelVersion: PistonReleaseAsymmetryModelVersion;
   signedReleaseGapS: number | null;
   absoluteReleaseGapS: number | null;
   severity: number;
@@ -108,10 +115,12 @@ export const getPistonOscillationReleaseAsymmetrySeverity = (
     throw new RangeError('signedReleaseGapS must be finite or null.');
   }
   const absoluteReleaseGapS = Math.abs(signedReleaseGapS);
-  return smoothstep(
-    (absoluteReleaseGapS - config.neutralReleaseGapS)
-      / (config.saturatedReleaseGapS - config.neutralReleaseGapS),
-  );
+  const relativeGap = (absoluteReleaseGapS - config.neutralReleaseGapS)
+    / (config.saturatedReleaseGapS - config.neutralReleaseGapS);
+  // Keep the accepted small-gap response, then continue growing with excess
+  // delay. This is a phenomenological extension, not apparatus-measured friction.
+  return config.modelVersion === PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION
+    && relativeGap > 1 ? relativeGap : smoothstep(relativeGap);
 };
 
 export const createPistonOscillationReleaseAsymmetryProfile = (
@@ -131,7 +140,7 @@ export const createPistonOscillationReleaseAsymmetryProfile = (
     config,
   );
   return {
-    modelVersion: PISTON_OSCILLATION_RELEASE_ASYMMETRY_MODEL_VERSION,
+    modelVersion: config.modelVersion,
     signedReleaseGapS: input.signedReleaseGapS,
     absoluteReleaseGapS: input.signedReleaseGapS === null
       ? null

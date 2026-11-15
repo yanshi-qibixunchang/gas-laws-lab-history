@@ -7,6 +7,7 @@ import {
   PISTON_OSCILLATION_DRY_AIR_ADIABATIC_INDEX,
   type PistonOscillationGasType,
 } from './pistonOscillationGasMaterialModel.ts';
+import { PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION } from './pistonOscillationReleaseAsymmetryModel.ts';
 
 export const PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION =
   'piston-oscillation-real-parameter-profile-v1' as const;
@@ -24,8 +25,10 @@ export const PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7 =
   'piston-oscillation-real-parameter-profile-v7' as const;
 export const PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8 =
   'piston-oscillation-real-parameter-profile-v8' as const;
-export const PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION =
+export const PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9 =
   'piston-oscillation-real-parameter-profile-v9' as const;
+export const PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION =
+  'piston-oscillation-real-parameter-profile-v10' as const;
 export const PISTON_OSCILLATION_LEGACY_PENDING_REAL_HELIUM_PARAMETER_PROFILE_VERSION =
   'piston-oscillation-real-helium-parameter-profile-v1' as const;
 export const PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION =
@@ -36,8 +39,10 @@ export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4 =
   'piston-oscillation-real-helium-parameter-profile-v4' as const;
 export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5 =
   'piston-oscillation-real-helium-parameter-profile-v5' as const;
-export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION =
+export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6 =
   'piston-oscillation-real-helium-parameter-profile-v6' as const;
+export const PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION =
+  'piston-oscillation-real-helium-parameter-profile-v7' as const;
 
 // Match the pressure irregularities in the measured tail while keeping clear peaks.
 const REAL_AIR_TAIL_INTENSITY = 0.35;
@@ -73,19 +78,20 @@ export const createPistonOscillationRealParameterDraft = (
   const defaults = createDefaultPistonOscillationFreeParameterDraft();
   return normalizePistonOscillationFreeParameterDraft({
     ...defaults,
+    releaseAsymmetryModelVersion: PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION,
     ...(gasType === 'helium' ? {
       thermalRelaxationTimeS: PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
       thermalVolumeExponent: 0.85,
       equivalentLinearLossNsPerM: 0.18,
       heatFlowLagTimeS: 0.0005,
-      sensorResponseTimeS: 0.0026,
+      sensorResponseTimeS: 0.0022,
       tailIntensity: 0,
     } : {
       equivalentLinearLossNsPerM: 0.06,
-      thermalRelaxationTimeS: 0.012,
+      thermalRelaxationTimeS: 0.020,
       thermalVolumeExponent: 1,
       heatFlowLagTimeS: 0.0005,
-      sensorResponseTimeS: 0.0025,
+      sensorResponseTimeS: 0.003,
       tailIntensity: REAL_AIR_TAIL_INTENSITY,
     }),
   }, defaults);
@@ -101,6 +107,14 @@ export const getPistonOscillationStoredRealParameterBaseline = (
     return createPistonOscillationRealParameterDraft(gasType);
   }
   const defaults = createDefaultPistonOscillationFreeParameterDraft();
+  if (gasType === 'air' && profileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9) {
+    const { releaseAsymmetryModelVersion: _, ...previous } = createPistonOscillationRealParameterDraft('air');
+    return { ...previous, thermalRelaxationTimeS: 0.012, sensorResponseTimeS: 0.0025 };
+  }
+  if (gasType === 'helium' && profileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6) {
+    const { releaseAsymmetryModelVersion: _, ...previous } = createPistonOscillationRealParameterDraft('helium');
+    return { ...previous, sensorResponseTimeS: 0.0026 };
+  }
   if (gasType === 'helium') {
     if (profileVersion === PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION) {
       return { ...defaults, thermalRelaxationTimeS: PREVIOUS_REAL_HELIUM_THERMAL_RELAXATION_TIME_S };
@@ -155,7 +169,9 @@ export const inferPistonOscillationRealAirProfileVersion = (
     return PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION;
   }
   if (draft.thermalVolumeExponent === 1) {
-    return PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION;
+    return draft.thermalRelaxationTimeS === 0.020
+      ? PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+      : PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9;
   }
   if (draft.thermalVolumeExponent === 1.5) {
     return PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8;
@@ -179,7 +195,9 @@ export const inferPistonOscillationRealHeliumProfileVersion = (
     && draft.tailIntensity === 1) return PISTON_OSCILLATION_PREVIOUS_REAL_HELIUM_PARAMETER_PROFILE_VERSION;
   if (draft.thermalVolumeExponent === 0.85) {
     return draft.thermalRelaxationTimeS === PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S
-      ? PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION
+      ? draft.sensorResponseTimeS === 0.0022
+        ? PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION
+        : PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6
       : PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5;
   }
   return draft.thermalVolumeExponent === 0.65

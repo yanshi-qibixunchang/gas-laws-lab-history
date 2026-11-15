@@ -113,11 +113,12 @@ assert.deepEqual(
   createPistonOscillationRealParameterDraft('air'),
   {
     ...airDefaults,
+    releaseAsymmetryModelVersion: 'piston-oscillation-release-asymmetry-v2',
     equivalentLinearLossNsPerM: 0.06,
-    thermalRelaxationTimeS: 0.012,
+    thermalRelaxationTimeS: 0.020,
     thermalVolumeExponent: 1,
     heatFlowLagTimeS: 0.0005,
-    sensorResponseTimeS: 0.0025,
+    sensorResponseTimeS: 0.003,
     tailIntensity: 0.35,
   },
 );
@@ -144,7 +145,7 @@ assert.equal(
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
 );
 assert.equal(heliumProfile.parameters.thermalRelaxationTimeS, 0.008);
-assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0026);
+assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0022);
 assert.equal(heliumProfile.parameters.thermalVolumeExponent, 0.85);
 assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.18);
 assert.equal(heliumProfile.parameters.heatFlowLagTimeS, 0.0005);

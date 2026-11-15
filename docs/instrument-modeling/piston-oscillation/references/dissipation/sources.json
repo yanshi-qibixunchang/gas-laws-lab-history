@@ -1,0 +1,20 @@
+[
+  {
+    "file": "Mungan-2017-adiabatic-piston.pdf",
+    "url": "https://www.usna.edu/Users/physics/mungan/_files/documents/Publications/EJP22.pdf",
+    "doi": "10.1088/1361-6404/aa6054",
+    "version": "author-hosted journal PDF",
+    "accessed": "2026-11-15",
+    "bytes": 385968,
+    "sha256": "768f90f08e936d77d270faa719be2dc45e13189de82439e8d0f190fee756a98b"
+  },
+  {
+    "file": "Shearwood-Sloan-2022-preprint.pdf",
+    "url": "https://arxiv.org/pdf/2209.03323",
+    "doi": "10.1088/1361-6404/acc5c2",
+    "version": "arXiv v1, 2022-09-07; not the final journal layout",
+    "accessed": "2026-11-15",
+    "bytes": 975958,
+    "sha256": "8749eafaaadc40cf654e94def0740b636c40ed114fae249aadd21bfba3b3ef1e"
+  }
+]

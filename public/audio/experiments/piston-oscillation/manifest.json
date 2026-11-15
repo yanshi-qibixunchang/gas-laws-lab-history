@@ -67,6 +67,30 @@
   "assets": [
     {
       "audioId": "pistonOscillation.piston.vibration",
+      "finalFileName": "piston-rebound-synchronized.wav",
+      "kind": "first-party-recorded",
+      "sourceAssetId": null,
+      "outputSha256": "F7D3A4E2AA8CCC51514F725AA8AE8BC8517674A9F52004728034BDB88E708E25",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.46,
+      "edit": "Project field recording, synchronized release. Right channel from 2.26–2.72 s, 5 ms edge fades and peak normalization."
+    },
+    {
+      "audioId": "pistonOscillation.piston.vibration",
+      "finalFileName": "piston-rebound-staggered.wav",
+      "kind": "first-party-recorded",
+      "sourceAssetId": null,
+      "outputSha256": "47ADA68A82CD23E008CB59BA021C9A3589E48AF349F253330E88E29DEE69696B",
+      "sampleRateHz": 48000,
+      "channels": 1,
+      "bitsPerSample": 16,
+      "durationS": 0.22,
+      "edit": "Project field recording, staggered release. Right channel beginning at 13.03 s, peak normalization, 5 ms fade-in and 37 ms decay fade."
+    },
+    {
+      "audioId": "pistonOscillation.piston.vibrationFallback",
       "finalFileName": "piston-vibration.wav",
       "kind": "third-party-derived",
       "sourceAssetId": "freesound.543637",

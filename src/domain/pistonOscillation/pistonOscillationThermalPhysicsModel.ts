@@ -1,4 +1,6 @@
+import { getPistonInternalDampingNsPerM, PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION } from './pistonOscillationInternalDissipation.ts';
 import {
+  PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
   PISTON_OSCILLATION_CYLINDER_DIAMETER_M,
   PISTON_OSCILLATION_FINITE_THERMAL_EXTENSION_MODEL_VERSION,
   PISTON_OSCILLATION_SEALED_DEAD_VOLUME_M3,
@@ -28,6 +30,7 @@ import {
 } from './pistonOscillationEquivalentLossModel.ts';
 import {
   createPistonOscillationReleaseAsymmetryProfile,
+  PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION,
   getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM,
   type PistonOscillationReleaseAsymmetryConfig,
   type PistonOscillationReleaseAsymmetryInput,
@@ -280,6 +283,17 @@ const createThermodynamicState = (input: {
   };
 };
 
+const finishMotionState = (
+  state: PistonOscillationThermodynamicState, adiabatic: boolean,
+): PistonOscillationThermodynamicState => adiabatic ? {
+  ...state,
+  modelVersion: PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION,
+  thermal: {
+    modelVersion: PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
+    enabled: false, wallTemperatureK: state.thermal.wallTemperatureK, cumulativeHeatTransferJ: 0,
+  },
+} : state;
+
 interface ThermalEnergyDerivative {
   temperatureRateKPerS: number;
   heatTransferRateW: number;
@@ -294,7 +308,15 @@ const getThermalEnergyDerivative = (input: {
   heatTransferRateW: number;
   physicsConfig: PistonOscillationPhysicsConfig;
   thermalConfig: PistonOscillationThermalModelConfig;
+  adiabatic?: boolean;
 }): ThermalEnergyDerivative => {
+  const area = getPistonCylinderAreaM2(PISTON_OSCILLATION_CYLINDER_DIAMETER_M);
+  const pistonVelocity = input.volumeRateM3PerS / area;
+  const pressure = input.gasAmountMol * PISTON_OSCILLATION_UNIVERSAL_GAS_CONSTANT_J_PER_MOL_K
+    * input.temperatureK / input.totalVolumeM3;
+  const internalDamping = getPistonInternalDampingNsPerM(
+    pressure, input.temperatureK, area, input.physicsConfig.internalDissipationMolarMassKgPerMol,
+  );
   // The enclosing press/release operation normalized this immutable config
   // once. Revalidating and reallocating it for every RK4 derivative made a
   // release block the UI without changing any physical result.
@@ -315,9 +337,9 @@ const getThermalEnergyDerivative = (input: {
   return {
     temperatureRateKPerS:
       temperatureRateFromWorkKPerS
-      + input.heatTransferRateW / gasHeatCapacityJPerK,
-    heatTransferRateW: input.heatTransferRateW,
-    heatTransferRateRateWPerS: (
+      + (internalDamping * pistonVelocity ** 2 + (input.adiabatic ? 0 : input.heatTransferRateW)) / gasHeatCapacityJPerK,
+    heatTransferRateW: input.adiabatic ? 0 : input.heatTransferRateW,
+    heatTransferRateRateWPerS: input.adiabatic ? 0 : (
       targetHeatTransferRateW - input.heatTransferRateW
     ) / input.thermalConfig.heatTransferLagTimeS,
   };
@@ -361,7 +383,7 @@ export const advancePistonOscillationPrescribedThermodynamicState = (input: {
       : 0
     : assertFinite('velocityMmPerS', input.velocityMmPerS) / 1_000;
 
-  if (input.adiabatic) {
+  if (input.adiabatic && !physicsConfig.internalDissipationMolarMassKgPerMol) {
     return createPistonOscillationAdiabaticStateFromReference(
       input.referenceState,
       endHeightM * 1_000,
@@ -372,7 +394,7 @@ export const advancePistonOscillationPrescribedThermodynamicState = (input: {
 
   if (elapsedS === 0) {
     const compressionRatio = startVolumeM3 / endVolumeM3;
-    return createThermodynamicState({
+    return finishMotionState(createThermodynamicState({
       nominalLockedHeightM: input.referenceState.nominalLockedHeightM,
       pistonHeightM: endHeightM,
       velocityMPerS,
@@ -383,7 +405,7 @@ export const advancePistonOscillationPrescribedThermodynamicState = (input: {
       heatTransferRateW: existingHeatTransferRateW,
       physicsConfig,
       thermalConfig,
-    });
+    }), input.adiabatic ?? false);
   }
 
   const volumeRateM3PerS = (endVolumeM3 - startVolumeM3) / elapsedS;
@@ -409,6 +431,7 @@ export const advancePistonOscillationPrescribedThermodynamicState = (input: {
       volumeRateM3PerS,
       gasAmountMol: input.referenceState.gasAmountMol,
       heatTransferRateW: candidateHeatTransferRateW,
+      adiabatic: input.adiabatic,
       physicsConfig,
       thermalConfig,
     });
@@ -450,7 +473,7 @@ export const advancePistonOscillationPrescribedThermodynamicState = (input: {
       + k4.heatTransferRateRateWPerS
     );
   }
-  return createThermodynamicState({
+  return finishMotionState(createThermodynamicState({
     nominalLockedHeightM: input.referenceState.nominalLockedHeightM,
     pistonHeightM: endHeightM,
     velocityMPerS,
@@ -460,7 +483,7 @@ export const advancePistonOscillationPrescribedThermodynamicState = (input: {
     heatTransferRateW,
     physicsConfig,
     thermalConfig,
-  });
+  }), input.adiabatic ?? false);
 };
 
 interface ThermalMotionState {
@@ -533,8 +556,12 @@ const getMotionDerivative = (
         elapsedMotionS,
       )
     : 0;
+  const internalDamping = getPistonInternalDampingNsPerM(
+    pressurePa, state.temperatureK, environment.cylinderAreaM2,
+    environment.physicsConfig.internalDissipationMolarMassKgPerMol,
+  );
   const dampingForceN = (
-    environment.physicsConfig.linearDampingNsPerM + extraLinearLossNsPerM
+    internalDamping + environment.physicsConfig.linearDampingNsPerM + extraLinearLossNsPerM
   ) * state.velocityMPerS;
   const downwardDisplacementM = environment.equilibriumHeightM - pistonHeightM;
   const virtualHandForceN = environment.virtualHand
@@ -564,6 +591,7 @@ const getMotionDerivative = (
     ) / environment.physicsConfig.movingMassKg,
     temperatureRateKPerS:
       temperatureRateFromWorkKPerS
+      + internalDamping * state.velocityMPerS ** 2 / environment.gasHeatCapacityJPerK
       + (environment.adiabatic
         ? 0
         : state.heatTransferRateW / environment.gasHeatCapacityJPerK),
@@ -767,7 +795,7 @@ export const advancePistonOscillationVirtualHandThermodynamicState = (
       adiabatic: input.adiabatic,
     });
   }
-  if (input.adiabatic) {
+  if (input.adiabatic && !physicsConfig.internalDissipationMolarMassKgPerMol) {
     return createPistonOscillationAdiabaticStateFromReference(
       input.referenceState,
       nextPistonHeightM * 1_000,
@@ -775,7 +803,7 @@ export const advancePistonOscillationVirtualHandThermodynamicState = (
       physicsConfig,
     );
   }
-  return createThermodynamicState({
+  return finishMotionState(createThermodynamicState({
     nominalLockedHeightM: input.referenceState.nominalLockedHeightM,
     pistonHeightM: nextPistonHeightM,
     velocityMPerS: state.velocityMPerS,
@@ -785,7 +813,7 @@ export const advancePistonOscillationVirtualHandThermodynamicState = (
     heatTransferRateW: state.heatTransferRateW,
     physicsConfig,
     thermalConfig,
-  });
+  }), input.adiabatic ?? false);
 };
 
 const createTrajectorySample = (input: {
@@ -814,6 +842,7 @@ const createTrajectorySample = (input: {
 export interface PistonOscillationThermalReleaseInput
   extends PistonOscillationReleaseInput {
   referenceThermodynamicState: PistonOscillationThermodynamicState;
+  adiabatic?: boolean;
   releaseAsymmetry?: PistonOscillationReleaseAsymmetryInput;
   releaseAsymmetryConfig?: Partial<PistonOscillationReleaseAsymmetryConfig>;
 }
@@ -902,6 +931,14 @@ export const simulatePistonOscillationThermalRelease = (
     physicsConfig,
     thermalConfig,
   });
+  if (input.adiabatic) {
+    activatedInitialState.modelVersion = PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION;
+    activatedInitialState.thermal = {
+      modelVersion: PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
+      enabled: false, wallTemperatureK: physicsConfig.ambientTemperatureK,
+      cumulativeHeatTransferJ: 0,
+    };
+  }
   const initialEffectiveGasHeightM = activatedInitialState.totalVolumeM3
     / equilibrium.cylinderAreaM2;
   const initialAngularFrequencyRadPerS = Math.sqrt(
@@ -961,6 +998,7 @@ export const simulatePistonOscillationThermalRelease = (
     heatTransferRateW: initialHeatTransferRateW,
   };
   const motionEnvironment: ThermalMotionEnvironment = {
+    adiabatic: input.adiabatic,
     equilibriumHeightM: equilibrium.equilibriumHeightM,
     gasAmountMol: equilibrium.gasAmountMol,
     physicsConfig,
@@ -980,12 +1018,22 @@ export const simulatePistonOscillationThermalRelease = (
       gasAmountMol: equilibrium.gasAmountMol,
     }));
     if (sampleIndex === sampleCount - 1) break;
-    for (let substep = 0; substep < integrationSubstepsPerSample; substep += 1) {
+    // A large initial contact loss must not force the smallest step throughout
+    // the quiet tail. Bound each sample by its current (decreasing) loss instead.
+    const localLoss = releaseAsymmetryProfile?.modelVersion === PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION
+      ? physicsConfig.linearDampingNsPerM + getPistonOscillationReleaseAsymmetryExtraLinearLossNsPerM(
+        releaseAsymmetryProfile, sampleIndex * sampleIntervalS) : null;
+    const localSubsteps = localLoss === null ? integrationSubstepsPerSample : Math.max(1, Math.ceil(
+      sampleIntervalS / Math.min(MAXIMUM_INTEGRATION_STEP_S, thermalConfig.heatTransferLagTimeS / 8,
+        periodLimitedStepS, localLoss > 0 ? physicsConfig.movingMassKg / (localLoss * 50) : Infinity),
+    ));
+    const localStepS = localLoss === null ? integrationStepS : sampleIntervalS / localSubsteps;
+    for (let substep = 0; substep < localSubsteps; substep += 1) {
       state = stepMotionRungeKutta(
         state,
-        integrationStepS,
+        localStepS,
         motionEnvironment,
-        sampleIndex * sampleIntervalS + substep * integrationStepS,
+        sampleIndex * sampleIntervalS + substep * localStepS,
       );
     }
   }
@@ -993,9 +1041,9 @@ export const simulatePistonOscillationThermalRelease = (
   const minimumPressureKpa = Math.min(...pressuresKpa);
   const maximumPressureKpa = Math.max(...pressuresKpa);
   return {
-    modelVersion: PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
+    modelVersion: input.adiabatic ? PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION : PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION,
     initialThermodynamicState: activatedInitialState,
-    thermalModel: createThermalExtension(
+    thermalModel: input.adiabatic ? null : createThermalExtension(
       thermalConfig,
       physicsConfig.ambientTemperatureK,
       activatedInitialState.thermal.cumulativeHeatTransferJ,
@@ -1022,6 +1070,25 @@ export const createPistonOscillationThermodynamicStateFromTrajectorySample = (
   trajectory: PistonOscillationTrajectory,
   sample: PistonOscillationTrajectorySample,
 ): PistonOscillationThermodynamicState => {
+  if (trajectory.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION) {
+    const state = createThermodynamicState({
+      nominalLockedHeightM: trajectory.equilibrium.lockedHeightM,
+      pistonHeightM: trajectory.equilibrium.equilibriumHeightM + sample.displacementM,
+      velocityMPerS: sample.velocityMPerS,
+      gasAmountMol: trajectory.equilibrium.gasAmountMol,
+      temperatureK: sample.temperatureK,
+      cumulativeHeatTransferJ: 0, heatTransferRateW: 0,
+      physicsConfig: trajectory.config,
+      thermalConfig: normalizePistonOscillationThermalModelConfig({}),
+    });
+    state.modelVersion = PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION;
+    state.thermal = {
+      modelVersion: PISTON_OSCILLATION_THERMAL_EXTENSION_MODEL_VERSION,
+      enabled: false, wallTemperatureK: trajectory.config.ambientTemperatureK,
+      cumulativeHeatTransferJ: 0,
+    };
+    return state;
+  }
   if (
     trajectory.modelVersion !== PISTON_OSCILLATION_THERMAL_PHYSICS_MODEL_VERSION
     || trajectory.thermalModel?.modelVersion

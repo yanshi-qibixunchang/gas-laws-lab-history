@@ -1,6 +1,6 @@
 export const PISTON_DEFAULT_TRIGGER_KPA = 120;
 export const PISTON_DEFAULT_RECORDING_DURATION_S = 0.5;
-export const PISTON_RECORDING_DURATION_RANGE_S = { minimum: 0.1, maximum: 2 } as const;
+export const PISTON_RECORDING_DURATION_RANGE_S = { minimum: 0.1, maximum: 3 } as const;
 
 export type PistonOscillationAcquisitionSetting =
   | 'sampleRateHz'

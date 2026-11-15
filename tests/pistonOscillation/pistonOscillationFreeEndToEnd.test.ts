@@ -518,7 +518,7 @@ for (const scenario of [
   const collected = createCollectedSession(scenario.heights, scenario.custom);
   for (const record of collected.records) {
     assert.equal(record.physicsSnapshot.thermalModel?.volumeExponent, 1);
-    assert.equal(record.sensorObservationSnapshot.dynamicConfig?.responseTimeConstantS, 0.0025);
+    assert.equal(record.sensorObservationSnapshot.dynamicConfig?.responseTimeConstantS, 0.003);
   }
   let session = collected.session;
   for (let runIndex = 0; runIndex < scenario.heights.length; runIndex += 1) {

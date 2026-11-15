@@ -52,6 +52,13 @@ export const pistonOscillationAudioCatalog = {
   },
   'pistonOscillation.piston.vibration': {
     id: 'pistonOscillation.piston.vibration',
+    files: [file('piston-rebound-synchronized.wav'), file('piston-rebound-staggered.wav')],
+    bus: 'experiment',
+    gain: 0.58,
+    voiceGroup: 'pistonOscillation.pistonVibration',
+  },
+  'pistonOscillation.piston.vibrationFallback': {
+    id: 'pistonOscillation.piston.vibrationFallback',
     files: [file('piston-vibration.wav')],
     bus: 'experiment',
     gain: 0.58,

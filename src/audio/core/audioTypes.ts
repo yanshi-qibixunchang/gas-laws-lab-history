@@ -30,6 +30,7 @@ interface AudioPlaybackOptions {
 export interface PlayOneShotOptions extends AudioPlaybackOptions {
   durationMs?: number;
   fadeOutMs?: number;
+  prepareBuffer?: (context: AudioContext, buffers: readonly AudioBuffer[]) => AudioBuffer;
 }
 
 export interface PlayBurstOptions extends AudioPlaybackOptions {

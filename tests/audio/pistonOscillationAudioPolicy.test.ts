@@ -6,8 +6,11 @@ import {
   PistonOscillationScrewGrainAccumulator,
   getPistonOscillationBottomImpactGain,
   getPistonOscillationMechanicalVariation,
-  getPistonOscillationVibrationVariation,
+  getPistonReboundSound,
 } from '../../src/audio/experiments/pistonOscillation/pistonOscillationAudioPolicy.ts';
+import {
+  simulatePistonOscillationIdealAdiabaticRelease,
+} from '../../src/domain/pistonOscillation/pistonOscillationPhysicsEngine.ts';
 
 const accumulator = new PistonOscillationScrewGrainAccumulator();
 assert.equal(accumulator.consume(PISTON_OSCILLATION_SCREW_DEGREES_PER_GRAIN - 1), 0);
@@ -25,10 +28,24 @@ assert.equal(fastMechanical.playbackRate, 1.03);
 assert.ok(slowMechanical.gain < 1);
 assert.ok(fastMechanical.gain > 1);
 
-const slowVibration = getPistonOscillationVibrationVariation(0, 0);
-const fastVibration = getPistonOscillationVibrationVariation(1, 1);
-assert.equal(slowVibration.playbackRate, 0.985);
-assert.equal(fastVibration.playbackRate, 1.015);
+for (const gamma of [1.4, 5 / 3]) {
+  const release = { lockedHeightMm: 50, initialDisplacementMm: -12 };
+  const ideal = simulatePistonOscillationIdealAdiabaticRelease(release, {
+    gamma, linearDampingNsPerM: 0, trajectoryDurationS: 1,
+  });
+  assert.equal(getPistonReboundSound(ideal, 0).durationMs, 1480);
+  assert.equal(getPistonReboundSound(ideal, 1).durationMs, 970);
+
+  const damped = { gamma, linearDampingNsPerM: 1.1, trajectoryDurationS: 1 };
+  const synchronized = simulatePistonOscillationIdealAdiabaticRelease(release, damped);
+  const staggered = simulatePistonOscillationIdealAdiabaticRelease({
+    ...release, releaseAsymmetry: { signedReleaseGapS: 0.15 },
+  }, damped);
+  const syncSound = getPistonReboundSound(synchronized, 0);
+  const staggeredSound = getPistonReboundSound(staggered, 1);
+  assert.ok(staggeredSound.durationMs < syncSound.durationMs);
+  assert.ok(syncSound.durationMs < 1184);
+}
 
 assert.equal(getPistonOscillationBottomImpactGain(Number.NaN), 0);
 assert.equal(getPistonOscillationBottomImpactGain(0), 0);

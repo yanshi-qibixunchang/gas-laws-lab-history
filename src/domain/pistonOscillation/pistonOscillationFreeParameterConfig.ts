@@ -18,6 +18,7 @@ import {
 } from './pistonOscillationSensorObservationModel.ts';
 import {
   DEFAULT_PISTON_OSCILLATION_RELEASE_ASYMMETRY_CONFIG,
+  PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION,
   normalizePistonOscillationReleaseAsymmetryConfig,
   type PistonOscillationReleaseAsymmetryConfig,
 } from './pistonOscillationReleaseAsymmetryModel.ts';
@@ -56,6 +57,8 @@ export interface PistonOscillationFreeParameterDraft {
   driftWanderAmplitudePa: number;
   driftRatePaPerS: number;
   releaseGapOverrideMs?: number | null;
+  /** Absent in historical records, which retain capped v1 behavior. */
+  releaseAsymmetryModelVersion?: typeof PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION;
   releaseNeutralGapS: number;
   releaseSaturationGapS: number;
   releaseMaximumExtraLossNsPerM: number;
@@ -365,6 +368,8 @@ export const normalizePistonOscillationFreeParameterDraft = (
       ranges.driftRatePaPerS.maximum,
     ),
     ...(releaseGapOverrideMs == null ? {} : { releaseGapOverrideMs }),
+    ...(valueRecord.releaseAsymmetryModelVersion === PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION
+      ? { releaseAsymmetryModelVersion: PISTON_OSCILLATION_UNBOUNDED_RELEASE_MODEL_VERSION } : {}),
     releaseNeutralGapS,
     releaseSaturationGapS,
     releaseMaximumExtraLossNsPerM: readNumber(
@@ -459,6 +464,7 @@ export const getPistonOscillationFreeSensorConfig = (
 export const getPistonOscillationFreeReleaseAsymmetryConfig = (
   draft: PistonOscillationFreeParameterDraft,
 ): PistonOscillationReleaseAsymmetryConfig => normalizePistonOscillationReleaseAsymmetryConfig({
+  modelVersion: draft.releaseAsymmetryModelVersion,
   neutralReleaseGapS: draft.releaseNeutralGapS,
   saturatedReleaseGapS: draft.releaseSaturationGapS,
   peakExtraLinearLossNsPerM: draft.releaseMaximumExtraLossNsPerM,
