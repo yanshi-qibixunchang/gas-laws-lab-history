@@ -671,19 +671,22 @@ export const isPistonOscillationFreeExperimentLocked = (
   session: PistonOscillationFreeSession,
 ) => session.experimentGroup.lock !== null;
 
-export const canEditPistonOscillationFreeSampleRate = (
+export const canEditPistonOscillationFreeAcquisitionSetting = (
   session: PistonOscillationFreeSession,
+  field: PistonOscillationAcquisitionSetting,
 ) => {
-  const { lock, parameterSnapshot, scheme } = session.experimentGroup;
-  if (scheme !== 'real') return false;
+  const { lock, scheme } = session.experimentGroup;
+  if (scheme === 'ideal' && field === 'sampleRateHz') return false;
   if (lock === null) return true;
 
-  // An impact during setup can freeze the experiment before a rate is entered.
+  // A setup impact freezes the physical conditions, but acquisition settings
+  // remain editable until acquisition starts. Keep the same rule after restore.
   return lock.reason === 'bottom-impact'
-    && parameterSnapshot?.parameters.sampleRateHz === null
     && session.acquisitionCandidate === null
     && session.savedMeasurements.length === 0
     && session.excludedAttempts.length === 0
+    && session.dataProcessing === null
+    && session.reacquisition === null
     && !session.audit.some(({ operation }) => (
       operation === 'startAcquisition' || operation === 'redoAcquisition'
     ));
@@ -966,16 +969,20 @@ export const transitionPistonOscillationFreeSession = (
     };
   }
   if (event.type === 'setParameterDraft') {
-    if (isPistonOscillationFreeExperimentLocked(session)) return session;
-    if (session.experimentGroup.scheme === 'ideal') {
-      const setting = event.parameterDraft.triggerThresholdKpa !== session.triggerThresholdKpa
-        ? { field: 'triggerThresholdKpa' as const, value: event.parameterDraft.triggerThresholdKpa }
-        : { field: 'recordingDurationS' as const, value: event.parameterDraft.recordingDurationS };
-      return typeof setting.value === 'number'
-        ? transitionPistonOscillationFreeSession(session, {
-            type: 'setAcquisitionSetting', field: setting.field, value: setting.value, nowMs: event.nowMs,
-          })
-        : session;
+    if (isPistonOscillationFreeExperimentLocked(session)
+      || session.experimentGroup.scheme === 'ideal') {
+      let next = session;
+      const fields: PistonOscillationAcquisitionSetting[] = [
+        'sampleRateHz', 'triggerThresholdKpa', 'recordingDurationS',
+      ];
+      for (const field of fields) {
+        const value = event.parameterDraft[field];
+        if (typeof value !== 'number' || value === session.parameterDraft[field]) continue;
+        next = transitionPistonOscillationFreeSession(next, {
+          type: 'setAcquisitionSetting', field, value, nowMs: event.nowMs,
+        });
+      }
+      return next;
     }
     let parameterDraft = normalizePistonOscillationFreeParameterDraft(
       event.parameterDraft,
@@ -1098,9 +1105,7 @@ export const transitionPistonOscillationFreeSession = (
 
   if (event.type === 'setAcquisitionSetting') {
     const settingSampleRate = event.field === 'sampleRateHz';
-    if (settingSampleRate
-      ? !canEditPistonOscillationFreeSampleRate(session)
-      : isPistonOscillationFreeExperimentLocked(session)) return session;
+    if (!canEditPistonOscillationFreeAcquisitionSetting(session, event.field)) return session;
     const parameters = getPistonOscillationFreeEffectiveParameters(session);
     const valueValid = event.field === 'sampleRateHz'
       ? Number.isSafeInteger(event.value) && event.value > 0 && event.value <= 1000
@@ -1113,12 +1118,12 @@ export const transitionPistonOscillationFreeSession = (
     const parameterSnapshot = experimentGroup.parameterSnapshot;
     const next = {
       ...session,
-      experimentGroup: settingSampleRate && parameterSnapshot
+      experimentGroup: parameterSnapshot
         ? {
             ...experimentGroup,
             parameterSnapshot: {
               ...parameterSnapshot,
-              parameters: { ...parameterSnapshot.parameters, sampleRateHz: event.value },
+              parameters: { ...parameterSnapshot.parameters, [event.field]: event.value },
             },
           }
         : experimentGroup,

@@ -2,6 +2,7 @@ import {
   isPistonRecordingDurationS,
   PISTON_DEFAULT_RECORDING_DURATION_S,
   PISTON_RECORDING_DURATION_RANGE_S,
+  type PistonOscillationAcquisitionSetting,
 } from '../../domain/pistonOscillation/pistonOscillationRecordingSettings.ts';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
@@ -12,6 +13,7 @@ import {
   type PistonOscillationFreeParameterDraft,
 } from '../../domain/pistonOscillation/pistonOscillationFreeParameterConfig.ts';
 import {
+  canEditPistonOscillationFreeAcquisitionSetting,
   getPistonOscillationFreeEffectiveParameters,
   isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
@@ -73,7 +75,8 @@ const text = {
     profilePending: '当前条件已保存，但完整物理参数档案尚未接入，暂不能开始正式采集。',
     freeOnly: '当前参数仅可在自由模式中打开和调整。',
     locked: '当前实验已留下不可逆记录；完整重置或新建文件后可重新设置参数。',
-    editable: '开始正式采集或发生不可逆操作后，整套参数将锁定。',
+    physicalLocked: '活塞触底后，物理参数已锁定；开始采集前仍可调整采集设置。',
+    editable: '开始采集后，采集设置将锁定；物理参数在开始采集或活塞触底后锁定。',
     advancedTitle: '活塞振动法高级设置',
     cancel: '取消',
     apply: '保存设置',
@@ -95,6 +98,7 @@ const text = {
     sampleRate: '取樣頻率', trigger: '下降觸發閾值', duration: '記錄時間', observationDisturbance: '觀測擾動',
     partiallyOn: '部分開啟', operationVisualization: '鍵鼠操作視覺化', on: '開', off: '關',
     advanced: '進階設定', restore: '恢復預設參數', locked: '目前實驗已留下不可逆記錄；完整重設或建立新檔案後可重新設定參數。',
+    physicalLocked: '活塞觸底後，物理參數已鎖定；開始採集前仍可調整採集設定。',
     scheme: '實驗方案', real: '真實實驗條件', ideal: '理想實驗過程',
     gasType: '氣體類型', air: '空氣', helium: '氦氣',
     schemeHelp: '真實實驗條件保留儀器損耗和讀數誤差。理想實驗過程使用內建理想設定。',
@@ -102,7 +106,7 @@ const text = {
     idealReadonly: '理想實驗過程可選擇氣體並調整觸發閾值和記錄時間，物理參數使用內建預設。',
     profilePending: '目前條件已儲存，但完整物理參數檔案尚未接入，暫不能開始正式採集。',
     freeOnly: '目前參數僅可在自由模式中開啟和調整。',
-    editable: '開始正式採集或發生不可逆操作後，整套參數將鎖定。', advancedTitle: '活塞振動法進階設定',
+    editable: '開始採集後，採集設定將鎖定；物理參數在開始採集或活塞觸底後鎖定。', advancedTitle: '活塞振動法進階設定',
     cancel: '取消', apply: '儲存設定', confirm: '確認並繼續', riskTitle: '確認調整進階參數',
     riskBody: '進階參數會影響目前實驗檔案的物理過程、感測器讀數和採集結果。確認後，本實驗檔案後續開啟進階參數不再重複提示。',
     restoreTitle: '恢復活塞振動法預設參數？', restoreBody: '所有自由模式普通與進階參數將恢復為目前氣體的預設值，鍵鼠操作視覺化將關閉。',
@@ -115,13 +119,14 @@ const text = {
     sampleRate: 'Sample rate', trigger: 'Falling trigger', duration: 'Recording duration', observationDisturbance: 'Observation disturbances',
     partiallyOn: 'Partly on', operationVisualization: 'Input visualization', on: 'On', off: 'Off', freeOnly: 'Current parameters are available only in Free mode.',
     advanced: 'Advanced settings', restore: 'Restore defaults', locked: 'This experiment contains an irreversible record. Fully reset it or create a new file to change parameters.',
+    physicalLocked: 'Physical parameters are locked after a bottom impact. Acquisition settings remain editable until acquisition starts.',
     scheme: 'Experiment scheme', real: 'Real conditions', ideal: 'Ideal process',
     gasType: 'Gas type', air: 'Air', helium: 'Helium',
     schemeHelp: 'Real conditions retain instrument losses and reading errors. The Ideal process uses built-in ideal settings.',
     gasHelp: 'Choose air or helium. Each gas has a different theoretical heat-capacity ratio.',
     idealReadonly: 'In the Ideal process, you can choose the gas and adjust the trigger threshold and recording duration. Physical parameters use the built-in profile.',
     profilePending: 'This condition is saved, but its complete physical profile is not connected yet, so formal acquisition is temporarily unavailable.',
-    editable: 'The complete profile freezes when formal acquisition starts or another irreversible operation occurs.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
+    editable: 'Acquisition settings lock when acquisition starts. Physical parameters lock on acquisition or a bottom impact.', advancedTitle: 'Piston-oscillation advanced settings', cancel: 'Cancel', apply: 'Save settings', confirm: 'Confirm and continue',
     riskTitle: 'Confirm advanced-parameter editing', riskBody: 'Advanced parameters affect this file’s physical process, sensor readings, and acquisition results. After confirmation, this file will not show the warning again.',
     restoreTitle: 'Restore piston-oscillation defaults?', restoreBody: 'All basic and advanced Free parameters will be restored for the selected gas, and input visualization will be turned off.',
     restoreConfirm: 'Restore defaults', thermal: 'Thermal process and equivalent loss',
@@ -138,7 +143,9 @@ export const getPistonOscillationParameterLockMessage = (
   session: PistonOscillationFreeSession,
   language: PistonOscillationLanguage,
 ) => isPistonOscillationFreeExperimentLocked(session)
-  ? text[language].locked
+  ? canEditPistonOscillationFreeAcquisitionSetting(session, 'triggerThresholdKpa')
+    ? text[language].physicalLocked
+    : text[language].locked
   : text[language].editable;
 
 const parameterEffects = {
@@ -220,8 +227,8 @@ const basicDefinitions: NumericParameterDefinition[] = [
   },
 ];
 
-const isEditableIdealAcquisitionSetting = (key: NumericParameterDefinition['key']) => (
-  key === 'triggerThresholdKpa' || key === 'recordingDurationS'
+const isAcquisitionSetting = (key: string | undefined): key is PistonOscillationAcquisitionSetting => (
+  key === 'sampleRateHz' || key === 'triggerThresholdKpa' || key === 'recordingDurationS'
 );
 
 const advancedGroups: Array<{
@@ -326,7 +333,9 @@ export const PistonOscillationParameterPanel = ({
   const idealReadonly = freeMode && session.experimentGroup.scheme === 'ideal';
   const physicsLocked = conditionLocked || idealReadonly;
   const isNumberRowLocked = (key: NumericParameterDefinition['key']) => (
-    conditionLocked || (idealReadonly && !isEditableIdealAcquisitionSetting(key))
+    !freeMode || (isAcquisitionSetting(key)
+      ? !canEditPistonOscillationFreeAcquisitionSetting(session, key)
+      : physicsLocked)
   );
   const profileImplemented = isPistonOscillationFreeExperimentProfileImplemented(
     session.experimentGroup,
@@ -580,13 +589,16 @@ export const PistonOscillationParameterPanel = ({
       <section
         className={`studio-heat-free-params ${conditionLocked ? 'is-locked' : ''}`}
         data-piston-oscillation-parameter-panel="true"
-        aria-disabled={conditionLocked}
+        aria-disabled={!freeMode || (conditionLocked && !canEditPistonOscillationFreeAcquisitionSetting(session, 'triggerThresholdKpa'))}
         title={conditionLocked ? lockMessage : undefined}
         onPointerDownCapture={(event) => {
           if (!conditionLocked) return;
           const target = event.target instanceof Element ? event.target : null;
           if (target?.closest('[data-piston-oscillation-param-id="operationVisualizationEnabled"]')) return;
           if (target?.closest('[data-heat-capacity-param-help-button="true"]')) return;
+          const parameterId = target?.closest<HTMLElement>('[data-piston-oscillation-param-id]')
+            ?.dataset.pistonOscillationParamId;
+          if (isAcquisitionSetting(parameterId) && !isNumberRowLocked(parameterId)) return;
           event.preventDefault();
           onLockedInteraction?.();
         }}

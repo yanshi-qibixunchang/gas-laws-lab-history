@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  canEditPistonOscillationFreeSampleRate,
+  canEditPistonOscillationFreeAcquisitionSetting,
   canRunPistonOscillationFreeExperiment,
   createDefaultPistonOscillationFreeSession,
   createPistonOscillationFreeExperimentPlan,
@@ -695,7 +695,7 @@ const lockedByBottomImpact = transitionPistonOscillationFreeSession(withPower, {
   nowMs: 133,
 });
 assert.equal(lockedByBottomImpact.experimentGroup.lock?.reason, 'bottom-impact');
-assert.equal(canEditPistonOscillationFreeSampleRate(lockedByBottomImpact), false);
+assert.equal(canEditPistonOscillationFreeAcquisitionSetting(lockedByBottomImpact, 'sampleRateHz'), true);
 
 const impactBeforeSettingSampleRate = transitionPistonOscillationFreeSession(configured, {
   type: 'observeOperation',
@@ -705,7 +705,7 @@ const impactBeforeSettingSampleRate = transitionPistonOscillationFreeSession(con
 const restoredImpactBeforeSettingSampleRate = normalizePistonOscillationFreeSession(
   JSON.parse(JSON.stringify(impactBeforeSettingSampleRate)),
 );
-assert.equal(canEditPistonOscillationFreeSampleRate(restoredImpactBeforeSettingSampleRate), true);
+assert.equal(canEditPistonOscillationFreeAcquisitionSetting(restoredImpactBeforeSettingSampleRate, 'sampleRateHz'), true);
 const setMissingSampleRate = {
   type: 'setAcquisitionSetting', field: 'sampleRateHz', value: 800, nowMs: 134.1,
 } as const;
@@ -723,7 +723,64 @@ const restoredFilledSampleRate = normalizePistonOscillationFreeSession(
   JSON.parse(JSON.stringify(filledSampleRateAfterImpact)),
 );
 assert.equal(restoredFilledSampleRate.sampleRateHz, 800);
-assert.equal(canEditPistonOscillationFreeSampleRate(restoredFilledSampleRate), false);
+assert.equal(canEditPistonOscillationFreeAcquisitionSetting(restoredFilledSampleRate, 'sampleRateHz'), true);
+
+// A restored setup impact must not strand the remaining, still-empty trigger input.
+const filledTriggerAfterImpact = transitionPistonOscillationFreeSession(
+  restoredFilledSampleRate,
+  { type: 'setAcquisitionSetting', field: 'triggerThresholdKpa', value: 120, nowMs: 134.15 },
+);
+assert.equal(filledTriggerAfterImpact.triggerThresholdKpa, 120);
+assert.equal(filledTriggerAfterImpact.experimentGroup.parameterSnapshot?.parameters.triggerThresholdKpa, 120);
+assert.deepEqual(filledTriggerAfterImpact.instrumentState, restoredFilledSampleRate.instrumentState);
+assert.deepEqual(filledTriggerAfterImpact.experimentGroup.lock, restoredFilledSampleRate.experimentGroup.lock);
+assert.equal(filledTriggerAfterImpact.experimentGroup.parameterProfileVersion,
+  restoredFilledSampleRate.experimentGroup.parameterProfileVersion);
+assert.equal(normalizePistonOscillationFreeSession(JSON.parse(JSON.stringify(filledTriggerAfterImpact))).triggerThresholdKpa, 120);
+
+for (const scheme of ['real', 'ideal'] as const) {
+  for (const gasType of ['air', 'helium'] as const) {
+    let setup = transitionPistonOscillationFreeSession(configured,
+      { type: 'setGasType', gasType, nowMs: 134.16 });
+    setup = transitionPistonOscillationFreeSession(setup,
+      { type: 'setExperimentScheme', scheme, nowMs: 134.17 });
+    const impact = transitionPistonOscillationFreeSession(setup,
+      { type: 'observeOperation', operation: 'bottomImpact', nowMs: 134.18 });
+    const settings = [
+      ['sampleRateHz', 800], ['triggerThresholdKpa', 118], ['recordingDurationS', 1.5],
+    ] as const;
+    for (const [field, value] of settings) {
+      const allowed = scheme !== 'ideal' || field !== 'sampleRateHz';
+      assert.equal(canEditPistonOscillationFreeAcquisitionSetting(impact, field), allowed);
+      const edited = transitionPistonOscillationFreeSession(impact,
+        { type: 'setAcquisitionSetting', field, value, nowMs: 134.19 });
+      if (allowed) {
+        assert.equal(edited.experimentGroup.parameterSnapshot?.parameters[field], value);
+        assert.deepEqual(edited.instrumentState, impact.instrumentState);
+        const sidebarEdit = transitionPistonOscillationFreeSession(impact, {
+          type: 'setParameterDraft', parameterDraft: { ...impact.parameterDraft, [field]: value }, nowMs: 134.19,
+        });
+        assert.equal(sidebarEdit.experimentGroup.parameterSnapshot?.parameters[field], value);
+        assert.equal(sidebarEdit.parameterDraft.ambientPressureKpa, impact.parameterDraft.ambientPressureKpa);
+      } else {
+        assert.equal(edited, impact);
+      }
+      for (const operation of ['startAcquisition', 'redoAcquisition'] as const) {
+        const started = transitionPistonOscillationFreeSession(edited,
+          { type: 'observeOperation', operation, nowMs: 134.2 });
+        assert.equal(canEditPistonOscillationFreeAcquisitionSetting(started, field), false);
+        assert.equal(transitionPistonOscillationFreeSession(started,
+          { type: 'setAcquisitionSetting', field, value: value + 1, nowMs: 134.3 }), started);
+        const restored = normalizePistonOscillationFreeSession(JSON.parse(JSON.stringify(started)));
+        assert.equal(canEditPistonOscillationFreeAcquisitionSetting(restored, field), false);
+      }
+    }
+    assert.equal(transitionPistonOscillationFreeSession(impact, {
+      type: 'setParameterDraft',
+      parameterDraft: { ...impact.parameterDraft, ambientTemperatureK: 320 }, nowMs: 134.2,
+    }), impact, 'an acquisition-input repair must not unlock the historical physical conditions');
+  }
+}
 const previouslyStartedAfterImpact = transitionPistonOscillationFreeSession(
   restoredImpactBeforeSettingSampleRate,
   { type: 'observeOperation', operation: 'startAcquisition', nowMs: 134.2 },

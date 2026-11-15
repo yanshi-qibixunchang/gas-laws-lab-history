@@ -74,10 +74,9 @@ import type {
   PistonOscillationGuideSession,
 } from '../../domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import {
-  canEditPistonOscillationFreeSampleRate,
+  canEditPistonOscillationFreeAcquisitionSetting,
   canRunPistonOscillationFreeExperiment,
   getPistonOscillationFreeCurrentTargetHeightMm,
-  isPistonOscillationFreeExperimentLocked,
   PistonOscillationFreeSession,
 } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import {
@@ -516,11 +515,11 @@ export const PistonOscillationAcquisitionPanel = ({
     () => effectiveFreeConfig?.tailConfig ?? null,
     [effectiveFreeConfig],
   );
-  const freeParametersLocked = freeSession
-    ? isPistonOscillationFreeExperimentLocked(freeSession)
+  const freeAcquisitionSettingsLocked = freeSession
+    ? !canEditPistonOscillationFreeAcquisitionSetting(freeSession, 'triggerThresholdKpa')
     : false;
   const freeSampleRateReadonly = freeSession
-    ? !canEditPistonOscillationFreeSampleRate(freeSession)
+    ? !canEditPistonOscillationFreeAcquisitionSetting(freeSession, 'sampleRateHz')
     : false;
   const recordingDurationS = effectiveFreeParameterDraft?.recordingDurationS
     ?? PISTON_DEFAULT_RECORDING_DURATION_S;
@@ -2026,7 +2025,7 @@ export const PistonOscillationAcquisitionPanel = ({
     field: 'sampleRateHz' | 'triggerThresholdKpa',
   ): boolean => {
     if (!freeSelected || acquisitionActive
-      || (field === 'sampleRateHz' ? freeSampleRateReadonly : freeParametersLocked)) return false;
+      || !canEditPistonOscillationFreeAcquisitionSetting(freeSession, field)) return false;
     const draft = field === 'sampleRateHz' ? sampleRateDraft : triggerDraft;
     const value = field === 'sampleRateHz'
       ? parsePistonOscillationFreeSampleRate(draft)
@@ -2212,7 +2211,7 @@ export const PistonOscillationAcquisitionPanel = ({
               disabled={!demoActive && !guideActive && (
                 phase === 'armed'
                 || phase === 'recording'
-                || freeParametersLocked
+                || freeAcquisitionSettingsLocked
               )}
               aria-invalid={guideSession?.parameterStatus.triggerThresholdKpa === 'invalid'
                 || (freeSelected
@@ -2265,10 +2264,10 @@ export const PistonOscillationAcquisitionPanel = ({
               step={0.001}
               value={restoredMeasurement?.acquisitionSettings.recordedDurationS ?? durationDraft}
               readOnly={!freeSelected || demoActive}
-              disabled={freeSelected && (freeParametersLocked || acquisitionActive)}
+              disabled={freeSelected && (freeAcquisitionSettingsLocked || acquisitionActive)}
               onChange={(event) => setDurationDraft(event.target.value)}
               onBlur={() => {
-                if (!freeSelected || freeParametersLocked || acquisitionActive) return;
+                if (!freeSelected || freeAcquisitionSettingsLocked || acquisitionActive) return;
                 const value = Number(durationDraft);
                 if (!isPistonRecordingDurationS(value)) {
                   freeCommitRejectedRef.current = true;

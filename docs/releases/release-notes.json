@@ -91,6 +91,20 @@
               }
             },
             {
+              "scope": "piston-acquisition-input-lock",
+              "importance": "high",
+              "title": {
+                "zh-CN": "采集设置提前锁定",
+                "zh-TW": "採集設定提前鎖定",
+                "en": "Premature acquisition-input locking"
+              },
+              "body": {
+                "zh-CN": "修复活塞在准备阶段触底后，采样频率和下降触发阈值无法继续填写的问题。开始采集前仍可调整采集设置，兼容此前已触底但尚未采集的旧实验；开始采集后继续保护本组参数和已有数据。",
+                "zh-TW": "修正活塞在準備階段觸底後，取樣頻率及下降觸發閾值無法繼續填寫的問題。開始採集前仍可調整採集設定，相容先前已觸底但尚未採集的舊實驗；開始採集後繼續保護本組參數及既有資料。",
+                "en": "Fixes sample-rate and falling-trigger inputs becoming unavailable after a setup bottom impact. Acquisition settings remain editable before acquisition starts, including in restored experiments. Once acquisition begins, group settings and existing data remain protected."
+              }
+            },
+            {
               "scope": "desktop-update-v6-5-0",
               "importance": "high",
               "title": {
