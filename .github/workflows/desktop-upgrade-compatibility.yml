@@ -6,12 +6,12 @@ on:
       old_version:
         description: Installed version used as the upgrade source
         required: true
-        default: 6.4.3
+        default: 6.4.4
         type: string
       new_version:
         description: Release version installed over the old version
         required: true
-        default: 6.4.4
+        default: 6.5.0
         type: string
 
 permissions:
@@ -80,7 +80,7 @@ jobs:
             --port 9331 `
             --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT
 
-      - name: Relaunch the old version and confirm its saved workspace
+      - name: Confirm old workspace and download the advertised update
         shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
@@ -90,6 +90,7 @@ jobs:
             --phase confirm `
             --port 9332 `
             --evidence-dir $env:HSL_UPGRADE_EVIDENCE_ROOT `
+            --expected-update-version '${{ inputs.new_version }}' `
             --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'seed-packaged-app.json')
 
       - name: Reconstruct the new installer from the differential update plan

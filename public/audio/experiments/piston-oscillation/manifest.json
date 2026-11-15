@@ -1,20 +1,8 @@
 {
   "schemaVersion": 1,
   "experimentId": "piston-oscillation",
-  "generatedAt": "2026-08-29",
+  "generatedAt": "2026-11-15",
   "sources": [
-    {
-      "assetId": "freesound.543637",
-      "originalFileName": "candidate-01-freesound-543637-hq-preview.mp3",
-      "sourceTitle": "Vibrating metal ruler on cake tin (Slow).mp3",
-      "author": "belanhud",
-      "freesoundSoundId": 543637,
-      "sourceUrl": "https://freesound.org/people/belanhud/sounds/543637/",
-      "license": "CC0-1.0",
-      "licenseUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
-      "downloadedAt": "2026-08-29",
-      "sourceSha256": "6ACFFBDA7779373C71DAAC7DA056979246526CDE5FA73A7B00D1CCD95F97765E"
-    },
     {
       "assetId": "freesound.452640",
       "originalFileName": "freesound-452640-hq-preview.mp3",
@@ -88,18 +76,6 @@
       "bitsPerSample": 16,
       "durationS": 0.22,
       "edit": "Project field recording, staggered release. Right channel beginning at 13.03 s, peak normalization, 5 ms fade-in and 37 ms decay fade."
-    },
-    {
-      "audioId": "pistonOscillation.piston.vibrationFallback",
-      "finalFileName": "piston-vibration.wav",
-      "kind": "third-party-derived",
-      "sourceAssetId": "freesound.543637",
-      "outputSha256": "05770ADB8A6B0C390C0C12DA7E1794C135B923F093BB8DEB05B2C0985B89B35F",
-      "sampleRateHz": 48000,
-      "channels": 1,
-      "bitsPerSample": 16,
-      "durationS": 0.32,
-      "edit": "User-approved piston-vibration-A-fast.wav derivative (SHA-256 CFA5CCE7645DF24CE1DD519C005EAB96C6310694EC0CFC380B3E49E507FCEBC4), originally derived from Freesound 543637; 0.000-0.320 s, mono, 35 Hz high-pass, 15 kHz low-pass, 3/22 ms fades, peak -6.0 dBFS."
     },
     {
       "audioId": "pistonOscillation.lockingScrew.turn",

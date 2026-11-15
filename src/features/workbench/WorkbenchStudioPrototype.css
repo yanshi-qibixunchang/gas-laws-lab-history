@@ -5798,7 +5798,10 @@
   box-shadow: 0 12px 28px rgba(2, 6, 23, 0.22);
   backdrop-filter: blur(9px);
   pointer-events: none;
-  transition: none;
+  transition:
+    opacity var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease),
+    transform var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease),
+    visibility 0s linear var(--studio-overlay-exit-duration);
 }
 
 .studio-heat-hard-sphere-toggle:hover ~ .studio-heat-hard-sphere-tooltip,

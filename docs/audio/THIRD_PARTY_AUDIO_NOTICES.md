@@ -36,13 +36,12 @@ Per-file output hashes, durations, filter settings, fades, and peak levels are r
 
 ## Piston-oscillation experiment
 
-The Freesound HQ preview files and the user-approved vibration audition derivative were downloaded or prepared on 2026-08-29. They are retained in the project team's external source archive and are identified below by original file name and SHA-256; the archive's machine-specific location is intentionally not part of this repository contract.
+The Freesound HQ preview files used for screw, hose, power and bottom-impact sounds were downloaded on 2026-08-29. They are retained in the project team's external source archive and are identified below by original file name and SHA-256; the archive's machine-specific location is intentionally not part of this repository contract.
 
 ### Source records
 
 | Internal source ID | Downloaded source file | Title | Author/uploader | Freesound ID and page | License | Downloaded file SHA-256 |
 | --- | --- | --- | --- | --- | --- | --- |
-| `freesound.543637` | `candidate-01-freesound-543637-hq-preview.mp3` | Vibrating metal ruler on cake tin (Slow).mp3 | belanhud | [543637](https://freesound.org/people/belanhud/sounds/543637/) | CC0-1.0 | `6ACFFBDA7779373C71DAAC7DA056979246526CDE5FA73A7B00D1CCD95F97765E` |
 | `freesound.452640` | `freesound-452640-hq-preview.mp3` | hose screw onto exterior tap threads turn grainy and unscrew1.wav | kyles | [452640](https://freesound.org/people/kyles/sounds/452640/) | CC0-1.0 | `1A0BCF132F4A458B918FA65B24FA9DD7C57CB258A9B5EE39514F5B80DE3298ED` |
 | `freesound.840868` | `freesound-840868-hq-preview.mp3` | Camera Lens Mounting Sounds and Lens Cap | justamudkip | [840868](https://freesound.org/people/justamudkip/sounds/840868/) | CC0-1.0 | `88C8EC8078C279D8AA6C600884F0A608AC79501CE3EEE9D4F793A2F2474489E7` |
 | `freesound.828779` | `freesound-828779-hq-preview.mp3` | Ballpoint Pen Switch | Filmscore | [828779](https://freesound.org/people/Filmscore/sounds/828779/) | CC0-1.0 | `66A69ED19842A3D2B65DB8E435D3DC5110901AB5699A4B376F68122DFB9D81A4` |
@@ -54,7 +53,6 @@ All piston-oscillation derivatives are mono, 48 kHz, 16-bit PCM WAV files under 
 
 | Source | Production files | Use |
 | --- | --- | --- |
-| `freesound.543637` | `piston-vibration.wav` | Fallback sound if the field recordings cannot be played |
 | `freesound.452640` | `locking-screw-grain-01.wav` through `locking-screw-grain-03.wav` | Natural thread-friction grains selected by accumulated real gesture angle |
 | `freesound.840868` | `hose-connect-01.wav`, `hose-connect-02.wav`, `hose-disconnect-01.wav`, `hose-disconnect-02.wav` | Bayonet-style rotation/lock and release/separation gestures; lens-cap-only regions are excluded |
 | `freesound.828779` | `power-button-click-01.wav`, `power-button-click-02.wav` | Two complete retractable-ballpoint switch gestures used as natural variants |
@@ -62,4 +60,4 @@ All piston-oscillation derivatives are mono, 48 kHz, 16-bit PCM WAV files under 
 
 Per-file output hashes, source intervals, durations, filter settings, fades, and peak levels are recorded in [the piston-oscillation audio manifest](../../public/audio/experiments/piston-oscillation/manifest.json).
 
-The standard rebound effect uses the project's own synchronized and staggered release recordings, `piston-rebound-synchronized.wav` and `piston-rebound-staggered.wav`.
+Project-owned rebound recordings are documented separately in [the original asset register](../legal/original-assets.md). They are not third-party audio sources.

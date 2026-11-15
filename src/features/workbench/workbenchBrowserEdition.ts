@@ -3,8 +3,8 @@ import type { PromptConfirmationRequest } from '../../components/prompts/PromptC
 
 // Pin to a published installer, not the version of a possibly newer web build.
 export const BROWSER_DESKTOP_RELEASE = {
-  version: '6.4.4',
-  installerUrl: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.4.4/heat-capacity-lab-setup-6.4.4.exe',
+  version: '6.5.0',
+  installerUrl: 'https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.0/heat-capacity-lab-setup-6.5.0.exe',
 } as const;
 
 export const isBrowserEdition = (scope: Pick<Window, 'hardSphereLabWindow' | 'hardSphereLabExporter' | 'hardSphereLabUpdater'>) => (

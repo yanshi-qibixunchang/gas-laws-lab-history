@@ -57,13 +57,6 @@ export const pistonOscillationAudioCatalog = {
     gain: 0.58,
     voiceGroup: 'pistonOscillation.pistonVibration',
   },
-  'pistonOscillation.piston.vibrationFallback': {
-    id: 'pistonOscillation.piston.vibrationFallback',
-    files: [file('piston-vibration.wav')],
-    bus: 'experiment',
-    gain: 0.58,
-    voiceGroup: 'pistonOscillation.pistonVibration',
-  },
   'pistonOscillation.piston.bottomImpact': {
     id: 'pistonOscillation.piston.bottomImpact',
     files: [file('piston-bottom-impact.wav')],

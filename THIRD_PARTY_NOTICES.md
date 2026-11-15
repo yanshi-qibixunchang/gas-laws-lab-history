@@ -131,11 +131,15 @@ Font-specific license notes are also provided in `public/fonts/LICENSES.txt`.
 
 ## Audio Materials
 
-The heat-capacity experiment includes edited recordings whose source records
-declare CC0 1.0, plus first-party procedural audio. Exact audio IDs, original
-titles, authors, source URLs, license URLs, and ownership boundaries are stored
-in `public/audio/experiments/heat-capacity/manifest.json` and generated into
-`public/legal/audio-materials.html` for desktop distribution.
+Both heat-capacity experiments use edited third-party recordings whose source
+records declare CC0 1.0. Their manifests under `public/audio/experiments/` retain
+the exact audio IDs, titles, authors, source URLs and licenses. The desktop audio
+notice is generated into `public/legal/audio-materials.html`.
+
+Project-provided piston rebound field recordings and the project's procedural
+airflow sound are first-party assets, not third-party dependencies. Their ownership
+is presented separately from the third-party audio table. See
+`docs/legal/original-assets.md` for the rebound recording provenance.
 
 ## Project Reference Materials
 

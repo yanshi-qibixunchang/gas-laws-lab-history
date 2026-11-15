@@ -5,15 +5,15 @@
     {
       "version": "6.5.0",
       "date": "2026-11-15",
-      "channel": "local-candidate",
+      "channel": "stable",
       "download": {
         "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.0",
         "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.0/heat-capacity-lab-setup-6.5.0.exe"
       },
       "summary": {
-        "zh-CN": "6.5.0 本地验收候选：完善空气与氦气的理想、真实实验模型，加入活塞内部耗散与现场录音拟合音效，统一计算提示、焦点和窗口显示。保留旧实验的历史参数与数据。本轮仅用于本地覆盖升级和试用，尚未正式发布。",
-        "zh-TW": "6.5.0 本地驗收候選：完善空氣與氦氣的理想、真實實驗模型，加入活塞內部耗散與現場錄音擬合音效，統一計算提示、焦點與視窗顯示。保留舊實驗的歷史參數與資料。本輪僅供本地覆蓋升級與試用，尚未正式發佈。",
-        "en": "Local 6.5.0 acceptance candidate: refines ideal and realistic air/helium experiments, adds piston internal dissipation and recording-based sound, and aligns calculation help, focus and window layout. Historical experiment parameters and data are preserved. This build is for local upgrade testing and is not yet publicly released."
+        "zh-CN": "6.5.0 正式版完善空气与氦气的理想、真实实验模型，加入活塞内部耗散和现场录音拟合音效，统一计算教学与可视化提示。修复采集设置、连续测量及较大工作区保存问题，支持自由实验次数设置、文件名自动避重和温度色条，并保留旧实验的历史参数与数据。",
+        "zh-TW": "6.5.0 正式版完善空氣與氦氣的理想、真實實驗模型，加入活塞內部耗散及現場錄音擬合音效，統一計算教學與視覺化提示。修正採集設定、連續測量及較大工作區儲存問題，支援自由實驗次數設定、檔名自動避重及溫度色條，並保留舊實驗的歷史參數與資料。",
+        "en": "Version 6.5.0 refines ideal and realistic air/helium experiments, adds piston internal dissipation and recording-based sound, and unifies calculation teaching and visualization help. It fixes acquisition settings, consecutive measurements and larger-workspace saves, adds flexible trial counts, unique file names and a temperature legend, and preserves historical experiment parameters and data."
       },
       "sections": [
         {
@@ -93,6 +93,20 @@
                 "zh-TW": "統一公式、變數全稱及懸浮提示，簡化最終結果框；繼續下一項、正確作答或查看參考答案後自動聚焦並捲動至下一題，重做時返回目前題目。修正縮放視窗中的外框捲動與彈窗越界。",
                 "en": "Aligns formulas, full variable names and hover help, with concise final results. Next-step, accepted-answer and reference-answer actions focus and reveal the next question; retry returns to the current input. Fixes outer-frame scrolling and clipped dialogs in scaled windows."
               }
+            },
+            {
+              "scope": "audio-provenance-cleanup",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "音效来源与许可清单",
+                "zh-TW": "音效來源與授權清單",
+                "en": "Audio provenance and license inventory"
+              },
+              "body": {
+                "zh-CN": "移除已被现场录音替代的旧平台振动备用音及对应来源登记。两段项目提供的回弹录音列为自有素材，其他仍在使用的第三方音效保留原署名和许可；重新生成随软件分发的完整依赖与来源清单。",
+                "zh-TW": "移除已被現場錄音取代的舊平台振動備用音及對應來源登記。兩段專案提供的回彈錄音列為自有素材，其他仍使用的第三方音效保留原署名與授權；重新產生隨軟體分發的完整相依套件與來源清單。",
+                "en": "Removes the superseded third-party platform-vibration fallback and its source entry. The two project-provided rebound recordings are listed as project-owned assets. Other active third-party sounds retain attribution and licenses; bundled dependency and provenance notices are regenerated."
+              }
             }
           ]
         },
@@ -127,9 +141,9 @@
                 "en": "Visualization switch hover help"
               },
               "body": {
-                "zh-CN": "绝热膨胀法和活塞振动法的左上角可视化开关，在鼠标停留 1 秒后显示提示；移出开关立即隐藏，点击后不再因残留焦点持续显示。保留键盘聚焦提示。",
-                "zh-TW": "絕熱膨脹法及活塞振動法的左上角視覺化開關，在滑鼠停留 1 秒後顯示提示；移出開關立即隱藏，點擊後不再因殘留焦點持續顯示。保留鍵盤聚焦提示。",
-                "en": "The top-left visualization switches in both heat-capacity experiments show hover help after one second and hide it immediately when the pointer leaves. Mouse-click focus no longer keeps help visible; keyboard-focus help remains available."
+                "zh-CN": "两种比热容比实验的左上角可视化开关统一使用无尖角说明面板。鼠标停留 1 秒后滑入并淡入，移出后立即开始滑出并淡出；点击后不再因残留焦点持续显示，保留键盘聚焦提示。清理被替代的专用提示分支。",
+                "zh-TW": "兩種比熱容比實驗的左上角視覺化開關統一使用無尖角說明面板。滑鼠停留 1 秒後滑入並淡入，移出後立即開始滑出並淡出；點擊後不再因殘留焦點持續顯示，保留鍵盤聚焦提示。清理已被替代的專用提示分支。",
+                "en": "Both heat-capacity visualization switches use the same arrow-free help panel. Hovering for one second slides and fades it in; leaving immediately starts the matching exit motion. Mouse-click focus no longer pins help open, and keyboard-focus help remains. Superseded switch-specific tooltip logic is removed."
               }
             },
             {
@@ -178,14 +192,14 @@
               "scope": "desktop-update-v6-5-0",
               "importance": "high",
               "title": {
-                "zh-CN": "6.4.4 本地覆盖升级候选",
-                "zh-TW": "6.4.4 本地覆蓋升級候選",
-                "en": "Local upgrade candidate from 6.4.4"
+                "zh-CN": "6.5.0 正式更新与旧数据兼容",
+                "zh-TW": "6.5.0 正式更新與舊資料相容",
+                "en": "6.5.0 stable update and existing data"
               },
               "body": {
-                "zh-CN": "沿用应用标识和用户资料目录，保留旧实验快照与兼容读取。生成安装包、校验信息和更新资源供本地验收；公开正式版本及下载入口继续保持 6.4.4，待用户试用确认后发布。",
-                "zh-TW": "沿用應用識別與使用者資料目錄，保留舊實驗快照及相容讀取。產生安裝程式、校驗資訊和更新資源供本地驗收；公開正式版本及下載入口繼續維持 6.4.4，待使用者試用確認後發佈。",
-                "en": "Retains application identity, user-data location, historical snapshots and compatibility readers. Builds the installer, checksums and update assets for local acceptance. The public release and download entry remain at 6.4.4 pending user approval."
+                "zh-CN": "沿用应用标识、安装目录和用户资料目录，保留旧实验快照与兼容读取。通过正式发布仓库提供 Windows 完整安装包、差分文件及更新清单；6.4.4 用户可检查更新或下载完整安装包覆盖安装。已安装同版本 6.5.0 本地候选的用户需下载正式安装包手动覆盖。",
+                "zh-TW": "沿用應用識別、安裝目錄及使用者資料目錄，保留舊實驗快照與相容讀取。透過正式發佈倉庫提供 Windows 完整安裝程式、差分檔及更新清單；6.4.4 使用者可檢查更新或下載完整安裝程式覆蓋安裝。已安裝同版本 6.5.0 本地候選的使用者須下載正式安裝程式手動覆蓋。",
+                "en": "Retains the application identity, installation location, user-data directory, historical snapshots and compatibility readers. The release repository provides the Windows installer, blockmap and update manifest. Users on 6.4.4 can check for updates or install the full package over their existing installation. Users of a local 6.5.0 candidate need to install the stable package manually because the version number is unchanged."
               }
             }
           ]

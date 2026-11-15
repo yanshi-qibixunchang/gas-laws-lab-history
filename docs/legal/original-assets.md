@@ -1,8 +1,8 @@
 # 项目原创与内部制作资产来源记录
 
 > 状态：当前来源记录
-> 适用版本：6.4.1 及后续沿用相同原创资产的版本
-> 最后核验：2026-09-01
+> 适用版本：6.5.0
+> 最后核验：2026-11-15
 
 本文件记录随软件分发、但不属于第三方开源依赖的项目资产。项目原创资产不需要虚构外部下载地址；若制作过程参考了论文、仪器说明或照片，应把“资产权利状态”和“事实参考依据”分开记录。
 
@@ -15,6 +15,7 @@
 | `public/models/shared/unified-light-lab-bench.glb` | 项目内部派生资产 | 从绝热膨胀法 GLB 的指定实验台节点确定性提取 | `public/models/shared/unified-light-lab-bench.provenance.json`、`scripts/extractUnifiedLightLabBench.py` |
 | `resources/app-icon/gas-laws-lab-icon-source.png` | 本项目原创应用图标源图 | `scripts/generateAppIcons.cjs` 生成 Windows 图标、favicon 和多尺寸 Web 图标 | `scripts/verifyAppIconResources.cjs` 固定尺寸和 SHA-256 |
 | `src/assets/onboarding/*.mp4` | 项目内部录制的产品介绍素材 | 由软件自身的开发捕获页面和演示流程录制，不是第三方视频 | 对应 `ProductIntro*CapturePage.tsx` 与使用组件 |
+| `public/audio/experiments/piston-oscillation/piston-rebound-synchronized.wav`、`piston-rebound-staggered.wav` | 项目提供并授权用于软件的现场录音 | 分别来自同时与错时松手的活塞回弹录音，经截取、边缘淡入淡出和响度处理；运行时按事件时长和操作状态处理播放，不归入第三方依赖 | 同目录 `manifest.json` 记录输出 SHA-256、采样率、时长及截取区间；`src/audio/experiments/pistonOscillation/pistonReboundRecording.ts` 记录播放处理 |
 | `docs/validation/generated/` 中的 CSV/JSON | 项目程序化生成 | 由当前模型、固定种子和证据生成器计算；属于验证输出，不是外部数据集 | `scripts/research-report/generate-evidence.ts`、`evidence-metadata.json` |
 | 程序化图表与界面示意 | 项目程序化生成 | 由导出器或分析脚本根据项目/获授权数据生成；具体输入来源随对应报告记录 | `tools/exporter/`、`scripts/analysis/` 及各验证目录 README |
 

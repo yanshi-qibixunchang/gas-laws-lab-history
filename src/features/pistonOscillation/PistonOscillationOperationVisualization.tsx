@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { PistonOscillationLanguage } from './pistonOscillationCopy.ts';
 import {
   createPistonOscillationOperationCueSignature,
@@ -88,6 +88,7 @@ export const PistonOscillationOperationVisualizationToggle = ({
 }: PistonOscillationOperationVisualizationToggleProps) => {
   const copy = COPY[language];
   const buttonRef = useRef<HTMLButtonElement | null>(null);
+  const tooltipId = useId();
 
   useEffect(() => {
     if (disabled && document.activeElement === buttonRef.current) {
@@ -96,42 +97,51 @@ export const PistonOscillationOperationVisualizationToggle = ({
   }, [disabled]);
 
   return (
-    <button
-      ref={buttonRef}
-      type="button"
-      className={`studio-heat-hard-sphere-toggle ${
-        enabled
-          ? 'studio-heat-hard-sphere-toggle-on'
-          : 'studio-heat-hard-sphere-toggle-off'
-      } piston-operation-visualization-toggle`}
-      data-piston-operation-visualization-toggle="true"
-      data-piston-operation-visualization-enabled={enabled ? 'true' : 'false'}
-      data-piston-operation-visualization-interactive={disabled ? 'false' : 'true'}
-      aria-pressed={enabled}
-      aria-disabled={disabled || undefined}
-      tabIndex={disabled ? -1 : undefined}
-      aria-label={enabled ? copy.tooltipOn : copy.tooltipOff}
-      data-prompt-tooltip={enabled ? copy.tooltipOn : copy.tooltipOff}
-      data-prompt-tooltip-focus-visible=""
-      data-prompt-tooltip-delay-ms="1000"
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        if (disabled) event.preventDefault();
-      }}
-      onClick={(event) => {
-        event.stopPropagation();
-        if (disabled) return;
-        onToggle();
-      }}
-    >
-      <span className="studio-heat-hard-sphere-toggle-label">{copy.label}</span>
-      <span className="studio-heat-hard-sphere-toggle-state">
-        {enabled ? copy.on : copy.off}
-      </span>
-      <span className="studio-heat-hard-sphere-switch" aria-hidden="true">
-        <span />
-      </span>
-    </button>
+    <div className="studio-heat-hard-sphere-tooltip-anchor">
+      <button
+        ref={buttonRef}
+        type="button"
+        className={`studio-heat-hard-sphere-toggle ${
+          enabled
+            ? 'studio-heat-hard-sphere-toggle-on'
+            : 'studio-heat-hard-sphere-toggle-off'
+        } piston-operation-visualization-toggle`}
+        data-piston-operation-visualization-toggle="true"
+        data-piston-operation-visualization-enabled={enabled ? 'true' : 'false'}
+        data-piston-operation-visualization-interactive={disabled ? 'false' : 'true'}
+        aria-pressed={enabled}
+        aria-disabled={disabled || undefined}
+        tabIndex={disabled ? -1 : undefined}
+        aria-label={enabled ? copy.tooltipOn : copy.tooltipOff}
+        aria-describedby={disabled ? undefined : tooltipId}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          if (disabled) event.preventDefault();
+        }}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (disabled) return;
+          onToggle();
+        }}
+      >
+        <span className="studio-heat-hard-sphere-toggle-label">{copy.label}</span>
+        <span className="studio-heat-hard-sphere-toggle-state">
+          {enabled ? copy.on : copy.off}
+        </span>
+        <span className="studio-heat-hard-sphere-switch" aria-hidden="true">
+          <span />
+        </span>
+      </button>
+      <div
+        id={tooltipId}
+        className="studio-heat-hard-sphere-tooltip"
+        role="tooltip"
+        data-piston-operation-visualization-tooltip="true"
+      >
+        <strong>{copy.label}</strong>
+        <span>{enabled ? copy.tooltipOn : copy.tooltipOff}</span>
+      </div>
+    </div>
   );
 };
 

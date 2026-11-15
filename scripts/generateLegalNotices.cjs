@@ -550,37 +550,45 @@ const writeAudioMaterialsHtml = (manifests) => {
     {
       lang: 'zh-CN',
       title: '音效素材与许可',
+      thirdPartyTitle: '第三方音效',
+      projectTitle: '项目自有音效',
       intro: '以下音效素材由项目内的音频清单自动生成。第三方录音均标记为 CC0 1.0；素材标题、作者和来源链接保持原始写法。',
       headers: ['用途 / 音频 ID', '来源标题', '作者', '来源', '许可'],
       procedural: `音频 ${proceduralAudioIds} 为软件运行时生成的第一方程序化音效，仅使用噪声、滤波器和包络合成，不包含外部录音样本。`,
-      recorded: `音频 ${recordedAudioFiles} 来自本项目的活塞回弹现场录音。`,
+      recorded: `音频 ${recordedAudioFiles} 来自项目提供的活塞回弹现场录音，经剪辑、淡入淡出和响度处理，用于运行时调整声音长度；不属于第三方依赖。`,
     },
     {
       lang: 'zh-TW',
       title: '音效素材與授權',
+      thirdPartyTitle: '第三方音效',
+      projectTitle: '專案自有音效',
       intro: '以下音效素材由專案內的音訊清單自動生成。第三方錄音均標記為 CC0 1.0；素材標題、作者和來源連結保持原始寫法。',
       headers: ['用途 / 音訊 ID', '來源標題', '作者', '來源', '授權'],
       procedural: `音訊 ${proceduralAudioIds} 為軟體執行時生成的第一方程式化音效，僅使用雜訊、濾波器和包絡合成，不包含外部錄音樣本。`,
-      recorded: `音訊 ${recordedAudioFiles} 來自本專案的活塞回彈現場錄音。`,
+      recorded: `音訊 ${recordedAudioFiles} 來自專案提供的活塞回彈現場錄音，經剪輯、淡入淡出及響度處理，用於執行時調整聲音長度；不屬於第三方相依套件。`,
     },
     {
       lang: 'en',
       title: 'Audio Materials and Licenses',
+      thirdPartyTitle: 'Third-party audio',
+      projectTitle: 'Project-owned audio',
       intro: 'This list is generated from the project audio manifest. All third-party recordings are marked CC0 1.0; original source titles, author names, and source links are preserved.',
       headers: ['Use / audio ID', 'Source title', 'Author', 'Source', 'License'],
       procedural: `Audio ${proceduralAudioIds} is first-party procedural audio generated at runtime from noise, filters, and envelopes. It contains no external recording samples.`,
-      recorded: `Audio ${recordedAudioFiles} comes from the project's own field recordings of the piston rebound.`,
+      recorded: `Audio ${recordedAudioFiles} comes from project-provided piston rebound field recordings, edited with boundary fades and level adjustment for runtime duration adaptation. These recordings are not third-party dependencies.`,
     },
   ];
   const body = sections.map((section) => `
     <section lang="${section.lang}">
       <h2>${escapeHtml(section.title)}</h2>
       <p>${escapeHtml(section.intro)}</p>
+      <h3>${escapeHtml(section.thirdPartyTitle)}</h3>
       <table>
         <thead><tr>${section.headers.map((header) => `<th>${escapeHtml(header)}</th>`).join('')}</tr></thead>
         <tbody>${renderRows()}</tbody>
       </table>
-      <p><strong>${escapeHtml(section.procedural)}</strong></p>
+      <h3>${escapeHtml(section.projectTitle)}</h3>
+      <p>${escapeHtml(section.procedural)}</p>
       ${recordedAudioFiles ? `<p>${escapeHtml(section.recorded)}</p>` : ''}
     </section>
   `).join('\n');

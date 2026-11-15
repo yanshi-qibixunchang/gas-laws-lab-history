@@ -54,7 +54,7 @@ assert.ok(projectManifest.experiments.some((entry: { experimentId: string; manif
     && entry.manifest === 'audio/experiments/piston-oscillation/manifest.json'
 )));
 assert.equal(manifest.experimentId, 'piston-oscillation');
-assert.equal(manifest.sources.length, 5);
+assert.equal(manifest.sources.length, 4);
 
 const sourceById = new Map(manifest.sources.map((source) => [source.assetId, source]));
 assert.deepEqual(
@@ -62,7 +62,6 @@ assert.deepEqual(
   [
     'freesound.150501',
     'freesound.452640',
-    'freesound.543637',
     'freesound.828779',
     'freesound.840868',
   ],
@@ -104,6 +103,7 @@ assert.equal(audioCatalog['pistonOscillation.lockingScrew.turn'].files.length, 3
 const recordedAssets = manifest.assets.filter((asset) => asset.kind === 'first-party-recorded');
 assert.deepEqual(recordedAssets.map((asset) => asset.durationS).sort(), [0.22, 0.46]);
 assert.ok(recordedAssets.every((asset) => asset.audioId === 'pistonOscillation.piston.vibration'));
+assert.ok(recordedAssets.every((asset) => asset.sourceAssetId === null), 'project recordings must not claim a third-party source');
 assert.equal(manifest.assets.length, runtimeFiles.length);
 assert.equal(manifest.assets.some((asset) => asset.kind === 'first-party-procedural'), false);
 assert.deepEqual(

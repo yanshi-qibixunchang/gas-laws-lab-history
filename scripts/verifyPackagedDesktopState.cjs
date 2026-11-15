@@ -27,6 +27,7 @@ const evidenceDirectory = path.resolve(options['evidence-dir'] ?? '');
 const phase = options.phase;
 const port = Number(options.port);
 const comparePath = options.compare ? path.resolve(options.compare) : null;
+const expectedUpdateVersion = options['expected-update-version'] ?? null;
 const expectedFreeSessionVersion = options['expected-free-session-version'] === undefined
   ? null
   : Number(options['expected-free-session-version']);
@@ -46,6 +47,11 @@ if (!['seed', 'confirm', 'verify'].includes(phase)) {
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Port is invalid.');
 if (phase !== 'seed' && (!comparePath || !fs.existsSync(comparePath))) {
   throw new Error(`${phase} phase requires an existing --compare report.`);
+}
+if (expectedUpdateVersion !== null && (
+  phase !== 'confirm' || !/^\d+\.\d+\.\d+$/.test(expectedUpdateVersion)
+)) {
+  throw new Error('Expected update version must be a stable version used with the confirm phase.');
 }
 if (expectedFreeSessionVersion !== null && (
   phase !== 'verify' || !Number.isSafeInteger(expectedFreeSessionVersion) || expectedFreeSessionVersion < 1
@@ -452,6 +458,32 @@ const run = async () => {
     }
     await sleep(5_000);
 
+    // Exercise the shipped old client's public update channel in the disposable
+    // Windows runner. Download and checksum validation must succeed before the
+    // separate installer step; do not launch an updater against a daily profile.
+    let updateProbe = null;
+    if (expectedUpdateVersion !== null) {
+      await evaluate(client, `(() => {
+        window.__hslReleaseUpdateProbe = { done: false, check: null, download: null, error: null };
+        (async () => {
+          const probe = window.__hslReleaseUpdateProbe;
+          try {
+            probe.check = await window.hardSphereLabUpdater.checkForUpdates();
+            if (probe.check.status === 'available' && probe.check.latestVersion === ${JSON.stringify(expectedUpdateVersion)}) {
+              probe.download = await window.hardSphereLabUpdater.downloadUpdate();
+            }
+          } catch (error) {
+            probe.error = String(error);
+          } finally {
+            probe.done = true;
+          }
+        })();
+        return true;
+      })()`);
+      await waitForEvaluation(client, 'window.__hslReleaseUpdateProbe?.done === true', 600_000);
+      updateProbe = await evaluate(client, 'window.__hslReleaseUpdateProbe');
+    }
+
     const rendererState = await evaluate(client, `(() => ({
       title: document.title,
       url: location.href,
@@ -512,6 +544,13 @@ const run = async () => {
       activeGenerationContainsWorkspaceFile:
         generationContainsWorkspaceFile(activeGeneration, workspaceFileName),
       rendererHasNoCriticalErrors: criticalErrors.length === 0,
+      ...(expectedUpdateVersion === null ? {} : {
+        publishedUpdateDetected: updateProbe?.check?.status === 'available'
+          && updateProbe.check.latestVersion === expectedUpdateVersion,
+        publishedUpdateDownloaded: updateProbe?.download?.status === 'downloaded'
+          && updateProbe.download.latestVersion === expectedUpdateVersion
+          && updateProbe.error === null,
+      }),
       ...(previous ? {
         workspaceFileIdentityPreserved: isUpgradeWorkspaceIdentityPreserved(
           activeGeneration,
@@ -546,6 +585,8 @@ const run = async () => {
       executablePath,
       workspaceFileName,
       expectedFreeSessionVersion,
+      expectedUpdateVersion,
+      updateProbe,
       checks,
       passed: Object.values(checks).every(Boolean),
       rendererState,
