@@ -239,6 +239,70 @@ export const canonicalizeWorkbenchPersistenceV3Json = (
   value: unknown,
 ): string => canonicalizeValue(value, '$', new WeakSet());
 
+// Compare the same supported JSON domain without allocating two complete
+// canonical strings for every save-time integrity check. Fingerprints continue
+// to use the canonical encoder above, so stored bytes and hashes do not change.
+export const areWorkbenchPersistenceV3JsonValuesEqual = (
+  left: unknown,
+  right: unknown,
+): boolean => {
+  const leftAncestors = new WeakSet<object>();
+  const rightAncestors = new WeakSet<object>();
+  const compare = (a: unknown, b: unknown): boolean => {
+    if (a === null || b === null) return a === null && b === null;
+    if (typeof a !== typeof b) return false;
+    if (typeof a === 'number') return Number.isFinite(a) && a === b;
+    if (typeof a === 'string' || typeof a === 'boolean') return a === b;
+    if (typeof a !== 'object' || typeof b !== 'object' || b === null) return false;
+    if (
+      leftAncestors.has(a) || rightAncestors.has(b) ||
+      ArrayBuffer.isView(a) || ArrayBuffer.isView(b) ||
+      Object.getOwnPropertySymbols(a).length > 0 ||
+      Object.getOwnPropertySymbols(b).length > 0
+    ) return false;
+    const aArray = Array.isArray(a);
+    const bArray = Array.isArray(b);
+    if (aArray !== bArray) return false;
+    const isPlain = (value: object) => {
+      const prototype = Object.getPrototypeOf(value);
+      return prototype === Object.prototype || prototype === null;
+    };
+    if (!aArray && (!isPlain(a) || !isPlain(b))) return false;
+    const compareProperty = (key: string) => {
+      const ad = Object.getOwnPropertyDescriptor(a, key);
+      const bd = Object.getOwnPropertyDescriptor(b, key);
+      return !!ad && !!bd && ad.enumerable === true && bd.enumerable === true &&
+        'value' in ad && 'value' in bd && compare(ad.value, bd.value);
+    };
+    leftAncestors.add(a);
+    rightAncestors.add(b);
+    try {
+      if (aArray && bArray) {
+        if (
+          a.length !== b.length ||
+          Object.keys(a).length !== a.length ||
+          Object.keys(b).length !== b.length
+        ) return false;
+        for (let index = 0; index < a.length; index += 1) {
+          if (!compareProperty(String(index))) return false;
+        }
+        return true;
+      }
+      const keys = Object.getOwnPropertyNames(a);
+      return keys.length === Object.getOwnPropertyNames(b).length &&
+        keys.every(compareProperty);
+    } finally {
+      leftAncestors.delete(a);
+      rightAncestors.delete(b);
+    }
+  };
+  try {
+    return compare(left, right);
+  } catch {
+    return false;
+  }
+};
+
 const createWebCryptoSha256Provider = (): WorkbenchPersistenceV3Sha256Provider => ({
   digest: async (data) => {
     const subtle = globalThis.crypto?.subtle;

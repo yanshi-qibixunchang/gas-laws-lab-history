@@ -119,6 +119,20 @@
               }
             },
             {
+              "scope": "workspace-save-large-experiments",
+              "importance": "high",
+              "title": {
+                "zh-CN": "多次实验后的保存与退出",
+                "zh-TW": "多次實驗後的儲存與結束",
+                "en": "Saving and closing larger experiment workspaces"
+              },
+              "body": {
+                "zh-CN": "减少绝热膨胀法已完成实验在保存时重复生成参考曲线、重复构造完整比较文本的开销，避免较大工作区退出保存超时。继续核验原始曲线、参数与计算结果，并保留写入后的完整性检查；存档格式和历史实验数据不变。",
+                "zh-TW": "減少絕熱膨脹法已完成實驗在儲存時重複產生參考曲線、重複建立完整比較文字的負擔，避免較大工作區結束儲存逾時。繼續核驗原始曲線、參數與計算結果，並保留寫入後的完整性檢查；存檔格式及歷史實驗資料不變。",
+                "en": "Reduces repeated reference simulation and full-text comparisons while saving completed adiabatic experiments, preventing exit-save timeouts in larger workspaces. Raw curves, parameters, results and read-back integrity remain checked. Save formats and historical experiment data are unchanged."
+              }
+            },
+            {
               "scope": "piston-acquisition-input-lock",
               "importance": "high",
               "title": {

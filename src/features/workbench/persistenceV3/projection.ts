@@ -106,6 +106,7 @@ import {
   repairPistonOscillationModeSessionExclusivity,
 } from '../../../domain/pistonOscillation/pistonOscillationModeSessionExclusivity.ts';
 import {
+  areWorkbenchPersistenceV3JsonValuesEqual as areCanonicalValuesEqual,
   canonicalizeWorkbenchPersistenceV3Json,
 } from './fingerprint.ts';
 import {
@@ -294,18 +295,6 @@ const isCanonicalPointsByRelation = (value: unknown) => {
 const canonicalClone = <T>(value: T): T => (
   JSON.parse(canonicalizeWorkbenchPersistenceV3Json(value)) as T
 );
-
-const areCanonicalValuesEqual = (
-  left: unknown,
-  right: unknown,
-) => {
-  try {
-    return canonicalizeWorkbenchPersistenceV3Json(left) ===
-      canonicalizeWorkbenchPersistenceV3Json(right);
-  } catch {
-    return false;
-  }
-};
 
 const createPistonOscillationPeriodAnswerAuthority = (
   answer: PistonOscillationPeriodAnswerState,

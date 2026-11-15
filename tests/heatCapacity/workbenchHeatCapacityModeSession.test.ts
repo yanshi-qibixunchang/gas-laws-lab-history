@@ -1939,6 +1939,11 @@ assert.equal(
   'a current standard reference whose root and nested summaries disagree must be rejected',
 );
 
+assert.notEqual(
+  normalizeHeatCapacityModeSessionStore(cloneUnknown(semanticFreeStore), semanticFreeSource.id).free.status,
+  'empty',
+  'warm the exact-reference verification cache before testing altered saved values',
+);
 const forgedReferenceGammaStore = cloneUnknown(semanticFreeStore);
 for (const collection of getFreeCollectionCopies(forgedReferenceGammaStore)) {
   const reference = collection.trials[0].standardReferenceSnapshot as Record<string, unknown>;
@@ -1949,7 +1954,7 @@ for (const collection of getFreeCollectionCopies(forgedReferenceGammaStore)) {
 assert.equal(
   normalizeHeatCapacityModeSessionStore(forgedReferenceGammaStore, semanticFreeSource.id).free.status,
   'empty',
-  'a self-consistent standard reference forged away from its trial and trace must be rejected',
+  'a self-consistent altered reference must be rejected even after its original input was cached',
 );
 
 const mismatchedReferenceConfigStore = cloneUnknown(semanticFreeStore);

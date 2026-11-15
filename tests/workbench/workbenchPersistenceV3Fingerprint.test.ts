@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {
   WORKBENCH_PERSISTENCE_V3_FINGERPRINT_PROVIDER,
   WorkbenchPersistenceV3CanonicalizationError,
+  areWorkbenchPersistenceV3JsonValuesEqual,
   canonicalizeWorkbenchPersistenceV3Json,
   createWorkbenchPersistenceV3FingerprintProvider,
 } from '../../src/features/workbench/persistenceV3/fingerprint.ts';
@@ -34,6 +35,22 @@ assert.equal(
 const canonicalLeft = canonicalizeWorkbenchPersistenceV3Json({ b: 2, a: 1 });
 const canonicalRight = canonicalizeWorkbenchPersistenceV3Json({ a: 1, b: 2 });
 assert.equal(canonicalLeft, canonicalRight);
+const shared = { value: [1, -0, null, 'same'] };
+const comparableValues: unknown[] = [
+  null, true, false, 0, -0, 1, '1', '', [], [1, 2], [2, 1],
+  { a: 1, b: 2 }, { b: 2, a: 1 }, nullPrototypeRecord,
+  { first: 1, second: 2 }, { a: shared, b: shared },
+  { b: structuredClone(shared), a: structuredClone(shared) },
+];
+for (const left of comparableValues) {
+  for (const right of comparableValues) {
+    assert.equal(
+      areWorkbenchPersistenceV3JsonValuesEqual(left, right),
+      canonicalizeWorkbenchPersistenceV3Json(left) === canonicalizeWorkbenchPersistenceV3Json(right),
+      'direct integrity comparisons must preserve canonical JSON equality',
+    );
+  }
+}
 
 const sha256OfAbc = await WORKBENCH_PERSISTENCE_V3_FINGERPRINT_PROVIDER
   .fingerprintCanonicalJson('abc');
@@ -80,6 +97,11 @@ const expectCanonicalizationFailure = (
   expectedPath: string,
   expectedCode: WorkbenchPersistenceV3CanonicalizationError['code'],
 ) => {
+  assert.equal(
+    areWorkbenchPersistenceV3JsonValuesEqual(value, value),
+    false,
+    'even identical references must not bypass JSON validity checks',
+  );
   assert.throws(
     () => canonicalizeWorkbenchPersistenceV3Json(value),
     (error: unknown) => (
@@ -158,6 +180,16 @@ expectCanonicalizationFailure(
   '$',
   'unsupported-property',
 );
+
+const nonEnumerable = Object.defineProperty({}, 'hidden', { value: 1 });
+assert.equal(areWorkbenchPersistenceV3JsonValuesEqual(nonEnumerable, nonEnumerable), false);
+let getterCalls = 0;
+const sideEffectGetter = Object.defineProperty({}, 'answer', {
+  enumerable: true,
+  get: () => { getterCalls += 1; return 42; },
+});
+assert.equal(areWorkbenchPersistenceV3JsonValuesEqual(sideEffectGetter, { answer: 42 }), false);
+assert.equal(getterCalls, 0, 'integrity checks must not execute property getters');
 
 expectCanonicalizationFailure(
   { 'not-an-identifier': undefined },

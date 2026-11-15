@@ -2833,6 +2833,16 @@ const isFreeReleaseTraceTimelineValid = (
     typeof releaseClosedSample.atS === 'number';
 };
 
+// These inputs have already passed the strict runtime decoders. Reuse only an
+// exact, previously verified JSON input; changed curves, parameters or reference
+// values must still be checked against a freshly generated standard process.
+// Bound both entry count and retained text so a long workspace cannot grow this
+// cache indefinitely. This cache is transient and is never written to a save.
+const verifiedStandardReferenceInputs = new Map<string, true>();
+const STANDARD_REFERENCE_CACHE_MAX_ENTRIES = 8;
+const STANDARD_REFERENCE_CACHE_MAX_CHARACTERS = 4_000_000;
+let verifiedStandardReferenceCharacters = 0;
+
 const isFreeTrialCollectionIntegrityValid = (
   traceStore: Record<string, unknown>,
   trialsValue: unknown[],
@@ -2913,12 +2923,28 @@ const isFreeTrialCollectionIntegrityValid = (
         !areRuntimeValuesStructurallyEqual(trial.configSnapshot, traceTrial.configSnapshot) ||
         !areRuntimeValuesStructurallyEqual(standardReference.configSnapshot, trial.configSnapshot)
       ) return false;
-      const expectedReference = createHeatCapacityFreeStandardReference({
-        traceTrial: traceTrial as unknown as HeatCapacityFreeTraceTrial,
-        trial: trial as unknown as HeatCapacityFreeTrial,
-        theoreticalGamma: (traceTrial as unknown as HeatCapacityFreeTraceTrial).configSnapshot.physics.gamma,
-      });
-      if (!areRuntimeValuesStructurallyEqual(standardReference, expectedReference)) return false;
+      const verificationInput = JSON.stringify([traceTrial, trial]);
+      if (!verifiedStandardReferenceInputs.has(verificationInput)) {
+        const expectedReference = createHeatCapacityFreeStandardReference({
+          traceTrial: traceTrial as unknown as HeatCapacityFreeTraceTrial,
+          trial: trial as unknown as HeatCapacityFreeTrial,
+          theoreticalGamma: (traceTrial as unknown as HeatCapacityFreeTraceTrial).configSnapshot.physics.gamma,
+        });
+        if (!areRuntimeValuesStructurallyEqual(standardReference, expectedReference)) return false;
+        if (verificationInput.length <= STANDARD_REFERENCE_CACHE_MAX_CHARACTERS) {
+          while (
+            verifiedStandardReferenceInputs.size >= STANDARD_REFERENCE_CACHE_MAX_ENTRIES ||
+            verifiedStandardReferenceCharacters + verificationInput.length > STANDARD_REFERENCE_CACHE_MAX_CHARACTERS
+          ) {
+            const oldest = verifiedStandardReferenceInputs.keys().next().value;
+            if (oldest === undefined) break;
+            verifiedStandardReferenceInputs.delete(oldest);
+            verifiedStandardReferenceCharacters -= oldest.length;
+          }
+          verifiedStandardReferenceInputs.set(verificationInput, true);
+          verifiedStandardReferenceCharacters += verificationInput.length;
+        }
+      }
     }
     return ([
       ['u0', 'record-u0'],
