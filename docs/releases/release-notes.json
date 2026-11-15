@@ -105,6 +105,20 @@
               }
             },
             {
+              "scope": "piston-ideal-measurement-save",
+              "importance": "high",
+              "title": {
+                "zh-CN": "理想活塞曲线保存与连续测量",
+                "zh-TW": "理想活塞曲線儲存與連續測量",
+                "en": "Ideal piston curve saving and consecutive measurements"
+              },
+              "body": {
+                "zh-CN": "修复理想空气和理想氦气的新耗散模型曲线被旧保存检查拒绝、无法进入下一次测量的问题。保存提示以实际接受结果为准；此前冻结的有效曲线可继续保存，已有实验数据保持不变。",
+                "zh-TW": "修正理想空氣及理想氦氣的新耗散模型曲線被舊儲存檢查拒絕、無法進入下一次測量的問題。儲存提示依實際接受結果顯示；先前凍結的有效曲線可繼續儲存，既有實驗資料保持不變。",
+                "en": "Fixes valid ideal air and helium curves from the internal-dissipation model being rejected by the previous save check. Accepted curves advance to the next measurement; failed saves no longer display success. Existing frozen curves remain saveable and historical measurements are preserved."
+              }
+            },
+            {
               "scope": "desktop-update-v6-5-0",
               "importance": "high",
               "title": {

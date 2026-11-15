@@ -56,7 +56,7 @@ export interface WorkbenchPistonOscillationRealtimeProps {
   commitPistonOscillationFreeAcquisitionSetting: (field: import("../../domain/pistonOscillation/pistonOscillationRecordingSettings.ts").PistonOscillationAcquisitionSetting, value: number) => void;
   changePistonOscillationFreeCandidate: (candidate: import('../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts').PistonOscillationRawMeasurementRecord) => void;
   startPistonOscillationFreeAcquisition: () => void;
-  savePistonOscillationFreeMeasurement: (measurement: import('../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts').PistonOscillationRawMeasurementRecord) => void;
+  savePistonOscillationFreeMeasurement: (measurement: import('../../domain/pistonOscillation/pistonOscillationDataProcessingModel.ts').PistonOscillationRawMeasurementRecord) => boolean;
   retainPistonOscillationRun: () => void;
 }
 

@@ -360,7 +360,7 @@ export const useWorkbenchPistonController = (options: WorkbenchPistonControllerO
         startPistonOscillationFreeAcquisition,
         savePistonOscillationFreeMeasurement,
         retainPistonOscillationRun,
-    } = createWorkbenchPistonViewActions({ activeFile, updateActiveFile, setPistonOscillationReleaseEventsByFileId, setPistonOscillationPressStartEventsByFileId, setPistonOscillationMeasurementCyclesByFileId });
+    } = createWorkbenchPistonViewActions({ activeFile, filesRef, activeFileIdRef, updateFileById, updateActiveFile, setPistonOscillationReleaseEventsByFileId, setPistonOscillationPressStartEventsByFileId, setPistonOscillationMeasurementCyclesByFileId });
     return {
         view: {
         pistonModeControl,

@@ -161,6 +161,7 @@ export interface PistonOscillationShellCopy {
     experimentProfileUnavailable: string;
     demoSaved: string;
     saved: string;
+    saveRejected: string;
     virtualKeyboard: string;
     keyboardNext: string;
     keyboardConfirm: string;
@@ -508,6 +509,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       experimentProfileUnavailable: '当前条件的完整参数档案尚未接入。为避免生成科学含义错误的记录，请暂时切回“真实实验条件 + 空气”。',
       demoSaved: '保存操作已完成',
       saved: '本次曲线已保存',
+      saveRejected: '本次曲线未能保存，仍保留在当前页面。请检查实验设置后重试。',
       virtualKeyboard: '屏幕数字键盘',
       keyboardNext: '下一项',
       keyboardConfirm: '确认',
@@ -860,6 +862,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       experimentProfileUnavailable: '目前條件的完整參數檔案尚未接入。為避免產生科學含義錯誤的記錄，請暫時切回「真實實驗條件 + 空氣」。',
       demoSaved: '儲存操作已完成',
       saved: '本次曲線已儲存',
+      saveRejected: '本次曲線未能儲存，仍保留在目前頁面。請檢查實驗設定後重試。',
       virtualKeyboard: '螢幕數字鍵盤',
       keyboardNext: '下一項',
       keyboardConfirm: '確認',
@@ -1212,6 +1215,7 @@ export const PISTON_OSCILLATION_SHELL_COPY = {
       experimentProfileUnavailable: 'The complete profile for this condition is not connected yet. To prevent scientifically invalid records, switch back to Real experiment conditions + Air for now.',
       demoSaved: 'Save action complete',
       saved: 'Measurement curve saved',
+      saveRejected: 'The curve could not be saved and remains on this page. Check the experiment settings and try again.',
       virtualKeyboard: 'On-screen numeric keypad',
       keyboardNext: 'Next field',
       keyboardConfirm: 'Confirm',

@@ -178,7 +178,7 @@ export interface PistonOscillationAcquisitionPanelProps {
     value: number,
   ) => void;
   onFreeCandidateChange?: (candidate: PistonOscillationRawMeasurementRecord | null) => void;
-  onFreeMeasurementSave?: (measurement: PistonOscillationRawMeasurementRecord) => void;
+  onFreeMeasurementSave?: (measurement: PistonOscillationRawMeasurementRecord) => boolean;
   onFreeAcquisitionStarted?: () => void;
   guidePaused?: boolean;
   guideCue?: PistonOscillationGuideAcquisitionCue;
@@ -467,6 +467,7 @@ export const PistonOscillationAcquisitionPanel = ({
   const [displayClockLagMs, setDisplayClockLagMs] = useState(0);
   const [stopElapsedSeconds, setStopElapsedSeconds] = useState<number | null>(null);
   const [retained, setRetained] = useState(false);
+  const [saveRejected, setSaveRejected] = useState(false);
   const frozenFreeCandidateRef = useRef<PistonOscillationRawMeasurementRecord | null>(
     freeSession?.acquisitionCandidate ?? null,
   );
@@ -671,6 +672,7 @@ export const PistonOscillationAcquisitionPanel = ({
     setActivePressOperationEvidence(null);
     setStopElapsedSeconds(null);
     setRetained(false);
+    setSaveRejected(false);
     setFreeRunPressureGraphDomain(null);
     frozenFreeCandidateRef.current = null;
     freeReleaseSegmentsRef.current = [];
@@ -1957,7 +1959,12 @@ export const PistonOscillationAcquisitionPanel = ({
     ? getPistonOscillationGuidePrimaryControlState({ status: guideSession.status, step: guideSession.step })
     : null;
   const primaryLabel = copy.start;
-  const effectiveRetained = retained || restoredGuideSavedMeasurement !== null;
+  const freeCandidate = restoredFreeCandidate ?? frozenFreeCandidateRef.current;
+  const effectiveRetained = freeSelected
+    ? Boolean(freeCandidate && freeSession.savedMeasurements.some(
+        (measurement) => measurement.recordId === freeCandidate.recordId,
+      ))
+    : retained || restoredGuideSavedMeasurement !== null;
   const freeSaveCandidateAvailable = Boolean(
     restoredFreeCandidate ?? frozenFreeCandidateRef.current,
   );
@@ -2588,13 +2595,14 @@ export const PistonOscillationAcquisitionPanel = ({
                     onGuideAcquisitionEvent?.({ type: 'saveMeasurement' }) !== true
                   ) return;
                 }
-                setRetained(true);
                 if (freeSelected) {
-                  const candidate = restoredFreeCandidate
-                    ?? frozenFreeCandidateRef.current;
-                  if (!candidate) return;
-                  onFreeMeasurementSave?.(candidate);
+                  if (!freeCandidate || onFreeMeasurementSave?.(freeCandidate) !== true) {
+                    setSaveRejected(true);
+                    return;
+                  }
                 }
+                setSaveRejected(false);
+                setRetained(true);
                 onRunRetained?.();
               }
             }}
@@ -2619,6 +2627,7 @@ export const PistonOscillationAcquisitionPanel = ({
         {demoFrame?.retainFeedbackVisible ? (
           <strong>{copy.demoSaved}</strong>
         ) : effectiveRetained ? <strong>{copy.saved}</strong> : null}
+        {saveRejected && <span role="alert">{copy.saveRejected}</span>}
       </div>
 
     </aside>

@@ -7,13 +7,16 @@ import type { PistonOscillationInstrumentSceneProps } from '../pistonOscillation
 import type { PistonOscillationAcquisitionPanelProps } from '../pistonOscillation/PistonOscillationAcquisitionPanel.tsx';
 export interface WorkbenchPistonViewActionPorts {
  activeFile: WorkbenchFileState;
+ filesRef: React.MutableRefObject<WorkbenchFileState[]>;
+ activeFileIdRef: React.MutableRefObject<string>;
+ updateFileById: (fileId: string, updater: (file: WorkbenchFileState) => WorkbenchFileState) => void;
  updateActiveFile: (updater: (file:WorkbenchFileState)=>WorkbenchFileState)=>void;
  setPistonOscillationReleaseEventsByFileId: React.Dispatch<React.SetStateAction<Record<string, Parameters<NonNullable<PistonOscillationInstrumentSceneProps['onReleaseEvent']>>[0]>>>;
  setPistonOscillationPressStartEventsByFileId: React.Dispatch<React.SetStateAction<Record<string, Parameters<NonNullable<PistonOscillationInstrumentSceneProps['onPressStartEvent']>>[0]>>>;
  setPistonOscillationMeasurementCyclesByFileId: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }
 export const createWorkbenchPistonViewActions = (ports: WorkbenchPistonViewActionPorts) => {
- const {activeFile,updateActiveFile,setPistonOscillationReleaseEventsByFileId,setPistonOscillationPressStartEventsByFileId,setPistonOscillationMeasurementCyclesByFileId}=ports;
+ const {activeFile,filesRef,activeFileIdRef,updateFileById,updateActiveFile,setPistonOscillationReleaseEventsByFileId,setPistonOscillationPressStartEventsByFileId,setPistonOscillationMeasurementCyclesByFileId}=ports;
   const handlePistonOscillationReleaseEvent: NonNullable<PistonOscillationInstrumentSceneProps['onReleaseEvent']> = (event) => {
                 setPistonOscillationReleaseEventsByFileId((current) => ({
                   ...current,
@@ -110,13 +113,18 @@ export const createWorkbenchPistonViewActions = (ports: WorkbenchPistonViewActio
           };
 
   const savePistonOscillationFreeMeasurement: NonNullable<PistonOscillationAcquisitionPanelProps['onFreeMeasurementSave']> = (measurement) => {
-            updateActiveFile((file) => file.kind === 'heatCapacityPistonOscillation'
-              ? transitionPistonOscillationFreeWorkbenchState(file, {
-                  type: 'saveMeasurement',
-                  measurement,
-                  nowMs: Date.now(),
-                })
-              : file);
+    const liveFile = filesRef.current.find((file) => file.id === activeFileIdRef.current);
+    if (!liveFile || liveFile.id !== activeFile.id || liveFile.kind !== 'heatCapacityPistonOscillation') return false;
+    const event = { type: 'saveMeasurement' as const, measurement, nowMs: Date.now() };
+    const nextFile = transitionPistonOscillationFreeWorkbenchState(liveFile, event);
+    if (nextFile.pistonOscillationFreeSession === liveFile.pistonOscillationFreeSession) return false;
+    if (!nextFile.pistonOscillationFreeSession.savedMeasurements.some(
+      (saved) => saved.recordId === measurement.recordId,
+    )) return false;
+    updateFileById(liveFile.id, (file) => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, event)
+      : file);
+    return true;
           };
 
   const retainPistonOscillationRun: NonNullable<PistonOscillationAcquisitionPanelProps['onRunRetained']> = () => {

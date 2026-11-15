@@ -1,4 +1,5 @@
 import { isPistonRecordingDurationS } from './pistonOscillationRecordingSettings.ts';
+import { PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION } from './pistonOscillationInternalDissipation.ts';
 import type {
   PistonOscillationRawMeasurementRecord,
 } from './pistonOscillationDataProcessingModel.ts';
@@ -550,8 +551,9 @@ export const doesPistonOscillationMeasurementMatchFreeParameters = (
     && numbersAgree(config.ambientTemperatureK, draft.ambientTemperatureK)
     && numbersAgree(config.linearDampingNsPerM, draft.equivalentLinearLossNsPerM)
     && (scheme === 'ideal'
-      ? measurement.physicsSnapshot.modelVersion
+      ? (measurement.physicsSnapshot.modelVersion
           === PISTON_OSCILLATION_IDEAL_ADIABATIC_REFERENCE_MODEL_VERSION
+        || measurement.physicsSnapshot.modelVersion === PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION)
         && thermal == null
         && measurement.sensorObservationSnapshot.modelVersion
           === PISTON_OSCILLATION_IDEAL_PROCESS_SENSOR_MODEL_VERSION
