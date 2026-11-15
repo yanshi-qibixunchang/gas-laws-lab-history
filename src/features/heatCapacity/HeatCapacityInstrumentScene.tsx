@@ -9,6 +9,7 @@ import {
   getHeatCapacityStopcockState,
 } from '../workbench/workbenchHeatCapacityInstrumentState';
 import usePreviewOverlayMotion from '../workbench/usePreviewOverlayMotion';
+import { getHeatCapacityRealtimeCopy } from '../workbench/workbenchHeatCapacityRealtimeCopy';
 import HeatCapacityHardSphereLayer, {
   normalizeHeatCapacityHardSphereVisualCheckpoint,
   type HeatCapacityHardSphereCheckpointProvider,
@@ -3850,6 +3851,8 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
   const sceneReadyReportedRef = useRef(false);
   const cameraCaptureEnabled = useMemo(() => isHeatCapacityCameraCaptureEnabled(), []);
   const sceneCopy = heatCapacitySceneCopies[props.language] ?? heatCapacitySceneCopies['zh-CN'];
+  const phaseLabels = getHeatCapacityRealtimeCopy(props.language).phaseLabels;
+  const phaseLabel = phaseLabels[props.phase as keyof typeof phaseLabels] ?? phaseLabels.fallback;
   const sceneTheme: HeatCapacitySceneTheme = props.sceneTheme === 'light' ? 'light' : 'dark';
   const scenePalette = heatCapacityScenePalettes[sceneTheme];
   const qualityProfile = HEAT_CAPACITY_QUALITY_PROFILES[props.performanceMode];
@@ -5083,7 +5086,7 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
                   <div className="studio-heat-focus-column">
                     <div className="studio-heat-focus-panel-row">
                       <span>{sceneCopy.focus.currentPhase}</span>
-                      <strong>{props.phase}</strong>
+                      <strong>{phaseLabel}</strong>
                     </div>
                     <div className="studio-heat-focus-panel-row">
                       <span>U<sub>p</sub></span>
