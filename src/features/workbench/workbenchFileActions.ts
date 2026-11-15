@@ -1,4 +1,5 @@
 import type { WorkbenchFileState } from './workbenchFileUnion.ts';
+import { getUniqueWorkbenchFileName } from './workbenchFileNaming.ts';
 import { createDefaultStandardFile, createDefaultIdealFile, type WorkbenchPanelKey } from './workbenchFileState.ts';
 import { createDefaultHeatCapacityFile } from './workbenchHeatCapacityFileFactory.ts';
 import { createDefaultHeatCapacityPistonOscillationFile } from './workbenchPistonOscillationState.ts';
@@ -107,6 +108,7 @@ export const createWorkbenchFileActions = (ports: WorkbenchFileActionPorts) => {
     file = {
       ...file,
       id: fileId,
+      name: getUniqueWorkbenchFileName(file.name, currentFiles),
     };
 
     if (file.kind === 'heatCapacity') {

@@ -1,4 +1,5 @@
 import type { WorkbenchFileState } from './workbenchFileUnion.ts';
+import { getUniqueWorkbenchFileName } from './workbenchFileNaming.ts';
 
 export type WorkbenchFileRenameDecision =
   | { kind: 'empty' }
@@ -64,11 +65,11 @@ export const resolveWorkbenchFileRename = (
   fileId: string,
   draft: string,
 ): WorkbenchFileRenameDecision => {
-  const name = draft.trim();
-  if (!name) return { kind: 'empty' };
+  if (!draft.trim()) return { kind: 'empty' };
 
   const targetFile = files.find((file) => file.id === fileId);
   if (!targetFile) return { kind: 'missing' };
+  const name = getUniqueWorkbenchFileName(draft, files, fileId);
   if (targetFile.name === name) return { kind: 'unchanged', name };
   return { kind: 'rename', name };
 };

@@ -7,6 +7,7 @@ export interface WorkbenchFileRenamePorts {
   getFiles: () => WorkbenchFileState[];
   getRenameDraft: () => string;
   filesRef: Ref<WorkbenchFileState[]>;
+  closedFilesRef: Ref<WorkbenchFileState[]>;
   renamingFileIdRef: Ref<string | null>;
   renameSelectionModeRef: Ref<'initial' | 'normal'>;
   guardWorkbenchTutorialAction: (action: 'rename-file') => boolean;
@@ -47,7 +48,7 @@ export const createWorkbenchFileRenameActions = (ports: WorkbenchFileRenamePorts
   const commitRenameFile = (fileId: string) => {
     const files = ports.getFiles();
     const renameDraft = ports.getRenameDraft();
-    const renameDecision = resolveWorkbenchFileRename(files, fileId, renameDraft);
+    const renameDecision = resolveWorkbenchFileRename([...files, ...ports.closedFilesRef.current], fileId, renameDraft);
     if (renameDecision.kind === 'empty') {
       pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
       return;
@@ -83,7 +84,7 @@ export const createWorkbenchFileRenameActions = (ports: WorkbenchFileRenamePorts
     const fileId = renamingFileIdRef.current;
     if (!fileId) return;
 
-    const renameDecision = resolveWorkbenchFileRename(filesRef.current, fileId, renameDraft);
+    const renameDecision = resolveWorkbenchFileRename([...filesRef.current, ...ports.closedFilesRef.current], fileId, renameDraft);
     if (renameDecision.kind === 'empty') {
       pushLog((language) => workbenchCopies[language].logs.fileNameCannotBeEmpty, 'error');
       renamingFileIdRef.current = null;

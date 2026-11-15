@@ -6,6 +6,7 @@ import type { WorkbenchActiveModeCheckpointOverride } from './workbenchIndexedDb
 import type { WorkbenchConsoleMessageInput } from './workbenchConsoleLocalization.ts';
 import type { WorkbenchLanguagePreference } from './workbenchGeneralSettings.ts';
 import { cloneWorkbenchFiles } from './workbenchFileSnapshot.ts';
+import { getUniqueWorkbenchFileName } from './workbenchFileNaming.ts';
 import { suspendHeatCapacityModeSession } from './workbenchHeatCapacityModeSession.ts';
 import { trimWorkbenchEditHistory } from './workbenchEditHistory.ts';
 import { workbenchCopies } from './workbenchStudioCopy.ts';
@@ -133,6 +134,9 @@ export const createWorkbenchEditHistoryActions = (ports: WorkbenchEditHistoryPor
       suspendActiveHeatCapacityModeForNavigation();
     }
     const clonedFile = cloneWorkbenchFiles([snapshot.file])[0]!;
+    clonedFile.name = getUniqueWorkbenchFileName(
+      clonedFile.name, [...filesRef.current, ...closedFilesRef.current], clonedFile.id,
+    );
     const restoredFile = clonedFile.kind !== 'heatCapacity' && clonedFile.runState === 'running'
       ? { ...clonedFile, runState: 'paused' as const }
       : clonedFile;

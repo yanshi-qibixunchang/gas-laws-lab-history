@@ -5742,6 +5742,41 @@
   justify-items: start;
 }
 
+.studio-heat-temperature-legend {
+  box-sizing: border-box;
+  margin-top: var(--studio-preview-overlay-gap);
+  width: 164px;
+  max-width: 100%;
+  padding: 8px 9px 6px;
+  border: 0.5px solid rgba(100, 116, 139, 0.58);
+  border-radius: 5px;
+  background: rgba(12, 18, 28, 0.78);
+  color: #e2e8f0;
+  backdrop-filter: blur(9px);
+  pointer-events: none;
+}
+
+.studio-heat-temperature-legend[data-scene-theme="light"] {
+  border-color: rgba(148, 163, 184, 0.65);
+  background: rgba(248, 250, 252, 0.92);
+  color: #334155;
+}
+
+.studio-heat-temperature-legend-gradient {
+  height: 9px;
+  border-radius: 3px;
+}
+
+.studio-heat-temperature-legend-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 5px;
+  font-size: 10px;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
 .studio-heat-hard-sphere-tooltip {
   position: absolute;
   top: calc(100% + var(--studio-preview-overlay-gap));

@@ -16,6 +16,7 @@ import HeatCapacityHardSphereLayer, {
   type HeatCapacityHardSphereVisualCheckpoint,
 } from './HeatCapacityHardSphereLayer';
 import HeatCapacityHardSphereToggle from './HeatCapacityHardSphereToggle';
+import HeatCapacityTemperatureLegend from './HeatCapacityTemperatureLegend';
 import HeatCapacityUltraInstrumentModel, {
   clearHeatCapacityUltraInstrumentModelCache,
   HeatCapacityUltraInstrumentAsset,
@@ -4936,6 +4937,13 @@ export default function HeatCapacityInstrumentScene(props: HeatCapacityInstrumen
               language={props.language}
               descriptionId={hardSphereTooltipId}
             />
+            {hardSphereViewActive ? (
+              <HeatCapacityTemperatureLegend
+                ambientTemperatureK={props.ambientTemperatureK}
+                sceneTheme={sceneTheme}
+                language={props.language}
+              />
+            ) : null}
             {hardSphereTooltipId ? (
               <div
                 id={hardSphereTooltipId}

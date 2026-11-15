@@ -5,9 +5,10 @@ import { createDefaultStandardFile } from '../../src/features/workbench/workbenc
 const original = createDefaultStandardFile(1); const other = createDefaultStandardFile(2);
 const filesRef = { current: [original, other] as import('../../src/features/workbench/workbenchFileUnion.ts').WorkbenchFileState[] }; const renamingFileIdRef = { current: null as string | null };
 const renameSelectionModeRef = { current: 'normal' as 'initial' | 'normal' };
+const closedFilesRef = { current: [{ ...createDefaultStandardFile(3), name: 'Closed file' }] };
 let draft = ''; const events: string[] = []; let pendingDelete = true;
 const actions = createWorkbenchFileRenameActions({
- getFiles: () => filesRef.current, getRenameDraft: () => draft, filesRef, renamingFileIdRef, renameSelectionModeRef,
+ getFiles: () => filesRef.current, getRenameDraft: () => draft, filesRef, closedFilesRef, renamingFileIdRef, renameSelectionModeRef,
  guardWorkbenchTutorialAction: () => true, captureUndoSnapshot: (label, scope, id) => { assert.equal(scope, 'file'); assert.equal(id, original.id); events.push(label); },
  updateFileById: (id, update) => { events.push('commit'); filesRef.current = filesRef.current.map(file => file.id === id ? update(file) : file); },
  setOpenFileMenuId: () => {}, setPendingDeleteFileId: () => { pendingDelete = false; }, setRenamingFileId: () => {},
@@ -25,6 +26,10 @@ actions.beginRenameFile(filesRef.current[0]!); draft = 'Outside name'; actions.c
 actions.beginRenameFile(filesRef.current[0]!); actions.cancelRenameFile(); assert.equal(renamingFileIdRef.current, null); assert.equal(draft, '');
 let selection: number[] = []; actions.selectRenameNumericSuffix({ value: 'File-003', setSelectionRange: (start: number, end: number) => { selection = [start, end]; } } as HTMLInputElement);
 assert.deepEqual(selection, [5, 8]);
+actions.beginRenameFile(filesRef.current[0]!); draft = other.name; actions.commitRenameFile(original.id);
+assert.equal(filesRef.current[0]!.name, `${other.name} (1)`);
+actions.beginRenameFile(filesRef.current[0]!); draft = 'Closed file'; actions.commitRenameFileFromOutside();
+assert.equal(filesRef.current[0]!.name, 'Closed file (1)', 'outside submission also checks closed files');
 const inside = {} as Node; const outside = {} as Node; let handler: ((target: Node) => void) | undefined; let closed = 0;
 const detach = attachWorkbenchOutsidePointerInteraction({ subscribe: next => { handler = next; return () => { handler = undefined; }; }, contains: target => target === inside, onOutside: () => { closed += 1; } });
 handler!(inside); assert.equal(closed, 0); handler!(outside); assert.equal(closed, 1); detach(); assert.equal(handler, undefined);

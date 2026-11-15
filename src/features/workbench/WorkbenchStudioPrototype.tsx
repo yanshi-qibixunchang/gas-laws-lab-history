@@ -1283,7 +1283,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   },
     rename: {
     getFiles: () => files, getRenameDraft: () => renameDraft,
-    filesRef, renamingFileIdRef, renameSelectionModeRef, guardWorkbenchTutorialAction,
+    filesRef, closedFilesRef, renamingFileIdRef, renameSelectionModeRef, guardWorkbenchTutorialAction,
     captureUndoSnapshot, updateFileById: (fileId, update) => updateFileById(fileId, update),
     setOpenFileMenuId, setPendingDeleteFileId, setRenamingFileId, setRenameDraft, pushLog,
   }

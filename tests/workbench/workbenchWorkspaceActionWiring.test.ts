@@ -15,7 +15,7 @@ assert.match(files, /heatCapacityRefreshPersistRef, flushWorkspacePersistenceRef
 const params = call('useWorkbenchExperimentParameterActions'); assert.match(params, /standardRuntimeRef, idealRuntimeRef, cancelRuntimeFrame, getStandardRuntime, getIdealRuntime/);
 assert.match(params, /captureUndoSnapshot, updateActiveFile: \(update\) => updateActiveFile\(update\)/);
 const rename = call('useWorkbenchFileActions'); assert.match(rename, /getFiles: \(\) => files, getRenameDraft: \(\) => renameDraft/);
-assert.match(rename, /filesRef, renamingFileIdRef, renameSelectionModeRef/);
+assert.match(rename, /filesRef, closedFilesRef, renamingFileIdRef, renameSelectionModeRef/);
 const layout = call('createWorkbenchLayoutActions'); assert.match(layout, /createEditSnapshot, pushUndoSnapshot, captureUndoSnapshot/);
 assert.match(layout, /updateActiveFile: \(update\) => updateActiveFile\(update\), setWorkbenchFiles: \(update\) => setWorkbenchFiles\(update\)/);
 const scroll = call('createWorkbenchParameterScrollActions'); assert.match(scroll, /idealAdvancedScrollFrameRef/); assert.match(call('useWorkbenchParameterScroll'), /animateCurrentParametersScroll/);

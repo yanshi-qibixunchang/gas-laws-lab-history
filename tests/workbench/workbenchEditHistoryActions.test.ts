@@ -67,6 +67,19 @@ assert.deepEqual(h.calls, ['commit', 'runtime:file', 'sidebar', 'clear-ui', 'flu
 h.actions.redoLastEdit();
 assert.equal(h.filesRef.current[0]!.name, 'changed');
 
+const namingHistory = createHarness([
+  { ...createDefaultStandardFile(1), name: '空气' }, createDefaultIdealFile(1),
+]);
+namingHistory.actions.captureUndoSnapshot('renamed file');
+namingHistory.filesRef.current = namingHistory.filesRef.current.map((file, index) => ({
+  ...file, name: index === 0 ? '原文件改名' : '空气',
+}));
+namingHistory.actions.undoLastEdit();
+assert.equal(namingHistory.filesRef.current[0].name, '空气 (1)', 'undo cannot reuse a name now owned by another file');
+assert.equal(namingHistory.filesRef.current[1].name, '空气', 'undo leaves the other file name unchanged');
+namingHistory.actions.redoLastEdit();
+assert.equal(namingHistory.filesRef.current[0].name, '原文件改名');
+
 const running = { ...createDefaultStandardFile(2), runState: 'running' as const };
 const runningSnapshot = { kind: 'file' as const, label: 'restore running', fileId: first.id,
   file: { ...running, id: first.id }, selectedPanel: 'results' as const };

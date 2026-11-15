@@ -2,6 +2,7 @@ import type { Dispatch, SetStateAction } from 'react';
 import type { WorkbenchFileState } from './workbenchFileUnion.ts';
 import type { WorkbenchPersistenceReason } from './workbenchPersistenceScheduler.ts';
 import { assertUniqueWorkbenchFileCollections } from './workbenchFileIdentity.ts';
+import { normalizeWorkbenchFileNameCollections } from './workbenchFileNaming.ts';
 
 type Ref<T> = { current: T };
 export interface WorkbenchFileCollectionActionPorts {
@@ -37,6 +38,7 @@ export const createWorkbenchFileCollectionActions = (ports: WorkbenchFileCollect
     nextActiveFileId: string,
   ) => {
     assertUniqueWorkbenchFileCollections(nextFiles, nextClosedFiles, nextActiveFileId);
+    ({ files: nextFiles, closedFiles: nextClosedFiles } = normalizeWorkbenchFileNameCollections(nextFiles, nextClosedFiles));
     [...nextFiles, ...nextClosedFiles].forEach((file) => {
       issuedWorkbenchFileIdsRef.current.add(file.id);
     });

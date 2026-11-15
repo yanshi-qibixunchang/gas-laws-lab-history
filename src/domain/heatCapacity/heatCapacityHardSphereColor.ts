@@ -1,3 +1,5 @@
+import { HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K, HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K } from './heatCapacityHardSphereModel.ts';
+
 export type HeatCapacityHardSphereSceneTheme = 'dark' | 'light';
 
 interface TemperatureColorStop {
@@ -20,6 +22,20 @@ export const HEAT_CAPACITY_HARD_SPHERE_TEMPERATURE_PALETTES: Record<HeatCapacity
     { at: 0.74, color: '#d97706' },
     { at: 1, color: '#dc2626' },
   ],
+};
+
+export const getHeatCapacityHardSphereTemperatureLegend = (
+  sceneTheme: HeatCapacityHardSphereSceneTheme,
+  ambientTemperatureK = 298.15,
+) => {
+  const ambientC = (Number.isFinite(ambientTemperatureK) ? ambientTemperatureK : 298.15) - 273.15;
+  const stops = HEAT_CAPACITY_HARD_SPHERE_TEMPERATURE_PALETTES[sceneTheme]
+    .map(({ at, color }) => `${color} ${at * 100}%`).join(', ');
+  return {
+    minC: ambientC + HEAT_CAPACITY_HARD_SPHERE_COLD_DELTA_K,
+    maxC: ambientC + HEAT_CAPACITY_HARD_SPHERE_HOT_DELTA_K,
+    gradient: `linear-gradient(90deg in srgb, ${stops})`,
+  };
 };
 
 const clampUnit = (value: number) => (

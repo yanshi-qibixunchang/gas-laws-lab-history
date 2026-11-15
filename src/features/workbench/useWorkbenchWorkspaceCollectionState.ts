@@ -6,14 +6,19 @@ import type { WorkbenchHeatCapacityState } from './workbenchHeatCapacityStateTyp
 import type { WorkbenchHeatCapacityRefreshSession } from './workbenchHeatCapacityRefreshSession.ts';
 import { loadWorkbenchLayoutDefaults } from './workbenchLayoutCompatibility.ts';
 import { normalizeWorkbenchInitialFiles } from './workbenchInitialFilePresentation.ts';
+import { normalizeWorkbenchFileNameCollections } from './workbenchFileNaming.ts';
 export const useWorkbenchWorkspaceCollectionState = (ports: { initialSession: WorkbenchInitialSession; initialHeatCapacityRefreshSession: WorkbenchHeatCapacityRefreshSession | null; getInitialClosedFiles: () => WorkbenchFileState[] }) => {
   const { initialSession, initialHeatCapacityRefreshSession, getInitialClosedFiles } = ports;
-  const [files, setFiles] = useState<WorkbenchFileState[]>(() => normalizeWorkbenchInitialFiles(
-    initialSession.files,
-    loadWorkbenchLayoutDefaults(),
-    initialHeatCapacityRefreshSession,
+  const [initialCollections] = useState(() => normalizeWorkbenchFileNameCollections(
+    normalizeWorkbenchInitialFiles(
+      initialSession.files,
+      loadWorkbenchLayoutDefaults(),
+      initialHeatCapacityRefreshSession,
+    ),
+    getInitialClosedFiles(),
   ));
-  const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(getInitialClosedFiles);
+  const [files, setFiles] = useState<WorkbenchFileState[]>(initialCollections.files);
+  const [closedFiles, setClosedFiles] = useState<WorkbenchFileState[]>(initialCollections.closedFiles);
   const [activeFileId, setActiveFileId] = useState(initialSession.activeFileId);
   const [selectedPanel, setSelectedPanel] = useState<WorkbenchPanelKey>(initialSession.selectedPanel);
   const filesRef = useRef<WorkbenchFileState[]>(files);

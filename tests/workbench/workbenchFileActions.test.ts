@@ -76,4 +76,9 @@ const create = harness([createDefaultStandardFile(1)]); create.actions.createFil
 assert.equal(create.filesRef.current.length, 2); assert.equal(create.filesRef.current[1]?.kind, 'heatCapacityPistonOscillation');
 assert.equal(create.activeFileIdRef.current, create.filesRef.current[1]?.id); assert.equal(create.ports.selectedPanelRef.current, 'preview');
 create.setAllowed(false); create.actions.createFile('standard'); assert.equal(create.filesRef.current.length, 2);
+const duplicateDefault = harness([{ ...createDefaultStandardFile(1), name: 'Piston Oscillation - 001' }], [
+  { ...createDefaultHeatCapacityFile(1), name: 'Piston Oscillation - 001 (1)' },
+]);
+duplicateDefault.actions.createFile('heatCapacityPistonOscillation');
+assert.equal(duplicateDefault.filesRef.current[1]?.name, 'Piston Oscillation - 001 (2)', 'creation checks names across open and closed experiment types');
 console.log('Workbench file action ordering tests passed.');

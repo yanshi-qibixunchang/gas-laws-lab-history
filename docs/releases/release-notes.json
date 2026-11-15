@@ -53,6 +53,20 @@
               }
             },
             {
+              "scope": "global-file-names-temperature-legend",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "文件名自动避重与温度色条",
+                "zh-TW": "檔案名稱自動避重與溫度色條",
+                "en": "Unique file names and temperature legend"
+              },
+              "body": {
+                "zh-CN": "所有实验类型共用唯一名称规则，重名自动补充 (1)、(2) 等编号；已关闭文件也参与检查。旧文件加载时仅整理重名，不改实验数据。绝热膨胀法开启微观可视化后，开关下方显示连续温度渐变及两端摄氏温度，与分子颜色映射保持一致。",
+                "zh-TW": "所有實驗類型共用唯一名稱規則，重名自動補上 (1)、(2) 等編號；已關閉檔案也參與檢查。舊檔案載入時僅整理重名，不改實驗資料。絕熱膨脹法開啟微觀可視化後，開關下方顯示連續溫度漸變及兩端攝氏溫度，與分子顏色映射保持一致。",
+                "en": "Experiment names are unique across all types and both open and closed files, with numbered suffixes for conflicts. Legacy duplicate names are repaired on load without changing experiment data. Adiabatic molecular visualization shows a continuous temperature legend below its toggle, using the actual particle color mapping and Celsius endpoints."
+              }
+            },
+            {
               "scope": "adiabatic-free-trial-count",
               "importance": "medium",
               "title": {
