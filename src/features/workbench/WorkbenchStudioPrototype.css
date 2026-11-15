@@ -5798,21 +5798,18 @@
   box-shadow: 0 12px 28px rgba(2, 6, 23, 0.22);
   backdrop-filter: blur(9px);
   pointer-events: none;
-  transition:
-    opacity var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease),
-    transform var(--studio-overlay-exit-duration) var(--studio-overlay-motion-ease),
-    visibility 0s linear var(--studio-overlay-exit-duration);
+  transition: none;
 }
 
-.studio-heat-hard-sphere-tooltip-anchor:hover .studio-heat-hard-sphere-tooltip,
-.studio-heat-hard-sphere-tooltip-anchor:focus-within .studio-heat-hard-sphere-tooltip {
+.studio-heat-hard-sphere-toggle:hover ~ .studio-heat-hard-sphere-tooltip,
+.studio-heat-hard-sphere-toggle:focus-visible ~ .studio-heat-hard-sphere-tooltip {
   opacity: 1;
   transform: translate3d(0, 0, 0);
   visibility: visible;
   transition:
-    opacity var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease),
-    transform var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease),
-    visibility 0s linear 0s;
+    opacity var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) 1s,
+    transform var(--studio-overlay-enter-duration) var(--studio-overlay-motion-ease) 1s,
+    visibility 0s linear 1s;
 }
 
 .studio-heat-hard-sphere-tooltip strong {

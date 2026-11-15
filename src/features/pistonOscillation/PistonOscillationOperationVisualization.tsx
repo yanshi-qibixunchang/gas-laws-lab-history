@@ -111,7 +111,9 @@ export const PistonOscillationOperationVisualizationToggle = ({
       aria-disabled={disabled || undefined}
       tabIndex={disabled ? -1 : undefined}
       aria-label={enabled ? copy.tooltipOn : copy.tooltipOff}
-      title={enabled ? copy.tooltipOn : copy.tooltipOff}
+      data-prompt-tooltip={enabled ? copy.tooltipOn : copy.tooltipOff}
+      data-prompt-tooltip-focus-visible=""
+      data-prompt-tooltip-delay-ms="1000"
       onPointerDown={(event) => {
         event.stopPropagation();
         if (disabled) event.preventDefault();

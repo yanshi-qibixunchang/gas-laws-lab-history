@@ -119,6 +119,20 @@
               }
             },
             {
+              "scope": "visualization-switch-hover-help",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "可视化开关悬浮提示",
+                "zh-TW": "視覺化開關懸浮提示",
+                "en": "Visualization switch hover help"
+              },
+              "body": {
+                "zh-CN": "绝热膨胀法和活塞振动法的左上角可视化开关，在鼠标停留 1 秒后显示提示；移出开关立即隐藏，点击后不再因残留焦点持续显示。保留键盘聚焦提示。",
+                "zh-TW": "絕熱膨脹法及活塞振動法的左上角視覺化開關，在滑鼠停留 1 秒後顯示提示；移出開關立即隱藏，點擊後不再因殘留焦點持續顯示。保留鍵盤聚焦提示。",
+                "en": "The top-left visualization switches in both heat-capacity experiments show hover help after one second and hide it immediately when the pointer leaves. Mouse-click focus no longer keeps help visible; keyboard-focus help remains available."
+              }
+            },
+            {
               "scope": "workspace-save-large-experiments",
               "importance": "high",
               "title": {

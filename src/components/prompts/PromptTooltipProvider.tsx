@@ -125,7 +125,11 @@ export const PromptTooltipProvider = ({ children }: PromptTooltipProviderProps) 
       if (!next) return;
       if (event.relatedTarget instanceof Node && next.target.contains(event.relatedTarget)) return;
       hoverTargetRef.current = next.target;
-      scheduleTooltip(next, PROMPT_TOOLTIP_DELAY_MS.pointer, () => hoverTargetRef.current === next.target);
+      const configuredDelay = Number(next.target.getAttribute('data-prompt-tooltip-delay-ms') ?? PROMPT_TOOLTIP_DELAY_MS.pointer);
+      const delay = Number.isFinite(configuredDelay) && configuredDelay >= 0
+        ? configuredDelay
+        : PROMPT_TOOLTIP_DELAY_MS.pointer;
+      scheduleTooltip(next, delay, () => hoverTargetRef.current === next.target);
     };
     const handlePointerOut = (event: PointerEvent) => {
       const current = getTooltipTarget(event.target);
