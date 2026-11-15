@@ -45,6 +45,7 @@ import {
   HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION,
   HEAT_CAPACITY_FREE_SCORING_VERSION,
   planHeatCapacityFreeBatchAggregateMigration,
+  isHeatCapacityFreeBatchGroupCount,
   type HeatCapacityFreeBatchState,
 } from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import {
@@ -909,6 +910,10 @@ const decodePositiveInteger: RuntimeValueDecoder = (value) => (
     : INVALID_RUNTIME_VALUE
 );
 
+const decodeFreeBatchGroupCount: RuntimeValueDecoder = (value) => (
+  isHeatCapacityFreeBatchGroupCount(value) ? value : INVALID_RUNTIME_VALUE
+);
+
 const decodeCalculationScoringRatioWithDefault = (
   fallback: number,
 ): RuntimeValueDecoder => (value) => (
@@ -1050,7 +1055,7 @@ const decodeCalculationWorkflowSessionShape = decodeRecord({
     reason: decodeLiteral(['eligible', 'ideal', 'missing-snapshot', 'environment', 'instrument-model', 'record-criteria', 'acquisition']),
   })),
   version: decodeLiteral([1]),
-  answerRule: decodeOptional(decodeLiteral(['legacy-tolerance-v1', 'strict-half-even-v2', 'free-type-a-half-even-v3', 'free-ab-half-even-v4', 'free-ab-given-standard-half-even-v5'])),
+  answerRule: decodeOptional(decodeLiteral(['legacy-tolerance-v1', 'strict-half-even-v2', 'free-type-a-half-even-v3', 'free-ab-half-even-v4', 'free-ab-given-standard-half-even-v5', 'free-ab-variable-count-half-even-v6'])),
   mode: decodeLiteral(['guide', 'free', 'demo']),
   presentation: decodeLiteral(['interactive', 'system-readonly', 'legacy-readonly']),
   status: decodeLiteral(['in-progress', 'ready-to-exit', 'completed']),
@@ -1697,7 +1702,7 @@ const decodeNullableFreeConfigSnapshot = decodeNullable(decodeFreeConfigSnapshot
 
 const HEAT_CAPACITY_FREE_BATCH_FIELD_DECODERS = {
   id: decodeNullableString,
-  targetGroupCount: decodeNullable(decodeLiteral([3, 4, 5, 6, 7])),
+  targetGroupCount: decodeNullable(decodeFreeBatchGroupCount),
   frozenConfigSnapshot: decodeNullableFreeConfigSnapshot,
   configuredAtMs: decodeNullableNonNegativeFiniteNumber,
   startedAtMs: decodeNullableNonNegativeFiniteNumber,
@@ -3891,7 +3896,7 @@ const decodeFreeExperimentGroup = decodeRecord({
     'completed',
     'legacy-incomplete-readonly',
   ]),
-  targetExperimentCount: decodeLiteral([3, 4, 5, 6, 7]),
+  targetExperimentCount: decodeFreeBatchGroupCount,
   gasType: decodeLiteral(['air', 'helium']),
   parameterSnapshot: decodeNullableFreeConfigSnapshot,
   runSeries: decodeFreeExperimentGroupRunSeries,

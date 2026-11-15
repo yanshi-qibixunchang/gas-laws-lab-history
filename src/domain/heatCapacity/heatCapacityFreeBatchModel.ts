@@ -17,11 +17,12 @@ export const HEAT_CAPACITY_FREE_BATCH_VERSION = 2 as const;
 export const HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION = 1 as const;
 export const HEAT_CAPACITY_FREE_SCORING_VERSION = 2 as const;
 export const HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS = 3 as const;
+/** Historical unbatched-file migration boundary; not a limit for new groups. */
 export const HEAT_CAPACITY_FREE_BATCH_MAX_GROUPS = 7 as const;
+/** Common menu choices. Direct entry accepts any safe integer from three. */
 export const HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS = [3, 4, 5, 6, 7] as const;
 
-export type HeatCapacityFreeBatchGroupCount =
-  (typeof HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS)[number];
+export type HeatCapacityFreeBatchGroupCount = number;
 export type HeatCapacityFreeScoringVersion =
   | typeof HEAT_CAPACITY_FREE_SCORING_LEGACY_VERSION
   | typeof HEAT_CAPACITY_FREE_SCORING_VERSION;
@@ -59,8 +60,15 @@ export const isHeatCapacityFreeBatchGroupCount = (
   value: unknown,
 ): value is HeatCapacityFreeBatchGroupCount => (
   typeof value === 'number' &&
-  HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS.includes(value as HeatCapacityFreeBatchGroupCount)
+  Number.isSafeInteger(value) && value >= HEAT_CAPACITY_FREE_BATCH_MIN_GROUPS
 );
+
+export const parseHeatCapacityFreeBatchCountDraft = (draft: string): number | null => {
+  const trimmed = draft.trim();
+  if (!/^\d+$/.test(trimmed)) return null;
+  const count = Number(trimmed);
+  return isHeatCapacityFreeBatchGroupCount(count) ? count : null;
+};
 
 export const createEmptyHeatCapacityFreeBatchState = (): HeatCapacityFreeBatchState => ({
   version: HEAT_CAPACITY_FREE_BATCH_VERSION,

@@ -63,6 +63,12 @@
   padding: 11px 16px;
 }
 
+.studio-heat-batch-setup-section .experiment-count-selector-menu {
+  max-height: min(168px, 26vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
 .studio-heat-batch-setup-cancel {
   display: inline-flex;
   min-width: 88px;

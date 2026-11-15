@@ -12,6 +12,7 @@ import {
   dispatchHeatCapacityFreeBatchVersion,
   deriveHeatCapacityFreeBatchProgress,
   isHeatCapacityFreeBatchGroupCount,
+  parseHeatCapacityFreeBatchCountDraft,
   isHeatCapacityFreeBatchLocked,
   normalizeHeatCapacityFreeBatchState,
   planHeatCapacityFreeBatchAggregateMigration,
@@ -90,8 +91,14 @@ assert.deepEqual(HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS, [3, 4, 5, 6, 7]);
 assert.equal(isHeatCapacityFreeBatchGroupCount(3), true);
 assert.equal(isHeatCapacityFreeBatchGroupCount(7), true);
 assert.equal(isHeatCapacityFreeBatchGroupCount(2), false);
-assert.equal(isHeatCapacityFreeBatchGroupCount(8), false);
+assert.equal(isHeatCapacityFreeBatchGroupCount(8), true);
 assert.equal(isHeatCapacityFreeBatchGroupCount('3'), false);
+for (const count of [3, 4, 5, 8, 12, 100, Number.MAX_SAFE_INTEGER]) {
+  assert.equal(parseHeatCapacityFreeBatchCountDraft(` ${count} `), count);
+}
+for (const draft of ['', ' ', '2', '0', '-4', '3.5', '4.0', '1e3', 'NaN', String(Number.MAX_SAFE_INTEGER + 1)]) {
+  assert.equal(parseHeatCapacityFreeBatchCountDraft(draft), null, draft);
+}
 
 const empty = createEmptyHeatCapacityFreeBatchState();
 assert.equal(empty.version, 2);

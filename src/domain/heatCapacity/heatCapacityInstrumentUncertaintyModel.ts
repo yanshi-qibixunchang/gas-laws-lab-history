@@ -32,9 +32,9 @@ export const calculateHeatCapacityInstrumentBudget = (
   groups: readonly HeatCapacityCalculationGroupReference[],
   meanGamma: number, typeAStandardUncertainty: number,
 ) => {
-  if (groups.length !== 3 || !Number.isFinite(meanGamma) || meanGamma <= 0 ||
+  if (groups.length < 3 || !Number.isFinite(meanGamma) || meanGamma <= 0 ||
       !Number.isFinite(typeAStandardUncertainty) || typeAStandardUncertainty < 0) {
-    throw new Error('The instrument course requires three valid trials and checked statistics.');
+    throw new Error('The instrument course requires at least three valid trials and checked statistics.');
   }
   const sensitivities = groups.map(getHeatCapacityVoltageSensitivities);
   const meanSensitivity = [0, 1, 2].map(j => sensitivities.reduce((sum, row) => sum + row[j]!, 0) / groups.length);

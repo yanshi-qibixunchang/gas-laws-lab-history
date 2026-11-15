@@ -40,8 +40,8 @@ const shellSource = readFileSync(join(
 
 assert.match(
   componentSource,
-  /HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS\s*=\s*\[3,\s*4,\s*5,\s*6,\s*7\]\s*as const/,
-  'group setup should expose exactly the approved 3-to-7 experiment-count options',
+  /HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS\s*=\s*HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS/,
+  'group setup should share the common dropdown presets without imposing an input maximum',
 );
 assert.match(
   componentSource,
@@ -50,8 +50,8 @@ assert.match(
 );
 assert.match(
   componentSource,
-  /placeholder:\s*'请选择实验次数'[\s\S]*emptyHint:\s*'可选择 3 至 7 次'/,
-  'the empty selector should restore the older Heat Capacity label and helper line',
+  /placeholder:\s*'请选择实验次数'[\s\S]*emptyHint:\s*'[^']*至少 3 次[^']*'/,
+  'the empty selector should describe the minimum without a seven-trial maximum',
 );
 assert.match(
   componentSource,

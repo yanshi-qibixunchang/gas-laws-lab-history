@@ -91,7 +91,7 @@ export interface createWorkbenchHeatDemoRuntimeActionsPorts {
     setGuideHeatCapacityActiveFileId: React.Dispatch<React.SetStateAction<string | null>>;
   };
   mode: {
-    activateHeatCapacityModeFromExplore: (targetMode: import("./../../domain/heatCapacity/heatCapacityModeTypes.ts").HeatCapacityMode, freeBatchGroupCount?: 3 | 5 | 4 | 6 | 7 | null) => boolean;
+    activateHeatCapacityModeFromExplore: (targetMode: import("./../../domain/heatCapacity/heatCapacityModeTypes.ts").HeatCapacityMode, freeBatchGroupCount?: import("../../domain/heatCapacity/heatCapacityFreeBatchModel.ts").HeatCapacityFreeBatchGroupCount | null) => boolean;
     switchHeatCapacityMode: (targetMode: import("./../../domain/heatCapacity/heatCapacityModeTypes.ts").HeatCapacityMode, reason?: import("./../heatCapacity/heatCapacityModeTransitionModel.ts").HeatCapacityModeTransitionReason, teachingResetConfirmed?: boolean) => void;
     exitHeatCapacityTeachingModeToExplore: (sourceMode: "demo" | "guide") => void;
   };

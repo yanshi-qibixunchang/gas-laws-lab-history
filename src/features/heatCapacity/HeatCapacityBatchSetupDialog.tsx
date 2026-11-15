@@ -8,15 +8,19 @@ import {
 } from 'react';
 import {
   ExperimentCountSelector,
-  parseExperimentCountDraft,
 } from '../../components/experiments/ExperimentCountSelector.tsx';
+import {
+  HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS,
+  parseHeatCapacityFreeBatchCountDraft,
+  type HeatCapacityFreeBatchGroupCount,
+} from '../../domain/heatCapacity/heatCapacityFreeBatchModel.ts';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
 import './HeatCapacityBatchSetupDialog.css';
 
-export const HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS = [3, 4, 5, 6, 7] as const;
+export const HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS = HEAT_CAPACITY_FREE_BATCH_GROUP_OPTIONS;
 
-export type HeatCapacityBatchGroupCount = (typeof HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS)[number];
+export type HeatCapacityBatchGroupCount = HeatCapacityFreeBatchGroupCount;
 
 export interface HeatCapacityBatchSetupDialogProps {
   open: boolean;
@@ -44,8 +48,8 @@ const COPY = {
     menuAria: '选择本组实验次数',
     menuButtonAria: '展开实验次数菜单',
     placeholder: '请选择实验次数',
-    emptyHint: '可选择 3 至 7 次',
-    invalid: '请输入 3 至 7 的整数。',
+    emptyHint: '至少 3 次，可直接输入或下拉选择',
+    invalid: '请输入不小于 3 的整数。',
     selected: (count: number) => `本组需完成 ${count} 次实验。`,
     option: (count: number) => `${count} 次`,
     optionHint: (count: number) => `本组完成 ${count} 次实验`,
@@ -66,8 +70,8 @@ const COPY = {
     menuAria: '選擇本組實驗次數',
     menuButtonAria: '展開實驗次數選單',
     placeholder: '請選擇實驗次數',
-    emptyHint: '可選擇 3 至 7 次',
-    invalid: '請輸入 3 至 7 的整數。',
+    emptyHint: '至少 3 次，可直接輸入或下拉選擇',
+    invalid: '請輸入不小於 3 的整數。',
     selected: (count: number) => `本組需完成 ${count} 次實驗。`,
     option: (count: number) => `${count} 次`,
     optionHint: (count: number) => `本組完成 ${count} 次實驗`,
@@ -88,8 +92,8 @@ const COPY = {
     menuAria: 'Select the experiment count for this group',
     menuButtonAria: 'Open the experiment count menu',
     placeholder: 'Select experiment count',
-    emptyHint: 'Choose from 3 to 7 experiments',
-    invalid: 'Enter an integer from 3 to 7.',
+    emptyHint: 'At least 3; type a count or select an option',
+    invalid: 'Enter an integer of at least 3.',
     selected: (count: number) => `${count} experiments required in this group.`,
     option: (count: number) => `${count} experiments`,
     optionHint: (count: number) => `Complete ${count} experiments in this group`,
@@ -115,7 +119,7 @@ export const HeatCapacityBatchSetupDialog = ({
   const cancelRef = useRef<HTMLButtonElement | null>(null);
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const [countDraft, setCountDraft] = useState('');
-  const countOptions = scheme === 'real' ? [3] as const : HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS;
+  const countOptions = HEAT_CAPACITY_BATCH_GROUP_COUNT_OPTIONS;
   const [countMenuOpen, setCountMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -123,14 +127,10 @@ export const HeatCapacityBatchSetupDialog = ({
       setCountMenuOpen(false);
       return;
     }
-    setCountDraft(scheme === 'real' ? '3' : selectedCount === null ? '' : String(selectedCount));
-    if (scheme === 'real') onSelectedCountChange(3);
+    setCountDraft(selectedCount === null ? '' : String(selectedCount));
   }, [open]);
 
-  const resolvedCount = parseExperimentCountDraft(
-    countDraft,
-    countOptions,
-  ) as HeatCapacityBatchGroupCount | null;
+  const resolvedCount = parseHeatCapacityFreeBatchCountDraft(countDraft);
 
   const handleDialogKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (event.key === 'Escape') {
@@ -191,13 +191,14 @@ export const HeatCapacityBatchSetupDialog = ({
         <section className="studio-settings-section studio-settings-control-row studio-heat-batch-setup-section">
           <div className="studio-settings-section-title">
             <strong>{copy.sectionTitle}</strong>
-            <span id={descriptionId}>{scheme === 'real' ? (language === 'en' ? 'Repeat three experiments under the same conditions.' : '在相同条件下完成三次重复实验。') : copy.description(purpose)}</span>
+            <span id={descriptionId}>{copy.description(purpose)}</span>
           </div>
           <div className="studio-settings-control-surface">
             <ExperimentCountSelector
               ref={countInputRef}
               options={countOptions}
               draft={countDraft}
+              parseDraft={parseHeatCapacityFreeBatchCountDraft}
               onDraftChange={setCountDraft}
               onValidValueChange={(count) => {
                 onSelectedCountChange(count as HeatCapacityBatchGroupCount);
@@ -209,9 +210,9 @@ export const HeatCapacityBatchSetupDialog = ({
                 menuAria: copy.menuAria,
                 menuButtonAria: copy.menuButtonAria,
                 placeholder: copy.placeholder,
-                emptyHint: scheme === 'real' ? copy.selected(3) : copy.emptyHint,
+                emptyHint: copy.emptyHint,
                 unit: language === 'en' ? 'experiments' : '次',
-                invalid: scheme === 'real' ? copy.selected(3) : copy.invalid,
+                invalid: copy.invalid,
                 selected: copy.selected,
                 option: copy.option,
                 optionHint: copy.optionHint,

@@ -16,6 +16,7 @@ import {
   HEAT_CAPACITY_STRICT_ANSWER_RULE,
   HEAT_CAPACITY_TYPE_A_ANSWER_RULE,
   HEAT_CAPACITY_AB_ANSWER_RULE,
+  HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE,
   HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE,
   isHeatCapacitySequentialAnswerRule,
   type HeatCapacityCalculationAnswerKind,
@@ -278,7 +279,7 @@ const createAggregate = (
   if (reference === null) {
     throw new Error('The batch statistics reference is invalid.');
   }
-  if (answerRule === HEAT_CAPACITY_AB_ANSWER_RULE && includeInstrumentUncertainty) {
+  if ((answerRule === HEAT_CAPACITY_AB_ANSWER_RULE || answerRule === HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE) && includeInstrumentUncertainty) {
     const { reportTypeA: _oldReport, ...statistics } = reference;
     reference = { ...statistics, ...calculateHeatCapacityInstrumentBudget(groups.map(group => group.reference), reference.meanGamma, reference.typeAStandardUncertainty) };
   }
@@ -459,7 +460,13 @@ export const createHeatCapacityCalculationWorkflowSession = (
   const scoringConfig = options.scoringConfig ??
     DEFAULT_HEAT_CAPACITY_CALCULATION_SCORING_CONFIG;
   const systemResolved = presentation !== 'interactive';
-  const answerRule = options.answerRule ?? (options.mode === 'free' ? HEAT_CAPACITY_AB_ANSWER_RULE : HEAT_CAPACITY_STRICT_ANSWER_RULE);
+  const answerRule = options.answerRule ?? (options.mode === 'free'
+    ? options.groups.length === 3 ? HEAT_CAPACITY_AB_ANSWER_RULE : HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE
+    : HEAT_CAPACITY_STRICT_ANSWER_RULE);
+  // Retain the course structure of saved three-trial-only rules when reopening.
+  const supportsUncertaintyCount = answerRule === HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE
+    ? options.groups.length >= 3
+    : options.groups.length === 3;
   // The model's theoretical ratio is a reference constant, not a measured
   // intermediate answer (e.g. monatomic gas uses exactly 5/3).
   const theoreticalGamma = options.theoreticalGamma;
@@ -479,7 +486,7 @@ export const createHeatCapacityCalculationWorkflowSession = (
         scoringConfig,
         systemResolved,
         answerRule,
-        options.uncertaintyEligibility?.eligible !== false && groups.length === 3,
+        options.uncertaintyEligibility?.eligible !== false && supportsUncertaintyCount,
       )
     : null;
   if (aggregate && isHeatCapacitySequentialAnswerRule(answerRule)) {
@@ -503,7 +510,7 @@ export const createHeatCapacityCalculationWorkflowSession = (
     );
     aggregate.steps.push({ id: 'aggregate:finalReport', kind: 'finalReport', fieldIds: ['aggregate:reportMeanGamma', `aggregate:${reportId}`] });
   }
-  if (aggregate && (options.uncertaintyEligibility?.eligible === false || (isHeatCapacitySequentialAnswerRule(answerRule) && groups.length !== 3))) {
+  if (aggregate && (options.uncertaintyEligibility?.eligible === false || (isHeatCapacitySequentialAnswerRule(answerRule) && !supportsUncertaintyCount))) {
     aggregate.fields = aggregate.fields.filter(field => !isUncertaintyStatistic(field.answerKind));
     aggregate.steps = aggregate.steps.filter(step => !isUncertaintyStatistic(step.kind));
   }
@@ -638,7 +645,11 @@ export const rehydrateHeatCapacityCalculationWorkflowSession = (
 ): HeatCapacityCalculationWorkflowSession => {
   const canonical = createHeatCapacityCalculationWorkflowSession({
     ...options,
-    answerRule: options.mode === 'free' ? HEAT_CAPACITY_AB_ANSWER_RULE : persisted.answerRule ?? 'legacy-tolerance-v1',
+    answerRule: options.mode === 'free'
+      ? persisted.answerRule === HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE
+        ? HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE
+        : HEAT_CAPACITY_AB_ANSWER_RULE
+      : persisted.answerRule ?? 'legacy-tolerance-v1',
   });
   if (options.mode === 'free' && !isHeatCapacitySequentialAnswerRule(persisted.answerRule)) {
     return { ...canonical, startedAtMs: persisted.startedAtMs, recalculationNotice: true };

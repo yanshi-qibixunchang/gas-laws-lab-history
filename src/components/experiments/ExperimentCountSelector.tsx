@@ -26,6 +26,7 @@ export interface ExperimentCountSelectorCopy {
 export interface ExperimentCountSelectorProps {
   options: readonly number[];
   draft: string;
+  parseDraft?: (draft: string) => number | null;
   onDraftChange: (draft: string) => void;
   onValidValueChange?: (count: number) => void;
   onValidValueEnter?: (count: number) => void;
@@ -57,6 +58,7 @@ ExperimentCountSelectorProps
 >(({
   options,
   draft,
+  parseDraft,
   onDraftChange,
   onValidValueChange,
   onValidValueEnter,
@@ -74,7 +76,10 @@ ExperimentCountSelectorProps
   const localInputRef = useRef<HTMLInputElement | null>(null);
   const menuButtonRef = useRef<HTMLButtonElement | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const selectedValue = parseExperimentCountDraft(draft, options);
+  const parseCount = (value: string) => parseDraft
+    ? parseDraft(value)
+    : parseExperimentCountDraft(value, options);
+  const selectedValue = parseCount(draft);
   const draftIsEmpty = draft.trim().length === 0;
   const draftIsInvalid = !draftIsEmpty && selectedValue === null;
   const [highlightedIndex, setHighlightedIndex] = useState(
@@ -135,11 +140,17 @@ ExperimentCountSelectorProps
   };
 
   const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const nextDraft = event.target.value.replace(/[^0-9]/g, '');
+    const nextDraft = parseDraft ? event.target.value : event.target.value.replace(/[^0-9]/g, '');
     onDraftChange(nextDraft);
-    const nextValue = parseExperimentCountDraft(nextDraft, options);
+    const nextValue = parseCount(nextDraft);
     if (nextValue !== null) onValidValueChange?.(nextValue);
   };
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    document.getElementById(`${listboxId}-option-${options[highlightedIndex]}`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [menuOpen, highlightedIndex, listboxId, options]);
 
   const handleInputKeyDown = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {

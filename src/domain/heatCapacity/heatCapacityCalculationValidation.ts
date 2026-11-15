@@ -120,15 +120,17 @@ export const HEAT_CAPACITY_STRICT_ANSWER_RULE = 'strict-half-even-v2' as const;
 export const HEAT_CAPACITY_TYPE_A_ANSWER_RULE = 'free-type-a-half-even-v3' as const;
 export const HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE = 'free-ab-half-even-v4' as const;
 export const HEAT_CAPACITY_AB_ANSWER_RULE = 'free-ab-given-standard-half-even-v5' as const;
+export const HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE = 'free-ab-variable-count-half-even-v6' as const;
 export type HeatCapacityCalculationAnswerRule =
   | 'legacy-tolerance-v1'
   | typeof HEAT_CAPACITY_TYPE_A_ANSWER_RULE
   | typeof HEAT_CAPACITY_AB_ANSWER_RULE
+  | typeof HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE
   | typeof HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE
   | typeof HEAT_CAPACITY_STRICT_ANSWER_RULE;
 
 export const isHeatCapacitySequentialAnswerRule = (rule?: HeatCapacityCalculationAnswerRule) =>
-  rule === HEAT_CAPACITY_TYPE_A_ANSWER_RULE || rule === HEAT_CAPACITY_AB_ANSWER_RULE || rule === HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE;
+  rule === HEAT_CAPACITY_TYPE_A_ANSWER_RULE || rule === HEAT_CAPACITY_AB_ANSWER_RULE || rule === HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE || rule === HEAT_CAPACITY_LEGACY_AB_ANSWER_RULE;
 
 export const HEAT_CAPACITY_CALCULATION_ANSWER_SPECS = Object.fromEntries(
   Object.entries(LEGACY_HEAT_CAPACITY_CALCULATION_ANSWER_SPECS).map(([kind, spec]) => [

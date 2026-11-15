@@ -26,6 +26,7 @@ import {
   getHeatCapacityCalculationFieldSpec,
   isHeatCapacitySequentialAnswerRule,
   HEAT_CAPACITY_STRICT_ANSWER_RULE,
+  HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE,
   type HeatCapacityCalculationAnswerRule,
 } from '../../domain/heatCapacity/heatCapacityCalculationValidation.ts';
 import type { WorkbenchLanguagePreference } from '../workbench/workbenchGeneralSettings.ts';
@@ -610,13 +611,13 @@ const HeatCapacityCalculationStep = ({
         {isHeatCapacitySequentialAnswerRule(session.answerRule) && session.presentation === 'interactive' && fields.every(field => field.answer.status !== 'unresolved') && <button type="button" className="studio-heat-calculation-restart" onClick={() => onContinueAnswer(fields[0]!.id)}>{language === 'en' ? 'Recalculate from here' : '从此步重新计算'}</button>}
       </header>
       {step.kind === 'sampleStandardDeviation' && isHeatCapacitySequentialAnswerRule(session.answerRule) && <div className="studio-heat-calculation-explanation">
-        <p>{language === 'en' ? 'The three results may differ. The standard deviation describes their spread; the Type A standard uncertainty of the mean assesses the effect of repeat measurements on the mean.' : '三次实验结果可能存在一定分散。标准差描述各次结果的离散程度，平均值的 A 类标准不确定度用于评定重复测量对平均值的影响。'}</p>
+        <p>{language === 'en' ? 'Repeated results may differ. The standard deviation describes their spread; the Type A standard uncertainty of the mean assesses the effect of repeat measurements on the mean.' : language === 'zh-TW' ? '各次實驗結果可能存在一定差異。標準差描述各次結果的差異大小，平均值的 A 類標準不確定度用於評定重複測量對平均值的影響。' : '各次实验结果可能存在一定差异。标准差描述各次结果的差异大小，平均值的 A 类标准不确定度用于评定重复测量对平均值的影响。'}</p>
         <p>{language === 'en' ? 'Sum of squared deviations ' : '比热容比的离差平方和 '}<HeatCapacityCalculationSymbol symbol="Q" language={language} /></p>
         <HeatCapacityQDefinition value={formatQ(session)} count={session.groups.length} language={language} />
       </div>}
       {step.kind === 'typeAStandardUncertainty' && isHeatCapacitySequentialAnswerRule(session.answerRule) && <details className="studio-heat-calculation-explanation">
         <summary>{language === 'en' ? 'Why divide by √n?' : '为什么除以 √n？'}</summary>
-        <p>{language === 'en' ? 'For independent repetitions under the same conditions, the standard deviation of the mean equals the standard deviation of a single result divided by √n. Here n = 3. This is a statistical relation, not a conversion of an instrument error limit.' : '同一条件下独立重复实验，平均值的标准差等于单次结果的标准差除以 √n。本组 n = 3；这是重复实验平均值的统计关系，不是仪器误差限的换算。'}</p>
+        <p>{language === 'en' ? `For independent repetitions under the same conditions, the standard deviation of the mean equals the standard deviation of a single result divided by √n. Here n = ${session.groups.length}. This is a statistical relation, not a conversion of an instrument error limit.` : language === 'zh-TW' ? `同一條件下獨立重複實驗，平均值的標準差等於單次結果的標準差除以 √n。本組實驗次數 n = ${session.groups.length}；這是重複實驗平均值的統計關係，不是儀器誤差限的換算。` : `同一条件下独立重复实验，平均值的标准差等于单次结果的标准差除以 √n。本组实验次数 n = ${session.groups.length}；这是重复实验平均值的统计关系，不是仪器误差限的换算。`}</p>
       </details>}
       {step.kind === 'finalReport' && <p className="studio-heat-calculation-explanation">{language === 'en' ? 'Round the combined standard uncertainty to two significant figures and align the mean to its decimal place.' : '合成标准不确定度保留两位有效数字，平均值的小数末位与其对齐。'}</p>}
       {step.kind === 'typeBStandardUncertainty' && <div className="studio-heat-calculation-explanation">
@@ -793,7 +794,7 @@ export const HeatCapacityCalculationWindow = ({
           {(session.answerRule === HEAT_CAPACITY_STRICT_ANSWER_RULE || isHeatCapacitySequentialAnswerRule(session.answerRule)) ? copy.strictRule : copy.tolerance}
           {session.recalculationNotice && session.status !== 'completed' && <p role="status">{language === 'en' ? 'The calculation rules have changed. Previous answer checks have been cleared; recalculate the related steps using the saved readings.' : '计算规则已更新，旧答案的核验状态已清除，请使用保存的原始读数重新完成相关计算。'}</p>}
           {session.uncertaintyUpgradeNotice && session.status !== 'completed' && <p role="status">{language === 'en' ? 'The instrument uncertainty definition has been updated. Valid preceding answers are retained; recalculate Type B, combined uncertainty and the final report.' : '仪器不确定度定义已更新，前序有效答案已保留；请重新计算 B 类、合成不确定度及最终报告。'}</p>}
-          {isHeatCapacitySequentialAnswerRule(session.answerRule) && session.groups.length !== 3 && <p>{language === 'en' ? 'This saved group does not contain three trials. Its original records are retained; start a three-trial group for this Type A course.' : '此旧组不是三次实验，原始记录保留；本次 A 类教学请使用三次实验的新组。'}</p>}
+          {isHeatCapacitySequentialAnswerRule(session.answerRule) && session.answerRule !== HEAT_CAPACITY_VARIABLE_COUNT_AB_ANSWER_RULE && session.groups.length !== 3 && <p>{language === 'en' ? 'This saved group retains its original calculation progress. Start a new group with at least three trials to use the current uncertainty course.' : language === 'zh-TW' ? '此舊組保留原有計算進度；如需使用現行不確定度計算，請新建至少三次實驗的組。' : '此旧组保留原有计算进度；如需使用现行不确定度计算，请新建至少三次实验的组。'}</p>}
           {getUncertaintyTeachingNotice(session.uncertaintyEligibility, language) && (
             <p>{getUncertaintyTeachingNotice(session.uncertaintyEligibility, language)}</p>
           )}

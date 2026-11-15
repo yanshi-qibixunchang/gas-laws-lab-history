@@ -117,7 +117,7 @@ export interface useWorkbenchHeatModeRuntimePorts {
   };
   free: {
     activeHeatCapacityFreeBatchProgress: import("./../../domain/heatCapacity/heatCapacityFreeBatchModel.ts").HeatCapacityFreeBatchProgress | null;
-    setHeatCapacityBatchSetupSelection: React.Dispatch<React.SetStateAction<3 | 4 | 5 | 6 | 7 | null>>;
+    setHeatCapacityBatchSetupSelection: React.Dispatch<React.SetStateAction<number | null>>;
     setHeatCapacityBatchSetupRequestedFileId: React.Dispatch<React.SetStateAction<string | null>>;
   };
 }

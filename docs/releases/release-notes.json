@@ -53,6 +53,20 @@
               }
             },
             {
+              "scope": "adiabatic-free-trial-count",
+              "importance": "medium",
+              "title": {
+                "zh-CN": "自由实验次数可输入和选择",
+                "zh-TW": "自由實驗次數可輸入和選擇",
+                "en": "Flexible free-mode trial counts"
+              },
+              "body": {
+                "zh-CN": "绝热膨胀法自由模式支持输入至少 3 次的整数，并提供常用次数下拉选项。采集进度、汇总及不确定度计算按实际次数处理，保存恢复保留所选次数；旧组保留原有计算进度。",
+                "zh-TW": "絕熱膨脹法自由模式支援輸入至少 3 次的整數，並提供常用次數下拉選項。採集進度、彙總及不確定度計算依實際次數處理，儲存還原保留所選次數；舊組保留原有計算進度。",
+                "en": "Adiabatic expansion free mode accepts integer trial counts of at least 3, with common dropdown choices. Acquisition, aggregate calculations and uncertainty use the actual count, which survives saving and reopening. Existing groups retain their calculation progress."
+              }
+            },
+            {
               "scope": "calculation-focus-and-explanations",
               "importance": "high",
               "title": {

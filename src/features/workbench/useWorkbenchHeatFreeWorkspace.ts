@@ -41,7 +41,7 @@ export interface useWorkbenchHeatFreeWorkspacePorts {
     captureUndoSnapshot: (label: string, scope?: "workspace" | "file" | "presentation", fileId?: string) => void;
   };
   mode: {
-    activateHeatCapacityModeFromExplore: (targetMode: import("./../../domain/heatCapacity/heatCapacityModeTypes.ts").HeatCapacityMode, freeBatchGroupCount?: 5 | 3 | 4 | 6 | 7 | null) => boolean;
+    activateHeatCapacityModeFromExplore: (targetMode: import("./../../domain/heatCapacity/heatCapacityModeTypes.ts").HeatCapacityMode, freeBatchGroupCount?: HeatCapacityBatchGroupCount | null) => boolean;
     exitHeatCapacityFormalModeToExplore: (sourceMode: import("./../../domain/heatCapacity/heatCapacityModeTypes.ts").HeatCapacityMode) => boolean;
   };
   runtimeLifecycle: {
