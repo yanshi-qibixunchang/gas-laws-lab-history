@@ -1,0 +1,168 @@
+{
+  "release": "v6.5.2",
+  "publishedAt": "2026-11-16T10:44:35Z",
+  "releaseUrl": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.2",
+  "priorAttempts": [
+    {
+      "oldVersion": "6.5.1",
+      "workflowRunId": 43851588730,
+      "attempt": 1,
+      "result": "incomplete",
+      "reason": "Runtime.evaluate timed out during the close request after successful installation and workspace restoration checks; clean exit and second restart were not completed.",
+      "packageChangedForRetry": false
+    }
+  ],
+  "tests": [
+    {
+      "oldVersion": "6.5.1",
+      "newVersion": "6.5.2",
+      "workflowRunId": 43851588730,
+      "fixture": "Isolated Windows CI experiment, settings and workspace records; no personal data",
+      "update": {
+        "detected": "available",
+        "detectedVersion": "6.5.2",
+        "download": "downloaded",
+        "downloadedVersion": "6.5.2"
+      },
+      "beforeUpgrade": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "publishedUpdateDetected": true,
+        "publishedUpdateDownloaded": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "closedCleanly": true
+      },
+      "afterUpgrade": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "closedCleanly": true
+      },
+      "afterRestart": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "migratedWorkspaceSchemaPersisted": true,
+        "closedCleanly": true
+      },
+      "differential": {
+        "oldInstaller": {
+          "bytes": 197197976,
+          "sha256": "34b8654f17a19596ca41a88bd83395499e232ddb311a6c33d7916bd5f70d46f7"
+        },
+        "newInstaller": {
+          "bytes": 197204670,
+          "sha256": "09091a357de618904a04817ab68111965d7354aca27d8b6514cbc9b1d4caddd0"
+        },
+        "blockmapVersion": "2",
+        "operationCount": 578,
+        "copiedBytes": 139339427,
+        "downloadedBytes": 57865243,
+        "copiedPercent": 70.66,
+        "downloadedPercent": 29.34,
+        "reconstructedBytes": 197204670,
+        "reconstructedSha256": "09091a357de618904a04817ab68111965d7354aca27d8b6514cbc9b1d4caddd0"
+      },
+      "workflowAttempt": 2
+    },
+    {
+      "oldVersion": "6.5.0",
+      "newVersion": "6.5.2",
+      "workflowRunId": 43851598325,
+      "fixture": "Isolated Windows CI experiment, settings and workspace records; no personal data",
+      "update": {
+        "detected": "available",
+        "detectedVersion": "6.5.2",
+        "download": "downloaded",
+        "downloadedVersion": "6.5.2"
+      },
+      "beforeUpgrade": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "publishedUpdateDetected": true,
+        "publishedUpdateDownloaded": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "closedCleanly": true
+      },
+      "afterUpgrade": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "closedCleanly": true
+      },
+      "afterRestart": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "migratedWorkspaceSchemaPersisted": true,
+        "closedCleanly": true
+      },
+      "differential": {
+        "oldInstaller": {
+          "bytes": 197200097,
+          "sha256": "93af0566db37649076d9ea48e591c0625f3384eb7345d7f12b1f0599bd4be756"
+        },
+        "newInstaller": {
+          "bytes": 197204670,
+          "sha256": "09091a357de618904a04817ab68111965d7354aca27d8b6514cbc9b1d4caddd0"
+        },
+        "blockmapVersion": "2",
+        "operationCount": 562,
+        "copiedBytes": 138942455,
+        "downloadedBytes": 58262215,
+        "copiedPercent": 70.46,
+        "downloadedPercent": 29.54,
+        "reconstructedBytes": 197204670,
+        "reconstructedSha256": "09091a357de618904a04817ab68111965d7354aca27d8b6514cbc9b1d4caddd0"
+      }
+    }
+  ]
+}
