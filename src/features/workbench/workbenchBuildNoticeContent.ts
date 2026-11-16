@@ -259,13 +259,13 @@ for (const language of ['zh-CN', 'zh-TW', 'en'] as const) {
     title: english ? 'Piston model references' : traditional ? '活塞模型參考文獻' : '活塞模型参考文献',
     paragraphs: [
       'Mungan, C. E. (2017). Damped oscillations of a frictionless piston in an adiabatic cylinder enclosing an ideal gas. European Journal of Physics, 38, 035102. DOI: 10.1088/1361-6404/aa6054.',
-      english ? 'Ideal uses gas-side dynamic-pressure drag from equation (3). Drag work heats the enclosed gas without external heat transfer. The coefficient is calculated from the gas and apparatus parameters; it is not a measured damping coefficient for this apparatus.'
-        : traditional ? 'Ideal 依據式 (3) 加入缸內動態壓強阻力，阻力功轉為氣體內能，與外界無熱交換。係數依氣體及儀器參數計算，不代表本機實測阻尼。'
-        : 'Ideal 依据式 (3) 加入缸内动态压强阻力，阻力功转为气体内能，与外界无热交换。系数依气体及仪器参数计算，不代表本机实测阻尼。',
+      english ? 'Ideal and current Real profiles use gas-side dynamic-pressure drag from equation (3), with the same coefficient for drag and gas heating. Ideal has no external heat transfer; Real retains it. The coefficient is calculated from gas and apparatus properties, not measured damping for this apparatus.'
+        : traditional ? 'Ideal 與現行 Real 方案均依式 (3) 加入缸內動態壓強阻力，阻力與氣體耗散加熱使用同一係數。Ideal 關閉外界換熱，Real 保留外界換熱。係數由氣體與儀器物性計算，不代表本機實測阻尼。'
+        : 'Ideal 与现行 Real 方案均依式 (3) 加入缸内动态压强阻力，阻力与气体耗散加热使用同一系数。Ideal 关闭外界换热，Real 保留外界换热。系数由气体与仪器物性计算，不代表本机实测阻尼。',
       'Shearwood, C. & Sloan, P. A. (2023). The Rüchardt experiment revisited: using simple theory, accurate measurement and python based data analysis. European Journal of Physics, 44, 035102. DOI: 10.1088/1361-6404/acc5c2. Author preprint: arXiv:2209.03323.',
-      english ? 'The 60 mL example reports amplitude e-folding times of about 0.5 s for air and 0.2 s for helium. These describe total decay in that apparatus, not pure adiabatic drag or stopping times. Real retains its calibrated aggregate loss and heat transfer; the Ideal drag is not added a second time. Papers remain copyrighted by their respective rights holders.'
-        : traditional ? '60 mL 示例中，空氣與氦氣的振幅衰減至 1/e 約需 0.5 s 與 0.2 s。這是該裝置的總衰減，不是純絕熱阻力或停止時間。Real 使用標定的綜合損耗與熱交換，未重複疊加 Ideal 的阻力。論文版權屬原權利人。'
-        : '60 mL 示例中，空气与氦气的振幅衰减至 1/e 约需 0.5 s 与 0.2 s。这是该装置的总衰减，不是纯绝热阻力或停止时间。Real 使用标定的综合损耗与热交换，未重复叠加 Ideal 的阻力。论文版权属原权利人。',
+      english ? 'The 60 mL example reports amplitude e-folding times of about 0.5 s for air and 0.2 s for helium. These describe total decay in that apparatus, not pure adiabatic drag or stopping times. Current Real profiles refit residual mechanical loss, heat transfer and observation response alongside internal dissipation. Some acceptance gates remain unmet; helium has no measured waveform validation. Papers remain copyrighted by their respective rights holders.'
+        : traditional ? '60 mL 示例中，空氣與氦氣的振幅衰減至 1/e 約需 0.5 s 與 0.2 s。這是該裝置的總衰減，不是純絕熱阻力或停止時間。現行 Real 方案在內部耗散之外重新設定剩餘機械損耗、換熱及觀測響應，仍有核驗項未通過，氦氣尚無實測波形核驗。論文版權屬原權利人。'
+        : '60 mL 示例中，空气与氦气的振幅衰减至 1/e 约需 0.5 s 与 0.2 s。这是该装置的总衰减，不是纯绝热阻力或停止时间。现行 Real 方案在内部耗散之外重新设置剩余机械损耗、换热及观测响应，仍有核验项未通过，氦气尚无实测波形核验。论文版权属原权利人。',
     ],
   };
   const sections = buildNoticeSections[language];

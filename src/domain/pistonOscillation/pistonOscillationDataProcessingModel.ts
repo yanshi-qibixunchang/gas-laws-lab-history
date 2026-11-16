@@ -84,6 +84,7 @@ import {
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION,
 } from './pistonOscillationRealParameterProfile.ts';
@@ -2244,6 +2245,7 @@ export const analyzePistonOscillationPrimaryCycleEligibility = (
   );
   const useCalibratedTail = record.experimentContext?.scheme === 'real'
     && (record.experimentContext.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+      || record.experimentContext.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10
       || record.experimentContext.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8
       || record.experimentContext.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7
       || record.experimentContext.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6

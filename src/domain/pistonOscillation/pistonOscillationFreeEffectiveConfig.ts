@@ -13,7 +13,11 @@ import {
 import {
   createPistonOscillationIdealParameterProfile,
 } from './pistonOscillationIdealParameterProfile.ts';
-import { PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION } from './pistonOscillationRealParameterProfile.ts';
+import {
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
+} from './pistonOscillationRealParameterProfile.ts';
 
 export const resolvePistonOscillationFreeEffectiveConfig = (
   group: PistonOscillationFreeExperimentGroup,
@@ -37,12 +41,16 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
       }
     : {
         ...parameterDraft,
-        ...(group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+        ...((group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+          || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10)
           && parameterDraft.recordingDurationS === undefined
           ? { recordingDurationS: group.acquisitionDefaultsVersion === 2 ? 0.5 : 1.2 } : {}),
       });
   const basePhysicsConfig = idealProfile?.physicsConfig
     ?? getPistonOscillationFreePhysicsConfig(parameters);
+  const realInternalDissipation = group.scheme === 'real'
+    && (group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION);
   return {
     scheme: group.scheme,
     gasMaterialSnapshot: { ...group.gasMaterialSnapshot },
@@ -51,6 +59,10 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
     physicsConfig: {
       ...basePhysicsConfig,
       gamma: group.gasMaterialSnapshot.adiabaticIndex,
+      ...(realInternalDissipation ? {
+        internalDissipationMolarMassKgPerMol:
+          group.gasMaterialSnapshot.gasType === 'air' ? 0.02897 : 0.004002602,
+      } : {}),
     },
     thermalConfig: getPistonOscillationFreeThermalConfig(parameters),
     releaseAsymmetryConfig:

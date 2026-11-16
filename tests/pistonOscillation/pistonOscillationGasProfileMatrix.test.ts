@@ -114,12 +114,12 @@ assert.deepEqual(
   {
     ...airDefaults,
     releaseAsymmetryModelVersion: 'piston-oscillation-release-asymmetry-v2',
-    equivalentLinearLossNsPerM: 0.06,
-    thermalRelaxationTimeS: 0.020,
-    thermalVolumeExponent: 1,
-    heatFlowLagTimeS: 0.0005,
-    sensorResponseTimeS: 0.003,
-    tailIntensity: 0.35,
+    equivalentLinearLossNsPerM: 0.08636830285991312,
+    thermalRelaxationTimeS: 0.01527079271805452,
+    thermalVolumeExponent: 1.038097266483478,
+    heatFlowLagTimeS: 0.0005000000000000001,
+    sensorResponseTimeS: 0.003806723024139263,
+    tailIntensity: 0.25,
   },
 );
 assert.equal(inferPistonOscillationRealAirProfileVersion({
@@ -144,12 +144,12 @@ assert.equal(
   heliumProfile.parameters.thermalRelaxationTimeS,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
 );
-assert.equal(heliumProfile.parameters.thermalRelaxationTimeS, 0.008);
-assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0022);
-assert.equal(heliumProfile.parameters.thermalVolumeExponent, 0.85);
-assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.18);
-assert.equal(heliumProfile.parameters.heatFlowLagTimeS, 0.0005);
-assert.equal(heliumProfile.parameters.tailIntensity, 0);
+assert.equal(heliumProfile.parameters.thermalRelaxationTimeS, 0.009511893839427972);
+assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0010949366477406466);
+assert.equal(heliumProfile.parameters.thermalVolumeExponent, 0.8121807010401484);
+assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.3315636895362068);
+assert.equal(heliumProfile.parameters.heatFlowLagTimeS, 0.0015691900692024546);
+assert.equal(heliumProfile.parameters.tailIntensity, 0.2771748138827636);
 assert.equal(inferPistonOscillationRealHeliumProfileVersion(heliumProfile.parameters), heliumProfile.version);
 for (const version of [
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4,

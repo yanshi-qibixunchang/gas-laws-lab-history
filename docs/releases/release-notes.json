@@ -3,6 +3,74 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.5.3",
+      "date": "2026-11-17",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.3",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.3/heat-capacity-lab-setup-6.5.3.exe"
+      },
+      "summary": {
+        "zh-CN": "6.5.3 更新真实空气与氦气的活塞耗散、换热和观测参数，保留历史实验及两种体积计算流程。",
+        "zh-TW": "6.5.3 更新真實空氣與氦氣的活塞耗散、換熱與觀測參數，保留歷史實驗及兩種體積計算流程。",
+        "en": "6.5.3 updates realistic-air and helium piston dissipation, heat-transfer and observation presets while preserving historical experiments and both volume calculation workflows."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "本次更新",
+            "zh-TW": "本次更新",
+            "en": "Changes"
+          },
+          "items": [
+            {
+              "scope": "real-piston-dissipation",
+              "importance": "high",
+              "title": {
+                "zh-CN": "真实模式接入内部耗散",
+                "zh-TW": "真實模式接入內部耗散",
+                "en": "Internal dissipation in realistic piston experiments"
+              },
+              "body": {
+                "zh-CN": "真实空气与氦气采用动态压强内部耗散，并将同一耗散功率计入气体内能，同时保留对外换热。重新设置剩余机械损耗、换热、传感器响应和尾段扰动；两种气体的启用参数均为非零值。",
+                "zh-TW": "真實空氣與氦氣採用動態壓強內部耗散，並將同一耗散功率計入氣體內能，同時保留對外換熱。重新設定剩餘機械損耗、換熱、感測器響應及尾段擾動；兩種氣體的啟用參數均為非零值。",
+                "en": "Realistic air and helium now include dynamic-pressure internal dissipation and matching gas heating alongside external heat transfer. Residual mechanical loss, thermal response, sensor response and tail disturbance presets are updated with nonzero active coefficients."
+              }
+            },
+            {
+              "scope": "profile-history",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保留历史实验",
+                "zh-TW": "保留歷史實驗",
+                "en": "Preserve historical experiments"
+              },
+              "body": {
+                "zh-CN": "新建、完整重置或恢复默认参数后使用新配置；旧实验继续使用原模型版本、参数快照和记录。已知总体积单次计算及未知体积多高度计算流程保持兼容，第三方依赖版本不变。",
+                "zh-TW": "新建、完整重設或恢復預設參數後使用新設定；舊實驗繼續使用原模型版本、參數快照及記錄。已知總體積單次計算與未知體積多高度計算流程保持相容，第三方依賴版本不變。",
+                "en": "New experiments, full resets and restored defaults use the new profiles. Historical experiments retain their model versions, parameter snapshots and records. Known-volume and multi-height calculations remain compatible; third-party dependency versions are unchanged."
+              }
+            },
+            {
+              "scope": "validation-boundaries",
+              "importance": "normal",
+              "title": {
+                "zh-CN": "核验结果与适用边界",
+                "zh-TW": "核驗結果與適用邊界",
+                "en": "Validation results and limits"
+              },
+              "body": {
+                "zh-CN": "固定空气主图前 100 ms 的波形 R² 为 0.9589，但首峰和包络偏差仍超限，留出曲线仅 4/16 条同时满足四项门槛。空气五类工况通过；氦气最佳操作原批次有 3 个连续三次均值窗口超限，且尚无实测波形验证。本版采用经确认的教学参数，不宣称完成全面仪器标定。",
+                "zh-TW": "固定空氣主圖前 100 ms 的波形 R² 為 0.9589，但首峰及包絡偏差仍超限，留出曲線僅 4/16 條同時滿足四項門檻。空氣五類工況通過；氦氣最佳操作原批次有 3 個連續三次均值視窗超限，且尚無實測波形驗證。本版採用經確認的教學參數，不宣稱完成全面儀器標定。",
+                "en": "The fixed air comparison reaches waveform R² = 0.9589 over the first 100 ms, but peak and envelope errors remain above their limits; 4 of 16 held-out curves pass all four gates. Air passes the five operating conditions. The original helium batch has three failing rolling three-trial means and no measured waveform validation. These are accepted teaching presets, not a claim of complete apparatus calibration."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.5.2",
       "date": "2026-11-16",
       "channel": "stable",

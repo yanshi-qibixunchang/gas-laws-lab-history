@@ -33,6 +33,8 @@ import {
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V7,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
@@ -209,7 +211,8 @@ export const isPistonOscillationFreeExperimentProfileImplemented = (
     || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V6
     || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V7
     || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V8
-    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9))
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V9
+    || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10))
   || (group.scheme === 'ideal' && (group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_PARAMETER_PROFILE_VERSION
     || group.parameterProfileVersion === PISTON_PREVIOUS_DISSIPATIVE_IDEAL_PROFILE_VERSION
     || group.parameterProfileVersion === PISTON_OSCILLATION_IDEAL_AIR_PARAMETER_PROFILE_VERSION))
@@ -218,7 +221,8 @@ export const isPistonOscillationFreeExperimentProfileImplemented = (
       || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V3
       || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4
       || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V5
-      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6));
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V6
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V7));
 
 export const lockPistonOscillationFreeExperimentGroup = (
   group: PistonOscillationFreeExperimentGroup,

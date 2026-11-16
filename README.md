@@ -4,9 +4,9 @@
 
 Gas Laws Lab is a Windows experiment workbench connecting 3D apparatus interaction, physical simulation, data acquisition, guided calculation and local reports. It covers hard-sphere molecular dynamics, ideal-gas relations, and air/helium heat-capacity-ratio experiments.
 
-**Current stable version: 6.5.2**
+**Current stable version: 6.5.3**
 
-[Download for Windows x64](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.2/heat-capacity-lab-setup-6.5.2.exe) · [Release notes and assets](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.2) · [Release verification](docs/releases/v6.5.2.md) · [Source Release](https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v6.5.2)
+[Download for Windows x64](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.3/heat-capacity-lab-setup-6.5.3.exe) · [Release notes and assets](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.3) · [Release verification](docs/releases/v6.5.3.md) · [Source Release](https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v6.5.3)
 
 ## Experiments
 
@@ -19,16 +19,15 @@ Gas Laws Lab is a Windows experiment workbench connecting 3D apparatus interacti
 
 Both heat-capacity methods support **air/helium**, **ideal/realistic conditions**, and Demo, Guide and Free modes. The interface supports Simplified Chinese, Traditional Chinese and English, with light and dark themes. The desktop app exports supported PDF reports, PDF/PNG figures, CSV files and data packages.
 
-## What changed in 6.5.2
+## What changed in 6.5.3
 
-- Piston Free mode adds unknown/known volume conditions. Known volume is available for realistic air only, with one trial at a 50 mm target. The saved loaded-equilibrium volume, pressure at that state and measured period determine area, heat-capacity ratio and relative error directly, without fitting or uncertainty steps.
-- Free mode opens the parameter sidebar before plan creation using the existing apparatus-view button. Unknown volume keeps 3–6 trials at multiple heights; known volume uses a fixed-plan confirmation. After 10 idle seconds with the sidebar open and no plan, the plan button is highlighted. The volume dropdown follows the shared typography, sizing and keyboard behavior.
-- New, fully reset and default-restored realistic-air Free experiments use 0.5 s instead of 1.2 s. Existing saves, explicit settings and frozen snapshots retain their durations. Ideal conditions, helium and Demo/Guide flows keep their behavior. Physical profiles remain unchanged from 6.5.0.
-- The direct method retains its source measurement and volume snapshot; remeasurement refreshes them and invalidates old periods and answers. Displayed values drive validation and exports. Review shows volume and period without penalizing absent fitting. Reports and tables include method-specific formulas and provenance. Three-language documentation and third-party inventories are updated. Compare methods by relative error; a single trial is not assumed more accurate.
+- Realistic air and helium now include dynamic-pressure internal dissipation and matching gas heating alongside external heat transfer. Residual mechanical loss, thermal response, sensor response and tail disturbance presets are updated with nonzero active coefficients.
+- New experiments, full resets and restored defaults use the new profiles. Historical experiments retain their model versions, parameter snapshots and records. Known-volume and multi-height calculations remain compatible; third-party dependency versions are unchanged.
+- The fixed air comparison reaches waveform R² = 0.9589 over the first 100 ms, but peak and envelope errors remain above their limits; 4 of 16 held-out curves pass all four gates. Air passes the five operating conditions. The original helium batch has three failing rolling three-trial means and no measured waveform validation. These are accepted teaching presets, not a claim of complete apparatus calibration.
 
 ## Install and upgrade
 
-Download the installer and follow its setup wizard. Users on **6.5.0 or 6.5.1** can check for updates in the app or save and close the app before installing the full package into the existing location.
+Download the installer and follow its setup wizard. Users on **6.5.2 or earlier** can check for updates in the app or save and close the app before installing the full package into the existing location.
 
 The application identity and user-data location remain unchanged. Historical experiments retain their model and parameter snapshots, raw records and calculation progress; new experiments use current profiles. Existing migration rules still apply to older formats.
 
@@ -36,7 +35,7 @@ Core experiments run locally without an account. The browser and desktop edition
 
 ## Model scope
 
-Ideal/realistic refers to experimental conditions. Ideal conditions still require correct operation. Realistic profiles include calibrated thermal, mechanical and measurement effects and do not reproduce every physical apparatus. Some helium acceptance ranges are scaled from the agreed air ranges using the theoretical ratio; they are not helium measurements.
+Ideal/realistic refers to experimental conditions. Ideal conditions still require correct operation. Realistic profiles include thermal, mechanical and measurement effects with explicitly limited validation; they do not reproduce every physical apparatus. Some helium acceptance ranges are scaled from the agreed air ranges using the theoretical ratio; they are not helium measurements.
 
 The 3D apparatus is an interaction and visualization layer; the software's physical model produces numerical results. The adiabatic apparatus draws on several teaching instruments, including FD-NCD-C, and is not an official simulation or digital replica of that product. Model, audio and physics references are available in the app's About pages and [third-party notices](THIRD_PARTY_NOTICES.md).
 
