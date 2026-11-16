@@ -1,0 +1,83 @@
+{
+  "release": "v6.5.3",
+  "publishedAt": "2026-11-16T16:36:59Z",
+  "releaseUrl": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.3",
+  "tests": [
+    {
+      "oldVersion": "6.5.2",
+      "newVersion": "6.5.3",
+      "workflowRunId": 43909473539,
+      "workflowUrl": "https://github.com/yanshi-qibixunchang/gas-laws-lab-history/actions/runs/43909473539",
+      "fixture": "Isolated Windows CI workspace; no personal data",
+      "update": {
+        "detected": "available",
+        "detectedVersion": "6.5.3",
+        "download": "downloaded",
+        "downloadedVersion": "6.5.3"
+      },
+      "beforeUpgrade": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "publishedUpdateDetected": true,
+        "publishedUpdateDownloaded": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "closedCleanly": true
+      },
+      "afterUpgrade": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "closedCleanly": true
+      },
+      "afterRestart": {
+        "workbenchLoaded": true,
+        "startupHealthy": true,
+        "markerPresent": true,
+        "workspaceFileRestored": true,
+        "activeGenerationContainsWorkspaceFile": true,
+        "rendererHasNoCriticalErrors": true,
+        "workspaceFileIdentityPreserved": true,
+        "experienceProfilePreserved": true,
+        "indexedDbSchemaPreserved": true,
+        "indexedDbPersistentNamespacePreserved": true,
+        "indexedDbHasReadableWorkspaceGeneration": true,
+        "migratedWorkspaceSchemaPersisted": true,
+        "closedCleanly": true
+      },
+      "differential": {
+        "oldInstaller": {
+          "bytes": 197204670,
+          "sha256": "09091a357de618904a04817ab68111965d7354aca27d8b6514cbc9b1d4caddd0"
+        },
+        "newInstaller": {
+          "bytes": 197201224,
+          "sha256": "368e49445681eff08ecc220dda432fcc73971562bf6a72277dc93111035d59f9"
+        },
+        "blockmapVersion": "2",
+        "operationCount": 646,
+        "copiedBytes": 140737202,
+        "downloadedBytes": 56464022,
+        "copiedPercent": 71.37,
+        "downloadedPercent": 28.63,
+        "reconstructedBytes": 197201224,
+        "reconstructedSha256": "368e49445681eff08ecc220dda432fcc73971562bf6a72277dc93111035d59f9"
+      }
+    }
+  ]
+}
