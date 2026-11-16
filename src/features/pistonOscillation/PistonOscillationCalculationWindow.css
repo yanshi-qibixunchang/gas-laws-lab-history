@@ -546,7 +546,8 @@
 }
 
 .studio-piston-calculation-format-warning {
-  border-left: 3px solid var(--studio-danger);
+  border: 1px solid color-mix(in srgb, var(--studio-danger) 28%, var(--studio-border));
+  border-radius: 6px;
   background: color-mix(in srgb, var(--studio-danger) 8%, var(--studio-surface));
   padding: 8px 10px;
   color: var(--studio-danger);

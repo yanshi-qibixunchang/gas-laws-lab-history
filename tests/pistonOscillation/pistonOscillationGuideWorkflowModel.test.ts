@@ -4,6 +4,7 @@ import {
   getPistonOscillationGuideActionGuard,
   getPistonOscillationGuideEventGuard,
   getPistonOscillationGuideHeightAdjustmentStep,
+  getPistonOscillationGuideTargetHeightMm,
   normalizePistonOscillationGuideSession,
   PISTON_OSCILLATION_GUIDE_MINIMUM_RECORDING_DURATION_S,
   PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM,
@@ -105,8 +106,19 @@ const createCandidate = (
   });
 };
 
-assert.deepEqual(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM, [75, 65, 55]);
+assert.deepEqual(PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM, [70, 60, 50]);
 assert.equal(PISTON_OSCILLATION_GUIDE_TOTAL_MEASUREMENTS, 3);
+
+const newPlan = transition(createDefaultPistonOscillationGuideSession(), { type: 'start', nowMs: 1 });
+assert.equal(newPlan.heightPlan, '70-60-50');
+assert.deepEqual([0, 1, 2].map(i => getPistonOscillationGuideTargetHeightMm(newPlan, i as 0 | 1 | 2)), [70, 60, 50]);
+assert.deepEqual(normalizePistonOscillationGuideSession(newPlan), newPlan);
+const oldPlan = { ...newPlan, heightPlan: 'current' as const };
+assert.deepEqual(normalizePistonOscillationGuideSession(oldPlan), oldPlan);
+assert.deepEqual([0, 1, 2].map(i => getPistonOscillationGuideTargetHeightMm(oldPlan, i as 0 | 1 | 2)), [75, 65, 55]);
+const oldReset = normalizePistonOscillationGuideSession({ ...oldPlan, step: 'firstHeightAdjustment',
+  heightReset: { reason: 'supportLost', phase: 'resetting', targetHeightMm: 75, startedHeightMm: 73 } });
+assert.equal(oldReset.heightReset?.targetHeightMm, 75);
 
 const idle = createDefaultPistonOscillationGuideSession();
 assert.equal(idle.status, 'idle');
@@ -223,7 +235,7 @@ assert.deepEqual(
 
 const wrongHeightEvent = {
   type: 'confirmHeight',
-  heightMm: 70,
+  heightMm: 65,
   leftHandSupporting: true,
   rightHandReleased: true,
   nowMs: 190,
@@ -237,18 +249,18 @@ assert.equal(transition(session, wrongHeightEvent), session);
 assert.deepEqual(
   getPistonOscillationGuideEventGuard(session, {
     type: 'confirmHeight',
-    heightMm: 74.8,
+    heightMm: 69.8,
     leftHandSupporting: true,
     rightHandReleased: true,
     nowMs: 191,
   }),
   { allowed: true, reason: 'allowed' },
-  'the measured physical height may differ slightly from the nominal 75 mm calculation height',
+  'the measured physical height may differ slightly from the nominal 70 mm calculation height',
 );
 
 assert.deepEqual(
   getPistonOscillationGuideActionGuard(session, 'confirmHeight', {
-    heightMm: 75,
+    heightMm: 70,
     leftHandSupporting: false,
     rightHandSupporting: false,
   }),
@@ -256,7 +268,7 @@ assert.deepEqual(
 );
 assert.deepEqual(
   getPistonOscillationGuideActionGuard(session, 'confirmHeight', {
-    heightMm: 75,
+    heightMm: 70,
     leftHandSupporting: true,
     rightHandSupporting: true,
   }),
@@ -321,7 +333,7 @@ assert.equal(session.heightReset, null);
 
 session = transition(session, {
   type: 'confirmHeight',
-  heightMm: 75,
+  heightMm: 70,
   leftHandSupporting: true,
   rightHandReleased: true,
   nowMs: 200,
@@ -343,7 +355,7 @@ assert.deepEqual(
 session = transition(session, {
   type: 'beginHeightReset',
   reason: 'supportLost',
-  heightMm: 75,
+  heightMm: 70,
   nowMs: 205,
 });
 assert.equal(session.step, 'firstHeightAdjustment');
@@ -353,7 +365,7 @@ assert.equal(session.heightReset?.phase, 'explaining');
 session = transition(session, { type: 'dismissHeightReset', nowMs: 207 });
 session = transition(session, {
   type: 'confirmHeight',
-  heightMm: 75,
+  heightMm: 70,
   leftHandSupporting: true,
   rightHandReleased: true,
   nowMs: 208,
@@ -771,7 +783,7 @@ const completeAcquisition = (
   return acceptAcquisitionTransition(next, { type: 'saveMeasurement' }, nowMs + 5);
 };
 
-session = completeCrossRunPreparation(session, 65, 500);
+session = completeCrossRunPreparation(session, 60, 500);
 session = completeAcquisition(session, 600);
 assert.equal(session.status, 'active');
 assert.equal(session.step, 'crossRunDisconnect');
@@ -779,7 +791,7 @@ assert.equal(session.measurementIndex, 2);
 assert.equal(session.savedMeasurements.length, 2);
 assert.deepEqual(
   session.savedMeasurements.map((measurement) => measurement.targetHeightMm),
-  [75, 65],
+  [70, 60],
 );
 assert.deepEqual(session.parameterDrafts, {
   sampleRateHz: '1000',
@@ -792,7 +804,7 @@ assert.equal(secondRunCheckpoint.measurementIndex, 2);
 assert.equal(secondRunCheckpoint.step, 'crossRunDisconnect');
 assert.deepEqual(secondRunCheckpoint.savedMeasurements, session.savedMeasurements);
 
-session = completeCrossRunPreparation(session, 55, 700);
+session = completeCrossRunPreparation(session, 50, 700);
 session = completeAcquisition(session, 800);
 assert.equal(session.status, 'active');
 assert.equal(session.step, 'periodProcessing');
@@ -802,7 +814,7 @@ assert.equal(session.dataProcessing?.status, 'period-processing');
 assert.equal(session.dataProcessing?.runs.length, 3);
 assert.deepEqual(
   session.savedMeasurements.map((measurement) => measurement.targetHeightMm),
-  [75, 65, 55],
+  [70, 60, 50],
 );
 
 const completedCheckpoint = normalizePistonOscillationGuideSession(structuredClone(session));

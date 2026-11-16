@@ -1,3 +1,5 @@
+import { PistonSelectionRuleHelp } from './PistonSelectionRuleHelp.tsx';
+import { getPistonEndpointLabel, getPistonSelectionCopy } from './pistonSelectionPresentation.ts';
 import {
   useEffect,
   useId,
@@ -224,8 +226,8 @@ const resolveSelectionInfoPlacement = (options: {
   rightEndpointType: 'peak' | 'trough';
   language: PistonOscillationLanguage;
 }): SelectionInfoPlacement => {
-  const boxWidth = options.language === 'en' ? 318 : 270;
-  const boxHeight = 104;
+  const boxWidth = Math.min(options.graphWidth - CHART_LEFT - CHART_RIGHT_MARGIN - 24, options.language === 'en' ? 345 : 300);
+  const boxHeight = 130;
   const gap = 12;
   const plotRight = options.graphWidth - CHART_RIGHT_MARGIN;
   const outsideY = CHART_TOP + 10;
@@ -390,6 +392,7 @@ export const PistonOscillationDataProcessingPanel = ({
   onCloseReview,
 }: PistonOscillationDataProcessingPanelProps) => {
   const copy = getPistonOscillationShellCopy(language).processing;
+  const ruleCopy = getPistonSelectionCopy(language);
   const freeProcessingActive = Boolean(freeSession?.dataProcessing);
   const processing = freeSession?.dataProcessing ?? guideSession.dataProcessing;
   const savedMeasurements = freeProcessingActive
@@ -1263,18 +1266,13 @@ export const PistonOscillationDataProcessingPanel = ({
       ) : null}
 
       <section className="piston-processing-selection-section">
-        <div className="piston-processing-section-heading">
-          <div>
-            <strong>{reviewMode ? copy.reviewTitle : copy.selectionTitle}</strong>
-            <span>
-              {reviewMode
-                ? copy.reviewInstruction
-                : copy.selectionInstruction(minimumPeriodCount)}
-            </span>
-          </div>
-          <div className="piston-processing-view-tools">
-            <span>{copy.wheelHint}</span>
-          </div>
+        <div className="piston-processing-section-heading piston-processing-selection-heading">
+          <strong>{reviewMode ? copy.reviewTitle : copy.selectionTitle}</strong>
+          <PistonSelectionRuleHelp title={ruleCopy.title} text={freeProcessingActive ? ruleCopy.free : ruleCopy.guided} />
+        </div>
+        <div className="piston-processing-chart-instructions">
+          <span>{reviewMode ? copy.reviewInstruction : ruleCopy.instruction}</span>
+          <span className="piston-processing-wheel-hint">{copy.wheelHint}</span>
         </div>
 
         <div
@@ -1488,17 +1486,18 @@ export const PistonOscillationDataProcessingPanel = ({
                     data-placement={selectionInfoPlacement.mode}
                   >
                     <span>
-                      <em>{copy.leftEndpoint}</em>
+                      <em>{getPistonEndpointLabel(language, 'start', selection.leftEndpoint.type)}</em>
                       <strong>({formatPistonOscillationEndpointTime(selection.leftEndpoint.timeS)}, {formatPistonOscillationObservedPressureKpa(selection.leftEndpoint.absolutePressureKpa)})</strong>
                     </span>
                     <span>
-                      <em>{copy.rightEndpoint}</em>
+                      <em>{getPistonEndpointLabel(language, 'end', selection.rightEndpoint.type)}</em>
                       <strong>({formatPistonOscillationEndpointTime(selection.rightEndpoint.timeS)}, {formatPistonOscillationObservedPressureKpa(selection.rightEndpoint.absolutePressureKpa)})</strong>
                     </span>
                     <span>
-                      <em>{copy.periodCount}</em>
+                      <em>{copy.periodCount} N</em>
                       <strong>{formatPistonOscillationPeriodCount(selection.periodCount)}</strong>
                     </span>
+                    <small>{ruleCopy.units}</small>
                   </div>
                 </foreignObject>
               ) : null}

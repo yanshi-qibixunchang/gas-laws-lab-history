@@ -63,7 +63,6 @@ for (const token of [
   '--prompt-dialog-window-padding: 12px',
   '--prompt-dialog-header-height: 42px',
   '--prompt-dialog-icon-size: 22px',
-  '--prompt-dialog-status-rule-width: 0px',
   '--prompt-dialog-window-shadow: 0 8px 18px rgba(0, 0, 0, 0.18)',
 ]) {
   assert.ok(shellStyleSource.includes(token), `the A confirmation shell should expose ${token}`);

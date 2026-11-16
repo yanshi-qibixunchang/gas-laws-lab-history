@@ -12,6 +12,7 @@ import {
 } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import { focusCalculationControl } from '../../components/calculation/focusCalculationControl.ts';
+import { useScientificCalculator } from '../../components/calculation/ScientificCalculator.tsx';
 import {
   getHeatCapacityCalculationWorkflowField,
   getHeatCapacityCalculationNextPage,
@@ -698,6 +699,7 @@ export const HeatCapacityCalculationWindow = ({
   onClose,
 }: HeatCapacityCalculationWindowProps) => {
   const generatedId = useId();
+  const calculator = useScientificCalculator(open, language);
   const stepsRef = useRef<HTMLDivElement>(null);
   const retryField = useRef<{ stepId: string | null; fieldId: string } | null>(null);
   const nextPage = open && session ? getHeatCapacityCalculationNextPage(session) : null;
@@ -780,6 +782,8 @@ export const HeatCapacityCalculationWindow = ({
       overlayClassName="studio-settings-overlay studio-heat-calculation-overlay"
       dialogClassName="studio-settings-window studio-heat-calculation-window"
       headerClassName="studio-settings-header studio-heat-calculation-header"
+      headerActions={calculator.trigger}
+      onDialogKeyDown={calculator.onKeyDown}
       closeButtonClassName="studio-settings-close"
       overlayData={{
         'data-heat-capacity-calculation-window': 'true',
@@ -902,6 +906,7 @@ export const HeatCapacityCalculationWindow = ({
             </button>
           </footer>
         ) : null}
+      {calculator.panel}
     </PromptDialogShell>
   );
 };

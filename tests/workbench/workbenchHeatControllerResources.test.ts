@@ -153,9 +153,32 @@ try {
     heatCapacityLessonDialogActiveRef.current = false;
     heatCapacityLessonPausedFileIdRef.current = null;
   }
+  const queued: React.SetStateAction<WorkbenchFileState[]>[] = [];
+  const replayClock = useWorkbenchHeatRealtimeClock({
+    ...clockPorts,
+    setFiles: update => { queued.push(update); },
+  });
+  const replayCleanup = replayClock.effects.realtimeClock.run();
+  const replayTick = [...intervals.values()].at(-1)!.callback;
+  const beforeClose: WorkbenchFileState[] = [{ ...file, pumpHint: 'previous tick' }, files[1]];
+  filesRef.current = beforeClose;
+  replayTick();
+  assert.equal(queued.length, 1, 'an accepted clock tick projects the new runtime state');
+  assert.notEqual(filesRef.current, beforeClose, 'runtime ownership advances before React renders');
+  const afterClose = [beforeClose[1]];
+  filesRef.current = afterClose;
+  // Re-evaluate an older projection as React does after a higher-priority close.
+  queued.reduce<WorkbenchFileState[]>((current, update) => (
+    typeof update === 'function' ? update(current) : update
+  ), beforeClose);
+  assert.equal(filesRef.current, afterClose, 'replaying a tick cannot restore a closed experiment');
+  replayTick();
+  assert.equal(filesRef.current, afterClose, 'a late tick ignores a file that has already closed');
+  assert.equal(queued.length, 1);
+  if (typeof replayCleanup === 'function') replayCleanup();
   assert.equal(typeof cleanup, 'function');
   if (typeof cleanup === 'function') cleanup();
-  assert.deepEqual(clearedIntervals, [clockId]);
+  assert.equal(clearedIntervals.at(-1), clockId);
   assert.equal(intervals.size, 0);
   const stoppedClock = useWorkbenchHeatRealtimeClock({ ...clockPorts, heatCapacityRuntimeFailureFileId: file.id });
   assert.equal(stoppedClock.effects.realtimeClock.run(), undefined);

@@ -4,6 +4,7 @@ import type {
 import type {
   WorkbenchPanelKey,
 } from '../workbenchFileState.ts';
+import { cleanPistonPrecisionDiagnosticSnapshot } from '../../../domain/pistonOscillation/pistonUncertaintySnapshotMigration.ts';
 import {
   projectWorkbenchPersistenceV3File,
 } from './projection.ts';
@@ -116,7 +117,18 @@ const createProductionContent = (
   content: WorkbenchPersistenceV3ProductionContent;
   retained: WorkbenchPersistenceV3RetainedState;
 } => {
-  const currentFiles = [...snapshot.files, ...snapshot.closedFiles];
+  const currentFiles = [...snapshot.files, ...snapshot.closedFiles].map(file => {
+    if (file.kind !== 'heatCapacityPistonOscillation') return file;
+    const cleanSession = <T extends { dataProcessing: unknown }>(session: T): T => {
+      if (!session || typeof session !== 'object') return session;
+      const dataProcessing = cleanPistonPrecisionDiagnosticSnapshot(session.dataProcessing);
+      return dataProcessing === session.dataProcessing ? session : { ...session, dataProcessing };
+    };
+    return { ...file,
+      pistonOscillationFreeSession: cleanSession(file.pistonOscillationFreeSession),
+      pistonOscillationGuideSession: cleanSession(file.pistonOscillationGuideSession),
+    };
+  });
   const currentIds = new Set(currentFiles.map((file) => file.id));
   if (
     currentIds.size !== currentFiles.length ||

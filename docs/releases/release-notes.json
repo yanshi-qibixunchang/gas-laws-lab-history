@@ -3,6 +3,102 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.5.1",
+      "date": "2026-11-16",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.1",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.1/heat-capacity-lab-setup-6.5.1.exe"
+      },
+      "summary": {
+        "zh-CN": "6.5.1 修复实验保存、关闭与采集状态，新增可拖动科学计算器和过程回顾自动入口，完善活塞操作、框选及提示排版。沿用 6.5.0 物理参数，保留旧实验记录。",
+        "zh-TW": "6.5.1 修正實驗儲存、關閉與採集狀態，新增可拖動科學計算機及過程回顧自動入口，完善活塞操作、框選與提示排版。沿用 6.5.0 物理參數，保留舊實驗記錄。",
+        "en": "6.5.1 fixes experiment saving, closing and acquisition status, adds a draggable scientific calculator and automatic process review, and improves piston interaction, selection and notices. Physical profiles remain unchanged from 6.5.0 and saved records are preserved."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "本次改进与修复",
+            "zh-TW": "本次改進與修正",
+            "en": "Improvements and fixes"
+          },
+          "items": [
+            {
+              "scope": "workspace-save-close",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保存、关闭与删除",
+                "zh-TW": "儲存、關閉與刪除",
+                "en": "Saving, closing and deleting"
+              },
+              "body": {
+                "zh-CN": "修复关闭或删除实验时的保存冲突，以及零斜率练习数据导致的保存失败。保存警告可点击外部收起，新失败仍会提示；原始曲线和答题记录继续保留。",
+                "zh-TW": "修正關閉或刪除實驗時的儲存衝突，以及零斜率練習資料導致的儲存失敗。儲存警告可點擊外部收起，新失敗仍會提示；原始曲線與答題記錄繼續保留。",
+                "en": "Fixes save conflicts when closing or deleting experiments and save failures from zero-slope practice fits. Save alerts dismiss on outside clicks and reappear for new failures; raw curves and answer records are retained."
+              }
+            },
+            {
+              "scope": "scientific-calculator-review",
+              "importance": "high",
+              "title": {
+                "zh-CN": "计算器与过程回顾",
+                "zh-TW": "計算機與過程回顧",
+                "en": "Scientific calculator and process review"
+              },
+              "body": {
+                "zh-CN": "两种比热容比计算窗口新增可拖动计算器，支持平方、开方、乘方、对数和科学计数法。自由实验计算完成并关闭计算窗口后自动打开过程回顾，入口介绍全软件只提示一次。",
+                "zh-TW": "兩種比熱容比計算視窗新增可拖動計算機，支援平方、開方、乘方、對數及科學記號。自由實驗計算完成並關閉計算視窗後自動開啟過程回顧，入口介紹全軟體只提示一次。",
+                "en": "Both heat-capacity calculation windows include a draggable calculator with powers, roots, logarithms and scientific notation. Completing Free-mode calculations opens process review after the calculation window closes, with one app-wide introduction to its entry."
+              }
+            },
+            {
+              "scope": "acquisition-progress",
+              "importance": "high",
+              "title": {
+                "zh-CN": "采集状态与记录回看",
+                "zh-TW": "採集狀態與記錄回看",
+                "en": "Acquisition progress and saved curves"
+              },
+              "body": {
+                "zh-CN": "全部活塞记录保存后保留最后曲线，显示本组采集已完成；补测、重开和文件切换同步更新。两种方法明确区分采集完成与计算完成，修正底部状态提示。",
+                "zh-TW": "全部活塞記錄儲存後保留最後曲線，顯示本組採集已完成；補測、重開及檔案切換同步更新。兩種方法明確區分採集完成與計算完成，修正底部狀態提示。",
+                "en": "Completed piston acquisition retains the last saved curve and updates consistently for replacement trials, reopening and file switching. Both methods distinguish acquisition completion from calculation completion and show accurate status-bar text."
+              }
+            },
+            {
+              "scope": "piston-interaction",
+              "importance": "high",
+              "title": {
+                "zh-CN": "模型连接、下沉与教学高度",
+                "zh-TW": "模型連接、下沉與教學高度",
+                "en": "Apparatus connection, settling and teaching heights"
+              },
+              "body": {
+                "zh-CN": "修正顶板与支架连接，锁紧后松手不再提前触发下沉。密封、松开螺钉并解除手部支撑后才进入承重平衡。新演示和引导方案使用 70、60、50 mm，旧方案按原记录恢复；物理参数配置不变。",
+                "zh-TW": "修正頂板與支架連接，鎖緊後鬆手不再提前觸發下沉。密封、鬆開螺釘並解除手部支撐後才進入承重平衡。新演示與引導方案採用 70、60、50 mm，舊方案依原記錄恢復；物理參數配置不變。",
+                "en": "Fixes the top-plate support connection and prevents premature settling after releasing a locked piston. Load equilibrium begins after sealing, unlocking and removing hand support. New Demo/Guide plans use 70, 60 and 50 mm; saved plans and physical parameter profiles are preserved."
+              }
+            },
+            {
+              "scope": "selection-help-notices",
+              "importance": "high",
+              "title": {
+                "zh-CN": "框选与提示界面",
+                "zh-TW": "框選與提示介面",
+                "en": "Selection and notices"
+              },
+              "body": {
+                "zh-CN": "框选使用深色十字与白色描边，新增延时规则气泡，明确起止波峰或波谷并整理图表说明。移除提示左侧色条，计算警告采用统一圆角淡色框，确认弹窗使用对齐的纯文字说明。",
+                "zh-TW": "框選採用深色十字與白色描邊，新增延時規則氣泡，明確起止波峰或波谷並整理圖表說明。移除提示左側色條，計算警告採用統一圓角淡色框，確認視窗使用對齊的純文字說明。",
+                "en": "Uses a dark selection crosshair with a white outline, delayed rule help and explicit start/end peaks or troughs. Chart instructions are simplified. Notices lose the decorative left rail; calculation warnings use rounded pale borders and confirmations use aligned plain text."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.5.0",
       "date": "2026-11-15",
       "channel": "stable",

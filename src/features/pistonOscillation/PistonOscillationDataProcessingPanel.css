@@ -209,36 +209,33 @@
   line-height: 1.45;
 }
 
-.piston-processing-view-tools {
+.piston-processing-selection-heading {
+  justify-content: flex-start;
+  gap: 12px;
+}
+
+.piston-processing-selection-heading .piston-selection-rule-help {
+  margin-inline-start: 0;
+}
+
+.piston-processing-chart-instructions {
   display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.piston-processing-view-tools > span {
-  max-width: 420px;
-  text-align: right;
-}
-
-.piston-processing-view-tools button {
-  display: inline-flex;
-  min-height: 29px;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--piston-processing-border);
-  border-radius: 4px;
-  background: var(--piston-processing-surface-soft);
-  padding: 0 9px;
-  color: var(--piston-processing-text);
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px 24px;
+  min-width: 0;
+  color: var(--piston-processing-muted);
   font-size: 11px;
-  cursor: pointer;
+  line-height: 1.45;
+  text-align: left;
 }
 
-.piston-processing-view-tools button:hover,
-.piston-processing-view-tools button:focus-visible {
-  border-color: var(--piston-processing-border-strong);
-  outline: none;
+.piston-processing-wheel-hint {
+  flex: 1 1 380px;
+  min-width: 0;
+  margin-inline-start: auto;
+  text-align: right;
 }
 
 .piston-period-chart-wrap {
@@ -280,8 +277,9 @@
   pointer-events: all;
 }
 
+/* Use explicit colors instead of depending on the platform crosshair's appearance. */
 .piston-period-chart-viewport svg.is-selection .piston-period-interaction-surface {
-  cursor: crosshair;
+  cursor: url('./assets/period-selection-cursor.svg') 12 12, crosshair;
 }
 
 .piston-period-chart-viewport svg.is-grabbing .piston-period-interaction-surface {
@@ -817,7 +815,8 @@
 }
 
 .piston-period-batch-format-warning {
-  border-left: 3px solid var(--piston-processing-danger);
+  border: 1px solid color-mix(in srgb, var(--piston-processing-danger) 28%, var(--piston-processing-border));
+  border-radius: 6px;
   background: color-mix(in srgb, var(--piston-processing-danger) 8%, transparent);
   padding: 7px 9px;
   color: var(--piston-processing-danger);
@@ -1015,10 +1014,6 @@
 }
 
 @media (max-width: 1080px) {
-  .piston-processing-view-tools > span {
-    display: none;
-  }
-
   .piston-period-calculation-flow {
     grid-template-columns: 1fr;
   }
@@ -1029,13 +1024,17 @@
     padding-inline: 10px;
   }
 
-  .piston-processing-section-heading,
-  .piston-processing-view-tools {
+  .piston-processing-section-heading {
     align-items: flex-start;
   }
 
   .piston-processing-section-heading {
     flex-direction: column;
+  }
+
+  .piston-processing-selection-heading {
+    flex-direction: row;
+    align-items: center;
   }
 
   .piston-period-endpoint-fields,

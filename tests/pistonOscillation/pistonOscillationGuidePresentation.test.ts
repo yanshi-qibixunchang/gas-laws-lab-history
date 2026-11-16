@@ -168,11 +168,11 @@ assert.deepEqual(
   }),
   {
     hoseState: 'connected',
-    equilibriumHeightMm: 75,
+    equilibriumHeightMm: 70,
     lockingScrewProgress: 0,
     powerOn: false,
   },
-  'refreshing Run 2 disconnect should restore the connected hose and saved 75 mm checkpoint',
+  'refreshing Run 2 disconnect should restore the connected hose and saved 70 mm checkpoint',
 );
 assert.deepEqual(
   getPistonOscillationGuideInstrumentRestoreState({
@@ -196,7 +196,7 @@ assert.deepEqual(
   }),
   {
     hoseState: 'disconnected',
-    equilibriumHeightMm: 65,
+    equilibriumHeightMm: 60,
     lockingScrewProgress: 1,
     powerOn: false,
   },

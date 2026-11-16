@@ -1,3 +1,4 @@
+import { getHeatGroupCompletionLabel } from './experimentProgressPresentation.ts';
 import {
   FreeExperimentProgress,
 } from '../../components/experiments/FreeExperimentProgress.tsx';
@@ -38,7 +39,7 @@ export const WorkbenchHeatCapacityExperimentProgress = ({
                       ? (
                           <FreeExperimentProgress
                             dataOwner="heat-capacity"
-                            label={SHARED_EXPERIMENT_PROGRESS_COPY[
+                            label={getHeatGroupCompletionLabel(activeFile, settingsLanguagePreference) ?? SHARED_EXPERIMENT_PROGRESS_COPY[
                               settingsLanguagePreference
                             ].heatProgress(
                               activeHeatCapacityFreeBatchProgress.currentGroupNumber,

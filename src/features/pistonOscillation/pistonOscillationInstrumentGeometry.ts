@@ -68,6 +68,10 @@ export const alignPistonOscillationCylinderAndFrame = (root: Object3D) => {
   }
   translateWorldY(topSlab, topOffsetY);
   translateWorldY(required('ProtectiveFrame_TopBack'), topOffsetY);
+  // Only the upper clamp follows the plate; RodSupport_ROOT also owns the fixed base.
+  for (const name of ['RodClampBridge', 'RodClampMount', 'RodClampKnob']) {
+    translateWorldY(required(name), topOffsetY);
+  }
   translateWorldY(screw, topOffsetY);
   screw.userData.frameTopOffsetY = topOffsetY;
 };

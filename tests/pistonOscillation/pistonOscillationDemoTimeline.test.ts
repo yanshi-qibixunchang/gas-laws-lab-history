@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA } from '../../src/domain/pistonOscillation/pistonOscillationGuideWorkflowModel.ts';
 import { readFileSync } from 'node:fs';
 import {
   PISTON_OSCILLATION_SETTLING_DURATION_S,
@@ -145,7 +146,7 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
 }
 
 for (const measurementIndex of [0, 1, 2]) {
-  const targetHeightMm = [75, 65, 55][measurementIndex];
+  const targetHeightMm = [70, 60, 50][measurementIndex];
   const heightAction = action(measurementIndex, 'adjustHeight', 'platform');
   assert.equal(
     heightAction.endsAtMs - heightAction.startsAtMs,
@@ -320,7 +321,7 @@ for (const window of PISTON_OSCILLATION_DEMO_STEP_WINDOWS) {
 const trajectories = [0, 1, 2].map(getPistonOscillationDemoTrajectory);
 assert.deepEqual(
   trajectories.map((trajectory) => trajectory.equilibrium.equilibriumHeightM * 1_000),
-  [75, 65, 55].map((heightMm) => (
+  [70, 60, 50].map((heightMm) => (
     createPistonOscillationLoadedEquilibriumState(heightMm).equilibriumHeightM * 1_000
   )),
 );
@@ -332,7 +333,7 @@ assert.ok(trajectories.every((trajectory) => {
 }));
 assert.ok(trajectories.every((trajectory) => trajectory.config.gamma === 1.4));
 assert.ok(trajectories.every((trajectory) => trajectory.samples[0]!.pressurePa / 1_000 >= 120));
-assert.ok(trajectories.every((trajectory) => trajectory.samples[0]!.pressurePa / 1_000 < 127));
+assert.ok(trajectories.every((trajectory) => trajectory.samples[0]!.pressurePa / 1_000 < PISTON_OSCILLATION_GUIDE_MAXIMUM_PRESSURE_KPA));
 assert.ok(new Set(trajectories.map((trajectory) => trajectory.samples[20].pressurePa)).size > 1);
 
 for (const language of ['zh-CN', 'zh-TW', 'en'] as const) {

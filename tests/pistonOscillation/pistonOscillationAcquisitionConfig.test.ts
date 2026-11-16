@@ -146,8 +146,8 @@ assert.match(
 );
 assert.match(
   panelSource,
-  /if \(!effectivePowerOn\) \{[\s\S]*className="piston-acquisition-panel is-powered-off"[\s\S]*copy\.powerOff[\s\S]*return \([\s\S]*className="piston-acquisition-panel"/,
-  'the powered-off branch should replace every inner control and chart with the localized shutdown status',
+  /if \(!effectivePowerOn && !savedCurveReview\) \{[\s\S]*className="piston-acquisition-panel is-powered-off"[\s\S]*copy\.powerOff[\s\S]*return \([\s\S]*className="piston-acquisition-panel"/,
+  'power-off should hide live controls while preserving saved-curve review',
 );
 assert.match(
   panelStyles,

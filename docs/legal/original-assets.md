@@ -1,8 +1,8 @@
 # 项目原创与内部制作资产来源记录
 
 > 状态：当前来源记录
-> 适用版本：6.5.0
-> 最后核验：2026-11-15
+> 适用版本：6.5.1
+> 最后核验：2026-11-16
 
 本文件记录随软件分发、但不属于第三方开源依赖的项目资产。项目原创资产不需要虚构外部下载地址；若制作过程参考了论文、仪器说明或照片，应把“资产权利状态”和“事实参考依据”分开记录。
 
@@ -17,6 +17,7 @@
 | `src/assets/onboarding/*.mp4` | 项目内部录制的产品介绍素材 | 由软件自身的开发捕获页面和演示流程录制，不是第三方视频 | 对应 `ProductIntro*CapturePage.tsx` 与使用组件 |
 | `public/audio/experiments/piston-oscillation/piston-rebound-synchronized.wav`、`piston-rebound-staggered.wav` | 项目提供并授权用于软件的现场录音 | 分别来自同时与错时松手的活塞回弹录音，经截取、边缘淡入淡出和响度处理；运行时按事件时长和操作状态处理播放，不归入第三方依赖 | 同目录 `manifest.json` 记录输出 SHA-256、采样率、时长及截取区间；`src/audio/experiments/pistonOscillation/pistonReboundRecording.ts` 记录播放处理 |
 | `docs/validation/generated/` 中的 CSV/JSON | 项目程序化生成 | 由当前模型、固定种子和证据生成器计算；属于验证输出，不是外部数据集 | `scripts/research-report/generate-evidence.ts`、`evidence-metadata.json` |
+| `src/features/pistonOscillation/assets/period-selection-cursor.svg` | 本项目原创矢量光标 | 24×24 像素深色十字与白色描边，热点为 (12, 12)，随应用样式内联 | `pistonSelectionPresentation.ts` 与数据处理交互回归 |
 | 程序化图表与界面示意 | 项目程序化生成 | 由导出器或分析脚本根据项目/获授权数据生成；具体输入来源随对应报告记录 | `tools/exporter/`、`scripts/analysis/` 及各验证目录 README |
 
 第三方音频及其项目衍生文件不归入“完全原创”表，继续以 `docs/audio/THIRD_PARTY_AUDIO_NOTICES.md` 和音频 manifest 为权威来源记录。

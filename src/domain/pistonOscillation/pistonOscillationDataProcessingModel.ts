@@ -1,5 +1,5 @@
 import { PISTON_DISSIPATIVE_ADIABATIC_MODEL_VERSION } from './pistonOscillationInternalDissipation.ts';
-import { cleanPistonUncertaintySnapshot } from './pistonUncertaintySnapshotMigration.ts';
+import { cleanPistonPrecisionDiagnosticSnapshot, cleanPistonUncertaintySnapshot } from './pistonUncertaintySnapshotMigration.ts';
 import {
   formatNumericAnswerReference,
   parseNumericAnswerInput,
@@ -5170,7 +5170,7 @@ export const normalizePistonOscillationDataProcessingSession = (
   nowMs = Date.now(),
   options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession | null => {
-  value = cleanPistonUncertaintySnapshot(value);
+  value = cleanPistonUncertaintySnapshot(cleanPistonPrecisionDiagnosticSnapshot(value));
   if (records.length === 0) return null;
   if (!getConsistentPistonOscillationGasMaterialSnapshot(records)) return null;
   const wantUncertainty = options.uncertaintyEligibility?.eligible ?? options.includeUncertainty

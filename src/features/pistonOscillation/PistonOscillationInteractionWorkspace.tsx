@@ -2268,6 +2268,11 @@ export const PistonOscillationInteractionWorkspace = ({
     });
   }, []);
   const beginPressTrace = useCallback((observedAtMs: number) => {
+    if (
+      hoseState !== 'connected'
+      || getPistonLockingScrewClampState(lockingScrewProgressRef.current) !== 'loose'
+      || thermodynamicStateRef.current.phase !== 'sealed-loaded'
+    ) return;
     pressTraceRef.current = [];
     pressTraceActiveRef.current = true;
     thermodynamicUpdatedAtMsRef.current = observedAtMs;
@@ -2280,7 +2285,7 @@ export const PistonOscillationInteractionWorkspace = ({
         startedAtMs: observedAtMs,
       });
     }
-  }, [capturePressTracePoint, onPressStartEvent]);
+  }, [capturePressTracePoint, hoseState, onPressStartEvent]);
   const resetVirtualHandInput = useCallback(() => {
     virtualHandReferenceDragPxRef.current = 0;
     virtualHandDownwardCommandUntilMsRef.current = 0;
@@ -2340,8 +2345,11 @@ export const PistonOscillationInteractionWorkspace = ({
       ? 0
       : Math.min(0.25, (monotonicObservedAtMs - previousUpdatedAtMs) / 1_000);
     thermodynamicUpdatedAtMsRef.current = monotonicObservedAtMs;
-    if (hoseState === 'disconnected') return;
-    if (thermodynamicStateRef.current.phase === 'vented') return;
+    if (
+      hoseState !== 'connected'
+      || getPistonLockingScrewClampState(lockingScrewProgressRef.current) !== 'loose'
+      || thermodynamicStateRef.current.phase !== 'sealed-loaded'
+    ) return;
     const oneHandHoldingAfterPress = pressTraceActiveRef.current
       && (!spaceHeldRef.current || !mouseHeldRef.current);
     if (oneHandHoldingAfterPress) {
@@ -3152,6 +3160,21 @@ export const PistonOscillationInteractionWorkspace = ({
   const finishTwoHandRelease = useCallback(() => {
     if (spaceHeldRef.current || mouseHeldRef.current) return;
     if (releaseControlLockedRef.current) return;
+    // Releasing support during height setup is not an oscillation release.
+    // In particular, a locked piston must stay at its confirmed height while
+    // the hose is reconnected. Only the sealed/unlocked settling effect below
+    // may move it to the loaded equilibrium before a real press is started.
+    if (
+      hoseState !== 'connected'
+      || getPistonLockingScrewClampState(lockingScrewProgressRef.current) !== 'loose'
+      || thermodynamicStateRef.current.phase !== 'sealed-loaded'
+      || !pressTraceActiveRef.current
+    ) {
+      endPressTrace();
+      pressTraceRef.current = [];
+      if (settlingAnimationFrameRef.current === null) setPistonPhase('idle');
+      return;
+    }
     const releaseStartedAtMs = performance.now();
     const spaceReleasedAt = spaceReleasedAtRef.current;
     const mouseReleasedAt = mouseReleasedAtRef.current;
@@ -3275,6 +3298,7 @@ export const PistonOscillationInteractionWorkspace = ({
     capturePressTracePoint,
     advanceVirtualHandPressTo,
     endPressTrace,
+    hoseState,
     onFreeOperationObserved,
     onReleaseEvent,
     physicsConfig,

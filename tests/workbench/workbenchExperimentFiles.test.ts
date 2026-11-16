@@ -57,7 +57,7 @@ assert.match(
 );
 assert.match(
   collectionActionsSource,
-  /const updateRuntimeFileById = \([\s\S]*setFiles\(\(current\) => \{[\s\S]*filesRef\.current = next;[\s\S]*return next;/,
+  /const updateRuntimeFileById = \([\s\S]*const next = filesRef\.current\.map[\s\S]*filesRef\.current = next;[\s\S]*setFiles\(next\);/,
   'simulation-frame updates should bypass the semantic operation wrapper and feed only the runtime checkpoint effect',
 );
 assert.match(

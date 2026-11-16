@@ -208,3 +208,87 @@ export const WorkspaceTour = ({ step, language, onStep }: {
     </div>
   );
 };
+
+/** A single entry-point introduction, sharing the workspace tour's placement and styling. */
+export const ProcessReviewEntryIntro = ({ language, onShown, onClose }: {
+  language: WorkbenchLanguagePreference;
+  onShown: () => void;
+  onClose: () => void;
+}) => {
+  const copy = {
+    'zh-CN': ['过程回顾已打开', '本组计算已完成，已为你打开过程回顾。以后可在左侧“实验资料与结果”中，双击“过程回顾”再次查看。本提示只出现一次。', '知道了', '关闭提示'],
+    'zh-TW': ['過程回顧已開啟', '本組計算已完成，已為你開啟過程回顧。之後可在左側「實驗資料與結果」中，按兩下「過程回顧」再次查看。本提示只顯示一次。', '知道了', '關閉提示'],
+    en: ['Process review opened', 'Your calculations are complete and the process review is open. To return later, double-click Process Review under Experiment Materials and Results in the left sidebar. This tip appears only once.', 'Got it', 'Close tip'],
+  }[language];
+  const headingId = useId();
+  const bodyId = useId();
+  const hostRef = useRef<HTMLDivElement>(null);
+  const bubbleRef = useRef<HTMLElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
+  const shownRef = useRef(onShown);
+  shownRef.current = onShown;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const introducedRef = useRef(false);
+  const [placement, setPlacement] = useState<Placement | null>(null);
+  useLayoutEffect(() => {
+    const host = hostRef.current;
+    const bubble = bubbleRef.current;
+    const root = host?.closest('.studio-workbench');
+    const anchor = root?.querySelector<HTMLElement>('[data-process-review-entry="true"]');
+    if (!host || !bubble || !anchor) return;
+    let frame = 0;
+    anchor.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    anchor.classList.add('process-review-intro-anchor');
+    const update = () => {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        if (!anchor.isConnected || !anchor.getBoundingClientRect().width) {
+          setPlacement(null);
+          return;
+        }
+        setPlacement(placeBubble(host, anchor, bubble, 'right'));
+      });
+    };
+    const observer = new ResizeObserver(update);
+    const outside = (event: PointerEvent) => {
+      if (!bubble.contains(event.target as Node) && !anchor.contains(event.target as Node)) closeRef.current();
+    };
+    [host, bubble, anchor].forEach(element => observer.observe(element));
+    document.addEventListener('pointerdown', outside);
+    window.addEventListener('resize', update);
+    root?.addEventListener('scroll', update, true);
+    update();
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+      document.removeEventListener('pointerdown', outside);
+      window.removeEventListener('resize', update);
+      root?.removeEventListener('scroll', update, true);
+      anchor.classList.remove('process-review-intro-anchor');
+      if (bubble.contains(document.activeElement) && anchor.isConnected) anchor.focus({ preventScroll: true });
+    };
+  }, []);
+  useLayoutEffect(() => {
+    if (placement && !introducedRef.current) {
+      introducedRef.current = true;
+      shownRef.current();
+      buttonRef.current?.focus({ preventScroll: true });
+    }
+  }, [placement]);
+  return <div className="workspace-tour-layer" ref={hostRef}>
+    <section ref={bubbleRef} className="workspace-tour-bubble process-review-entry-intro"
+      data-workspace-tour-side={placement?.side} role="dialog"
+      aria-labelledby={headingId} aria-describedby={bodyId}
+      style={{ visibility: placement ? 'visible' : 'hidden', left: placement?.x, top: placement?.y }}
+      onKeyDown={event => { event.stopPropagation(); if (event.key === 'Escape') onClose(); }}
+      onKeyUp={event => event.stopPropagation()}>
+      <span className="workspace-tour-arrow" aria-hidden="true"
+        style={placement?.side === 'left' || placement?.side === 'right' ? { top: placement.arrow } : { left: placement?.arrow }} />
+      <h2 id={headingId}>{copy[0]}</h2>
+      <button type="button" className="workspace-tour-close" aria-label={copy[3]} onClick={onClose}><X size={18} /></button>
+      <p id={bodyId}>{copy[1]}</p>
+      <div className="workspace-tour-actions"><button ref={buttonRef} type="button" className="workspace-tour-next" onClick={onClose}>{copy[2]}</button></div>
+    </section>
+  </div>;
+};

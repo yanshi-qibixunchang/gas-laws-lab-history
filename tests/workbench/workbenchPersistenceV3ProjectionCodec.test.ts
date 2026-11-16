@@ -2288,6 +2288,8 @@ const pistonGuideDataProcessing = completePersistencePistonProcessing();
 
 let pistonGuideFile = createDefaultHeatCapacityPistonOscillationFile(451);
 pistonGuideFile = startPistonOscillationGuideWorkbenchState(pistonGuideFile, 10_000);
+// This fixture intentionally exercises the historical 6.5.0 height plan.
+pistonGuideFile.pistonOscillationGuideSession.heightPlan = 'current';
 pistonGuideFile = editPistonOscillationGuideParameterWorkbenchState(
   pistonGuideFile,
   'sampleRateHz',

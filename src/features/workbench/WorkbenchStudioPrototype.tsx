@@ -204,7 +204,8 @@ import { getIdealGasAnalysis, type IdealGasAnalysis } from '../../domain/idealGa
 
 import { loadWorkbenchGeneralSettings, type WorkbenchGeneralSettings, type WorkbenchLanguagePreference, type WorkbenchResolvedTheme } from './workbenchGeneralSettings.ts';
 import { getPendingExperimentTutorialForNewFile, type AppExperienceProfile } from '../learning/experimentLearningModel.ts';
-import { WorkspaceTour } from '../onboarding/WorkspaceTour.tsx';
+import { WorkspaceTour, ProcessReviewEntryIntro } from '../onboarding/WorkspaceTour.tsx';
+import { useWorkbenchProcessReviewCompletion } from './useWorkbenchProcessReviewCompletion.ts';
 import { isWorkspaceTourFileStep, WORKSPACE_TOUR_FILE_ID, WORKSPACE_TOUR_HEIGHTS_MM, type WorkspaceTourStep } from '../onboarding/workspaceTourModel.ts';
 import { createDefaultPistonOscillationFreeSession } from '../../domain/pistonOscillation/pistonOscillationFreeWorkflowModel.ts';
 import { startPistonOscillationFreeWorkbenchState, transitionPistonOscillationFreeWorkbenchState } from './workbenchPistonOscillationState.ts';
@@ -869,7 +870,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   const { workbenchStyle, shellStyle, liveWorkspaceSplitRatio, liveWorkspaceStyle } = selectWorkbenchLayoutPresentation({ activeFile, leftSidebarWidth, parameterSidebarWidth, consoleCollapsed, consoleHeightPx });
 
-  const { displayedLogs, consoleSummary } = useWorkbenchConsoleProjection({ logs, consoleTab, activeFile, idealAnalysis, isWorkbenchEmpty, workbenchCopy });
+  const { displayedLogs, consoleSummary } = useWorkbenchConsoleProjection({ language: settingsLanguagePreference, logs, consoleTab, activeFile, idealAnalysis, isWorkbenchEmpty, workbenchCopy });
 
   const { animateCurrentParametersScroll, toggleIdealAdvancedSettings } = createWorkbenchParameterScrollActions({
     window, currentParametersBodyRef, idealAdvancedScrollFrameRef,
@@ -1361,6 +1362,26 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
     captureUndoSnapshot: (label, scope) => captureUndoSnapshot(label, scope),
     guardWorkbenchTutorialAction: (action) => guardWorkbenchTutorialAction(action),
     pushLog, getLocalizedWorkbenchPanelTitle, createIdealPanels, createResultsSections,
+  });
+
+  const processReviewIntroduction = useWorkbenchProcessReviewCompletion({
+    files, activeFile,
+    blocked: heatCapacityCalculationWindowOpen || pistonOscillationCalculationWindowOpen || workspaceTourOnly,
+    onOpen: () => {
+      setLeftCollapsed(false);
+      setPanelsSectionCollapsed(false);
+      setSelectedFileId(activeFile.id);
+      if (activeFile.kind === 'heatCapacity') openHeatCapacityTab('review', false);
+      if (activeFile.kind === 'heatCapacityPistonOscillation') openPistonOscillationProcessReview();
+      updateActiveFile(file => file.kind === 'heatCapacityPistonOscillation'
+        ? { ...file, pistonOscillationMaterialsExpanded: true }
+        : file.kind === 'heatCapacity'
+          ? { ...file, heatCapacityMaterialsExpanded: true, heatCapacityFreeExperimentGroups: {
+              ...file.heatCapacityFreeExperimentGroups,
+              viewedGroupId: file.heatCapacityFreeExperimentGroups.currentGroupId,
+            } }
+          : file);
+    },
   });
 
   useWorkbenchFileMenuInteractions({
@@ -2260,6 +2281,9 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
         : promptFeedbackCopy.persistenceRetryingTitle,
       body: workspacePersistenceStatus.error.message,
       persistent: true,
+      closeLabel: promptFeedbackCopy.closeLabel,
+      dismissOnOutside: true,
+      occurrence: workspacePersistenceStatus,
       dataAttributes: {
         'data-workbench-persistence-status': workspacePersistenceStatus.state,
       },
@@ -2778,6 +2802,11 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
       consoleSummary={consoleSummary}
     />
       </div>
+      {processReviewIntroduction.introFileId === activeFile.id
+        && (activePistonOscillationProcessReview || (activeFile.kind === 'heatCapacity'
+          && activeFile.openHeatCapacityTabs.includes('review') && activeFile.activeHeatCapacityTabId === 'review'))
+        ? <ProcessReviewEntryIntro language={settingsLanguagePreference}
+            onShown={processReviewIntroduction.markIntroShown} onClose={processReviewIntroduction.dismissIntro} /> : null}
       {workspaceTourReady && (workspaceTourOnly || workspaceTourStep === 'create')
         && (workspaceTourStep !== 'parameters'
           || (activePistonOscillationParameterSidebarAvailable && !effectiveParametersCollapsed)) ? (

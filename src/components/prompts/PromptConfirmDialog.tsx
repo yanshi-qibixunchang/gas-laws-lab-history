@@ -144,7 +144,6 @@ export const PromptConfirmDialog = ({
       <div className="prompt-confirm-body">
         <p id={bodyId}>{request.body}</p>
         <div className="prompt-confirm-consequence" id={consequenceId}>
-          <span aria-hidden="true" />
           <p>{request.consequence}</p>
         </div>
       </div>

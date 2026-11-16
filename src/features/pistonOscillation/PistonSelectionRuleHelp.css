@@ -1,0 +1,10 @@
+.piston-selection-rule-help { display: inline-block; justify-self: start; position: relative; margin-inline-start: 12px; vertical-align: middle; }
+.piston-selection-rule-help > button { color: var(--piston-processing-accent, #3678aa); background: transparent; border: 0; padding: 3px; font: inherit; font-size: 12px; text-decoration: underline dotted; text-underline-offset: 3px; cursor: help; }
+.piston-selection-rule-help .piston-selection-rule-bubble { position: absolute; z-index: 40; inset-inline-start: 0; top: calc(100% + 8px); display: block; width: min(340px, 62vw); box-sizing: border-box; padding: 12px; border: 1px solid #658ba9; border-radius: 6px; background: #142638; color: #e2e8f0; box-shadow: 0 8px 24px #0003; font-size: 13px; line-height: 1.65; white-space: normal; pointer-events: none; opacity: 0; visibility: hidden; transform: translateX(-12px); transition: opacity 180ms ease, transform 180ms ease, visibility 0s 180ms; }
+.piston-selection-rule-bubble::before { content: ''; position: absolute; top: -5px; left: 18px; width: 8px; height: 8px; transform: rotate(45deg); background: inherit; border-top: 1px solid #658ba9; border-left: 1px solid #658ba9; }
+.piston-selection-rule-help[data-open='true'] .piston-selection-rule-bubble { visibility: visible; opacity: 1; transform: none; transition-delay: 0s; }
+.studio-theme-light .piston-selection-rule-help .piston-selection-rule-bubble { background: #f1f7fc; color: #263747; }
+@media (prefers-reduced-motion: reduce) { .piston-selection-rule-help .piston-selection-rule-bubble { transition: none; transform: none; } }
+
+.piston-processing-section-heading .piston-selection-rule-help .piston-selection-rule-bubble { font-size: 13px; line-height: 1.65; color: #e2e8f0; }
+.studio-theme-light .piston-processing-section-heading .piston-selection-rule-help .piston-selection-rule-bubble { color: #263747; }

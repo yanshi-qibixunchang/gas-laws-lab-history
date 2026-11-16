@@ -9,10 +9,41 @@ import {
 } from '../../src/features/workbench/persistenceV3/productionFacade.ts';
 import {
   createDefaultHeatCapacityFile,
+  createDefaultHeatCapacityPistonOscillationFile,
   createDefaultStandardFile,
 } from '../../src/features/workbench/workbenchState.ts';
 
 const namespace = 'production-facade-test';
+
+// Repair both open/free and closed/guided legacy in-memory precision metadata
+// before canonical validation, including the opaque fallback. Keep all other
+// unknown fields available for future recovery rather than dropping the file.
+const brokenFit = {
+  precisionVersion: 'piston-continuous-precision-v1',
+  linearFitResult: { slopeMPerS2: 0, precisionPlan: {
+    version: 'piston-continuous-precision-v1', verified: false,
+    gammaErrorInUc: NaN, combinedRelativeError: Infinity,
+  } },
+  sourceObservations: [1, 2, 3],
+};
+const practiceFiles = [createDefaultHeatCapacityPistonOscillationFile(31), createDefaultHeatCapacityPistonOscillationFile(32)];
+for (const file of practiceFiles) file.pistonOscillationSchemaVersion = 999_999 as never;
+practiceFiles[0].pistonOscillationFreeSession.dataProcessing = structuredClone(brokenFit) as never;
+practiceFiles[1].pistonOscillationGuideSession.dataProcessing = structuredClone(brokenFit) as never;
+const repairedCommit = await commitWorkbenchPersistenceV3ProductionSnapshot({
+  store: new InMemoryWorkbenchPersistenceV3GenerationStore(), namespace: 'invalid-fit-repair', generationId: 'repair', capturedAtMs: 1,
+  snapshot: { files: [practiceFiles[0]], closedFiles: [practiceFiles[1]], activeFileId: practiceFiles[0].id, selectedPanel: 'realtime' },
+});
+assert.equal(repairedCommit.retained.opaqueFiles.length, 2);
+for (const [index, entry] of repairedCommit.retained.opaqueFiles.entries()) {
+  const expected = structuredClone(practiceFiles[index]);
+  const sessionKey = index === 0 ? 'pistonOscillationFreeSession' : 'pistonOscillationGuideSession';
+  const plan = expected[sessionKey].dataProcessing!.linearFitResult!.precisionPlan!;
+  plan.gammaErrorInUc = null;
+  plan.combinedRelativeError = null;
+  assert.deepEqual(entry.raw, expected, 'only the two unavailable diagnostics change');
+}
+assert.ok(Number.isNaN(practiceFiles[0].pistonOscillationFreeSession.dataProcessing!.linearFitResult!.precisionPlan!.gammaErrorInUc));
 const store = new InMemoryWorkbenchPersistenceV3GenerationStore();
 const healthy = createDefaultStandardFile(1);
 const future = createDefaultHeatCapacityFile(2);

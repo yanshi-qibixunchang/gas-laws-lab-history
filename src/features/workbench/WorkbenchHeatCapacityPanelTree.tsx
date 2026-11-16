@@ -172,6 +172,7 @@ export const WorkbenchHeatCapacityPanelTree = ({
                 <button
                   type="button"
                   key={tabId}
+                  data-process-review-entry={tabId === 'review' ? 'true' : undefined}
                   className={selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
                   tabIndex={panelsSectionCollapsed ? -1 : 0}
                   onClick={(event) => {

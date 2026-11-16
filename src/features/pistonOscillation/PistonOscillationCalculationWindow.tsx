@@ -16,6 +16,7 @@ import {
 } from '../../components/calculation/CalculationKnownGrid.tsx';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import { focusCalculationControl } from '../../components/calculation/focusCalculationControl.ts';
+import { useScientificCalculator } from '../../components/calculation/ScientificCalculator.tsx';
 import {
   PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
   getPistonCalculationSpec,
@@ -489,6 +490,7 @@ export const PistonOscillationCalculationWindow = ({
   const calculationSession = processing?.calculationSession ?? null;
   const fit = processing?.linearFitResult ?? null;
   const dialogRef = useRef<HTMLElement | null>(null);
+  const calculator = useScientificCalculator(open, language);
   const strongLayerRef = useRef<HTMLDivElement | null>(null);
   const fitReminderDismissButtonRef = useRef<HTMLButtonElement | null>(null);
   const fitReminderReturnFocusRef = useRef<HTMLElement | null>(null);
@@ -738,6 +740,8 @@ export const PistonOscillationCalculationWindow = ({
       overlayClassName="studio-settings-overlay studio-piston-calculation-overlay"
       dialogClassName="studio-settings-window studio-piston-calculation-window"
       headerClassName="studio-settings-header studio-piston-calculation-header"
+      headerActions={calculator.trigger}
+      onDialogKeyDown={calculator.onKeyDown}
       closeButtonClassName="studio-settings-close"
       overlayData={{
         'data-piston-oscillation-calculation-window': 'true',
@@ -823,6 +827,11 @@ export const PistonOscillationCalculationWindow = ({
         {fit ? (
           <>
             <PistonOscillationFitChart processing={processing} fit={fit} copy={copy} />
+            {fit.slopeMPerS2 <= 0 ? (
+              <div className="studio-piston-calculation-format-warning" role="status">
+                {copy.invalidSlopeNotice}
+              </div>
+            ) : null}
             <div className="studio-piston-calculation-steps">
               {visibleFieldIds.map((fieldId, visibleIndex) => {
                 const answer = calculationSession.answers[fieldId];
@@ -983,6 +992,7 @@ export const PistonOscillationCalculationWindow = ({
           </div>
         </div>
       ) : null}
+      {calculator.panel}
     </PromptDialogShell>
   );
 };

@@ -1,3 +1,4 @@
+import { getPistonFreeAcquisitionSummary } from './experimentProgressPresentation.ts';
 import type React from 'react';
 import {
   PistonOscillationInstrumentScene,
@@ -215,7 +216,7 @@ export const WorkbenchPistonOscillationPreview = ({
                 return (
                   <FreeExperimentProgress
                     dataOwner="piston-oscillation"
-                    label={currentTarget
+                    label={!getPistonFreeAcquisitionSummary(session).complete && currentTarget
                       ? copy.pistonProgress(ordinal, total, currentTarget.heightMm)
                       : copy.pistonCompleted(total)}
                     openMenuLabel={copy.pistonOpenMenu}

@@ -272,7 +272,7 @@ assert.doesNotMatch(
 );
 assert.match(
   panelStyle,
-  /\.piston-period-chart-viewport svg\s*\{[\s\S]*cursor:\s*default;[\s\S]*\.piston-period-interaction-surface\s*\{[\s\S]*cursor:\s*grab;[\s\S]*pointer-events:\s*all;[\s\S]*svg\.is-selection \.piston-period-interaction-surface\s*\{[\s\S]*cursor:\s*crosshair;/,
+  /\.piston-period-chart-viewport svg\s*\{[\s\S]*cursor:\s*default;[\s\S]*\.piston-period-interaction-surface\s*\{[\s\S]*cursor:\s*grab;[\s\S]*pointer-events:\s*all;[\s\S]*svg\.is-selection \.piston-period-interaction-surface\s*\{[\s\S]*cursor:\s*url\('\.\/assets\/period-selection-cursor\.svg'\) 12 12, crosshair;/,
   'only the white plotting rectangle may expose the move or selection cursor; axes and chart margins stay arrow-shaped',
 );
 assert.match(

@@ -153,6 +153,7 @@ export const WorkbenchPistonOscillationPanelTree = ({
                 <button
                   type="button"
                   key={panel.key}
+                  data-process-review-entry={panel.key === 'heatCapacityReview' ? 'true' : undefined}
                   className={selectedPanel === panel.key ? 'studio-results-nav-active studio-panel-row-active' : ''}
                   tabIndex={panelsSectionCollapsed ? -1 : 0}
                   onClick={(event) => {

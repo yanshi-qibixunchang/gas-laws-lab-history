@@ -32,43 +32,44 @@ export const useWorkbenchHeatRealtimeClock = (ports: useWorkbenchHeatRealtimeClo
     const intervalId = window.setInterval(() => {
       if (desktopExitQuiescedRef.current) return;
       const now = Date.now();
-      setFiles((current) => {
-        const activeId = activeFileIdRef.current;
-        let changed = false;
-        const nextFiles = current.map((file) => {
-          if (file.id !== activeId || file.kind !== 'heatCapacity') return file;
-          if (
-            heatCapacityRefreshRestorePendingRef.current &&
-            heatCapacityRefreshActiveFileIdRef.current === file.id
-          ) {
-            return file;
-          }
-          if (heatCapacityRuntimeFailureFileIdRef.current === file.id) return file;
-          if (file.runState === 'paused') return file;
-          if (
-            heatCapacityLessonPausedFileIdRef.current === file.id ||
-            heatCapacityLessonDialogActiveRef.current
-          ) {
-            return file;
-          }
-          const refreshedFile = refreshHeatCapacityPumpFrequency(file, now);
-          const physicallySteppedFile = refreshedFile.powerOn || refreshedFile.heatCapacityMode === 'free'
-            ? stepHeatCapacityWorkbenchFile(refreshedFile, now)
-            : refreshedFile;
-          const steppedFile = evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState(
-            physicallySteppedFile,
-            now,
-          );
-          if (!shouldCommitHeatCapacityRealtimeTick(file, steppedFile)) {
-            return file;
-          }
-          changed = true;
-          return steppedFile;
-        });
-        if (!changed) return current;
-        filesRef.current = nextFiles;
-        return nextFiles;
+      // Runtime ticks share the synchronous ownership used by close/delete.
+      // Do not let a deferred React updater restore a previous file list.
+      const current = filesRef.current;
+      const activeId = activeFileIdRef.current;
+      let changed = false;
+      const nextFiles = current.map((file) => {
+        if (file.id !== activeId || file.kind !== 'heatCapacity') return file;
+        if (
+          heatCapacityRefreshRestorePendingRef.current &&
+          heatCapacityRefreshActiveFileIdRef.current === file.id
+        ) {
+          return file;
+        }
+        if (heatCapacityRuntimeFailureFileIdRef.current === file.id) return file;
+        if (file.runState === 'paused') return file;
+        if (
+          heatCapacityLessonPausedFileIdRef.current === file.id ||
+          heatCapacityLessonDialogActiveRef.current
+        ) {
+          return file;
+        }
+        const refreshedFile = refreshHeatCapacityPumpFrequency(file, now);
+        const physicallySteppedFile = refreshedFile.powerOn || refreshedFile.heatCapacityMode === 'free'
+          ? stepHeatCapacityWorkbenchFile(refreshedFile, now)
+          : refreshedFile;
+        const steppedFile = evaluateHeatCapacityFreeAttemptTimeoutWorkbenchState(
+          physicallySteppedFile,
+          now,
+        );
+        if (!shouldCommitHeatCapacityRealtimeTick(file, steppedFile)) {
+          return file;
+        }
+        changed = true;
+        return steppedFile;
       });
+      if (!changed) return;
+      filesRef.current = nextFiles;
+      setFiles(nextFiles);
     }, heatCapacityQualityProfile.tickIntervalMs);
     return () => window.clearInterval(intervalId);
   }, dependencies: [

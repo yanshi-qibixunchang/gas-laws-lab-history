@@ -1,3 +1,4 @@
+import { getHeatGroupCompletionLabel } from './experimentProgressPresentation.ts';
 import {
   isHeatCapacityPhysicalKernelMode,
   getHeatCapacityStopcockState,
@@ -70,12 +71,13 @@ export const WorkbenchHeatCapacityRealtimeReadings = ({
     const phaseLabel = getHeatCapacityPhaseLabel(heatCapacityDisplayPhase);
     const stopcockState = getHeatCapacityStopcockState(activeFile.stopcockAngleDeg);
     const stopcockStateLabel = stopcockState === 'open' ? heatCapacityRealtimeCopy.stopcock.open : heatCapacityRealtimeCopy.stopcock.closed;
-    const heatCapacityRunBadge = activeFile.heatCapacityMode === 'free'
+    const completionLabel = getHeatGroupCompletionLabel(activeFile, settingsLanguagePreference);
+    const heatCapacityRunBadge = completionLabel ?? (activeFile.heatCapacityMode === 'free'
       ? heatCapacityRealtimeCopy.trialBadge(
           activeHeatCapacityFreeBatchProgress?.currentGroupNumber ??
           Math.max(1, getActiveHeatCapacityFreeTrialIndex(activeFile) + 1),
         )
-      : heatCapacityRealtimeCopy.singleTrialBadge;
+      : heatCapacityRealtimeCopy.singleTrialBadge);
     const heatCapacityHeaderBadges = [
       {
         key: 'stage',
@@ -137,6 +139,7 @@ export const WorkbenchHeatCapacityRealtimeReadings = ({
       settingsLanguagePreference,
     );
     const currentHint = (() => {
+      if (completionLabel) return completionLabel;
       if (guideHeatCapacityActiveFileId === activeFile.id && !autoDemoInteractionLocked) {
         const guideStep = getHeatCapacityGuideStep(activeFile);
         if (guideStep !== 'idle' && guideStep !== 'completed') {

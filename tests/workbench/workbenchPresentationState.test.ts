@@ -11,6 +11,9 @@ import { resolveInitialWorkbenchConsoleLogs, createWorkbenchConsoleActions } fro
 import { selectWorkbenchLayoutPresentation } from '../../src/features/workbench/workbenchLayoutPresentation.ts';
 import { createDefaultStandardFile, createDefaultIdealFile } from '../../src/features/workbench/workbenchFileState.ts';
 import { createConsoleLog, type ConsoleLog } from '../../src/features/workbench/workbenchConsolePresentation.ts';
+import { createDefaultHeatCapacityPistonOscillationFile } from '../../src/features/workbench/workbenchPistonOscillationState.ts';
+import { createDefaultHeatCapacityFile } from '../../src/features/workbench/workbenchHeatCapacityFileFactory.ts';
+import type { WorkbenchFileState } from '../../src/features/workbench/workbenchFileUnion.ts';
 import { workbenchCopies } from '../../src/features/workbench/workbenchStudioCopy.ts';
 
 const renderHook = <T,>(useValue: () => T): T => {
@@ -88,11 +91,31 @@ const beforeTutorial = logs; tutorialActiveRef.current = true; pushLog('suppress
 tutorialActiveRef.current = false; pushLog('resumed'); assert.equal(logs[2]!.id, 3);
 const consoleState = renderHook(() => useWorkbenchConsoleState({ initialHeatCapacityRefreshLayout: { logs: [{ ...original }], consoleTab: 'warnings', consoleCollapsed: true, consoleHeightPx: 201 }, initialLanguage: 'en', getTutorialLogs: () => null }));
 assert.deepEqual(consoleState.logs, [original]); assert.equal(consoleState.consoleTab, 'warnings'); assert.equal(consoleState.consoleCollapsed, true); assert.equal(consoleState.consoleHeightPx, 201);
-const projection = renderHook(() => useWorkbenchConsoleProjection({ logs, consoleTab: 'warnings', activeFile: file, idealAnalysis: null, isWorkbenchEmpty: false, workbenchCopy: workbenchCopies.en }));
+const projection = renderHook(() => useWorkbenchConsoleProjection({ language: 'en', logs, consoleTab: 'warnings', activeFile: file, idealAnalysis: null, isWorkbenchEmpty: false, workbenchCopy: workbenchCopies.en }));
 assert.deepEqual(projection.displayedLogs, [original]); assert.strictEqual(projection.consoleSummary.latest, logs[2]);
 assert.deepEqual(projection.consoleSummary.counts, { info: 1, success: 1, warning: 1, error: 0 }); assert.equal(projection.consoleSummary.runtime, workbenchCopies.en.status.standardRuntime);
-const ordinary = renderHook(() => useWorkbenchConsoleProjection({ logs, consoleTab: 'logs', activeFile: createDefaultIdealFile(2), idealAnalysis: null, isWorkbenchEmpty: true, workbenchCopy: workbenchCopies.en }));
+const ordinary = renderHook(() => useWorkbenchConsoleProjection({ language: 'en', logs, consoleTab: 'logs', activeFile: createDefaultIdealFile(2), idealAnalysis: null, isWorkbenchEmpty: true, workbenchCopy: workbenchCopies.en }));
 assert.strictEqual(ordinary.displayedLogs, logs); assert.equal(ordinary.consoleSummary.runtime, workbenchCopies.en.status.noRuntime);
+// Each experimental kind gets its own footer, including mode switches after completion.
+const footer = (activeFile: WorkbenchFileState) => renderHook(() => useWorkbenchConsoleProjection({ language: 'en', logs: [], consoleTab: 'logs', activeFile, idealAnalysis: null, isWorkbenchEmpty: false, workbenchCopy: workbenchCopies.en })).consoleSummary.runtime;
+assert.notEqual(footer(createDefaultIdealFile(2)), workbenchCopies.en.status.noRuntime);
+const heatFile = createDefaultHeatCapacityFile();
+heatFile.heatCapacityMode = 'guide';
+assert.match(footer(heatFile), /Adiabatic expansion \/ Guided mode/);
+heatFile.heatCapacityTeachingStatus = 'completed';
+assert.match(footer(heatFile), /Experiment group complete/);
+const pistonFile = createDefaultHeatCapacityPistonOscillationFile();
+assert.match(footer(pistonFile), /Piston oscillation \/ Experiment setup pending/);
+pistonFile.pistonOscillationGuideSession.status = 'completed';
+assert.match(footer(pistonFile), /Guided mode \/ Experiment group complete/);
+pistonFile.pistonOscillationGuideSession.completionExited = true;
+pistonFile.pistonOscillationDemoSession.status = 'running';
+assert.match(footer(pistonFile), /Demo mode/);
+pistonFile.pistonOscillationFreeSession.status = 'active';
+assert.match(footer(pistonFile), /Free mode/);
+pistonFile.pistonOscillationDemoSession.status = 'idle';
+pistonFile.pistonOscillationFreeSession.status = 'paused';
+assert.ok(footer(pistonFile).endsWith(workbenchCopies.en.status.runStates.paused));
 const css = selectWorkbenchLayoutPresentation({ activeFile: { liveWorkspaceSplitRatio: 9 }, leftSidebarWidth: 286, parameterSidebarWidth: 300, consoleCollapsed: true, consoleHeightPx: 201 });
 assert.equal(css.liveWorkspaceSplitRatio, 0.66); assert.equal(css.liveWorkspaceStyle['--studio-live-preview-ratio'], '66.000%');
 assert.equal(css.shellStyle['--studio-console-height'], '32px'); assert.equal(css.shellStyle['--studio-console-resize-ghost-y'], 'calc(100% - 32px - 24px)');

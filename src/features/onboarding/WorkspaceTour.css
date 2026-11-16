@@ -98,3 +98,17 @@
 .workspace-tour-bubble button:not(:disabled):hover {
   filter: brightness(1.15);
 }
+
+.process-review-intro-anchor {
+  outline: 2px solid var(--studio-accent-strong, #3578a1);
+  outline-offset: 2px;
+}
+
+.studio-theme-light .process-review-entry-intro {
+  background: #f5f9fc;
+  color: #17324b;
+  border-color: #83a2ba;
+}
+
+.studio-theme-light .process-review-entry-intro p { color: #465d71; }
+.studio-theme-light .process-review-entry-intro .workspace-tour-next { color: #fff; }

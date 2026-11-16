@@ -81,6 +81,13 @@ export const PromptTooltipProvider = ({ children }: PromptTooltipProviderProps) 
           if (node instanceof HTMLElement) promoteNativeTitlesWithin(node);
         });
       });
+      if (records.some((record) => record.removedNodes.length > 0)) {
+        if (hoverTargetRef.current && !hoverTargetRef.current.isConnected) {
+          hoverTargetRef.current = null;
+          clearShowTimer();
+        }
+        setActiveTooltip((current) => current && !current.target.isConnected ? null : current);
+      }
     });
     observer.observe(document.documentElement, {
       subtree: true,
@@ -195,6 +202,10 @@ export const PromptTooltipProvider = ({ children }: PromptTooltipProviderProps) 
   useLayoutEffect(() => {
     if (!activeTooltip || !tooltipRef.current) return undefined;
     const updatePosition = () => {
+      if (!activeTooltip.target.isConnected) {
+        setActiveTooltip(null);
+        return;
+      }
       const anchorRect = activeTooltip.target.getBoundingClientRect();
       const tooltipRect = tooltipRef.current?.getBoundingClientRect();
       if (!tooltipRect) return;

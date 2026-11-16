@@ -1,3 +1,4 @@
+import { EXPERIMENT_PROGRESS_COPY, getPistonFreeAcquisitionSummary } from '../workbench/experimentProgressPresentation.ts';
 import {
   getPistonRecordingIntervalCount,
   isPistonRecordingDurationS,
@@ -485,6 +486,8 @@ export const PistonOscillationAcquisitionPanel = ({
     || guideSession?.status === 'completed';
   const guideActive = guideSession?.status === 'active';
   const freeSelected = freeSession?.status === 'active';
+  const freeSummary = getPistonFreeAcquisitionSummary(freeSelected ? freeSession : null);
+  const progressCopy = EXPERIMENT_PROGRESS_COPY[language];
   const effectiveFreeConfig = useMemo(
     () => freeSession
       ? resolvePistonOscillationFreeEffectiveConfig(
@@ -1144,7 +1147,11 @@ export const PistonOscillationAcquisitionPanel = ({
     ? freeSession.acquisitionCandidate
     : null;
   const restoredGuideMeasurement = restoredGuideCandidate ?? restoredGuideSavedMeasurement;
-  const restoredMeasurement = restoredGuideMeasurement ?? restoredFreeCandidate;
+  const restoredFreeSavedMeasurement = !demoFrame && freeSelected && freeSummary.complete
+    ? freeSummary.lastSaved : null;
+  const restoredFreeMeasurement = restoredFreeCandidate ?? restoredFreeSavedMeasurement;
+  const restoredMeasurement = restoredGuideMeasurement ?? restoredFreeMeasurement;
+  const savedCurveReview = restoredFreeSavedMeasurement !== null || restoredGuideSavedMeasurement !== null;
   const demoActive = demoFrame !== undefined;
   const demoObservationSeries = useMemo(
     () => demoFrame
@@ -1189,7 +1196,7 @@ export const PistonOscillationAcquisitionPanel = ({
     : FREE_GRAPH_MINIMUM_DOMAIN_SECONDS;
   const displayedObservationSamples = useMemo<PistonOscillationObservedSample[]>(() => {
     if (restoredGuideMeasurement) return restoredGuideMeasurement.samples;
-    if (restoredFreeCandidate) return restoredFreeCandidate.samples;
+    if (restoredFreeMeasurement) return restoredFreeMeasurement.samples;
     if (
       freeSelected
       && cycleStartMs !== null
@@ -1285,7 +1292,7 @@ export const PistonOscillationAcquisitionPanel = ({
     freeSession?.sampleRateHz,
     livePressureObservation,
     phase,
-    restoredFreeCandidate,
+    restoredFreeMeasurement,
     restoredGuideMeasurement,
     restoredMeasurement,
     triggerSourceSampleIndex,
@@ -1961,7 +1968,7 @@ export const PistonOscillationAcquisitionPanel = ({
   const primaryLabel = copy.start;
   const freeCandidate = restoredFreeCandidate ?? frozenFreeCandidateRef.current;
   const effectiveRetained = freeSelected
-    ? Boolean(freeCandidate && freeSession.savedMeasurements.some(
+    ? Boolean(restoredFreeSavedMeasurement || freeCandidate && freeSession.savedMeasurements.some(
         (measurement) => measurement.recordId === freeCandidate.recordId,
       ))
     : retained || restoredGuideSavedMeasurement !== null;
@@ -1995,7 +2002,8 @@ export const PistonOscillationAcquisitionPanel = ({
   );
   const guidePrimaryAllowed = !guideSelected || guidePrimaryControl?.allowed === true;
   const primaryDisabled = Boolean(
-    demoActive
+    savedCurveReview || !effectivePowerOn || freeSummary.complete
+    || demoActive
     || guidePaused
     || guidePressureIssue === 'overpressure'
     || !guidePrimaryAllowed
@@ -2011,7 +2019,8 @@ export const PistonOscillationAcquisitionPanel = ({
   );
   const guideRedoAllowed = guideActive && (guidePressureIssue === 'overpressure' || guideSaveAllowed);
   const saveDisabled = Boolean(
-    demoActive
+    savedCurveReview || !effectivePowerOn
+    || demoActive
     || guidePaused
     || (guideSelected
       ? !guideSaveAllowed
@@ -2078,7 +2087,7 @@ export const PistonOscillationAcquisitionPanel = ({
     }
   };
 
-  if (!effectivePowerOn) {
+  if (!effectivePowerOn && !savedCurveReview) {
     return (
       <aside
         className="piston-acquisition-panel is-powered-off"
@@ -2098,7 +2107,7 @@ export const PistonOscillationAcquisitionPanel = ({
       className="piston-acquisition-panel"
       data-piston-acquisition-preview="true"
       data-acquisition-phase={effectivePhase}
-      data-free-recording-path={restoredFreeCandidate?.acquisitionSettings.recordingPath ?? 'falling-trigger'}
+      data-free-recording-path={restoredFreeMeasurement?.acquisitionSettings.recordingPath ?? 'falling-trigger'}
       data-acquisition-sample-count={sampleCount}
       data-piston-demo-active={demoActive ? 'true' : 'false'}
       data-piston-demo-control={demoFrame?.activeControl ?? 'none'}
@@ -2106,16 +2115,17 @@ export const PistonOscillationAcquisitionPanel = ({
       data-piston-demo-stage={demoFrame?.stage ?? 'none'}
       data-piston-guide-status={guideSession?.status ?? 'idle'}
       data-piston-guide-cue={guideCue ?? 'none'}
-      data-piston-power="on"
+      data-piston-power={effectivePowerOn ? 'on' : 'off'}
     >
       <div className="piston-acquisition-panel-heading">
         <strong className="piston-acquisition-title">{copy.title}</strong>
         <div className="piston-acquisition-run-summary">
-          <span>{copy.measurement(measurementNumber, totalMeasurements)}</span>
+          <span>{freeSummary.complete ? progressCopy.acquired(freeSummary.total) : copy.measurement(measurementNumber, totalMeasurements)}</span>
           <span className={`piston-acquisition-phase is-${effectivePhase}`}>
-            {guideSession?.step === 'powerOff'
-              ? copy.acquisitionComplete
-              : copy.phases[effectivePhase]}
+            {savedCurveReview ? copy.acquisitionComplete
+              : guideSession?.step === 'powerOff' ? copy.acquisitionComplete
+              : effectivePhase === 'stopped' && !effectiveRetained ? progressCopy.pending
+              : effectivePhase === 'idle' ? progressCopy.ready : copy.phases[effectivePhase]}
           </span>
         </div>
       </div>
@@ -2144,7 +2154,7 @@ export const PistonOscillationAcquisitionPanel = ({
               step={1}
               value={restoredMeasurement?.acquisitionSettings.sampleRateHz ?? demoFrame?.sampleRateInput
                 ?? (guideSelected ? guideSession.parameterDrafts.sampleRateHz : sampleRateDraft)}
-              readOnly={demoActive || guideInputsLocked}
+              readOnly={savedCurveReview || demoActive || guideInputsLocked}
               disabled={!demoActive && !guideActive && (
                 phase === 'armed'
                 || phase === 'recording'
@@ -2214,7 +2224,7 @@ export const PistonOscillationAcquisitionPanel = ({
               step={0.1}
               value={restoredMeasurement?.acquisitionSettings.triggerThresholdKpa ?? demoFrame?.triggerInput
                 ?? (guideSelected ? guideSession.parameterDrafts.triggerThresholdKpa : triggerDraft)}
-              readOnly={demoActive || guideInputsLocked}
+              readOnly={savedCurveReview || demoActive || guideInputsLocked}
               disabled={!demoActive && !guideActive && (
                 phase === 'armed'
                 || phase === 'recording'
@@ -2270,7 +2280,7 @@ export const PistonOscillationAcquisitionPanel = ({
               max={PISTON_RECORDING_DURATION_RANGE_S.maximum}
               step={0.001}
               value={restoredMeasurement?.acquisitionSettings.recordedDurationS ?? durationDraft}
-              readOnly={!freeSelected || demoActive}
+              readOnly={savedCurveReview || !freeSelected || demoActive}
               disabled={freeSelected && (freeAcquisitionSettingsLocked || acquisitionActive)}
               onChange={(event) => setDurationDraft(event.target.value)}
               onBlur={() => {
@@ -2366,7 +2376,7 @@ export const PistonOscillationAcquisitionPanel = ({
       <div className="piston-acquisition-live-readout">
         <div>
           <span>{copy.absolutePressure}</span>
-          <strong>{formatPistonOscillationObservedPressureKpa(currentPressureKpa)} <small>kPa</small></strong>
+          {effectivePowerOn ? <strong>{formatPistonOscillationObservedPressureKpa(currentPressureKpa)} <small>kPa</small></strong> : <strong>{copy.powerOff}</strong>}
         </div>
         <div>
           <span>{copy.formalSamples}</span>
@@ -2558,12 +2568,12 @@ export const PistonOscillationAcquisitionPanel = ({
                 resetRun();
               }
             }}
-            disabled={demoActive || guidePaused || (
+            disabled={savedCurveReview || !effectivePowerOn || demoActive || guidePaused || (
               guideSelected
                 ? !guideRedoAllowed
                 : phase === 'idle'
             )}
-            aria-disabled={demoActive || guidePaused || (
+            aria-disabled={savedCurveReview || !effectivePowerOn || demoActive || guidePaused || (
               guideSelected
                 ? !guideRedoAllowed
                 : phase === 'idle'
@@ -2619,9 +2629,10 @@ export const PistonOscillationAcquisitionPanel = ({
       </div>
 
       <div className="piston-acquisition-note">
-        <span>{legacyTargetUnavailable && !restoredFreeCandidate
+        {savedCurveReview && restoredMeasurement ? <strong>{progressCopy.saved(restoredMeasurement.measurementIndex + 1, restoredMeasurement.targetHeightMm)}</strong> : null}
+        <span>{legacyTargetUnavailable && !restoredFreeMeasurement
           ? copy.legacyHeightUnavailable
-          : restoredFreeCandidate?.acquisitionSettings.recordingPath === 'immediate'
+          : restoredFreeMeasurement?.acquisitionSettings.recordingPath === 'immediate'
             ? copy.immediateRecordingNote
             : copy.preTriggerNote}</span>
         {demoFrame?.retainFeedbackVisible ? (

@@ -5,6 +5,23 @@ type RecordValue = Record<string, unknown>;
 const record = (value: unknown): value is RecordValue => !!value && typeof value === 'object' && !Array.isArray(value);
 const owns = (value: RecordValue, key: string) => Object.hasOwn(value, key);
 
+/** Before this repair, a zero/invalid slope could leave NaN/Infinity in two
+ * precision diagnostics. Preserve measurements, fits and answers; only replace
+ * these explicitly unavailable diagnostics with the JSON-safe null sentinel. */
+export const cleanPistonPrecisionDiagnosticSnapshot = (value: unknown): unknown => {
+  if (!record(value) || value.precisionVersion !== 'piston-continuous-precision-v1'
+    || !record(value.linearFitResult)) return value;
+  const fit = value.linearFitResult;
+  const plan = fit.precisionPlan;
+  if (!record(plan) || plan.version !== 'piston-continuous-precision-v1' || plan.verified !== false) return value;
+  const invalidKeys = ['gammaErrorInUc', 'combinedRelativeError'].filter(key =>
+    typeof plan[key] === 'number' && !Number.isFinite(plan[key]));
+  if (!invalidKeys.length) return value;
+  const precisionPlan = { ...plan };
+  for (const key of invalidKeys) precisionPlan[key] = null;
+  return { ...value, linearFitResult: { ...fit, precisionPlan } };
+};
+
 export const LEGACY_PISTON_PRESSURE_METADATA = {
   pressureExpandedPa: 200, pressureCoverage: 2, pressureStepPa: 10,
 } as const;

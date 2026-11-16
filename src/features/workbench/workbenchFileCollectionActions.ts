@@ -23,13 +23,13 @@ export const createWorkbenchFileCollectionActions = (ports: WorkbenchFileCollect
   const { desktopExitQuiescedRef, scheduleHeatCapacitySemanticSceneCheckpointRef, scheduleWorkspacePersistenceRef, setFiles, filesRef, closedFilesRef, activeFileIdRef, setClosedFiles, setActiveFileId, issuedWorkbenchFileIdsRef } = ports;
   const setWorkbenchFiles = (updater: (current: WorkbenchFileState[]) => WorkbenchFileState[]) => {
     if (desktopExitQuiescedRef.current) return;
+    // Commit live ownership before projecting it into React. React may replay
+    // deferred state updaters after a close/delete; those must not rewrite refs.
+    const next = updater(filesRef.current);
+    filesRef.current = next;
+    setFiles(next);
     scheduleHeatCapacitySemanticSceneCheckpointRef.current();
     scheduleWorkspacePersistenceRef.current('semantic');
-    setFiles((current) => {
-      const next = updater(current);
-      filesRef.current = next;
-      return next;
-    });
   };
 
   const commitWorkbenchFileCollections = (
@@ -61,13 +61,11 @@ export const createWorkbenchFileCollectionActions = (ports: WorkbenchFileCollect
     updater: (file: WorkbenchFileState) => WorkbenchFileState,
   ) => {
     if (desktopExitQuiescedRef.current) return;
-    setFiles((current) => {
-      const next = current.map((file) => (
-        file.id === fileId ? updater(file) : file
-      ));
-      filesRef.current = next;
-      return next;
-    });
+    const next = filesRef.current.map((file) => (
+      file.id === fileId ? updater(file) : file
+    ));
+    filesRef.current = next;
+    setFiles(next);
   };
 
   const updateActiveFile = (updater: (file: WorkbenchFileState) => WorkbenchFileState) => {

@@ -48,7 +48,7 @@ assert.match(feedbackSource, /CheckCircle2[\s\S]*Info[\s\S]*AlertTriangle[\s\S]*
 assert.match(feedbackSource, /\.sort\([\s\S]*PROMPT_FEEDBACK_PRIORITY[\s\S]*\.slice\(0, maxVisible\)/, 'the shared region should sort by priority and cap the visible stack');
 assert.match(feedbackSource, /role=\{assertive \? 'alert' : 'status'\}/, 'danger should be assertive while ordinary feedback remains a polite status');
 assert.match(feedbackSource, /aria-live=\{assertive \? 'assertive' : 'polite'\}/, 'toast announcements should expose matching live-region behavior');
-assert.match(feedbackSource, /message\.onDismiss && message\.closeLabel/, 'dismiss buttons should only appear for dismissible messages with localized labels');
+assert.match(feedbackSource, /\(message\.onDismiss \|\| message\.dismissOnOutside\) && message\.closeLabel/, 'dismiss buttons should only appear for dismissible messages with localized labels');
 assert.match(feedbackStyles, /\.prompt-toast-region\s*\{[\s\S]*width:\s*min\(360px,[\s\S]*pointer-events:\s*none/, 'toast position, maximum width, and pass-through stack behavior should be shared');
 assert.match(feedbackStyles, /\.prompt-toast\[data-prompt-feedback-kind='success'\]/, 'success toast styling should be explicit');
 assert.match(feedbackStyles, /\.prompt-toast\[data-prompt-feedback-kind='warning'\]/, 'warning toast styling should be explicit');

@@ -11043,8 +11043,10 @@
 .studio-heat-step-block {
   display: grid;
   gap: 5px;
-  border-left: 1px solid rgba(79, 127, 184, 0.28);
-  padding-left: 10px;
+  border: 1px solid var(--studio-border-soft);
+  border-radius: 6px;
+  background: var(--studio-surface-2);
+  padding: 8px 10px;
 }
 
 .studio-heat-step-block h5 {
@@ -11351,10 +11353,6 @@
 .studio-theme-light .studio-heat-thinking-body > div {
   background: var(--studio-surface-2);
   border-top-color: var(--studio-border-soft);
-}
-
-.studio-theme-light .studio-heat-step-block {
-  border-left-color: var(--studio-accent-border);
 }
 
 .studio-theme-light .studio-heat-sample-row {

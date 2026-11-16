@@ -6,7 +6,7 @@ import {
   X,
   type LucideIcon,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import {
   PROMPT_FEEDBACK_PRIORITY,
   PROMPT_TOAST_MAX_VISIBLE,
@@ -24,6 +24,8 @@ export interface PromptToastMessage {
   priority?: number;
   persistent?: boolean;
   onDismiss?: () => void;
+  dismissOnOutside?: boolean;
+  occurrence?: object | string | number;
   dataAttributes?: Record<string, string | undefined>;
 }
 
@@ -45,7 +47,14 @@ export const PromptToastRegion = ({
   messages,
   maxVisible = PROMPT_TOAST_MAX_VISIBLE,
 }: PromptToastRegionProps) => {
+  const regionRef = useRef<HTMLElement>(null);
+  const [dismissed, setDismissed] = useState<Map<string, object | string | number>>(new Map());
+  const dismissMessage = (message: PromptToastMessage) => {
+    if (message.dismissOnOutside) setDismissed(previous => new Map(previous).set(message.id, message.occurrence ?? message.id));
+    message.onDismiss?.();
+  };
   const visibleMessages = messages
+    .filter(message => !message.dismissOnOutside || dismissed.get(message.id) !== (message.occurrence ?? message.id))
     .map((message, index) => ({ message, index }))
     .sort((left, right) => (
       (right.message.priority ?? PROMPT_FEEDBACK_PRIORITY[right.message.kind]) -
@@ -55,10 +64,22 @@ export const PromptToastRegion = ({
     .slice(0, maxVisible)
     .map(({ message }) => message);
 
+  useEffect(() => {
+    if (!visibleMessages.some(message => message.dismissOnOutside)) return;
+    const onOutside = (event: PointerEvent) => {
+      if (!(event.target instanceof Node) || regionRef.current?.contains(event.target)) return;
+      visibleMessages.filter(message => message.dismissOnOutside).forEach(dismissMessage);
+    };
+    // Capture also sees clicks inside modal windows that stop event bubbling.
+    document.addEventListener('pointerdown', onOutside, true);
+    return () => document.removeEventListener('pointerdown', onOutside, true);
+  }, [visibleMessages]);
+
   if (visibleMessages.length === 0) return null;
 
   return (
     <section
+      ref={regionRef}
       className="prompt-toast-region"
       aria-label={ariaLabel}
       data-prompt-toast-region="true"
@@ -86,12 +107,12 @@ export const PromptToastRegion = ({
               {message.title ? <strong>{message.title}</strong> : null}
               <span>{message.body}</span>
             </span>
-            {message.onDismiss && message.closeLabel ? (
+            {(message.onDismiss || message.dismissOnOutside) && message.closeLabel ? (
               <button
                 type="button"
                 className="prompt-toast-close"
                 aria-label={message.closeLabel}
-                onClick={message.onDismiss}
+                onClick={() => dismissMessage(message)}
               >
                 <X size={12} strokeWidth={2.1} aria-hidden="true" />
               </button>

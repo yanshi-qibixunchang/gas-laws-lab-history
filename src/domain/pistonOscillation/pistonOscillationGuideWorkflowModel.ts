@@ -1,5 +1,5 @@
 import { PISTON_DEFAULT_RECORDING_DURATION_S, PISTON_DEFAULT_TRIGGER_KPA } from './pistonOscillationRecordingSettings.ts';
-import { PISTON_TEACHING_HEIGHTS_MM } from './pistonOscillationHeightLimits.ts';
+import { PISTON_MAX_TRAVEL_HEIGHT_MM, PISTON_TEACHING_HEIGHTS_MM } from './pistonOscillationHeightLimits.ts';
 import {
   PISTON_OSCILLATION_GUIDED_MINIMUM_PERIOD_COUNT,
   advancePistonOscillationPeriodRun,
@@ -103,7 +103,7 @@ export interface PistonOscillationGuideSession {
   startedAtMs: number | null;
   updatedAtMs: number | null;
   measurementIndex: PistonOscillationGuideMeasurementIndex;
-  heightPlan?: 'current' | 'legacy';
+  heightPlan?: '70-60-50' | 'current' | 'legacy';
   step: PistonOscillationGuideStep;
   powerOn: boolean;
   parameterDrafts: Record<PistonOscillationGuideParameterField, string>;
@@ -304,7 +304,7 @@ PistonOscillationGuideSession => ({
 const createFreshActiveSession = (nowMs: number): PistonOscillationGuideSession => ({
   ...createDefaultPistonOscillationGuideSession(),
   status: 'active',
-  heightPlan: 'current',
+  heightPlan: '70-60-50',
   startedAtMs: nowMs,
   updatedAtMs: nowMs,
 });
@@ -408,12 +408,18 @@ const measurementSetupHeightMatchesTarget = (
 };
 
 const LEGACY_GUIDE_HEIGHTS_MM = [80, 70, 60] as const;
+// Persisted `current` sessions from 6.5.0 keep their original plan.
+const PREVIOUS_GUIDE_HEIGHTS_MM = [75, 65, 55] as const;
+const getGuidePlanHeights = (plan: PistonOscillationGuideSession['heightPlan']) => (
+  plan === 'legacy' ? LEGACY_GUIDE_HEIGHTS_MM
+    : plan === 'current' ? PREVIOUS_GUIDE_HEIGHTS_MM : PISTON_TEACHING_HEIGHTS_MM
+);
 
 export const getPistonOscillationGuideTargetHeightMm = (
   session: PistonOscillationGuideSession,
   index = session.measurementIndex,
 ): number => {
-  if (session.heightPlan !== 'legacy') return PISTON_OSCILLATION_GUIDE_TARGET_HEIGHTS_MM[index];
+  if (session.heightPlan !== 'legacy') return getGuidePlanHeights(session.heightPlan)[index];
   if (index !== 0) return LEGACY_GUIDE_HEIGHTS_MM[index];
   const hasLegacyFirstMeasurement = session.savedMeasurements.some(
     (measurement) => measurement.measurementIndex === 0 && measurement.targetHeightMm === 80,
@@ -421,7 +427,7 @@ export const getPistonOscillationGuideTargetHeightMm = (
     session.acquisitionCandidate?.measurementIndex === 0
     && session.acquisitionCandidate.targetHeightMm === 80
   );
-  return hasLegacyFirstMeasurement ? 80 : PISTON_TEACHING_HEIGHTS_MM[0];
+  return hasLegacyFirstMeasurement ? 80 : PREVIOUS_GUIDE_HEIGHTS_MM[0];
 };
 
 const measurementMatchesRun = (
@@ -935,7 +941,7 @@ export const transitionPistonOscillationGuideSession = (
     }
     case 'discardAcquisitionAttempt':
       return {
-        ...advance(getPistonOscillationGuideTargetHeightMm(session) > PISTON_TEACHING_HEIGHTS_MM[0]
+        ...advance(getPistonOscillationGuideTargetHeightMm(session) > PISTON_MAX_TRAVEL_HEIGHT_MM
           ? 'firstHeightAdjustment' : 'waitingTrigger'),
         acquisitionCandidate: null,
       };
@@ -1236,12 +1242,12 @@ const acquisitionCandidateCanResume = (
 
 const normalizeMeasurement = (
   value: unknown,
-  legacyHeightPlan: boolean,
+  heightPlan: PistonOscillationGuideSession['heightPlan'],
 ): PistonOscillationGuideSavedMeasurement | null => {
   if (!isPlainRecord(value) || !isMeasurementIndex(value.measurementIndex)) return null;
-  const acceptedHeights: readonly number[] = legacyHeightPlan && value.measurementIndex === 0
-    ? [LEGACY_GUIDE_HEIGHTS_MM[0], PISTON_TEACHING_HEIGHTS_MM[0]]
-    : [(legacyHeightPlan ? LEGACY_GUIDE_HEIGHTS_MM : PISTON_TEACHING_HEIGHTS_MM)[value.measurementIndex]];
+  const acceptedHeights: readonly number[] = heightPlan === 'legacy' && value.measurementIndex === 0
+    ? [LEGACY_GUIDE_HEIGHTS_MM[0], PREVIOUS_GUIDE_HEIGHTS_MM[0]]
+    : [getGuidePlanHeights(heightPlan)[value.measurementIndex]];
   const normalized = normalizePistonOscillationRawMeasurementRecord(
     value,
     value.measurementIndex,
@@ -1298,8 +1304,11 @@ export const normalizePistonOscillationGuideSession = (
     : 0;
   // Legacy persisted aliases are accepted only at this normalization boundary;
   // neither value is part of the current Guide step model or visible checklist.
-  const legacyHeightPlan = value.heightPlan === 'legacy'
-    || (value.heightPlan !== 'current' && persistedStatus !== 'idle');
+  const heightPlan: PistonOscillationGuideSession['heightPlan'] =
+    value.heightPlan === '70-60-50' ? '70-60-50'
+      : value.heightPlan === 'current' ? 'current'
+        : value.heightPlan === 'legacy' || persistedStatus !== 'idle' ? 'legacy' : '70-60-50';
+  const legacyHeightPlan = heightPlan === 'legacy';
   const normalizedStep = value.step === 'pauseAvailable' || value.step === 'curveFrozen'
     ? 'awaitingSaveOrRedo' as const
     : value.step === 'baselineStabilizing'
@@ -1321,7 +1330,7 @@ export const normalizePistonOscillationGuideSession = (
   const parametersLocked = value.parametersLocked === true
     && sampleRateStatus === 'valid'
     && triggerThresholdStatus === 'valid';
-  const persistedAcquisitionCandidate = normalizeMeasurement(value.acquisitionCandidate, legacyHeightPlan);
+  const persistedAcquisitionCandidate = normalizeMeasurement(value.acquisitionCandidate, heightPlan);
   const resumableAcquisitionCandidate = guideStepRequiresAcquisitionCandidate(normalizedStep)
     && acquisitionCandidateCanResume(
       normalizedMeasurementIndex,
@@ -1337,14 +1346,14 @@ export const normalizePistonOscillationGuideSession = (
     : normalizedStep;
   const heightReset = normalizeHeightReset(
     value.heightReset,
-    normalizedMeasurementIndex === 0
-      ? PISTON_TEACHING_HEIGHTS_MM[0]
-      : (legacyHeightPlan ? LEGACY_GUIDE_HEIGHTS_MM : PISTON_TEACHING_HEIGHTS_MM)[normalizedMeasurementIndex],
+    legacyHeightPlan && normalizedMeasurementIndex === 0
+      ? PREVIOUS_GUIDE_HEIGHTS_MM[0]
+      : getGuidePlanHeights(heightPlan)[normalizedMeasurementIndex],
     legacyHeightPlan && normalizedMeasurementIndex === 0,
   );
   const savedMeasurements = Array.isArray(value.savedMeasurements)
     ? value.savedMeasurements
-      .map((measurement) => normalizeMeasurement(measurement, legacyHeightPlan))
+      .map((measurement) => normalizeMeasurement(measurement, heightPlan))
       .filter((measurement): measurement is PistonOscillationGuideSavedMeasurement => (
         measurement !== null
       ))
@@ -1416,7 +1425,7 @@ export const normalizePistonOscillationGuideSession = (
       ? value.updatedAtMs
       : null,
     measurementIndex: normalizedMeasurementIndex,
-    ...(persistedStatus === 'idle' ? {} : { heightPlan: legacyHeightPlan ? 'legacy' as const : 'current' as const }),
+    ...(persistedStatus === 'idle' ? {} : { heightPlan }),
     step: resolvedStep,
     powerOn: normalizedPowerOn,
     parameterDrafts: {

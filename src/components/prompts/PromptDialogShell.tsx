@@ -52,6 +52,7 @@ interface PromptDialogShellProps {
   iconClassName?: string;
   headingClassName?: string;
   closeButtonClassName?: string;
+  headerActions?: ReactNode;
   windowOverflow?: 'hidden' | 'auto';
   overlayData?: Record<string, string | undefined>;
   dialogData?: Record<string, string | undefined>;
@@ -123,6 +124,7 @@ export const PromptDialogShell = ({
   iconClassName,
   headingClassName,
   closeButtonClassName,
+  headerActions,
   windowOverflow = 'hidden',
   overlayData,
   dialogData,
@@ -298,6 +300,7 @@ export const PromptDialogShell = ({
           className={joinClassNames('prompt-dialog-header', headerClassName)}
           data-prompt-shell-header="true"
           data-prompt-header-icon={Icon ? 'true' : 'false'}
+          data-prompt-header-actions={headerActions ? 'true' : undefined}
         >
           {Icon ? (
             <span className={joinClassNames('prompt-dialog-icon', iconClassName)} aria-hidden="true">
@@ -309,6 +312,7 @@ export const PromptDialogShell = ({
             <strong id={resolvedTitleId}>{title}</strong>
             {subtitle ? <span className="prompt-dialog-subtitle">{subtitle}</span> : null}
           </div>
+          {headerActions}
           {dismissPolicy.closeButton && onRequestClose ? (
             <button
               type="button"

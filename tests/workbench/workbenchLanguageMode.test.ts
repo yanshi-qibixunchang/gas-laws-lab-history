@@ -406,4 +406,4 @@ assert.match(workbenchViewShellSource, /import \{ WorkbenchSimulationParameterRo
 assert.match(workbenchViewShellSource, /import \{ WorkbenchIdealControls \} from '\.\/WorkbenchIdealControls\.tsx';/);
 assert.match(workbenchViewShellSource, /import \{ WorkbenchStatusBar \} from '\.\/WorkbenchStatusBar\.tsx';/);
 
-assert.match(source, /useWorkbenchConsoleProjection\(\{ logs, consoleTab, activeFile, idealAnalysis, isWorkbenchEmpty, workbenchCopy \}\)/);
+assert.match(source, /useWorkbenchConsoleProjection\(\{ language: settingsLanguagePreference, logs, consoleTab, activeFile, idealAnalysis, isWorkbenchEmpty, workbenchCopy \}\)/);

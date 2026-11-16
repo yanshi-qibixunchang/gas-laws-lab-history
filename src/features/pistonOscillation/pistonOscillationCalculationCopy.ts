@@ -18,6 +18,7 @@ export interface PistonOscillationCalculationCopy {
   missingFitBody: string;
   dismissReminder: string;
   fitResultTitle: string;
+  invalidSlopeNotice: string;
   fitGraphAria: string;
   chartXAxis: string;
   chartYAxis: string;
@@ -61,6 +62,7 @@ export const PISTON_OSCILLATION_CALCULATION_COPY = {
     missingFitBody: '本次拟合需要使用全部已保存的数据。请单击高亮区域内尚未选中的数据行，再次确认。',
     dismissReminder: '我知道了',
     fitResultTitle: '线性拟合结果',
+    invalidSlopeNotice: '拟合斜率不大于 0，不能据此测定比热容比。请在不同高度重新测量并拟合；已有记录仍可保存。',
     fitGraphAria: '以 T 平方为横轴、h 为纵轴的线性拟合图',
     chartXAxis: 'T² / s²',
     chartYAxis: 'h / m',
@@ -109,6 +111,7 @@ export const PISTON_OSCILLATION_CALCULATION_COPY = {
     missingFitBody: '本次擬合需要使用全部已儲存的資料。請單擊高亮區域內尚未選取的資料列，再次確認。',
     dismissReminder: '我知道了',
     fitResultTitle: '線性擬合結果',
+    invalidSlopeNotice: '擬合斜率不大於 0，不能據此測定比熱容比。請在不同高度重新測量並擬合；已有記錄仍可儲存。',
     fitGraphAria: '以 T 平方為橫軸、h 為縱軸的線性擬合圖',
     chartXAxis: 'T² / s²',
     chartYAxis: 'h / m',
@@ -157,6 +160,7 @@ export const PISTON_OSCILLATION_CALCULATION_COPY = {
     missingFitBody: 'This fit uses every saved data group. Click each unselected row inside the highlighted area, then confirm again.',
     dismissReminder: 'Got it',
     fitResultTitle: 'Linear-fit result',
+    invalidSlopeNotice: 'The fitted slope is not positive, so these data cannot determine the heat-capacity ratio. Measure at different heights and fit again. Existing records can still be saved.',
     fitGraphAria: 'Linear fit with T squared on the horizontal axis and h on the vertical axis',
     chartXAxis: 'T² / s²',
     chartYAxis: 'h / m',

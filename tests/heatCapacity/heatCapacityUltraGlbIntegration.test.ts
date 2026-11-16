@@ -155,7 +155,7 @@ assert.match(
 );
 assert.match(
   collectionActionsSource,
-  /const setWorkbenchFiles = [\s\S]*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);\s*scheduleWorkspacePersistenceRef\.current\('semantic'\);\s*setFiles/,
+  /const setWorkbenchFiles = [\s\S]*filesRef\.current = next;[\s\S]*scheduleHeatCapacitySemanticSceneCheckpointRef\.current\(\);\s*scheduleWorkspacePersistenceRef\.current\('semantic'\);/,
   'a semantic Heat Capacity state update should schedule scene capture before its bounded persistence debounce',
 );
 assert.match(

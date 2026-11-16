@@ -4,9 +4,9 @@
 
 Gas Laws Lab is a Windows experiment workbench connecting 3D apparatus interaction, physical simulation, data acquisition, guided calculation and local reports. It covers hard-sphere molecular dynamics, ideal-gas relations, and air/helium heat-capacity-ratio experiments.
 
-**Current stable version: 6.5.0**
+**Current stable version: 6.5.1**
 
-[Download for Windows x64](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.0/heat-capacity-lab-setup-6.5.0.exe) · [Release notes and assets](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.0) · [Release verification](docs/releases/v6.5.0.md)
+[Download for Windows x64](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.1/heat-capacity-lab-setup-6.5.1.exe) · [Release notes and assets](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.1) · [Release verification](docs/releases/v6.5.1.md)
 
 ## Experiments
 
@@ -19,22 +19,19 @@ Gas Laws Lab is a Windows experiment workbench connecting 3D apparatus interacti
 
 Both heat-capacity methods support **air/helium**, **ideal/realistic conditions**, and Demo, Guide and Free modes. The interface supports Simplified Chinese, Traditional Chinese and English, with light and dark themes. The desktop app exports supported PDF reports, PDF/PNG figures, CSV files and data packages.
 
-## What changed in 6.5.0
+## What changed in 6.5.1
 
-- Recalibrated gas profiles are verified against previously agreed operating ranges. Piston calculations use loaded equilibrium pressure, while physical precision remains separate from teaching-answer rounding.
-- Ideal piston motion includes internal dissipation: mechanical energy returns to gas internal energy and amplitude decays naturally. Acquisition supports up to 3 seconds. Realistic profiles retain calibrated losses, and large release-time differences no longer hit the former loss cap.
-- Recording-based rebound audio adapts its duration to the oscillation event.
-- Calculation and Type A/B uncertainty explanations, variable help, input focus, scrolling, result boxes and rounded panels are aligned.
-- Both visualization switches use the same help panel: it appears after a one-second hover and slides/fades away on pointer leave. Mouse-click focus no longer keeps it visible.
-- Fixes premature acquisition-input locking, ideal piston measurement progression, large-workspace exit-save timeouts and misleading desktop export warnings.
-- Adiabatic Free mode accepts trial counts of at least three through typing or a dropdown, and molecular visualization includes a continuous temperature legend.
-- File names are unique across experiment types, with `(1)`, `(2)` and further suffixes for conflicts. Existing duplicate names are repaired on load without changing experiment contents.
+- Fixes save conflicts when closing or deleting experiments and save failures from zero-slope practice fits. Save alerts dismiss on outside clicks and reappear for new failures; raw curves and answer records are retained.
+- Both heat-capacity calculation windows include a draggable calculator with powers, roots, logarithms and scientific notation. Completing Free-mode calculations opens process review after the calculation window closes, with one app-wide introduction to its entry.
+- Completed piston acquisition retains the last saved curve and updates consistently for replacement trials, reopening and file switching. Both methods distinguish acquisition completion from calculation completion and show accurate status-bar text.
+- Fixes the top-plate support connection and prevents premature settling after releasing a locked piston. Load equilibrium begins after sealing, unlocking and removing hand support. New Demo/Guide plans use 70, 60 and 50 mm; saved plans and physical parameter profiles are preserved.
+- Uses a dark selection crosshair with a white outline, delayed rule help and explicit start/end peaks or troughs. Chart instructions are simplified. Notices lose the decorative left rail; calculation warnings use rounded pale borders and confirmations use aligned plain text.
 
 ## Install and upgrade
 
-Download the installer and follow its setup wizard. Users on **6.4.4** can check for updates in the app or save and close the app before installing the full package into the existing location.
+Download the installer and follow its setup wizard. Users on **6.4.4 or 6.5.0** can check for updates in the app or save and close the app before installing the full package into the existing location.
 
-Users of a local **6.5.0 candidate** must install this stable package manually: an identical version number does not trigger an update. The application identity and user-data location remain unchanged. Historical experiments retain their model and parameter snapshots, raw records and calculation progress; new experiments use current profiles. Existing migration rules still apply to older formats.
+The application identity and user-data location remain unchanged. Historical experiments retain their model and parameter snapshots, raw records and calculation progress; new experiments use current profiles. Existing migration rules still apply to older formats.
 
 Core experiments run locally without an account. The browser and desktop editions save progress separately; installing the app does not transfer browser experiments. The browser supports the simulation and calculation UI, while report, figure and table export requires the Windows desktop app.
 

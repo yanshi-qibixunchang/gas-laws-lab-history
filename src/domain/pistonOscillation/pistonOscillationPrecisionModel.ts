@@ -30,8 +30,9 @@ export interface PistonPrecisionPlan {
   digits: Record<PistonPrecisionKey, number>;
   periods: Record<number, { period: number; squared: number }>;
   verified: boolean;
-  gammaErrorInUc: number;
-  combinedRelativeError: number;
+  // null means this diagnostic is undefined for the current data, not zero error.
+  gammaErrorInUc: number | null;
+  combinedRelativeError: number | null;
 }
 
 export const normalizePistonPrecisionKnowns = <T extends PistonPrecisionKnowns>(knowns: T): T => ({
@@ -128,7 +129,12 @@ export const assessPistonPrecision = (actual: PistonPrecisionChain, reference: P
   const reportsAgree = actual.values.reportCombined === reference.values.reportCombined
     && actual.values.result === reference.values.result && actual.resultPower === reference.resultPower
     && actual.values.relative === reference.values.relative && actual.relativeError === reference.relativeError;
-  return { verified: gammaErrorInUc <= 0.001 && combinedRelativeError <= 0.001 && budgetsAgree && sourcesAgree && supplementAgrees && reportsAgree, gammaErrorInUc, combinedRelativeError };
+  return {
+    verified: Number.isFinite(gammaErrorInUc) && Number.isFinite(combinedRelativeError)
+      && gammaErrorInUc <= 0.001 && combinedRelativeError <= 0.001 && budgetsAgree && sourcesAgree && supplementAgrees && reportsAgree,
+    gammaErrorInUc: Number.isFinite(gammaErrorInUc) ? gammaErrorInUc : null,
+    combinedRelativeError: Number.isFinite(combinedRelativeError) ? combinedRelativeError : null,
+  };
 };
 
 /** Find a compact, data-specific plan. Remove a digit only after re-evaluating
@@ -144,7 +150,7 @@ export const planPistonPrecision = (
     version: PISTON_PRECISION_VERSION,
     digits: { ...PISTON_PRECISION_MINIMUM },
     periods: Object.fromEntries(observations.map(o => [o.runIndex, { period: o.periodDigits ?? PISTON_PERIOD_DIGITS, squared: o.squaredDigits ?? PISTON_SQUARED_DIGITS }])),
-    verified: false, gammaErrorInUc: Infinity, combinedRelativeError: Infinity,
+    verified: false, gammaErrorInUc: null, combinedRelativeError: null,
   };
   const check = () => assessPistonPrecision(evaluatePistonPrecisionChain(knowns, observations, profile, plan), reference);
   if (Number.isFinite(reference.values.combined) && reference.values.combined > 0 && reference.slope > 0) {

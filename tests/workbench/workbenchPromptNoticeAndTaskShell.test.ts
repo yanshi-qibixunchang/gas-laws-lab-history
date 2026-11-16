@@ -49,7 +49,6 @@ for (const token of [
   '--prompt-dialog-window-padding',
   '--prompt-dialog-header-height',
   '--prompt-dialog-icon-size',
-  '--prompt-dialog-status-rule-width',
   '--prompt-motion-normal',
   '--prompt-focus',
 ]) {
@@ -64,7 +63,6 @@ assert.match(shellStyles, /--prompt-dialog-radius-window: 4px/);
 assert.match(shellStyles, /--prompt-dialog-window-padding: 12px/);
 assert.match(shellStyles, /--prompt-dialog-header-height: 42px/);
 assert.match(shellStyles, /--prompt-dialog-icon-size: 22px/);
-assert.match(shellStyles, /--prompt-dialog-status-rule-width: 0px/);
 assert.match(shellStyles, /--prompt-dialog-window-shadow: 0 8px 18px rgba\(0, 0, 0, 0\.18\)/);
 assert.match(noticeStyles, /padding: var\(--prompt-dialog-window-padding\)/, 'A notices should use compact window padding');
 assert.doesNotMatch(`${shellStyles}\n${noticeStyles}`, /backdrop-filter|linear-gradient|radial-gradient/, 'the A shell should stay traditional and avoid glass or gradient treatments');
