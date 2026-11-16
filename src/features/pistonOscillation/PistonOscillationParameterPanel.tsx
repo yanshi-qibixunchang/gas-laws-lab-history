@@ -4,6 +4,8 @@ import {
   PISTON_RECORDING_DURATION_RANGE_S,
   type PistonOscillationAcquisitionSetting,
 } from '../../domain/pistonOscillation/pistonOscillationRecordingSettings.ts';
+import { pistonKnownVolumeCopy } from './pistonKnownVolumeCopy.ts';
+import { PistonVolumeConditionSelect } from './PistonVolumeConditionSelect.tsx';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { RotateCcw, Wrench } from 'lucide-react';
@@ -300,6 +302,7 @@ export interface PistonOscillationParameterPanelProps {
   onAcknowledgeAdvancedParametersRisk: () => void;
   onRestoreDefaults: () => void;
   onExperimentSchemeChange: (scheme: PistonOscillationExperimentScheme) => void;
+  onVolumeConditionChange?: (condition: 'unknown' | 'known') => void;
   onGasTypeChange: (gasType: PistonOscillationGasType) => void;
   onLockedInteraction?: () => void;
 }
@@ -315,10 +318,13 @@ export const PistonOscillationParameterPanel = ({
   onAcknowledgeAdvancedParametersRisk,
   onRestoreDefaults,
   onExperimentSchemeChange,
-  onGasTypeChange,
+  onGasTypeChange, onVolumeConditionChange,
   onLockedInteraction,
 }: PistonOscillationParameterPanelProps) => {
   const copy = text[language];
+  const volumeCopy = pistonKnownVolumeCopy[language];
+  const knownVolumeAvailable = session.experimentGroup.scheme === 'real' && session.experimentGroup.gasMaterialSnapshot.gasType === 'air';
+  const knownPlan = session.experimentPlan !== null && session.experimentGroup.volumeCondition === 'known';
   const effects = parameterEffects[language];
   const parameters = useMemo(
     () => ({
@@ -609,7 +615,7 @@ export const PistonOscillationParameterPanel = ({
               type="button"
               className={`studio-heat-free-scheme-button ${session.experimentGroup.scheme === 'ideal' ? 'studio-heat-free-scheme-button-active' : ''} ${conditionLocked ? 'studio-heat-free-scheme-button-locked' : ''}`}
               data-piston-oscillation-scheme={session.experimentGroup.scheme}
-              disabled={conditionLocked}
+              disabled={conditionLocked || knownPlan}
               aria-pressed={session.experimentGroup.scheme === 'ideal'}
               title={conditionLocked ? lockMessage : copy.schemeHelp}
               onClick={() => onExperimentSchemeChange(
@@ -652,7 +658,7 @@ export const PistonOscillationParameterPanel = ({
                   data-piston-oscillation-gas-type={gasType}
                   aria-pressed={session.experimentGroup.gasMaterialSnapshot.gasType === gasType}
                   aria-disabled={conditionLocked}
-                  disabled={conditionLocked}
+                  disabled={conditionLocked || knownPlan}
                   title={conditionLocked ? lockMessage : copy.gasHelp}
                   onClick={() => onGasTypeChange(gasType)}
                 >
@@ -662,6 +668,17 @@ export const PistonOscillationParameterPanel = ({
             </span>
           </div>
         ) : null}
+        {freeMode ? <>
+          <div className="studio-heat-free-param-row" data-piston-oscillation-param-id="volumeCondition">
+            {renderParameterLabel('volumeCondition', volumeCopy.condition, volumeCopy.help)}
+            <PistonVolumeConditionSelect key={session.experimentGroup.groupId}
+              label={volumeCopy.condition} labels={volumeCopy} value={session.experimentGroup.volumeCondition ?? 'unknown'}
+              disabled={conditionLocked || session.experimentPlan !== null || !knownVolumeAvailable}
+              title={session.experimentPlan ? volumeCopy.locked : volumeCopy.available}
+              onChange={value => onVolumeConditionChange?.(value)} />
+          </div>
+          {!knownVolumeAvailable ? <div className="studio-panel-note" role="status">{volumeCopy.available}</div> : null}
+        </> : null}
         {idealReadonly ? (
           <div className="studio-panel-note" data-piston-oscillation-ideal-readonly="true">
             {copy.idealReadonly}

@@ -99,6 +99,12 @@ try {
       pistonOscillationGuideResetFeedbackTimerRef: { current: null }, setPistonOscillationGuideResetFeedback: noop,
       setPistonOscillationFreeSetupRequestedFileId: noop, activatePistonOscillationFreeMode: noop, pausePistonOscillationFreeMode: noop,
     };
+    let enteredPreparation = false;
+    createWorkbenchPistonModeActions({ ...ports,
+      activatePistonOscillationFreeMode: heights => { assert.equal(heights, null); enteredPreparation = true; },
+      setPistonOscillationFreeSetupRequestedFileId: () => { throw Error('Entering free mode must not open a plan dialog.'); },
+    }).commands.startFree();
+    assert.equal(enteredPreparation, true, 'free mode starts with parameter preparation');
     createWorkbenchPistonModeActions(ports).commands.startDemo();
     assert.deepEqual(calls, ['files', 'save', 'flush'], 'mode activation publishes the file before saving; it must not reuse acquisition CAS ordering');
     assert.equal(playback.phase, 'running');

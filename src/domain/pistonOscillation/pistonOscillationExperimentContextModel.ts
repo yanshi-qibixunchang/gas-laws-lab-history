@@ -1,11 +1,13 @@
 export const PISTON_OSCILLATION_EXPERIMENT_CONTEXT_SCHEMA_VERSION = 1 as const;
 
 export type PistonOscillationExperimentScheme = 'real' | 'ideal';
+export type PistonOscillationVolumeCondition = 'unknown' | 'known';
 
 export interface PistonOscillationExperimentContextSnapshot {
   schemaVersion: typeof PISTON_OSCILLATION_EXPERIMENT_CONTEXT_SCHEMA_VERSION;
   groupId: string;
   scheme: PistonOscillationExperimentScheme;
+  volumeCondition?: PistonOscillationVolumeCondition;
   parameterProfileVersion: string;
   provenance: 'captured' | 'legacy-inferred';
 }
@@ -17,12 +19,14 @@ const isPlainRecord = (value: unknown): value is Record<string, unknown> => (
 export const createPistonOscillationExperimentContextSnapshot = (options: {
   groupId: string;
   scheme: PistonOscillationExperimentScheme;
+  volumeCondition?: PistonOscillationVolumeCondition;
   parameterProfileVersion: string;
   provenance?: PistonOscillationExperimentContextSnapshot['provenance'];
 }): PistonOscillationExperimentContextSnapshot => ({
   schemaVersion: PISTON_OSCILLATION_EXPERIMENT_CONTEXT_SCHEMA_VERSION,
   groupId: options.groupId.trim(),
   scheme: options.scheme,
+  ...(options.volumeCondition === 'known' ? { volumeCondition: 'known' as const } : {}),
   parameterProfileVersion: options.parameterProfileVersion.trim(),
   provenance: options.provenance ?? 'captured',
 });
@@ -43,6 +47,7 @@ export const normalizePistonOscillationExperimentContextSnapshot = (
   return createPistonOscillationExperimentContextSnapshot({
     groupId: value.groupId,
     scheme: value.scheme,
+    volumeCondition: value.volumeCondition === 'known' ? 'known' : 'unknown',
     parameterProfileVersion: value.parameterProfileVersion,
     provenance: value.provenance,
   });
@@ -53,4 +58,5 @@ export const doPistonOscillationExperimentContextsAgree = (
   second: PistonOscillationExperimentContextSnapshot,
 ) => first.groupId === second.groupId
   && first.scheme === second.scheme
+  && (first.volumeCondition ?? 'unknown') === (second.volumeCondition ?? 'unknown')
   && first.parameterProfileVersion === second.parameterProfileVersion;

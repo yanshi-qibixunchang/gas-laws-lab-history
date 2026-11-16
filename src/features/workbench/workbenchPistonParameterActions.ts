@@ -52,6 +52,11 @@ export const createWorkbenchPistonParameterActions = (ports: createWorkbenchPist
       : file);
   };
 
+  const setPistonOscillationVolumeCondition = (volumeCondition: 'unknown' | 'known') => {
+    updateActiveFile(file => file.kind === 'heatCapacityPistonOscillation'
+      ? transitionPistonOscillationFreeWorkbenchState(file, { type: 'setVolumeCondition', volumeCondition, nowMs: Date.now() }) : file);
+  };
+
   const setPistonOscillationFreeGasType = (
     gasType: 'air' | 'helium',
   ) => {
@@ -95,5 +100,5 @@ export const createWorkbenchPistonParameterActions = (ports: createWorkbenchPist
       )
     ));
   };
-  return { togglePistonOscillationOperationVisualization, setPistonOscillationOperationVisualization, updatePistonOscillationFreeParameterDraft, setPistonOscillationFreeExperimentScheme, setPistonOscillationFreeGasType, restorePistonOscillationFreeParameters, acknowledgePistonOscillationAdvancedParametersRisk, showPistonOscillationParameterLockHint };
+  return { setPistonOscillationVolumeCondition, togglePistonOscillationOperationVisualization, setPistonOscillationOperationVisualization, updatePistonOscillationFreeParameterDraft, setPistonOscillationFreeExperimentScheme, setPistonOscillationFreeGasType, restorePistonOscillationFreeParameters, acknowledgePistonOscillationAdvancedParametersRisk, showPistonOscillationParameterLockHint };
 };

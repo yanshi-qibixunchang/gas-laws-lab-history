@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.5.1', 'desktop release should use the authorized version');
-assert.match(readme, /Current stable version: 6\.5\.1/, 'English README should identify the stable release');
-assert.match(readmeZhCn, /当前正式版：6\.5\.1/, 'Simplified Chinese README should identify the stable release');
-assert.match(readmeZhTw, /目前正式版：6\.5\.1/, 'Traditional Chinese README should identify the stable release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.5\.1（正式版）。/, 'the reviewed build notice should identify the approved stable release');
+assert.equal(packageJson.version, '6.5.2', 'desktop release should use the authorized version');
+assert.match(readme, /Current stable version: 6\.5\.2/, 'English README should identify the stable release');
+assert.match(readmeZhCn, /当前正式版：6\.5\.2/, 'Simplified Chinese README should identify the stable release');
+assert.match(readmeZhTw, /目前正式版：6\.5\.2/, 'Traditional Chinese README should identify the stable release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.5\.2（正式版）。/, 'the reviewed build notice should identify the approved stable release');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -99,8 +99,8 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.equal(currentRelease.channel, 'stable');
-for (const scope of ['workspace-save-close', 'scientific-calculator-review', 'acquisition-progress', 'piston-interaction', 'selection-help-notices']) {
-  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'), `6.5.1 release notes should explain ${scope}`);
+for (const scope of ['known-volume-direct', 'free-plan-and-volume-control', 'real-air-duration', 'direct-results-and-provenance']) {
+  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'), `6.5.2 release notes should explain ${scope}`);
 }
 const previousMinorItems = findRelease('6.5.0')?.sections?.flatMap(section => section.items ?? []) ?? [];
 for (const scope of ['heat-capacity-calibrated-gas-profiles', 'piston-internal-dissipation', 'calculation-focus-and-explanations', 'desktop-update-v6-5-0', 'desktop-export-status']) {
@@ -347,7 +347,7 @@ assert.equal(
 
 const firstRelease = releaseNotes.releases[0];
 assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions should not include a leading v');
-assert.equal(firstRelease.channel, 'stable', 'the approved 6.5.1 release must use the stable update channel');
+assert.equal(firstRelease.channel, 'stable', 'the approved 6.5.2 release must use the stable update channel');
 assert.match(
   firstRelease.download?.releasePage ?? '',
   /^https:\/\/github\.com\/yanshi-qibixunchang\/(?:hard-sphere-lab-1|gas-laws-lab-release)\/releases\/tag\/v\d+\.\d+\.\d+$/,

@@ -1,3 +1,5 @@
+import { pistonKnownVolumeCopy } from '../pistonOscillation/pistonKnownVolumeCopy.ts';
+import { formatSignificantFiguresHalfEven } from '../../domain/calculation/decimalHalfEven.ts';
 import {
   getPistonOscillationReleaseAsymmetrySeverity,
 } from '../../domain/pistonOscillation/pistonOscillationReleaseAsymmetryModel.ts';
@@ -501,6 +503,7 @@ interface RunScoreContext {
   periodAnswerRevealed: boolean;
   touchdown: boolean;
   selectedForFit: boolean;
+  knownVolume: boolean;
   heightDeduction: number;
   releaseDeduction: number;
   cycleDeduction: number;
@@ -558,9 +561,10 @@ const createRunScoreContext = (
   const wrongPeriodDeduction = Math.min(6, wrongPeriodBatches * 2);
   const periodAnswerDeduction = periodAnswerRevealed ? 3 : 0;
   const selectionIssueDeduction = run.selection?.issue ? 4 : 0;
-  const selectedForFit = processing.linearFitResult?.selectedRunIndices.includes(
+  const knownVolume = processing.volumeCondition === 'known';
+  const selectedForFit = knownVolume || (processing.linearFitResult?.selectedRunIndices.includes(
     run.measurementIndex,
-  ) ?? false;
+  ) ?? false);
   const fitDeduction = selectedForFit ? 0 : 3;
   const selectionScore = Math.max(
     0,
@@ -585,7 +589,7 @@ const createRunScoreContext = (
     wrongPeriodBatches,
     periodAnswerRevealed,
     touchdown,
-    selectedForFit,
+    selectedForFit, knownVolume,
     heightDeduction,
     releaseDeduction,
     cycleDeduction,
@@ -651,7 +655,7 @@ const createScoreRows = (options: {
       evidence: heightEvidence,
       consequence: context.touchdown
         ? tr(language, '触底属于可观测的不规范装置操作。', '觸底屬於可觀測的不規範裝置操作。', 'The impact is an observable improper instrument operation.')
-        : tr(language, '高度证据直接进入 h–T² 拟合。', '高度證據直接進入 h–T² 擬合。', 'The height evidence feeds the h–T² fit.'),
+        : context.knownVolume ? tr(language, '总体积取自本次实际测量状态。', '總體積取自本次實際測量狀態。', 'Total volume comes from this measurement’s saved state.') : tr(language, '高度证据直接进入 h–T² 拟合。', '高度證據直接進入 h–T² 擬合。', 'The height evidence feeds the h–T² fit.'),
       suggestion: context.touchdown
         ? tr(language, '断开软管前先托住平台。', '斷開軟管前先托住平台。', 'Support the platform before disconnecting the hose.')
         : tr(language, '保持先锁紧、后接管的顺序。', '保持先鎖緊、後接管的順序。', 'Keep the lock-before-connect sequence.'),
@@ -663,7 +667,7 @@ const createScoreRows = (options: {
           id: 'piston-height-confirmation',
           label: tr(language, '高度确认', '高度確認', 'Height confirmation'),
           evidence: tr(language, `实际高度偏差 ${context.heightDeviationMm.toFixed(1)} mm。`, `實際高度偏差 ${context.heightDeviationMm.toFixed(1)} mm。`, `Height deviation ${context.heightDeviationMm.toFixed(1)} mm.`),
-          consequence: tr(language, '高度直接进入 h–T² 拟合。', '高度直接進入 h–T² 擬合。', 'Height feeds the h–T² fit.'),
+          consequence: context.knownVolume ? tr(language, '目标高度为 50 mm；体积由系统提供。', '目標高度為 50 mm；體積由系統提供。', 'The target is 50 mm; total volume is supplied by the system.') : tr(language, '高度直接进入 h–T² 拟合。', '高度直接進入 h–T² 擬合。', 'Height feeds the h–T² fit.'),
           suggestion: tr(language, '锁紧前核对目标高度。', '鎖緊前核對目標高度。', 'Check the target height before locking.'),
           score: 7 - context.heightDeduction,
           maxScore: 7,
@@ -725,9 +729,9 @@ const createScoreRows = (options: {
     },
     {
       id: 'piston-selection-fit',
-      title: tr(language, '周期选择与拟合', '週期選擇與擬合', 'Period selection and fit'),
+      title: context.knownVolume ? tr(language, '周期选择与计算', '週期選擇與計算', 'Period selection and calculation') : tr(language, '周期选择与拟合', '週期選擇與擬合', 'Period selection and fit'),
       evidence: tr(language, `选区周期最大相对偏离 ${(context.cycleDeviation * 100).toFixed(1)}%；错误批次 ${context.wrongPeriodBatches} 次。`, `選區週期最大相對偏離 ${(context.cycleDeviation * 100).toFixed(1)}%；錯誤批次 ${context.wrongPeriodBatches} 次。`, `Maximum selected-period deviation ${(context.cycleDeviation * 100).toFixed(1)}%; ${context.wrongPeriodBatches} incorrect batch(es).`),
-      consequence: context.selectedForFit
+      consequence: context.knownVolume ? pistonKnownVolumeCopy[language].resultIncluded : context.selectedForFit
         ? tr(language, '本次数据已进入最终线性拟合。', '本次資料已進入最終線性擬合。', 'This run was included in the final fit.')
         : tr(language, '本次数据未进入最终线性拟合。', '本次資料未進入最終線性擬合。', 'This run was not included in the final fit.'),
       suggestion: context.cycleDeviation > 0.02
@@ -783,8 +787,8 @@ const createScoreRows = (options: {
         },
         {
           id: 'piston-fit-inclusion',
-          label: tr(language, '拟合采用', '擬合採用', 'Fit inclusion'),
-          evidence: context.selectedForFit
+          label: context.knownVolume ? pistonKnownVolumeCopy[language].resultUse : tr(language, '拟合采用', '擬合採用', 'Fit inclusion'),
+          evidence: context.knownVolume ? pistonKnownVolumeCopy[language].resultIncluded : context.selectedForFit
             ? tr(language, '本次数据已用于最终拟合。', '本次資料已用於最終擬合。', 'This run was included in the final fit.')
             : tr(language, '本次数据未用于最终拟合。', '本次資料未用於最終擬合。', 'This run was excluded from the final fit.'),
           consequence: tr(language, '决定该点是否参与 γ 的求解。', '決定該點是否參與 γ 的求解。', 'This determines whether the point contributes to γ.'),
@@ -924,7 +928,7 @@ export const selectPistonOscillationProcessReviewModels = (
   const relativeError = calculation?.answers.relativeError.expectedValue ?? null;
   const uncertainty = processing.precisionVersion && calculation?.uncertainty && processing.linearFitResult
     ? calculatePistonUncertainty(calculation.knowns, processing.linearFitResult, processing.runs, calculation.uncertainty.profile) : null;
-  const gammaText = uncertainty ? pistonUncertaintyReference('result', uncertainty) : formatNumber(gamma, 3);
+  const gammaText = uncertainty ? pistonUncertaintyReference('result', uncertainty) : calculation?.knowns?.knownVolume && gamma !== null ? formatPistonOscillationCalculationAnswer('gamma', gamma, calculation.answers.gamma) : formatNumber(gamma, 3);
   const errorText = relativeError === null ? '--' : processing.precisionVersion
     ? formatPistonOscillationCalculationAnswer('relativeError', relativeError, calculation?.answers.relativeError) : relativeError.toFixed(2);
   const rSquared = processing.linearFitResult?.rSquared ?? null;
@@ -998,12 +1002,15 @@ export const selectPistonOscillationProcessReviewModels = (
       ),
       currentTitle: options[runIndex]!.title,
       currentSubtitle: `${options[runIndex]!.subtitle} · ${record.acquisitionSettings.sampleRateHz} Hz / ${record.acquisitionSettings.triggerThresholdKpa} kPa`,
-      summaryNote: scoringEligible
+      summaryNote: calculation?.knowns?.knownVolume ? pistonKnownVolumeCopy[language].review : scoringEligible
         ? tr(language, '本轮正式曲线、周期处理、线性拟合和最终答案均已完成；回顾页面只读，不会改写原始数据。', '本輪正式曲線、週期處理、線性擬合和最終答案均已完成；回顧頁面唯讀，不會改寫原始資料。', 'Formal curves, period processing, fit, and final answers are complete. This review is read-only.')
         : tr(language, '本轮仍完成正式曲线、周期处理、线性拟合和最终答案；回顾页面只读，理想实验不生成评分。', '本輪仍完成正式曲線、週期處理、線性擬合和最終答案；回顧頁面唯讀，理想實驗不產生評分。', 'Formal curves, period processing, fit, and final answers are complete. This read-only Ideal review does not generate a score.'),
       metrics: [
         { label: 'γ', value: gammaText, detail: relativeError === null ? '--' : tr(language, `相对理论误差 ${errorText}%`, `相對理論誤差 ${errorText}%`, `Relative error ${errorText}%`), tone: relativeError !== null && relativeError <= 3 ? 'good' : 'attention' },
-        { label: tr(language, '线性拟合 R²', '線性擬合 R²', 'Linear-fit R²'), value: formatNumber(rSquared, 4), detail: tr(language, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 个拟合点`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 個擬合點`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} fit points`), tone: rSquared !== null && rSquared >= 0.98 ? 'good' : 'attention' },
+        ...(calculation?.knowns?.knownVolume ? [
+          { label: pistonKnownVolumeCopy[language].volume, value: formatSignificantFiguresHalfEven(calculation.knowns.knownVolume.totalVolumeM3, 6), detail: pistonKnownVolumeCopy[language].known, tone: 'neutral' as const },
+          { label: pistonKnownVolumeCopy[language].period, value: formatSignificantFiguresHalfEven(calculation.knowns.knownVolume.periodS, 6), detail: '1 × 50 mm', tone: 'neutral' as const },
+        ] : [{ label: tr(language, '线性拟合 R²', '線性擬合 R²', 'Linear-fit R²'), value: formatNumber(rSquared, 4), detail: tr(language, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 个拟合点`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} 個擬合點`, `${processing.linearFitResult?.selectedRunIndices.length ?? 0} fit points`), tone: rSquared !== null && rSquared >= 0.98 ? 'good' as const : 'attention' as const }]),
         scoringEligible
           ? { label: tr(language, '本次实验操作', '本次實驗操作', 'Current run'), value: `${score.operationScore} / 75`, detail: tr(language, '按本次实验的实际证据归因', '按本次實驗的實際證據歸因', 'Attributed from this run evidence'), tone: toneForScore(score.operationScore, 75) }
           : { label: tr(language, '本次实验操作', '本次實驗操作', 'Current run'), value: '--', detail: unscoredNotice, tone: 'neutral' },

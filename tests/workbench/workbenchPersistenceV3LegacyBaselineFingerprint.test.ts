@@ -27,6 +27,8 @@ pistonFile.pistonOscillationFreeSession = {
   experimentGroup: {
     ...pistonSession.experimentGroup,
     parameterProfileVersion: PISTON_OSCILLATION_LEGACY_REAL_AIR_PARAMETER_PROFILE_VERSION,
+    // The historical fixture predates the 6.5.2 acquisition-default marker.
+    acquisitionDefaultsVersion: undefined,
   },
 };
 const files = [

@@ -6,12 +6,12 @@ on:
       old_version:
         description: Installed version used as the upgrade source
         required: true
-        default: 6.4.4
+        default: 6.5.1
         type: string
       new_version:
         description: Release version installed over the old version
         required: true
-        default: 6.5.0
+        default: 6.5.2
         type: string
 
 permissions:

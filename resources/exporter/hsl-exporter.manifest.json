@@ -1,7 +1,7 @@
 {
   "schemaVersion": 3,
   "exporterVersion": "0.2.0",
-  "sourceFingerprint": "b5a38cfe03bd25cb541d5296eb17500dc86a25a4c427da73d349710ce523f34c",
+  "sourceFingerprint": "e25dd3a9438d04804a7e32d916951d4fab3f3cb4e5577f64038a2ac230d98c06",
   "sourceFiles": [
     "tools/exporter/hsl_exporter.py",
     "tools/exporter/professional_graph_style.py"
@@ -9,10 +9,10 @@
   "inventoryPolicyFingerprint": "7e1cd1d74dfbb30254d35adeeadcf3b42924d9d66484380202659276ce9df7ac",
   "executable": {
     "fileName": "hsl-exporter.exe",
-    "sizeBytes": 46119696,
-    "sha256": "b770652639d32610f26c308fc9b3b67df974f8069990e601909d05509e0907d3"
+    "sizeBytes": 46119041,
+    "sha256": "af3ebbb9ec980345b319098ef27c83fbb180c13f8f328333edfc2df6689d36db"
   },
-  "legalInventoryFingerprint": "da6c8edc986f716ac690201c137ab4711c967207513218121ffafe6b25aee2f7",
+  "legalInventoryFingerprint": "799f40b034ff7f836f6d591d1589659ce0bcaebff310f961123c58805de990a2",
   "archiveFingerprint": "8d2fbe8bfef412fcbe3183f659ba77d5bbacfdb44be1d2548f306bfe41ada27b",
   "frozenDistributionCount": 20,
   "runtimeLibraryCount": 68

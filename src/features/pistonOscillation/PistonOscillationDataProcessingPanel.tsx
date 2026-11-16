@@ -1259,7 +1259,7 @@ export const PistonOscillationDataProcessingPanel = ({
             className="is-primary"
             onClick={onOpenCalculationReview}
           >
-            {copy.viewFitAndCalculation}
+            {processing.volumeCondition === 'known' ? language === 'en' ? 'View calculation' : language === 'zh-TW' ? '查看計算結果' : '查看计算结果' : copy.viewFitAndCalculation}
             <ChevronRight size={15} aria-hidden="true" />
           </button>
         </nav>

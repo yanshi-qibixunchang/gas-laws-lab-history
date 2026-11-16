@@ -3302,6 +3302,13 @@ def build_piston_oscillation_report(
     calculation = data.get("calculationSession") or {}
     answers = calculation.get("answers") or {}
     knowns = calculation.get("knowns") or {}
+    known_volume = knowns.get("knownVolume") or {}
+    direct = calculation.get("volumeCondition") == "known"
+    volume_copy = {
+        "en": ("Volume condition", "Known total volume · single measurement", "Unknown volume · multiple heights", "Used", "3.2 Direct calculation", "Known quantities"),
+        "zh-TW": ("體積條件", "已知總體積 · 單次實驗", "未知體積 · 多高度實驗", "計算採用", "3.2 已知總體積直接計算", "已知參數"),
+        "zh-CN": ("体积条件", "已知总体积 · 单次实验", "未知体积 · 多高度实验", "计算采用", "3.2 已知总体积直接计算", "已知参数"),
+    }.get(language, ("体积条件", "已知总体积 · 单次实验", "未知体积 · 多高度实验", "计算采用", "3.2 已知总体积直接计算", "已知参数"))
     story: list[Any] = []
 
     story.append(paragraph(copy["title"], title_style))
@@ -3323,6 +3330,7 @@ def build_piston_oscillation_report(
                 copy["gas_type"],
                 copy["helium"] if summary.get("gasType") == "helium" else copy["air"],
             ],
+            [volume_copy[0], volume_copy[1] if direct else volume_copy[2]],
             [copy["parameter_profile"], experiment_group.get("parameterProfileVersion")],
             [
                 copy["scoring_eligibility"],
@@ -3342,23 +3350,24 @@ def build_piston_oscillation_report(
     append_table(
         story,
         copy["result_overview"],
-        [copy["measurement_count"], copy["fit_points"], "γ", copy["theory"], copy["relative_error"], "R^2", copy["operation_calculation"], copy["total_score"]],
+        [copy["measurement_count"], "V/m³" if direct else copy["fit_points"], "γ", copy["theory"], copy["relative_error"], "T/s" if direct else "R^2", copy["operation_calculation"], copy["total_score"]],
         [[
             summary.get("measurementCount"),
-            summary.get("fitPointCount"),
-            summary.get("reportedGamma") or format_piston_calculation_reference(summary.get("gamma"), "gamma"),
+            format_piston_significant(known_volume.get("totalVolumeM3"), 6) if direct else summary.get("fitPointCount"),
+            summary.get("reportedGamma") or format_piston_calculation_reference(summary.get("gamma"), "gamma", (answers.get("gamma") or {}).get("significantFigures")),
             format_piston_number(summary.get("referenceGamma"), 2),
             format_piston_calculation_reference(summary.get("relativeErrorPercent"), "relativeError"),
-            format_piston_number(summary.get("rSquared"), 5),
+            format_piston_significant(known_volume.get("periodS"), 6) if direct else format_piston_number(summary.get("rSquared"), 5),
             f"{summary.get('operationAverageScore', '--')} + {summary.get('calculationScore', '--')}"
             if scoring_eligible else copy["not_scored"],
             f"{summary.get('totalScore', '--')} / {summary.get('totalMaximum', 100)}"
             if scoring_eligible else copy["not_scored"],
         ]],
-        [20 * mm, 19 * mm, 18 * mm, 21 * mm, 23 * mm, 19 * mm, 27 * mm, 23 * mm],
+        [width * mm for width in ([15, 30, 16, 16, 20, 23, 28, 22] if direct else [20, 19, 18, 21, 23, 19, 27, 23])],
         compact=True,
     )
-    append_figure(story, figures_dir / "piston-h-t2-fit.png", copy["fit_caption"], 76)
+    if not direct:
+        append_figure(story, figures_dir / "piston-h-t2-fit.png", copy["fit_caption"], 76)
 
     story.append(PageBreak())
     story.append(paragraph(f"2 {copy['actual_records']}", chapter_style))
@@ -3411,30 +3420,40 @@ def build_piston_oscillation_report(
             format_piston_significant(result.get("periodS"), (measurement.get("calculationPrecision") or {}).get("period", 4)),
             format_piston_significant(result.get("periodSquaredS2"), (measurement.get("calculationPrecision") or {}).get("squared", 5)),
             deviation_text,
-            copy["yes"] if measurement.get("includedInFit") else copy["no"],
+            copy["yes"] if measurement.get("includedInCalculation", measurement.get("includedInFit")) else copy["no"],
         ])
     append_table(
         story,
         "各次周期处理结果" if language != "en" else "Period-processing results",
-        [copy["number"], "t1/s", "t2/s", copy["period_count"], copy["delta_time"], copy["period"], copy["period_squared"], copy["maximum_deviation"], copy["included"]],
+        [copy["number"], "t1/s", "t2/s", copy["period_count"], copy["delta_time"], copy["period"], copy["period_squared"], copy["maximum_deviation"], volume_copy[3] if direct else copy["included"]],
         period_rows,
         [21 * mm, 17 * mm, 17 * mm, 18 * mm, 21 * mm, 20 * mm, 25 * mm, 22 * mm, 16 * mm],
         compact=len(period_rows) > 3,
     )
-    story.append(paragraph(f"3.2 {copy['fit_results']}", section_style))
-    append_table(
-        story,
-        "h-T^2 线性拟合参数" if language != "en" else "h-T^2 linear-fit parameters",
-        [copy["fit_points"], copy["slope"], copy["intercept"], "R^2"],
-        [[
-            len(fit.get("selectedRunIndices") or []),
-            format_piston_significant(fit.get("slopeMPerS2"), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('slope', 5)),
-            format_piston_significant(fit.get("interceptM"), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('intercept', 5)),
-            format_piston_number(fit.get("rSquared"), 5),
-        ]],
-        [42.5 * mm] * 4,
-        compact=True,
-    )
+    if direct:
+        story.append(paragraph(volume_copy[4], section_style))
+        append_table(story, volume_copy[5],
+                     ["m/kg", "d/mm", "P/Pa", "V/m³", "T/s"], [[
+                         format_piston_number(knowns.get("movingMassKg"), 4),
+                         format_piston_number(safe_float(knowns.get("cylinderDiameterM")) * 1000, 1),
+                         knowns.get("pressurePa"), format_piston_significant(known_volume.get("totalVolumeM3"), 6),
+                         format_piston_significant(known_volume.get("periodS"), 6)]], [34 * mm] * 5, compact=True)
+        story.append(paragraph("A = πd²/4; γ = 4π²mV/(PA²T²); Eᵣ = |γ − γ_ref|/γ_ref × 100%", body_style))
+    else:
+        story.append(paragraph(f"3.2 {copy['fit_results']}", section_style))
+        append_table(
+            story,
+            "h-T^2 线性拟合参数" if language != "en" else "h-T^2 linear-fit parameters",
+            [copy["fit_points"], copy["slope"], copy["intercept"], "R^2"],
+            [[
+                len(fit.get("selectedRunIndices") or []),
+                format_piston_significant(fit.get("slopeMPerS2"), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('slope', 5)),
+                format_piston_significant(fit.get("interceptM"), ((fit.get('precisionPlan') or {}).get('digits') or {}).get('intercept', 5)),
+                format_piston_number(fit.get("rSquared"), 5),
+            ]],
+            [42.5 * mm] * 4,
+            compact=True,
+        )
     story.append(paragraph(f"3.3 {copy['final_results']}", section_style))
 
     def answer_row(field: str, label: str, suffix: str = "") -> list[Any]:
@@ -3686,7 +3705,7 @@ def write_piston_oscillation_data_files(data: dict[str, Any], data_dir: Path) ->
             result.get("periodCount"), format_piston_number(result.get("deltaTimeS"), 3),
             format_piston_significant(result.get("periodS"), precision.get("period", 4)),
             format_piston_significant(result.get("periodSquaredS2"), precision.get("squared", 5)),
-            measurement.get("includedInFit"),
+            measurement.get("includedInCalculation", measurement.get("includedInFit")),
         ])
         samples = measurement.get("samples") or []
         if samples:
@@ -3697,20 +3716,29 @@ def write_piston_oscillation_data_files(data: dict[str, Any], data_dir: Path) ->
     if rows:
         outputs.insert(0, write_rows_csv("piston-periods.csv", [
             "run", "targetHeightMm", "confirmedHeightMm", "fitHeightMm", "sampleRateHz",
-            "t1S", "t2S", "periodCount", "deltaTimeS", "periodS", "periodSquaredS2", "includedInFit",
+            "t1S", "t2S", "periodCount", "deltaTimeS", "periodS", "periodSquaredS2", "includedInCalculation" if data.get("volumeCondition") == "known" else "includedInFit",
         ], rows, data_dir))
     fit = data.get("linearFitResult") or {}
     digits = (fit.get("precisionPlan") or {}).get("digits") or {}
-    outputs.append(write_rows_csv("piston-fit.csv", ["pointCount", "slopeMPerS2", "interceptM", "rSquared"], [[
-        len(fit.get("points") or []), format_piston_significant(fit.get("slopeMPerS2"), digits.get("slope", 5)),
-        format_piston_significant(fit.get("interceptM"), digits.get("intercept", 5)), fit.get("rSquared"),
-    ]], data_dir))
+    if data.get("volumeCondition") != "known":
+        outputs.append(write_rows_csv("piston-fit.csv", ["pointCount", "slopeMPerS2", "interceptM", "rSquared"], [[
+            len(fit.get("points") or []), format_piston_significant(fit.get("slopeMPerS2"), digits.get("slope", 5)),
+            format_piston_significant(fit.get("interceptM"), digits.get("intercept", 5)), fit.get("rSquared"),
+        ]], data_dir))
     calculation = data.get("calculationSession") or {}
     knowns = calculation.get("knowns") or {}
     known_rows = [[field, knowns[field], unit] for field, unit in [
         ("movingMassKg", "kg"), ("cylinderDiameterM", "m"),
         ("pressurePa", "Pa"), ("referenceGamma", "1"),
     ] if knowns.get(field) is not None]
+    volume = knowns.get("knownVolume") or {}
+    if volume:
+        known_rows.extend([["totalVolumeM3", format_piston_significant(volume.get("totalVolumeM3"), 6), "m^3"],
+                           ["periodS", format_piston_significant(volume.get("periodS"), 6), "s"],
+                           ["volumeCondition", "known", ""], ["sourceRecordId", volume.get("sourceRecordId"), ""],
+                           ["areaFormula", "A = pi*d^2/4", "m^2"],
+                           ["gammaFormula", "gamma = 4*pi^2*m*V/(P*A^2*T^2)", "1"],
+                           ["relativeErrorFormula", "Er = abs(gamma-gamma_ref)/gamma_ref*100", "%"]])
     if known_rows:
         outputs.append(write_rows_csv("piston-knowns.csv", ["quantity", "value", "unit"], known_rows, data_dir))
     answers = calculation.get("answers") or {}

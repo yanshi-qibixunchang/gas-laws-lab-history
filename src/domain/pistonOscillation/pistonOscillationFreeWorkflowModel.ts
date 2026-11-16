@@ -255,6 +255,7 @@ interface PistonOscillationFreeTimedEvent {
 
 export type PistonOscillationFreeEvent =
   | ({ type: 'start' | 'pause' | 'reset' } & PistonOscillationFreeTimedEvent)
+  | ({ type: 'setVolumeCondition'; volumeCondition: 'unknown' | 'known' } & PistonOscillationFreeTimedEvent)
   | ({
       type: 'setExperimentScheme';
       scheme: PistonOscillationExperimentScheme;
@@ -424,7 +425,9 @@ const normalizeAuditPayload = (
 const isValidExperimentPlan = (
   targetHeightsMm: readonly number[],
   maximumHeightMm: number,
+  volumeCondition: 'unknown' | 'known' = 'unknown',
 ) => {
+  if (volumeCondition === 'known') return targetHeightsMm.length === 1 && targetHeightsMm[0] === 50;
   if (
     targetHeightsMm.length < PISTON_OSCILLATION_FREE_MINIMUM_MEASUREMENT_COUNT
     || targetHeightsMm.length > PISTON_OSCILLATION_FREE_MAXIMUM_MEASUREMENT_COUNT
@@ -436,7 +439,8 @@ const isValidExperimentPlan = (
 
 export const isValidPistonOscillationFreeExperimentPlan = (
   targetHeightsMm: readonly number[],
-) => isValidExperimentPlan(targetHeightsMm, PISTON_MAX_TRAVEL_HEIGHT_MM);
+  volumeCondition: 'unknown' | 'known' = 'unknown',
+) => isValidExperimentPlan(targetHeightsMm, PISTON_MAX_TRAVEL_HEIGHT_MM, volumeCondition);
 
 export const isValidPistonOscillationFreeCustomHeightMm = (heightMm: number) => (
   Number.isSafeInteger(heightMm) && heightMm >= PISTON_FREE_MIN_TARGET_HEIGHT_MM && heightMm <= PISTON_MAX_TRAVEL_HEIGHT_MM
@@ -503,19 +507,19 @@ const buildExperimentPlan = (
 
 export const createPistonOscillationFreeExperimentPlan = (
   targetHeightsMm: readonly number[],
-  options: { planId?: string; customHeightCandidatesMm?: readonly number[] } = {},
+  options: { planId?: string; customHeightCandidatesMm?: readonly number[]; volumeCondition?: 'unknown' | 'known' } = {},
 ): PistonOscillationFreeExperimentPlan => {
-  if (!isValidPistonOscillationFreeExperimentPlan(targetHeightsMm)) {
+  if (!isValidPistonOscillationFreeExperimentPlan(targetHeightsMm, options.volumeCondition)) {
     throw new RangeError('Free-mode target heights must contain 3–6 unique integer heights from 10 to 75 mm.');
   }
   return buildExperimentPlan(targetHeightsMm, options);
 };
 
-const normalizeExperimentPlan = (value: unknown): PistonOscillationFreeExperimentPlan | null => {
+const normalizeExperimentPlan = (value: unknown, volumeCondition: 'unknown' | 'known' = 'unknown'): PistonOscillationFreeExperimentPlan | null => {
   if (
     !isPlainRecord(value)
     || !Array.isArray(value.targetHeightsMm)
-    || !isValidExperimentPlan(value.targetHeightsMm as number[], PISTON_FREE_LEGACY_MAX_TARGET_HEIGHT_MM)
+    || !isValidExperimentPlan(value.targetHeightsMm as number[], PISTON_FREE_LEGACY_MAX_TARGET_HEIGHT_MM, volumeCondition)
   ) return null;
   const targetHeightsMm = value.targetHeightsMm as number[];
   return buildExperimentPlan(targetHeightsMm, {
@@ -560,7 +564,7 @@ PistonOscillationFreeSession => {
   status: 'idle',
   startedAtMs: null,
   updatedAtMs: null,
-  experimentGroup: createPistonOscillationFreeExperimentGroup(),
+  experimentGroup: createPistonOscillationFreeExperimentGroup({ acquisitionDefaultsVersion: 2 }),
   experimentPlan: null,
   measurementIndex: 0,
   powerOn: false,
@@ -637,8 +641,10 @@ const createFreshActiveSession = (
     groupId: `piston-free-group:${nowMs}`,
     createdAtMs: nowMs,
     scheme: retainedGroup?.scheme,
+    volumeCondition: retainedGroup?.volumeCondition,
     gasMaterialSnapshot: retainedGroup?.gasMaterialSnapshot,
     parameterProfileVersion: retainedGroup?.parameterProfileVersion,
+    acquisitionDefaultsVersion: retainedGroup ? retainedGroup.acquisitionDefaultsVersion : 2,
   });
   const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
     experimentGroup,
@@ -868,6 +874,13 @@ export const transitionPistonOscillationFreeSession = (
   if (event.type === 'reset') {
     return createFreshActiveSession(event.nowMs, 'session-reset');
   }
+  if (event.type === 'setVolumeCondition') {
+    if (session.status !== 'active' || session.experimentPlan || isPistonOscillationFreeExperimentLocked(session)
+      || (event.volumeCondition === 'known' && (session.experimentGroup.scheme !== 'real' || session.experimentGroup.gasMaterialSnapshot.gasType !== 'air'))) return session;
+    return { ...session, experimentGroup: { ...session.experimentGroup, volumeCondition: event.volumeCondition === 'known' ? 'known' : undefined }, updatedAtMs: event.nowMs };
+  }
+  if (session.experimentPlan && session.experimentGroup.volumeCondition === 'known'
+    && ((event.type === 'setExperimentScheme' && event.scheme !== 'real') || (event.type === 'setGasType' && event.gasType !== 'air'))) return session;
   if (event.type === 'setExperimentScheme') {
     if (
       session.status !== 'active'
@@ -1071,6 +1084,7 @@ export const transitionPistonOscillationFreeSession = (
     const experimentGroup = {
       ...session.experimentGroup,
       parameterProfileVersion: getPistonOscillationParameterProfileVersion('real', gasType),
+      acquisitionDefaultsVersion: 2 as const,
     };
     const effectiveConfig = resolvePistonOscillationFreeEffectiveConfig(
       experimentGroup,
@@ -1150,11 +1164,12 @@ export const transitionPistonOscillationFreeSession = (
       || session.acquisitionCandidate !== null
       || session.experimentPlan !== null
       || session.audit.some((auditEvent) => auditEvent.type === 'plan-updated')
-      || !isValidPistonOscillationFreeExperimentPlan(event.targetHeightsMm)
+      || !isValidPistonOscillationFreeExperimentPlan(event.targetHeightsMm, session.experimentGroup.volumeCondition)
     ) return session;
     const experimentPlan = createPistonOscillationFreeExperimentPlan(event.targetHeightsMm, {
       planId: `piston-free-plan:${session.startedAtMs ?? event.nowMs}:${event.nowMs}`,
       customHeightCandidatesMm: event.customHeightCandidatesMm,
+      volumeCondition: session.experimentGroup.volumeCondition,
     });
     const next = {
       ...session,
@@ -2099,7 +2114,10 @@ export const normalizePistonOscillationFreeSession = (
 ): PistonOscillationFreeSession => {
   const fallback = createDefaultPistonOscillationFreeSession();
   if (!isPlainRecord(value)) return fallback;
-  const experimentPlan = normalizeExperimentPlan(value.experimentPlan);
+  const volumeCondition = isPlainRecord(value.experimentGroup) && value.experimentGroup.volumeCondition === 'known'
+    && value.experimentGroup.scheme === 'real' && isPlainRecord(value.experimentGroup.gasMaterialSnapshot)
+    && value.experimentGroup.gasMaterialSnapshot.gasType === 'air' ? 'known' : 'unknown';
+  const experimentPlan = normalizeExperimentPlan(value.experimentPlan, volumeCondition);
   const savedMeasurements = experimentPlan && Array.isArray(value.savedMeasurements)
     ? value.savedMeasurements
       .map((measurement) => {

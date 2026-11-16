@@ -451,7 +451,13 @@ export interface PistonOscillationLinearFitPointSnapshot {
   heightM: number;
 }
 
+export const isPistonKnownVolumeMeasurement = (records: readonly PistonOscillationRawMeasurementRecord[]) => (
+  records.length === 1 && records[0]?.experimentContext?.volumeCondition === 'known'
+  && records[0].experimentContext.scheme === 'real' && records[0].physicsSnapshot.gasMaterial.gasType === 'air'
+);
+
 export interface PistonOscillationCalculationKnownsSnapshot {
+  knownVolume?: { totalVolumeM3: number; periodS: number; sourceRecordId: string };
   schemaVersion: 2;
   modelVersion: typeof PISTON_OSCILLATION_CALCULATION_MODEL_VERSION | string;
   gasType: PistonOscillationGasMaterialSnapshot['gasType'];
@@ -492,6 +498,7 @@ export interface PistonOscillationCalculationAnswerState {
 }
 
 export interface PistonOscillationCalculationSessionSnapshot {
+  volumeCondition?: 'unknown' | 'known';
   schemaVersion: 2;
   uncertainty?: PistonUncertaintyCourse;
   status: 'selecting-points' | 'calculating' | 'ready-to-exit' | 'completed';
@@ -509,6 +516,7 @@ export interface PistonOscillationCalculationSessionSnapshot {
 }
 
 export interface PistonOscillationDataProcessingSession {
+  volumeCondition?: 'unknown' | 'known';
   calculationModelVersion?: typeof PISTON_OSCILLATION_CALCULATION_MODEL_VERSION;
   uncertaintyEligibility?: import('../calculation/uncertaintyTeachingEligibility.ts').UncertaintyTeachingEligibility;
   precisionVersion?: typeof PISTON_PRECISION_VERSION;
@@ -634,6 +642,19 @@ const calculateDisplayedPistonAreaM2 = (
     Math.PI * cylinderDiameterM ** 2 / 4,
     PISTON_OSCILLATION_CALCULATION_ANSWER_SPECS.area.precision.digits,
   );
+};
+
+export const calculatePistonKnownVolumeResult = (knowns: PistonOscillationCalculationKnownsSnapshot) => {
+  const volume = knowns.knownVolume;
+  if (!volume || !Number.isFinite(volume.totalVolumeM3) || volume.totalVolumeM3 <= 0
+    || !Number.isFinite(volume.periodS) || volume.periodS <= 0 || knowns.pressurePa <= 0) {
+    throw new RangeError('A saved positive equilibrium volume and measured period are required.');
+  }
+  const areaM2 = roundSignificantFiguresHalfEven(Math.PI * knowns.cylinderDiameterM ** 2 / 4, 5);
+  const gamma = roundSignificantFiguresHalfEven(4 * Math.PI ** 2 * knowns.movingMassKg
+    * volume.totalVolumeM3 / (knowns.pressurePa * areaM2 ** 2 * volume.periodS ** 2), 5);
+  const relativeErrorPercent = roundSignificantFiguresHalfEven(Math.abs(gamma - knowns.referenceGamma) / knowns.referenceGamma * 100, 3);
+  return { areaM2, gamma, relativeErrorPercent };
 };
 
 const createPistonOscillationCalculationExpectedValues = (
@@ -2914,11 +2935,27 @@ export const createPistonOscillationCalculationSession = (
   includeUncertainty = false,
   unifiedPrecision = includeUncertainty,
   modelVersion: PistonOscillationCalculationModelVersion = PISTON_OSCILLATION_CALCULATION_MODEL_VERSION,
+  runs: readonly PistonOscillationPeriodRunState[] = [],
 ): PistonOscillationCalculationSessionSnapshot => {
   const rawKnowns = createPistonOscillationCalculationKnownsSnapshot(records, modelVersion);
   const knowns = unifiedPrecision ? normalizePistonPrecisionKnowns(rawKnowns)
     : modelVersion === PISTON_OSCILLATION_CALCULATION_MODEL_VERSION
       ? { ...rawKnowns, pressurePa: normalizePistonPrecisionKnowns(rawKnowns).pressurePa } : rawKnowns;
+  if (isPistonKnownVolumeMeasurement(records)) {
+    const record = records[0]!;
+    const periodS = runs.find(run => run.rawMeasurementRecordId === record.recordId)?.result?.periodS;
+    if (!periodS) throw new RangeError('Complete the measured period before direct calculation.');
+    const directKnowns = normalizePistonPrecisionKnowns({ ...rawKnowns, knownVolume: {
+      totalVolumeM3: roundSignificantFiguresHalfEven(record.physicsSnapshot.equilibrium.equilibriumVolumeM3, 6),
+      periodS: roundSignificantFiguresHalfEven(periodS, 6), sourceRecordId: record.recordId,
+    } });
+    const direct = calculatePistonKnownVolumeResult(directKnowns);
+    return { schemaVersion: 2, volumeCondition: 'known', status: 'calculating', knowns: directKnowns,
+      selectedRunIndices: [0], activeFieldId: 'area', visibleFieldIds: ['area'],
+      answers: { area: createCalculationAnswer(direct.areaM2, 5), gamma: createCalculationAnswer(direct.gamma, 5),
+        relativeError: createCalculationAnswer(direct.relativeErrorPercent, 3) },
+      batchAttempts: [], startedAtMs: nowMs, completedAtMs: null };
+  }
   const areaM2 = calculateDisplayedPistonAreaM2(knowns);
   return {
     schemaVersion: 2,
@@ -2952,11 +2989,14 @@ export const createPistonOscillationDataProcessingSession = (
   nowMs: number,
   options: CreatePistonOscillationDataProcessingSessionOptions = {},
 ): PistonOscillationDataProcessingSession => {
+  const knownVolume = isPistonKnownVolumeMeasurement(records);
+  if (knownVolume) options = { ...options, includeUncertainty: false, uncertaintyEligibility: { version: 'standard-real-teaching-v1', eligible: false, reason: 'known-volume' } };
   requireConsistentPistonOscillationGasMaterialSnapshot(records);
   const scoringPolicy = createPistonOscillationScoringPolicySnapshot(records);
   const unified = (options.unifiedPrecision ?? options.includeUncertainty) && options.answerValidationMode === 'batch';
   const useLoadedEquilibrium = options.calculationModelVersion !== PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION;
   return {
+    ...(knownVolume ? { volumeCondition: 'known' as const } : {}),
     ...(useLoadedEquilibrium ? { calculationModelVersion: PISTON_OSCILLATION_CALCULATION_MODEL_VERSION } : {}),
     ...(options.uncertaintyEligibility ? { uncertaintyEligibility: options.uncertaintyEligibility } : {}),
     ...(unified ? { precisionVersion: PISTON_PRECISION_VERSION } : {}),
@@ -3795,7 +3835,7 @@ export const advancePistonOscillationPeriodRun = (
   if (!run?.result) return session;
   const isLastRun = session.activeRunIndex === session.runs.length - 1;
   const modelVersion = session.calculationModelVersion ?? PISTON_OSCILLATION_LEGACY_CALCULATION_MODEL_VERSION;
-  if (isLastRun && session.precisionVersion && session.runs.every(candidate => candidate.result)) {
+  if (isLastRun && session.volumeCondition !== 'known' && session.precisionVersion && session.runs.every(candidate => candidate.result)) {
     const knowns = normalizePistonPrecisionKnowns(createPistonOscillationCalculationKnownsSnapshot(records, modelVersion));
     const fit = preparePistonUnifiedFit(knowns, session.runs, session.runs.map((_, i) => i), nowMs);
     const plan = fit.precisionPlan!;
@@ -3832,7 +3872,7 @@ export const advancePistonOscillationPeriodRun = (
     status: isLastRun ? 'calculation-ready' : session.status,
     activeRunIndex: isLastRun ? session.activeRunIndex : session.activeRunIndex + 1,
     calculationSession: isLastRun
-      ? createPistonOscillationCalculationSession(records, nowMs, session.uncertaintyCourseVersion === PISTON_UNCERTAINTY_VERSION, Boolean(session.precisionVersion), modelVersion)
+      ? createPistonOscillationCalculationSession(records, nowMs, session.uncertaintyCourseVersion === PISTON_UNCERTAINTY_VERSION, Boolean(session.precisionVersion), modelVersion, session.runs)
       : session.calculationSession,
     updatedAtMs: nowMs,
     audit,
@@ -4559,7 +4599,7 @@ export const completePistonOscillationCalculation = (
     session.status !== 'calculation-ready'
     || calculationSession?.status !== 'ready-to-exit'
     || !pistonUncertaintyComplete(calculationSession.uncertainty)
-    || !session.linearFitResult
+    || (!session.linearFitResult && calculationSession.volumeCondition !== 'known')
   ) return session;
   return {
     ...session,
@@ -5047,8 +5087,9 @@ const normalizeCalculationSession = (
   modelVersion: PistonOscillationCalculationModelVersion,
 ): PistonOscillationCalculationSessionSnapshot | null => {
   const persisted = isPlainRecord(value) ? value : null;
-  const fallback = createPistonOscillationCalculationSession(records, nowMs, includeUncertainty, unifiedPrecision, modelVersion);
-  const knowns = unifiedPrecision ? fallback.knowns : normalizeCalculationKnowns(persisted?.knowns, records, modelVersion);
+  const fallback = createPistonOscillationCalculationSession(records, nowMs, includeUncertainty, unifiedPrecision, modelVersion, runs);
+  const direct = fallback.volumeCondition === 'known';
+  const knowns = direct || unifiedPrecision ? fallback.knowns : normalizeCalculationKnowns(persisted?.knowns, records, modelVersion);
   if (knowns === null) return null;
   const selectedRunIndices = fitResult?.selectedRunIndices
     ?? (Array.isArray(persisted?.selectedRunIndices)
@@ -5059,7 +5100,7 @@ const normalizeCalculationSession = (
         )).filter((runIndex, index, indices) => indices.indexOf(runIndex) === index)
       : []);
   const initialAreaM2 = calculateDisplayedPistonAreaM2(knowns);
-  if (!fitResult) {
+  if (!fitResult && !direct) {
     return {
       ...fallback,
       knowns,
@@ -5074,20 +5115,20 @@ const normalizeCalculationSession = (
     };
   }
   const { areaM2, gamma, relativeErrorPercent } =
-    createPistonOscillationCalculationExpectedValues(knowns, fitResult);
+    direct ? calculatePistonKnownVolumeResult(fallback.knowns) : createPistonOscillationCalculationExpectedValues(knowns, fitResult!);
   const persistedAnswers = isPlainRecord(persisted?.answers) ? persisted.answers : null;
-  const area = normalizeCalculationAnswer(persistedAnswers?.area, areaM2, 'area', fitResult.precisionPlan?.digits.area);
+  const area = normalizeCalculationAnswer(persistedAnswers?.area, areaM2, 'area', direct ? 5 : fitResult?.precisionPlan?.digits.area);
   let gammaAnswer = normalizeCalculationAnswer(
     persistedAnswers?.gamma,
     gamma,
     'gamma',
-    fitResult.precisionPlan?.digits.gamma,
+    direct ? 5 : fitResult?.precisionPlan?.digits.gamma,
   );
   let relativeError = normalizeCalculationAnswer(
     persistedAnswers?.relativeError,
     relativeErrorPercent,
     'relativeError',
-    fitResult.precisionPlan ? 3 : undefined,
+    direct || fitResult?.precisionPlan ? 3 : undefined,
   );
   if (answerValidationMode === 'stepwise' && area.status === 'unresolved') {
     gammaAnswer = createCalculationAnswer(gamma);
@@ -5098,7 +5139,7 @@ const normalizeCalculationSession = (
   const allResolved = area.status !== 'unresolved'
     && gammaAnswer.status !== 'unresolved'
     && relativeError.status !== 'unresolved';
-  const uncertainty = includeUncertainty ? normalizePistonUncertaintyCourse(
+  const uncertainty = includeUncertainty && !direct && fitResult ? normalizePistonUncertaintyCourse(
     persisted?.uncertainty,
     calculatePistonUncertainty(knowns, fitResult, runs, createPistonUncertaintyProfile()),
   ) : undefined;
@@ -5144,7 +5185,8 @@ const normalizeCalculationSession = (
         : 'calculating',
     ...(uncertainty ? { uncertainty } : {}),
     knowns,
-    selectedRunIndices: fitResult.selectedRunIndices,
+    ...(direct ? { volumeCondition: 'known' as const } : {}),
+    selectedRunIndices: direct ? [0] : fitResult!.selectedRunIndices,
     activeFieldId: answerValidationMode === 'batch'
       ? allResolved ? null : visibleFieldIds.at(-1) ?? 'area'
       : activeFieldId,
@@ -5173,8 +5215,9 @@ export const normalizePistonOscillationDataProcessingSession = (
   value = cleanPistonUncertaintySnapshot(cleanPistonPrecisionDiagnosticSnapshot(value));
   if (records.length === 0) return null;
   if (!getConsistentPistonOscillationGasMaterialSnapshot(records)) return null;
-  const wantUncertainty = options.uncertaintyEligibility?.eligible ?? options.includeUncertainty
-    ?? (isPlainRecord(value) && typeof value.uncertaintyCourseVersion === 'string');
+  const knownVolume = isPistonKnownVolumeMeasurement(records);
+  const wantUncertainty = !knownVolume && (options.uncertaintyEligibility?.eligible ?? options.includeUncertainty
+    ?? (isPlainRecord(value) && typeof value.uncertaintyCourseVersion === 'string'));
   const wantUnified = options.unifiedPrecision ?? (wantUncertainty
     || (isPlainRecord(value) && value.precisionVersion === PISTON_PRECISION_VERSION));
   const modelVersion = options.calculationModelVersion ?? (isPlainRecord(value)
@@ -5286,7 +5329,7 @@ export const normalizePistonOscillationDataProcessingSession = (
   const activeRunIndex = Number.isInteger(value.activeRunIndex)
     ? Math.max(0, Math.min(runs.length - 1, value.activeRunIndex as number))
     : Math.max(0, runs.findIndex((run) => run.result === null));
-  const restoredLinearFitResult = allRunsCompleted
+  const restoredLinearFitResult = allRunsCompleted && !knownVolume
     ? normalizeLinearFitResult(value.linearFitResult, runs, unified ? normalizePistonPrecisionKnowns(createPistonOscillationCalculationKnownsSnapshot(records, modelVersion)) : undefined)
     : null;
   const restoredCalculationSession = allRunsCompleted
@@ -5314,6 +5357,7 @@ export const normalizePistonOscillationDataProcessingSession = (
         includeUncertainty,
         unified,
         modelVersion,
+        runs,
       )
     : restoredCalculationSession;
   const status = !allRunsCompleted

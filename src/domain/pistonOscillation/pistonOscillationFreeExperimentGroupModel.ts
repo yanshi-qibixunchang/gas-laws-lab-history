@@ -73,8 +73,11 @@ export interface PistonOscillationFreeExperimentGroup {
   createdAtMs: number | null;
   provenance: 'created' | 'legacy-inferred';
   scheme: PistonOscillationExperimentScheme;
+  volumeCondition?: import('./pistonOscillationExperimentContextModel.ts').PistonOscillationVolumeCondition;
   gasMaterialSnapshot: PistonOscillationGasMaterialSnapshot;
   parameterProfileVersion: string;
+  /** Version 2 defaults real-air acquisition to 0.5 s; absent means the saved legacy defaults. */
+  acquisitionDefaultsVersion?: 2;
   parameterSnapshot: PistonOscillationFreeParameterSnapshot | null;
   lock: PistonOscillationFreeExperimentLock | null;
 }
@@ -124,8 +127,10 @@ export const createPistonOscillationFreeExperimentGroup = (options: {
   createdAtMs?: number | null;
   provenance?: PistonOscillationFreeExperimentGroup['provenance'];
   scheme?: PistonOscillationExperimentScheme;
+  volumeCondition?: import('./pistonOscillationExperimentContextModel.ts').PistonOscillationVolumeCondition;
   gasMaterialSnapshot?: PistonOscillationGasMaterialSnapshot;
   parameterProfileVersion?: string;
+  acquisitionDefaultsVersion?: 2;
 } = {}): PistonOscillationFreeExperimentGroup => {
   const scheme = options.scheme ?? 'real';
   const gasMaterialSnapshot = {
@@ -137,6 +142,8 @@ export const createPistonOscillationFreeExperimentGroup = (options: {
     createdAtMs: options.createdAtMs ?? null,
     provenance: options.provenance ?? 'created',
     scheme,
+    ...(options.acquisitionDefaultsVersion === 2 ? { acquisitionDefaultsVersion: 2 as const } : {}),
+    ...(options.volumeCondition === 'known' && scheme === 'real' && gasMaterialSnapshot.gasType === 'air' ? { volumeCondition: 'known' as const } : {}),
     gasMaterialSnapshot,
     parameterProfileVersion: options.parameterProfileVersion?.trim()
       || (options.provenance === 'legacy-inferred' && scheme === 'real' && gasMaterialSnapshot.gasType === 'air'
@@ -153,6 +160,7 @@ export const createPistonOscillationFreeExperimentContextSnapshot = (
 ) => createPistonOscillationExperimentContextSnapshot({
   groupId: group.groupId,
   scheme: group.scheme,
+  volumeCondition: group.volumeCondition,
   parameterProfileVersion: group.parameterProfileVersion,
   provenance,
 });
@@ -166,6 +174,7 @@ export const selectPistonOscillationFreeExperimentScheme = (
   return {
     ...group,
     scheme,
+    volumeCondition: scheme === 'real' ? group.volumeCondition : undefined,
     parameterProfileVersion,
   };
 };
@@ -178,6 +187,7 @@ export const selectPistonOscillationFreeGasType = (
   return {
     ...group,
     gasMaterialSnapshot: createPistonOscillationGasMaterialSnapshot(gasType),
+    volumeCondition: gasType === 'air' ? group.volumeCondition : undefined,
     parameterProfileVersion: getPistonOscillationParameterProfileVersion(
       group.scheme,
       gasType,
@@ -287,6 +297,8 @@ export const normalizePistonOscillationFreeExperimentGroup = (
         groupId: persisted.groupId as string,
         createdAtMs: persisted.createdAtMs as number | null,
         provenance: persisted.provenance as PistonOscillationFreeExperimentGroup['provenance'],
+        volumeCondition: persisted.volumeCondition === 'known' ? 'known' : 'unknown',
+        acquisitionDefaultsVersion: persisted.acquisitionDefaultsVersion === 2 ? 2 : undefined,
         scheme: persisted.scheme as PistonOscillationExperimentScheme,
         gasMaterialSnapshot: persistedGasMaterial as PistonOscillationGasMaterialSnapshot,
         parameterProfileVersion: legacyPendingRealHelium

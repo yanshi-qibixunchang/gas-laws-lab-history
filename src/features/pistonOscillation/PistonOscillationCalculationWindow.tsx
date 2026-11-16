@@ -1,3 +1,4 @@
+import { pistonKnownVolumeCopy } from './pistonKnownVolumeCopy.ts';
 import {
   useCallback,
   useEffect,
@@ -234,6 +235,13 @@ const buildKnownConstantRows = (
       value: usesLoadedPressure || processing.precisionVersion ? String(knowns.pressurePa) : formatKnownPressure(knowns.pressurePa),
     },
   ];
+  if (knowns.knownVolume) {
+    const copy = pistonKnownVolumeCopy[language];
+    return splitCalculationKnownDataRows([...constants,
+      { key: 'totalVolume', label: copy.volume, value: formatDataValue(knowns.knownVolume.totalVolumeM3, 6) },
+      { key: 'period', label: copy.period, value: formatDataValue(knowns.knownVolume.periodS, 6) },
+    ], 2);
+  }
   if (!calculationSession.uncertainty) return [constants];
   return splitCalculationKnownDataRows([
     ...constants,
@@ -271,9 +279,10 @@ const getFeedbackText = (
 const getFormula = (
   fieldId: PistonOscillationCalculationFieldId,
   referenceGamma: number,
+  knownVolume = false,
 ) => {
   if (fieldId === 'area') return 'A = πd² / 4 =';
-  if (fieldId === 'gamma') return 'γ = 4π²ms / (AP) =';
+  if (fieldId === 'gamma') return knownVolume ? 'γ = 4π²mV / (PA²T²) =' : 'γ = 4π²ms / (AP) =';
   const formattedReferenceGamma = formatDecimalPlacesHalfEven(referenceGamma, 2);
   return `Eᵣ = |γ − ${formattedReferenceGamma}| / ${formattedReferenceGamma} × 100% =`;
 };
@@ -291,7 +300,7 @@ const PistonOscillationCalculationField = ({
   batchMode,
   actionLabel,
   actionDisabled,
-  referenceGamma,
+  referenceGamma, knownVolume,
   copy,
   onCalculationEvent,
   onAction,
@@ -305,6 +314,7 @@ const PistonOscillationCalculationField = ({
   actionLabel: string | null;
   actionDisabled: boolean;
   referenceGamma: number;
+  knownVolume?: boolean;
   copy: PistonOscillationCalculationCopy;
   onCalculationEvent: (event: PistonOscillationCalculationEvent) => void;
   onAction: () => void;
@@ -315,7 +325,7 @@ const PistonOscillationCalculationField = ({
   const dispatch = (event: PistonOscillationUntimedCalculationEvent) =>
     onCalculationEvent({ ...event, nowMs: Date.now() } as PistonOscillationCalculationEvent);
   return <PistonCalculationAnswerField fieldId={fieldId} inputId={`piston-calculation-${fieldId}`}
-    title={copy.stepTitle[fieldId]} formula={getFormula(fieldId, referenceGamma)}
+    title={copy.stepTitle[fieldId]} formula={getFormula(fieldId, referenceGamma, knownVolume)}
     unit={getAnswerUnit(fieldId)} precision={copy.precisionSignificant(precision.digits)}
     value={answer.draftRaw} status={answer.status} feedback={answer.feedback ? getFeedbackText(answer, copy) : null}
     reference={answer.expectedValue === null ? '' : formatPistonOscillationCalculationAnswer(fieldId, answer.expectedValue, answer)}
@@ -485,9 +495,12 @@ export const PistonOscillationCalculationWindow = ({
   onClose,
 }: PistonOscillationCalculationWindowProps) => {
   const generatedId = useId().replace(/:/g, '-');
-  const copy = getPistonOscillationCalculationCopy(language);
   const processing = freeSession?.dataProcessing ?? guideSession?.dataProcessing ?? null;
   const calculationSession = processing?.calculationSession ?? null;
+  const baseCopy = getPistonOscillationCalculationCopy(language);
+  const copy = calculationSession?.volumeCondition === 'known'
+    ? { ...baseCopy, stepTitle: pistonKnownVolumeCopy[language].stepTitle }
+    : baseCopy;
   const fit = processing?.linearFitResult ?? null;
   const dialogRef = useRef<HTMLElement | null>(null);
   const calculator = useScientificCalculator(open, language);
@@ -652,6 +665,8 @@ export const PistonOscillationCalculationWindow = ({
 
   if (!open || !processing || !calculationSession) return null;
 
+  const knownVolume = calculationSession.volumeCondition === 'known';
+  const volumeCopy = pistonKnownVolumeCopy[language];
   const knownRows = buildKnownConstantRows(processing, language);
   const fitDataRows = buildFitDataRows(processing);
   const uncertaintyDone = pistonUncertaintyComplete(calculationSession.uncertainty);
@@ -666,7 +681,7 @@ export const PistonOscillationCalculationWindow = ({
   const activeFieldIndex = calculationSession.activeFieldId
     ? CALCULATION_FIELD_ORDER.indexOf(calculationSession.activeFieldId)
     : CALCULATION_FIELD_ORDER.length - 1;
-  const visibleFieldIds = fit
+  const visibleFieldIds = fit || knownVolume
     ? batchMode
       ? calculationSession.visibleFieldIds
       : CALCULATION_FIELD_ORDER.slice(0, Math.max(1, activeFieldIndex + 1))
@@ -718,7 +733,7 @@ export const PistonOscillationCalculationWindow = ({
   return (
     <PromptDialogShell
       title={copy.title}
-      subtitle={calculationSession.status === 'completed'
+      subtitle={knownVolume ? volumeCopy.calculationSubtitle : calculationSession.status === 'completed'
         ? copy.reviewSubtitle
         : batchMode
           ? copy.freeSubtitle
@@ -767,13 +782,13 @@ export const PistonOscillationCalculationWindow = ({
           <header><strong id={knownTitleId}>{copy.knownTitle}</strong></header>
           <CalculationKnownGrid
             rows={knownRows}
-            columns={calculationSession.uncertainty ? 2 : 4}
+            columns={calculationSession.uncertainty || knownVolume ? 2 : 4}
             shortRowAlignment="start"
             style={{ '--calculation-known-value-width': '8ch' } as CSSProperties}
           />
         </section>
 
-        <section className="studio-piston-fit-selection" aria-labelledby={fitTitleId}>
+        {!knownVolume && <section className="studio-piston-fit-selection" aria-labelledby={fitTitleId}>
           <header>
             <div>
               <strong id={fitTitleId}>{copy.fitTitle}</strong>
@@ -822,12 +837,12 @@ export const PistonOscillationCalculationWindow = ({
               {copy.confirmFit}
             </button>
           ) : null}
-        </section>
+        </section>}
 
-        {fit ? (
+        {fit || knownVolume ? (
           <>
-            <PistonOscillationFitChart processing={processing} fit={fit} copy={copy} />
-            {fit.slopeMPerS2 <= 0 ? (
+            {fit && <PistonOscillationFitChart processing={processing} fit={fit} copy={copy} />}
+            {fit && fit.slopeMPerS2 <= 0 ? (
               <div className="studio-piston-calculation-format-warning" role="status">
                 {copy.invalidSlopeNotice}
               </div>
@@ -876,6 +891,7 @@ export const PistonOscillationCalculationWindow = ({
                     actionLabel={actionLabel}
                     actionDisabled={actionDisabled}
                     referenceGamma={calculationSession.knowns.referenceGamma}
+                    knownVolume={knownVolume}
                     copy={copy}
                     onCalculationEvent={onCalculationEvent}
                     onAction={onAction}
@@ -908,7 +924,7 @@ export const PistonOscillationCalculationWindow = ({
               {(calculationSession.status === 'ready-to-exit'
                 || calculationSession.status === 'completed') && uncertaintyDone ? (
                   <div className="studio-piston-calculation-ready" role="status">
-                    {batchMode ? copy.freeReady : copy.ready}
+                    {knownVolume ? volumeCopy.ready : batchMode ? copy.freeReady : copy.ready}
                   </div>
                 ) : null}
             </div>

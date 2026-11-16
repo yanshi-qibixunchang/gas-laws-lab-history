@@ -116,7 +116,7 @@ assert.match(
 );
 
 const modeControlSource = readFileSync(new URL('../../src/features/workbench/WorkbenchPistonOscillationModeControl.tsx', import.meta.url), 'utf8');
-assert.match(contractWorkbenchPistonModeActionsSource, /const startFree = \(\) => \{[\s\S]*requestFreeSetup/, 'the Piston Free button should now open setup instead of remaining disabled');
+assert.match(contractWorkbenchPistonModeActionsSource, /const resumeOrConfigure = \(\) => activatePistonOscillationFreeMode\(null\)/, 'the Free button should enter parameter preparation without opening the plan dialog');
 assert.match(contractWorkbenchPistonOscillationModeControlSource, /data-piston-oscillation-mode="free"[\s\S]*onClick=\{startFree\}/, 'the Piston Free button should now open setup instead of remaining disabled');
 assert.doesNotMatch(
   modeControlSource,

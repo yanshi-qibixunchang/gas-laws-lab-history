@@ -41,6 +41,7 @@ export interface FreeExperimentProgressProps {
   details?: readonly FreeExperimentProgressDetail[];
   actions?: readonly FreeExperimentProgressAction[];
   primaryAction?: FreeExperimentProgressAction;
+  primaryAttention?: boolean;
   disabled?: boolean;
   dataOwner: string;
 }
@@ -70,7 +71,7 @@ export const FreeExperimentProgress = ({
   menuTitle,
   details = [],
   actions = [],
-  primaryAction,
+  primaryAction, primaryAttention = false,
   disabled = false,
   dataOwner,
 }: FreeExperimentProgressProps) => {
@@ -295,7 +296,8 @@ export const FreeExperimentProgress = ({
       {primaryAction ? (
         <button
           type="button"
-          className="free-experiment-progress-primary"
+          className={`free-experiment-progress-primary ${primaryAttention ? 'free-experiment-progress-primary-attention' : ''}`}
+          data-idle-attention={primaryAttention || undefined}
           disabled={disabled || primaryAction.disabled}
           {...applyDataAttribute(primaryAction.dataAttribute)}
           onClick={primaryAction.onSelect}

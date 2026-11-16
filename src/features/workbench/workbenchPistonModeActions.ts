@@ -289,9 +289,7 @@ export const createWorkbenchPistonModeActions = (ports: WorkbenchPistonModeActio
 
   const startFree = () => {
       if (freeSelected) return;
-      const resumeOrConfigure = activeFile.pistonOscillationFreeSession.status === 'paused'
-        ? () => activatePistonOscillationFreeMode(null)
-        : requestFreeSetup;
+      const resumeOrConfigure = () => activatePistonOscillationFreeMode(null);
       const unfinishedGuide = guideSessionSelected && !guideCompleted;
       if (demoRunning || demoPaused || unfinishedGuide) {
         requestPistonTeachingModeSwitch(resumeOrConfigure);

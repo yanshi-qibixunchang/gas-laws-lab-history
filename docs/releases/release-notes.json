@@ -3,6 +3,88 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.5.2",
+      "date": "2026-11-16",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.2",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.2/heat-capacity-lab-setup-6.5.2.exe"
+      },
+      "summary": {
+        "zh-CN": "6.5.2 新增真实空气的已知总体积单次活塞实验，调整自由模式计划顺序与体积下拉框，并将真实空气默认记录时间改为 0.5 秒。保留旧实验数据及物理参数配置。",
+        "zh-TW": "6.5.2 新增真實空氣的已知總體積單次活塞實驗，調整自由模式計畫順序及體積下拉選單，並將真實空氣預設記錄時間改為 0.5 秒。保留舊實驗資料及物理參數配置。",
+        "en": "6.5.2 adds a single piston trial with known total volume for realistic air, improves Free-mode plan setup and the volume dropdown, and changes the realistic-air default duration to 0.5 s. Historical data and physical profiles are preserved."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "本次新增与改进",
+            "zh-TW": "本次新增與改進",
+            "en": "New features and improvements"
+          },
+          "items": [
+            {
+              "scope": "known-volume-direct",
+              "importance": "high",
+              "title": {
+                "zh-CN": "已知总体积单次实验",
+                "zh-TW": "已知總體積單次實驗",
+                "en": "Single trial with known total volume"
+              },
+              "body": {
+                "zh-CN": "活塞自由模式新增“未知体积／已知体积”。已知体积限真实空气，固定一次、目标高度 50 mm；使用该次保存的加载平衡总体积、同状态压力和实测周期，直接计算面积、比热容比及相对误差，不经过拟合或不确定度计算。",
+                "zh-TW": "活塞自由模式新增「未知體積／已知體積」。已知體積限真實空氣，固定一次、目標高度 50 mm；使用該次儲存的加載平衡總體積、同狀態壓力及實測週期，直接計算面積、比熱容比及相對誤差，不經過擬合或不確定度計算。",
+                "en": "Piston Free mode adds unknown/known volume conditions. Known volume is available for realistic air only, with one trial at a 50 mm target. The saved loaded-equilibrium volume, pressure at that state and measured period determine area, heat-capacity ratio and relative error directly, without fitting or uncertainty steps."
+              }
+            },
+            {
+              "scope": "free-plan-and-volume-control",
+              "importance": "high",
+              "title": {
+                "zh-CN": "先调参，再建立计划",
+                "zh-TW": "先調參，再建立計畫",
+                "en": "Adjust parameters before creating a plan"
+              },
+              "body": {
+                "zh-CN": "首次进入自由模式先展开参数栏，再由三维视图内现有按钮确认计划。未知体积保留 3–6 次、多高度流程；已知体积显示固定计划确认窗。无计划且参数栏展开时，闲置 10 秒提示计划入口；体积下拉框统一字号、尺寸及键盘交互。",
+                "zh-TW": "首次進入自由模式先展開參數欄，再由三維視圖內既有按鈕確認計畫。未知體積保留 3–6 次、多高度流程；已知體積顯示固定計畫確認窗。無計畫且參數欄展開時，閒置 10 秒提示計畫入口；體積下拉選單統一字級、尺寸及鍵盤互動。",
+                "en": "Free mode opens the parameter sidebar before plan creation using the existing apparatus-view button. Unknown volume keeps 3–6 trials at multiple heights; known volume uses a fixed-plan confirmation. After 10 idle seconds with the sidebar open and no plan, the plan button is highlighted. The volume dropdown follows the shared typography, sizing and keyboard behavior."
+              }
+            },
+            {
+              "scope": "real-air-duration",
+              "importance": "high",
+              "title": {
+                "zh-CN": "真实空气默认记录 0.5 秒",
+                "zh-TW": "真實空氣預設記錄 0.5 秒",
+                "en": "Realistic-air default recording: 0.5 seconds"
+              },
+              "body": {
+                "zh-CN": "真实空气自由实验的新建、完整重置及恢复默认参数采用 0.5 s，原为 1.2 s。保留旧存档、明确设置和冻结快照中的时长；理想条件、氦气及演示／引导流程不变。物理参数配置沿用 6.5.0。",
+                "zh-TW": "真實空氣自由實驗的新建、完整重設及恢復預設參數採用 0.5 s，原為 1.2 s。保留舊存檔、明確設定及凍結快照中的時長；理想條件、氦氣及演示／引導流程不變。物理參數配置沿用 6.5.0。",
+                "en": "New, fully reset and default-restored realistic-air Free experiments use 0.5 s instead of 1.2 s. Existing saves, explicit settings and frozen snapshots retain their durations. Ideal conditions, helium and Demo/Guide flows keep their behavior. Physical profiles remain unchanged from 6.5.0."
+              }
+            },
+            {
+              "scope": "direct-results-and-provenance",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保存、回顾与导出",
+                "zh-TW": "儲存、回顧及匯出",
+                "en": "Persistence, review and export"
+              },
+              "body": {
+                "zh-CN": "单次方法保存来源记录及总体积快照，重做后同步更新并使旧周期与答案失效。计算显示、答案校验与导出共用显示值；过程回顾使用总体积和周期，不因缺少拟合扣分。报告及数据表按方法输出公式与来源，三语说明与第三方清单同步更新。两种方法通过相对误差比较，不预设单次实验更准确。",
+                "zh-TW": "單次方法儲存來源記錄及總體積快照，重做後同步更新並使舊週期與答案失效。計算顯示、答案驗證及匯出共用顯示值；過程回顧使用總體積及週期，不因缺少擬合扣分。報告與資料表依方法輸出公式及來源，三語說明與第三方清單同步更新。兩種方法透過相對誤差比較，不預設單次實驗更準確。",
+                "en": "The direct method retains its source measurement and volume snapshot; remeasurement refreshes them and invalidates old periods and answers. Displayed values drive validation and exports. Review shows volume and period without penalizing absent fitting. Reports and tables include method-specific formulas and provenance. Three-language documentation and third-party inventories are updated. Compare methods by relative error; a single trial is not assumed more accurate."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.5.1",
       "date": "2026-11-16",
       "channel": "stable",

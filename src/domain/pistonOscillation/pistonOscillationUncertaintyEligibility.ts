@@ -5,6 +5,7 @@ import { getPistonOscillationStoredRealParameterBaseline } from './pistonOscilla
 
 /** Never infer eligibility from the current sidebar or a saved eligibility flag. */
 export const evaluatePistonUncertaintyEligibility = (group: PistonOscillationFreeExperimentGroup) => {
+  if (group.volumeCondition === 'known') return uncertaintyTeachingEligibility('known-volume');
   if (group.scheme === 'ideal') return uncertaintyTeachingEligibility('ideal');
   if (!group.parameterSnapshot || group.provenance === 'legacy-inferred') return uncertaintyTeachingEligibility('missing-snapshot');
   const parameters = group.parameterSnapshot.parameters;

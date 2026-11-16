@@ -6,7 +6,7 @@ export const UNCERTAINTY_TEACHING_ENVIRONMENT = {
 
 export type UncertaintyTeachingReason =
   | 'eligible' | 'ideal' | 'missing-snapshot' | 'environment'
-  | 'instrument-model' | 'record-criteria' | 'acquisition';
+  | 'instrument-model' | 'record-criteria' | 'acquisition' | 'known-volume';
 
 export interface UncertaintyTeachingEligibility {
   version: 'standard-real-teaching-v1';
@@ -43,9 +43,10 @@ export const getUncertaintyTeachingNotice = (
   eligibility: UncertaintyTeachingEligibility | undefined,
   language: string = 'zh-CN',
 ): string | null => {
-  if (!eligibility || eligibility.eligible) return null;
+  if (!eligibility || eligibility.eligible || eligibility.reason === 'known-volume') return null;
   const english = language === 'en';
   const reasons: Record<Exclude<UncertaintyTeachingReason, 'eligible'>, [string, string]> = {
+    'known-volume': ['已知总体积直接计算。', 'Direct calculation with known total volume.'],
     ideal: ['理想模式仅进行基本数据计算。', 'Ideal mode includes basic data calculations only.'],
     'missing-snapshot': ['旧记录缺少可核对的采集参数，需重新实验后进行不确定度计算。', 'The acquisition settings of these older records cannot be verified. Repeat the experiment to evaluate uncertainty.'],
     environment: ['本组采集时的环境超出不确定度教学范围（10～35 ℃、80～110 kPa），仅进行基本数据计算。', 'The recorded environment is outside the uncertainty teaching range (10–35 °C, 80–110 kPa). Basic calculations remain available.'],

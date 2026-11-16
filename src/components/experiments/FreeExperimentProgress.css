@@ -326,3 +326,12 @@
     animation: none;
   }
 }
+
+.free-experiment-progress-primary.free-experiment-progress-primary-attention {
+  animation: workbenchToolBreathe 1.8s ease-in-out infinite;
+  border-color: rgba(199, 161, 90, 0.68);
+  box-shadow: 0 0 0 1px rgba(199, 161, 90, 0.24), 0 0 18px rgba(199, 161, 90, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .free-experiment-progress-primary.free-experiment-progress-primary-attention { animation: none; }
+}

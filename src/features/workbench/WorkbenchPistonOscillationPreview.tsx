@@ -1,3 +1,4 @@
+import { usePistonExperimentIdleAttention } from '../pistonOscillation/usePistonExperimentIdleAttention.ts';
 import { getPistonFreeAcquisitionSummary } from './experimentProgressPresentation.ts';
 import type React from 'react';
 import {
@@ -20,6 +21,7 @@ import {
 } from './WorkbenchScientificText.tsx';
 
 export interface WorkbenchPistonOscillationPreviewProps {
+  parametersExpanded?: boolean;
   activeFile: import('./workbenchPistonOscillationState.ts').WorkbenchHeatCapacityPistonOscillationState;
   activePistonOscillationParameterSignature: string;
   settingsLanguagePreference: "zh-CN" | "zh-TW" | "en";
@@ -107,7 +109,12 @@ export const WorkbenchPistonOscillationPreview = ({
   handlePistonOscillationPressStartEvent,
   handlePistonOscillationFreeOperationObserved,
   pistonOscillationLivePressureChannel,
+  parametersExpanded = false,
 }: WorkbenchPistonOscillationPreviewProps) => {
+  const preparing = activePistonOscillationFreeSelected && activeFile.pistonOscillationFreeSession.experimentPlan === null;
+  const setupAttention = usePistonExperimentIdleAttention(preparing && parametersExpanded
+    && !pistonOscillationFreeSetupOpen && !pistonOscillationGuideLessonDialog,
+    activeFile.id + ':' + activeFile.pistonOscillationFreeSession.updatedAtMs);
   return <div className="studio-piston-oscillation-preview-mount">
             <PistonOscillationInstrumentScene
               key={`${activeFile.id}:${activePistonOscillationParameterSignature}`}
@@ -158,6 +165,7 @@ export const WorkbenchPistonOscillationPreview = ({
                 activePistonOscillationGuideTimeFrozen
                 || pistonOscillationGuideLessonDialog !== null
                 || pistonOscillationFreeSetupOpen
+                || preparing
               }
               guideVisualCue={pistonGuideVisualCue}
               guideScrewInteractionMode={pistonGuideScrewInteractionMode}
@@ -196,6 +204,7 @@ export const WorkbenchPistonOscillationPreview = ({
                   return (
                     <FreeExperimentProgress
                       dataOwner="piston-oscillation"
+                      primaryAttention={setupAttention}
                       primaryAction={{
                         id: 'setup-new-experiment-plan',
                         label: copy.pistonSetup,

@@ -93,7 +93,8 @@ export const createWorkbenchPistonFreeActions = (ports: createWorkbenchPistonFre
     }));
     setPistonOscillationFreeSetupRequestedFileId(null);
     setLeftCollapsed(true);
-    setParametersCollapsed(true);
+    const activated = nextFiles.find(file => file.id === fileId);
+    setParametersCollapsed(Boolean(activated?.kind === 'heatCapacityPistonOscillation' && activated.pistonOscillationFreeSession.experimentPlan));
   };
 
   const pausePistonOscillationFreeMode = () => {
@@ -189,6 +190,7 @@ export const createWorkbenchPistonFreeActions = (ports: createWorkbenchPistonFre
           [fileId]: (current[fileId] ?? 0) + 1,
         }));
         setPistonOscillationFreeSetupRequestedFileId(null);
+        setParametersCollapsed(false);
       },
     });
   };

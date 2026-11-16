@@ -10,6 +10,10 @@ Chromium notices, font notices, exporter notices, audio attribution, and the
 packaged 3D-asset provenance under `public/legal`; those generated files are
 included in the installer and available from the in-app legal materials view.
 
+## Release 6.5.2
+
+The known-volume piston workflow adds no third-party runtime dependency or new external asset. The direct period formula uses the existing PASCO EX-5531A physics reference recorded in the piston modeling bibliography; it is a scientific reference, not bundled third-party code. The exact package, exporter, font, audio and model inventories are regenerated for this release. Existing license and attribution obligations remain in force.
+
 ## NPM Dependencies
 
 The application is built with npm packages listed in `package.json` and locked

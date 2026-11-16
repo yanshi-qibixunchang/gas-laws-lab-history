@@ -69,10 +69,10 @@ export const isPistonOscillationReportReady = (
   if (
     session.status !== 'active'
     || processing?.status !== 'completed'
-    || processing.linearFitResult === null
+    || (processing.linearFitResult === null && processing.volumeCondition !== 'known')
     || processing.calculationSession?.status !== 'completed'
     || !pistonUncertaintyComplete(processing.calculationSession.uncertainty)
-    || processing.runs.length < 3
+    || (processing.volumeCondition === 'known' ? processing.runs.length !== 1 : processing.runs.length < 3)
   ) return false;
   if (
     !processing.scoringPolicy
@@ -227,6 +227,7 @@ export const createPistonOscillationReportExportPayload = (
       periodResult: run.result,
       calculationPrecision: run.calculationPrecision,
       fitHeightMm: run.fitHeightMm,
+      includedInCalculation: processing.volumeCondition === 'known' || (processing.linearFitResult?.selectedRunIndices.includes(run.measurementIndex) ?? false),
       includedInFit: processing.linearFitResult?.selectedRunIndices.includes(
         run.measurementIndex,
       ) ?? false,
@@ -322,6 +323,7 @@ export const createPistonOscillationReportExportPayload = (
       fileName: file.name,
       experimentName,
       experimentMode: 'free',
+      volumeCondition: session.experimentGroup.volumeCondition ?? 'unknown',
       experimentGroup: {
         groupId: session.experimentGroup.groupId,
         scheme,
@@ -345,6 +347,8 @@ export const createPistonOscillationReportExportPayload = (
       summary: {
         measurementCount: measurements.length,
         fitPointCount: processing.linearFitResult?.selectedRunIndices.length ?? 0,
+        totalVolumeM3: calculation?.knowns.knownVolume?.totalVolumeM3 ?? null,
+        measuredPeriodS: calculation?.knowns.knownVolume?.periodS ?? null,
         areaM2: calculation?.answers.area.expectedValue ?? null,
         gamma: calculation?.answers.gamma.expectedValue ?? null,
         reportedGamma: uncertaintyAnalysis ? pistonUncertaintyReference('result', uncertaintyAnalysis) : null,

@@ -178,6 +178,30 @@ assert.equal(active.audit.length, 1);
 assert.equal(active.audit[0]?.type, 'session-started');
 assert.equal(active.experimentGroup.groupId, 'piston-free-group:100');
 
+const duration = (value: typeof active) => resolvePistonOscillationFreeEffectiveConfig(
+  value.experimentGroup, value.parameterDraft,
+).parameters.recordingDurationS;
+assert.equal(duration(active), 0.5);
+assert.equal(duration(normalizePistonOscillationFreeSession(JSON.parse(JSON.stringify(active)))), 0.5);
+assert.equal(duration(transitionPistonOscillationFreeSession(active, {
+  type: 'setVolumeCondition', volumeCondition: 'known', nowMs: 100.1,
+})), 0.5);
+const legacyDuration = normalizePistonOscillationFreeSession({
+  ...active, experimentGroup: { ...active.experimentGroup, acquisitionDefaultsVersion: undefined },
+});
+assert.equal(duration(legacyDuration), 1.2, 'Missing legacy duration retains its 6.5.0/6.5.1 default');
+const customDuration = transitionPistonOscillationFreeSession(active, {
+  type: 'setAcquisitionSetting', field: 'recordingDurationS', value: 1.2, nowMs: 100.2,
+});
+assert.equal(duration(normalizePistonOscillationFreeSession(customDuration)), 1.2);
+for (const type of ['restoreDefaultParameters', 'reset'] as const) {
+  assert.equal(duration(transitionPistonOscillationFreeSession(legacyDuration, { type, nowMs: 100.3 })), 0.5);
+}
+const frozenDuration = transitionPistonOscillationFreeSession(customDuration, {
+  type: 'observeOperation', operation: 'startAcquisition', nowMs: 100.4,
+});
+assert.equal(duration(normalizePistonOscillationFreeSession(frozenDuration)), 1.2);
+
 const idealAirSelection = transitionPistonOscillationFreeSession(active, {
   type: 'setExperimentScheme',
   scheme: 'ideal',

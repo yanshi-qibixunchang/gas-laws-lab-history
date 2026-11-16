@@ -38,7 +38,8 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
     : {
         ...parameterDraft,
         ...(group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
-          && parameterDraft.recordingDurationS === undefined ? { recordingDurationS: 1.2 } : {}),
+          && parameterDraft.recordingDurationS === undefined
+          ? { recordingDurationS: group.acquisitionDefaultsVersion === 2 ? 0.5 : 1.2 } : {}),
       });
   const basePhysicsConfig = idealProfile?.physicsConfig
     ?? getPistonOscillationFreePhysicsConfig(parameters);

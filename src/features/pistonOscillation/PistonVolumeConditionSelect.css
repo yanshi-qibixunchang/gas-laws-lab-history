@@ -1,0 +1,41 @@
+/* Reuse the workbench preset dropdown, sized for the parameter value column. */
+.studio-piston-volume-select {
+  min-width: 0;
+}
+
+.studio-piston-volume-select .studio-ideal-preset-trigger {
+  height: 26px;
+  gap: 5px;
+  padding: 0 8px;
+  font: 12px/1.5 var(--app-font-ui);
+}
+
+.studio-piston-volume-select strong {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.studio-piston-volume-select .studio-ideal-preset-menu {
+  left: auto;
+  min-width: 100%;
+  width: max-content;
+  border-radius: 4px;
+}
+
+.studio-piston-volume-select .studio-ideal-preset-menu button {
+  display: flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 5px 8px;
+  font: 12px/1.5 var(--app-font-ui);
+}
+
+.studio-piston-volume-select .studio-ideal-preset-menu button[aria-selected='true'] {
+  background: var(--studio-accent-soft);
+  color: var(--studio-text);
+}

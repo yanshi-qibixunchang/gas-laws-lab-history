@@ -26,6 +26,7 @@ export interface WorkbenchCurrentParametersProps {
   acknowledgePistonOscillationAdvancedParametersRisk: () => void;
   restorePistonOscillationFreeParameters: () => void;
   setPistonOscillationFreeExperimentScheme: (scheme: "ideal" | "real") => void;
+  setPistonOscillationVolumeCondition: (condition: 'known' | 'unknown') => void;
   setPistonOscillationFreeGasType: (gasType: "air" | "helium") => void;
   showPistonOscillationParameterLockHint: () => void;
   idealAdvancedSettingsOpen: boolean;
@@ -58,7 +59,7 @@ export const WorkbenchCurrentParameters = ({
   acknowledgePistonOscillationAdvancedParametersRisk,
   restorePistonOscillationFreeParameters,
   setPistonOscillationFreeExperimentScheme,
-  setPistonOscillationFreeGasType,
+  setPistonOscillationFreeGasType, setPistonOscillationVolumeCondition,
   showPistonOscillationParameterLockHint,
   idealAdvancedSettingsOpen,
   toggleIdealAdvancedSettings,
@@ -141,6 +142,7 @@ export const WorkbenchCurrentParameters = ({
                         setPistonOscillationFreeExperimentScheme
                       }
                       onGasTypeChange={setPistonOscillationFreeGasType}
+                      onVolumeConditionChange={setPistonOscillationVolumeCondition}
                       onLockedInteraction={showPistonOscillationParameterLockHint}
                     />
                   ) : activeFile.kind === 'heatCapacity' ? (
