@@ -3,6 +3,74 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.5.4",
+      "date": "2026-11-17",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.4",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.4/heat-capacity-lab-setup-6.5.4.exe"
+      },
+      "summary": {
+        "zh-CN": "6.5.4 采用确认后的真实活塞参数，并以逐次结果范围说明核验边界，保留旧实验。",
+        "zh-TW": "6.5.4 採用確認後的真實活塞參數，並以逐次結果範圍說明核驗邊界，保留舊實驗。",
+        "en": "6.5.4 adopts the accepted realistic piston presets and reports individual-result validation ranges while preserving saved experiments."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "本次更新",
+            "zh-TW": "本次更新",
+            "en": "Changes"
+          },
+          "items": [
+            {
+              "scope": "real-piston-retuned-presets",
+              "importance": "high",
+              "title": {
+                "zh-CN": "更新真实活塞参数",
+                "zh-TW": "更新真實活塞參數",
+                "en": "Updated realistic piston presets"
+              },
+              "body": {
+                "zh-CN": "采用本次确认的空气、氦气参数，调整剩余机械损耗、换热、传感器响应及尾段扰动。内部耗散与对外换热继续同时启用，各启用系数保持非零；演示与引导仍采用 70、60、50 mm。",
+                "zh-TW": "採用本次確認的空氣、氦氣參數，調整剩餘機械損耗、換熱、感測器響應及尾段擾動。內部耗散與對外換熱繼續同時啟用，各啟用係數保持非零；示範與引導仍採用 70、60、50 mm。",
+                "en": "Adopts the accepted air and helium parameters for residual mechanical loss, heat transfer, sensor response and tail disturbance. Internal dissipation and external heat transfer remain active with nonzero coefficients. Demo and guided heights remain 70, 60 and 50 mm."
+              }
+            },
+            {
+              "scope": "profile-history",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保留旧实验参数",
+                "zh-TW": "保留舊實驗參數",
+                "en": "Preserve saved experiments"
+              },
+              "body": {
+                "zh-CN": "新建、完整重置或恢复默认参数后使用 6.5.4 配置；6.5.3 及更早实验继续沿用各自模型、参数快照和采集记录。兼容已知总体积与未知体积计算，第三方依赖版本不变。",
+                "zh-TW": "新建、完整重設或恢復預設參數後使用 6.5.4 設定；6.5.3 及更早實驗繼續沿用各自模型、參數快照及擷取記錄。相容已知總體積與未知體積計算，第三方依賴版本不變。",
+                "en": "New experiments, full resets and restored defaults use 6.5.4. Saved experiments from 6.5.3 and earlier retain their model versions, parameter snapshots and recordings. Both volume calculation workflows remain compatible; dependency versions are unchanged."
+              }
+            },
+            {
+              "scope": "validation-boundaries",
+              "importance": "high",
+              "title": {
+                "zh-CN": "按逐次结果范围报告核验",
+                "zh-TW": "按逐次結果範圍報告核驗",
+                "en": "Validation reported as individual-result ranges"
+              },
+              "body": {
+                "zh-CN": "70、60、50 mm 下每种气体共 450 次正常操作结果：空气 1.346–1.568，7 次超出 1.3400–1.4600；氦气 1.662–1.668，均在按 25/21 换算的正常操作范围内。空气波形留出复核仍为 4/16 条通过，氦气尚无实测波形核验；不宣称全面标定。",
+                "zh-TW": "70、60、50 mm 下每種氣體共 450 次正常操作結果：空氣 1.346–1.568，7 次超出 1.3400–1.4600；氦氣 1.662–1.668，均在按 25/21 換算的正常操作範圍內。空氣波形留出複核仍為 4/16 條通過，氦氣尚無實測波形核驗；不宣稱全面標定。",
+                "en": "Across 450 normal-operation results per gas at 70, 60 and 50 mm, air spans 1.346–1.568 with seven results outside 1.3400–1.4600; helium spans 1.662–1.668 within its proportionally scaled band. Only 4/16 held-out air waveforms meet all criteria; helium has no measured waveform validation. This is not a claim of full apparatus calibration."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.5.3",
       "date": "2026-11-17",
       "channel": "stable",

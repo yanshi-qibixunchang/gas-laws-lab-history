@@ -29,7 +29,9 @@ for(const gas of ['air','helium'] as const) {
   const base=simulate(gas,'real',70);
   const normal=observe(base,1)!;
   assert.deepEqual(observe(delayedRelease(base,0),1)!.run.result,normal.run.result);
-  const gapMs=gas==='air'?500:300;
+  // The retuned helium loss permits a third detectable cycle at 300 ms.
+  // Use the same severe 500 ms mismatch for both gases to test a short trace.
+  const gapMs=500;
   const bad=delayedRelease(base,gapMs);
   const samples=bad.trajectory.samples;
   const eq=bad.trajectory.equilibrium.equilibriumPressurePa;

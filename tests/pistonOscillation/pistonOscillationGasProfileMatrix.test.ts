@@ -114,12 +114,12 @@ assert.deepEqual(
   {
     ...airDefaults,
     releaseAsymmetryModelVersion: 'piston-oscillation-release-asymmetry-v2',
-    equivalentLinearLossNsPerM: 0.08636830285991312,
-    thermalRelaxationTimeS: 0.01527079271805452,
-    thermalVolumeExponent: 1.038097266483478,
-    heatFlowLagTimeS: 0.0005000000000000001,
-    sensorResponseTimeS: 0.003806723024139263,
-    tailIntensity: 0.25,
+    equivalentLinearLossNsPerM: 0.0647131680007071,
+    thermalRelaxationTimeS: 0.015089979178891986,
+    thermalVolumeExponent: 1.035946908448466,
+    heatFlowLagTimeS: 0.0007928247368760714,
+    sensorResponseTimeS: 0.0038427242396864543,
+    tailIntensity: 0.29490119576081647,
   },
 );
 assert.equal(inferPistonOscillationRealAirProfileVersion({
@@ -144,12 +144,12 @@ assert.equal(
   heliumProfile.parameters.thermalRelaxationTimeS,
   PISTON_OSCILLATION_REAL_HELIUM_THERMAL_RELAXATION_TIME_S,
 );
-assert.equal(heliumProfile.parameters.thermalRelaxationTimeS, 0.009511893839427972);
-assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0010949366477406466);
-assert.equal(heliumProfile.parameters.thermalVolumeExponent, 0.8121807010401484);
-assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.3315636895362068);
-assert.equal(heliumProfile.parameters.heatFlowLagTimeS, 0.0015691900692024546);
-assert.equal(heliumProfile.parameters.tailIntensity, 0.2771748138827636);
+assert.equal(heliumProfile.parameters.thermalRelaxationTimeS, 0.008119441845188188);
+assert.equal(heliumProfile.parameters.sensorResponseTimeS, 0.0019230301189082175);
+assert.equal(heliumProfile.parameters.thermalVolumeExponent, 1.0242311259579155);
+assert.equal(heliumProfile.parameters.equivalentLinearLossNsPerM, 0.07993386079686979);
+assert.equal(heliumProfile.parameters.heatFlowLagTimeS, 0.0005);
+assert.equal(heliumProfile.parameters.tailIntensity, 0.19875220242000705);
 assert.equal(inferPistonOscillationRealHeliumProfileVersion(heliumProfile.parameters), heliumProfile.version);
 for (const version of [
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V4,

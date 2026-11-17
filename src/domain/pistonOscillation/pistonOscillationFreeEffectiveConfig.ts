@@ -15,7 +15,9 @@ import {
 } from './pistonOscillationIdealParameterProfile.ts';
 import {
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V11,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V8,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION,
 } from './pistonOscillationRealParameterProfile.ts';
 
@@ -42,6 +44,7 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
     : {
         ...parameterDraft,
         ...((group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
+          || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V11
           || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10)
           && parameterDraft.recordingDurationS === undefined
           ? { recordingDurationS: group.acquisitionDefaultsVersion === 2 ? 0.5 : 1.2 } : {}),
@@ -50,7 +53,9 @@ export const resolvePistonOscillationFreeEffectiveConfig = (
     ?? getPistonOscillationFreePhysicsConfig(parameters);
   const realInternalDissipation = group.scheme === 'real'
     && (group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_VERSION
-      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION);
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V11
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_VERSION
+      || group.parameterProfileVersion === PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V8);
   return {
     scheme: group.scheme,
     gasMaterialSnapshot: { ...group.gasMaterialSnapshot },

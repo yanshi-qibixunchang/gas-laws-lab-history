@@ -7,7 +7,11 @@ import { normalizePistonOscillationRawMeasurementRecord } from '../../src/domain
 import {
   createPistonOscillationRealParameterDraft, getPistonOscillationStoredRealParameterBaseline,
   PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10,
+  PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V11,
   PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V7,
+  PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V8,
+  inferPistonOscillationRealAirProfileVersion,
+  inferPistonOscillationRealHeliumProfileVersion,
 } from '../../src/domain/pistonOscillation/pistonOscillationRealParameterProfile.ts';
 
 for (const gas of ['air', 'helium'] as const) {
@@ -24,7 +28,19 @@ for (const gas of ['air', 'helium'] as const) {
   assert.deepEqual(normalizePistonOscillationRawMeasurementRecord(JSON.parse(JSON.stringify(observed.record))), observed.record);
   const result = fit(HEIGHTS.map(h => observe(simulate(gas, 'real', h), 1)));
   assert.ok(result);
-  assert.ok(Math.abs(result.gamma - (gas === 'air' ? 1.384 : 1.674)) < .002, 'new preset uses the accepted production calculation chain');
+  assert.equal(result.gamma, gas === 'air' ? 1.358 : 1.668, '70/60/50 mm production chain matches the accepted seed-1 candidate');
+
+  const releasedVersion = gas === 'air' ? PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V11 : PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V8;
+  const releasedDraft = getPistonOscillationStoredRealParameterBaseline(gas, releasedVersion)!;
+  const releasedGroup = createPistonOscillationFreeExperimentGroup({ scheme: 'real', parameterProfileVersion: releasedVersion,
+    gasMaterialSnapshot: createPistonOscillationGasMaterialSnapshot(gas), acquisitionDefaultsVersion: 2 });
+  assert.ok(isPistonOscillationFreeExperimentProfileImplemented(releasedGroup));
+  const released = resolvePistonOscillationFreeEffectiveConfig(releasedGroup, releasedDraft);
+  assert.equal(released.physicsConfig.internalDissipationMolarMassKgPerMol, gas === 'air' ? .02897 : .004002602, '6.5.3 keeps its internal dissipation after the preset upgrade');
+  assert.equal(released.parameters.equivalentLinearLossNsPerM, gas === 'air' ? .08636830285991312 : .3315636895362068);
+  assert.equal(released.parameters.thermalRelaxationTimeS, gas === 'air' ? .01527079271805452 : .009511893839427972);
+  assert.equal((gas === 'air' ? inferPistonOscillationRealAirProfileVersion : inferPistonOscillationRealHeliumProfileVersion)(releasedDraft), releasedVersion);
+  if (gas === 'air') assert.equal(released.parameters.recordingDurationS, .5);
 
   const oldVersion = gas === 'air' ? PISTON_OSCILLATION_REAL_AIR_PARAMETER_PROFILE_V10 : PISTON_OSCILLATION_REAL_HELIUM_PARAMETER_PROFILE_V7;
   const historicalDraft = getPistonOscillationStoredRealParameterBaseline(gas, oldVersion)!;

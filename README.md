@@ -4,9 +4,9 @@
 
 Gas Laws Lab is a Windows experiment workbench connecting 3D apparatus interaction, physical simulation, data acquisition, guided calculation and local reports. It covers hard-sphere molecular dynamics, ideal-gas relations, and air/helium heat-capacity-ratio experiments.
 
-**Current stable version: 6.5.3**
+**Current stable version: 6.5.4**
 
-[Download for Windows x64](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.3/heat-capacity-lab-setup-6.5.3.exe) · [Release notes and assets](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.3) · [Release verification](docs/releases/v6.5.3.md) · [Source Release](https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v6.5.3)
+[Download for Windows x64](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.4/heat-capacity-lab-setup-6.5.4.exe) · [Release notes and assets](https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.4) · [Release verification](docs/releases/v6.5.4.md) · [Source Release](https://github.com/yanshi-qibixunchang/gas-laws-lab-history/releases/tag/v6.5.4)
 
 ## Experiments
 
@@ -19,15 +19,15 @@ Gas Laws Lab is a Windows experiment workbench connecting 3D apparatus interacti
 
 Both heat-capacity methods support **air/helium**, **ideal/realistic conditions**, and Demo, Guide and Free modes. The interface supports Simplified Chinese, Traditional Chinese and English, with light and dark themes. The desktop app exports supported PDF reports, PDF/PNG figures, CSV files and data packages.
 
-## What changed in 6.5.3
+## What changed in 6.5.4
 
-- Realistic air and helium now include dynamic-pressure internal dissipation and matching gas heating alongside external heat transfer. Residual mechanical loss, thermal response, sensor response and tail disturbance presets are updated with nonzero active coefficients.
-- New experiments, full resets and restored defaults use the new profiles. Historical experiments retain their model versions, parameter snapshots and records. Known-volume and multi-height calculations remain compatible; third-party dependency versions are unchanged.
-- The fixed air comparison reaches waveform R² = 0.9589 over the first 100 ms, but peak and envelope errors remain above their limits; 4 of 16 held-out curves pass all four gates. Air passes the five operating conditions. The original helium batch has three failing rolling three-trial means and no measured waveform validation. These are accepted teaching presets, not a claim of complete apparatus calibration.
+- Adopts the accepted air and helium parameters for residual mechanical loss, heat transfer, sensor response and tail disturbance. Internal dissipation and external heat transfer remain active with nonzero coefficients. Demo and guided heights remain 70, 60 and 50 mm.
+- New experiments, full resets and restored defaults use 6.5.4. Saved experiments from 6.5.3 and earlier retain their model versions, parameter snapshots and recordings. Both volume calculation workflows remain compatible; dependency versions are unchanged.
+- Across 450 normal-operation results per gas at 70, 60 and 50 mm, air spans 1.346–1.568 with seven results outside 1.3400–1.4600; helium spans 1.662–1.668 within its proportionally scaled band. Only 4/16 held-out air waveforms meet all criteria; helium has no measured waveform validation. This is not a claim of full apparatus calibration.
 
 ## Install and upgrade
 
-Download the installer and follow its setup wizard. Users on **6.5.2 or earlier** can check for updates in the app or save and close the app before installing the full package into the existing location.
+Download the installer and follow its setup wizard. Users on **6.5.3 or earlier** can check for updates in the app or save and close the app before installing the full package into the existing location.
 
 The application identity and user-data location remain unchanged. Historical experiments retain their model and parameter snapshots, raw records and calculation progress; new experiments use current profiles. Existing migration rules still apply to older formats.
 

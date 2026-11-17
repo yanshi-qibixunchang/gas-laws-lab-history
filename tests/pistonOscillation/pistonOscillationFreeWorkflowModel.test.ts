@@ -437,12 +437,12 @@ assert.equal(
   PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION,
 );
 assert.equal(canRunPistonOscillationFreeExperiment(realAirSelection), true);
-assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.01527079271805452);
-assert.equal(realAirSelection.parameterDraft.sensorResponseTimeS, 0.003806723024139263);
+assert.equal(realAirSelection.parameterDraft.thermalRelaxationTimeS, 0.015089979178891986);
+assert.equal(realAirSelection.parameterDraft.sensorResponseTimeS, 0.0038427242396864543);
 const idealHeliumToAir = transitionPistonOscillationFreeSession(idealHeliumSelection, {
   type: 'setGasType', gasType: 'air', nowMs: 106.001,
 });
-assert.equal(idealHeliumToAir.parameterDraft.sensorResponseTimeS, 0.003806723024139263);
+assert.equal(idealHeliumToAir.parameterDraft.sensorResponseTimeS, 0.0038427242396864543);
 const priorAirProfile = PISTON_OSCILLATION_TAIL_CALIBRATED_REAL_AIR_PARAMETER_PROFILE_VERSION;
 const priorAirDraft = getPistonOscillationStoredRealParameterBaseline('air', priorAirProfile);
 assert.ok(priorAirDraft);
@@ -501,7 +501,7 @@ const upgradedAir = transitionPistonOscillationFreeSession(legacyAirAfterSchemeC
   type: 'restoreDefaultParameters', nowMs: 106.3,
 });
 assert.equal(upgradedAir.experimentGroup.parameterProfileVersion, PISTON_OSCILLATION_REAL_PARAMETER_PROFILE_VERSION);
-assert.equal(upgradedAir.parameterDraft.thermalVolumeExponent, 1.038097266483478);
+assert.equal(upgradedAir.parameterDraft.thermalVolumeExponent, 1.035946908448466);
 assert.equal(
   normalizePistonOscillationFreeSession(
     JSON.parse(JSON.stringify(idealHeliumSelection)),

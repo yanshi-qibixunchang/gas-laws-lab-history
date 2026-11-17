@@ -18,7 +18,7 @@ import { writeDissipationReport } from './renderPistonDissipationReport.ts';
 
 export type Gas = 'air' | 'helium';
 export type Scheme = 'ideal' | 'real';
-export const HEIGHTS = [70, 55, 40];
+export const HEIGHTS = [70, 60, 50];
 export const OPERATIONS = [
   { id: 'baseline', pressurePa: 123000, pressS: .75, holdS: 0 },
   { id: 'lower-pressure', pressurePa: 122000, pressS: .75, holdS: 0 },
@@ -178,7 +178,7 @@ export const runAcceptance = () => {
       suitableInvalid+=invalid;
     }
     add('suitable-real',[1.34,1.46],means,suitableInvalid);
-    const wrongSims=[60,55,40].map(h=>simulate(gas,'real',h));
+    const wrongSims=[60,60,50].map(h=>simulate(gas,'real',h));
     const wrongFit=fit(wrongSims.map((sim,i)=>observe(sim,1,HEIGHTS[i]!)));
     add('wrong-height',[1.34,1.46],wrongFit?[wrongFit.gamma]:[],0);
   }
