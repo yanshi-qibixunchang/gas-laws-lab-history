@@ -25,6 +25,7 @@ const options = parseArguments(process.argv.slice(2));
 const executablePath = path.resolve(options.executable ?? '');
 const evidenceDirectory = path.resolve(options['evidence-dir'] ?? '');
 const phase = options.phase;
+const shouldVerifyFirstRunRestart = options['verify-first-run-restart'] === 'true';
 const port = Number(options.port);
 const comparePath = options.compare ? path.resolve(options.compare) : null;
 const expectedUpdateVersion = options['expected-update-version'] ?? null;
@@ -188,6 +189,86 @@ const waitForEvaluation = async (client, expression, timeoutMilliseconds = 90_00
     await sleep(300);
   }
   throw new Error(`Timed out waiting for renderer state: ${lastError ?? expression}`);
+};
+
+const verifyFirstRunRestart = async (client, originalPageId) => {
+  const click = (target, label, prefix = false, index = 0, selector = 'button') =>
+    waitForEvaluation(target, `(() => {
+      const matches = [...document.querySelectorAll(${JSON.stringify(selector)})].filter((button) => {
+        const text = (button.getAttribute('aria-label') || button.innerText || '').trim();
+        const label = ${JSON.stringify(label)};
+        return button.getClientRects().length > 0 &&
+          (${prefix} ? text.startsWith(label) : text === label);
+      });
+      const button = matches[${index}];
+      if (!button || button.disabled) return false;
+      button.click();
+      return true;
+    })()`, 25_000);
+  const workbenchReady = "Boolean(document.querySelector('.studio-workbench[data-experiment-tutorial-active]')) && !document.querySelector('.app-startup-experience')";
+  const profile = "JSON.parse(localStorage.getItem('hsl_experience_profile_v1'))";
+  const create = async (target, name) => {
+    await click(target, '实验文件');
+    await click(target, '新建实验');
+    await click(target, name);
+  };
+  const restart = async () => {
+    await click(client, '设置');
+    await click(client, '通用', true);
+    await click(client, '重新开始首次引导', true);
+    await click(client, '保存并重新开始');
+    await waitForEvaluation(client, "document.querySelector('[data-first-run-mode=full]') && !document.querySelector('.app-startup-experience')", 30_000);
+    if (await evaluate(client, profile) !== null) throw new Error('The old experience profile survived.');
+  };
+  const completeSetup = async (pistonNeedsGuidance) => {
+    await click(client, '下一步');
+    await click(client, '下一步', false, 0, '[data-first-run-page=product] button');
+    await click(client, '是，我已了解', true, 0, '[role=radio]');
+    await click(client, pistonNeedsGuidance ? '否，我需要引导' : '是，我已了解', true, 1, '[role=radio]');
+    await click(client, '下一步');
+    await waitForEvaluation(client, `(() => {
+      const body = document.querySelector('.studio-build-notice-body');
+      if (!body) return false;
+      body.scrollTop = body.scrollHeight;
+      return true;
+    })()`, 15_000);
+    await click(client, '我已阅读并知悉');
+    await waitForEvaluation(client, workbenchReady, 30_000);
+    await waitForEvaluation(client, `${profile}?.learning?.pistonOscillation === ${JSON.stringify(pistonNeedsGuidance ? 'demo' : 'unlocked')}`);
+  };
+
+  const opened = await evaluate(client, 'window.hardSphereLabWindow.newWindow()');
+  if (opened.status !== 'ok') throw new Error('Could not open the peer workspace.');
+  const targets = await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();
+  const peerTarget = targets.find((target) => target.type === 'page' && target.id !== originalPageId);
+  if (!peerTarget) throw new Error('Could not locate the peer workspace.');
+  const peer = new CdpClient(peerTarget.webSocketDebuggerUrl);
+  await peer.connect();
+  try {
+    await waitForEvaluation(peer, workbenchReady, 30_000);
+    await create(peer, '标准模拟研究');
+    await waitForEvaluation(peer, "document.body.innerText.includes('Standard Simulation - 001')", 20_000);
+    await client.send('Page.bringToFront');
+    await restart();
+    await waitForEvaluation(peer, "document.querySelector('.studio-workbench[aria-busy=true]') && !document.querySelector('[data-first-run-mode]')", 20_000);
+    await completeSetup(true);
+    await waitForEvaluation(peer, "document.querySelector('.studio-workbench[aria-busy=false]') && document.body.innerText.includes('Standard Simulation - 001')", 20_000);
+    await evaluate(peer, 'window.hardSphereLabWindow.close()').catch((error) => {
+      if (!String(error).includes('CDP closed')) throw error;
+    });
+  } finally {
+    peer.close();
+  }
+
+  await create(client, '空气热容比（活塞振动法）');
+  await waitForEvaluation(client, "document.querySelector('[data-experiment-tutorial-active=true]')", 30_000);
+  await click(client, '我知道了');
+  await waitForEvaluation(client, "[...document.querySelectorAll('button')].some(button => button.getAttribute('aria-label') === '暂停演示' || button.innerText === '暂停演示')", 20_000);
+  await restart();
+  await completeSetup(false);
+  await waitForEvaluation(client, `document.body.innerText.includes(${JSON.stringify(workspaceFileName)})`, 20_000);
+  await waitForEvaluation(client, `(async () => !(await window.hardSphereLabTutorial.getState()).active)()`, 20_000);
+  return true;
 };
 
 const indexedDbSnapshotExpression = `
@@ -578,6 +659,9 @@ const run = async () => {
       }),
     };
 
+    if (shouldVerifyFirstRunRestart) {
+      checks.firstRunRestart = await verifyFirstRunRestart(client, target.id);
+    }
     const reportPath = path.join(evidenceDirectory, `${phase}-packaged-app.json`);
     const report = {
       generatedAt: new Date().toISOString(),

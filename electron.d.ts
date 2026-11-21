@@ -110,7 +110,7 @@ declare global {
 
   interface DesktopExitPersistenceRequest {
     requestId: string;
-    reason: 'custom-close' | 'window-close' | 'update-install';
+    reason: 'custom-close' | 'window-close' | 'update-install' | 'tutorial-lock' | 'first-run-restart';
   }
 
   interface DesktopExitPersistenceResult {
@@ -135,6 +135,8 @@ declare global {
         message?: string;
       }>;
       deactivate: () => Promise<{ status: 'ok' }>;
+      prepareFirstRunRestart: () => Promise<{ status: 'ok' | 'blocked' | 'error' }>;
+      finishFirstRunRestart: (completed: boolean) => Promise<{ status: 'ok' }>;
       getState: () => Promise<{ active: boolean; owner: boolean }>;
       exitApplication: () => Promise<{ status: 'ok' }>;
     };

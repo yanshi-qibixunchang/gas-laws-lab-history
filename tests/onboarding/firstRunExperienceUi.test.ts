@@ -302,13 +302,14 @@ assert.doesNotMatch(
 );
 assert.match(tutorialExperienceOverlaysSource, /data-first-run-language=\{settingsLanguagePreference\}[\s\S]*data-learning-overlay="product-intro"/);
 assert.match(settingsSource, /onReselectLearningNeeds/);
-assert.match(settingsSource, /showSimulateFirstRun \?/);
+assert.match(settingsSource, /onClick=\{onRestartFirstRun\}/);
+assert.doesNotMatch(settingsSource, /showSimulateFirstRun/);
 assert.match(archUseWorkbenchLifecyclePersistenceSource, /prepareDesktopExitQuiescenceRef\.current\(\)/);
 assert.match(tutorialOverlaySource, /prepareDesktopExitQuiescenceRef\.current\(false\)/);
 assert.match(archUseWorkbenchDesktopExitInputBlockSource, /if \(!desktopExitInputBlockedRef\.current\) return;/);
 assert.match(workbenchSource, /aria-busy=\{desktopExitInputBlocked\}/);
 assert.match(archUseWorkbenchLifecyclePersistenceSource, /resumeDesktopExitQuiescenceRef\.current\(\)/);
-assert.match(workbenchSource, /import\.meta\.env\.DEV/);
+assert.match(workbenchSource, /onRestartFirstRun=\{requestRestartFirstRun\}/);
 assert.match(tutorialOverlaySource, /APP_EXPERIENCE_PROFILE_STORAGE_KEY/);
 
 console.log('firstRunExperienceUi tests passed');

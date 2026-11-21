@@ -888,7 +888,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
 
   useWorkbenchFilesRefProjection(files, filesRef);
 
-  useWorkbenchTutorialLifecycle({ tutorialActiveRef, experienceProfileRef, setRemoteTutorialOwnerActive, tutorialOwnershipAdoptionRef, setTutorialOperationError, tutorialOwnershipClaimRef, tutorialOrdinaryWorkspaceRef, setExperienceProfile, experimentLearningChannelRef, setTutorialNoticeKind, filesRef, closedFilesRef, activeFileIdRef, selectedPanelRef, refreshTutorialOrdinaryWorkspaceFromPersistence, flushWorkspacePersistenceRef, initialTutorialEntryKind, EXPERIMENT_TUTORIAL_INSTANCE_ID, window, document, experienceProfile, tutorialNoticeKind, tutorialActive, initialTutorialHandoffRecovery, settingsLanguagePreference, tutorialNoticeKindRef });
+  const firstRunRestartInProgress = useRef(false);
+  useWorkbenchTutorialLifecycle({ firstRunRestartInProgress, tutorialActiveRef, experienceProfileRef, setRemoteTutorialOwnerActive, tutorialOwnershipAdoptionRef, setTutorialOperationError, tutorialOwnershipClaimRef, tutorialOrdinaryWorkspaceRef, setExperienceProfile, experimentLearningChannelRef, setTutorialNoticeKind, filesRef, closedFilesRef, activeFileIdRef, selectedPanelRef, refreshTutorialOrdinaryWorkspaceFromPersistence, flushWorkspacePersistenceRef, initialTutorialEntryKind, EXPERIMENT_TUTORIAL_INSTANCE_ID, window, document, experienceProfile, tutorialNoticeKind, tutorialActive, initialTutorialHandoffRecovery, settingsLanguagePreference, tutorialNoticeKindRef });
 
   useWorkbenchActiveFileProjection({ activeFileId, activeFileIdRef, initialHeatCapacityRefreshSession, disableHeatCapacityInitialSceneRestore: heatCapacityController.lifecycle.disableHeatCapacityInitialSceneRestore, heatCapacityRefreshRestorePendingRef, setSelectedFileId });
 
@@ -1208,11 +1209,17 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   });
   tutorialOwnershipAdoptionRef.current = adoptWorkbenchTutorialOwnership;
 
-  const { updateLearningNeedsAnswer, requestResetExperimentLearning, closeLearningExperienceOverlay, openProductIntroReplay, openLearningNeedsReselect, submitLearningNeedsReselect, requestSimulateFirstRun, requestExitExperimentLearningTutorial } = createWorkbenchTutorialOverlayActions({
+  const pendingLearningStartRef = useRef(false);
+  const { updateLearningNeedsAnswer, requestResetExperimentLearning, closeLearningExperienceOverlay, openProductIntroReplay, openLearningNeedsReselect, submitLearningNeedsReselect, requestRestartFirstRun, requestExitExperimentLearningTutorial } = createWorkbenchTutorialOverlayActions({
     experienceProfileRef, learningNeedsDraft, setProductIntroReplayPhase, setLearningNeedsReselectOpen, setLearningNeedsDraft, setTutorialOperationError, settingsLanguagePreference, guardWorkbenchTutorialAction, requestPromptConfirmation,
     startExperimentLearningTutorial: (...args) => startExperimentLearningTutorial(...args),
     exitExperimentLearningTutorial: () => exitExperimentLearningTutorial(),
-    commitExperienceProfile, prepareDesktopExitQuiescenceRef, resumeDesktopExitQuiescenceRef, flushWorkspacePersistenceRef, hideGeneralSettings, window, isDevelopment: import.meta.env.DEV,
+    commitExperienceProfile, prepareDesktopExitQuiescenceRef, resumeDesktopExitQuiescenceRef,
+    saveWorkspaceForFirstRunRestart: () => tutorialActiveRef.current || workspaceTourOnly
+      ? flushWorkspacePersistenceRef.current()
+      : persistWorkspaceLifecycleCheckpointRef.current(true),
+    canRestartFirstRun: () => !pendingLearningStartRef.current && !tutorialOwnershipAdoptionPendingRef.current,
+    firstRunRestartInProgress, hideGeneralSettings, window,
   });
 
   const { handleExperimentTutorialNoticeAction } = useWorkbenchTutorialProgress({
@@ -1304,7 +1311,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
   };
   const finishWorkspaceTourCreationHint = () => workspaceTourStep !== 'create'
     || changeWorkspaceTourStep('finished');
-  const pendingLearningStartRef = useRef(false);
   const createExperiment = (kind: WorkbenchFileKind) => {
     if (workspaceTourOnly || pendingLearningStartRef.current) return;
     if (!finishWorkspaceTourCreationHint()) return;
@@ -2565,8 +2571,8 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
             replayIntroHint: experimentTutorialCopy.replayIntroHint,
             reselectNeedsLabel: experimentTutorialCopy.reselectNeedsLabel,
             reselectNeedsHint: experimentTutorialCopy.reselectNeedsHint,
-            simulateFirstRunLabel: experimentTutorialCopy.simulateFirstRunLabel,
-            simulateFirstRunHint: experimentTutorialCopy.simulateFirstRunHint,
+            restartFirstRunLabel: experimentTutorialCopy.restartFirstRunLabel,
+            restartFirstRunHint: experimentTutorialCopy.restartFirstRunHint,
             resetDisabledHint: experimentTutorialCopy.resetDisabledHint,
             exitTutorialLabel: experimentTutorialCopy.exitTutorialLabel,
             exitTutorialHint: experimentTutorialCopy.exitTutorialHint,
@@ -2590,7 +2596,6 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
               onReset: () => requestResetExperimentLearning('pistonOscillation'),
             },
           ]}
-          showSimulateFirstRun={import.meta.env.DEV}
           onClose={closeGeneralSettings}
           onThemeChange={updateSettingsThemePreference}
           onLanguageChange={updateSettingsLanguagePreference}
@@ -2601,7 +2606,7 @@ const WorkbenchStudioPrototype: React.FC<WorkbenchStudioPrototypeProps> = ({
           onReplayProductIntro={openProductIntroReplay}
           onReselectLearningNeeds={openLearningNeedsReselect}
           onExitTutorial={requestExitExperimentLearningTutorial}
-          onSimulateFirstRun={requestSimulateFirstRun}
+          onRestartFirstRun={requestRestartFirstRun}
         />
 
         <WorkbenchLearningExperienceOverlays productIntroReplayPhase={productIntroReplayPhase} learningNeedsReselectOpen={learningNeedsReselectOpen} learningNeedsDraft={learningNeedsDraft} setProductIntroReplayPhase={setProductIntroReplayPhase} closeLearningExperienceOverlay={closeLearningExperienceOverlay} submitLearningNeedsReselect={submitLearningNeedsReselect} updateLearningNeedsAnswer={updateLearningNeedsAnswer} settingsLanguagePreference={settingsLanguagePreference} resolvedWorkbenchTheme={resolvedWorkbenchTheme} onboardingReducedMotion={onboardingReducedMotion} />

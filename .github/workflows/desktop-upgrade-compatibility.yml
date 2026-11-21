@@ -13,6 +13,11 @@ on:
         required: true
         default: 6.5.2
         type: string
+      verify_first_run_restart:
+        description: Verify the first-run restart in the upgraded app
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -141,6 +146,7 @@ jobs:
             --port 9334 `
             --evidence-dir $restartEvidence `
             --expected-free-session-version $freeSessionVersion `
+            --verify-first-run-restart '${{ inputs.verify_first_run_restart }}' `
             --compare (Join-Path $env:HSL_UPGRADE_EVIDENCE_ROOT 'verify-packaged-app.json')
 
       - name: Record the compatibility result

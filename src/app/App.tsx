@@ -76,6 +76,8 @@ function App() {
     language: WorkbenchLanguagePreference;
     theme: WorkbenchResolvedTheme;
   } | null>(null);
+  const waitingForFirstRunRestartRef = useRef(false);
+  const [suppressPeerWorkspaceTour, setSuppressPeerWorkspaceTour] = useState(false);
   const workbenchCloseRef = useRef<(() => void) | null>(null);
   const registerWorkbenchClose = useCallback((close: () => void) => {
     workbenchCloseRef.current = close;
@@ -117,13 +119,40 @@ function App() {
 
   useEffect(() => {
     const handleExperienceProfileStorage = (event: StorageEvent) => {
-      if (event.key !== APP_EXPERIENCE_PROFILE_STORAGE_KEY) return;
+      if (event.key !== APP_EXPERIENCE_PROFILE_STORAGE_KEY || waitingForFirstRunRestartRef.current) return;
       const nextLoad = loadAppExperienceProfile();
       setExperienceProfileLoad(nextLoad);
       setEntryMode(resolveFirstRunEntryMode(nextLoad));
     };
     window.addEventListener('storage', handleExperienceProfileStorage);
     return () => window.removeEventListener('storage', handleExperienceProfileStorage);
+  }, []);
+
+  useEffect(() => {
+    const desktop = window.hardSphereLabWindow;
+    const unsubscribePrepare = desktop?.onPrepareExit?.(({ reason }) => {
+      if (reason === 'first-run-restart') waitingForFirstRunRestartRef.current = true;
+    });
+    const unsubscribeResume = desktop?.onResumeAfterExitCancel?.(({ reason }) => {
+      if (!waitingForFirstRunRestartRef.current || !reason.startsWith('first-run-restart-')) return;
+      waitingForFirstRunRestartRef.current = false;
+      const nextLoad = loadAppExperienceProfile();
+      if (reason !== 'first-run-restart-completed') {
+        if (nextLoad.status === 'missing') {
+          setExperienceProfileLoad(nextLoad);
+          setEntryMode('full');
+        }
+        return;
+      }
+      // Only the window that started the reset presents the first-run tour.
+      setSuppressPeerWorkspaceTour(true);
+      setExperienceProfileLoad(nextLoad);
+      setGeneralSettings(loadWorkbenchGeneralSettingsWithStatus().settings);
+    });
+    return () => {
+      unsubscribePrepare?.();
+      unsubscribeResume?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -201,6 +230,9 @@ function App() {
         : generalSettings.language;
       const nextSettings = { ...generalSettings, language: committedLanguage };
       persistWorkbenchGeneralSettings(nextSettings);
+      if (entryMode === 'full') {
+        await window.hardSphereLabTutorial?.finishFirstRunRestart?.(true);
+      }
       setGeneralSettings(nextSettings);
       const nextLoad: ExperienceProfileLoadResult = {
         status: 'loaded',
@@ -240,7 +272,9 @@ function App() {
   const resolvedWorkbenchTheme = generalSettings.theme === 'system'
     ? getSystemWorkbenchTheme()
     : generalSettings.theme;
-  const workspaceTourStep = experienceProfileLoad.profile.workspaceTourStep;
+  const workspaceTourStep = suppressPeerWorkspaceTour
+    ? 'not-needed'
+    : experienceProfileLoad.profile.workspaceTourStep;
   const workspaceTourOnly = isWorkspaceTourFileStep(workspaceTourStep);
   const closeDesktopWindow = () => {
     if (entryMode !== 'workbench') {

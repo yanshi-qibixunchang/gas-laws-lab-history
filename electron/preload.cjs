@@ -36,6 +36,8 @@ contextBridge.exposeInMainWorld('hardSphereLabTutorial', {
     namespaces,
   ),
   deactivate: () => ipcRenderer.invoke('hsl-tutorial:deactivate'),
+  prepareFirstRunRestart: () => ipcRenderer.invoke('hsl-tutorial:prepare-first-run-restart'),
+  finishFirstRunRestart: (completed) => ipcRenderer.invoke('hsl-tutorial:finish-first-run-restart', completed),
   getState: () => ipcRenderer.invoke('hsl-tutorial:get-state'),
   exitApplication: () => ipcRenderer.invoke('hsl-tutorial:exit-application'),
 });

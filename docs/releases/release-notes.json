@@ -3,6 +3,60 @@
   "app": "hard-sphere-lab",
   "releases": [
     {
+      "version": "6.5.5",
+      "date": "2026-11-21",
+      "channel": "stable",
+      "download": {
+        "releasePage": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/tag/v6.5.5",
+        "windowsInstaller": "https://github.com/yanshi-qibixunchang/gas-laws-lab-release/releases/download/v6.5.5/heat-capacity-lab-setup-6.5.5.exe"
+      },
+      "summary": {
+        "zh-CN": "6.5.5 是参赛演示版本，支持在设置中重新开始首次引导，便于重复进行现场展示。",
+        "zh-TW": "6.5.5 是參賽示範版本，支援從設定重新開始首次引導，方便重複進行現場展示。",
+        "en": "6.5.5 is the competition demonstration release. Restart first-run setup from Settings for repeat live demonstrations."
+      },
+      "sections": [
+        {
+          "type": "improved",
+          "title": {
+            "zh-CN": "本次更新",
+            "zh-TW": "本次更新",
+            "en": "Changes"
+          },
+          "items": [
+            {
+              "scope": "restart-first-run",
+              "importance": "high",
+              "title": {
+                "zh-CN": "重新开始首次引导",
+                "zh-TW": "重新開始首次引導",
+                "en": "Restart first-run setup"
+              },
+              "body": {
+                "zh-CN": "在设置 → 通用 → 学习与引导可重新选择语言、观看软件介绍、选择学习路径并确认第三方声明。实验教程进行中也可直接重开。",
+                "zh-TW": "在設定 → 一般 → 學習與引導可重新選擇語言、觀看軟體介紹、選擇學習路徑及確認第三方聲明。實驗教學進行中也可直接重開。",
+                "en": "Open Settings → General → Learning and guidance to choose a language, replay the introduction, choose learning paths, and review the third-party notices. You can restart during an experiment tutorial."
+              }
+            },
+            {
+              "scope": "preserve-demo-workspace",
+              "importance": "high",
+              "title": {
+                "zh-CN": "保留实验与设置",
+                "zh-TW": "保留實驗與設定",
+                "en": "Preserve experiments and settings"
+              },
+              "body": {
+                "zh-CN": "确认重开后，软件先保存实验工作区，再重置首次引导、声明确认和学习进度。现有实验、采集记录和常规设置会保留。正常升级会沿用已完成的首次引导。",
+                "zh-TW": "確認重開後，軟體先儲存實驗工作區，再重設首次引導、聲明確認及學習進度。既有實驗、擷取記錄與一般設定會保留。正常升級會沿用已完成的首次引導。",
+                "en": "The app saves the workspace before resetting first-run setup, consent and learning progress. Existing experiments, recordings and general settings are retained. A normal upgrade preserves completed onboarding."
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "version": "6.5.4",
       "date": "2026-11-17",
       "channel": "stable",

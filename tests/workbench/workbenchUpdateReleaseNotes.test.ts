@@ -75,11 +75,11 @@ const findRelease = (version: string) => releaseNotes.releases?.find((release) =
 assert.equal(releaseNotes.schemaVersion, 1, 'release notes should declare schema version 1');
 assert.equal(releaseNotes.app, 'hard-sphere-lab', 'release notes should be scoped to this app');
 assert.ok(Array.isArray(releaseNotes.releases) && releaseNotes.releases.length > 0, 'release notes should contain releases');
-assert.equal(packageJson.version, '6.5.4', 'desktop release should use the authorized version');
-assert.match(readme, /Current stable version: 6\.5\.4/, 'English README should identify the stable release');
-assert.match(readmeZhCn, /当前正式版：6\.5\.4/, 'Simplified Chinese README should identify the stable release');
-assert.match(readmeZhTw, /目前正式版：6\.5\.4/, 'Traditional Chinese README should identify the stable release');
-assert.match(buildNoticeZhCn, /当前项目版本：6\.5\.4（正式版）。/, 'the reviewed build notice should identify the approved stable release');
+assert.equal(packageJson.version, '6.5.5', 'desktop release should use the authorized version');
+assert.match(readme, /Current stable version: 6\.5\.5/, 'English README should identify the stable release');
+assert.match(readmeZhCn, /当前正式版：6\.5\.5/, 'Simplified Chinese README should identify the stable release');
+assert.match(readmeZhTw, /目前正式版：6\.5\.5/, 'Traditional Chinese README should identify the stable release');
+assert.match(buildNoticeZhCn, /当前项目版本：6\.5\.5（正式版）。/, 'the reviewed build notice should identify the approved stable release');
 
 const currentRelease = findRelease(packageJson.version ?? '');
 assert.equal(releaseNotes.releases[0]?.version, packageJson.version, 'latest release notes entry should match package.json version');
@@ -99,10 +99,14 @@ assert.equal(
 );
 const currentItems = currentRelease.sections?.flatMap((section) => section.items ?? []) ?? [];
 assert.equal(currentRelease.channel, 'stable');
-for (const scope of ['real-piston-retuned-presets', 'profile-history']) {
-  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'), `6.5.4 release notes should explain ${scope}`);
+assert.match(currentRelease.summary?.['zh-CN'] ?? '', /参赛演示版本/);
+for (const scope of ['restart-first-run', 'preserve-demo-workspace']) {
+  assert.ok(currentItems.some(item => item.scope === scope && item.importance === 'high'), `6.5.5 release notes should explain ${scope}`);
 }
-assert.ok(currentItems.some(item => item.scope === 'validation-boundaries'));
+const previousPresetItems = findRelease('6.5.4')?.sections?.flatMap(section => section.items ?? []) ?? [];
+for (const scope of ['real-piston-retuned-presets', 'profile-history', 'validation-boundaries']) {
+  assert.ok(previousPresetItems.some(item => item.scope === scope), `historical 6.5.4 notes should retain ${scope}`);
+}
 const previousVolumeItems = findRelease('6.5.2')?.sections?.flatMap(section => section.items ?? []) ?? [];
 for (const scope of ['known-volume-direct', 'free-plan-and-volume-control', 'real-air-duration', 'direct-results-and-provenance']) {
   assert.ok(previousVolumeItems.some(item => item.scope === scope), `historical 6.5.2 notes should retain ${scope}`);
@@ -352,7 +356,7 @@ assert.equal(
 
 const firstRelease = releaseNotes.releases[0];
 assert.match(firstRelease.version ?? '', /^\d+\.\d+\.\d+$/, 'release versions should not include a leading v');
-assert.equal(firstRelease.channel, 'stable', 'the approved 6.5.4 release must use the stable update channel');
+assert.equal(firstRelease.channel, 'stable', 'the approved 6.5.5 release must use the stable update channel');
 assert.match(
   firstRelease.download?.releasePage ?? '',
   /^https:\/\/github\.com\/yanshi-qibixunchang\/(?:hard-sphere-lab-1|gas-laws-lab-release)\/releases\/tag\/v\d+\.\d+\.\d+$/,

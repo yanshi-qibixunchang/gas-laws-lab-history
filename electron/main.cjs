@@ -65,6 +65,8 @@ let updateDownloadInProgress = false;
 let activeDownloadAttempt = null;
 let workbenchWindowRegistry = null;
 let activeTutorialWindowId = null;
+let tutorialActivationPending = false;
+let firstRunRestart = null;
 let pendingTutorialArchivedNamespaces = [];
 let pendingTutorialArchivedWindowIds = [];
 const updaterOperationCoordinator = createUpdaterOperationCoordinator();
@@ -651,7 +653,7 @@ const createMainWindow = async (options = {}) => {
 };
 
 ipcMain.handle('hsl-window:new', async () => {
-  if (activeTutorialWindowId !== null) {
+  if (activeTutorialWindowId !== null || firstRunRestart) {
     return {
       status: 'error',
       message: 'Complete the current learning flow before opening another workbench window.',
@@ -664,6 +666,7 @@ ipcMain.handle('hsl-window:new', async () => {
     }
     await workbenchWindowRegistry.add(namespace);
     try {
+      if (firstRunRestart) throw new Error('Complete first-run setup before opening another workbench window.');
       await createMainWindow({ fresh: true, namespace });
     } catch (error) {
       await workbenchWindowRegistry.remove(namespace);
@@ -730,12 +733,62 @@ const clearPendingTutorialArchive = (resumeReason = null) => {
   pendingTutorialArchivedWindowIds = [];
 };
 
+const finishFirstRunRestart = (operation, completed) => {
+  if (operation !== firstRunRestart) return;
+  firstRunRestart = null;
+  operation.owner.removeListener('closed', operation.cancel);
+  operation.contents.removeListener('render-process-gone', operation.cancel);
+  if (completed && activeTutorialWindowId === operation.owner.id) {
+    activeTutorialWindowId = null;
+  }
+  exitPersistenceCoordinator.resumeWindowsAfterExitCancellation(
+    operation.peers,
+    completed ? 'first-run-restart-completed' : 'first-run-restart-cancelled',
+  );
+};
+
+ipcMain.handle('hsl-tutorial:prepare-first-run-restart', async (event) => {
+  const owner = getDesktopWindowFromEvent(event);
+  if (!owner || owner.isDestroyed()) return { status: 'error' };
+  if (firstRunRestart || tutorialActivationPending || pendingTutorialArchivedWindowIds.length ||
+      (activeTutorialWindowId !== null && activeTutorialWindowId !== owner.id)) {
+    return { status: 'blocked' };
+  }
+  const peers = BrowserWindow.getAllWindows().filter((window) => window !== owner && !window.isDestroyed());
+  const operation = {
+    owner,
+    contents: owner.webContents,
+    peers,
+    cancel: () => finishFirstRunRestart(operation, false),
+  };
+  firstRunRestart = operation;
+  owner.once('closed', operation.cancel);
+  operation.contents.once('render-process-gone', operation.cancel);
+  for (const peer of peers) {
+    const persistence = await exitPersistenceCoordinator.requestWindowPersistence(peer, 'first-run-restart');
+    if (operation !== firstRunRestart) return { status: 'error' };
+    if (!persistence.saved && !peer.isDestroyed()) {
+      finishFirstRunRestart(operation, false);
+      return { status: 'error' };
+    }
+  }
+  return { status: 'ok' };
+});
+
+ipcMain.handle('hsl-tutorial:finish-first-run-restart', (event, completed) => {
+  if (firstRunRestart && firstRunRestart.owner === getDesktopWindowFromEvent(event)) {
+    finishFirstRunRestart(firstRunRestart, completed === true);
+  }
+  return { status: 'ok' };
+});
+
 ipcMain.handle('hsl-tutorial:activate', async (event) => {
   const ownerWindow = getDesktopWindowFromEvent(event);
   if (!ownerWindow || ownerWindow.isDestroyed()) {
     return { status: 'error', message: 'Tutorial owner window is unavailable.' };
   }
-  if (activeTutorialWindowId !== null && activeTutorialWindowId !== ownerWindow.id) {
+  if (firstRunRestart || tutorialActivationPending ||
+      (activeTutorialWindowId !== null && activeTutorialWindowId !== ownerWindow.id)) {
     return { status: 'blocked', message: 'The learning flow is already active in another window.' };
   }
   if (activeTutorialWindowId === ownerWindow.id) {
@@ -744,10 +797,11 @@ ipcMain.handle('hsl-tutorial:activate', async (event) => {
   const otherWindows = BrowserWindow.getAllWindows().filter((window) => (
     !window.isDestroyed() && window.id !== ownerWindow.id
   ));
+  tutorialActivationPending = true;
   const persistence = await exitPersistenceCoordinator.prepareWindowsForExit(
     otherWindows,
     'tutorial-lock',
-  );
+  ).finally(() => { tutorialActivationPending = false; });
   if (!persistence.proceed) {
     return { status: 'error', message: 'Another workbench window could not be saved safely.' };
   }

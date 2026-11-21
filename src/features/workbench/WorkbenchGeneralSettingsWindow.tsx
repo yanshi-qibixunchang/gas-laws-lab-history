@@ -1,4 +1,4 @@
-import { BookOpen, ChevronDown, ListChecks, LogOut, RotateCcw, TestTube2 } from 'lucide-react';
+import { BookOpen, ChevronDown, ListChecks, LogOut, RotateCcw } from 'lucide-react';
 import type { CSSProperties, RefObject } from 'react';
 import { PromptDialogShell } from '../../components/prompts/PromptDialogShell.tsx';
 import { HEAT_CAPACITY_QUALITY_MODE_ORDER } from '../heatCapacity/heatCapacityQualityProfiles.ts';
@@ -58,8 +58,8 @@ interface WorkbenchGeneralSettingsWindowProps {
     replayIntroHint: string;
     reselectNeedsLabel: string;
     reselectNeedsHint: string;
-    simulateFirstRunLabel: string;
-    simulateFirstRunHint: string;
+    restartFirstRunLabel: string;
+    restartFirstRunHint: string;
     resetDisabledHint: string;
     exitTutorialLabel: string;
     exitTutorialHint: string;
@@ -71,7 +71,6 @@ interface WorkbenchGeneralSettingsWindowProps {
     hint: string;
     onReset: () => void;
   }>;
-  showSimulateFirstRun: boolean;
   onClose: () => void;
   onThemeChange: (theme: WorkbenchThemePreference) => void;
   onLanguageChange: (language: WorkbenchLanguagePreference) => void;
@@ -82,7 +81,7 @@ interface WorkbenchGeneralSettingsWindowProps {
   onReplayProductIntro: () => void;
   onReselectLearningNeeds: () => void;
   onExitTutorial: () => void;
-  onSimulateFirstRun: () => void;
+  onRestartFirstRun: () => void;
 }
 
 const WorkbenchAudioVolumeIcon = ({ level }: { level: WorkbenchAudioVolumeIconLevel }) => (
@@ -116,7 +115,6 @@ export const WorkbenchGeneralSettingsWindow = ({
   learningCopy,
   tutorialActive,
   resetLearningActions,
-  showSimulateFirstRun,
   onClose,
   onThemeChange,
   onLanguageChange,
@@ -127,7 +125,7 @@ export const WorkbenchGeneralSettingsWindow = ({
   onReplayProductIntro,
   onReselectLearningNeeds,
   onExitTutorial,
-  onSimulateFirstRun,
+  onRestartFirstRun,
 }: WorkbenchGeneralSettingsWindowProps) => {
   if (!open) return null;
 
@@ -352,20 +350,17 @@ export const WorkbenchGeneralSettingsWindow = ({
                   </span>
                 </button>
               ))}
-              {showSimulateFirstRun ? (
-                <button
-                  type="button"
-                  className="studio-settings-learning-action"
-                  disabled={tutorialActive}
-                  onClick={onSimulateFirstRun}
-                >
-                  <TestTube2 size={15} />
-                  <span>
-                    <strong>{learningCopy.simulateFirstRunLabel}</strong>
-                    <small>{tutorialActive ? learningCopy.resetDisabledHint : learningCopy.simulateFirstRunHint}</small>
-                  </span>
-                </button>
-              ) : null}
+              <button
+                type="button"
+                className="studio-settings-learning-action"
+                onClick={onRestartFirstRun}
+              >
+                <RotateCcw size={15} />
+                <span>
+                  <strong>{learningCopy.restartFirstRunLabel}</strong>
+                  <small>{learningCopy.restartFirstRunHint}</small>
+                </span>
+              </button>
             </div>
           </section>
 

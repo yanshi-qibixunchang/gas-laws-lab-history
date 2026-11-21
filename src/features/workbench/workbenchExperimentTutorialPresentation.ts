@@ -17,11 +17,14 @@ export const EXPERIMENT_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
   replayIntroHint: string;
   reselectNeedsLabel: string;
   reselectNeedsHint: string;
-  simulateFirstRunLabel: string;
-  simulateFirstRunHint: string;
-  simulateFirstRunTitle: string;
-  simulateFirstRunBody: string;
-  confirmSimulateFirstRun: string;
+  restartFirstRunLabel: string;
+  restartFirstRunHint: string;
+  restartFirstRunTitle: string;
+  restartFirstRunBody: string;
+  confirmRestartFirstRun: string;
+  restartFirstRunConsequence: string;
+  restartFirstRunSaveError: string;
+  restartFirstRunBusyError: string;
   resetLabel: string;
   resetHint: string;
   resetDisabledHint: string;
@@ -64,11 +67,14 @@ export const EXPERIMENT_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
     replayIntroHint: '只播放欢迎动画和产品卡片，不改变许可与学习进度',
     reselectNeedsLabel: '重新选择学习需求',
     reselectNeedsHint: '分别确认两个实验是否需要逐步引导',
-    simulateFirstRunLabel: '模拟首次启动',
-    simulateFirstRunHint: '仅开发预览可见；保留实验文件并在刷新后重走首次流程',
-    simulateFirstRunTitle: '模拟一次全新的首次启动？',
-    simulateFirstRunBody: '当前实验文件会先安全保存；首次流程、许可确认和学习状态将被清除。',
-    confirmSimulateFirstRun: '保存并重新启动',
+    restartFirstRunLabel: '重新开始首次引导',
+    restartFirstRunHint: '重新观看软件介绍、选择学习路径并确认第三方声明',
+    restartFirstRunTitle: '重新开始首次引导？',
+    restartFirstRunBody: '首次引导、第三方声明确认和学习进度将重置。当前实验教程也会结束。',
+    restartFirstRunConsequence: '现有实验文件、采集记录和常规设置会保留。',
+    restartFirstRunSaveError: '工作区未能安全保存，请重试。',
+    restartFirstRunBusyError: '学习流程正在切换。请等待切换完成后重试。',
+    confirmRestartFirstRun: '保存并重新开始',
     resetLabel: '重置绝热膨胀学习进度',
     resetHint: '重新体验演示、引导与全部模式解锁流程',
     resetDisabledHint: '当前正在进行实验学习流程',
@@ -111,11 +117,14 @@ export const EXPERIMENT_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
     replayIntroHint: '只播放歡迎動畫與產品卡片，不變更授權與學習進度',
     reselectNeedsLabel: '重新選擇學習需求',
     reselectNeedsHint: '分別確認兩個實驗是否需要逐步引導',
-    simulateFirstRunLabel: '模擬首次啟動',
-    simulateFirstRunHint: '僅開發預覽可見；保留實驗檔案並於重新整理後重走首次流程',
-    simulateFirstRunTitle: '模擬一次全新的首次啟動？',
-    simulateFirstRunBody: '目前實驗檔案會先安全儲存；首次流程、授權確認與學習狀態將被清除。',
-    confirmSimulateFirstRun: '儲存並重新啟動',
+    restartFirstRunLabel: '重新開始首次引導',
+    restartFirstRunHint: '重新觀看軟體介紹、選擇學習路徑並確認第三方聲明',
+    restartFirstRunTitle: '重新開始首次引導？',
+    restartFirstRunBody: '首次引導、第三方聲明確認及學習進度將重設。目前的實驗教學也會結束。',
+    restartFirstRunConsequence: '現有實驗檔案、擷取記錄與一般設定會保留。',
+    restartFirstRunSaveError: '工作區未能安全儲存，請重試。',
+    restartFirstRunBusyError: '學習流程正在切換。請等待切換完成後重試。',
+    confirmRestartFirstRun: '儲存並重新開始',
     resetLabel: '重設絕熱膨脹學習進度',
     resetHint: '重新體驗演示、引導與全部模式解鎖流程',
     resetDisabledHint: '目前正在進行實驗學習流程',
@@ -158,11 +167,14 @@ export const EXPERIMENT_TUTORIAL_COPY: Record<WorkbenchLanguagePreference, {
     replayIntroHint: 'Play only the welcome and product cards without changing consent or progress',
     reselectNeedsLabel: 'Reselect learning needs',
     reselectNeedsHint: 'Choose guided learning separately for both experiments',
-    simulateFirstRunLabel: 'Simulate first launch',
-    simulateFirstRunHint: 'Development preview only; keep experiment files and replay first setup after reload',
-    simulateFirstRunTitle: 'Simulate a completely new first launch?',
-    simulateFirstRunBody: 'Experiment files will be saved first. First-run, consent, and learning state will then be cleared.',
-    confirmSimulateFirstRun: 'Save and restart',
+    restartFirstRunLabel: 'Restart first-run setup',
+    restartFirstRunHint: 'Replay the introduction, choose learning paths, and review the third-party notices',
+    restartFirstRunTitle: 'Restart first-run setup?',
+    restartFirstRunBody: 'First-run setup, consent, and learning progress will reset. Any current experiment tutorial will end.',
+    restartFirstRunConsequence: 'Existing experiment files, recordings, and general settings will be kept.',
+    restartFirstRunSaveError: 'The workspace could not be saved safely. Please try again.',
+    restartFirstRunBusyError: 'A learning flow is changing. Wait until it finishes and try again.',
+    confirmRestartFirstRun: 'Save and restart',
     resetLabel: 'Reset adiabatic-expansion learning progress',
     resetHint: 'Replay the Demo, Guide, and full-mode unlock sequence',
     resetDisabledHint: 'An experiment learning flow is currently active',

@@ -17,10 +17,11 @@ export type WorkbenchTutorialOverlayPorts = Pick<ReturnType<typeof useWorkbenchT
   commitExperienceProfile: (profile: AppExperienceProfile) => boolean;
   prepareDesktopExitQuiescenceRef: { current: (blockInput?: boolean) => void };
   resumeDesktopExitQuiescenceRef: { current: () => void };
-  flushWorkspacePersistenceRef: { current: () => Promise<boolean> };
+  saveWorkspaceForFirstRunRestart: () => Promise<boolean>;
+  canRestartFirstRun: () => boolean;
+  firstRunRestartInProgress: { current: boolean };
   hideGeneralSettings: () => void;
   window: Window;
-  isDevelopment: boolean;
 };
 export const createWorkbenchTutorialOverlayActions = ({
   experienceProfileRef,
@@ -37,10 +38,11 @@ export const createWorkbenchTutorialOverlayActions = ({
   commitExperienceProfile,
   prepareDesktopExitQuiescenceRef,
   resumeDesktopExitQuiescenceRef,
-  flushWorkspacePersistenceRef,
+  saveWorkspaceForFirstRunRestart,
+  canRestartFirstRun,
+  firstRunRestartInProgress,
   hideGeneralSettings,
   window,
-  isDevelopment
 }: WorkbenchTutorialOverlayPorts) => {
   const updateLearningNeedsAnswer = (experiment: ExperimentLearningId, answer: ExperimentFamiliarityAnswer) => {
     setLearningNeedsDraft((current) => ({ ...current, [experiment]: answer }));
@@ -136,51 +138,56 @@ export const createWorkbenchTutorialOverlayActions = ({
       },
     });
   };
-  const requestSimulateFirstRun = () => {
-    if (!isDevelopment || !guardWorkbenchTutorialAction('reset-learning')) return;
+  const requestRestartFirstRun = () => {
     const copy = EXPERIMENT_TUTORIAL_COPY[settingsLanguagePreference];
+    const restart = async () => {
+      if (firstRunRestartInProgress.current) return;
+      if (!canRestartFirstRun()) {
+        setTutorialOperationError({ message: copy.restartFirstRunBusyError, retry: () => { void restart(); } });
+        return;
+      }
+      firstRunRestartInProgress.current = true;
+      const desktop = window.hardSphereLabTutorial;
+      let desktopPrepared = false;
+      try {
+        hideGeneralSettings();
+        prepareDesktopExitQuiescenceRef.current();
+        if (!await saveWorkspaceForFirstRunRestart()) throw new Error(copy.restartFirstRunSaveError);
+        if (desktop?.prepareFirstRunRestart) {
+          const result = await desktop.prepareFirstRunRestart();
+          if (result.status !== 'ok') throw new Error(
+            result.status === 'blocked' ? copy.restartFirstRunBusyError : copy.restartFirstRunSaveError,
+          );
+          desktopPrepared = true;
+        }
+        const storage = window.localStorage;
+        const handoff = clearExperimentTutorialHandoff(storage);
+        if (!handoff.ok) throw handoff.error;
+        // The reset becomes visible to other windows only after all saves have completed.
+        storage.removeItem(APP_EXPERIENCE_PROFILE_STORAGE_KEY);
+        // Remount from the verified on-disk checkpoint, including newly saved experiments.
+        window.location.reload();
+      } catch (cause) {
+        if (desktopPrepared) await desktop?.finishFirstRunRestart(false).catch(() => undefined);
+        firstRunRestartInProgress.current = false;
+        resumeDesktopExitQuiescenceRef.current();
+        setTutorialOperationError({
+          message: cause instanceof Error ? cause.message : String(cause),
+          retry: () => { void restart(); },
+        });
+      }
+    };
     requestPromptConfirmation({
-      id: 'simulate-first-run-experience',
+      id: 'restart-first-run-experience',
       tone: 'warning',
-      eyebrow: copy.resetEyebrow,
-      title: copy.simulateFirstRunTitle,
-      body: copy.simulateFirstRunBody,
-      consequence: copy.resetConsequence,
+      eyebrow: copy.settingsTitle,
+      title: copy.restartFirstRunTitle,
+      body: copy.restartFirstRunBody,
+      consequence: copy.restartFirstRunConsequence,
       cancelLabel: copy.cancel,
-      confirmLabel: copy.confirmSimulateFirstRun,
+      confirmLabel: copy.confirmRestartFirstRun,
       closeLabel: copy.cancel,
-      onConfirm: () => {
-        const simulate = async () => {
-          hideGeneralSettings();
-          prepareDesktopExitQuiescenceRef.current();
-          const saved = await flushWorkspacePersistenceRef.current();
-          if (!saved) {
-            resumeDesktopExitQuiescenceRef.current();
-            setTutorialOperationError({
-              message: settingsLanguagePreference === 'en'
-                ? 'The current workspace could not be saved. First-run state was not changed.'
-                : settingsLanguagePreference === 'zh-TW'
-                  ? '目前工作區無法安全儲存，首次啟動狀態尚未變更。'
-                  : '当前工作区无法安全保存，首次启动状态尚未变更。',
-              retry: () => { void simulate(); },
-            });
-            return;
-          }
-          try {
-            window.localStorage.removeItem(APP_EXPERIENCE_PROFILE_STORAGE_KEY);
-            const handoffClear = clearExperimentTutorialHandoff(window.localStorage);
-            if (handoffClear.ok === false) throw handoffClear.error;
-            window.location.reload();
-          } catch (cause) {
-            resumeDesktopExitQuiescenceRef.current();
-            setTutorialOperationError({
-              message: cause instanceof Error ? cause.message : String(cause),
-              retry: () => { void simulate(); },
-            });
-          }
-        };
-        void simulate();
-      },
+      onConfirm: () => { void restart(); },
     });
   };
   const requestExitExperimentLearningTutorial = () => {
@@ -232,5 +239,5 @@ export const createWorkbenchTutorialOverlayActions = ({
       onConfirm: () => { void exitExperimentLearningTutorial(); },
     });
   };
-  return { updateLearningNeedsAnswer, requestResetExperimentLearning, closeLearningExperienceOverlay, openProductIntroReplay, openLearningNeedsReselect, submitLearningNeedsReselect, requestSimulateFirstRun, requestExitExperimentLearningTutorial };
+  return { updateLearningNeedsAnswer, requestResetExperimentLearning, closeLearningExperienceOverlay, openProductIntroReplay, openLearningNeedsReselect, submitLearningNeedsReselect, requestRestartFirstRun, requestExitExperimentLearningTutorial };
 };
