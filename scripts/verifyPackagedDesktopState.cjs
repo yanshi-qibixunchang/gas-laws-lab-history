@@ -205,7 +205,10 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
       button.click();
       return true;
     })()`, 25_000);
-  const workbenchReady = "Boolean(document.querySelector('.studio-workbench[data-experiment-tutorial-active]')) && !document.querySelector('.app-startup-experience')";
+  // A hosted background window can finish storage bootstrap before Chromium
+  // paints the startup animation. The desktop UI is also exercised in a foreground window.
+  const storageReady = "(!document.querySelector('.app-startup-experience') || Boolean(document.querySelector('[data-app-startup-stage=complete]')))";
+  const workbenchReady = `Boolean(document.querySelector('.studio-workbench[data-experiment-tutorial-active]')) && ${storageReady}`;
   const profile = "JSON.parse(localStorage.getItem('hsl_experience_profile_v1'))";
   const create = async (target, name) => {
     await click(target, '实验文件');
@@ -225,7 +228,7 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
     await click(client, '重新开始首次引导', true);
     await click(client, '保存并重新开始');
     try {
-      await waitForEvaluation(client, "document.querySelector('[data-first-run-mode=full]') && !document.querySelector('.app-startup-experience')");
+      await waitForEvaluation(client, `Boolean(document.querySelector('[data-first-run-mode=full]')) && ${storageReady}`);
     } catch (error) {
       console.error('First-run restart state:', JSON.stringify(await describeWindow(client)));
       if (peer) console.error('Peer workspace state:', JSON.stringify(await describeWindow(peer)));
@@ -261,6 +264,7 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
     await waitForEvaluation(peer, workbenchReady, 30_000);
     await create(peer, '标准模拟研究');
     await waitForEvaluation(peer, "document.body.innerText.includes('Standard Simulation - 001')", 20_000);
+    await evaluate(peer, 'window.hardSphereLabWindow.minimize()');
     await client.send('Page.bringToFront');
     await restart(peer);
     await waitForEvaluation(peer, "document.querySelector('.studio-workbench[aria-busy=true]') && !document.querySelector('[data-first-run-mode]')", 20_000);
