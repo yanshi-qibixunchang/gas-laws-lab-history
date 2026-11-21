@@ -237,7 +237,10 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
     if (await evaluate(client, profile) !== null) throw new Error('The old experience profile survived.');
   };
   const completeSetup = async (pistonNeedsGuidance) => {
-    await click(client, '下一步');
+    // The seeded older profile can lack a separate language preference.
+    // Select Simplified Chinese explicitly on an English Windows runner.
+    await click(client, '简体中文', true, 0, '[data-first-run-page=language] [role=radio]');
+    await click(client, '下一步', false, 0, '[data-first-run-page=language] button');
     await click(client, '下一步', false, 0, '[data-first-run-page=product] button');
     await click(client, '是，我已了解', true, 0, '[role=radio]');
     await click(client, pistonNeedsGuidance ? '否，我需要引导' : '是，我已了解', true, 1, '[role=radio]');
