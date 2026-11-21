@@ -212,12 +212,25 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
     await click(target, '新建实验');
     await click(target, name);
   };
-  const restart = async () => {
+  const describeWindow = (target) => evaluate(target, `({
+    mode: document.querySelector('[data-first-run-mode]')?.getAttribute('data-first-run-mode'),
+    startup: document.querySelector('.app-startup-experience')?.getAttribute('data-app-startup-stage'),
+    busy: document.querySelector('.studio-workbench[data-experiment-tutorial-active]')?.getAttribute('aria-busy'),
+    prompts: [...document.querySelectorAll('[role=dialog], [role=alertdialog]')].map(el => el.innerText).join(' | ').slice(0, 1500),
+    accepted: JSON.parse(localStorage.getItem('hsl_experience_profile_v1'))?.firstRunCompleted ?? false,
+  })`);
+  const restart = async (peer) => {
     await click(client, '设置');
     await click(client, '通用', true);
     await click(client, '重新开始首次引导', true);
     await click(client, '保存并重新开始');
-    await waitForEvaluation(client, "document.querySelector('[data-first-run-mode=full]') && !document.querySelector('.app-startup-experience')", 30_000);
+    try {
+      await waitForEvaluation(client, "document.querySelector('[data-first-run-mode=full]') && !document.querySelector('.app-startup-experience')");
+    } catch (error) {
+      console.error('First-run restart state:', JSON.stringify(await describeWindow(client)));
+      if (peer) console.error('Peer workspace state:', JSON.stringify(await describeWindow(peer)));
+      throw error;
+    }
     if (await evaluate(client, profile) !== null) throw new Error('The old experience profile survived.');
   };
   const completeSetup = async (pistonNeedsGuidance) => {
@@ -249,7 +262,7 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
     await create(peer, '标准模拟研究');
     await waitForEvaluation(peer, "document.body.innerText.includes('Standard Simulation - 001')", 20_000);
     await client.send('Page.bringToFront');
-    await restart();
+    await restart(peer);
     await waitForEvaluation(peer, "document.querySelector('.studio-workbench[aria-busy=true]') && !document.querySelector('[data-first-run-mode]')", 20_000);
     await completeSetup(true);
     await waitForEvaluation(peer, "document.querySelector('.studio-workbench[aria-busy=false]') && document.body.innerText.includes('Standard Simulation - 001')", 20_000);
