@@ -281,7 +281,7 @@ const verifyFirstRunRestart = async (client, originalPageId) => {
   }
 
   await create(client, '空气热容比（活塞振动法）');
-  await waitForEvaluation(client, "document.querySelector('[data-experiment-tutorial-active=true]')", 30_000);
+  await waitForEvaluation(client, "Boolean(document.querySelector('[data-experiment-tutorial-active=true]'))", 30_000);
   await click(client, '我知道了');
   await waitForEvaluation(client, "[...document.querySelectorAll('button')].some(button => button.getAttribute('aria-label') === '暂停演示' || button.innerText === '暂停演示')", 20_000);
   await restart();
